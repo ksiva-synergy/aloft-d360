@@ -1,0 +1,145 @@
+{
+  "_comment": "Three rules. Daily change-detect runs with --sweep. Weekly full profile adds --kind t1_profile. Weekly estate inventory runs --kind estate_inventory. All use tsx entry point (not compiled dist) and AssignPublicIp=ENABLED (subnets have no NAT gateway).",
+
+  "change_detect_daily": {
+    "Name": "aloft-context-harvester-daily",
+    "Description": "Trigger change_detect sweep daily at 04:00 UTC",
+    "ScheduleExpression": "cron(0 4 * * ? *)",
+    "State": "ENABLED",
+    "Target": {
+      "Id": "context-harvester-daily",
+      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
+      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-03ee2945ebdafd883",
+              "subnet-0a6a530408b9e906a"
+            ],
+            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--sweep\"]}]}"
+    }
+  },
+
+  "t1_profile_weekly": {
+    "Name": "aloft-context-harvester-weekly",
+    "Description": "Trigger full T1 profile sweep weekly on Sunday at 03:00 UTC",
+    "ScheduleExpression": "cron(0 3 ? * SUN *)",
+    "State": "ENABLED",
+    "Target": {
+      "Id": "context-harvester-weekly",
+      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
+      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-03ee2945ebdafd883",
+              "subnet-0a6a530408b9e906a"
+            ],
+            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--kind\",\"t1_profile\"]}]}"
+    }
+  },
+
+  "estate_inventory_weekly": {
+    "Name": "aloft-estate-inventory-weekly",
+    "Description": "Trigger estate re-inventory weekly on Monday at 06:00 UTC",
+    "ScheduleExpression": "cron(0 6 ? * MON *)",
+    "State": "ENABLED",
+    "Target": {
+      "Id": "estate-inventory-weekly",
+      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
+      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-03ee2945ebdafd883",
+              "subnet-0a6a530408b9e906a"
+            ],
+            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--kind\",\"estate_inventory\"]}]}"
+    }
+  },
+
+  "t4_semantic_weekly": {
+    "_deploy_note": "Included in apply-eventbridge.ps1 foreach loop — runs automatically with the other context-harvester rules.",
+    "Name": "aloft-t4-semantic-bootstrap-weekly",
+    "Description": "T4 semantic bootstrap — weekly scan for new/changed T2 objects. Runs Sunday 08:00 UTC (5hr buffer after T1 profile at 03:00 UTC).",
+    "ScheduleExpression": "cron(0 8 ? * SUN *)",
+    "State": "ENABLED",
+    "Target": {
+      "Id": "t4-semantic-weekly",
+      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
+      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-03ee2945ebdafd883",
+              "subnet-0a6a530408b9e906a"
+            ],
+            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--kind\",\"t4_scan\"]}]}"
+    }
+  },
+
+  "t3_usage_weekly": {
+    "_deploy_note": "Register with: aws events put-rule --name aloft-t3-usage-weekly --schedule-expression 'cron(0 5 ? * 7 *)' --state ENABLED --region ap-south-1 && aws events put-targets --rule aloft-t3-usage-weekly --region ap-south-1 --targets '[{\"Id\":\"t3-usage-weekly\",\"Arn\":\"arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod\",\"RoleArn\":\"arn:aws:iam::454073573537:role/ecsTaskExecutionRole\",\"EcsParameters\":{\"TaskDefinitionArn\":\"arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester\",\"TaskCount\":1,\"LaunchType\":\"FARGATE\",\"NetworkConfiguration\":{\"awsvpcConfiguration\":{\"Subnets\":[\"subnet-03ee2945ebdafd883\",\"subnet-0a6a530408b9e906a\"],\"SecurityGroups\":[\"sg-04f5d2b63c1efd690\"],\"AssignPublicIp\":\"ENABLED\"}}},\"Input\":\"{\\\"containerOverrides\\\":[{\\\"name\\\":\\\"context-harvester\\\",\\\"command\\\":[\\\"npx\\\",\\\"tsx\\\",\\\"--require\\\",\\\"./scripts/context/noserver.cjs\\\",\\\"scripts/context/orchestrator.ts\\\",\\\"--kind\\\",\\\"t3_usage\\\"]}]}\"}]'",
+    "Name": "aloft-t3-usage-weekly",
+    "Description": "Weekly T3 usage harvest (query history + lineage scan)",
+    "ScheduleExpression": "cron(0 5 ? * 7 *)",
+    "State": "ENABLED",
+    "Target": {
+      "Id": "t3-usage-weekly",
+      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
+      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "EcsParameters": {
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "awsvpcConfiguration": {
+            "Subnets": [
+              "subnet-03ee2945ebdafd883",
+              "subnet-0a6a530408b9e906a"
+            ],
+            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "AssignPublicIp": "ENABLED"
+          }
+        }
+      },
+      "Input": "{\"containerOverrides\":[{\"name\":\"context-harvester\",\"command\":[\"npx\",\"tsx\",\"--require\",\"./scripts/context/noserver.cjs\",\"scripts/context/orchestrator.ts\",\"--kind\",\"t3_usage\"]}]}"
+    }
+  }
+}

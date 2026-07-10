@@ -14,11 +14,80 @@ loaded port plan. Created during Phase 3 (Memory / FOER port).
   the stub is contract-identical to the real file. Memory only exercises
   `embed.ts`'s `embedQuery()` path, which never touches the queue, so the stub is
   never hit at runtime on Memory's paths.
-  When restoring the real 724-line `queue.ts` in Phase 4: it is a **pure file
-  replacement with zero type delta**. **Verify no type errors after the swap — if
-  the swap produces type errors, the Phase 3 stub signatures drifted from source**
-  and must be reconciled. Restoring the real file also pulls in `@aws-sdk/client-ecs`
-  (not added in Phase 3).
+  When restoring the real 724-line `queue.ts` in Phase 4 it also pulls in
+  `@aws-sdk/client-ecs` (not added in Phase 3; added pinned to source's resolved
+  `3.1045.0`, no caret).
+
+  **Step 0 queue.ts swap verified: byte-identical to source (md5 match), no
+  signature-type (TS2xxx) errors — stub signatures did NOT drift. The two TS2307
+  'Cannot find module' errors (./silo, ./mapping) are the real queue.ts's own
+  context/ sibling dependencies, invisible to a signature-level stub, and are
+  resolved by the Step 1 context/ bulk copy — not a defect.**
+
+- **Step 1 bulk copy — DONE, build green (exit 0).** Copied verbatim (byte-parity
+  verified): `src/lib/context/` (31 files), `src/lib/databricks/` (6),
+  `src/app/api/agent-lab/context/` (44 routes), `src/components/estate/` (48),
+  `src/app/(agent)/agent-lab/estate/` (9). All 20 dynamic bracket routes
+  hash-verified identical to source; `next build` compiles + type-checks + lints
+  clean, 19/19 static pages. 8 new npm deps added pinned (no caret):
+  `@aws-sdk/client-cloudwatch-logs@3.1068.0`, `@aws-sdk/client-secrets-manager@3.1063.0`,
+  `@xyflow/react@12.10.2`, `cron-parser@5.5.0`, `dagre@0.8.5` (+ `@types/dagre@0.7.54` dev),
+  `sonner@2.0.7`, `uuid@14.0.0`, `minimatch@3.1.5`.
+  - **`uuid@14` added WITHOUT `@types/uuid`.** uuid@14 ships its own types
+    (`"types": "./dist/index.d.ts"`); source's `@types/uuid@9` is a stale-major
+    mismatch — deliberately omitted, build confirms TS is happy. Do NOT re-add it.
+  - **`minimatch@3.1.5` declared EXPLICITLY in d360 — this improves on a verbatim
+    copy.** A Phase 4 file imports `minimatch`, but it is **undeclared even in
+    source's package.json** (source resolves it only via a hoisted transitive
+    copy). Copying that verbatim would make d360 strictly more fragile than source
+    (a lockfile regen / hoist change could vanish it). Declared explicitly at the
+    version source currently resolves. **This is a real latent bug in SOURCE —
+    flag upstream to the source repo owners to declare it there.**
+
+- **VERIFIED-vs-UNVERIFIED split (read this before trusting "Phase 4: green").**
+  **Phase 4 read paths live-verified (estate browse / Aurora); Databricks-execute,
+  ECS-dispatch, CloudWatch, Secrets Manager compile-green but UNVERIFIED pending
+  creds/cluster.** Green here means "Data Estate compiles and its routes resolve,"
+  NOT "the harvest pipeline runs." The build proved 138 files typecheck + 19 static
+  pages generate; it did NOT exercise the credentialed paths, which are the feature's
+  core value and a large surface:
+  - **Live-verified (read half):** `listEstateObjects`-equivalent read against real
+    Aurora returned real data — org `spinor-demo`, 2 sources, 2,323
+    `platform_context_objects`, 17,214 `platform_estate_objects`, sample rows
+    `lifecycle=active`. Read layer (Prisma → Aurora) is wired, not just compiled.
+    (`@xyflow/react/dist/style.css` side-effect import resolved in the production
+    build; a visual eyeball of the dagre+xyflow relationship graph is deferred to
+    the credentialed pass since it's auth-gated and needs harvested link data.)
+  - **Compile-green but DARK (need creds/cluster):** Databricks execute
+    (`databricks/execute.ts`, `token-client.ts`), ECS Fargate dispatch
+    (`queue.ts` / `dispatch.ts` with the real `ECSClient`), CloudWatch Logs,
+    Secrets Manager. These get a REAL verification gate (not a formality) when creds
+    are provisioned — likely alongside **Phase 5**, which shares the Databricks
+    connection. Do NOT read "Phase 4 committed" as "the write/harvest/dispatch
+    pipeline works."
+
+- **Phase 4 pre-seeded three PARTIAL subtrees that later phases own. Each later
+  phase's blast-radius audit MUST treat these files as bucket B (already present),
+  confirm byte-match, and NOT re-copy / fork them** (same shape as Phase 3 creating
+  `context/embed.ts` which Phase 4 reused):
+  - **`src/lib/semantic/governance.ts`** — semantic layer is **Phase 5** territory.
+    Phase 4 created `src/lib/semantic/` with this ONE file (leaf: cuid2 +
+    @prisma/client + @/lib/db, all present; only `writeAuditRow` used, by 2 context
+    routes). **Phase 5 must treat governance.ts as present, confirm byte-match, not
+    fork**, and copy the other 6 semantic/ files (compiler, context-builder, errors,
+    execute, metric-views, types).
+  - **`src/lib/knowledge/` (2 of 8 files)** — copied only `chunker.ts` (zero-import
+    leaf) + `embed.ts` (leaf, only dep is @aws-sdk/client-bedrock-runtime, present).
+    The other 6 (bindings, data-scoring, health, scoring-api, scoring, sources) were
+    NOT copied. **NB: `knowledge/embed.ts` is a DISTINCT module from `context/embed.ts`**
+    — disjoint exports (`embedText`/`embeddingToSql` vs `embedQuery`/`runEmbedJob`);
+    they must never be merged.
+  - **`infra/context/eventbridge-rule.json` (1 of 4 files)** — FIRST file copied
+    outside `src/`. Repo-root path preserved (schedules.ts imports it via
+    `../../../infra/context/...`). The other 3 (`deploy-notes.md`,
+    `secrets-policy.json`, `task-definition.json`) are NOT referenced by Phase 4 and
+    were left. **`infra/` is now a tree this migration touches — audit it in future
+    phases, don't assume everything lives under `src/`.**
 
 ---
 
