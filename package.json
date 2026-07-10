@@ -2,19 +2,36 @@
   "name": "aloft-d360",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "next dev",
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0"
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0",
+    "db:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
+    "db:validate": "prisma validate --schema=./prisma/schema.prisma"
   },
   "dependencies": {
+    "@aloft/shared": "*",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/inter-tight": "^5.2.7",
     "@fontsource/source-serif-4": "^5.2.9",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^0.344.0",
     "next": "^15.5.9",
+    "next-auth": "^4.24.5",
+    "next-themes": "^0.4.6",
+    "prisma": "^5.22.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^18.2.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.5",

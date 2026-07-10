@@ -1,0 +1,64 @@
+{
+  "name": "@aloft/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./components/ui/*": {
+      "types": "./dist/components/ui/*.d.ts",
+      "import": "./dist/components/ui/*.mjs",
+      "require": "./dist/components/ui/*.js"
+    },
+    "./lib/utils": {
+      "types": "./dist/lib/utils.d.ts",
+      "import": "./dist/lib/utils.mjs",
+      "require": "./dist/lib/utils.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0"
+  },
+  "dependencies": {
+    "class-variance-authority": "*",
+    "clsx": "*",
+    "tailwind-merge": "*",
+    "lucide-react": "*",
+    "@radix-ui/react-accordion": "*",
+    "@radix-ui/react-alert-dialog": "*",
+    "@radix-ui/react-checkbox": "*",
+    "@radix-ui/react-dialog": "*",
+    "@radix-ui/react-dropdown-menu": "*",
+    "@radix-ui/react-label": "*",
+    "@radix-ui/react-popover": "*",
+    "@radix-ui/react-progress": "*",
+    "@radix-ui/react-radio-group": "*",
+    "@radix-ui/react-scroll-area": "*",
+    "@radix-ui/react-select": "*",
+    "@radix-ui/react-separator": "*",
+    "@radix-ui/react-slider": "*",
+    "@radix-ui/react-slot": "*",
+    "@radix-ui/react-switch": "*",
+    "@radix-ui/react-tabs": "*",
+    "@radix-ui/react-toast": "*",
+    "@radix-ui/react-tooltip": "*"
+  }
+}

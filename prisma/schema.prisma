@@ -1,0 +1,2635 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../node_modules/.prisma/client"
+  previewFeatures = ["postgresqlExtensions"]
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+model User {
+  id                               String                             @id @default(cuid())
+  email                            String                             @unique
+  name                             String?
+  passwordHash                     String
+  role                             Role                               @default(USER)
+  lastSeenAt                       DateTime?
+  createdAt                        DateTime                           @default(now())
+  updatedAt                        DateTime                           @updatedAt
+  loginEvents                      LoginEvent[]
+  profile                          UserProfile?
+  platform_dashboard_collaborators platform_dashboard_collaborators[]
+}
+
+model UserProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  lastLoginAt   DateTime?
+  lastLoginIp   String?
+  loginCount    Int       @default(0)
+  isActive      Boolean   @default(true)
+  deactivatedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model LoginEvent {
+  id            String   @id @default(cuid())
+  userId        String?
+  email         String
+  ipAddress     String?
+  userAgent     String?
+  success       Boolean
+  failureReason String?
+  createdAt     DateTime @default(now())
+  user          User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+}
+
+model agent_catalog {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  slug              String?
+  type              String?
+  description       String?
+  version           String?
+  config            Json?     @default("{}")
+  tools             Json?     @default("[]")
+  input_schema      Json?     @default("{}")
+  output_schema     Json?     @default("{}")
+  bus_subscriptions Json?     @default("[]")
+  bus_publications  Json?     @default("[]")
+  tags              String[]  @default([])
+  status            String?   @default("draft")
+  author            String?
+  parent_id         String?   @db.Uuid
+  is_head           Boolean?  @default(false)
+  draft_of_id       String?   @db.Uuid
+  owner_id          String?   @db.Uuid
+  reviewers         Json?     @default("[]")
+  policy_ids        String[]  @default([])
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([slug], map: "idx_agent_catalog_slug")
+  @@index([status], map: "idx_agent_catalog_status")
+  @@index([type], map: "idx_agent_catalog_type")
+  @@index([parent_id], map: "idx_agent_catalog_parent")
+  @@index([updated_at(sort: Desc)], map: "idx_agent_catalog_updated")
+  @@map("agent_catalog")
+}
+
+model bus_contract_catalog {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String
+  slug                String?
+  schema_ref          String?
+  message_type        String?   @default("REQUEST")
+  sender_agent_type   String?
+  receiver_agent_type String?
+  priority            String?   @default("NORMAL")
+  ttl_ms              Int?
+  payload_schema_id   String?   @db.Uuid
+  version             String?   @default("1.0.0")
+  description         String?
+  author              String?
+  status              String?   @default("draft")
+  tags                String[]  @default([])
+  created_at          DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([slug], map: "idx_bus_contract_catalog_slug")
+  @@index([status], map: "idx_bus_contract_catalog_status")
+  @@index([updated_at(sort: Desc)], map: "idx_bus_contract_catalog_updated")
+  @@map("bus_contract_catalog")
+}
+
+model prompt_templates {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  source      String?
+  category    String?
+  difficulty  String?
+  template    String?
+  variables   Json?     @default("[]")
+  tags        String[]  @default([])
+  rating      Float?    @default(0)
+  use_count   Int?      @default(0)
+  is_active   Boolean?  @default(true)
+  description String?
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([is_active, rating(sort: Desc)], map: "idx_prompt_templates_active_rating")
+  @@index([category], map: "idx_prompt_templates_category")
+  @@index([source], map: "idx_prompt_templates_source")
+  @@map("prompt_templates")
+}
+
+model workbench_sessions {
+  id                       String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                  String?
+  title                    String?
+  messages                 Json?                         @default("[]")
+  attached_tools           Json?                         @default("[]")
+  attached_schemas         Json?                         @default("[]")
+  attached_agents          Json?                         @default("[]")
+  draft                    Json?
+  artifact_type            String?                       @default("agent")
+  artifact_draft           Json?
+  pinned                   Boolean?                      @default(false)
+  progress                 Json?
+  saved_agent_id           String?                       @db.Uuid
+  parent_session_id        String?                       @db.Uuid
+  branch_point_message_idx Int?
+  created_at               DateTime?                     @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime?                     @default(now()) @db.Timestamptz(6)
+  message_count            Int?                          @default(0)
+  last_message             String?
+  construction_state       Json?
+  modality                 String?
+  readiness                String?
+  surface                  String?
+  context_mode             String?
+  interaction_events       platform_interaction_events[]
+  studio_results           studio_query_results[]
+
+  @@index([user_id, updated_at(sort: Desc)], map: "idx_workbench_sessions_user")
+  @@index([user_id, artifact_type], map: "idx_workbench_sessions_user_type")
+  @@index([pinned], map: "idx_workbench_sessions_pinned")
+  @@map("workbench_sessions")
+}
+
+model studio_query_results {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id          String             @db.Uuid
+  seq                 Int
+  sql                 String
+  columns             Json
+  rows                Json
+  row_count           Int
+  truncated           Boolean            @default(false)
+  profiles            Json?
+  specs               Json?
+  created_at          DateTime           @default(now()) @db.Timestamptz(6)
+  chart_overrides     Json?
+  active_result_index Int?
+  insights            studio_insights?
+  session             workbench_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, seq])
+  @@index([session_id], map: "idx_studio_qr_session")
+  @@map("studio_query_results")
+}
+
+model studio_insights {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  result_id      String               @unique @db.Uuid
+  session_id     String               @db.Uuid
+  insights       Json
+  prompt_version String               @default("insights_v1")
+  model          String?
+  input_tokens   Int?
+  output_tokens  Int?
+  cost_usd       Decimal?             @db.Decimal(10, 6)
+  duration_ms    Int?
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  result         studio_query_results @relation(fields: [result_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id], map: "idx_studio_insights_session")
+  @@map("studio_insights")
+}
+
+model bus_module_catalog {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  slug          String?
+  topic_pattern String?
+  description   String?
+  config        Json?     @default("{}")
+  tags          String[]  @default([])
+  status        String?   @default("active")
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([slug], map: "idx_bus_module_catalog_slug")
+  @@index([status], map: "idx_bus_module_catalog_status")
+  @@index([updated_at(sort: Desc)], map: "idx_bus_module_catalog_updated")
+  @@map("bus_module_catalog")
+}
+
+model catalog_review_comments {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  catalog_type     String?
+  catalog_entry_id String?   @db.Uuid
+  author           String?
+  body             String?
+  status           String?   @default("comment")
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([catalog_entry_id], map: "idx_catalog_review_entry")
+  @@index([catalog_type, catalog_entry_id], map: "idx_catalog_review_type_entry")
+  @@map("catalog_review_comments")
+}
+
+model prompt_catalog {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  slug              String?
+  template          String?
+  variables         Json?     @default("[]")
+  few_shot_examples Json?     @default("[]")
+  eval_criteria     Json?     @default("[]")
+  version           String?
+  parent_version_id String?   @db.Uuid
+  linked_agent_ids  String[]  @default([])
+  author            String?
+  status            String?   @default("draft")
+  tags              String[]  @default([])
+  token_estimate    Int?
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime? @default(now()) @db.Timestamptz(6)
+  source            String?
+  use_case_tag      String?
+  class_affinity    String[]  @default([])
+  license           String?
+
+  @@index([slug], map: "idx_prompt_catalog_slug")
+  @@index([status], map: "idx_prompt_catalog_status")
+  @@index([linked_agent_ids], map: "idx_prompt_catalog_agents")
+  @@index([created_at(sort: Desc)], map: "idx_prompt_catalog_created")
+  @@index([source, use_case_tag], map: "idx_prompt_catalog_source_tag")
+  @@map("prompt_catalog")
+}
+
+model platform_prompt_patterns {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  when_to_use    String?
+  structure      String?
+  anti_patterns  String?
+  eval_signal    String?
+  class_affinity String[]  @default([])
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@map("platform_prompt_patterns")
+}
+
+model schema_catalog {
+  id             String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  slug           String?
+  schema         Json?                       @default("{}")
+  description    String?
+  tags           String[]                    @default([])
+  status         String?                     @default("active")
+  created_at     DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime?                   @default(now()) @db.Timestamptz(6)
+  owner          String?
+  schemaVersions agent_lab_schema_versions[]
+
+  @@index([slug], map: "idx_schema_catalog_slug")
+  @@index([status], map: "idx_schema_catalog_status")
+  @@index([updated_at(sort: Desc)], map: "idx_schema_catalog_updated")
+  @@map("schema_catalog")
+}
+
+model tool_catalog {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  slug          String?
+  type          String?
+  description   String?
+  config        Json?     @default("{}")
+  tags          String[]  @default([])
+  status        String?   @default("active")
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  author        String?
+  input_schema  Json?
+  output_schema Json?
+  version       String?
+  tier          String?   @default("local")
+  owner         String?
+
+  @@index([slug], map: "idx_tool_catalog_slug")
+  @@index([status], map: "idx_tool_catalog_status")
+  @@index([type], map: "idx_tool_catalog_type")
+  @@index([tier], map: "idx_tool_catalog_tier")
+  @@index([updated_at(sort: Desc)], map: "idx_tool_catalog_updated")
+  @@map("tool_catalog")
+}
+
+model agent_eval_run {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  eval_set_id   String?
+  agent_version String?
+  pass_rate     Float?
+  mean_cost     Decimal?  @db.Decimal(10, 6)
+  mean_latency  Int?
+  status        String?   @default("pending")
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([eval_set_id], map: "idx_agent_eval_run_eval_set")
+  @@index([created_at(sort: Desc)], map: "idx_agent_eval_run_created")
+  @@map("agent_eval_run")
+}
+
+model agent_eval_set {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  agent_ref   String?
+  description String?
+  cases       Json?     @default("[]")
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_ref], map: "idx_agent_eval_set_agent_ref")
+  @@index([created_at(sort: Desc)], map: "idx_agent_eval_set_created")
+  @@map("agent_eval_set")
+}
+
+model agent_run_log {
+  id            String    @id @default(cuid())
+  agentName     String
+  agentVersion  String?
+  vesselName    String?
+  triggeredBy   String?
+  inputSummary  String?
+  outputSummary String?
+  costUsd       Float?
+  errorMessage  String?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model agent_cost_log {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_name    String
+  agent_version String?
+  pipeline_id   String?
+  run_id        String?
+  vessel_name   String?
+  cost_usd      Decimal   @default(0) @db.Decimal(12, 6)
+  input_tokens  Int?      @default(0)
+  output_tokens Int?      @default(0)
+  tool_calls    Int?      @default(0)
+  model         String?
+  duration_ms   Int?
+  status        String?   @default("success")
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_name], map: "idx_agent_cost_log_agent")
+  @@index([created_at(sort: Desc)], map: "idx_agent_cost_log_created")
+  @@map("agent_cost_log")
+}
+
+model tool_invocation_log {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id      String?
+  run_id          String?
+  loop            Int
+  tool_name       String
+  tool_catalog_id String?
+  input           Json?
+  output          Json?
+  duration_ms     Int
+  status          String   @default("success")
+  error           String?
+  model           String?
+  input_tokens    Int?     @default(0)
+  output_tokens   Int?     @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id], map: "idx_tool_invoc_session")
+  @@index([tool_name], map: "idx_tool_invoc_name")
+  @@index([created_at(sort: Desc)], map: "idx_tool_invoc_created")
+  @@index([status], map: "idx_tool_invoc_status")
+  @@map("tool_invocation_log")
+}
+
+model budget_config {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope         String?   @default("global")
+  budget_amount Decimal?  @default(2400) @db.Decimal(12, 2)
+  alert_pct     Int?      @default(80)
+  alert_email   String?
+  auto_heal     Boolean?  @default(false)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([scope], map: "idx_budget_config_scope")
+  @@map("budget_config")
+}
+
+model deployment_record {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pipeline_id   String?
+  env_id        String?
+  pipeline_def  Json?     @default("{}")
+  catalog_pins  Json?     @default("{}")
+  status        String?   @default("pending")
+  promoted_by   String?
+  promote_gates Json?     @default("{}")
+  traffic_pct   Int?      @default(100)
+  promoted_at   DateTime? @db.Timestamptz(6)
+  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([env_id, status], map: "idx_deployment_record_env_status")
+  @@index([created_at(sort: Desc)], map: "idx_deployment_record_created")
+  @@map("deployment_record")
+}
+
+model healing_rule {
+  id            String   @id @default(cuid())
+  name          String
+  autonomy      String   @default("supervised")
+  scope         String   @default("global")
+  scope_id      String?
+  triggerConfig Json
+  actionConfig  Json
+  fireCount     Int      @default(0)
+  enabled       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model hitl_interrupt {
+  id            String    @id @default(cuid())
+  runId         String
+  agentName     String
+  interruptType String
+  summary       String?
+  slaDeadline   DateTime?
+  resolution    Json?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model policy_entry {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  slug        String?
+  type        String?
+  scope       String?
+  scope_id    String?
+  config      Json?     @default("{}")
+  enforcement String?   @default("warn")
+  status      String?   @default("active")
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([type, scope], map: "idx_policy_entry_type_scope")
+  @@index([status], map: "idx_policy_entry_status")
+  @@map("policy_entry")
+}
+
+model environment {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([name], map: "idx_environment_name")
+  @@map("environment")
+}
+
+model healing_incident {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_name String?
+  rule_name  String?
+  status     String?   @default("open")
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([status], map: "idx_healing_incident_status")
+  @@index([created_at(sort: Desc)], map: "idx_healing_incident_created")
+  @@map("healing_incident")
+}
+
+model agent_lab_config_versions {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sheet_id       String
+  version_name   String
+  system_prompt  String    @default("")
+  max_iterations Int?      @default(15)
+  max_retries    Int?      @default(3)
+  model          String?
+  temperature    Float?
+  metadata       Json?     @default("{}")
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([sheet_id], map: "idx_config_versions_sheet_id")
+}
+
+model agent_lab_definitions {
+  agent_id       String    @id
+  display_name   String
+  input_schemas  String[]  @default([])
+  output_schemas String[]  @default([])
+  max_retries    Int?      @default(3)
+  timeout_ms     Int?      @default(60000)
+  config_version String?
+  metadata       Json?     @default("{}")
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  model_id       String?   @default("gpt-4o")
+  tools_enabled  String[]  @default([])
+  description    String?   @default("")
+  retry_policy   Json?     @default("{}")
+}
+
+model agent_lab_golden_sets {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sheet_id   String
+  name       String
+  data       Json      @default("[]")
+  row_count  Int?      @default(0)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([sheet_id], map: "idx_golden_sets_sheet_id")
+}
+
+model agent_lab_messages {
+  message_id               String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pipeline_run_id          String                  @db.Uuid
+  sender_agent_id          String
+  receiver_agent_id        String
+  message_type             String                  @default("request")
+  schema_ref               String?
+  payload                  Json                    @default("{}")
+  correlation_id           String?                 @db.Uuid
+  parent_message_id        String?                 @db.Uuid
+  ttl_ms                   Int?
+  priority                 Int?                    @default(0)
+  metadata                 Json?                   @default("{}")
+  created_at               DateTime?               @default(now()) @db.Timestamptz(6)
+  schema_valid             Boolean?
+  agent_lab_messages       agent_lab_messages?     @relation("agent_lab_messagesToagent_lab_messages", fields: [parent_message_id], references: [message_id], onDelete: NoAction, onUpdate: NoAction)
+  other_agent_lab_messages agent_lab_messages[]    @relation("agent_lab_messagesToagent_lab_messages")
+  agent_lab_pipeline_runs  agent_lab_pipeline_runs @relation(fields: [pipeline_run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([correlation_id], map: "idx_messages_correlation")
+  @@index([pipeline_run_id], map: "idx_messages_pipeline_run")
+  @@index([receiver_agent_id], map: "idx_messages_receiver")
+  @@index([sender_agent_id], map: "idx_messages_sender")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agent_lab_outcomes {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id            String
+  run_id            String?
+  agent_id          String
+  sheet_type        String
+  outcome_type      String
+  field_name        String?
+  expected_value    String?
+  actual_value      String?
+  is_correct        Boolean?
+  correction_source String?
+  model_used        String?
+  prompt_version    String?
+  tool_name         String?
+  duration_ms       Int?
+  token_count       Int?
+  quality_score     Float?
+  row_count         Int?
+  metadata          Json     @default("{}")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id, sheet_type], map: "idx_outcomes_agent_sheet")
+  @@index([created_at(sort: Desc)], map: "idx_outcomes_created")
+  @@index([job_id], map: "idx_outcomes_job")
+  @@index([model_used], map: "idx_outcomes_model")
+  @@index([outcome_type], map: "idx_outcomes_type")
+}
+
+model agent_lab_pipeline_defs {
+  id               String    @id
+  name             String
+  version          String?   @default("v1")
+  graph            Json      @default("{}")
+  lifecycle_status String?   @default("draft")
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+model agent_lab_pipeline_runs {
+  run_id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pipeline_def_id    String
+  status             String               @default("pending")
+  input_file         String?
+  shared_context     Json?                @default("{}")
+  total_tokens       Int?                 @default(0)
+  total_cost_usd     Decimal?             @default(0) @db.Decimal(10, 6)
+  started_at         DateTime?            @default(now()) @db.Timestamptz(6)
+  completed_at       DateTime?            @db.Timestamptz(6)
+  agent_states       Json?                @default("{}")
+  total_messages     Int?                 @default(0)
+  config_snapshot    Json?                @default("{}")
+  notes              String?              @default("")
+  tags               String[]             @default([])
+  agent_lab_messages agent_lab_messages[]
+
+  @@index([pipeline_def_id], map: "idx_pipeline_runs_pipeline_def")
+  @@index([status], map: "idx_pipeline_runs_status")
+}
+
+model agent_lab_recommendations {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recommendation_type String
+  agent_id            String
+  sheet_type          String?
+  title               String
+  description         String
+  proposed_change     Json      @default("{}")
+  evidence            Json      @default("{}")
+  confidence          Float     @default(0.5)
+  impact_estimate     String?
+  status              String    @default("pending")
+  accepted_by         String?
+  accepted_at         DateTime? @db.Timestamptz(6)
+  test_results        Json?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id, sheet_type], map: "idx_recommendations_agent")
+  @@index([status], map: "idx_recommendations_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agent_lab_run_memory {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id      String
+  sheet_type    String
+  memory_type   String
+  content       Json      @default("{}")
+  confidence    Float     @default(1.0)
+  source_job_id String?
+  source_run_id String?
+  vessel_name   String?
+  decay_rate    Float     @default(0.05)
+  last_used_at  DateTime? @db.Timestamptz(6)
+  expires_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id, sheet_type], map: "idx_memory_agent_sheet")
+  @@index([confidence(sort: Desc)], map: "idx_memory_confidence")
+  @@index([memory_type], map: "idx_memory_type")
+}
+
+model agent_lab_schema_versions {
+  schema_ref      String          @id
+  json_schema     Json            @default("{}")
+  breaking_change Boolean?        @default(false)
+  migration_fn    String?
+  description     String?         @default("")
+  created_at      DateTime?       @default(now()) @db.Timestamptz(6)
+  schemaCatalogId String?         @map("schema_catalog_id") @db.Uuid
+  schemaCatalog   schema_catalog? @relation(fields: [schemaCatalogId], references: [id])
+}
+
+model agent_lab_shared_contexts {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pipeline_def_id String
+  context_name    String
+  context_data    Json      @default("{}")
+  is_default      Boolean?  @default(false)
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([pipeline_def_id], map: "idx_shared_ctx_pipeline")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model agent_lab_tuning_log {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tuner_type              String
+  agent_id                String?
+  sheet_type              String?
+  input_summary           Json     @default("{}")
+  output_summary          Json     @default("{}")
+  recommendations_created Int      @default(0)
+  memories_updated        Int      @default(0)
+  duration_ms             Int?
+  status                  String   @default("completed")
+  error_message           String?
+  created_at              DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([tuner_type, created_at(sort: Desc)], map: "idx_tuning_log_tuner")
+}
+
+model agent_lab_validation_rules {
+  id                       String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                     String
+  display_name             String    @default("")
+  description              String?   @default("")
+  schema_ref               String    @default("CrewMember@2.1")
+  condition_groups         Json      @default("[]")
+  condition_expression     String    @default("")
+  severity                 String    @default("warning")
+  failure_message_template String    @default("")
+  auto_fix_behavior        String    @default("none")
+  uncovered_behavior       String    @default("warn")
+  suite_ids                String[]  @default([])
+  source_template_id       String?
+  created_at               DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([schema_ref], map: "idx_validation_rules_schema")
+  @@index([severity], map: "idx_validation_rules_severity")
+}
+
+model agent_lab_validation_suites {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sheet_id   String
+  name       String
+  rules      Json      @default("[]")
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([sheet_id], map: "idx_validation_suites_sheet_id")
+}
+
+model backfill_agent_traces {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id            String        @db.Uuid
+  agent_id          String
+  sheet_id          String
+  status            String        @default("running")
+  spans             Json?         @default("[]")
+  total_tokens      Int?          @default(0)
+  prompt_tokens     Int?          @default(0)
+  completion_tokens Int?          @default(0)
+  total_duration_ms Int?          @default(0)
+  tool_calls_count  Int?          @default(0)
+  retry_count       Int?          @default(0)
+  output_row_count  Int?          @default(0)
+  validation_passed Boolean?      @default(false)
+  errors            Json?         @default("[]")
+  created_at        DateTime?     @default(now()) @db.Timestamptz(6)
+  config_snapshot   Json?
+  messages          Json?         @default("[]")
+  rows              Json?         @default("[]")
+  backfill_jobs     backfill_jobs @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([job_id], map: "idx_agent_traces_job_id")
+  @@index([sheet_id], map: "idx_agent_traces_sheet_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model backfill_jobs {
+  id                                    String                                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ship_name                             String
+  vessel_id                             String?                                 @db.Uuid
+  month                                 Int
+  year                                  Int
+  folder_path                           String
+  status                                String                                  @default("scanning")
+  started_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  completed_at                          DateTime?                               @db.Timestamptz(6)
+  started_by                            String?                                 @db.Uuid
+  crew_count                            Int?                                    @default(0)
+  crew_processed                        Int?                                    @default(0)
+  anomaly_count                         Int?                                    @default(0)
+  error_message                         String?
+  summary                               Json?                                   @default("{}")
+  checkpoint_data                       Json?                                   @default("{}")
+  promotion_status                      String?                                 @default("pending")
+  promoted_at                           DateTime?                               @db.Timestamptz(6)
+  promoted_by                           String?                                 @db.Uuid
+  promotion_summary                     Json?
+  created_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  updated_at                            DateTime                                @default(now()) @db.Timestamptz(6)
+  human_decisions                       Json?
+  task_arn                              String?
+  error_detail                          Json?
+  target_table                          String                                  @default("portage_bill_line_items")
+  backfill_agent_traces                 backfill_agent_traces[]
+  backfill_model_stats                  backfill_model_stats[]
+  backfill_staging_allotments           backfill_staging_allotments[]
+  backfill_staging_bonded_store         backfill_staging_bonded_store[]
+  backfill_staging_calling_card         backfill_staging_calling_card[]
+  backfill_staging_canteen              backfill_staging_canteen[]
+  backfill_staging_cash_advances        backfill_staging_cash_advances[]
+  backfill_staging_cash_ledger          backfill_staging_cash_ledger[]
+  backfill_staging_deduction_lines      backfill_staging_deduction_lines[]
+  backfill_staging_earnings_lines       backfill_staging_earnings_lines[]
+  backfill_staging_extra_work_allowance backfill_staging_extra_work_allowance[]
+  backfill_staging_manual_spends        backfill_staging_manual_spends[]
+  backfill_staging_victualling          backfill_staging_victualling[]
+  backfill_staging_wage_accounts        backfill_staging_wage_accounts[]
+  backfill_staging_welfare              backfill_staging_welfare[]
+  backfill_step_results                 backfill_step_results[]
+  human_decision_requests               human_decision_requests[]
+
+  @@index([ship_name, month, year], map: "idx_backfill_jobs_ship")
+  @@index([status], map: "idx_backfill_jobs_status")
+}
+
+model backfill_model_stats {
+  id                     String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id                 String?        @db.Uuid
+  sheet_type             String
+  model_name             String
+  provider               String
+  success                Boolean
+  duration_ms            Int?
+  row_count              Int?
+  error_type             String?
+  created_at             DateTime?      @default(now()) @db.Timestamptz(6)
+  source                 String?        @default("pipeline")
+  quality_score          Float?         @db.Real
+  validation_pass_rate   Float?         @db.Real
+  critical_failures      Int?           @default(0)
+  pipeline_deployment_id String?        @db.Uuid
+  backfill_jobs          backfill_jobs? @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_model_stats_created")
+  @@index([created_at], map: "idx_model_stats_created_at")
+  @@index([sheet_type, model_name], map: "idx_model_stats_sheet_model")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backfill_staging_allotments {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id      String        @db.Uuid
+  crew_id_excel        String
+  crew_name            String?
+  crew_rank            String?
+  allotment_type       String
+  bank_name            String?
+  branch_name          String?
+  state                String?
+  ifsc_code            String?
+  swift_code           String?
+  iban                 String?
+  account_type         String?
+  account_number       String?
+  beneficiary_name     String?
+  amount_usd           Decimal?      @default(0) @db.Decimal(14, 2)
+  balance_of_wages     Decimal?      @default(0) @db.Decimal(14, 2)
+  relationship         String?
+  remarks              String?
+  seafarer_id          String?       @db.Uuid
+  beneficiary_id       String?       @db.Uuid
+  allotment_request_id String?       @db.Uuid
+  status               String?       @default("parsed")
+  error_message        String?
+  created_at           DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs        backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id, crew_id_excel], map: "idx_staging_allot_crew")
+  @@index([backfill_job_id], map: "idx_staging_allot_job")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backfill_staging_bonded_store {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id   String        @db.Uuid
+  item_name         String
+  movement_type     String
+  txn_date          DateTime?     @db.Date
+  quantity          Int?          @default(0)
+  unit_price        Decimal?      @default(0) @db.Decimal(14, 2)
+  amount_usd        Decimal?      @default(0) @db.Decimal(14, 2)
+  seafarer_id_excel String?
+  port              String?
+  remarks           String?
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs     backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_bond_job")
+}
+
+model backfill_staging_calling_card {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  txn_date        DateTime?     @db.Date
+  particulars     String?
+  currency        String?       @default("USD")
+  amount_local    Decimal?      @default(0) @db.Decimal(14, 2)
+  exchange_rate   Decimal?      @default(1) @db.Decimal(14, 6)
+  amount_usd      Decimal?      @default(0) @db.Decimal(14, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_call_job")
+}
+
+model backfill_staging_canteen {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id   String        @db.Uuid
+  item_name         String?
+  seafarer_id_excel String?
+  txn_date          DateTime?     @db.Date
+  quantity          Int?          @default(0)
+  unit_price        Decimal?      @default(0) @db.Decimal(8, 2)
+  total_price       Decimal?      @default(0) @db.Decimal(10, 2)
+  currency          String?       @default("USD")
+  created_at        DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs     backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_cant_job")
+}
+
+model backfill_staging_cash_advances {
+  id                             String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id                String                         @db.Uuid
+  staging_pb_id                  String                         @db.Uuid
+  crew_id_excel                  String
+  advance_1                      Decimal?                       @default(0) @db.Decimal(12, 2)
+  advance_2                      Decimal?                       @default(0) @db.Decimal(12, 2)
+  advance_3                      Decimal?                       @default(0) @db.Decimal(12, 2)
+  signoff_advance                Decimal?                       @default(0) @db.Decimal(12, 2)
+  total_usd                      Decimal?                       @default(0) @db.Decimal(12, 2)
+  created_at                     DateTime                       @default(now()) @db.Timestamptz(6)
+  backfill_jobs                  backfill_jobs                  @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  backfill_staging_wage_accounts backfill_staging_wage_accounts @relation(fields: [staging_pb_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_ca_job")
+}
+
+model backfill_staging_cash_ledger {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  txn_date        DateTime?     @db.Date
+  port            String?
+  particulars     String?
+  voucher_no      String?
+  currency        String?
+  amount_local    Decimal?      @default(0) @db.Decimal(12, 2)
+  exchange_rate   Decimal?      @default(0) @db.Decimal(12, 6)
+  received_usd    Decimal?      @default(0) @db.Decimal(12, 2)
+  paid_usd        Decimal?      @default(0) @db.Decimal(12, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_cl_job")
+}
+
+model backfill_staging_deduction_lines {
+  id                             String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id                String                         @db.Uuid
+  staging_pb_id                  String                         @db.Uuid
+  crew_id_excel                  String
+  account_code                   String?
+  component_name                 String
+  component_code                 String?
+  amount                         Decimal?                       @default(0) @db.Decimal(12, 2)
+  currency                       String?                        @default("USD")
+  source_sheet                   String?                        @default("A01b")
+  source_column                  String?
+  created_at                     DateTime                       @default(now()) @db.Timestamptz(6)
+  backfill_jobs                  backfill_jobs                  @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  backfill_staging_wage_accounts backfill_staging_wage_accounts @relation(fields: [staging_pb_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_ded_job")
+  @@index([staging_pb_id], map: "idx_staging_ded_pb")
+}
+
+model backfill_staging_earnings_lines {
+  id                             String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id                String                         @db.Uuid
+  staging_pb_id                  String                         @db.Uuid
+  crew_id_excel                  String
+  account_code                   String?
+  component_name                 String
+  component_code                 String?
+  amount                         Decimal?                       @default(0) @db.Decimal(12, 2)
+  currency                       String?                        @default("USD")
+  source_sheet                   String?                        @default("A01a")
+  source_column                  String?
+  created_at                     DateTime                       @default(now()) @db.Timestamptz(6)
+  backfill_jobs                  backfill_jobs                  @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  backfill_staging_wage_accounts backfill_staging_wage_accounts @relation(fields: [staging_pb_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_earn_job")
+  @@index([staging_pb_id], map: "idx_staging_earn_pb")
+}
+
+model backfill_staging_extra_work_allowance {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  crew_id_excel   String?
+  crew_name       String?
+  crew_rank       String?
+  department      String?
+  description     String?
+  total_hours     Decimal?      @default(0) @db.Decimal(10, 2)
+  fixed_ot_hours  Decimal?      @default(0) @db.Decimal(10, 2)
+  extra_ot_hours  Decimal?      @default(0) @db.Decimal(10, 2)
+  ot_rate         Decimal?      @default(0) @db.Decimal(10, 4)
+  amount_usd      Decimal?      @default(0) @db.Decimal(14, 2)
+  txn_date        DateTime?     @db.Date
+  remarks         String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_ewa_job")
+}
+
+model backfill_staging_manual_spends {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  txn_date        DateTime?     @db.Date
+  category        String?
+  particulars     String?
+  currency        String?       @default("USD")
+  amount_local    Decimal?      @default(0) @db.Decimal(14, 2)
+  exchange_rate   Decimal?      @default(1) @db.Decimal(14, 6)
+  amount_usd      Decimal?      @default(0) @db.Decimal(14, 2)
+  voucher_no      String?
+  remarks         String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_manual_job")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backfill_staging_wage_accounts {
+  id                               String                             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id                  String                             @db.Uuid
+  crew_id_excel                    String
+  crew_name                        String                             @default("")
+  crew_rank                        String                             @default("")
+  crew_section                     String                             @default("ONBOARD")
+  seafarer_id                      String?                            @db.Uuid
+  vessel_id                        String?                            @db.Uuid
+  month                            Int
+  year                             Int
+  sign_on_date                     DateTime?                          @db.Date
+  payroll_start                    DateTime?                          @db.Date
+  payroll_end                      DateTime?                          @db.Date
+  sign_off_date                    DateTime?                          @db.Date
+  arrival_date                     DateTime?                          @db.Date
+  travel_start                     DateTime?                          @db.Date
+  days_worked                      Int?
+  transit_days                     Int?
+  total_earnings                   Decimal?                           @default(0) @db.Decimal(12, 2)
+  total_deductions                 Decimal?                           @default(0) @db.Decimal(12, 2)
+  previous_bow                     Decimal?                           @default(0) @db.Decimal(12, 2)
+  closing_bow                      Decimal?                           @default(0) @db.Decimal(12, 2)
+  allotment_total                  Decimal?                           @default(0) @db.Decimal(12, 2)
+  currency                         String?                            @default("USD")
+  basic_wages                      Decimal?                           @default(0) @db.Decimal(12, 2)
+  fixed_ot                         Decimal?                           @default(0) @db.Decimal(12, 2)
+  leave_pay                        Decimal?                           @default(0) @db.Decimal(12, 2)
+  sub_allowance                    Decimal?                           @default(0) @db.Decimal(12, 2)
+  uniform_allowance                Decimal?                           @default(0) @db.Decimal(12, 2)
+  bonus                            Decimal?                           @default(0) @db.Decimal(12, 2)
+  special_allowance                Decimal?                           @default(0) @db.Decimal(12, 2)
+  smb                              Decimal?                           @default(0) @db.Decimal(12, 2)
+  seniority_allowance              Decimal?                           @default(0) @db.Decimal(12, 2)
+  command_allowance                Decimal?                           @default(0) @db.Decimal(12, 2)
+  supervisor_allowance             Decimal?                           @default(0) @db.Decimal(12, 2)
+  employer_special_allowance       Decimal?                           @default(0) @db.Decimal(12, 2)
+  others_contract                  Decimal?                           @default(0) @db.Decimal(12, 2)
+  pf_jsu_earning                   Decimal?                           @default(0) @db.Decimal(12, 2)
+  pf_jsu_deduction                 Decimal?                           @default(0) @db.Decimal(12, 2)
+  total_contract_wages             Decimal?                           @default(0) @db.Decimal(12, 2)
+  superior_cert_allowance          Decimal?                           @default(0) @db.Decimal(12, 2)
+  tonnage_allowance                Decimal?                           @default(0) @db.Decimal(12, 2)
+  chemical_allowance               Decimal?                           @default(0) @db.Decimal(12, 2)
+  trade_allowance                  Decimal?                           @default(0) @db.Decimal(12, 2)
+  others_additional                Decimal?                           @default(0) @db.Decimal(12, 2)
+  ot_rate_per_hour                 Decimal?                           @default(0) @db.Decimal(10, 4)
+  extra_ot_hours                   Decimal?                           @default(0) @db.Decimal(10, 2)
+  extra_ot_amount                  Decimal?                           @default(0) @db.Decimal(12, 2)
+  status                           String?                            @default("parsed")
+  anomalies                        Json?                              @default("[]")
+  validation_errors                Json?                              @default("[]")
+  promoted_at                      DateTime?                          @db.Timestamptz(6)
+  promoted_pb_id                   String?                            @db.Uuid
+  created_at                       DateTime                           @default(now()) @db.Timestamptz(6)
+  backfill_staging_cash_advances   backfill_staging_cash_advances[]
+  backfill_staging_deduction_lines backfill_staging_deduction_lines[]
+  backfill_staging_earnings_lines  backfill_staging_earnings_lines[]
+  backfill_jobs                    backfill_jobs                      @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id, crew_id_excel], map: "idx_staging_pb_crew")
+  @@index([backfill_job_id], map: "idx_staging_pb_job")
+}
+
+model backfill_staging_victualling {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  txn_date        DateTime?     @db.Date
+  port            String?
+  particulars     String?
+  currency        String?       @default("USD")
+  amount_local    Decimal?      @default(0) @db.Decimal(14, 2)
+  exchange_rate   Decimal?      @default(1) @db.Decimal(14, 6)
+  amount_usd      Decimal?      @default(0) @db.Decimal(14, 2)
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_vict_job")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backfill_staging_welfare {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  entry_type      String
+  txn_date        DateTime?     @db.Date
+  amount_usd      Decimal?      @default(0) @db.Decimal(14, 2)
+  currency        String?       @default("USD")
+  amount_local    Decimal?      @default(0) @db.Decimal(14, 2)
+  exchange_rate   Decimal?      @default(1) @db.Decimal(14, 6)
+  voucher_no      String?
+  remarks         String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([backfill_job_id], map: "idx_staging_welf_job")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model backfill_step_results {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String        @db.Uuid
+  step_id         String
+  status          String        @default("pending")
+  started_at      DateTime?     @db.Timestamptz(6)
+  completed_at    DateTime?     @db.Timestamptz(6)
+  duration_ms     Int?
+  message         String?
+  output_data     Json?         @default("{}")
+  logs            Json?         @default("[]")
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs   backfill_jobs @relation(fields: [backfill_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([backfill_job_id, step_id], map: "idx_step_results_job_step")
+  @@index([backfill_job_id], map: "idx_step_results_job")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model human_decision_requests {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id        String        @db.Uuid
+  decision_type String
+  context_data  Json?         @default("{}")
+  status        String        @default("pending")
+  response      Json?
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime      @default(now()) @db.Timestamptz(6)
+  backfill_jobs backfill_jobs @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([job_id, created_at], map: "idx_hdr_created_at")
+  @@index([job_id, status], map: "idx_hdr_job_status")
+}
+
+model pipeline_deployments {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pipeline_def_id String
+  version         String
+  compiled_graph  Json
+  scorecard       Json
+  config_snapshot Json
+  bandit_snapshot Json?
+  status          String    @default("active")
+  deployed_by     String?
+  deployed_at     DateTime? @default(now()) @db.Timestamptz(6)
+  retired_at      DateTime? @db.Timestamptz(6)
+  notes           String?
+
+  @@unique([pipeline_def_id, version])
+  @@index([pipeline_def_id, deployed_at(sort: Desc)], map: "idx_pipeline_deployments_pipeline_def")
+  @@index([status], map: "idx_pipeline_deployments_status")
+}
+
+model agent_lab_stencils {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name             String
+  description      String?
+  category         String   @default("custom")
+  integration_mode String   @default("pipeline-slot")
+  source           String   @default("architect")
+  graph_json       Json
+  usage_count      Int      @default(0)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+}
+
+model agent_outcome_summary {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id     String?
+  sheet_type   String?
+  model_used   String?
+  outcome_type String?
+  count        Int      @default(0)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id], map: "idx_agent_outcome_summary_agent_id")
+}
+
+model agent_field_accuracy {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id   String?
+  sheet_type String?
+  model_used String?
+  field_name String?
+  accuracy   Float?
+  count      Int      @default(0)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id], map: "idx_agent_field_accuracy_agent_id")
+}
+
+model vessels {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vessel_name String?
+  imo_number  String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([vessel_name], map: "idx_vessels_vessel_name")
+}
+
+model promotion_audit_log {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  backfill_job_id String   @unique
+  vessel_id       String   @db.Uuid
+  target_table    String
+  promoted_by     String
+  promoted_at     String
+  promoted_rows   Int      @default(0)
+  aloft_signature String
+  error           String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([vessel_id], map: "idx_promotion_audit_log_vessel_id")
+  @@index([created_at], map: "idx_promotion_audit_log_created_at")
+}
+
+model PlatformOrg {
+  id                     String                         @id @default(cuid())
+  clerk_org_id           String                         @unique
+  name                   String
+  slug                   String                         @unique
+  created_at             DateTime                       @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                       @updatedAt @db.Timestamptz(6)
+  agents                 PlatformAgent[]
+  databricks_connections PlatformDatabricksConnection[]
+
+  @@index([clerk_org_id], map: "idx_platform_orgs_clerk_id")
+  @@map("platform_orgs")
+}
+
+model PlatformAgent {
+  id              String             @id @default(cuid())
+  org_id          String
+  name            String
+  slug            String
+  description     String?
+  agent_class     String
+  template_id     String?
+  status          String             @default("draft")
+  environment     String             @default("development")
+  routing_mode    String             @default("auto")
+  data_level      Int?
+  commissioned_by String
+  last_activity   DateTime?          @db.Timestamptz(6)
+  created_at      DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime           @updatedAt @db.Timestamptz(6)
+  kb_namespace    String?
+  thread_policy   String?
+  retrieval_scope String?
+  runs            PlatformAgentRun[]
+  org             PlatformOrg        @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, slug], map: "uq_platform_agent_org_slug")
+  @@index([org_id, status], map: "idx_platform_agents_org_status")
+  @@index([org_id, agent_class], map: "idx_platform_agents_org_class")
+  @@index([org_id, environment], map: "idx_platform_agents_org_env")
+  @@index([last_activity(sort: Desc)], map: "idx_platform_agents_activity")
+  @@map("platform_agents")
+}
+
+model PlatformAgentRun {
+  id            String        @id @default(cuid())
+  agent_id      String
+  input_text    String
+  output_text   String?
+  model         String
+  status        String        @default("running")
+  error_message String?
+  input_tokens  Int?
+  output_tokens Int?
+  cost_usd      Decimal?      @db.Decimal(10, 6)
+  duration_ms   Int?
+  trace         Json?         @default("{}")
+  triggered_by  String?
+  created_at    DateTime      @default(now()) @db.Timestamptz(6)
+  completed_at  DateTime?     @db.Timestamptz(6)
+  started_at    DateTime?     @db.Timestamptz(6)
+  agent         PlatformAgent @relation(fields: [agent_id], references: [id], onDelete: Cascade)
+
+  @@index([agent_id, created_at(sort: Desc)], map: "idx_platform_runs_agent_created")
+  @@index([agent_id, status], map: "idx_platform_runs_agent_status")
+  @@index([created_at(sort: Desc)], map: "idx_platform_runs_created")
+  @@map("platform_agent_runs")
+}
+
+model PlatformDatabricksConnection {
+  id                          String      @id @default(cuid())
+  org_id                      String
+  name                        String
+  workspace_host              String
+  auth_type                   String      @default("oauth_m2m")
+  secret_ref                  String
+  default_warehouse_id        String
+  default_warehouse_http_path String?
+  genie_space_ids             Json?
+  status                      String      @default("untested")
+  last_tested_at              DateTime?   @db.Timestamptz(6)
+  created_at                  DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime    @updatedAt @db.Timestamptz(6)
+  org                         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id], map: "idx_platform_databricks_connections_org_id")
+  @@map("platform_databricks_connections")
+}
+
+model knowledge_sources {
+  id                 String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  name               String
+  type               KnowledgeSourceType
+  status             KnowledgeSourceStatus        @default(PENDING)
+  auth_type          KnowledgeAuthType            @default(api_key)
+  refresh_schedule   KnowledgeRefreshSchedule     @default(manual)
+  tags               String[]                     @default([])
+  record_count       Int                          @default(0)
+  last_indexed_at    DateTime?                    @db.Timestamptz(6)
+  search_mode        KnowledgeSearchMode          @default(semantic)
+  embedding_model    KnowledgeEmbeddingModel      @default(openai_text_embedding_3_small)
+  chunk_size         Int                          @default(512)
+  chunk_overlap      Int                          @default(64)
+  top_k              Int                          @default(5)
+  hybrid_weight      Int                          @default(50)
+  metadata_filters   Json                         @default("[]")
+  is_trusted         Boolean                      @default(false)
+  trusted_override   Boolean                      @default(false)
+  trusted_at         DateTime?                    @db.Timestamptz(6)
+  trusted_by         String?
+  score_discoverable Int                          @default(0)
+  score_accessible   Int                          @default(0)
+  score_trusted      Int                          @default(0)
+  score_actionable   Int                          @default(0)
+  stat_label         String?
+  created_at         DateTime?                    @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?                    @default(now()) @db.Timestamptz(6)
+  chunk_count        Int?
+  connector_config   Json?
+  description        String?
+  doc_count          Int?
+  score_computed_at  DateTime?                    @db.Timestamptz(6)
+  slug               String?
+  chunks             knowledge_chunks[]
+  dimension_checks   knowledge_dimension_checks[]
+  error_logs         knowledge_error_logs[]
+  record_history     knowledge_record_history[]
+  agent_bindings     knowledge_source_agents[]
+
+  @@index([org_id, status], map: "idx_ks_org_status")
+  @@index([org_id, type], map: "idx_ks_org_type")
+  @@index([org_id, is_trusted], map: "idx_ks_org_trusted")
+  @@index([updated_at(sort: Desc)], map: "idx_ks_updated")
+  @@index([last_indexed_at(sort: Desc)], map: "idx_ks_last_indexed")
+  @@map("knowledge_sources")
+}
+
+model knowledge_chunks {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id   String                 @db.Uuid
+  org_id      String
+  content     String
+  embedding   Unsupported("vector")?
+  chunk_index Int
+  doc_ref     String?
+  metadata    Json?
+  created_at  DateTime               @default(now()) @db.Timestamptz(6)
+  source      knowledge_sources      @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@index([source_id], map: "idx_kc_source")
+  @@index([org_id], map: "idx_kc_org")
+  @@map("knowledge_chunks")
+}
+
+model knowledge_dimension_checks {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id  String            @db.Uuid
+  dimension  String
+  label      String
+  passed     Boolean
+  detail     String?
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  source     knowledge_sources @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@index([source_id, dimension], map: "idx_kdc_source_dim")
+  @@map("knowledge_dimension_checks")
+}
+
+model knowledge_error_logs {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id  String            @db.Uuid
+  message    String
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  source     knowledge_sources @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@index([source_id, created_at(sort: Desc)], map: "idx_kel_source_created")
+  @@map("knowledge_error_logs")
+}
+
+model knowledge_record_history {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id    String            @db.Uuid
+  record_count Int               @default(0)
+  snapshot_at  DateTime          @db.Timestamptz(6)
+  source       knowledge_sources @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@unique([source_id, snapshot_at], map: "uq_krh_source_day")
+  @@index([source_id, snapshot_at(sort: Desc)], map: "idx_krh_source_day")
+  @@map("knowledge_record_history")
+}
+
+model knowledge_source_agents {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id         String            @db.Uuid
+  agent_id          String
+  agent_name        String?
+  deployment_status String?
+  data_gate_result  String?
+  bound_at          DateTime          @default(now()) @db.Timestamptz(6)
+  bound_by          String?
+  source            knowledge_sources @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@unique([source_id, agent_id], map: "uq_ksa_source_agent")
+  @@index([source_id], map: "idx_ksa_source")
+  @@index([agent_id], map: "idx_ksa_agent")
+  @@map("knowledge_source_agents")
+}
+
+model platform_interaction_events {
+  id                String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id        String                       @db.Uuid
+  user_id           String
+  seq               Int
+  event_type        String
+  timestamp         DateTime                     @db.Timestamptz(6)
+  payload           Json
+  agent_id          String?                      @db.Uuid
+  agent_revision_id String?                      @db.Uuid
+  eval_case_id      String?                      @db.Uuid
+  data_score        Decimal?                     @db.Decimal(5, 3)
+  tool_calls        Json?
+  client_event_id   String                       @unique
+  created_at        DateTime                     @default(now()) @db.Timestamptz(6)
+  session           workbench_sessions           @relation(fields: [session_id], references: [id])
+  search_entry      platform_interaction_search?
+
+  @@index([session_id, seq], map: "idx_pie_session_seq")
+  @@index([user_id, timestamp], map: "idx_pie_user_ts")
+  @@index([event_type, timestamp], map: "idx_pie_type_ts")
+  @@index([session_id, event_type], map: "idx_pie_session_type")
+  @@index([agent_id, timestamp], map: "idx_pie_agent_ts")
+  @@index([agent_revision_id], map: "idx_pie_revision")
+  @@index([eval_case_id], map: "idx_pie_eval")
+  @@map("platform_interaction_events")
+}
+
+model platform_ui_telemetry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id String   @db.Uuid
+  user_id    String
+  event_type String
+  timestamp  DateTime @db.Timestamptz(6)
+  payload    Json
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id, timestamp], map: "idx_put_session_ts")
+  @@index([user_id, timestamp], map: "idx_put_user_ts")
+  @@map("platform_ui_telemetry")
+}
+
+model platform_interaction_search {
+  id         String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  event_id   String                      @unique @db.Uuid
+  session_id String                      @db.Uuid
+  user_id    String
+  event_type String
+  content    String
+  metadata   Json?
+  timestamp  DateTime                    @db.Timestamptz(6)
+  tsv        Unsupported("tsvector")?
+  embedding  Unsupported("vector")?
+  event      platform_interaction_events @relation(fields: [event_id], references: [id])
+
+  @@index([session_id], map: "idx_pis_session")
+  @@index([user_id, timestamp], map: "idx_pis_user_ts")
+  @@index([event_type], map: "idx_pis_type")
+  @@map("platform_interaction_search")
+}
+
+model PlatformEvalSuite {
+  id            String             @id @default(uuid())
+  name          String?
+  agentClass    String?
+  description   String?
+  scorerType    String?
+  passThreshold Float?
+  orgId         String?
+  createdAt     DateTime?          @default(now())
+  updatedAt     DateTime?          @updatedAt
+  version       Int?               @default(1)
+  suiteGroupId  String?            @db.Uuid
+  lockedAt      DateTime?          @db.Timestamptz(6)
+  useCaseTag    String?
+  cases         PlatformEvalCase[]
+  runs          PlatformEvalRun[]
+
+  @@map("platform_eval_suites")
+}
+
+model PlatformEvalCase {
+  id               String             @id @default(uuid())
+  suiteId          String?
+  input            Json?
+  expectedOutput   Json?
+  heldOut          Boolean?           @default(false)
+  perturbation     Boolean?           @default(false)
+  parentCaseId     String?
+  fixtureNs        String?
+  tags             String[]
+  createdAt        DateTime?          @default(now())
+  caseKind         String?
+  perturbationKind String?
+  scorerType       String?
+  scorerConfig     Json?
+  weight           Decimal?
+  fixtureDocId     String?
+  suite            PlatformEvalSuite? @relation(fields: [suiteId], references: [id])
+
+  @@map("platform_eval_cases")
+}
+
+model PlatformEvalRun {
+  id                String               @id @default(uuid())
+  suiteId           String?
+  agentId           String?
+  agentRevisionId   String?
+  triggeredBy       String?
+  status            String?
+  seenScore         Float?
+  heldOutScore      Float?
+  generalisationGap Float?
+  costUsd           Float?
+  durationMs        Int?
+  createdAt         DateTime?            @default(now())
+  manifestId        String?
+  orgId             String?
+  gateContext       String?
+  gateVerdict       String?
+  redTeamFindings   Int?
+  casesTotal        Int?
+  casesPassed       Int?
+  scoreOverall      Decimal?
+  startedAt         DateTime?            @db.Timestamptz(6)
+  completedAt       DateTime?            @db.Timestamptz(6)
+  results           PlatformEvalResult[]
+  suite             PlatformEvalSuite?   @relation(fields: [suiteId], references: [id])
+
+  @@map("platform_eval_runs")
+}
+
+model PlatformEvalResult {
+  id           String           @id @default(uuid())
+  runId        String?
+  caseId       String?
+  agentOutput  Json?
+  score        Float?
+  passed       Boolean?
+  scorerDetail Json?
+  latencyMs    Int?
+  costUsd      Float?
+  errorField   String?
+  createdAt    DateTime?        @default(now())
+  trajectoryId String?
+  scorerType   String?
+  run          PlatformEvalRun? @relation(fields: [runId], references: [id])
+
+  @@map("platform_eval_results")
+}
+
+model PlatformAcceptanceRecord {
+  id                         String    @id @default(uuid())
+  agentId                    String?
+  targetMetric               String?
+  threshold                  Float?
+  evalSuiteRef               String?
+  fixtureNs                  String?
+  status                     String?
+  orgId                      String?
+  createdAt                  DateTime? @default(now())
+  useCaseTag                 String?
+  manifestId                 String?
+  generalisationGapThreshold Decimal?
+  agentClass                 String?
+  title                      String?
+  createdBy                  String?
+  updatedAt                  DateTime? @db.Timestamptz(6)
+
+  @@map("platform_acceptance_records")
+}
+
+model PlatformFixtureNamespace {
+  id            String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId         String?
+  name          String
+  namespace_key String?
+  description   String?
+  suiteId       String?
+  status        String?                   @default("SEEDING")
+  doc_count     Int?                      @default(0)
+  seeded_at     DateTime?                 @db.Timestamptz(6)
+  created_at    DateTime                  @default(now()) @db.Timestamptz(6)
+  documents     PlatformFixtureDocument[]
+
+  @@index([orgId], map: "idx_pfn_org")
+  @@index([suiteId], map: "idx_pfn_suite")
+  @@index([namespace_key], map: "idx_pfn_key")
+  @@index([status], map: "idx_pfn_status")
+  @@map("platform_fixture_namespaces")
+}
+
+model PlatformFixtureDocument {
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  namespaceId  String                   @db.Uuid
+  title        String
+  content      String
+  content_hash String?
+  doc_ref      String?
+  metadata     Json?
+  created_at   DateTime                 @default(now()) @db.Timestamptz(6)
+  chunks       PlatformFixtureChunk[]
+  namespace    PlatformFixtureNamespace @relation(fields: [namespaceId], references: [id], onDelete: Cascade)
+
+  @@index([namespaceId], map: "idx_pfd_namespace")
+  @@map("platform_fixture_documents")
+}
+
+model PlatformFixtureChunk {
+  id          String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId  String                  @db.Uuid
+  content     String
+  chunk_index Int
+  embedding   Unsupported("vector")?
+  metadata    Json?
+  created_at  DateTime                @default(now()) @db.Timestamptz(6)
+  document    PlatformFixtureDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId], map: "idx_pfc_document")
+  @@index([documentId, chunk_index], map: "idx_pfc_chunk_order")
+  @@map("platform_fixture_chunks")
+}
+
+model PlatformRedteamFinding {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId        String?
+  evalResultId String?
+  agentId      String?
+  findingType  String
+  confidence   Decimal?
+  ramaRunRef   String?
+  evidence     Json?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([orgId], map: "idx_prf_org")
+  @@index([evalResultId], map: "idx_prf_result")
+  @@index([confidence], map: "idx_prf_confidence")
+  @@map("platform_redteam_findings")
+}
+
+model PlatformRoutingDecision {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id String?
+  agent_id   String?
+  step       String
+  class_id   String?
+  complexity String
+  model_id   String
+  decided_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id], map: "idx_prd_session")
+  @@index([agent_id], map: "idx_prd_agent")
+  @@index([decided_at(sort: Desc)], map: "idx_prd_decided")
+  @@index([step, model_id], map: "idx_prd_step_model")
+  @@map("platform_routing_decisions")
+}
+
+model PlatformAgentManifest {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  agent_id      String
+  session_id    String?
+  config_ref    String?
+  class_id      String?
+  skill_ref     String?
+  tool_ids      String[] @default([])
+  schema_ref    String?
+  eval_suite_id String?
+  rollback_ref  String?
+  lineage_note  String?
+  status        String   @default("active")
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([agent_id], map: "idx_pam_agent_id")
+  @@index([session_id], map: "idx_pam_session")
+  @@index([status], map: "idx_pam_status")
+  @@index([created_at(sort: Desc)], map: "idx_pam_created")
+  @@map("platform_agent_manifests")
+}
+
+model platform_trajectories {
+  id          String    @id @default(cuid())
+  runId       String?
+  agentId     String?
+  orgId       String?
+  steps       Json?
+  finalOutput String?
+  errorField  String?
+  evalCaseId  String?
+  status      String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([runId], map: "idx_pt_run")
+  @@index([agentId], map: "idx_pt_agent")
+  @@index([orgId, createdAt(sort: Desc)], map: "idx_pt_org_created")
+  @@map("platform_trajectories")
+}
+
+model PlatformContextSource {
+  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  connection_kind String
+  connection_ref  String
+  display_name    String?
+  scope_include   Json?
+  scope_exclude   Json?
+  harvest_config  Json?
+  status          String                  @default("active")
+  last_sweep_at   DateTime?               @db.Timestamptz(6)
+  created_at      DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime                @default(now()) @updatedAt @db.Timestamptz(6)
+  jobs            PlatformContextJob[]
+  objects         PlatformContextObject[]
+
+  @@index([org_id], map: "idx_pcs_org")
+  @@map("platform_context_sources")
+}
+
+model PlatformContextObject {
+  id                     String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id              String                      @db.Uuid
+  org_id                 String
+  object_kind            String
+  full_path              String
+  catalog_name           String?
+  schema_name            String?
+  object_name            String?
+  native_comment         String?
+  row_count_est          BigInt?
+  size_bytes_est         BigInt?
+  source_altered_at      DateTime?                   @db.Timestamptz(6)
+  last_t0_at             DateTime?                   @db.Timestamptz(6)
+  last_t1_at             DateTime?                   @db.Timestamptz(6)
+  last_t2_at             DateTime?                   @db.Timestamptz(6)
+  lifecycle              String                      @default("active")
+  created_at             DateTime                    @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                    @default(now()) @updatedAt @db.Timestamptz(6)
+  entity_tags            Json?
+  last_knowledge_sync_at DateTime?                   @db.Timestamptz(6)
+  /// Keyword index derived from T2 semantic card — used by routePrompt() for
+  /// sub-5ms array-overlap routing before falling back to Bedrock embedding.
+  /// Populated by extractDomainKeywords() after each T2 enrichment run.
+  domain_keywords        String[]                    @default([])
+  last_t3_at             DateTime?                   @db.Timestamptz(6)
+  usage_evidence_at      DateTime?                   @db.Timestamptz(6)
+  last_t4_at             DateTime?                   @db.Timestamptz(6)
+  columns                PlatformContextColumn[]
+  objectLinksLeft        PlatformContextObjectLink[] @relation("left_object")
+  objectLinksRight       PlatformContextObjectLink[] @relation("right_object")
+  source                 PlatformContextSource       @relation(fields: [source_id], references: [id])
+  profiles               PlatformContextProfile[]
+
+  @@unique([source_id, full_path], map: "platform_context_objects_source_path_key")
+  @@index([org_id, full_path], map: "idx_pco_org_path")
+  @@map("platform_context_objects")
+}
+
+model PlatformContextColumn {
+  id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  object_id      String                   @db.Uuid
+  org_id         String
+  name           String
+  ordinal        Int?
+  data_type      String?
+  is_nullable    Boolean?
+  native_comment String?
+  profile        Json?
+  semantic       Json?
+  lifecycle      String                   @default("active")
+  updated_at     DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  object         PlatformContextObject    @relation(fields: [object_id], references: [id])
+  mappings_left  PlatformContextMapping[] @relation("left_column")
+  mappings_right PlatformContextMapping[] @relation("right_column")
+
+  @@unique([object_id, name], map: "platform_context_columns_object_name_key")
+  @@map("platform_context_columns")
+}
+
+model PlatformContextProfile {
+  id          String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  object_id   String                @db.Uuid
+  org_id      String
+  version     Int
+  captured_at DateTime              @default(now()) @db.Timestamptz(6)
+  trigger     String?
+  stats       Json?
+  drift       Json?
+  object      PlatformContextObject @relation(fields: [object_id], references: [id])
+
+  @@unique([object_id, version], map: "platform_context_profiles_object_version_key")
+  @@map("platform_context_profiles")
+}
+
+model PlatformContextUsage {
+  id              String    @id
+  orgId           String    @map("org_id")
+  contextObjectId String    @map("context_object_id")
+  fullPath        String    @map("full_path")
+  version         Int
+  capturedAt      DateTime  @default(now()) @map("captured_at") @db.Timestamptz(6)
+  windowStart     DateTime? @map("window_start") @db.Timestamptz(6)
+  windowEnd       DateTime? @map("window_end") @db.Timestamptz(6)
+  accessStats     Json?     @map("access_stats")
+  keyColumns      Json?     @map("key_columns")
+  filterPatterns  Json?     @map("filter_patterns")
+  coObjects       Json?     @map("co_objects")
+  sourceBreakdown Json?     @map("source_breakdown")
+  drift           Json?
+  jobId           String?   @map("job_id")
+
+  @@unique([orgId, contextObjectId, version], map: "ux_pcu_object_version")
+  @@index([orgId, contextObjectId, version(sort: Desc)], map: "idx_pcu_latest")
+  @@map("platform_context_usage")
+}
+
+model PlatformContextSemantic {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  subject_kind   String
+  subject_id     String   @db.Uuid
+  version        Int
+  card           Json
+  model_id       String?
+  prompt_version String?
+  confidence     Float?   @db.Real
+  status         String   @default("assumed")
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([subject_kind, subject_id, version], map: "platform_context_semantics_subject_version_key")
+  @@map("platform_context_semantics")
+}
+
+model PlatformContextEmbedding {
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  subject_kind String
+  subject_id   String                 @db.Uuid
+  embed_text   String?
+  embedding    Unsupported("vector")?
+  model_id     String?
+  created_at   DateTime               @default(now()) @db.Timestamptz(6)
+
+  @@unique([subject_kind, subject_id], map: "platform_context_embeddings_subject_key")
+  @@map("platform_context_embeddings")
+}
+
+model PlatformContextMapping {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  left_column_id  String                @db.Uuid
+  right_column_id String                @db.Uuid
+  mapping_kind    String?
+  signals         Json?
+  llm_verdict     Json?
+  confidence      Float?                @db.Real
+  status          String                @default("proposed")
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+  reviewed_by     String?
+  reviewed_at     DateTime?             @db.Timestamptz(6)
+  left_column     PlatformContextColumn @relation("left_column", fields: [left_column_id], references: [id])
+  right_column    PlatformContextColumn @relation("right_column", fields: [right_column_id], references: [id])
+
+  @@unique([left_column_id, right_column_id], map: "platform_context_mappings_columns_key")
+  @@map("platform_context_mappings")
+}
+
+model PlatformContextJob {
+  id            String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id        String
+  source_id     String?                     @db.Uuid
+  job_kind      String
+  trigger       String?
+  scope         Json?
+  status        String                      @default("queued")
+  started_at    DateTime?                   @db.Timestamptz(6)
+  finished_at   DateTime?                   @db.Timestamptz(6)
+  stats         Json?
+  error         String?
+  created_at    DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?                   @default(now()) @db.Timestamptz(6)
+  child_index   Int?
+  parent_job_id String?                     @db.Uuid
+  parent        PlatformContextJob?         @relation("JobChildren", fields: [parent_job_id], references: [id])
+  children      PlatformContextJob[]        @relation("JobChildren")
+  source        PlatformContextSource?      @relation(fields: [source_id], references: [id])
+  object_links  PlatformContextObjectLink[]
+  log           PlatformJobLog?
+
+  @@index([org_id, status], map: "idx_pcj_org_status")
+  @@index([parent_job_id], map: "idx_pcj_parent")
+  @@map("platform_context_jobs")
+}
+
+model PlatformJobLog {
+  id           String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_id       String             @unique @db.Uuid
+  org_id       String
+  lines        Json
+  line_count   Int                @default(0)
+  persisted_at DateTime           @default(now()) @db.Timestamptz(6)
+  job          PlatformContextJob @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([org_id], map: "idx_pjl_org")
+  @@map("platform_job_logs")
+}
+
+model PlatformContextObjectLink {
+  id              String                @id @default(dbgenerated("gen_random_uuid()"))
+  org_id          String
+  left_object_id  String                @db.Uuid
+  right_object_id String                @db.Uuid
+  link_kind       String
+  score           Float?
+  signals         Json?
+  llm_verdict     Json?
+  status          String                @default("proposed")
+  reviewed_by     String?
+  reviewed_at     DateTime?             @db.Timestamptz(6)
+  job_id          String?               @db.Uuid
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  job             PlatformContextJob?   @relation(fields: [job_id], references: [id])
+  left_object     PlatformContextObject @relation("left_object", fields: [left_object_id], references: [id])
+  right_object    PlatformContextObject @relation("right_object", fields: [right_object_id], references: [id])
+
+  @@unique([org_id, left_object_id, right_object_id, link_kind], map: "platform_context_object_links_key")
+  @@index([org_id, left_object_id], map: "idx_pcol_org_left")
+  @@index([org_id, right_object_id], map: "idx_pcol_org_right")
+  @@index([org_id, status], map: "idx_pcol_org_status")
+  @@map("platform_context_object_links")
+}
+
+model PlatformMarcusReflection {
+  id              String    @id
+  orgId           String    @map("org_id")
+  sessionId       String    @map("session_id")
+  subjectKind     String?   @map("subject_kind")
+  turnIndex       Int?      @map("turn_index")
+  triggerType     String?   @map("trigger_type")
+  technique       String?
+  headline        String?
+  body            String?
+  suggestedAction Json?     @map("suggested_action")
+  severity        String?
+  status          String    @default("withheld")
+  stateSnapshot   Json?     @map("state_snapshot")
+  promptVersion   String?   @map("prompt_version")
+  deliveredAt     DateTime? @map("delivered_at")
+  resolvedAt      DateTime? @map("resolved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([sessionId, createdAt], map: "idx_pmr_session")
+  @@index([orgId], map: "idx_pmr_org")
+  @@index([sessionId, status], map: "idx_pmr_status")
+  @@map("platform_marcus_reflections")
+}
+
+model PlatformEstateObject {
+  id                   String    @id
+  org_id               String
+  source_id            String?
+  connection_ref       String?
+  full_path            String
+  catalog_name         String
+  schema_name          String
+  object_name          String
+  object_type          String
+  comment              String?
+  last_altered_src     DateTime? @db.Timestamptz(6)
+  lifecycle            String    @default("active")
+  harvest_state        String?
+  context_object_id    String?
+  first_inventoried_at DateTime  @default(now()) @db.Timestamptz(6)
+  last_inventoried_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([org_id, full_path], name: "ux_peo_org_path")
+  @@index([org_id, lifecycle], map: "idx_peo_org_life")
+  @@index([org_id, catalog_name, schema_name], map: "idx_peo_org_cat_sch")
+  @@index([org_id, harvest_state], map: "idx_peo_org_hstate")
+  @@map("platform_estate_objects")
+}
+
+model bandit_observations {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source               String
+  source_run_id        String?   @unique(map: "idx_bandit_obs_source_run")
+  model_id             String
+  provider             String
+  sheet_type           String
+  answer_full          String?
+  tool_trajectory      Json      @default("[]")
+  score_c              Float?    @db.Real
+  score_t              Float?    @db.Real
+  score_s              Float?    @db.Real
+  score_g              Float?    @db.Real
+  score_v              Float?    @db.Real
+  composite_score      Float?    @db.Real
+  success              Boolean?
+  input_tokens         Int       @default(0)
+  output_tokens        Int       @default(0)
+  tool_calls_total     Int       @default(0)
+  tool_calls_error     Int       @default(0)
+  tool_calls_discovery Int       @default(0)
+  duration_ms          Int       @default(0)
+  outcome              String?
+  scored_at            DateTime? @db.Timestamptz(6)
+  judge_model          String?
+  groundedness_mode    String?
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([model_id, created_at(sort: Desc)], map: "idx_bandit_obs_model")
+  @@index([source, created_at(sort: Desc)], map: "idx_bandit_obs_source")
+  @@map("bandit_observations")
+}
+
+model PlatformTraceNode {
+  id         String   @id
+  orgId      String   @map("org_id")
+  sessionId  String   @map("session_id")
+  agentClass String?  @map("agent_class")
+  nodeType   String   @map("node_type")
+  payload    Json
+  tokensIn   Int?     @map("tokens_in")
+  tokensOut  Int?     @map("tokens_out")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([orgId, sessionId])
+  @@map("platform_trace_nodes")
+}
+
+model PlatformTraceEdge {
+  id         String   @id
+  orgId      String   @map("org_id")
+  sessionId  String   @map("session_id")
+  fromNodeId String   @map("from_node_id")
+  toNodeId   String   @map("to_node_id")
+  edgeType   String   @map("edge_type")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([orgId, sessionId])
+  @@index([fromNodeId])
+  @@map("platform_trace_edges")
+}
+
+model platform_boost_runs {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id               String
+  suite_version        String
+  case_id              String
+  model_key            String
+  model_provider       String
+  model_id             String
+  context_mode         String
+  outcome              String
+  tool_trajectory      Json     @default("[]")
+  tool_calls_total     Int      @default(0)
+  tool_calls_catalog   Int      @default(0)
+  tool_calls_data      Int      @default(0)
+  tool_calls_discovery Int      @default(0)
+  tool_calls_error     Int      @default(0)
+  input_tokens         Int      @default(0)
+  output_tokens        Int      @default(0)
+  loops                Int      @default(0)
+  latency_ms           Int      @default(0)
+  groundedness         Decimal?
+  semantic_score       Decimal?
+  semantic_detail      Json?
+  answer_excerpt       String?
+  agent_run_id         String?
+  session_id           String?
+  boost_score_version  String
+  error_detail         String?
+  captured_at          DateTime @default(now()) @db.Timestamptz(6)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  answer_full          String?
+  memory_enabled       Boolean  @default(false)
+  injected_bullet_ids  String[] @default([])
+
+  @@index([org_id, suite_version, case_id], map: "idx_boost_runs_suite_case")
+  @@index([org_id, model_key, context_mode], map: "idx_boost_runs_model_mode")
+  @@index([org_id, memory_enabled], map: "idx_boost_runs_memory")
+  @@map("platform_boost_runs")
+}
+
+model PlatformAgentMemory {
+  id               String                 @id
+  orgId            String                 @map("org_id")
+  agentClass       String                 @map("agent_class")
+  taskSignature    String?                @map("task_signature")
+  ruleText         String                 @map("rule_text")
+  ruleType         String                 @map("rule_type")
+  helpfulCount     Int                    @default(0) @map("helpful_count")
+  harmfulCount     Int                    @default(0) @map("harmful_count")
+  confidence       Float                  @default(0.5)
+  embedText        String?                @map("embed_text")
+  sourceSessionIds String[]               @map("source_session_ids")
+  version          Int                    @default(1)
+  status           String                 @default("ACTIVE")
+  validFrom        DateTime               @default(now()) @map("valid_from")
+  validUntil       DateTime?              @map("valid_until")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  embedding        Unsupported("vector")?
+  lastUsedAt       DateTime?              @map("last_used_at")
+  shortLabel       String?                @map("short_label")
+  blurb            String?                @map("blurb")
+  caveatContext    Json?                  @map("caveat_context")
+
+  @@index([orgId, agentClass, status])
+  @@index([taskSignature])
+  @@map("platform_agent_memory")
+}
+
+model PlatformMemoryInjection {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  orgId        String    @map("org_id")
+  runId        String    @map("run_id")
+  bulletId     String    @map("bullet_id")
+  phase        String
+  attributedAt DateTime? @map("attributed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([runId, bulletId], name: "uq_injection_run_bullet", map: "uq_injection_run_bullet")
+  @@index([bulletId], map: "idx_memory_injections_bullet")
+  @@index([runId], map: "idx_memory_injections_run")
+  @@map("platform_memory_injections")
+}
+
+model PlatformMemorySynthesisRun {
+  id                String    @id
+  orgId             String    @map("org_id")
+  startedAt         DateTime  @map("started_at") @db.Timestamptz(6)
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  sessionsScanned   Int       @default(0) @map("sessions_scanned")
+  sessionsReflected Int       @default(0) @map("sessions_reflected")
+  sessionsSkipped   Int       @default(0) @map("sessions_skipped")
+  bulletsInserted   Int       @default(0) @map("bullets_inserted")
+  bulletsDeduped    Int       @default(0) @map("bullets_deduped")
+  bulletsSuperseded Int       @default(0) @map("bullets_superseded")
+  phantomsBlocked   Int       @default(0) @map("phantoms_blocked")
+  bulletsQuarantined Int      @default(0) @map("bullets_quarantined")
+  errors            Int       @default(0)
+  firstError        String?   @map("first_error")
+  reflectorVersion  String    @map("reflector_version")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([orgId, startedAt], map: "idx_synthesis_runs_org_started")
+  @@map("platform_memory_synthesis_runs")
+}
+
+model PlatformMemorySynthesisDetail {
+  id                 String   @id
+  orgId              String   @map("org_id")
+  runId              String   @map("run_id")
+  sessionId          String   @map("session_id")
+  agentClass         String?  @map("agent_class")
+  taskSignature      String?  @map("task_signature")
+  candidatesProduced Int      @default(0) @map("candidates_produced")
+  bulletsInserted    Int      @default(0) @map("bullets_inserted")
+  bulletsDeduped     Int      @default(0) @map("bullets_deduped")
+  bulletsSuperseded  Int      @default(0) @map("bullets_superseded")
+  phantomsBlocked    Int      @default(0) @map("phantoms_blocked")
+  bulletsQuarantined Int      @default(0) @map("bullets_quarantined")
+  skippedReason      String?  @map("skipped_reason")
+  error              String?
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([orgId, runId], map: "idx_synthesis_details_org_run")
+  @@index([sessionId], map: "idx_synthesis_details_session")
+  @@map("platform_memory_synthesis_details")
+}
+
+model PlatformMemoryTopic {
+  id            String   @id
+  orgId         String   @map("org_id")
+  period        String
+  topicKey      String   @map("topic_key")
+  topicName     String   @map("topic_name")
+  topicRank     Int      @map("topic_rank")
+  taskSignature String   @map("task_signature")
+  memberCount   Int      @map("member_count")
+  promptVersion String   @map("prompt_version")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([orgId, period], map: "platform_memory_topics_org_period_idx")
+  @@index([orgId, period, taskSignature], map: "platform_memory_topics_org_period_sig_idx")
+  @@map("platform_memory_topics")
+}
+
+model PlatformJobRun {
+  id             String    @id
+  orgId          String    @map("org_id")
+  runGroupId     String    @map("run_group_id")
+  jobKey         String    @map("job_key")
+  status         String    @default("running")
+  startedAt      DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime? @map("finished_at") @db.Timestamptz(6)
+  itemsProcessed Int?      @map("items_processed")
+  errorText      String?   @map("error_text")
+
+  @@index([orgId, jobKey, finishedAt(sort: Desc)], map: "idx_job_runs_org_key_finished")
+  @@map("platform_job_runs")
+}
+
+model platform_sem_dimensions {
+  id                    String                @id
+  org_id                String
+  entity_id             String
+  column_name           String
+  dimension_label       String
+  dimension_type        String                @default("categorical")
+  description           String?
+  ai_context            String?
+  synonyms              String[]              @default([])
+  format_hint           String?
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime              @default(now()) @db.Timestamptz(6)
+  status                String                @default("candidate")
+  platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([entity_id, column_name], map: "ux_psd_entity_col")
+  @@index([org_id], map: "idx_psd_org")
+}
+
+model platform_sem_entities {
+  id                                                                          String                    @id
+  org_id                                                                      String
+  model_id                                                                    String
+  full_path                                                                   String
+  entity_label                                                                String
+  description                                                                 String?
+  ai_context                                                                  String?
+  synonyms                                                                    String[]                  @default([])
+  created_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
+  status                                                                      String                    @default("candidate")
+  platform_sem_dimensions                                                     platform_sem_dimensions[]
+  platform_semantic_models                                                    platform_semantic_models  @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities platform_sem_joins[]      @relation("platform_sem_joins_from_entity_idToplatform_sem_entities")
+  platform_sem_joins_platform_sem_joins_to_entity_idToplatform_sem_entities   platform_sem_joins[]      @relation("platform_sem_joins_to_entity_idToplatform_sem_entities")
+  platform_sem_measures                                                       platform_sem_measures[]
+
+  @@unique([model_id, full_path], map: "ux_pse_model_path")
+  @@index([org_id], map: "idx_pse_org")
+}
+
+model platform_sem_joins {
+  id                                                                             String                   @id
+  org_id                                                                         String
+  model_id                                                                       String
+  from_entity_id                                                                 String
+  to_entity_id                                                                   String
+  join_type                                                                      String                   @default("inner")
+  join_on_sql                                                                    String
+  description                                                                    String?
+  created_at                                                                     DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                                                                     DateTime                 @default(now()) @db.Timestamptz(6)
+  platform_sem_entities_platform_sem_joins_from_entity_idToplatform_sem_entities platform_sem_entities    @relation("platform_sem_joins_from_entity_idToplatform_sem_entities", fields: [from_entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  platform_semantic_models                                                       platform_semantic_models @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  platform_sem_entities_platform_sem_joins_to_entity_idToplatform_sem_entities   platform_sem_entities    @relation("platform_sem_joins_to_entity_idToplatform_sem_entities", fields: [to_entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([from_entity_id, to_entity_id], map: "ux_psj_from_to")
+  @@index([model_id], map: "idx_psj_model")
+}
+
+model platform_sem_measures {
+  id                    String                @id
+  org_id                String
+  entity_id             String
+  column_name           String?
+  measure_label         String
+  aggregate             String                @default("sum")
+  expression            String?
+  metric_type           String                @default("simple")
+  description           String?
+  ai_context            String?
+  synonyms              String[]              @default([])
+  format_hint           String?
+  unit                  String?
+  created_at            DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime              @default(now()) @db.Timestamptz(6)
+  status                String                @default("candidate")
+  platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([org_id], map: "idx_psmeas_org")
+}
+
+model platform_semantic_models {
+  id                    String                  @id
+  org_id                String
+  name                  String
+  description           String?
+  status                String                  @default("candidate")
+  source_type           String                  @default("auto_bootstrap")
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  platform_dashboards   platform_dashboards[]
+  platform_sem_audit    platform_sem_audit[]
+  platform_sem_entities platform_sem_entities[]
+  platform_sem_joins    platform_sem_joins[]
+
+  @@index([org_id, status], map: "idx_psm_org_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model platform_sem_audit {
+  id                       String                   @id
+  org_id                   String
+  model_id                 String
+  table_name               String
+  row_id                   String
+  action                   String
+  from_status              String?
+  to_status                String?
+  changed_by               String                   @default("system")
+  diff                     Json?
+  created_at               DateTime                 @default(now()) @db.Timestamptz(6)
+  platform_semantic_models platform_semantic_models @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([model_id], map: "idx_psa_model")
+  @@index([org_id], map: "idx_psa_org")
+}
+
+model platform_dashboard_audit {
+  id           String   @id
+  org_id       String
+  dashboard_id String
+  action       String
+  version_id   String?
+  actor        String   @default("system")
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([dashboard_id], map: "idx_pda_dashboard")
+  @@index([org_id], map: "idx_pda_org")
+}
+
+model platform_dashboard_versions {
+  id                                                                                      String                @id
+  dashboard_id                                                                            String
+  version_number                                                                          Int
+  widgets                                                                                 Json                  @default("[]")
+  layout                                                                                  Json                  @default("{}")
+  created_by                                                                              String                @default("system")
+  created_at                                                                              DateTime              @default(now()) @db.Timestamptz(6)
+  change_summary                                                                          String?
+  platform_dashboards_platform_dashboard_versions_dashboard_idToplatform_dashboards       platform_dashboards   @relation("platform_dashboard_versions_dashboard_idToplatform_dashboards", fields: [dashboard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  platform_dashboards_platform_dashboards_current_version_idToplatform_dashboard_versions platform_dashboards[] @relation("platform_dashboards_current_version_idToplatform_dashboard_versions")
+
+  @@unique([dashboard_id, version_number])
+  @@index([dashboard_id], map: "idx_pdv_dashboard")
+}
+
+model platform_dashboards {
+  id                                                                                              String                                   @id
+  org_id                                                                                          String
+  model_id                                                                                        String
+  name                                                                                            String
+  description                                                                                     String?
+  created_by                                                                                      String                                   @default("system")
+  visibility                                                                                      String                                   @default("org")
+  current_version_id                                                                              String?
+  deleted_at                                                                                      DateTime?                                @db.Timestamptz(6)
+  created_at                                                                                      DateTime                                 @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                      DateTime                                 @default(now()) @db.Timestamptz(6)
+  platform_dashboard_versions_platform_dashboard_versions_dashboard_idToplatform_dashboards       platform_dashboard_versions[]            @relation("platform_dashboard_versions_dashboard_idToplatform_dashboards")
+  platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions platform_dashboard_versions?             @relation("platform_dashboards_current_version_idToplatform_dashboard_versions", fields: [current_version_id], references: [id], onUpdate: NoAction, map: "fk_pd_current_version")
+  platform_semantic_models                                                                        platform_semantic_models                 @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  platform_dashboard_collaborators                                                                platform_dashboard_collaborators[]
+
+  @@index([model_id], map: "idx_pd_model")
+  @@index([org_id], map: "idx_pd_org")
+}
+
+model platform_dashboard_collaborators {
+  id           String              @id
+  dashboard_id String
+  user_id      String
+  role         String              @default("viewer")
+  granted_by   String              @default("system")
+  created_at   DateTime            @default(now()) @db.Timestamptz(6)
+  dashboard    platform_dashboards @relation(fields: [dashboard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user         User                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([dashboard_id, user_id], map: "uq_pdc_dashboard_user")
+  @@index([dashboard_id], map: "idx_pdc_dashboard")
+  @@index([user_id], map: "idx_pdc_user")
+}
+
+model platform_charts {
+  id                String    @id
+  org_id            String
+  model_id          String
+  name              String
+  description       String?
+  created_by        String    @default("system")
+  chart_dsl         Json
+  semantic_query    Json
+  measure_snapshots Json      @default("[]")
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at        DateTime? @db.Timestamptz(6)
+}
+
+// ── Maxwell watchdog models (MX0) ─────────────────────────────────────────────
+
+model PlatformPipelineStage {
+  id                        String   @id
+  org_id                    String
+  pipeline_key              String
+  job_kind                  String
+  stage_label               String?
+  stage_order               Int      @default(0)
+  depends_on                String[] @default([])
+  expected_max_min          Int?
+  stale_after_min           Int?
+  max_attempts              Int      @default(3)
+  max_remediations_per_hour Int      @default(4)
+  rate_per_min              Decimal?
+  enabled                   Boolean  @default(true)
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([org_id, pipeline_key, job_kind], map: "ux_pps_org_pipeline_kind")
+  @@index([org_id, pipeline_key], map: "idx_pps_org_pipeline")
+  @@map("platform_pipeline_stages")
+}
+
+model PlatformWatchIncident {
+  id                    String    @id
+  org_id                String
+  pipeline_key          String
+  job_kind              String
+  job_id                String?
+  fm_code               String
+  classification_source String?
+  confidence            Decimal?
+  severity              String
+  evidence              Json?
+  evidence_partial      Boolean   @default(false)
+  status                String
+  dedupe_key            String
+  recurrence_count      Int       @default(0)
+  first_seen_at         DateTime  @default(now()) @db.Timestamptz(6)
+  last_seen_at          DateTime  @default(now()) @db.Timestamptz(6)
+  resolved_at           DateTime? @db.Timestamptz(6)
+  plans                 PlatformRemediationPlan[]
+
+  @@index([org_id, status], map: "idx_pwi_org_status")
+  @@map("platform_watch_incidents")
+}
+
+model PlatformRemediationPlan {
+  id                    String    @id
+  org_id                String
+  incident_id           String
+  plan_json             Json?
+  reasoning             String?
+  predicted_outcome     String?
+  status                String
+  attempt_number        Int       @default(1)
+  proposed_at           DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at            DateTime? @db.Timestamptz(6)
+  fm_code_at_proposal   String?
+  decided_by            String?
+  decided_at            DateTime? @db.Timestamptz(6)
+  decision_note         String?
+  execution_log         Json?
+  verify_result         Json?
+  parked_until          DateTime? @db.Timestamptz(6)
+  incident              PlatformWatchIncident @relation(fields: [incident_id], references: [id])
+
+  @@index([org_id, status], map: "idx_prp_org_status")
+  @@index([incident_id], map: "idx_prp_incident")
+  @@map("platform_remediation_plans")
+}
+
+model PlatformWatchCycle {
+  id                 String    @id
+  org_id             String
+  started_at         DateTime  @default(now()) @db.Timestamptz(6)
+  finished_at        DateTime? @db.Timestamptz(6)
+  status             String
+  deep_scan          Boolean   @default(false)
+  jobs_polled        Int       @default(0)
+  incidents_opened   Int       @default(0)
+  incidents_resolved Int       @default(0)
+  plans_proposed     Int       @default(0)
+  plans_expired      Int       @default(0)
+  invariants         Json?
+  observation_cost   Json?
+  error              String?
+
+  @@index([org_id, started_at(sort: Desc)], map: "idx_pwc_org_started")
+  @@map("platform_watch_cycles")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum KnowledgeSourceType {
+  FILE
+  DATABASE
+  API
+  SAAS
+}
+
+enum KnowledgeSourceStatus {
+  INDEXED
+  INDEXING
+  ERROR
+  PENDING
+  DEGRADED
+}
+
+enum KnowledgeAuthType {
+  service_account
+  oauth
+  api_key
+  user_delegated
+}
+
+enum KnowledgeSearchMode {
+  semantic
+  keyword
+  hybrid
+}
+
+enum KnowledgeEmbeddingModel {
+  openai_text_embedding_3_small @map("openai/text-embedding-3-small")
+  openai_text_embedding_3_large @map("openai/text-embedding-3-large")
+  cohere_embed_v3               @map("cohere/embed-v3")
+  aloft_native                  @map("aloft/native")
+}
+
+enum KnowledgeRefreshSchedule {
+  manual
+  hourly
+  daily
+  weekly
+}
