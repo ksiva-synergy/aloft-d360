@@ -1,0 +1,217 @@
+/**
+ * Client-side state store for the dashboard builder.
+ * Manages widget list, grid layout, selection state, and save status.
+ */
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
+import { createId } from '@paralleldrive/cuid2';
+import type { WidgetSpec, MeasureSnapshot } from '@/lib/dashboards/types';
+import type { SemanticQuery } from '@/lib/semantic/types';
+
+export type DriftStatus = 'ok' | 'changed' | 'unavailable';
+
+export interface WidgetDriftInfo {
+  widgetId: string;
+  status: DriftStatus;
+  changedMeasures?: string[]; // measureIds that drifted
+  unavailableIds?: string[];  // dim/measure IDs that can't be resolved
+}
+
+export type SaveErrorType = 'validation' | 'conflict' | 'other' | null;
+
+interface BuilderState {
+  dashboardId: string;
+  modelId: string;
+  dashboardName: string;
+  widgets: WidgetSpec[];
+  selectedWidgetId: string | null;
+  driftMap: Record<string, WidgetDriftInfo>;
+  saving: boolean;
+  saveError: string | null;
+  saveErrorType: SaveErrorType;
+  dirty: boolean;
+  currentVersionId: string | null;
+
+  // Actions
+  setDashboard: (id: string, modelId: string, name: string, versionId: string | null) => void;
+  loadWidgets: (widgets: WidgetSpec[]) => void;
+  addWidget: (chartKind: WidgetSpec['chartKind'], title: string) => string;
+  removeWidget: (widgetId: string) => void;
+  updateWidget: (widgetId: string, patch: Partial<WidgetSpec>) => void;
+  updateWidgetPosition: (widgetId: string, pos: { col: number; row: number; w: number; h: number }) => void;
+  updateWidgetSemanticQuery: (widgetId: string, query: SemanticQuery) => void;
+  selectWidget: (widgetId: string | null) => void;
+  setDriftMap: (map: Record<string, WidgetDriftInfo>) => void;
+  setSaving: (saving: boolean) => void;
+  setSaveError: (err: string | null, errorType?: SaveErrorType) => void;
+  markClean: () => void;
+}
+
+const DEFAULT_WIDGET_SIZE: Record<string, { w: number; h: number }> = {
+  kpi: { w: 3, h: 2 },
+  bar: { w: 6, h: 4 },
+  line: { w: 6, h: 4 },
+  donut: { w: 4, h: 4 },
+  scatter: { w: 6, h: 4 },
+  heatmap: { w: 6, h: 4 },
+  histogram: { w: 6, h: 4 },
+};
+
+/**
+ * Finds the first open position in a 12-column grid.
+ * Scans rows top-down, left-right for a gap that fits { w, h }.
+ * Falls-back to appending below the lowest occupied row.
+ */
+function findOpenPosition(
+  widgets: WidgetSpec[],
+  w: number,
+  h: number,
+): { col: number; row: number } {
+  if (widgets.length === 0) return { col: 0, row: 0 };
+
+  const maxRow = Math.max(...widgets.map((wg) => wg.position.row + wg.position.h), 0);
+
+  // Build occupancy grid (sparse)
+  const occupied = new Set<string>();
+  for (const wg of widgets) {
+    for (let r = wg.position.row; r < wg.position.row + wg.position.h; r++) {
+      for (let c = wg.position.col; c < wg.position.col + wg.position.w; c++) {
+        occupied.add(`${r},${c}`);
+      }
+    }
+  }
+
+  // Scan for first position where the widget fits
+  for (let row = 0; row <= maxRow + h; row++) {
+    for (let col = 0; col <= 12 - w; col++) {
+      let fits = true;
+      for (let r = row; r < row + h && fits; r++) {
+        for (let c = col; c < col + w && fits; c++) {
+          if (occupied.has(`${r},${c}`)) fits = false;
+        }
+      }
+      if (fits) return { col, row };
+    }
+  }
+
+  return { col: 0, row: maxRow };
+}
+
+export const useBuilderStore = create<BuilderState>()(
+  immer((set) => ({
+    dashboardId: '',
+    modelId: '',
+    dashboardName: '',
+    widgets: [],
+    selectedWidgetId: null,
+    driftMap: {},
+    saving: false,
+    saveError: null,
+    saveErrorType: null,
+    dirty: false,
+    currentVersionId: null,
+
+    setDashboard: (id, modelId, name, versionId) =>
+      set((s) => {
+        s.dashboardId = id;
+        s.modelId = modelId;
+        s.dashboardName = name;
+        s.currentVersionId = versionId;
+      }),
+
+    loadWidgets: (widgets) =>
+      set((s) => {
+        s.widgets = widgets;
+        s.dirty = false;
+      }),
+
+    addWidget: (chartKind, title) => {
+      const widgetId = createId();
+      set((s) => {
+        const size = DEFAULT_WIDGET_SIZE[chartKind] ?? { w: 6, h: 4 };
+        const pos = findOpenPosition(s.widgets, size.w, size.h);
+
+        const newWidget: WidgetSpec = {
+          widgetId,
+          title,
+          chartKind,
+          semanticQuery: {
+            modelId: s.modelId,
+            entityId: '',
+            dimensions: [],
+            measures: [],
+            filters: [],
+            sorts: [],
+          },
+          measureSnapshots: [] as MeasureSnapshot[],
+          chartConfig: {},
+          position: { col: pos.col, row: pos.row, ...size },
+        };
+        s.widgets.push(newWidget);
+        s.selectedWidgetId = widgetId;
+        s.dirty = true;
+      });
+      return widgetId;
+    },
+
+    removeWidget: (widgetId) =>
+      set((s) => {
+        s.widgets = s.widgets.filter((w) => w.widgetId !== widgetId);
+        if (s.selectedWidgetId === widgetId) s.selectedWidgetId = null;
+        s.dirty = true;
+      }),
+
+    updateWidget: (widgetId, patch) =>
+      set((s) => {
+        const idx = s.widgets.findIndex((w) => w.widgetId === widgetId);
+        if (idx >= 0) {
+          Object.assign(s.widgets[idx], patch);
+          s.dirty = true;
+        }
+      }),
+
+    updateWidgetPosition: (widgetId, pos) =>
+      set((s) => {
+        const idx = s.widgets.findIndex((w) => w.widgetId === widgetId);
+        if (idx >= 0) {
+          s.widgets[idx].position = pos;
+          s.dirty = true;
+        }
+      }),
+
+    updateWidgetSemanticQuery: (widgetId, query) =>
+      set((s) => {
+        const idx = s.widgets.findIndex((w) => w.widgetId === widgetId);
+        if (idx >= 0) {
+          s.widgets[idx].semanticQuery = query;
+          s.dirty = true;
+        }
+      }),
+
+    selectWidget: (widgetId) =>
+      set((s) => {
+        s.selectedWidgetId = widgetId;
+      }),
+
+    setDriftMap: (map) =>
+      set((s) => {
+        s.driftMap = map;
+      }),
+
+    setSaving: (saving) =>
+      set((s) => {
+        s.saving = saving;
+      }),
+
+    setSaveError: (err, errorType) =>
+      set((s) => {
+        s.saveError = err;
+        s.saveErrorType = errorType ?? (err ? 'other' : null);
+      }),
+
+    markClean: () =>
+      set((s) => {
+        s.dirty = false;
+      }),
+  })),
+);

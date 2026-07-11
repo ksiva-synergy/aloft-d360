@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChartDSLSpec",
+  "description": "Inspector chart DSL specification — compiles to EChartsOption via compileSpecToOption()",
+  "type": "object",
+  "required": ["id", "kind", "title", "encodings"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique spec identifier"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["bar", "stacked-bar", "line", "area", "pie", "scatter", "heatmap", "boxplot", "histogram"],
+      "description": "Chart type — one of 9 DSL kinds (kpi is NOT a DSL kind)"
+    },
+    "title": {
+      "type": "string",
+      "description": "Chart title"
+    },
+    "subtitle": {
+      "type": "string",
+      "description": "Optional subtitle"
+    },
+    "encodings": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Visual encodings binding columns to chart roles",
+      "items": {
+        "type": "object",
+        "required": ["columnId", "role"],
+        "additionalProperties": false,
+        "properties": {
+          "columnId": {
+            "type": "string",
+            "description": "Must match a ColumnProfile.name from profileResultSet()"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["x", "y", "series", "value", "color", "size"],
+            "description": "Encoding role within the chart"
+          },
+          "aggregate": {
+            "type": "string",
+            "enum": ["sum", "mean", "count", "min", "max", "median", "none"],
+            "default": "none",
+            "description": "Aggregation function applied to this encoding"
+          }
+        }
+      }
+    },
+    "filters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["columnId", "op", "value"],
+        "additionalProperties": false,
+        "properties": {
+          "columnId": {
+            "type": "string"
+          },
+          "op": {
+            "type": "string",
+            "enum": ["eq", "neq", "gt", "lt", "in"]
+          },
+          "value": {}
+        }
+      }
+    },
+    "sort": {
+      "type": "object",
+      "required": ["columnId", "direction"],
+      "additionalProperties": false,
+      "properties": {
+        "columnId": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": ["asc", "desc"]
+        }
+      }
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10000,
+      "description": "Row cap for chart data"
+    },
+    "themeSlot": {
+      "type": "string",
+      "enum": ["aloft-dark", "aloft-light"],
+      "default": "aloft-dark",
+      "description": "Theme to apply — dark or light"
+    }
+  }
+}

@@ -99,6 +99,20 @@ loaded port plan. Created during Phase 3 (Memory / FOER port).
   repo → **rotate the token** (flag to the Vercel account owner) and redact the
   on-disk value. History is clean; exposure surface is the on-disk plaintext.
 
+- **Second live-secret set (Phase 5 gate): Azure OpenAI / Foundry / Bedrock-Mantle
+  / Databricks credentials in `.env.local`.** Populated on disk to run the Phase-5
+  three-link live gate (same exposure class as the Vercel token: gitignored via
+  `.env*`, untracked, absent from `git status` — verified pre-commit). There are
+  now **two** live-secret concerns in this repo: (1) the Vercel token (open since
+  Phase 3) and (2) this Azure/Databricks/Mantle set. Treat both as **rotate-aware**
+  if this repo is ever shared — the Databricks M2M client secret and AWS keys reach
+  real production data (Link 1 hit a live warehouse). No secret value is in git
+  history; exposure is on-disk plaintext only.
+  - **Note:** the Azure OpenAI (`resource1`) and Foundry (`resource2`) API keys
+    currently on disk are **rejected (401)** by both endpoints — likely stale /
+    rotated / wrong-resource. Not a blocker (Bedrock is the default path) but worth
+    refreshing before the Foundry/Azure model options are relied on.
+
 ## Phase 6 — env cleanup
 
 - **`BEDROCK_REGION` duplicated in `.env.local`** (quoted `"us-east-1"` + unquoted
@@ -155,3 +169,173 @@ loaded port plan. Created during Phase 3 (Memory / FOER port).
   "cmp byte-identical" verified *file identity*, not *compile validity*. The files
   are fine now (build green), but the gates are different: a leaf that imports X
   isn't self-proving until X exists in the destination.
+
+---
+
+## Phase 5 (Inspector / Boost / Studio / Semantic / Dashboards) — annotations
+
+### Sole sanctioned verbatim-deviation: `src/hooks/useInspectorChat.ts`
+
+The migration's ONE intentional edit-not-copy. Every other Phase-5 file is
+byte-identical to source. A future diff vs source WILL flag this file — it is
+**intentional, not drift**.
+
+**What changed** — removed the vestigial `useWorkbenchChat` coupling:
+- Removed L4 value-import `import { useWorkbenchChat } from '@/components/agent-lab/workbench/useWorkbenchChat'`.
+- `WorkbenchMessage` (type) + `AVAILABLE_MODELS` (value) still sourced from
+  `@/components/agent-lab/workbench/types` (L4-5 after cut) — unchanged.
+- Removed `const wb = useWorkbenchChat({ sessionId, artifactType: 'agent' })`.
+- `sessionIdRef` init changed `wb.sessionId` → `sessionId` (prop) — identical initial value.
+- Sync effect `sessionIdRef.current = wb.sessionId` → `= currentSessionId`, and
+  **relocated below** the `currentSessionId` useState declaration (was above it →
+  would have been a TDZ ReferenceError; the original only worked because it read
+  the external `wb`, not inspector's own state).
+- Dropped the two `wb.setSelectedModel(...)` calls (the L98 effect and the one in
+  `handleModelChange`) — write-only sinks whose value inspector never reads back
+  (inspector drives everything off its own `previewModel`). `handleModelChange`
+  dep array `[wb]` → `[]`.
+
+**Why** — D1 trace proved inspector's chat engine (its own `doSend` →
+`fetch('/api/inspector/chat')` + SSE loop + local `localMessages`/`isStreaming`
+state) is entirely self-contained; `useWorkbenchChat` was reached only for
+`wb.sessionId` (a value inspector already shadows via `currentSessionId`) and
+`wb.setSelectedModel` (a dead sink). Copying it verbatim would have dragged ~14
+agent-lab/construction files (`useWorkbenchChat` → `useAgentChat`,
+`artifactDraftSchemas`, `interaction-buffer/-types`, + the construction value-tree
+`assumptionHelpers`/`buildPersona`) — re-importing exactly the subtree five phases
+of pruning removed. Behavior is preserved exactly; build + lint green.
+
+### Escape-scan finding the lib-audit missed (resolved, not deferred)
+
+The D1-D5 lib-audit traced `useInspectorChat.ts` + the lib trees exhaustively but
+did **not** trace `components/inspector/InspectorShell.tsx`, which value-imports
+three UI components from `components/workbench/`. A pre-build `@/`-scan across all
+114 Phase-5 files caught it. Full second-level closure proved **bounded**: 12
+resolution files, all terminating in already-present d360 files + already-present
+npm (`framer-motion`, `lucide-react`) — zero new lib subtree, zero new deps:
+- `lib/agent-lab/artifactDraftSchemas.ts` (zod-only leaf; required by the type-only
+  imports in the copied `agent-lab/workbench/types.ts`).
+- `lib/construction/assumptionHelpers.ts` (type-only reach to the present
+  `constructionState.ts`; does NOT drag buildPersona/computeCompleteness/etc.).
+- 10 × `components/workbench/*` (see partial-slice below).
+
+Post-fix full re-scan: **0 unresolved `@/` targets across all 114 files.** No third
+entry point has an unmapped workbench/agent-lab/construction/marcus-lib reach.
+
+### Partial-slice directory: `src/components/workbench/` = 10 of 29 source files
+
+Copied (inspector-reachable closure — treat as complete, NOT partial-by-omission):
+`PromptCanvas`, `StreamingMessage`, `InputComposer`, `AssumptionChip`,
+`ClassSuggestionChip`, `HistoryDrawer`, `atoms`, `marcus/{useReflections,
+ReflectionCard, DismissedReflection}`.
+
+**The other 19 are DELIBERATELY absent** — future audits treat this dir as an
+intentional bounded slice, not an incomplete copy: `AuditGateBanner`,
+`CommissionDock`, `ConfigPanel`, `ConstructionCanvas`, `GuidedMode`, `IngestPanel`,
+`NLMode`, `ObserverPanel`, `RunResultCard`, `StatusBar`, `WorkbenchShell`,
+`guided/{GuidedShell, Step00Lens, Step01Prompt, Step02Tools, Step03Memory,
+Step04Review}`, `marcus/ReviewPanel`, `useWorkbenchTokens`.
+
+### Other Phase-5 notes
+
+- **`lib/studio/` = 13 files, not 12 (plan estimate).** `__tests__/` (2) +
+  `chart-dsl.schema.json` + 10 × `.ts`. Full dir copied; settled against source
+  file count.
+- **`components/agent-lab/workbench/types.ts` path correction.** Plan said
+  `components/workbench/types.ts` — that file does not exist in source. The audited
+  leaf is `components/agent-lab/workbench/types.ts` (the exact path
+  `useInspectorChat` L4-5 import). Copied there.
+- **`governance.ts` (Phase-4 pre-seed) untouched** — still
+  `df33321a85d4dd8291de7a2a68c3afbc`, byte-identical, not overwritten by the
+  semantic 6-file copy.
+- **`@resvg/resvg-js@2.6.2` native binary verified** — not just install exit 0: a
+  trivial `new Resvg(...).render().asPng()` produced a valid 95-byte PNG
+  (`win32-x64-msvc` binary loads on Windows).
+- **7 deps pinned exact (no caret):** `zustand@4.5.0`, `immer@10.0.3`,
+  `@tanstack/react-virtual@3.13.23`, `ajv@8.20.0`, `@resvg/resvg-js@2.6.2`,
+  `openai@6.39.1`, `react-grid-layout@2.2.3` (self-typed, NO `@types`). All present
+  in source's package.json (as caret ranges); none is a source-missing dep.
+- **Env: 6 of 7 keys already present**; appended only `FOUNDRY_TOOL_TIMEOUT_MS=`
+  (BLANK). All 7 remain blank placeholders — live-cred gate NOT run.
+- **Compile-green reached; NOT committed, live gate NOT run.** `npm run build` →
+  Compiled successfully, exit 0. `npm run lint` → clean, exit 0 (`--max-warnings 0`).
+
+### Deferred to a later phase / live-gate
+
+- **Runtime (not compile) dependency:** `components/workbench/marcus/useReflections`
+  fetches `/api/agent-lab/marcus/reflections{,/[id]}` at runtime (live in inspector
+  — the hook is called unconditionally). Route presence is a runtime concern, not a
+  build blocker; verify when the live gate runs.
+- **Sync `params` and other inherited-verbatim source patterns** across the copied
+  inspector/databricks routes are source-side debt, not copy-introduced.
+
+---
+
+## Phase 5 — three-link live gate (credentialed, run as its own step)
+
+Compile-green is the weakest proxy for "works" in Phase 5: the whole feature is
+the credentialed path, which compiles fine with blank env and does nothing. So the
+commit gate was a live chain, run link-by-link in dependency order with real creds.
+
+**Link 1 — Databricks query (Phase 4's dark path). 🟢 GREEN.** Drove the *real*
+`executeDatabricksSQL` (import-free Phase-4 module) with an M2M token minted exactly
+as `token-client.fetchToken` does. `SELECT current_catalog(), current_user(), 1+1`
+→ `row_count=1`, `catalog=hive_metastore`, real service-principal identity, real
+36-char `statement_id`. OAuth M2M ✅ · warehouse compute ✅ · read-only enforcement
+✅ · result parse ✅. **This retroactively verifies the Phase 4 Databricks execute
+path** — Phase 4 committed it compile-green-only; inspector is its first real
+consumer and this is the first live query through it.
+
+**Link 2 — inspector agent-loop completion. 🟢 GREEN (with a documented asymmetry).**
+Drove the *real* `dispatchAgentLoop`. Inspector's DEFAULT model is `sonnet-4-6`
+(Bedrock converse). Both `sonnet-4-6` and `haiku-4-5` completed a real turn:
+`outcome=completed`, real token usage (in≈37/out=8), streamed the exact requested
+token back. Loop wiring + send path (the code the refactor left byte-identical)
+confirmed intact via a real completion.
+  - **Dark (cred-blocked, wiring-proven):** the Foundry / Azure-OpenAI sub-path
+    (`gpt-5-4`/resource1 = Azure OpenAI; `grok-4-3`/`kimi-k2-6`/`deepseek-v4`/
+    resource2 = Foundry) — every model made a *real* HTTP round-trip to Azure
+    (correct URL/headers/api-version) and got a genuine **401** (keys on disk
+    rejected). The provider wiring, openai-SDK transport, and endpoint resolution
+    are proven; only a live *completion* through Azure is unverified, pending valid
+    keys. Same asymmetry discipline as Phase 4: wired ≠ completion-verified.
+
+**Link 3 — chart pipeline end-to-end. 🟢 GREEN.** `emitChartSpec` (real Bedrock
+sonnet-4-6) produced a `ChartDSLSpec` (kind=bar, title "Monthly Revenue") from a
+synthetic result set → `renderSpecToPng` compiled it (studio compiler) → echarts SSR
+→ resvg rasterized a valid **23,064-byte PNG**. Full agent→pipeline→studio→resvg
+chain live.
+
+### Findings the live gate caught that compile-green hid
+
+1. **`assets/fonts/{ibm-plex-mono-400.ttf, inter-tight-400.ttf}` were MISSING.**
+   `ssr-render.ts` has a module-load-time guard that throws if these fonts are
+   absent at `process.cwd()/assets/fonts`. The Phase-5 copy was `src/`-only and
+   missed these git-tracked binary assets. **Build stayed green** because the guard
+   runs at runtime (server-only module), not during `next build`. **Added** (both
+   byte-identical to source). Any SSR chart-PNG path (digest, chart export) would
+   have thrown at runtime without them.
+
+2. **`FOUNDRY_TOOL_TIMEOUT_MS=` blank line was actively harmful.** Appending it
+   blank (per the env step) set it to empty-string; the code reads
+   `parseInt(process.env.FOUNDRY_TOOL_TIMEOUT_MS ?? '45000')` — `??` catches
+   null/undefined but **not `""`** — so it became `parseInt('')` = `NaN` → instant
+   timeout on the Foundry path. **A blank placeholder there is worse than absent.**
+   Removed the line so the code's own `'45000'` default applies (correct for both
+   the gate and real runtime). Lesson: never blank-append an env var whose code
+   default is guarded by `??`.
+
+### Coverage honesty — what "Phase 5 committed green" does and does NOT mean
+
+The three links prove the credentialed *paths* work (Databricks execute, agent-loop
+completion via Bedrock, chart emit→render). They do **NOT** verify every inspector
+surface. Explicitly NOT exercised by this gate:
+- **Foundry/Azure-OpenAI model completions** — 401, cred-dark (above).
+- **`useReflections` marcus-API path** (`/api/agent-lab/marcus/reflections`) — live
+  in inspector at runtime but not driven here.
+- **Dashboard-builder persistence** (versions/share/collaborators routes + DB).
+- **Semantic layer** (`runSemanticChartPipeline`, semantic execute against
+  Databricks, governance/promote/review routes).
+- **The 22 inspector API routes end-to-end** (auth + DB + SSE) — only the lib
+  functions beneath chat/boost/chart were driven directly.
+These are separate surfaces; "gate green" ≠ "all of inspector verified."

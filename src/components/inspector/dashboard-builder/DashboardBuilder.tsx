@@ -1,0 +1,658 @@
+'use client';
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Plus, Save, History, ArrowLeft, Share2, Eye } from 'lucide-react';
+import { useBuilderStore } from './builder-store';
+import type { WidgetDriftInfo, DriftStatus } from './builder-store';
+import { DefinitionPicker } from './DefinitionPicker';
+import type { SavedChart } from './DefinitionPicker';
+import { BuilderGrid } from './BuilderGrid';
+import { WidgetConfigPanel } from './WidgetConfigPanel';
+import { VersionHistoryPanel } from './VersionHistoryPanel';
+import { ShareDialog } from './ShareDialog';
+import type { WidgetSpec } from '@/lib/dashboards/types';
+import type { DashboardVisibility } from '@/lib/dashboards/types';
+import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
+
+const MONO: React.CSSProperties = {
+  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+};
+
+interface PickerEntity {
+  id: string;
+  entity_label: string;
+  full_path: string;
+  description: string | null;
+  status: string;
+  dimensions: Array<{
+    id: string;
+    column_name: string;
+    dimension_label: string;
+    dimension_type: string;
+    description: string | null;
+    format_hint: string | null;
+    status: string;
+  }>;
+  measures: Array<{
+    id: string;
+    column_name: string | null;
+    measure_label: string;
+    aggregate: string;
+    expression: string | null;
+    metric_type: string;
+    description: string | null;
+    format_hint: string | null;
+    unit: string | null;
+    status: string;
+  }>;
+}
+
+type RightPanel = 'config' | 'history';
+
+export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [entities, setEntities] = useState<PickerEntity[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(true);
+  const [rightPanel, setRightPanel] = useState<RightPanel>('config');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [pickerHint, setPickerHint] = useState<string | null>(null);
+  const [myRole, setMyRole] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<DashboardVisibility>('org');
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const {
+    modelId,
+    dashboardName,
+    widgets,
+    selectedWidgetId,
+    saving,
+    saveError,
+    saveErrorType,
+    dirty,
+    setDashboard,
+    loadWidgets,
+    addWidget,
+    selectWidget,
+    updateWidget,
+    updateWidgetSemanticQuery,
+    setDriftMap,
+    setSaving,
+    setSaveError,
+    markClean,
+  } = useBuilderStore();
+
+  // ── Load dashboard ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/inspector/dashboards/${dashboardId}`);
+        if (!res.ok) throw new Error(`Dashboard load failed: ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+
+        const { dashboard, currentVersion, myRole: role } = data;
+        setDashboard(dashboard.id, dashboard.model_id, dashboard.name, dashboard.current_version_id);
+        setMyRole(role ?? null);
+        setVisibility((dashboard.visibility ?? 'org') as DashboardVisibility);
+
+        if (currentVersion?.widgets) {
+          loadWidgets(currentVersion.widgets as WidgetSpec[]);
+        } else {
+          loadWidgets([]);
+        }
+      } catch (err) {
+        console.error('[DashboardBuilder] load error:', err);
+      } finally {
+        if (!cancelled) setInitialLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dashboardId, setDashboard, loadWidgets]);
+
+  // Open share dialog if navigated here with ?share=1
+  useEffect(() => {
+    if (searchParams?.get('share') === '1') {
+      setShareOpen(true);
+    }
+  }, [searchParams]);
+
+  // ── Load definitions picker ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!modelId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setPickerLoading(true);
+        const res = await fetch(`/api/inspector/semantic/${modelId}/definitions`);
+        if (!res.ok) throw new Error(`Definitions load failed: ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setEntities(data.entities ?? []);
+      } catch (err) {
+        console.error('[DashboardBuilder] definitions error:', err);
+      } finally {
+        if (!cancelled) setPickerLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modelId]);
+
+  // ── Compute drift map whenever widgets or definitions change ─────────────────
+  useEffect(() => {
+    if (entities.length === 0 || widgets.length === 0) return;
+    const driftMap = computeDriftMap(widgets, entities);
+    setDriftMap(driftMap);
+  }, [widgets, entities, setDriftMap]);
+
+  // ── Definitions lookup map ───────────────────────────────────────────────────
+  const definitionsMap = useMemo(() => {
+    const map = new Map<string, { label: string; status: string; aggregate?: string; expression?: string | null; metric_type?: string }>();
+    for (const entity of entities) {
+      for (const dim of entity.dimensions) {
+        map.set(dim.id, { label: dim.dimension_label, status: dim.status });
+      }
+      for (const meas of entity.measures) {
+        map.set(meas.id, {
+          label: meas.measure_label,
+          status: meas.status,
+          aggregate: meas.aggregate,
+          expression: meas.expression,
+          metric_type: meas.metric_type,
+        });
+      }
+    }
+    return map;
+  }, [entities]);
+
+  // ── Picker handlers ──────────────────────────────────────────────────────────
+  const showPickerHint = useCallback((msg: string) => {
+    setPickerHint(msg);
+    setTimeout(() => setPickerHint(null), 2500);
+  }, []);
+
+  const handleAddDimension = useCallback(
+    (entityId: string, dim: { id: string; dimension_label: string }) => {
+      const widgetId = selectedWidgetId;
+      if (!widgetId) {
+        showPickerHint('Select a widget first');
+        return;
+      }
+      const widget = widgets.find((w) => w.widgetId === widgetId);
+      if (!widget) return;
+      if (widget.semanticQuery.dimensions.some((d) => d.dimensionId === dim.id)) {
+        showPickerHint('Already assigned');
+        return;
+      }
+      const sq = { ...widget.semanticQuery };
+      sq.entityId = sq.entityId || entityId;
+      sq.dimensions = [...sq.dimensions, { dimensionId: dim.id }];
+      updateWidgetSemanticQuery(widgetId, sq);
+    },
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+  );
+
+  const handleAddMeasure = useCallback(
+    (entityId: string, meas: { id: string; measure_label: string }) => {
+      const widgetId = selectedWidgetId;
+      if (!widgetId) {
+        showPickerHint('Select a widget first');
+        return;
+      }
+      const widget = widgets.find((w) => w.widgetId === widgetId);
+      if (!widget) return;
+      if (widget.semanticQuery.measures.some((m) => m.measureId === meas.id)) {
+        showPickerHint('Already assigned');
+        return;
+      }
+      const sq = { ...widget.semanticQuery };
+      sq.entityId = sq.entityId || entityId;
+      sq.measures = [...sq.measures, { measureId: meas.id }];
+      updateWidgetSemanticQuery(widgetId, sq);
+    },
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+  );
+
+  // ── Chart assign handler (Decision 2: click-to-assign, Option B: one-time copy) ──
+  const handleAddChart = useCallback(
+    (chart: SavedChart) => {
+      const widgetId = selectedWidgetId;
+      if (!widgetId) {
+        showPickerHint('Select a widget first');
+        return;
+      }
+      const chartConfig = encodingsToChartConfig(chart.chart_dsl);
+      updateWidget(widgetId, {
+        title: chart.name,
+        chartKind: dslKindToWidgetKind(chart.chart_dsl.kind),
+        semanticQuery: chart.semantic_query,
+        measureSnapshots: chart.measure_snapshots,
+        chartConfig,
+      });
+    },
+    [selectedWidgetId, updateWidget, showPickerHint],
+  );
+
+  // ── Save handler ──────────────────────────────────────────────────────────────
+  const handleSave = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch(`/api/inspector/dashboards/${dashboardId}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgets,
+          layout: { columns: 12, rows: widgets.map((w) => ({ widgetId: w.widgetId, ...w.position })) },
+          changeSummary: `D2 builder save — ${widgets.length} widget(s)`,
+        }),
+      });
+
+      if (res.status === 400) {
+        const data = await res.json();
+        const details = Array.isArray(data.details) ? data.details.join('; ') : (data.error ?? 'Validation failed');
+        setSaveError(`Validation error: ${details}`, 'validation');
+        return;
+      }
+
+      if (res.status === 409) {
+        setSaveError('Concurrent save detected — another user saved at the same time. Please reload and retry.', 'conflict');
+        return;
+      }
+
+      if (!res.ok) {
+        setSaveError(`Save failed (${res.status})`, 'other');
+        return;
+      }
+
+      // Server re-computes measureSnapshots — reload the dashboard to pick up
+      // fresh snapshots so drift detection stays accurate after save.
+      const data = await res.json();
+      const versionId = data.version?.id;
+
+      // Reload the dashboard to sync server-computed snapshots into local state
+      const reloadRes = await fetch(`/api/inspector/dashboards/${dashboardId}`);
+      if (reloadRes.ok) {
+        const reloadData = await reloadRes.json();
+        const { dashboard, currentVersion } = reloadData;
+        setDashboard(dashboard.id, dashboard.model_id, dashboard.name, dashboard.current_version_id);
+        if (currentVersion?.widgets) {
+          loadWidgets(currentVersion.widgets as WidgetSpec[]);
+        }
+      } else {
+        // Fallback: just mark clean without full reload
+        markClean();
+      }
+    } catch (err) {
+      setSaveError(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`, 'other');
+    } finally {
+      setSaving(false);
+    }
+  }, [dashboardId, widgets, saving, setSaving, setSaveError, markClean, setDashboard, loadWidgets]);
+
+  // ── Add widget ────────────────────────────────────────────────────────────────
+  const handleAddWidget = () => {
+    addWidget('bar', `Widget ${widgets.length + 1}`);
+  };
+
+  const selectedWidget = widgets.find((w) => w.widgetId === selectedWidgetId) ?? null;
+
+  const isReadOnly = myRole === 'viewer' || myRole === 'org_member';
+  const canShare = myRole === 'owner' || myRole === 'editor';
+
+  if (initialLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          LOADING DASHBOARD…
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--builder-surface)' }}>
+      {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 16px',
+          borderBottom: '1px solid var(--builder-border)',
+          flexShrink: 0,
+          background: 'var(--builder-surface-raised)',
+        }}
+      >
+        <button
+          onClick={() => router.push('/inspector/dashboards')}
+          title="Back to Dashboards"
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--builder-text-muted)',
+            cursor: 'pointer',
+            padding: 4,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <ArrowLeft size={16} />
+        </button>
+
+        <span style={{ ...MONO, fontSize: 12, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
+          {dashboardName || 'Dashboard Builder'}
+        </span>
+
+        {isReadOnly && (
+          <span
+            style={{
+              ...MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4,
+              color: '#8892A4', background: 'rgba(136,146,164,0.1)',
+              border: '1px solid rgba(136,146,164,0.25)', borderRadius: 3, padding: '2px 7px',
+            }}
+          >
+            <Eye size={10} />VIEW ONLY
+          </span>
+        )}
+
+        <div style={{ flex: 1 }} />
+
+        {!isReadOnly && (
+          <button
+            onClick={handleAddWidget}
+            style={{
+              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+              borderRadius: 4, border: '1px solid var(--builder-border)',
+              background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
+            }}
+          >
+            <Plus size={12} />ADD WIDGET
+          </button>
+        )}
+
+        <button
+          onClick={() => setRightPanel(rightPanel === 'history' ? 'config' : 'history')}
+          style={{
+            ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+            display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+            border: `1px solid ${rightPanel === 'history' ? '#FDB515' : 'var(--builder-border)'}`,
+            background: rightPanel === 'history' ? 'rgba(253,181,21,0.08)' : 'transparent',
+            color: rightPanel === 'history' ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+          }}
+        >
+          <History size={12} />VERSIONS
+        </button>
+
+        {canShare && (
+          <button
+            onClick={() => setShareOpen(true)}
+            style={{
+              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              border: '1px solid var(--builder-border)', background: 'transparent',
+              color: 'var(--builder-text)', cursor: 'pointer',
+            }}
+          >
+            <Share2 size={12} />SHARE
+          </button>
+        )}
+
+        {!isReadOnly && (
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            style={{
+              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              border: 'none', background: dirty ? '#FDB515' : 'rgba(253,181,21,0.3)',
+              color: '#0D1B2A', cursor: dirty && !saving ? 'pointer' : 'default',
+              opacity: saving ? 0.6 : 1, fontWeight: 500,
+            }}
+          >
+            <Save size={12} />{saving ? 'SAVING…' : 'SAVE'}
+          </button>
+        )}
+      </div>
+
+      {/* ── Save error banner ──────────────────────────────────────────────── */}
+      {saveError && (
+        <div
+          style={{
+            ...MONO,
+            fontSize: 10,
+            padding: '8px 16px',
+            background: saveErrorType === 'conflict' ? 'rgba(253,181,21,0.08)' : 'rgba(239,68,68,0.08)',
+            borderBottom: `1px solid ${saveErrorType === 'conflict' ? 'rgba(253,181,21,0.2)' : 'rgba(239,68,68,0.2)'}`,
+            color: saveErrorType === 'conflict' ? '#FDB515' : '#F87171',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span style={{ flex: 1 }}>{saveError}</span>
+          {saveErrorType === 'conflict' && (
+            <button
+              onClick={() => window.location.reload()}
+              style={{ ...MONO, fontSize: 10, background: 'rgba(253,181,21,0.15)', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+            >
+              RELOAD
+            </button>
+          )}
+          <button
+            onClick={() => setSaveError(null)}
+            style={{ background: 'transparent', border: 'none', color: saveErrorType === 'conflict' ? '#FDB515' : '#F87171', cursor: 'pointer', textDecoration: 'underline', ...MONO, fontSize: 10 }}
+          >
+            dismiss
+          </button>
+        </div>
+      )}
+
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        {/* Left: Definition Picker — hidden for read-only viewers */}
+        {!isReadOnly && (
+          <div
+            style={{
+              width: 260,
+              flexShrink: 0,
+              borderRight: '1px solid var(--builder-border)',
+              background: 'var(--builder-surface-raised)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+              LIBRARY
+            </div>
+            {pickerHint && (
+              <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
+                {pickerHint}
+              </div>
+            )}
+            <DefinitionPicker
+              entities={entities}
+              loading={pickerLoading}
+              modelId={modelId}
+              onAddDimension={handleAddDimension}
+              onAddMeasure={handleAddMeasure}
+              onAddChart={handleAddChart}
+            />
+          </div>
+        )}
+
+        {/* Center: Grid */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
+        </div>
+
+        {/* Right: Config / History */}
+        <div
+          style={{
+            width: 280,
+            flexShrink: 0,
+            borderLeft: '1px solid var(--builder-border)',
+            background: 'var(--builder-surface-raised)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+            {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
+          </div>
+          {rightPanel === 'config' && selectedWidget && (
+            <WidgetConfigPanel widget={selectedWidget} definitions={definitionsMap} readOnly={isReadOnly} />
+          )}
+          {rightPanel === 'config' && !selectedWidget && (
+            <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+              <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+                {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
+              </span>
+            </div>
+          )}
+          {rightPanel === 'history' && (
+            <VersionHistoryPanel dashboardId={dashboardId} />
+          )}
+        </div>
+      </div>
+
+      {/* ── Share Dialog ─────────────────────────────────────────────────────── */}
+      {shareOpen && (
+        <ShareDialog
+          dashboardId={dashboardId}
+          dashboardName={dashboardName || 'Dashboard'}
+          currentVisibility={visibility}
+          myRole={myRole}
+          onClose={() => setShareOpen(false)}
+          onVisibilityChange={(v) => setVisibility(v)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Chart helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Maps ChartDSLSpec.kind to WidgetSpec's chartKind (ChartSpec['kind'] subset).
+ * DSL kinds not in ChartSpec are downgraded to the nearest equivalent.
+ * Decision 0 resolution from PHASE_INSP_D4: explicit mapping, no silent drops.
+ */
+function dslKindToWidgetKind(kind: string): WidgetSpec['chartKind'] {
+  switch (kind) {
+    case 'bar':        return 'bar';
+    case 'stacked-bar': return 'bar';   // downgrade: stack config preserved in echartsOption
+    case 'line':       return 'line';
+    case 'area':       return 'line';   // downgrade: area fill in echartsOption
+    case 'pie':        return 'donut';  // closest match
+    case 'scatter':    return 'scatter';
+    case 'heatmap':    return 'heatmap';
+    case 'histogram':  return 'histogram';
+    case 'boxplot':    return 'bar';    // fallback: no boxplot kind in WidgetSpec
+    default:           return 'bar';
+  }
+}
+
+/**
+ * Converts ChartDSLSpec encodings to WidgetSpec.chartConfig axis slots.
+ * Also preserves ECharts overrides for downgraded kinds (stacked-bar, area).
+ */
+function encodingsToChartConfig(dsl: ChartDSLSpec): WidgetSpec['chartConfig'] {
+  const xEnc   = dsl.encodings.find((e) => e.role === 'x');
+  const yEncs  = dsl.encodings.filter((e) => e.role === 'y');
+  const series = dsl.encodings.find((e) => e.role === 'series');
+  const value  = dsl.encodings.find((e) => e.role === 'value');
+
+  const config: WidgetSpec['chartConfig'] = {
+    x:      xEnc?.columnId,
+    y:      yEncs.length ? yEncs.map((e) => e.columnId) : undefined,
+    series: series?.columnId,
+    value:  value?.columnId,
+  };
+
+  // Inject ECharts overrides for downgraded kinds so visual intent is preserved
+  if (dsl.kind === 'stacked-bar') {
+    config.echartsOption = { series: [{ stack: 'total' }] };
+  } else if (dsl.kind === 'area') {
+    config.echartsOption = { series: [{ areaStyle: {} }] };
+  }
+
+  return config;
+}
+
+// ── Drift computation ─────────────────────────────────────────────────────────
+
+function computeDriftMap(
+  widgets: WidgetSpec[],
+  entities: PickerEntity[],
+): Record<string, WidgetDriftInfo> {
+  // Build a flat lookup of all live measures
+  const liveMeasures = new Map<string, { aggregate: string; expression: string | null; metric_type: string }>();
+  const allDefinitionIds = new Set<string>();
+
+  for (const entity of entities) {
+    for (const dim of entity.dimensions) allDefinitionIds.add(dim.id);
+    for (const meas of entity.measures) {
+      allDefinitionIds.add(meas.id);
+      liveMeasures.set(meas.id, {
+        aggregate: meas.aggregate,
+        expression: meas.expression,
+        metric_type: meas.metric_type,
+      });
+    }
+  }
+
+  const result: Record<string, WidgetDriftInfo> = {};
+
+  for (const widget of widgets) {
+    const unavailableIds: string[] = [];
+    const changedMeasures: string[] = [];
+
+    // Check all referenced dims/measures exist in the definitions response
+    for (const d of widget.semanticQuery.dimensions) {
+      if (!allDefinitionIds.has(d.dimensionId)) {
+        unavailableIds.push(d.dimensionId);
+      }
+    }
+    for (const m of widget.semanticQuery.measures) {
+      if (!allDefinitionIds.has(m.measureId)) {
+        unavailableIds.push(m.measureId);
+      }
+    }
+
+    // Check measure snapshots for drift
+    if (widget.measureSnapshots && widget.measureSnapshots.length > 0) {
+      for (const snapshot of widget.measureSnapshots) {
+        const live = liveMeasures.get(snapshot.measureId);
+        if (!live) {
+          // Already caught as unavailable above
+          continue;
+        }
+        if (
+          live.aggregate !== snapshot.aggregate ||
+          live.expression !== snapshot.expression ||
+          live.metric_type !== snapshot.metric_type
+        ) {
+          changedMeasures.push(snapshot.measureId);
+        }
+      }
+    }
+
+    let status: DriftStatus = 'ok';
+    if (unavailableIds.length > 0) status = 'unavailable';
+    else if (changedMeasures.length > 0) status = 'changed';
+
+    result[widget.widgetId] = { widgetId: widget.widgetId, status, changedMeasures, unavailableIds };
+  }
+
+  return result;
+}
