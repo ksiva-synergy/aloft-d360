@@ -1,0 +1,11 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Auth is handled by NextAuth session checks in each layout/route.
+export function middleware(_req: NextRequest) {
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [],
+};

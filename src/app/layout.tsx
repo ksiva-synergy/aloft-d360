@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="h-full">
       <head>
         <meta charSet="utf-8" />
         <meta name="color-scheme" content="dark light" />
@@ -32,7 +32,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-[var(--background)] text-[var(--foreground)] antialiased">
+      <body className="h-full bg-[var(--background)] text-[var(--foreground)] antialiased">
         <ThemeProvider>
           <AuthSessionProvider>
             {children}

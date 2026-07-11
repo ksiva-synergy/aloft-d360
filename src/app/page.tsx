@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function Home() {
-  redirect('/inspector');
+  redirect('/agent-lab/estate');
 }
