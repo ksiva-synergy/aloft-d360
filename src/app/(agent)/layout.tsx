@@ -18,7 +18,7 @@ export default async function AgentGroupLayout({ children }: { children: React.R
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}
       >
         <StagingHeader />
-        <main className="flex-1 overflow-y-auto" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>{children}</main>
+        <main className="flex-1 overflow-y-auto bg-[var(--main-bg)]" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>{children}</main>
       </div>
     </div>
   );

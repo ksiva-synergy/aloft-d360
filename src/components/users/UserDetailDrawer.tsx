@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import {
   X, Shield, UserX, Trash2, Mail, Calendar, Clock, Globe,
-  RefreshCw, CheckCircle2, AlertTriangle, Key, Building2,
+  RefreshCw, CheckCircle2, Building2, Ban,
 } from 'lucide-react';
 import type { UserRow } from './UserTable';
 
@@ -21,16 +21,17 @@ interface UserDetailDrawerProps {
   onDeleteUser?: (user: UserRow) => void;
 }
 
-const ROLE_BADGE: Record<string, { color: string; bg: string }> = {
-  platform_admin: { color: '#92400e', bg: 'rgba(251,191,36,0.18)' },
-  admin:          { color: '#1e40af', bg: 'rgba(96,165,250,0.15)' },
-  member:         { color: '#6b7280', bg: 'rgba(156,163,175,0.15)' },
-  readonly:       { color: '#9ca3af', bg: 'rgba(209,213,219,0.12)' },
+// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
+  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
 };
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string; icon: React.ElementType }> = {
   ACTIVE:      { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Active',      icon: CheckCircle2 },
-  SUSPENDED:   { dot: 'bg-amber-500',   text: 'text-amber-600 dark:text-amber-400',     label: 'Suspended',   icon: AlertTriangle },
+  SUSPENDED:   { dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400',         label: 'Blocked',     icon: Ban },
   INVITED:     { dot: 'bg-blue-400',    text: 'text-blue-600 dark:text-blue-400',        label: 'Invited',     icon: Mail },
   DEACTIVATED: { dot: 'bg-slate-400',   text: 'text-slate-500 dark:text-slate-400',      label: 'Deactivated', icon: UserX },
 };
@@ -50,7 +51,7 @@ function formatDateFull(iso: string | null): string {
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b dark:border-[#2d333b] last:border-b-0">
+    <div className="flex items-start gap-3 py-2.5 border-b border-[var(--estate-border)] last:border-b-0">
       <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5 font-medium">{label}</div>
@@ -88,7 +89,7 @@ export function UserDetailDrawer({
   if (!user) return null;
 
   const initials = getInitials(user.name, user.email);
-  const roleBadgeStyle = ROLE_BADGE[user.primaryRole] ?? ROLE_BADGE.readonly;
+  const roleBadgeClass = ROLE_BADGE_CLASS[user.primaryRole] ?? ROLE_BADGE_CLASS.readonly;
   const status = STATUS_CONFIG[user.status] ?? STATUS_CONFIG.DEACTIVATED;
   const StatusIcon = status.icon;
   const isSelf = user.id === currentUserId;
@@ -109,15 +110,15 @@ export function UserDetailDrawer({
         ref={drawerRef}
         className={cn(
           'fixed right-0 top-0 h-full w-[400px] max-w-full z-50',
-          'bg-[var(--card)] dark:bg-[#0d1117]',
-          'border-l border-[var(--header-border)] dark:border-[#2d333b]',
+          'bg-[var(--estate-surface)]',
+          'border-l border-[var(--estate-border)]',
           'shadow-2xl flex flex-col overflow-hidden',
           'transition-transform duration-200 ease-out',
           open ? 'translate-x-0' : 'translate-x-full',
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b dark:border-[#2d333b] shrink-0">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--estate-border)] shrink-0">
           <span className="text-[12px] font-semibold text-[var(--foreground)] uppercase tracking-wider">User Profile</span>
           <button
             onClick={onClose}
@@ -129,8 +130,18 @@ export function UserDetailDrawer({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Blocked banner */}
+          {user.status === 'SUSPENDED' && (
+            <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20">
+              <Ban className="h-3.5 w-3.5 text-red-500 dark:text-red-400 shrink-0" />
+              <span className="text-[11.5px] font-medium text-red-700 dark:text-red-300">
+                This account is blocked — login is denied.
+              </span>
+            </div>
+          )}
+
           {/* Identity card */}
-          <div className="px-5 py-5 border-b dark:border-[#2d333b]">
+          <div className="px-5 py-5 border-b border-[var(--estate-border)]">
             <div className="flex items-center gap-3.5">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold shrink-0 select-none"
@@ -149,12 +160,11 @@ export function UserDetailDrawer({
                 <div className="flex items-center gap-2 mt-2">
                   {/* Role badge */}
                   <span
-                    style={{
-                      display: 'inline-block', padding: '1px 7px', borderRadius: 4,
-                      fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600,
-                      letterSpacing: '0.05em', textTransform: 'uppercase',
-                      color: roleBadgeStyle.color, background: roleBadgeStyle.bg, lineHeight: '1.6',
-                    }}
+                    className={cn(
+                      'inline-block whitespace-nowrap rounded border px-[7px] py-px',
+                      'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+                      roleBadgeClass,
+                    )}
                   >
                     {user.roleLabel}
                   </span>
@@ -193,13 +203,13 @@ export function UserDetailDrawer({
 
           {/* Actions */}
           {(canAssignRoles || (canUpdateUsers && !isSelf) || (canDeleteUsers && !isSelf)) && (
-            <div className="px-5 py-4 border-t dark:border-[#2d333b]">
+            <div className="px-5 py-4 border-t border-[var(--estate-border)]">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Actions</div>
               <div className="flex flex-col gap-2">
                 {canAssignRoles && (
                   <button
                     onClick={() => onChangeRole?.(user)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-md text-[12.5px] text-[var(--foreground)] bg-slate-50 dark:bg-[#161b24] hover:bg-slate-100 dark:hover:bg-[#1c2128] border border-slate-200 dark:border-[#2d333b] transition-colors"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-md text-[12.5px] text-[var(--foreground)] bg-[var(--estate-hover)] hover:bg-[var(--estate-active-bg)] border border-[var(--estate-border)] transition-colors"
                   >
                     <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                     Change Role
@@ -212,12 +222,12 @@ export function UserDetailDrawer({
                       'flex items-center gap-2 px-3 py-2.5 rounded-md text-[12.5px] border transition-colors',
                       user.status === 'SUSPENDED'
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
-                        : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 dark:hover:bg-amber-500/20',
+                        : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20',
                     )}
                   >
                     {user.status === 'SUSPENDED'
-                      ? <><RefreshCw className="h-3.5 w-3.5" />Reactivate Account</>
-                      : <><UserX className="h-3.5 w-3.5" />Suspend Account</>
+                      ? <><RefreshCw className="h-3.5 w-3.5" />Unblock User</>
+                      : <><Ban className="h-3.5 w-3.5" />Block User</>
                     }
                   </button>
                 )}
@@ -227,7 +237,7 @@ export function UserDetailDrawer({
 
           {/* Danger zone */}
           {canDeleteUsers && !isSelf && (
-            <div className="px-5 py-4 border-t dark:border-[#2d333b]">
+            <div className="px-5 py-4 border-t border-[var(--estate-border)]">
               <div className="text-[10px] uppercase tracking-wider text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
               {!deleteConfirm ? (
                 <button
@@ -235,23 +245,23 @@ export function UserDetailDrawer({
                   className="flex items-center gap-2 px-3 py-2.5 rounded-md text-[12.5px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Deactivate User
+                  Remove User
                 </button>
               ) : (
                 <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 space-y-2">
                   <p className="text-[11.5px] text-red-700 dark:text-red-300">
-                    This will deactivate the account and prevent login. The user&apos;s data is preserved.
+                    This will permanently remove the account and prevent login. The user&apos;s data is preserved.
                   </p>
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => { setDeleteConfirm(false); onDeleteUser?.(user); }}
                       className="flex-1 px-3 py-1.5 rounded text-[11.5px] font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
                     >
-                      Confirm Deactivate
+                      Confirm Remove
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(false)}
-                      className="flex-1 px-3 py-1.5 rounded text-[11.5px] font-medium text-[var(--foreground)] bg-[var(--muted)] hover:bg-slate-200 dark:hover:bg-[#1c2128] transition-colors"
+                      className="flex-1 px-3 py-1.5 rounded text-[11.5px] font-medium text-[var(--foreground)] bg-[var(--muted)] hover:bg-[var(--estate-active-bg)] transition-colors"
                     >
                       Cancel
                     </button>

@@ -49,9 +49,9 @@ const STATUS_OPTIONS = [
 
 function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
   return (
-    <div className="border rounded-lg dark:border-[#2d333b] bg-white dark:bg-[#0f131a] px-4 py-3.5">
-      <div className="text-[22px] font-bold text-[var(--foreground)]">{value}</div>
-      <div className="text-[11.5px] font-medium text-[var(--foreground)] mt-0.5">{label}</div>
+    <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3.5">
+      <div className="text-[22px] font-bold tabular-nums text-[var(--estate-ink)]">{value}</div>
+      <div className="mt-1 font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">{label}</div>
       {sub && <div className="text-[10.5px] text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
@@ -167,7 +167,7 @@ export default function UsersPage() {
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, status: newStatus as UserRow['status'] } : u)),
       );
-      showToast(`User ${newStatus === 'ACTIVE' ? 'reactivated' : 'suspended'}`);
+      showToast(`User ${newStatus === 'ACTIVE' ? 'unblocked' : 'blocked'}`);
       if (drawerUser?.id === user.id) {
         setDrawerUser((p) => p ? { ...p, status: newStatus as UserRow['status'] } : p);
       }
@@ -182,7 +182,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error();
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
       setDrawerOpen(false);
-      showToast('User deactivated');
+      showToast('User removed');
     } catch {
       showToast('Failed to deactivate user', 'error');
     }
@@ -193,11 +193,11 @@ export default function UsersPage() {
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 opacity-70 shrink-0" />
+          <h1 className="text-lg font-semibold flex items-center gap-2 text-[var(--estate-ink)]">
+            <Users className="h-5 w-5 shrink-0 text-[#FDB515]" />
             Users
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
             Platform users and role assignments · Access control
           </p>
         </div>
@@ -241,8 +241,8 @@ export default function UsersPage() {
             onChange={(e) => setSearch(e.target.value)}
             className={cn(
               'w-full pl-8 pr-3 py-1.5 text-[12.5px] rounded-md border',
-              'bg-white dark:bg-[#161b24] dark:border-[#2d333b]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
+              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
+              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
               'placeholder:text-muted-foreground',
             )}
           />
@@ -255,8 +255,8 @@ export default function UsersPage() {
             onChange={(e) => setRoleFilter(e.target.value)}
             className={cn(
               'pl-3 pr-7 py-1.5 text-[12.5px] rounded-md border appearance-none',
-              'bg-white dark:bg-[#161b24] dark:border-[#2d333b] text-[var(--foreground)]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
+              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
+              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
             )}
           >
             {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -271,8 +271,8 @@ export default function UsersPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className={cn(
               'pl-3 pr-7 py-1.5 text-[12.5px] rounded-md border appearance-none',
-              'bg-white dark:bg-[#161b24] dark:border-[#2d333b] text-[var(--foreground)]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
+              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
+              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
             )}
           >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

@@ -28,25 +28,24 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   readonly:       'Login and view only · no writes',
 };
 
-const ROLE_BADGE: Record<string, { color: string; bg: string }> = {
-  platform_admin: { color: '#92400e', bg: 'rgba(251,191,36,0.18)' },
-  admin:          { color: '#1e40af', bg: 'rgba(96,165,250,0.15)' },
-  member:         { color: '#6b7280', bg: 'rgba(156,163,175,0.15)' },
-  readonly:       { color: '#9ca3af', bg: 'rgba(209,213,219,0.12)' },
+// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
+  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
 };
 
 const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
 
 function RoleBadge({ role, label }: { role: string; label?: string }) {
-  const style = ROLE_BADGE[role] ?? ROLE_BADGE.readonly;
   return (
     <span
-      style={{
-        display: 'inline-block', padding: '1px 6px', borderRadius: 4,
-        fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600,
-        letterSpacing: '0.05em', textTransform: 'uppercase',
-        color: style.color, background: style.bg, lineHeight: '1.6',
-      }}
+      className={cn(
+        'inline-block whitespace-nowrap rounded border px-1.5 py-px',
+        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
+      )}
     >
       {label ?? role}
     </span>
@@ -131,7 +130,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md dark:bg-[#0d1117] dark:border-[#2d333b]">
+      <DialogContent className="max-w-md bg-[var(--estate-surface)] border-[var(--estate-border)]">
         <DialogHeader>
           <div className="flex items-center gap-2.5 mb-1">
             <div
@@ -161,7 +160,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               placeholder="user@company.com"
               className={cn(
                 'w-full px-3 py-2 text-[12.5px] rounded-md border',
-                'bg-white dark:bg-[#161b24] dark:border-[#2d333b]',
+                'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
                 'focus:outline-none focus:ring-1 focus:ring-[#FDB515] dark:focus:ring-[#FDB515]',
                 'placeholder:text-muted-foreground',
               )}
@@ -180,7 +179,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               placeholder="Jane Smith"
               className={cn(
                 'w-full px-3 py-2 text-[12.5px] rounded-md border',
-                'bg-white dark:bg-[#161b24] dark:border-[#2d333b]',
+                'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
                 'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
                 'placeholder:text-muted-foreground',
               )}
@@ -201,7 +200,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                 minLength={password ? 8 : undefined}
                 className={cn(
                   'w-full px-3 py-2 pr-9 text-[12.5px] rounded-md border',
-                  'bg-white dark:bg-[#161b24] dark:border-[#2d333b]',
+                  'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
                   'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
                   'placeholder:text-muted-foreground',
                 )}
@@ -234,8 +233,8 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                     className={cn(
                       'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
                       selectedRole === role.name
-                        ? 'border-[#FDB515] bg-amber-50/60 dark:bg-amber-500/10 dark:border-[#FDB515]/60'
-                        : 'border-slate-200 dark:border-[#2d333b] hover:border-slate-300 dark:hover:border-[#3d4451]',
+                        ? 'border-[#FDB515] bg-[#FDB515]/[0.07] dark:bg-[#FDB515]/10 dark:border-[#FDB515]/60'
+                        : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
                     )}
                   >
                     <input

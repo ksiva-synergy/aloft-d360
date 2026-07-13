@@ -131,7 +131,7 @@ export const authOptions: NextAuthOptions = {
             ip,
             ua,
           });
-          return null;
+          throw new Error('ACCOUNT_SUSPENDED');
         }
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
@@ -217,7 +217,7 @@ export const authOptions: NextAuthOptions = {
               success: false,
               failureReason: 'ACCOUNT_INACTIVE',
             });
-            return false;
+            return '/login?error=ACCOUNT_SUSPENDED';
           }
 
           await recordLoginEvent({ email, userId: dbUser.id, provider: 'azure_ad', success: true });

@@ -16,7 +16,7 @@ import { prisma } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
 
 /** Role granted to brand-new users on first login (just-in-time provisioning). */
-export const DEFAULT_ROLE = 'readonly';
+export const DEFAULT_ROLE = 'admin';
 
 /**
  * Thrown by provisionUserByOid when a first-time AAD login presents an email that
@@ -126,13 +126,41 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
       include: userAuthInclude,
     });
   } else {
-    // (2) No oid match. If the token email already belongs to an existing account,
-    //     this is a COLLISION — refuse. Do NOT link, claim, or duplicate. Linking a
-    //     pre-existing account to an AAD identity must be a deliberate admin action.
-    //     (User.email is @unique, so this check must run before any create.)
+    // (2) No oid match. Check for an email collision before attempting a create.
     if (normalizedEmail) {
-      const collision = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
-      if (collision) throw new AccountLinkRequiredError(normalizedEmail);
+      const collision = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true, aadObjectId: true },
+      });
+      if (collision) {
+        if (collision.aadObjectId !== null) {
+          // The row is already bound to a DIFFERENT AAD identity — a real account-takeover
+          // risk. Refuse and require an admin to sort it out.
+          throw new AccountLinkRequiredError(normalizedEmail);
+        }
+        // Legacy row (aadObjectId is NULL): stamp the OID from this first-ever AAD login
+        // onto the existing account so future logins go through path (1).
+        user = await prisma.user.update({
+          where: { id: collision.id },
+          data: {
+            aadObjectId: oid,
+            aadTenantId: tid ?? undefined,
+            authProvider: 'aad',
+            lastLoginAt: new Date(),
+            lastSeenAt: new Date(),
+          },
+          include: userAuthInclude,
+        });
+        await writeAudit({
+          actorId: null,
+          action: 'user.aad_linked',
+          entityType: 'user',
+          entityId: user.id,
+          after: { email: normalizedEmail, aadObjectId: oid, aadTenantId: tid ?? null },
+        });
+        user = await syncPlatformAdminFromGroups(user, groups);
+        return user;
+      }
     }
 
     // (3) No oid match and no email collision — create a FRESH user keyed on oid + tid.

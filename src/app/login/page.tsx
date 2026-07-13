@@ -43,6 +43,8 @@ export default function LoginPage() {
     const err = new URLSearchParams(window.location.search).get('error');
     if (err === 'account_link_required') {
       setError('An account with this email already exists and must be linked by an administrator.');
+    } else if (err === 'ACCOUNT_SUSPENDED') {
+      setError('Your account has been suspended. Please contact your administrator.');
     }
   }, []);
 
@@ -70,7 +72,11 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError('Invalid email or password');
+      if (result.error === 'ACCOUNT_SUSPENDED') {
+        setError('Your account has been suspended. Please contact your administrator.');
+      } else {
+        setError('Invalid email or password');
+      }
       setLoading(false);
     } else {
       router.push('/dashboard');

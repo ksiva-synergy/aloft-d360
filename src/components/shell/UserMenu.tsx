@@ -83,10 +83,14 @@ function ThemeCycleButton() {
 }
 
 export function UserMenu({ initialSession }: { initialSession?: Session | null }) {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Force a JWT refresh on mount so role changes made by an admin are reflected
+  // immediately without requiring the user to sign out and back in.
+  useEffect(() => { update(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

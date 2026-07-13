@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  MoreHorizontal, Pencil, Shield, UserX, Trash2, User, Clock,
+  MoreHorizontal, Pencil, Shield, UserX, Trash2, User, Clock, Ban,
 } from 'lucide-react';
 
 export interface UserRow {
@@ -34,18 +34,20 @@ interface UserTableProps {
   onDeleteUser?: (user: UserRow) => void;
 }
 
-const ROLE_BADGE: Record<string, { color: string; bg: string; label: string }> = {
-  platform_admin: { color: '#92400e', bg: 'rgba(251,191,36,0.18)', label: 'Platform Admin' },
-  admin:          { color: '#1e40af', bg: 'rgba(96,165,250,0.15)',  label: 'Admin' },
-  member:         { color: '#6b7280', bg: 'rgba(156,163,175,0.15)', label: 'Member' },
-  readonly:       { color: '#9ca3af', bg: 'rgba(209,213,219,0.12)', label: 'Read Only' },
+// Role chips sourced from the Spinor Labs brand palette (gold / navy / slate)
+// so they read consistently in both themes — see globals.css --estate-* tokens.
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
+  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
 };
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string }> = {
-  ACTIVE:      { dot: 'bg-emerald-500',   text: 'text-emerald-600 dark:text-emerald-400', label: 'Active' },
-  SUSPENDED:   { dot: 'bg-amber-500',     text: 'text-amber-600 dark:text-amber-400',     label: 'Suspended' },
-  INVITED:     { dot: 'bg-blue-400',      text: 'text-blue-600 dark:text-blue-400',        label: 'Invited' },
-  DEACTIVATED: { dot: 'bg-slate-400',     text: 'text-slate-500 dark:text-slate-400',      label: 'Deactivated' },
+  ACTIVE:      { dot: 'bg-emerald-500',  text: 'text-emerald-600 dark:text-emerald-400', label: 'Active' },
+  SUSPENDED:   { dot: 'bg-red-500',      text: 'text-red-600 dark:text-red-400',         label: 'Blocked' },
+  INVITED:     { dot: 'bg-blue-400',     text: 'text-blue-600 dark:text-blue-400',        label: 'Invited' },
+  DEACTIVATED: { dot: 'bg-slate-400',    text: 'text-slate-500 dark:text-slate-400',      label: 'Deactivated' },
 };
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -70,23 +72,14 @@ function formatDate(iso: string | null): string {
 }
 
 function RoleBadge({ role, label }: { role: string; label: string }) {
-  const style = ROLE_BADGE[role] ?? ROLE_BADGE.readonly;
+  const style = ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly;
   return (
     <span
-      style={{
-        display: 'inline-block',
-        padding: '1px 7px',
-        borderRadius: 4,
-        fontSize: 10,
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontWeight: 600,
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase',
-        color: style.color,
-        background: style.bg,
-        lineHeight: '1.6',
-        whiteSpace: 'nowrap',
-      }}
+      className={cn(
+        'inline-block whitespace-nowrap rounded border px-[7px] py-px',
+        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        style,
+      )}
     >
       {label}
     </span>
@@ -133,13 +126,13 @@ function ActionsMenu({
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
         onClick={() => setOpen((p) => !p)}
-        className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-[#1c2128] transition-colors"
+        className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--estate-hover)] transition-colors"
       >
         <MoreHorizontal className="h-3.5 w-3.5" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-[var(--card)] border border-[var(--header-border)] dark:border-[#2d333b] rounded-lg shadow-lg overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-1 w-44 bg-[var(--estate-surface)] border border-[var(--estate-border)] rounded-lg shadow-lg overflow-hidden z-50">
           {canUpdateUsers && (
             <button
               onClick={() => { setOpen(false); onEditUser?.(user); }}
@@ -161,19 +154,26 @@ function ActionsMenu({
           {canUpdateUsers && !isSelf && (
             <button
               onClick={() => { setOpen(false); onToggleStatus?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+              className={cn(
+                'flex items-center gap-2 w-full px-3 py-2 text-[12px] transition-colors',
+                user.status === 'SUSPENDED'
+                  ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
+                  : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10',
+              )}
             >
-              <UserX className="h-3.5 w-3.5" />
-              {user.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
+              {user.status === 'SUSPENDED'
+                ? <><UserX className="h-3.5 w-3.5" />Unblock User</>
+                : <><Ban className="h-3.5 w-3.5" />Block User</>
+              }
             </button>
           )}
           {canDeleteUsers && !isSelf && (
             <button
               onClick={() => { setOpen(false); onDeleteUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-slate-600 dark:text-slate-400 hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Deactivate
+              Remove User
             </button>
           )}
         </div>
@@ -184,7 +184,7 @@ function ActionsMenu({
 
 function SkeletonRow() {
   return (
-    <tr className="border-b dark:border-[#2d333b] animate-pulse">
+    <tr className="border-b border-[var(--estate-border)] animate-pulse">
       <td className="px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
@@ -219,16 +219,16 @@ export function UserTable({
 }: UserTableProps) {
   if (loading) {
     return (
-      <div className="border rounded-lg dark:border-[#2d333b] bg-white dark:bg-[#0f131a] overflow-hidden">
+      <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b dark:border-[#2d333b] bg-slate-50 dark:bg-[#0f131a]">
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">User</th>
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Role</th>
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</th>
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Provider</th>
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Last Login</th>
-              <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Joined</th>
+            <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">User</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Role</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Status</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Provider</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Last Login</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Joined</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
@@ -242,7 +242,7 @@ export function UserTable({
 
   if (users.length === 0) {
     return (
-      <div className="border rounded-lg dark:border-[#2d333b] bg-white dark:bg-[#0f131a] overflow-hidden">
+      <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden">
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <User className="h-10 w-10 mb-3 opacity-20" />
           <p className="text-sm font-medium">No users found</p>
@@ -253,10 +253,10 @@ export function UserTable({
   }
 
   return (
-    <div className="border rounded-lg dark:border-[#2d333b] bg-white dark:bg-[#0f131a] overflow-hidden">
+    <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b dark:border-[#2d333b] bg-slate-50 dark:bg-[#0f131a]">
+          <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">User</th>
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Role</th>
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</th>
@@ -277,8 +277,8 @@ export function UserTable({
                 key={user.id}
                 onClick={() => onRowClick?.(user)}
                 className={cn(
-                  'border-b last:border-b-0 dark:border-[#2d333b] transition-colors',
-                  onRowClick ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1c2128]' : '',
+                  'border-b border-[var(--estate-border)] last:border-b-0 transition-colors',
+                  onRowClick ? 'cursor-pointer hover:bg-[var(--estate-hover)]' : '',
                 )}
               >
                 {/* User column */}
