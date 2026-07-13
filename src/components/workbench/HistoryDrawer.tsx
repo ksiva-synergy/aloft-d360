@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User } from 'lucide-react';
 
 interface Session {
   id: string;
@@ -51,22 +52,30 @@ function relativeTime(iso: string): string {
 
 export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawerProps) {
   const router = useRouter();
+  const { data: sessionData } = useSession();
+  const isPlatformAdmin = (sessionData?.user as { role?: string } | undefined)?.role === 'platform_admin';
+
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [pinning, setPinning] = useState<string | null>(null);
+  // All-users mode is only available to platform_admin; others always see own sessions.
+  const [showAllUsers, setShowAllUsers] = useState(false);
 
-  const load = useCallback(() => {
+  const load = useCallback((allUsers: boolean) => {
     setLoading(true);
-    fetch('/api/agent-lab/workbench/sessions')
+    const url = allUsers && isPlatformAdmin
+      ? '/api/agent-lab/workbench/sessions'
+      : '/api/agent-lab/workbench/sessions?mine=1';
+    fetch(url)
       .then(r => r.json())
       .then(data => { setSessions(data.sessions ?? []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+  }, [isPlatformAdmin]);
 
   useEffect(() => {
-    if (open) load();
-  }, [open, load]);
+    if (open) load(showAllUsers);
+  }, [open, load, showAllUsers]);
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -155,17 +164,39 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
               Chat History
             </span>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 26, height: 26, borderRadius: 5,
-              background: 'transparent', border: '1px solid var(--wb-border-subtle)',
-              color: 'var(--wb-muted)', cursor: 'pointer',
-            }}
-          >
-            <X size={13} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Platform admin toggle: show all users or just own sessions */}
+            {isPlatformAdmin && (
+              <button
+                onClick={() => setShowAllUsers(v => !v)}
+                title={showAllUsers ? 'Showing all users — click to show only yours' : 'Showing your sessions — click to view all users'}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '3px 8px', borderRadius: 5,
+                  background: showAllUsers ? 'rgba(253,181,21,0.15)' : 'transparent',
+                  border: `1px solid ${showAllUsers ? 'rgba(253,181,21,0.4)' : 'var(--wb-border-subtle)'}`,
+                  color: showAllUsers ? GOLD : 'var(--wb-muted)',
+                  fontSize: 9, fontFamily: "'IBM Plex Mono', monospace",
+                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {showAllUsers ? <Users size={10} /> : <User size={10} />}
+                {showAllUsers ? 'All Users' : 'Mine'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 26, height: 26, borderRadius: 5,
+                background: 'transparent', border: '1px solid var(--wb-border-subtle)',
+                color: 'var(--wb-muted)', cursor: 'pointer',
+              }}
+            >
+              <X size={13} />
+            </button>
+          </div>
         </div>
 
         {/* New Chat button */}

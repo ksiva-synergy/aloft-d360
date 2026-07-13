@@ -1,0 +1,28 @@
+# Minimal throwaway staging DB for reputation Phase A verification.
+# Postgres 16 with pgvector bundled. Host port 5434 to avoid clashing with the
+# native Postgres already listening on 5433 on this machine (and any 5432).
+# Data lives in a named volume; `docker compose down -v` wipes it.
+#
+#   docker compose -f staging/docker-compose.staging.yml up -d
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: aloft-staging-db
+    environment:
+      POSTGRES_USER: aloft
+      POSTGRES_PASSWORD: aloft
+      POSTGRES_DB: aloftdb
+    ports:
+      - "5434:5432"
+    volumes:
+      - aloft_staging_pgdata:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aloft -d aloftdb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  aloft_staging_pgdata:

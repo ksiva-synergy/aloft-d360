@@ -13,19 +13,44 @@ datasource db {
 }
 
 model User {
-  id                               String                             @id @default(cuid())
-  email                            String                             @unique
-  name                             String?
-  passwordHash                     String
-  role                             Role                               @default(USER)
-  authProvider                     String                             @default("credentials")
-  isActive                         Boolean                            @default(true)
-  lastSeenAt                       DateTime?
-  createdAt                        DateTime                           @default(now())
-  updatedAt                        DateTime                           @updatedAt
+  id    String @id @default(cuid())
+  email String @unique
+
+  // --- Entra ID / AAD identity (added; new columns → snake_case per target design) ---
+  aadObjectId String? @unique @map("aad_object_id") // token "oid" claim (stable per user)
+  aadTenantId String? @map("aad_tenant_id") // token "tid" claim
+
+  name          String?
+  username      String?    @unique
+  // NOTE: passwordHash widened to nullable (AAD users have none). Existing camelCase column kept — do NOT @map/rename.
+  passwordHash  String?
+  avatarUrl     String?    @map("avatar_url")
+  // Existing column (from add_aad_sso_support.sql). Kept camelCase; AAD provisioning writes "aad".
+  authProvider  String     @default("credentials")
+  // Authoritative lifecycle (target). Legacy `isActive` kept in sync for the existing credentials/profile code.
+  status        UserStatus @default(ACTIVE)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  isActive      Boolean    @default(true)
+  lastLoginAt   DateTime?  @map("last_login_at")
+  lastSeenAt    DateTime?
+  deletedAt     DateTime?  @map("deleted_at") // soft delete
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // relations (existing — untouched)
   loginEvents                      LoginEvent[]
   profile                          UserProfile?
   platform_dashboard_collaborators platform_dashboard_collaborators[]
+
+  // relations (added — RBAC + application-session / audit domain)
+  roles        UserRole[]
+  authSessions UserSession[]
+  sessions     Session[]
+  actions      Action[]
+  auditLogs    AuditLog[]    @relation("AuditActor")
+
+  @@index([status])
+  @@index([deletedAt])
 }
 
 model UserProfile {
@@ -2201,6 +2226,7 @@ model PlatformAgentMemory {
   shortLabel       String?                @map("short_label")
   blurb            String?                @map("blurb")
   caveatContext    Json?                  @map("caveat_context")
+  contributorRep   Float                  @default(1.0) @map("contributor_rep")
 
   @@index([orgId, agentClass, status])
   @@index([taskSignature])
@@ -2212,9 +2238,10 @@ model PlatformMemoryInjection {
   orgId        String    @map("org_id")
   runId        String    @map("run_id")
   bulletId     String    @map("bullet_id")
-  phase        String
-  attributedAt DateTime? @map("attributed_at") @db.Timestamptz(6)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  phase             String
+  attributedAt      DateTime? @map("attributed_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  contributorUserId String?   @map("contributor_user_id")
 
   @@unique([runId, bulletId], name: "uq_injection_run_bullet", map: "uq_injection_run_bullet")
   @@index([bulletId], map: "idx_memory_injections_bullet")
@@ -2222,23 +2249,60 @@ model PlatformMemoryInjection {
   @@map("platform_memory_injections")
 }
 
+model PlatformMemoryContribution {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId            String   @map("org_id")
+  memoryId         String   @map("memory_id")
+  userId           String   @map("user_id")
+  domain           String
+  contributionType String   @map("contribution_type")
+  sourceSessionId  String?  @map("source_session_id")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([memoryId, userId, contributionType], name: "uq_contrib_memory_user_type")
+  @@index([memoryId])
+  @@index([orgId, userId, domain])
+  @@map("platform_memory_contributions")
+}
+
+model PlatformUserReputation {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String    @map("org_id")
+  userId      String    @map("user_id")
+  domain      String
+  role        String    @default("member")
+  pos         Float     @default(0)
+  neg         Float     @default(0)
+  lastDecayAt DateTime  @default(now()) @map("last_decay_at") @db.Timestamptz
+  capDay      DateTime  @default(now()) @map("cap_day") @db.Date
+  capPosToday Float     @default(0) @map("cap_pos_today")
+  seasonId    String    @default("S1") @map("season_id")
+  seasonXp    Float     @default(0) @map("season_xp")
+  lastRank    Int?      @map("last_rank")
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+
+  @@unique([orgId, userId, domain], name: "uq_reputation_user_domain")
+  @@index([orgId, domain, seasonXp(sort: Desc)])
+  @@map("platform_user_reputation")
+}
+
 model PlatformMemorySynthesisRun {
-  id                String    @id
-  orgId             String    @map("org_id")
-  startedAt         DateTime  @map("started_at") @db.Timestamptz(6)
-  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
-  sessionsScanned   Int       @default(0) @map("sessions_scanned")
-  sessionsReflected Int       @default(0) @map("sessions_reflected")
-  sessionsSkipped   Int       @default(0) @map("sessions_skipped")
-  bulletsInserted   Int       @default(0) @map("bullets_inserted")
-  bulletsDeduped    Int       @default(0) @map("bullets_deduped")
-  bulletsSuperseded Int       @default(0) @map("bullets_superseded")
-  phantomsBlocked   Int       @default(0) @map("phantoms_blocked")
-  bulletsQuarantined Int      @default(0) @map("bullets_quarantined")
-  errors            Int       @default(0)
-  firstError        String?   @map("first_error")
-  reflectorVersion  String    @map("reflector_version")
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                 String    @id
+  orgId              String    @map("org_id")
+  startedAt          DateTime  @map("started_at") @db.Timestamptz(6)
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
+  sessionsScanned    Int       @default(0) @map("sessions_scanned")
+  sessionsReflected  Int       @default(0) @map("sessions_reflected")
+  sessionsSkipped    Int       @default(0) @map("sessions_skipped")
+  bulletsInserted    Int       @default(0) @map("bullets_inserted")
+  bulletsDeduped     Int       @default(0) @map("bullets_deduped")
+  bulletsSuperseded  Int       @default(0) @map("bullets_superseded")
+  phantomsBlocked    Int       @default(0) @map("phantoms_blocked")
+  bulletsQuarantined Int       @default(0) @map("bullets_quarantined")
+  errors             Int       @default(0)
+  firstError         String?   @map("first_error")
+  reflectorVersion   String    @map("reflector_version")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([orgId, startedAt], map: "idx_synthesis_runs_org_started")
   @@map("platform_memory_synthesis_runs")
@@ -2447,20 +2511,20 @@ model platform_dashboard_versions {
 }
 
 model platform_dashboards {
-  id                                                                                              String                                   @id
+  id                                                                                              String                             @id
   org_id                                                                                          String
   model_id                                                                                        String
   name                                                                                            String
   description                                                                                     String?
-  created_by                                                                                      String                                   @default("system")
-  visibility                                                                                      String                                   @default("org")
+  created_by                                                                                      String                             @default("system")
+  visibility                                                                                      String                             @default("org")
   current_version_id                                                                              String?
-  deleted_at                                                                                      DateTime?                                @db.Timestamptz(6)
-  created_at                                                                                      DateTime                                 @default(now()) @db.Timestamptz(6)
-  updated_at                                                                                      DateTime                                 @default(now()) @db.Timestamptz(6)
-  platform_dashboard_versions_platform_dashboard_versions_dashboard_idToplatform_dashboards       platform_dashboard_versions[]            @relation("platform_dashboard_versions_dashboard_idToplatform_dashboards")
-  platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions platform_dashboard_versions?             @relation("platform_dashboards_current_version_idToplatform_dashboard_versions", fields: [current_version_id], references: [id], onUpdate: NoAction, map: "fk_pd_current_version")
-  platform_semantic_models                                                                        platform_semantic_models                 @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  deleted_at                                                                                      DateTime?                          @db.Timestamptz(6)
+  created_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)
+  updated_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)
+  platform_dashboard_versions_platform_dashboard_versions_dashboard_idToplatform_dashboards       platform_dashboard_versions[]      @relation("platform_dashboard_versions_dashboard_idToplatform_dashboards")
+  platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions platform_dashboard_versions?       @relation("platform_dashboards_current_version_idToplatform_dashboard_versions", fields: [current_version_id], references: [id], onUpdate: NoAction, map: "fk_pd_current_version")
+  platform_semantic_models                                                                        platform_semantic_models           @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   platform_dashboard_collaborators                                                                platform_dashboard_collaborators[]
 
   @@index([model_id], map: "idx_pd_model")
@@ -2522,7 +2586,7 @@ model PlatformPipelineStage {
 }
 
 model PlatformWatchIncident {
-  id                    String    @id
+  id                    String                    @id
   org_id                String
   pipeline_key          String
   job_kind              String
@@ -2532,13 +2596,13 @@ model PlatformWatchIncident {
   confidence            Decimal?
   severity              String
   evidence              Json?
-  evidence_partial      Boolean   @default(false)
+  evidence_partial      Boolean                   @default(false)
   status                String
   dedupe_key            String
-  recurrence_count      Int       @default(0)
-  first_seen_at         DateTime  @default(now()) @db.Timestamptz(6)
-  last_seen_at          DateTime  @default(now()) @db.Timestamptz(6)
-  resolved_at           DateTime? @db.Timestamptz(6)
+  recurrence_count      Int                       @default(0)
+  first_seen_at         DateTime                  @default(now()) @db.Timestamptz(6)
+  last_seen_at          DateTime                  @default(now()) @db.Timestamptz(6)
+  resolved_at           DateTime?                 @db.Timestamptz(6)
   plans                 PlatformRemediationPlan[]
 
   @@index([org_id, status], map: "idx_pwi_org_status")
@@ -2546,24 +2610,24 @@ model PlatformWatchIncident {
 }
 
 model PlatformRemediationPlan {
-  id                    String    @id
-  org_id                String
-  incident_id           String
-  plan_json             Json?
-  reasoning             String?
-  predicted_outcome     String?
-  status                String
-  attempt_number        Int       @default(1)
-  proposed_at           DateTime  @default(now()) @db.Timestamptz(6)
-  expires_at            DateTime? @db.Timestamptz(6)
-  fm_code_at_proposal   String?
-  decided_by            String?
-  decided_at            DateTime? @db.Timestamptz(6)
-  decision_note         String?
-  execution_log         Json?
-  verify_result         Json?
-  parked_until          DateTime? @db.Timestamptz(6)
-  incident              PlatformWatchIncident @relation(fields: [incident_id], references: [id])
+  id                  String                @id
+  org_id              String
+  incident_id         String
+  plan_json           Json?
+  reasoning           String?
+  predicted_outcome   String?
+  status              String
+  attempt_number      Int                   @default(1)
+  proposed_at         DateTime              @default(now()) @db.Timestamptz(6)
+  expires_at          DateTime?             @db.Timestamptz(6)
+  fm_code_at_proposal String?
+  decided_by          String?
+  decided_at          DateTime?             @db.Timestamptz(6)
+  decision_note       String?
+  execution_log       Json?
+  verify_result       Json?
+  parked_until        DateTime?             @db.Timestamptz(6)
+  incident            PlatformWatchIncident @relation(fields: [incident_id], references: [id])
 
   @@index([org_id, status], map: "idx_prp_org_status")
   @@index([incident_id], map: "idx_prp_incident")
@@ -2588,11 +2652,6 @@ model PlatformWatchCycle {
 
   @@index([org_id, started_at(sort: Desc)], map: "idx_pwc_org_started")
   @@map("platform_watch_cycles")
-}
-
-enum Role {
-  USER
-  ADMIN
 }
 
 enum KnowledgeSourceType {
@@ -2635,4 +2694,234 @@ enum KnowledgeRefreshSchedule {
   hourly
   daily
   weekly
+}
+
+// ============================================================
+// USERS / RBAC / AUTH-SESSION DOMAIN  (ported from target design)
+//
+// Reconciliation notes:
+//  - FK columns that reference User.id are `String` (text), because the existing
+//    `User.id` is `cuid()` text — NOT retyped to uuid (kept additive).
+//  - New tables use snake_case @@map / @map exactly per the target design.
+//  - LlmCall & AuditLog keep the partition-ready composite PK (@@id([id, createdAt]))
+//    but are created as PLAIN tables (no PARTITION BY) for now. See MIGRATION_RUNBOOK
+//    Phase 5b to enable pg_partman range partitioning later.
+// ============================================================
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INVITED
+  DEACTIVATED
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique // "admin" | "member" | "viewer"
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique // e.g. "session:read", "user:delete"
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId     String   @map("user_id") // FK to User.id (cuid/text)
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy String?  @map("assigned_by") // user id (text); no FK constraint
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+/// Authentication event / login record. In the stateless-AAD model this records
+/// login events for audit; `refreshTokenHash` stays null (populated only if a
+/// server-session/refresh-token model is adopted later — see runbook Phase 3).
+model UserSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") // FK to User.id (cuid/text)
+  refreshTokenHash String?   @unique @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address") @db.Inet
+  deviceId         String?   @map("device_id")
+  expiresAt        DateTime? @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  lastActiveAt     DateTime  @default(now()) @map("last_active_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("user_sessions")
+}
+
+/// An application/agent/conversation session that groups work.
+model Session {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String?       @map("user_id") // FK to User.id (cuid/text)
+  title     String?
+  type      String        @default("chat") // chat | agent | workflow | job
+  status    SessionStatus @default(ACTIVE)
+  metadata  Json?         @db.JsonB
+  startedAt DateTime      @default(now()) @map("started_at")
+  endedAt   DateTime?     @map("ended_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  user     User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actions  Action[]
+  llmCalls LlmCall[]
+  audits   AuditLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, startedAt])
+  @@map("sessions")
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+  ABORTED
+}
+
+/// A discrete step inside a session. Self-referencing via parentActionId.
+/// NOT partitioned (referenced by FKs); rely on indexes + retention.
+model Action {
+  id             String       @id @default(uuid()) @db.Uuid
+  sessionId      String       @map("session_id") @db.Uuid
+  userId         String?      @map("user_id") // FK to User.id (cuid/text)
+  parentActionId String?      @map("parent_action_id") @db.Uuid
+  type           String // tool_call | http_request | db_query | user_input | system
+  name           String
+  status         ActionStatus @default(PENDING)
+  sequence       Int          @default(0)
+  input          Json?        @db.JsonB
+  output         Json?        @db.JsonB
+  error          String?
+  startedAt      DateTime     @default(now()) @map("started_at")
+  completedAt    DateTime?    @map("completed_at")
+  durationMs     Int?         @map("duration_ms")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  session  Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent   Action?   @relation("ActionTree", fields: [parentActionId], references: [id], onDelete: Cascade)
+  children Action[]  @relation("ActionTree")
+  llmCalls LlmCall[]
+
+  @@index([sessionId])
+  @@index([sessionId, sequence])
+  @@index([parentActionId])
+  @@index([type])
+  @@map("actions")
+}
+
+enum ActionStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  ERROR
+  SKIPPED
+}
+
+/// A single LLM invocation with full trace + accounting.
+/// PARTITION-READY: composite PK includes createdAt so this table can be
+/// range-partitioned by month later. Created as a PLAIN table for now.
+model LlmCall {
+  id               String    @default(uuid()) @db.Uuid
+  sessionId        String    @map("session_id") @db.Uuid
+  actionId         String?   @map("action_id") @db.Uuid
+  provider         String // openai | anthropic | google | azure | ...
+  model            String
+  requestId        String?   @map("request_id")
+  status           LlmStatus @default(SUCCESS)
+  promptTokens     Int?      @map("prompt_tokens")
+  completionTokens Int?      @map("completion_tokens")
+  totalTokens      Int?      @map("total_tokens")
+  costUsd          Decimal?  @map("cost_usd") @db.Decimal(12, 6)
+  latencyMs        Int?      @map("latency_ms")
+  temperature      Float?
+  finishReason     String?   @map("finish_reason")
+  requestPayload   Json?     @map("request_payload") @db.JsonB // redact before write (Azure Key Vault envelope-encrypt here later)
+  responsePayload  Json?     @map("response_payload") @db.JsonB
+  error            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  action  Action? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+
+  @@id([id, createdAt])
+  @@index([sessionId])
+  @@index([actionId])
+  @@index([model])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("llm_calls")
+}
+
+enum LlmStatus {
+  SUCCESS
+  ERROR
+  TIMEOUT
+  RATE_LIMITED
+}
+
+/// Append-only audit trail. PARTITION-READY (composite PK); PLAIN table for now.
+model AuditLog {
+  id         String   @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") // null = system / automated; FK to User.id (cuid/text)
+  action     String // "user.role.assigned", "session.deleted", ...
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  sessionId  String?  @map("session_id") @db.Uuid
+  before     Json?    @db.JsonB
+  after      Json?    @db.JsonB
+  ipAddress  String?  @map("ip_address") @db.Inet
+  userAgent  String?  @map("user_agent")
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor   User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@id([id, createdAt])
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
