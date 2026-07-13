@@ -9,7 +9,7 @@ import {
   Rocket, FlaskConical, Inbox, HeartPulse, DollarSign,
   Shield, Server, ScrollText, Layers, Wand2,
   Radio, Brain, Lightbulb, LayoutTemplate, Route, LayoutDashboard,
-  ChevronRight, History, Zap, Users,
+  ChevronRight, History, Zap, Users, TestTube2,
 } from 'lucide-react';
 import { UserMenu } from '@/components/shell/UserMenu';
 import type { Session } from 'next-auth';
@@ -35,22 +35,31 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Build',
     id: 'build',
     items: [
-      { label: 'Inspector',   href: '/inspector',            icon: Database },
-      { label: 'Dashboards',  href: '/inspector/dashboards', icon: LayoutDashboard },
-      { label: 'Bandits',     href: '/agent-lab/bandits',    icon: Dices },
-      { label: 'Memory',      href: '/agent-lab/memory',     icon: Lightbulb },
-      {
-        label: 'Data Estate',
-        href: '/agent-lab/estate',
-        icon: Database,
-        children: [
-          { label: 'Overview', href: '/agent-lab/estate' },
-          { label: 'Catalog', href: '/agent-lab/estate/catalog' },
-          { label: 'Jobs', href: '/agent-lab/estate/jobs' },
-          { label: 'Mapper', href: '/agent-lab/estate/mapper' },
-          { label: 'Silo Finder', href: '/agent-lab/estate/silo' },
-        ],
-      },
+      { label: 'Inspector',        href: '/inspector',            icon: Database },
+      { label: 'Dashboards',       href: '/inspector/dashboards', icon: LayoutDashboard },
+      { label: 'Performance Lab',  href: '/performance-lab',      icon: TestTube2 },
+      { label: 'Bandits',          href: '/agent-lab/bandits',    icon: Dices },
+      { label: 'History',          href: '/agent-lab/history',    icon: History },
+    ],
+  },
+  {
+    label: 'Memory',
+    id: 'memory',
+    items: [
+      { label: 'FOER',                  href: '/agent-lab/memory',               icon: Lightbulb, exact: true },
+      { label: 'FOER Ops',              href: '/agent-lab/memory/ops',            icon: Activity },
+      { label: 'Contributions',         href: '/agent-lab/memory/contributions',  icon: Brain },
+    ],
+  },
+  {
+    label: 'Data Estate',
+    id: 'estate',
+    items: [
+      { label: 'Overview',    href: '/agent-lab/estate',          icon: Layers, exact: true },
+      { label: 'Catalog',     href: '/agent-lab/estate/catalog',  icon: BookOpen },
+      { label: 'Jobs',        href: '/agent-lab/estate/jobs',     icon: Zap },
+      { label: 'Mapper',      href: '/agent-lab/estate/mapper',   icon: Route },
+      { label: 'Silo Finder', href: '/agent-lab/estate/silo',     icon: Server },
     ],
   },
   {

@@ -16,7 +16,7 @@
 
 :root {
   /* REBRAND: Synergy Marine Group inspired theme → Spinor Labs brand system - Light Mode */
-  --background: #fafaf7;
+  --background: #F5F2EB;
   --foreground: #0f172a;
   --primary: #003262; /* REBRAND: #1e3a8a → Berkeley navy #003262 */
   --primary-foreground: #ffffff;
@@ -24,12 +24,12 @@
   --secondary-foreground: #ffffff;
   --accent: #FDB515; /* REBRAND: #3b82f6 → Gold #FDB515 */
   --accent-foreground: #0D1B2A;
-  --muted: #f8fafc;
+  --muted: #EDE9DF;
   --muted-foreground: #8892A4; /* REBRAND: #475569 → muted #8892A4 */
-  --border: #e2e8f0;
+  --border: #C8C2AD;
   --input: #ffffff;
   --ring: #003262; /* REBRAND: #1e3a8a → #003262 */
-  --card: #ffffff;
+  --card: #FFFFFF;
   --card-foreground: #0f172a;
   --radius: 0.5rem;
 
@@ -37,12 +37,12 @@
   --color-primary:      #003262;
   --color-accent:       #FDB515;
   --color-bg-dark:      #0D1B2A;
-  --color-bg-light:     #fafaf7;
+  --color-bg-light:     #F5F2EB;
   --color-text-primary: #FFFFFF;
   --color-text-muted:   #8892A4;
   
   /* Additional UI component variables */
-  --popover: #ffffff;
+  --popover: #FFFFFF;
   --popover-foreground: #0f172a;
   
   /* Navigation specific colors */
@@ -61,8 +61,8 @@
   --tooltip-text: #374151;
 
   /* Activity-tracking analytics palette (light) */
-  --at-bg-base: #f8fafc;
-  --at-bg-gradient: #eef2ff;
+  --at-bg-base: #F5F2EB;
+  --at-bg-gradient: #EDE9DF;
   --at-surface: #ffffff;
   --at-surface-hover: #f1f5f9;
   --at-border-subtle: rgba(0, 0, 0, 0.06);
@@ -110,9 +110,10 @@
   --text-tertiary: #64748b;
 
   /* Shell surfaces */
-  --shell-bg: #f4f5f7;
-  --header-bg: #ffffff;
-  --header-border: #e2e4e9;
+  --shell-bg: #EDE9DF;
+  --main-bg: #F5F2EB;
+  --header-bg: #F5F2EB;
+  --header-border: #C8C2AD;
 
   /* Workbench canvas tokens — light mode (parchment-navy) */
   --wb-canvas:       #EDE9DF;
@@ -124,7 +125,7 @@
   --wb-border-subtle:rgba(13,27,42,0.10);
 
   /* Data Estate palette — light mode */
-  --estate-bg:          #fafaf7;
+  --estate-bg:          #F5F2EB;
   --estate-surface:     #FFFFFF;
   --estate-raised:      #FFFFFF;
   --estate-ink:         #0D1B2A;
@@ -238,6 +239,7 @@
 
   /* Shell surfaces */
   --shell-bg: #0b0e14;
+  --main-bg: #0f1419;
   --header-bg: #11151d;
   --header-border: #252b37;
 
@@ -1025,6 +1027,10 @@ body {
   --nav-section-label: #8A9BAD;
   --nav-item-text: #2C3E50;
   --nav-item-text-active: #003262;
+  --main-bg: #F5F2EB;
+  --shell-bg: #EDE9DF;
+  --header-bg: #F5F2EB;
+  --header-border: #C8C2AD;
 }
 
 .dark .workbench-frame {
@@ -1283,11 +1289,11 @@ body {
    Agent Graph Design System — Light (default)
    ═══════════════════════════════════════════════════════════ */
 .agent-graph {
-  --ag-canvas-bg: #f0efe9;
+  --ag-canvas-bg: #EDE9DF;
   --ag-surface-1: #ffffff;
   --ag-surface-2: #ffffff;
   --ag-surface-3: #ffffff;
-  --ag-page-bg: #fafaf8;
+  --ag-page-bg: #F5F2EB;
   --ag-accent: #6d48f5;
   --ag-accent-secondary: #5b3fd4;
   --ag-border: rgba(0,0,0,0.08);

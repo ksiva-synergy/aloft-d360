@@ -18,30 +18,30 @@ interface ChangeRoleModalProps {
 
 const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
 
-const ROLE_DETAILS: Record<string, { label: string; description: string; color: string; bg: string }> = {
+// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
+  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
+};
+
+const ROLE_DETAILS: Record<string, { label: string; description: string }> = {
   platform_admin: {
     label: 'Platform Admin',
     description: 'Full platform access. Can see and manage all users\' sessions and data.',
-    color: '#92400e',
-    bg: 'rgba(251,191,36,0.18)',
   },
   admin: {
     label: 'Admin',
     description: 'All app actions but scoped to own data. Cannot view other users\' sessions.',
-    color: '#1e40af',
-    bg: 'rgba(96,165,250,0.15)',
   },
   member: {
     label: 'Member',
     description: 'Inspector access and read-only access to all other sections.',
-    color: '#6b7280',
-    bg: 'rgba(156,163,175,0.15)',
   },
   readonly: {
     label: 'Read Only',
     description: 'Login and view only. No writes — cannot create or modify any content.',
-    color: '#9ca3af',
-    bg: 'rgba(209,213,219,0.12)',
   },
 };
 
@@ -49,12 +49,11 @@ function RoleBadge({ role }: { role: string }) {
   const d = ROLE_DETAILS[role] ?? ROLE_DETAILS.readonly;
   return (
     <span
-      style={{
-        display: 'inline-block', padding: '1px 7px', borderRadius: 4,
-        fontSize: 10, fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600,
-        letterSpacing: '0.05em', textTransform: 'uppercase',
-        color: d.color, background: d.bg, lineHeight: '1.6',
-      }}
+      className={cn(
+        'inline-block whitespace-nowrap rounded border px-[7px] py-px',
+        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
+      )}
     >
       {d.label}
     </span>
@@ -120,7 +119,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm dark:bg-[#0d1117] dark:border-[#2d333b]">
+      <DialogContent className="max-w-sm bg-[var(--estate-surface)] border-[var(--estate-border)]">
         <DialogHeader>
           <div className="flex items-center gap-2.5 mb-1">
             <div
@@ -140,7 +139,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
         </DialogHeader>
 
         {/* Current role indicator */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-50 dark:bg-[#161b24] border border-slate-200 dark:border-[#2d333b] text-[12px] mt-1">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--estate-hover)] border border-[var(--estate-border)] text-[12px] mt-1">
           <span className="text-muted-foreground">Current role:</span>
           <RoleBadge role={user.primaryRole} />
         </div>
@@ -158,8 +157,8 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
                 className={cn(
                   'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
                   isSelected
-                    ? 'border-[#FDB515] bg-amber-50/60 dark:bg-amber-500/10 dark:border-[#FDB515]/60'
-                    : 'border-slate-200 dark:border-[#2d333b] hover:border-slate-300 dark:hover:border-[#3d4451]',
+                    ? 'border-[#FDB515] bg-[#FDB515]/[0.07] dark:bg-[#FDB515]/10 dark:border-[#FDB515]/60'
+                    : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
                 )}
               >
                 <input
