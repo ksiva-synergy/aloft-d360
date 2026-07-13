@@ -9,7 +9,7 @@ import {
   Rocket, FlaskConical, Inbox, HeartPulse, DollarSign,
   Shield, Server, ScrollText, Layers, Wand2,
   Radio, Brain, Lightbulb, LayoutTemplate, Route, LayoutDashboard,
-  ChevronRight, History, Zap,
+  ChevronRight, History, Zap, Users,
 } from 'lucide-react';
 import { UserMenu } from '@/components/shell/UserMenu';
 import type { Session } from 'next-auth';
@@ -57,6 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Govern',
     id: 'govern',
     items: [
+      { label: 'Users',           href: '/agent-staging/users',        icon: Users },
       { label: 'Policies',        href: '/agent-staging/policies',     icon: Shield },
       { label: 'Audit Log',       href: '/agent-staging/audit',        icon: ScrollText },
       { label: 'Docs',            href: '/docs',                       icon: BookMarked },

@@ -3,6 +3,15 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import AzureADProvider from 'next-auth/providers/azure-ad';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import {
+  provisionUserByOid,
+  resolvePrimaryRole,
+  resolveRoleLabel,
+  isUsable,
+  userAuthInclude,
+  DEFAULT_ROLE,
+  AccountLinkRequiredError,
+} from '@/lib/rbac';
 
 const SESSION_MAX_AGE_DEFAULT = 8 * 60 * 60; // 8 hours
 const SESSION_MAX_AGE_REMEMBER = 30 * 24 * 60 * 60; // 30 days
@@ -56,23 +65,16 @@ async function updateProfileOnLogin(userId: string, ip: string | null) {
   }
 }
 
-/**
- * Resolve the app role for an AAD user based on their group memberships.
- * If the user belongs to any group listed in AZURE_AD_ADMIN_GROUP_IDS, they get ADMIN.
- * Otherwise they get USER.
- */
-function resolveRoleFromAzureGroups(azureGroupIds: string[]): 'ADMIN' | 'USER' {
-  const adminGroupIds = (process.env.AZURE_AD_ADMIN_GROUP_IDS ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (adminGroupIds.length === 0) return 'USER';
-  return azureGroupIds.some((g) => adminGroupIds.includes(g)) ? 'ADMIN' : 'USER';
+/** Resolve a user's coarse role string (primary RBAC role) for the session/JWT. */
+async function primaryRoleForUser(userId: string): Promise<string> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
+  return u ? resolvePrimaryRole(u) : DEFAULT_ROLE;
 }
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    // Break-glass local admin (optional). Only usable by accounts that actually
+    // have a passwordHash — AAD users have none and cannot log in this way.
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -107,7 +109,20 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        if (!user.isActive) {
+        // AAD-only accounts have no local password to check against.
+        if (!user.passwordHash) {
+          await recordLoginEvent({
+            email: credentials.email,
+            userId: user.id,
+            success: false,
+            failureReason: 'NO_LOCAL_PASSWORD',
+            ip,
+            ua,
+          });
+          return null;
+        }
+
+        if (user.status !== 'ACTIVE' || !user.isActive || user.deletedAt) {
           await recordLoginEvent({
             email: credentials.email,
             userId: user.id,
@@ -135,11 +150,13 @@ export const authOptions: NextAuthOptions = {
         await recordLoginEvent({ email: credentials.email, userId: user.id, success: true, ip, ua });
         await updateProfileOnLogin(user.id, ip);
 
+        const role = await primaryRoleForUser(user.id);
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
-          role: user.role,
+          role,
+          roleLabel: resolveRoleLabel(role),
           rememberMe: credentials.rememberMe === '1',
         };
       },
@@ -166,38 +183,33 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'azure-ad') {
-        const email = user.email?.toLowerCase();
-        if (!email) {
+        const p = (profile ?? {}) as Record<string, unknown>;
+        const oid = (p.oid as string) ?? (p.sub as string) ?? undefined;
+        const email = ((p.preferred_username as string) ?? (p.email as string) ?? user.email ?? '')
+          .toString()
+          .toLowerCase();
+
+        if (!oid) {
           await recordLoginEvent({
-            email: user.email || 'unknown',
+            email: email || 'unknown',
             provider: 'azure_ad',
             success: false,
-            failureReason: 'NO_EMAIL_IN_TOKEN',
+            failureReason: 'NO_OID_IN_TOKEN',
           });
           return false;
         }
 
         try {
-          const azureGroups = ((profile as any)?.groups || []) as string[];
+          // SINGLE find-or-create-by-oid provisioning flow (see src/lib/rbac.ts).
+          const dbUser = await provisionUserByOid({
+            oid,
+            tid: (p.tid as string) ?? null,
+            email: email || null,
+            name: (p.name as string) ?? user.name ?? null,
+            groups: (p.groups as string[] | undefined) ?? undefined,
+          });
 
-          // Find or auto-provision user
-          let dbUser = await prisma.user.findUnique({ where: { email } });
-
-          if (!dbUser) {
-            const targetRole = resolveRoleFromAzureGroups(azureGroups);
-            dbUser = await prisma.user.create({
-              data: {
-                email,
-                name: user.name ?? '',
-                passwordHash: '',
-                authProvider: 'azure_ad',
-                isActive: true,
-                role: targetRole,
-              },
-            });
-          }
-
-          if (!dbUser.isActive) {
+          if (!isUsable(dbUser)) {
             await recordLoginEvent({
               email,
               userId: dbUser.id,
@@ -208,25 +220,21 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
 
-          // Sync role from AAD groups on every login (allows real-time role changes in AAD)
-          const resolvedRole = resolveRoleFromAzureGroups(azureGroups);
-          if (dbUser.role !== resolvedRole) {
-            await prisma.user.update({
-              where: { id: dbUser.id },
-              data: { role: resolvedRole },
-            });
-          }
-
-          await prisma.user.update({
-            where: { id: dbUser.id },
-            data: { lastSeenAt: new Date() },
-          });
-
           await recordLoginEvent({ email, userId: dbUser.id, provider: 'azure_ad', success: true });
           await updateProfileOnLogin(dbUser.id, null);
-
           return true;
         } catch (error) {
+          // Email collides with an existing account — refuse to auto-link. Deny the
+          // sign-in and redirect to the login page with a distinguishable reason.
+          if (error instanceof AccountLinkRequiredError || (error as Error)?.name === 'AccountLinkRequiredError') {
+            await recordLoginEvent({
+              email,
+              provider: 'azure_ad',
+              success: false,
+              failureReason: 'ACCOUNT_LINK_REQUIRED',
+            });
+            return '/login?error=account_link_required';
+          }
           console.error('Azure AD sign-in error:', error);
           await recordLoginEvent({
             email,
@@ -242,28 +250,54 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile, trigger }) {
       // Initial sign-in — credentials flow populates from the user object
       if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-        if ((user as any).rememberMe) {
+        token.id = (user as { id: string }).id;
+        token.role = (user as { role?: string }).role ?? DEFAULT_ROLE;
+        token.roleLabel = (user as { roleLabel?: string }).roleLabel ?? resolveRoleLabel(token.role as string);
+        if ((user as { rememberMe?: boolean }).rememberMe) {
           token.rememberMe = true;
         }
       }
 
-      // For Azure AD users, fetch role from DB (since AAD user object doesn't carry our role)
-      if (account?.provider === 'azure-ad' && token.email) {
+      // AAD initial sign-in — resolve our user id + RBAC role from the oid claim
+      if (account?.provider === 'azure-ad' && profile) {
+        const oid = ((profile as Record<string, unknown>).oid as string) ?? undefined;
+        if (oid) {
+          try {
+            const dbUser = await prisma.user.findUnique({
+              where: { aadObjectId: oid },
+              include: userAuthInclude,
+            });
+            if (dbUser) {
+              token.id = dbUser.id;
+              const role = resolvePrimaryRole(dbUser);
+              token.role = role;
+              token.roleLabel = resolveRoleLabel(role);
+            }
+          } catch (error) {
+            console.error('Error resolving Azure AD user for JWT:', error);
+          }
+        }
+      }
+
+      // On every token refresh (trigger === 'update' or subsequent requests), re-resolve the
+      // role from the DB so that role changes by an admin take effect without requiring
+      // the user to sign out and back in.
+      if (trigger !== undefined && token.id) {
         try {
           const dbUser = await prisma.user.findUnique({
-            where: { email: token.email.toLowerCase() },
+            where: { id: token.id as string },
+            include: userAuthInclude,
           });
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.role = dbUser.role;
+          if (dbUser && isUsable(dbUser)) {
+            const role = resolvePrimaryRole(dbUser);
+            token.role = role;
+            token.roleLabel = resolveRoleLabel(role);
           }
-        } catch (error) {
-          console.error('Error fetching Azure AD user for JWT:', error);
+        } catch {
+          // Non-critical: keep existing token.role on DB error
         }
       }
 
@@ -274,6 +308,7 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.roleLabel = token.roleLabel as string;
       }
       return session;
     },

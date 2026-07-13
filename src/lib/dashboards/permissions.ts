@@ -98,7 +98,9 @@ export function buildDashboardVisibilityFilter(userId: string) {
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
-    select: { id: true, name: true, email: true, role: true },
+    // NOTE: the coarse `role` enum column was removed in the RBAC migration.
+    // Derive role/permissions from the `roles` join if ever needed here.
+    select: { id: true, name: true, email: true },
   });
 }
 

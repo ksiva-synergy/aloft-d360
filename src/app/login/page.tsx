@@ -38,11 +38,19 @@ export default function LoginPage() {
     return () => window.removeEventListener('keydown', handleKonami);
   }, [handleKonami]);
 
+  // Surface a denied SSO sign-in reason redirected here by the AzureAD callback.
+  useEffect(() => {
+    const err = new URLSearchParams(window.location.search).get('error');
+    if (err === 'account_link_required') {
+      setError('An account with this email already exists and must be linked by an administrator.');
+    }
+  }, []);
+
   async function handleSSOLogin() {
     setSsoLoading(true);
     setError('');
     try {
-      await signIn('azure-ad', { callbackUrl: '/agent-lab/estate' });
+      await signIn('azure-ad', { callbackUrl: '/dashboard' });
     } catch {
       setError('Unable to connect to Azure AD. Please try again.');
       setSsoLoading(false);
@@ -65,7 +73,7 @@ export default function LoginPage() {
       setError('Invalid email or password');
       setLoading(false);
     } else {
-      router.push('/agent-lab/estate');
+      router.push('/dashboard');
     }
   }
 

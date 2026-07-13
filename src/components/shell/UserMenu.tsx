@@ -20,6 +20,37 @@ function getInitials(name?: string | null, email?: string | null): string {
   return (email?.[0] ?? '?').toUpperCase();
 }
 
+/** Per-role badge style — color tokens are CSS variables so they respect both light and dark themes. */
+const ROLE_BADGE_STYLES: Record<string, { color: string; bg: string }> = {
+  platform_admin: { color: '#92400e', bg: 'rgba(251,191,36,0.18)' }, // amber
+  admin:          { color: '#1e40af', bg: 'rgba(96,165,250,0.15)' },  // blue
+  member:         { color: '#6b7280', bg: 'rgba(156,163,175,0.15)' }, // gray
+  readonly:       { color: '#9ca3af', bg: 'rgba(209,213,219,0.12)' }, // muted
+};
+
+function RoleBadge({ role, label }: { role: string; label: string }) {
+  const style = ROLE_BADGE_STYLES[role] ?? ROLE_BADGE_STYLES.readonly;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '1px 6px',
+        borderRadius: 4,
+        fontSize: 9,
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: style.color,
+        background: style.bg,
+        lineHeight: '1.6',
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 function ThemeCycleButton() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -73,9 +104,13 @@ export function UserMenu({ initialSession }: { initialSession?: Session | null }
     name?: string | null;
     email?: string | null;
     role?: string;
+    roleLabel?: string;
   } | undefined;
   const initials = getInitials(user?.name, user?.email);
   const isLoading = status === 'loading' && !initialSession;
+
+  // Use roleLabel from session when available; fall back to role name as-is.
+  const displayRole = user?.roleLabel ?? user?.role ?? null;
 
   return (
     <div ref={menuRef} className="relative px-3 py-2 border-t border-[var(--header-border)]">
@@ -92,9 +127,9 @@ export function UserMenu({ initialSession }: { initialSession?: Session | null }
           <div className="text-[12px] font-medium text-[var(--foreground)] truncate">
             {isLoading ? 'Loading…' : (user?.name || user?.email || 'User')}
           </div>
-          {user?.role && (
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[#8892A4]">
-              {user.role}
+          {displayRole && (
+            <div className="mt-0.5">
+              <RoleBadge role={user?.role ?? ''} label={displayRole} />
             </div>
           )}
         </div>
@@ -124,6 +159,11 @@ export function UserMenu({ initialSession }: { initialSession?: Session | null }
               {user.name || 'User'}
             </div>
             <div className="text-[11px] text-[#8892A4] truncate">{user.email}</div>
+            {displayRole && (
+              <div className="mt-1.5">
+                <RoleBadge role={user.role ?? ''} label={displayRole} />
+              </div>
+            )}
           </div>
           <button
             onClick={() => {
