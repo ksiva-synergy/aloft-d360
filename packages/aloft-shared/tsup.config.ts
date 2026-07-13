@@ -11,7 +11,17 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', 'react-dom', 'react-day-picker', /^@\/components\/ui\//],
+  external: [
+    'react',
+    'react-dom',
+    'react-day-picker',
+    /^@radix-ui\//,
+    'lucide-react',
+    'class-variance-authority',
+    'clsx',
+    'tailwind-merge',
+    /^@\/components\/ui\//,
+  ],
   banner: {
     js: '"use client";',
   },

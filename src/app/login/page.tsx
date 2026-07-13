@@ -3,7 +3,6 @@
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 
 const KONAMI = [
   'ArrowUp','ArrowUp','ArrowDown','ArrowDown',
@@ -19,6 +18,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
+  const [showCredentials, setShowCredentials] = useState(false);
   const [easterEgg, setEasterEgg] = useState(false);
 
   // Konami code easter egg
@@ -36,6 +37,17 @@ export default function LoginPage() {
     window.addEventListener('keydown', handleKonami);
     return () => window.removeEventListener('keydown', handleKonami);
   }, [handleKonami]);
+
+  async function handleSSOLogin() {
+    setSsoLoading(true);
+    setError('');
+    try {
+      await signIn('azure-ad', { callbackUrl: '/agent-lab/estate' });
+    } catch {
+      setError('Unable to connect to Azure AD. Please try again.');
+      setSsoLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,12 +98,12 @@ export default function LoginPage() {
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-            <Image
-              src="/synergy-group-logo.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/synergy-group-logo.jpg"
               alt="Synergy Group"
-              width={88}
-              height={88}
-              priority
+              width={100}
+              height={100}
               style={{ objectFit: 'contain' }}
             />
           </div>
@@ -107,70 +119,87 @@ export default function LoginPage() {
           >
             Login
           </h1>
-          <p
-            style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              margin: 0,
-            }}
-          >
+          <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
             Welcome back! Please login to continue
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="login-email"
-              style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-            >
-              Username
-            </label>
-            <input
-              id="login-email"
-              type="email"
-              placeholder="Enter username"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                fontSize: '14px',
-                color: '#1a1a2a',
-                background: '#fff',
-                outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'border-color 0.15s',
-              }}
-              onFocus={e => (e.target.style.borderColor = '#4B55C1')}
-              onBlur={e => (e.target.style.borderColor = '#d1d5db')}
-            />
-          </div>
+        {/* SSO Button */}
+        <button
+          type="button"
+          onClick={handleSSOLogin}
+          disabled={ssoLoading || loading}
+          style={{
+            width: '100%',
+            padding: '12px',
+            background: ssoLoading ? '#5a6abf' : '#0078d4',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 600,
+            fontSize: '15px',
+            cursor: ssoLoading ? 'not-allowed' : 'pointer',
+            transition: 'background 0.15s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+          }}
+          onMouseEnter={e => { if (!ssoLoading) (e.currentTarget.style.background = '#106ebe'); }}
+          onMouseLeave={e => { if (!ssoLoading) (e.currentTarget.style.background = '#0078d4'); }}
+        >
+          {/* Microsoft logo SVG */}
+          <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          {ssoLoading ? 'Redirecting to Microsoft...' : 'Sign in with Microsoft'}
+        </button>
 
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="login-password"
-              style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-            >
-              Password
-            </label>
-            <div style={{ position: 'relative' }}>
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
+          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+          <button
+            type="button"
+            onClick={() => setShowCredentials(!showCredentials)}
+            style={{
+              fontSize: '12px',
+              color: '#9ca3af',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '2px 4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {showCredentials ? 'Hide' : 'Admin Login'}
+          </button>
+          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
+        </div>
+
+        {/* Credentials form (collapsible) */}
+        {showCredentials && (
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Email */}
+            <div>
+              <label
+                htmlFor="login-email"
+                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
+              >
+                Username
+              </label>
               <input
-                id="login-password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
+                id="login-email"
+                type="email"
+                placeholder="Enter username"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
                 required
                 style={{
                   width: '100%',
-                  padding: '10px 42px 10px 14px',
+                  padding: '10px 14px',
                   border: '1px solid #d1d5db',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -183,100 +212,119 @@ export default function LoginPage() {
                 onFocus={e => (e.target.style.borderColor = '#4B55C1')}
                 onBlur={e => (e.target.style.borderColor = '#d1d5db')}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#9ca3af',
-                  fontSize: '13px',
-                  padding: '2px',
-                }}
-                tabIndex={-1}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                )}
-              </button>
             </div>
-          </div>
 
-          {/* Remember Me / Forgot Password */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: '#4B55C1' }}
+            {/* Password */}
+            <div>
+              <label
+                htmlFor="login-password"
+                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
+              >
+                Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '10px 42px 10px 14px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    color: '#1a1a2a',
+                    background: '#fff',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onFocus={e => (e.target.style.borderColor = '#4B55C1')}
+                  onBlur={e => (e.target.style.borderColor = '#d1d5db')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#9ca3af',
+                    fontSize: '13px',
+                    padding: '2px',
+                  }}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Remember Me */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: '#4B55C1' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  style={{ accentColor: '#4B55C1', width: '14px', height: '14px' }}
+                />
+                Remember Me
+              </label>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: loading ? '#7B82D1' : '#4B55C1',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 600,
+                fontSize: '15px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'background 0.15s',
+                marginTop: '4px',
+              }}
+              onMouseEnter={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#3B46B0'; }}
+              onMouseLeave={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#4B55C1'; }}
             >
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                style={{ accentColor: '#4B55C1', width: '14px', height: '14px' }}
-              />
-              Remember Me
-            </label>
-            <a
-              href="#"
-              onClick={e => e.preventDefault()}
-              style={{ fontSize: '13px', color: '#4B55C1', textDecoration: 'none' }}
-            >
-              Forgot Password
-            </a>
-          </div>
+              {loading ? 'Signing in...' : 'Login'}
+            </button>
+          </form>
+        )}
 
-          {/* Error */}
-          {error && (
-            <p style={{ color: '#dc2626', fontSize: '13px', margin: 0, textAlign: 'center' }}>
-              {error}
-            </p>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: loading ? '#7B82D1' : '#4B55C1',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '15px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.15s',
-              marginTop: '4px',
-            }}
-            onMouseEnter={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#3B46B0'; }}
-            onMouseLeave={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#4B55C1'; }}
-          >
-            {loading ? 'Signing in...' : 'Login'}
-          </button>
-        </form>
-
-        {/* Don't have an account */}
-        <p style={{ textAlign: 'center', fontSize: '13px', color: '#6b7280', marginTop: '22px', marginBottom: 0 }}>
-          Don&apos;t have an account?{' '}
-          <a href="#" onClick={e => e.preventDefault()} style={{ color: '#4B55C1', fontWeight: 600, textDecoration: 'none' }}>
-            SIGN UP
-          </a>
-        </p>
+        {/* Error */}
+        {error && (
+          <p style={{ color: '#dc2626', fontSize: '13px', margin: '16px 0 0', textAlign: 'center' }}>
+            {error}
+          </p>
+        )}
       </div>
 
       {/* Footer */}

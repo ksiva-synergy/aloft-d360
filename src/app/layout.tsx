@@ -6,13 +6,6 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Agent Lab — Spinor Labs',
   description: 'Design, stage, and operate AI agent pipelines. Powered by ALOFT.',
-  icons: {
-    icon: [
-      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    shortcut: '/favicon-32x32.png',
-  },
 };
 
 export default function RootLayout({
