@@ -81,27 +81,16 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
     setError(null);
 
     try {
-      // Assign new role
-      const assignRes = await fetch('/api/access/assignments', {
-        method: 'POST',
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, roleName: selectedRole }),
+        body: JSON.stringify({ role: selectedRole }),
       });
 
-      if (!assignRes.ok) {
-        const d = await assignRes.json();
-        setError(d?.error ?? `Failed to assign role (${assignRes.status})`);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.message ?? data?.error ?? `Failed to update role (${res.status})`);
         return;
-      }
-
-      // Revoke old role(s) — revoke all existing roles that differ from new selection
-      const oldRoles = user.roles.map((r) => r.role.name).filter((r) => r !== selectedRole);
-      for (const roleName of oldRoles) {
-        await fetch('/api/access/assignments', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, roleName }),
-        });
       }
 
       onOpenChange(false);

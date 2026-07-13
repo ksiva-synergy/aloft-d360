@@ -52,6 +52,7 @@ export const GET = handle<Ctx>(async (req, { params }) => {
 const UpdateUser = z.object({
   name: z.string().nullable().optional(),
   status: z.enum(['ACTIVE', 'SUSPENDED', 'INVITED', 'DEACTIVATED']).optional(),
+  role: z.string().optional(),
 });
 
 export const PATCH = handle<Ctx>(async (req, { params }) => {
@@ -62,24 +63,49 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
   const before = await prisma.user.findUnique({ where: { id: params.id }, select: { name: true, status: true, isActive: true } });
   if (!before) throw new ApiError(404, 'User not found');
 
-  const user = await prisma.user.update({
-    where: { id: params.id },
-    data: {
-      ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.status !== undefined ? { status: body.status, isActive: body.status === 'ACTIVE' } : {}),
-    },
-    select: userSelect,
-  });
+  // Role change — requires role:assign permission in addition to user:update
+  if (body.role !== undefined) {
+    requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
 
-  await writeAudit({
-    actorId: auth.userId,
-    action: 'user.updated',
-    entityType: 'user',
-    entityId: user.id,
-    before,
-    after: { name: user.name, status: user.status },
-    ...clientMeta(req),
-  });
+    const newRole = await prisma.role.findUnique({ where: { name: body.role }, select: { id: true, name: true } });
+    if (!newRole) throw new ApiError(400, `Unknown role: ${body.role}`);
+
+    // Revoke all current roles, assign the new one
+    await prisma.userRole.deleteMany({ where: { userId: params.id } });
+    await prisma.userRole.create({ data: { userId: params.id, roleId: newRole.id, assignedBy: auth.userId } });
+
+    await writeAudit({
+      actorId: auth.userId,
+      action: 'user.role.changed',
+      entityType: 'user',
+      entityId: params.id,
+      after: { role: body.role },
+      ...clientMeta(req),
+    });
+  }
+
+  // Profile / status update (only if name or status is present)
+  if (body.name !== undefined || body.status !== undefined) {
+    await prisma.user.update({
+      where: { id: params.id },
+      data: {
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.status !== undefined ? { status: body.status, isActive: body.status === 'ACTIVE' } : {}),
+      },
+    });
+
+    await writeAudit({
+      actorId: auth.userId,
+      action: 'user.updated',
+      entityType: 'user',
+      entityId: params.id,
+      before,
+      after: { name: body.name, status: body.status },
+      ...clientMeta(req),
+    });
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: params.id }, select: userSelect });
   return ok({ user: formatUser(user) });
 });
 

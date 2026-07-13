@@ -57,7 +57,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('readonly');
+  const [selectedRole, setSelectedRole] = useState('member');
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +86,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
       setName('');
       setPassword('');
       setShowPassword(false);
-      setSelectedRole('readonly');
+      setSelectedRole('member');
       setError(null);
     }
   }, [open]);
