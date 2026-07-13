@@ -28,6 +28,44 @@ import {
   checkBulletCaveat,
   type CaveatMap,
 } from '@/lib/memory/caveat-guard';
+import { recordContribution, type ContributionType } from '../reputation/store';
+
+// ── Reputation write hooks (Phase A) ────────────────────────────────────────
+//
+// Gated behind MEMORY_REPUTATION_ENABLED and deliberately non-fatal: a failure
+// in the reputation subsystem (including the reputation tables not yet existing)
+// must NEVER break curation. Retrieval is untouched this phase — these hooks only
+// populate attribution/reputation tables. See src/lib/memory/reputation/.
+
+async function safeRecordContribution(args: {
+  orgId:     string;
+  memoryId:  string;
+  domain:    string; // = agent_class of the bullet
+  sessionId: string;
+  type:      ContributionType;
+  userId?:   string; // pass when already known (e.g. SUPERSEDE_AUTHOR)
+}): Promise<void> {
+  if (process.env.MEMORY_REPUTATION_ENABLED !== 'true') return;
+  try {
+    await recordContribution(args);
+  } catch (err) {
+    console.warn(
+      `[curate/reputation] recordContribution(${args.type}) failed (non-fatal):`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
+/** Resolve the original INSERT author of a bullet from its contribution rows. */
+async function resolveOriginalAuthor(memoryId: string): Promise<string | null> {
+  const rows = await prisma.$queryRaw<Array<{ user_id: string }>>`
+    SELECT user_id FROM platform_memory_contributions
+    WHERE memory_id = ${memoryId} AND contribution_type = 'INSERT_AUTHOR'
+    ORDER BY created_at ASC
+    LIMIT 1
+  `;
+  return rows[0]?.user_id ?? null;
+}
 
 // ── Thresholds ────────────────────────────────────────────────────────────────
 
@@ -280,6 +318,13 @@ export async function curate(
         ` helpfulCount=${closest.helpful_count + 1}` +
         ` rule="${candidate.ruleText.slice(0, 60)}"`,
       );
+
+      // Reputation (Phase A): this run reinforced an existing bullet.
+      await safeRecordContribution({
+        orgId, memoryId: closest.id, domain: agentClass, sessionId,
+        type: 'DEDUP_REINFORCE',
+      });
+
       result.deduped++;
       continue;
     }
@@ -336,6 +381,32 @@ export async function curate(
         ` type=${candidate.ruleType} conf=${candidate.confidence.toFixed(2)}` +
         ` rule="${candidate.ruleText.slice(0, 60)}"`,
       );
+
+      // Reputation (Phase A): credit the successor's author (INSERT_AUTHOR on the
+      // new bullet) and apply the small supersede penalty to the ORIGINAL author
+      // of the bullet we just replaced (resolved from its contribution rows).
+      if (process.env.MEMORY_REPUTATION_ENABLED === 'true') {
+        await safeRecordContribution({
+          orgId, memoryId: newId, domain: agentClass, sessionId,
+          type: 'INSERT_AUTHOR',
+        });
+        let originalAuthorId: string | null = null;
+        try {
+          originalAuthorId = await resolveOriginalAuthor(closest.id);
+        } catch (err) {
+          console.warn(
+            '[curate/reputation] resolveOriginalAuthor failed (non-fatal):',
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+        if (originalAuthorId) {
+          await safeRecordContribution({
+            orgId, memoryId: closest.id, domain: agentClass, sessionId,
+            type: 'SUPERSEDE_AUTHOR', userId: originalAuthorId,
+          });
+        }
+      }
+
       result.superseded++;
       continue;
     }
@@ -365,6 +436,13 @@ export async function curate(
       ` conf=${candidate.confidence.toFixed(2)}` +
       ` rule="${candidate.ruleText.slice(0, 60)}"`,
     );
+
+    // Reputation (Phase A): this run authored a brand-new bullet.
+    await safeRecordContribution({
+      orgId, memoryId: newId, domain: agentClass, sessionId,
+      type: 'INSERT_AUTHOR',
+    });
+
     result.inserted++;
   }
 

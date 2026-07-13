@@ -24,6 +24,7 @@ import {
 import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib/memory/attribution';
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
+import { guardInspectorChat } from '@/lib/inspector/session-auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -116,6 +117,13 @@ export async function POST(request: NextRequest) {
     model?: string;
     contextMode?: 'harvested' | 'warehouse_only';
   };
+
+  // ── D1: session-ownership guard (behind INSPECTOR_AUTH_ENFORCE) ─────────────
+  // Observe mode (default) logs would-be rejections and serves normally; enforce
+  // mode returns 401 (anon) / 403 (ownership mismatch). Non-interactive callers
+  // authenticate via INSPECTOR_SERVICE_TOKEN and bypass the ownership check.
+  const authBlock = await guardInspectorChat(request, body.sessionId);
+  if (authBlock) return authBlock;
 
   if (!isBedrockConfigured()) {
     return cannedResponse(request);
