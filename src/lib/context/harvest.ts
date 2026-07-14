@@ -5,6 +5,8 @@ import prisma from '@/lib/db';
 import { DatabricksAdapter } from './databricks-adapter';
 import { syncEstateFromHarvest } from './estate';
 import { saveProfile } from './profile';
+import { countT1Degrade } from './coverage';
+import { makeHeartbeat } from './queue';
 import type { ContextSource, HarvestConfig, ProfileBudget } from './types';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
@@ -153,8 +155,10 @@ export async function runT0Harvest(
     const harvestedPaths = new Set<string>();
     let columnsUpserted = 0;
     let objIdx = 0;
+    const beat = makeHeartbeat(job.id);
 
     for (const meta of structuralMeta) {
+      await beat();
       harvestedPaths.add(meta.ref.full_path);
       objIdx++;
 
@@ -458,7 +462,7 @@ export async function runT1Profile(
         data: {
           status: 'failed',
           finished_at: new Date(),
-          stats: { objects_profiled: 0, objects_failed: 0, queries_issued: 0 },
+          stats: { objects_profiled: 0, objects_failed: 0, queries_issued: 0, objects_degraded: 0, columns_skipped: 0 },
           error: errorMsg,
         },
       });
@@ -478,8 +482,14 @@ export async function runT1Profile(
     let queriesIssued = 0;
     let profilesCreated = 0;
     const objectErrors: string[] = [];
+    // Collect the stats blob of each profile we write so we can count degraded
+    // objects/columns (partial sweeps, unqueryable views, skipped columns) for
+    // the emitted job stats — additive coverage instrumentation (WS4).
+    const profileStatsList: Array<Record<string, unknown>> = [];
+    const beat = makeHeartbeat(opts?.existingJobId);
 
     for (const obj of activeObjects) {
+      await beat();
       console.log(`[T1 Profile] Profiling ${obj.full_path} ...`);
       try {
         // 4. Build ProfileBudget, passing columns and estimated row count from Postgres
@@ -509,6 +519,7 @@ export async function runT1Profile(
 
         // 5. Persist profile + compute drift via profile.ts
         await saveProfile(obj.id, orgId, profileResult, 'on_demand');
+        profileStatsList.push(profileResult.stats as Record<string, unknown>);
 
         // 6. Update PlatformContextObject row_count_est, size_bytes_est, last_t1_at
         const currStats = profileResult.stats as Record<string, unknown>;
@@ -540,10 +551,15 @@ export async function runT1Profile(
       : profilesCreated > 0 ? 'partial'
       : 'failed';
 
+    const degrade = countT1Degrade(profileStatsList);
     const stats = {
       objects_profiled: profilesCreated,
       objects_failed: objectErrors.length,
       queries_issued: queriesIssued,
+      // Additive coverage signal (WS4): green T1 jobs can still hide degraded
+      // objects/columns. These count what this run actually produced.
+      objects_degraded: degrade.objects_degraded,
+      columns_skipped: degrade.columns_skipped,
     };
 
     await prisma.platformContextJob.update({

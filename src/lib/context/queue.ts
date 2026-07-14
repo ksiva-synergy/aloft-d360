@@ -2,6 +2,7 @@ import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import type { PlatformContextJob } from '@prisma/client';
 import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { deriveT2CostPerObject } from './cost-model';
 
 export type JobKind =
   | 'change_detect'
@@ -37,8 +38,41 @@ export const RATE_PER_MINUTE: Record<string, number> = {
   t4_dim_propose: 20,     // smaller single-entity calls, ~1.5-2s each
 };
 
-// Approximate LLM cost per object for T2 (USD)
-const T2_COST_PER_OBJECT_USD = 0.003;
+// Number of recent succeeded t2_semantic jobs to average when deriving per-object cost.
+const T2_COST_SAMPLE_SIZE = 20;
+
+/**
+ * Derive the per-object T2 cost (USD) from a rolling average of recent succeeded
+ * t2_semantic jobs, reading platform_context_jobs.stats.cost_usd and
+ * stats.objects_enriched (stats keys written by enrich.ts). Uses the last
+ * ~20 such jobs and computes avg(cost_usd / objects_enriched); falls back to a
+ * corrected constant (~$0.07/object, measured) when there are too few samples.
+ *
+ * Only top-level jobs (parent_job_id IS NULL) are sampled so split parents are
+ * counted once against their aggregated stats rather than double-counted with
+ * their children.
+ */
+export async function estimateT2CostPerObject(orgId: string): Promise<number> {
+  const recent = await prisma.platformContextJob.findMany({
+    where: {
+      org_id: orgId,
+      job_kind: 't2_semantic',
+      status: 'succeeded',
+      parent_job_id: null,
+    },
+    orderBy: { finished_at: 'desc' },
+    select: { stats: true },
+    take: T2_COST_SAMPLE_SIZE,
+  });
+
+  const statsList = recent.map((job) =>
+    job.stats && typeof job.stats === 'object' && !Array.isArray(job.stats)
+      ? (job.stats as Record<string, unknown>)
+      : null,
+  );
+
+  return deriveT2CostPerObject(statsList);
+}
 
 // Maximum concurrent Fargate tasks for each tier
 export const MAX_CONCURRENT_BY_KIND: Record<string, number> = {
@@ -197,6 +231,39 @@ export async function heartbeat(jobId: string): Promise<void> {
   });
 }
 
+/** Default heartbeat cadence: refresh at most once every 3 minutes, giving at
+ * least ~6 refreshes inside the 30-minute failStale() window even at the
+ * highest graduated time budget. */
+export const HEARTBEAT_INTERVAL_MS = 3 * 60 * 1000;
+
+/**
+ * Build a throttled, best-effort heartbeat callback for a tier-runner work loop.
+ * Call the returned function once per iteration; it refreshes updated_at only
+ * after `intervalMs` has elapsed since the last refresh — so a healthy-but-slow
+ * job stays clearly inside the failStale() window without a DB write per object.
+ *
+ * A no-op when jobId is undefined: the standalone (non-orchestrated) path owns
+ * its own row and is not reaped by the orchestrator, so it needs no heartbeat.
+ * Heartbeat failures are swallowed so a transient DB blip never kills live work
+ * (the next tick retries; a persistent failure means the job is doomed anyway).
+ */
+export function makeHeartbeat(
+  jobId: string | undefined,
+  intervalMs: number = HEARTBEAT_INTERVAL_MS,
+): () => Promise<void> {
+  let last = Date.now();
+  return async () => {
+    if (!jobId) return;
+    if (Date.now() - last < intervalMs) return;
+    last = Date.now();
+    try {
+      await heartbeat(jobId);
+    } catch (err) {
+      console.error(`[heartbeat] failed for job ${jobId}:`, err);
+    }
+  };
+}
+
 /**
  * Mark running jobs that have missed heartbeats as failed.
  * Called at orchestrator startup to reap abandoned work from crashed containers.
@@ -280,6 +347,12 @@ export async function planSplit(
   const rate = RATE_PER_MINUTE[kind] ?? 25;
   const maxObjectsPerChild = Math.floor(rate * TIME_BUDGET_MINUTES);
 
+  // Per-object LLM cost — derived from a rolling average of recent t2 jobs, with a
+  // measured-constant fallback. Only meaningful for t2_semantic; other tiers are $0.
+  const costPerObject = kind === 't2_semantic'
+    ? await estimateT2CostPerObject(orgId)
+    : 0;
+
   // Fetch distinct catalog+schema combos with object counts
   const rows = await prisma.$queryRawUnsafe<Array<{ catalog_name: string; schema_name: string; cnt: bigint }>>(
     `SELECT catalog_name, schema_name, COUNT(*) AS cnt
@@ -310,7 +383,7 @@ export async function planSplit(
       maxObjectsPerChild,
       estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
       estimatedWallClockMinutes: Math.ceil(totalObjects / rate),
-      estimatedCostUsd: kind === 't2_semantic' ? totalObjects * T2_COST_PER_OBJECT_USD : 0,
+      estimatedCostUsd: totalObjects * costPerObject,
       totalObjects,
     };
   }
@@ -368,7 +441,7 @@ export async function planSplit(
     maxObjectsPerChild,
     estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
     estimatedWallClockMinutes,
-    estimatedCostUsd: kind === 't2_semantic' ? totalObjects * T2_COST_PER_OBJECT_USD : 0,
+    estimatedCostUsd: totalObjects * costPerObject,
     totalObjects,
   };
 }

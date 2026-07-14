@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
-import { enqueue, finalize } from './queue';
+import { enqueue, finalize, makeHeartbeat } from './queue';
 import type { DriftResult } from './profile';
 import { extractDomainKeywords } from './keywords';
 import { getUsageSignalsForEnrich } from './usage';
@@ -785,8 +785,10 @@ export async function runT2Enrich(
   let outputTokens = 0;
   let costUsd = 0;
   const errors: string[] = [];
+  const beat = makeHeartbeat(existingJobId);
 
   for (const obj of toEnrich) {
+    await beat();
     try {
       const stats = await enrichObject(obj.id, orgId);
       objectsEnriched++;
