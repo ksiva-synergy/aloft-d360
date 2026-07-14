@@ -59,7 +59,10 @@ async function updateProfileOnLogin(userId: string, ip: string | null) {
       create: { userId, lastLoginAt: new Date(), lastLoginIp: ip, loginCount: 1 },
       update: { lastLoginAt: new Date(), lastLoginIp: ip, loginCount: { increment: 1 } },
     });
-    await prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date(), lastSeenAt: new Date() },
+    });
   } catch {
     // non-blocking
   }
