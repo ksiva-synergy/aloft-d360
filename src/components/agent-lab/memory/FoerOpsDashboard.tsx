@@ -993,14 +993,18 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
               {/* Rows */}
               {runsData.runs.map((r) => {
-                const diffMs = new Date(r.completedAt).getTime() - new Date(r.startedAt).getTime();
-                const minutes = Math.floor(diffMs / 60000);
-                const seconds = Math.floor((diffMs % 60000) / 1000);
-                const durStr = `${minutes}m ${seconds}s`;
+                let durStr = '—';
+                if (r.completedAt) {
+                  const diffMs = new Date(r.completedAt).getTime() - new Date(r.startedAt).getTime();
+                  const minutes = Math.floor(diffMs / 60000);
+                  const seconds = Math.floor((diffMs % 60000) / 1000);
+                  durStr = `${minutes}m ${seconds}s`;
+                }
 
                 const isExpanded = !!expanded[r.id];
                 const hasPhantom = r.phantomsBlocked > 0;
-                const runDate = new Date(r.completedAt).toLocaleDateString('en-US', {
+                const dateSource = r.completedAt ?? r.startedAt;
+                const runDate = new Date(dateSource).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                   timeZone: 'UTC',

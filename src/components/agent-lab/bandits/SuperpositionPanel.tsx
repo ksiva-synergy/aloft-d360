@@ -459,7 +459,7 @@ export function SuperpositionPanel({
           <line
             x1={PAD_LEFT} y1={PAD_TOP + PLOT_H}
             x2={PAD_LEFT + PLOT_W} y2={PAD_TOP + PLOT_H}
-            stroke={TEXT_MUT} strokeWidth={0.5} opacity={0.5}
+            style={{ stroke: TEXT_MUT }} strokeWidth={0.5} opacity={0.5}
           />
 
           {/* X-axis tick labels */}
@@ -473,7 +473,7 @@ export function SuperpositionPanel({
                 textAnchor="middle"
                 fontFamily="'IBM Plex Mono', monospace"
                 fontSize={10}
-                fill={TEXT_MUT}
+                style={{ fill: TEXT_MUT }}
               >
                 {label}
               </text>
@@ -488,7 +488,7 @@ export function SuperpositionPanel({
                 key={`grid-${label}`}
                 x1={px} y1={PAD_TOP}
                 x2={px} y2={PAD_TOP + PLOT_H}
-                stroke={TEXT_MUT} strokeWidth={0.3} opacity={0.2}
+                style={{ stroke: TEXT_MUT }} strokeWidth={0.3} opacity={0.2}
               />
             );
           })}

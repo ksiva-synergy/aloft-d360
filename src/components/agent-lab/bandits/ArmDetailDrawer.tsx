@@ -173,7 +173,7 @@ function PosteriorCurve({
             x={sx(v < 0.01 ? 0.01 : v > 0.99 ? 0.99 : v)}
             y={H - 6}
             textAnchor="middle"
-            fill={TEXT_MUT}
+            style={{ fill: TEXT_MUT }}
             fontSize={8}
             fontFamily="IBM Plex Mono"
           >
@@ -246,7 +246,7 @@ function CtsgvRadar({
             key={ring}
             points={radarPolyPoints(CX, CY, R, Array(n).fill(ring))}
             fill="none"
-            stroke={BORDER}
+            style={{ stroke: BORDER }}
             strokeWidth={1}
             strokeDasharray="3,3"
           />
@@ -258,7 +258,7 @@ function CtsgvRadar({
             <line
               key={i}
               x1={CX} y1={CY} x2={x.toFixed(1)} y2={y.toFixed(1)}
-              stroke={BORDER} strokeWidth={1}
+              style={{ stroke: BORDER }} strokeWidth={1}
             />
           );
         })}
@@ -374,7 +374,7 @@ export function ArmDetailDrawer({
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0,
           width: 480,
-          background: '#080e18',
+          background: 'var(--born-bg)',
           borderLeft: `1px solid ${BORDER}`,
           zIndex: 50,
           transform: isOpen ? 'translateX(0)' : 'translateX(100%)',

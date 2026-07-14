@@ -203,7 +203,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
             <div style={{
               display: 'flex',
               gap: 2,
-              background: 'rgba(255,255,255,0.04)',
+              background: 'var(--born-overlay)',
               border: `1px solid ${BORDER}`,
               borderRadius: 4,
               padding: 2,
@@ -307,7 +307,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                     {/* Model label */}
                     <td style={{
                       padding: '8px 16px 8px 0',
-                      borderBottom: `1px solid rgba(255,255,255,0.04)`,
+                      borderBottom: `1px solid var(--born-overlay)`,
                       whiteSpace: 'nowrap',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -345,7 +345,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                           padding: '8px 0 8px 12px',
                           textAlign: 'right',
                           verticalAlign: 'middle',
-                          borderBottom: `1px solid rgba(255,255,255,0.04)`,
+                          borderBottom: `1px solid var(--born-overlay)`,
                         }}>
                           {share > 0.002 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
@@ -359,7 +359,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                               {/* Inline bar */}
                               <div style={{
                                 width: 48, height: 3, borderRadius: 1.5,
-                                background: 'rgba(255,255,255,0.07)',
+                                background: 'var(--born-overlay-2)',
                                 overflow: 'hidden',
                               }}>
                                 <div style={{

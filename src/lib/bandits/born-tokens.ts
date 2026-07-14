@@ -19,17 +19,23 @@ export const BORN_COLORS: readonly string[] = [
 ] as const;
 
 // ── Brand anchors ──
+// GOLD/NAVY/TEAL are accents that read on both themes → kept literal.
 export const GOLD   = '#FDB515' as const;
 export const NAVY   = '#003262' as const;
-export const BASE   = '#05090f' as const;
+export const TEAL   = '#5fa9ae' as const;
 
-// ── Surface colours ──
-export const CARD_BG  = '#0a1320' as const;
-export const BORDER   = '#16273d' as const;
-export const TEXT_PRI = '#e8eef5' as const;
-export const TEXT_SEC = '#8a9bb5' as const;
-export const TEXT_MUT = '#5e7790' as const;
-export const TEAL     = '#5fa9ae' as const;
+// ── Surface / text colours ──
+// Theme-dependent tokens resolve from the `--born-*` CSS custom properties
+// defined in globals.css (`:root` light + `.dark` override), so the Bandits
+// dashboard flips with the global light/dark toggle. When applied to an SVG
+// presentation attribute, pass these through `style={{ fill: … }}` (not the
+// `fill=` attribute) so the var() resolves.
+export const BASE     = 'var(--born-bg)' as const;
+export const CARD_BG  = 'var(--born-surface)' as const;
+export const BORDER   = 'var(--born-border)' as const;
+export const TEXT_PRI = 'var(--born-text-pri)' as const;
+export const TEXT_SEC = 'var(--born-text-sec)' as const;
+export const TEXT_MUT = 'var(--born-text-mut)' as const;
 
 // ── Typography roles ──
 export const SERIF = "'Source Serif 4'" as const;

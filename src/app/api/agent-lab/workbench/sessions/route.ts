@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { constructionStateSchema } from '@/lib/construction/constructionState';
+import { flattenPermissions, userAuthInclude, PERMISSIONS } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,15 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.id ?? request.headers.get('x-user-id') ?? 'anonymous';
     const artifactType = request.nextUrl.searchParams.get('type');
     const surface = request.nextUrl.searchParams.get('surface');
+    const scope = request.nextUrl.searchParams.get('scope'); // 'all' | 'mine'
+
+    // Only platform_admin (session:read:all) may view other users' sessions.
+    let canReadAll = false;
+    if (session?.user?.id) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
+      canReadAll = dbUser ? flattenPermissions(dbUser).has(PERMISSIONS.SESSION_READ_ALL) : false;
+    }
+    const wantAll = canReadAll && scope === 'all';
 
     // Build surface filter (null = workbench for pre-Inspector sessions)
     const surfaceFilter = surface === 'inspector'
@@ -42,12 +52,12 @@ export async function GET(request: NextRequest) {
         _count: { select: { studio_results: true } },
       },
       where: {
-        user_id: userId,
+        ...(wantAll ? {} : { user_id: userId }),
         ...(artifactType ? { artifact_type: artifactType } : {}),
         ...surfaceFilter,
       },
       orderBy: [{ pinned: 'desc' }, { updated_at: 'desc' }],
-      take: 200,
+      take: wantAll ? 1000 : 200,
     });
 
     // Resolve user names for all distinct user_ids
@@ -60,6 +70,8 @@ export async function GET(request: NextRequest) {
     const userMap = Object.fromEntries(userRows.map(u => [u.id, u]));
 
     return NextResponse.json({
+      canReadAll,
+      scope: wantAll ? 'all' : 'mine',
       sessions: (data ?? []).map(s => ({
         ...s,
         query_result_count: s._count.studio_results,

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import {
   MoreHorizontal, Pencil, Shield, UserX, Trash2, User, Clock, Ban,
+  MessagesSquare, Brain,
 } from 'lucide-react';
 
 export interface UserRow {
@@ -18,6 +19,13 @@ export interface UserRow {
   primaryRole: string;
   roleLabel: string;
   roles: { role: { name: string } }[];
+  // Engagement metrics (aggregated server-side; default 0 when absent)
+  logins7d?: number;
+  logins30d?: number;
+  sessions7d?: number;
+  sessions30d?: number;
+  inspectorChats?: number;
+  memoriesContributed?: number;
 }
 
 interface UserTableProps {
@@ -83,6 +91,49 @@ function RoleBadge({ role, label }: { role: string; label: string }) {
     >
       {label}
     </span>
+  );
+}
+
+/** A "30d / 7d" pair under a tiny label — the 7d figure is dimmed as secondary. */
+function PairStat({ d30, d7, label, title }: { d30: number; d7: number; label: string; title?: string }) {
+  return (
+    <div className="flex flex-col items-start leading-none" title={title}>
+      <span className="tabular-nums">
+        <span className={cn('text-[12.5px] font-semibold', d30 > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{d30}</span>
+        <span className="text-[11px] text-muted-foreground/70"> / {d7}</span>
+      </span>
+      <span className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.08em] text-muted-foreground">
+        {label} <span className="opacity-60">30d/7d</span>
+      </span>
+    </div>
+  );
+}
+
+/** An icon + count for all-time totals (inspector chats, memories). */
+function IconStat({ icon: Icon, value, title }: { icon: React.ElementType; value: number; title: string }) {
+  return (
+    <div className="flex items-center gap-1" title={title}>
+      <Icon className="h-3 w-3 shrink-0 text-muted-foreground opacity-60" />
+      <span className={cn('text-[12px] tabular-nums font-medium', value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{value}</span>
+    </div>
+  );
+}
+
+function ActivityCell({ user }: { user: UserRow }) {
+  const l30 = user.logins30d ?? 0;
+  const l7 = user.logins7d ?? 0;
+  const s30 = user.sessions30d ?? 0;
+  const s7 = user.sessions7d ?? 0;
+  const insp = user.inspectorChats ?? 0;
+  const mem = user.memoriesContributed ?? 0;
+  return (
+    <div className="flex items-center gap-3">
+      <PairStat d30={l30} d7={l7} label="Logins" title={`${l30} logins in 30d · ${l7} in 7d`} />
+      <PairStat d30={s30} d7={s7} label="WB" title={`${s30} workbench sessions in 30d · ${s7} in 7d`} />
+      <span className="h-6 w-px bg-[var(--estate-border)]" aria-hidden />
+      <IconStat icon={MessagesSquare} value={insp} title={`${insp} inspector chats`} />
+      <IconStat icon={Brain} value={mem} title={`${mem} memories contributed`} />
+    </div>
   );
 }
 
@@ -199,6 +250,7 @@ function SkeletonRow() {
       <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
       <td className="px-4 py-3"><div className="h-3 w-14 bg-slate-100 dark:bg-slate-800 rounded" /></td>
       <td className="px-4 py-3"><div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" /></td>
+      <td className="px-4 py-3"><div className="h-3 w-24 bg-slate-100 dark:bg-slate-800 rounded" /></td>
       <td className="px-4 py-3" />
     </tr>
   );
@@ -229,6 +281,7 @@ export function UserTable({
               <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Provider</th>
               <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Last Login</th>
               <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Joined</th>
+              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Activity</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
@@ -263,6 +316,7 @@ export function UserTable({
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Provider</th>
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Last Login</th>
             <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Joined</th>
+            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Activity</th>
             <th className="px-4 py-2.5" />
           </tr>
         </thead>
@@ -333,6 +387,11 @@ export function UserTable({
                 {/* Joined column */}
                 <td className="px-4 py-3 text-[11.5px] text-muted-foreground">
                   {formatDate(user.createdAt)}
+                </td>
+
+                {/* Activity column */}
+                <td className="px-4 py-3">
+                  <ActivityCell user={user} />
                 </td>
 
                 {/* Actions column */}

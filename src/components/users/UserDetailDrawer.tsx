@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import {
   X, Shield, UserX, Trash2, Mail, Calendar, Clock, Globe,
-  RefreshCw, CheckCircle2, Building2, Ban,
+  RefreshCw, CheckCircle2, Building2, Ban, Activity, MessagesSquare, Brain,
 } from 'lucide-react';
 import type { UserRow } from './UserTable';
 
@@ -57,6 +57,26 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5 font-medium">{label}</div>
         <div className="text-[12.5px] text-[var(--foreground)] break-all">{value}</div>
       </div>
+    </div>
+  );
+}
+
+function StatTile({
+  icon: Icon, value, label, hint,
+}: { icon: React.ElementType; value: number; label: string; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-hover)] px-3 py-2.5">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        <Icon className="h-3 w-3 shrink-0" />
+        <span className="font-mono text-[9px] uppercase tracking-[0.1em]">{label}</span>
+      </div>
+      <div className={cn(
+        'mt-1 text-[18px] font-bold tabular-nums leading-none',
+        value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50',
+      )}>
+        {value}
+      </div>
+      {hint && <div className="mt-1 text-[9.5px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -199,6 +219,22 @@ export function UserDetailDrawer({
             )}
             <InfoRow icon={Clock}    label="Last Login"  value={formatDateFull(user.lastLoginAt)} />
             <InfoRow icon={Calendar} label="Joined"      value={formatDateFull(user.createdAt)} />
+          </div>
+
+          {/* Activity & contributions */}
+          <div className="px-5 py-4 border-t border-[var(--estate-border)]">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-3">
+              <Activity className="h-3 w-3" />
+              Activity &amp; Contributions
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <StatTile icon={Clock}          value={user.logins7d ?? 0}            label="Logins"    hint="Last 7 days" />
+              <StatTile icon={Clock}          value={user.logins30d ?? 0}           label="Logins"    hint="Last 30 days" />
+              <StatTile icon={Calendar}       value={user.sessions7d ?? 0}          label="Workbench" hint="Sessions · 7 days" />
+              <StatTile icon={Calendar}       value={user.sessions30d ?? 0}         label="Workbench" hint="Sessions · 30 days" />
+              <StatTile icon={MessagesSquare} value={user.inspectorChats ?? 0}      label="Inspector" hint="Chat sessions" />
+              <StatTile icon={Brain}          value={user.memoriesContributed ?? 0} label="Memories"  hint="Contributed" />
+            </div>
           </div>
 
           {/* Actions */}

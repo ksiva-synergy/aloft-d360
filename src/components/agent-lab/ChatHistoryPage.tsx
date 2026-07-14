@@ -162,6 +162,17 @@ export default function ChatHistoryPage() {
   const [sort, setSort] = useState<SortKey>('recent');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [surfaceFilter, setSurfaceFilter] = useState<SurfaceFilter>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [modelFilter, setModelFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  // Whether the current user (platform_admin) may view all users' sessions.
+  const [canReadAll, setCanReadAll] = useState(false);
+  // Persisted preference: platform admins default to viewing all users' sessions.
+  const [scopeAll, setScopeAll] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('history-scope-all') !== 'false';
+  });
   const [hideDrafts, setHideDrafts] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
     const stored = localStorage.getItem('history-hide-drafts');
@@ -187,13 +198,25 @@ export default function ChatHistoryPage() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    fetch('/api/agent-lab/workbench/sessions')
+    fetch(`/api/agent-lab/workbench/sessions?scope=${scopeAll ? 'all' : 'mine'}`)
       .then(r => { if (!r.ok) throw new Error('Failed'); return r.json(); })
-      .then(data => { setSessions(data.sessions ?? []); setLoading(false); })
+      .then(data => {
+        setSessions(data.sessions ?? []);
+        setCanReadAll(Boolean(data.canReadAll));
+        setLoading(false);
+      })
       .catch(() => { setError('Could not load history. Please try again.'); setLoading(false); });
-  }, []);
+  }, [scopeAll]);
 
   useEffect(() => { load(); }, [load]);
+
+  const toggleScopeAll = () => {
+    setScopeAll(prev => {
+      const next = !prev;
+      localStorage.setItem('history-scope-all', String(next));
+      return next;
+    });
+  };
 
   // Re-fetch when the tab becomes visible again (user switches back to this tab)
   useEffect(() => {
@@ -230,8 +253,18 @@ export default function ChatHistoryPage() {
     } else if (surfaceFilter === 'workbench') {
       list = list.filter(s => s.surface !== 'inspector');
     }
+    if (userFilter !== 'all') list = list.filter(s => s.user_id === userFilter);
+    if (modelFilter !== 'all') list = list.filter(s => (s.progress?.last_model as string | undefined) === modelFilter);
+    if (fromDate) {
+      const t = new Date(fromDate).getTime();
+      list = list.filter(s => new Date(s.created_at).getTime() >= t);
+    }
+    if (toDate) {
+      const t = new Date(toDate).getTime() + 86400000; // inclusive of the whole end day
+      list = list.filter(s => new Date(s.created_at).getTime() < t);
+    }
     if (query.trim()) {
-      list = list.filter(s => matchesGlob(query, s.title, s.last_message));
+      list = list.filter(s => matchesGlob(query, s.title, s.last_message, s.user_name, s.user_email));
     }
     switch (sort) {
       case 'oldest':   list.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at)); break;
@@ -240,7 +273,28 @@ export default function ChatHistoryPage() {
       default:         list.sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at)); break;
     }
     return list;
-  }, [sessions, query, sort, typeFilter, surfaceFilter, hideDrafts]);
+  }, [sessions, query, sort, typeFilter, surfaceFilter, hideDrafts, userFilter, modelFilter, fromDate, toDate]);
+
+  // Distinct users present in the loaded set (for the User filter dropdown).
+  const userOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const s of sessions) {
+      if (s.user_id && !map.has(s.user_id)) {
+        map.set(s.user_id, s.user_name || s.user_email || s.user_id);
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [sessions]);
+
+  // Distinct models present in the loaded set (for the Model filter dropdown).
+  const modelOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of sessions) {
+      const m = s.progress?.last_model as string | undefined;
+      if (m) set.add(m);
+    }
+    return [...set].map(k => ({ key: k, label: modelLabel(k)?.short ?? k })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [sessions]);
 
   const virtualItems = useMemo((): VirtualItem[] => {
     if (sort !== 'recent' && sort !== 'oldest') {
@@ -333,6 +387,25 @@ export default function ChatHistoryPage() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {canReadAll && (
+              <div style={{ display: 'flex', alignItems: 'center', background: BG, borderRadius: 7, border: `1px solid ${BORDER}`, padding: '2px' }} title="Platform admins can view every user's sessions">
+                {([['all', 'ALL USERS'], ['mine', 'MY CHATS']] as const).map(([key, label]) => {
+                  const active = (key === 'all') === scopeAll;
+                  return (
+                    <button key={key} onClick={() => { if ((key === 'all') !== scopeAll) toggleScopeAll(); }} style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '4px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600,
+                      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', cursor: 'pointer', border: 'none',
+                      background: active ? 'rgba(253,181,21,0.18)' : 'transparent',
+                      color: active ? GOLD : MUTED, transition: 'all 0.12s', whiteSpace: 'nowrap',
+                    }}>
+                      {key === 'all' && <User size={9} />}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             {draftCount > 0 && (
               <button onClick={toggleHideDrafts} style={{
                 display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7,
@@ -432,6 +505,53 @@ export default function ChatHistoryPage() {
             <option value="pinned">Pinned first</option>
             <option value="messages">Most messages</option>
           </select>
+
+          {/* User filter — only useful when viewing all users' sessions */}
+          {canReadAll && scopeAll && userOptions.length > 1 && (
+            <select value={userFilter} onChange={e => setUserFilter(e.target.value)} title="Filter by user" style={{
+              padding: '6px 10px', borderRadius: 7, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
+              background: BG, border: `1px solid ${userFilter !== 'all' ? 'rgba(253,181,21,0.4)' : BORDER}`,
+              color: userFilter !== 'all' ? GOLD : MUTED, cursor: 'pointer', outline: 'none', maxWidth: 170,
+            }}>
+              <option value="all">All users</option>
+              {userOptions.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          )}
+
+          {/* Model filter */}
+          {modelOptions.length > 1 && (
+            <select value={modelFilter} onChange={e => setModelFilter(e.target.value)} title="Filter by model" style={{
+              padding: '6px 10px', borderRadius: 7, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
+              background: BG, border: `1px solid ${modelFilter !== 'all' ? 'rgba(253,181,21,0.4)' : BORDER}`,
+              color: modelFilter !== 'all' ? GOLD : MUTED, cursor: 'pointer', outline: 'none', maxWidth: 150,
+            }}>
+              <option value="all">All models</option>
+              {modelOptions.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
+          )}
+
+          {/* Date range (created) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: BG, borderRadius: 7, border: `1px solid ${(fromDate || toDate) ? 'rgba(253,181,21,0.4)' : BORDER}`, padding: '2px 8px' }} title="Filter by created date">
+            <input type="date" value={fromDate} max={toDate || undefined} onChange={e => setFromDate(e.target.value)} style={{
+              background: 'transparent', border: 'none', outline: 'none', color: fromDate ? GOLD : MUTED,
+              fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
+            }} />
+            <span style={{ color: MUTED, fontSize: 11 }}>→</span>
+            <input type="date" value={toDate} min={fromDate || undefined} onChange={e => setToDate(e.target.value)} style={{
+              background: 'transparent', border: 'none', outline: 'none', color: toDate ? GOLD : MUTED,
+              fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
+            }} />
+          </div>
+
+          {(userFilter !== 'all' || modelFilter !== 'all' || fromDate || toDate) && (
+            <button onClick={() => { setUserFilter('all'); setModelFilter('all'); setFromDate(''); setToDate(''); }} title="Clear filters" style={{
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, fontSize: 10, fontWeight: 600,
+              fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', background: 'transparent',
+              border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', whiteSpace: 'nowrap',
+            }}>
+              <X size={11} /> CLEAR
+            </button>
+          )}
         </div>
 
         {/* Column headers */}

@@ -124,7 +124,7 @@ export function BornDistributionPanel({
               {/* Bar track */}
               <div style={{
                 height: 10,
-                background: 'rgba(255,255,255,0.04)',
+                background: 'var(--born-overlay)',
                 borderRadius: 3,
                 overflow: 'hidden',
               }}>

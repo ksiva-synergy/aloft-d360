@@ -517,7 +517,7 @@ export function BanditsDashboard() {
                           cursor: 'pointer',
                           transition: 'background 0.12s',
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#0d1a2a'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--born-hover)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                         onClick={() => setDrawerModelId(model.model_id)}
                       >

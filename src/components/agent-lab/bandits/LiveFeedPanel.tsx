@@ -142,9 +142,9 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
           <span style={{
             fontFamily: MONO, fontSize: 9,
             color: TEXT_MUT, opacity: 0.7,
-            background: 'rgba(255,255,255,0.03)',
+            background: 'var(--born-overlay)',
             padding: '2px 8px', borderRadius: 3,
-            border: '1px solid rgba(255,255,255,0.05)',
+            border: '1px solid var(--born-border)',
           }}>
             auto-scroll
           </span>
@@ -179,7 +179,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
           maxHeight: 440,
           overflowY: 'auto',
           scrollbarWidth: 'thin',
-          scrollbarColor: '#16273d transparent',
+          scrollbarColor: 'var(--born-border) transparent',
         }}
       >
         {recentRuns.length === 0 ? (
@@ -220,7 +220,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                   borderRadius: 3,
                   cursor: 'default',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--born-hover)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
                 {/* Status icon */}

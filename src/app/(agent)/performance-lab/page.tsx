@@ -12,14 +12,18 @@ import {
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
+// Accent colors are literal (they're concatenated with hex-opacity suffixes and
+// read on both themes). Surface/text/border tokens resolve from the `--pl-*` CSS
+// custom properties defined in globals.css (`:root` light + `.dark` override),
+// so they flip with the global light/dark toggle — no per-component theme hook.
 const GOLD   = '#FDB515';
 const NAVY   = '#003262';
-const BG     = '#070b11';
-const SURF   = '#0d1520';
-const SURF2  = '#111a27';
-const BORDER = 'rgba(253,181,21,0.12)';
-const TXT    = '#e6ecf4';
-const TXT2   = '#8892A4';
+const BG     = 'var(--pl-bg)';
+const SURF   = 'var(--pl-surf)';
+const SURF2  = 'var(--pl-surf2)';
+const BORDER = 'var(--pl-border)';
+const TXT    = 'var(--pl-txt)';
+const TXT2   = 'var(--pl-txt2)';
 const GREEN  = '#22c55e';
 const BLUE   = '#3A7BD5';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
@@ -164,9 +168,9 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
           {stats.map((s, i) => {
             const isCtx = s.contextMode === 'harvested';
             return (
-              <tr key={`${s.modelKey}-${s.contextMode}`} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: GOLD, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{s.modelLabel}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <tr key={`${s.modelKey}-${s.contextMode}`} style={{ background: i % 2 === 0 ? 'transparent' : 'var(--pl-stripe)' }}>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: GOLD, borderBottom: `1px solid var(--pl-hair2)` }}>{s.modelLabel}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid var(--pl-hair2)` }}>
                   <span style={{
                     display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 9,
                     background: isCtx ? 'rgba(253,181,21,0.1)' : 'rgba(58,123,213,0.12)',
@@ -176,11 +180,11 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                     {isCtx ? 'CTX' : 'SQL'}
                   </span>
                 </td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{s.sessions}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{fmt(s.avgTokens)}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{fmtMs(s.avgLatencyMs)}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT2, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{fmt(s.avgLoops, 1)}</td>
-                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT2, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{fmt(s.avgWarehouseCalls, 1)}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid var(--pl-hair2)` }}>{s.sessions}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid var(--pl-hair2)` }}>{fmt(s.avgTokens)}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT, borderBottom: `1px solid var(--pl-hair2)` }}>{fmtMs(s.avgLatencyMs)}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT2, borderBottom: `1px solid var(--pl-hair2)` }}>{fmt(s.avgLoops, 1)}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'right', color: TXT2, borderBottom: `1px solid var(--pl-hair2)` }}>{fmt(s.avgWarehouseCalls, 1)}</td>
               </tr>
             );
           })}

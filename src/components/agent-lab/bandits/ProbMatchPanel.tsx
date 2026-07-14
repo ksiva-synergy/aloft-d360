@@ -143,7 +143,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
                 </span>
                 <div style={{
                   flex: 1, height: 12,
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'var(--born-overlay)',
                   borderRadius: 2, overflow: 'hidden',
                 }}>
                   <div style={{
@@ -174,7 +174,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
                 </span>
                 <div style={{
                   flex: 1, height: 12,
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'var(--born-overlay)',
                   borderRadius: 2, overflow: 'hidden',
                 }}>
                   <div style={{
