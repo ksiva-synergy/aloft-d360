@@ -347,11 +347,51 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
   }
 
   // ── harvestProfile ──────────────────────────────────────────────────────────
+  //
+  // View-profiling root cause (WS-A). The 27 fully-degraded objects were ALL
+  // views, but not for one reason — reading the stored `query_error` on their
+  // latest profiles showed three distinct buckets:
+  //
+  //   (a) Query CANCELED — 13/27 (48%). The profile aggregate below was run
+  //       through the *synchronous* exec path (on_wait_timeout=CANCEL, capped at
+  //       MAX_WAIT_SECS, ~50s here). A view must materialize its full definition
+  //       (joins/aggregations over base tables) before the sample LIMIT applies,
+  //       so it routinely exceeds the cap on the 2X-Small warehouse and gets
+  //       cancelled. Probing these 13 on the live estate split them further:
+  //         • ~7 complete a sample in 33–61s — just over the old ~50s cap. These
+  //           are recovered by the fix below: views run the aggregate via async
+  //           polling (submit + poll, no ~50s guillotine) over a smaller window.
+  //         • ~6 are heavy in-definition aggregations where even `SELECT * LIMIT 5`
+  //           does not finish in minutes; no sample LIMIT can cheapen them. The
+  //           bounded poll budget cancels these server-side and fails fast — they
+  //           stay degraded until profiled on a larger warehouse (WS10).
+  //       Only the timeout bucket is an adapter concern; tables are untouched
+  //       (they profile fast on the sync path).
+  //
+  //   (b) INSUFFICIENT_PERMISSIONS — 8/27 (30%). The service principal can read
+  //       the view's metadata but not its underlying tables (broken UC ownership
+  //       chain). No profiling SQL can succeed — this needs SELECT grants on the
+  //       base tables, which is a Databricks/data-eng fix, not an adapter one.
+  //
+  //   (c) Broken view definitions — 5/27 (19%): UNRESOLVED_COLUMN,
+  //       SCALAR_SUBQUERY_TOO_MANY_ROWS, CAST_INVALID_INPUT,
+  //       UC_DEPENDENCY_DOES_NOT_EXIST. The view itself does not resolve/execute
+  //       at source; even `SELECT * … LIMIT 5` would fail. Source-side fix.
+  //
+  // Buckets (b) and (c) correctly fall through to the metadata-only degrade path
+  // (skip_reason=view_query_failed, view_unqueryable=true) below — we cannot
+  // profile data we are not allowed to read or that the engine cannot resolve.
+  // The stored query_error lets operators tell the buckets apart downstream.
 
   async harvestProfile(ref: ObjectRef, budget: ProfileBudget): Promise<ObjectProfile> {
     const catSafe = safeId(ref.catalog_name, 'catalog');
     const schSafe = safeSqlStr(ref.schema_name, 'schema');
     const tblSafe = safeSqlStr(ref.object_name, 'table');
+
+    // Views (and materialized views) get a view-aware profiling path: a smaller
+    // sample window and bounded async-polling execution so slow view
+    // materializations are not chopped at the ~50s synchronous CANCEL timeout.
+    const isView = budget.objectKind === 'view' || budget.objectKind === 'materialized_view';
 
     let cols = budget.columns;
     let statementCount = 0;
@@ -380,10 +420,14 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       throw new Error(`No columns available to profile for table/view: ${ref.full_path}`);
     }
 
-    // 2. Fetch metadata (DESCRIBE DETAIL) if budget allows (takes 1 query)
+    // 2. Fetch metadata (DESCRIBE DETAIL) if budget allows (takes 1 query).
+    // DESCRIBE DETAIL only works on Delta-backed relations. A plain view never
+    // has it, so skip the guaranteed-to-fail round-trip for plain views (saves a
+    // warehouse call and a noisy log line). Materialized views are Delta-backed,
+    // so we still attempt it for them.
     let sizeBytes: number | null = null;
     let tableFormat: string | null = null;
-    if (statementCount < budget.maxStatements) {
+    if (budget.objectKind !== 'view' && statementCount < budget.maxStatements) {
       try {
         const detailResult = await this.exec(`DESCRIBE DETAIL \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
         statementCount++;
@@ -419,6 +463,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     const { rowLimit, useSubquery, effectiveRows, avgRowBytes } = resolveProfileWindow(
       sizeBytes,
       budget.estimatedRows,
+      isView,
     );
     const columnModes = classifyProfileColumns(cols, avgRowBytes);
 
@@ -504,10 +549,25 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
 
     let queryResult: { rows: Record<string, unknown>[] };
     try {
-      queryResult = await this.exec(query);
+      // Views run via async polling instead of the ~50s synchronous CANCEL path,
+      // because a view must materialize its full definition before the sample
+      // LIMIT applies and routinely exceeds the sync cap. The poll budget is
+      // bounded (PROFILE_VIEW_POLL_TIMEOUT_MS), NOT the 10-min default: measured
+      // on the estate, ~half the timing-out views complete a sample in 33–61s
+      // (recovered here), while the rest are heavy in-definition aggregations
+      // that don't finish even a LIMIT 5 in minutes. A short budget recovers the
+      // former and fails-fast (with server-side cancel) on the latter so one
+      // pathological view can't stall a sequential T1 job — right-sizing those
+      // heavy views is a warehouse concern (WS10), not an adapter one. Tables
+      // keep the fast synchronous path.
+      queryResult = await this.exec(
+        query,
+        isView
+          ? { asyncPolling: true, waitTimeoutSecs: DATABRICKS_API_MAX_WAIT_SECS, pollTimeoutMs: PROFILE_VIEW_POLL_TIMEOUT_MS }
+          : undefined,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      const isView = budget.objectKind === 'view' || budget.objectKind === 'materialized_view';
       if (!isView) throw e;
 
       console.log(`Profile query failed for view ${ref.full_path}; metadata-only partial: ${msg}`);
@@ -948,7 +1008,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     return this.exec(sql, { ...opts, waitTimeoutSecs: DATABRICKS_API_MAX_WAIT_SECS, asyncPolling: true });
   }
 
-  private async exec(sql: string, opts?: { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean }) {
+  private async exec(sql: string, opts?: { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean; pollTimeoutMs?: number }) {
     this._queryCount++;
     const token = await getAccessToken(this.conn.id, this.conn.workspace_host);
     return executeDatabricksSQL(
@@ -961,6 +1021,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
         ...(opts?.rowLimit !== undefined ? { rowLimit: opts.rowLimit } : {}),
         ...(opts?.waitTimeoutSecs !== undefined ? { waitTimeoutSecs: opts.waitTimeoutSecs } : {}),
         ...(opts?.asyncPolling ? { asyncPolling: true } : {}),
+        ...(opts?.pollTimeoutMs !== undefined ? { pollTimeoutMs: opts.pollTimeoutMs } : {}),
       },
     );
   }
@@ -971,6 +1032,17 @@ const PROFILE_SIZE_LARGE_TABLE = 1_000_000_000; // 1 GB — drop to 5k row windo
 const PROFILE_ROW_LIMIT_DEFAULT = 10_000;
 const PROFILE_ROW_LIMIT_LARGE = 5_000;
 const PROFILE_ROW_LIMIT_HUGE = 2_000; // wide rows (>1 MB avg) — smallest window
+// Views can never be size-estimated (no DESCRIBE DETAIL), and a LIMIT that can't
+// be pushed through the view's own aggregation/join forces a full materialization.
+// A tighter sample window keeps the profile query cheap enough to finish inside
+// the async-polling budget on a small warehouse, at the cost of a thinner sample.
+const PROFILE_ROW_LIMIT_VIEW = 5_000;
+// Async-poll budget for a single view profile. Sized from measured estate data:
+// recoverable views produce a sample in well under this, while heavy in-definition
+// aggregations (which no sample LIMIT can cheapen) are cancelled at this bound so
+// they fail fast instead of stalling the sequential T1 job for the full 10-min
+// default. Deliberately << ASYNC_POLL_TIMEOUT_MS.
+const PROFILE_VIEW_POLL_TIMEOUT_MS = 180_000; // 3 min
 const PROFILE_AVG_ROW_BYTES_HUGE = 1_000_000;
 const PROFILE_MAX_FULL_STAT_COLUMNS = 60;
 
@@ -979,6 +1051,7 @@ type ColumnProfileMode = 'full' | 'null_only' | 'skipped';
 function resolveProfileWindow(
   sizeBytes: number | null,
   budgetEstimatedRows: number | undefined,
+  isView = false,
 ): {
   rowLimit: number;
   useSubquery: boolean;
@@ -993,6 +1066,11 @@ function resolveProfileWindow(
   const effectiveRows = Math.max(estimatedRows ?? 0, sizeBasedRows ?? 0);
   const avgRowBytes =
     sizeBytes !== null && effectiveRows > 0 ? sizeBytes / effectiveRows : null;
+
+  // Views always sample through a bounded subquery window — never a full scan.
+  if (isView) {
+    return { rowLimit: PROFILE_ROW_LIMIT_VIEW, useSubquery: true, effectiveRows, avgRowBytes };
+  }
 
   const useSubquery =
     effectiveRows === 0 ||

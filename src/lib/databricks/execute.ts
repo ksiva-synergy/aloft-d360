@@ -148,10 +148,20 @@ export interface DatabricksExecuteInput {
   /**
    * When true, the initial request uses on_wait_timeout=CONTINUE and we poll
    * via GET /api/2.0/sql/statements/:id until the query completes (up to
-   * ASYNC_POLL_TIMEOUT_MS). Use for long-running background queries (e.g.
-   * system.query.history pagination) that regularly exceed the 50s API cap.
+   * pollTimeoutMs, default ASYNC_POLL_TIMEOUT_MS). Use for long-running
+   * background queries (e.g. system.query.history pagination) that regularly
+   * exceed the 50s API cap.
    */
   asyncPolling?: boolean;
+  /**
+   * Wall-clock budget for async polling before giving up, in ms. Defaults to
+   * ASYNC_POLL_TIMEOUT_MS (10 min). Callers that run async queries inside a
+   * larger sequential job (e.g. per-object view profiling) should pass a much
+   * smaller budget so one pathological query can't stall the whole job — on
+   * timeout the statement is CANCELED server-side so it stops consuming the
+   * warehouse. Only honored when asyncPolling is true.
+   */
+  pollTimeoutMs?: number;
 }
 
 export interface DatabricksExecuteResult {
@@ -373,7 +383,8 @@ async function executeDatabricksSQLAsync(
 
   // Poll with exponential backoff
   const pollUrl = `https://${host}/api/2.0/sql/statements/${statementId}`;
-  const deadline = Date.now() + ASYNC_POLL_TIMEOUT_MS;
+  const pollTimeoutMs = input.pollTimeoutMs ?? ASYNC_POLL_TIMEOUT_MS;
+  const deadline = Date.now() + pollTimeoutMs;
   let delayMs = ASYNC_POLL_INITIAL_MS;
 
   while (Date.now() < deadline) {
@@ -411,7 +422,16 @@ async function executeDatabricksSQLAsync(
     // Still PENDING or RUNNING — keep polling
   }
 
-  throw new Error(`Async query timed out after ${ASYNC_POLL_TIMEOUT_MS / 1000}s (statement_id=${statementId})`);
+  // Budget exhausted. On CONTINUE the statement keeps executing server-side even
+  // after we stop polling, so cancel it to stop it consuming the warehouse
+  // (single-cluster warehouses can otherwise be saturated by an abandoned query).
+  // Best-effort: a cancel failure must not mask the timeout error.
+  await fetch(`${pollUrl}/cancel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => undefined);
+
+  throw new Error(`Async query timed out after ${pollTimeoutMs / 1000}s (statement_id=${statementId})`);
 }
 
 // ── DDL execution (metric view apply path only) ───────────────────────────────
