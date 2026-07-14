@@ -78,7 +78,7 @@ export async function estimateT2CostPerObject(orgId: string): Promise<number> {
 export const MAX_CONCURRENT_BY_KIND: Record<string, number> = {
   t0_structural: 5,
   t1_profile: 5,
-  t2_semantic: 3,
+  t2_semantic: parseInt(process.env.T2_MAX_CONCURRENT ?? '5'),
   t4_scan: 1,
   t4_entity_propose: 2,  // reduced from 5 — each spawns up to 5 dim tasks; 2×5=10 RunTask burst max
   t4_dim_propose: 5,     // reduced from 10 — limits ec2:DescribeSecurityGroups burst per advance call
