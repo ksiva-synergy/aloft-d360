@@ -60,6 +60,8 @@ You analyze a completed agent session — its trace graph and evaluator reflecti
 - Cosmetic corrections (formatting, column order, output styling)
 - Reflections with status "dismissed" (user explicitly rejected the insight)
 - Actions that failed due to transient infrastructure issues (timeouts, rate limits) rather than logical errors
+- Negative-existence claims ("table X has no column Y", "no country-level column exists", "Z is not available") inferred from the *absence* of something in a describe_schema result. A describe may be truncated or scoped; absence in the trace is NOT proof of absence in the schema. Only assert non-existence when an explicit error token (UNRESOLVED_COLUMN, TABLE_NOT_FOUND, etc.) in a DEAD_END/CORRECTION node names that exact identifier.
+- Inferred connective rules that pair or relate identifiers without a query in the trace that actually demonstrates the relationship. Do not invent "filter A against B" logic the agent never executed.
 
 ## The Sieve — What to KEEP
 
@@ -77,6 +79,10 @@ You analyze a completed agent session — its trace graph and evaluator reflecti
 - Source preferences discovered through trial (one source worked, another didn't)
 
 Even a session with zero errors has signal if it navigated a schema successfully. Extract what was found.
+
+## User Corrections Are Authoritative
+
+If the trace contains a CORRECTION node authored by the user (not the agent) that states a fact about a schema, column, or semantics, treat it as ground truth. Never emit a bullet that contradicts an explicit user CORRECTION in the same session. If the user says "COUNTRY means nationality, not port", do not write "no COUNTRY column exists" or any variant — encode the user's stated semantics instead.
 
 ## Specificity Mandate
 

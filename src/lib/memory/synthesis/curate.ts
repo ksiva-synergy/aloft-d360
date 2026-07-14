@@ -257,19 +257,30 @@ export async function curate(
     // We do NOT use Prisma ORM here because Prisma cannot bind vector literals
     // as typed parameters — the ::text::vector cast requires a raw string.
 
+    // SCHEMA_MAPs are factual schema facts and should dedup across the whole
+    // agent_class, not just within one taskSignature — otherwise the same table
+    // described in N sessions produces N near-identical rows in N signature
+    // buckets that never get compared. Other rule types stay signature-scoped
+    // to preserve the context-collapse invariant (a heuristic that's right for
+    // one task may be wrong for another).
+    // The rule_type restriction is gated on crossSignature: it applies ONLY to
+    // SCHEMA_MAPs (so a cross-signature map dedups only against other maps).
+    // For every other rule type the neighbour set is unrestricted by type, so
+    // the cross-type supersede check below (closest.rule_type !== candidate
+    // .ruleType) keeps working exactly as it did originally.
+    const crossSignature = candidate.ruleType === 'SCHEMA_MAP';
+
     const neighbours = await prisma.$queryRaw<NearRow[]>`
       SELECT
-        id,
-        rule_type,
-        confidence,
-        helpful_count,
-        version,
+        id, rule_type, confidence, helpful_count, version,
         source_session_ids,
         (embedding <=> ${vecStr}::text::vector) AS distance
       FROM platform_agent_memory
       WHERE
         org_id         = ${orgId}
-        AND task_signature = ${taskSignature}
+        AND agent_class = ${agentClass}
+        AND (${crossSignature}::boolean OR task_signature = ${taskSignature})
+        AND (NOT ${crossSignature}::boolean OR rule_type = ${candidate.ruleType})
         AND status     = 'ACTIVE'
         AND embedding  IS NOT NULL
       ORDER BY embedding <=> ${vecStr}::text::vector

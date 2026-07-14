@@ -150,6 +150,21 @@ function extractFailureClause(ruleText: string): string {
   return stop > 0 ? raw.slice(0, stop).trim() : raw;
 }
 
+// Detects negative-existence phrasing: "no X column", "has no", "does not have",
+// "X is not available", "there is no". These claims are only valid if backed by
+// an explicit error token in a DEAD_END/CORRECTION node — absence in a (possibly
+// truncated) describe result never proves schema-level non-existence.
+const NEGATIVE_EXISTENCE_RE =
+  /\b(no [a-z_]+(?:-level)? (?:column|table|field|schema)|has no |does not (?:have|exist|contain)|there is no |not available|no such (?:column|table|field))\b/i;
+
+function assertsNonExistence(ruleText: string): boolean {
+  return NEGATIVE_EXISTENCE_RE.test(ruleText);
+}
+
+// Error tokens that legitimately confirm a non-existence claim.
+const EXISTENCE_ERROR_RE =
+  /\b(UNRESOLVED_COLUMN|TABLE_NOT_FOUND|SCHEMA_NOT_FOUND|COLUMN_NOT_FOUND|cannot be resolved|does not exist)\b/i;
+
 // ── validateAgainstTrace ──────────────────────────────────────────────────────
 
 /**
@@ -165,6 +180,26 @@ export function validateAgainstTrace(
 ): ValidationResult {
 
   const { ruleType, ruleText } = candidate;
+
+  // ── Negative-existence guard (all rule types) ───────────────────────────────
+  // A claim that something does NOT exist is only admissible if the trace
+  // contains an explicit error token naming that absence. Otherwise it is an
+  // inference from (possibly truncated) describe output — the exact failure that
+  // produced the "no country column exists" phantom.
+  if (assertsNonExistence(ruleText)) {
+    const errorBearingNodes = traceNodes.filter(
+      n => n.nodeType === 'DEAD_END' || n.nodeType === 'CORRECTION',
+    );
+    const hasErrorBacking = errorBearingNodes.some(n =>
+      EXISTENCE_ERROR_RE.test(payloadText(n)),
+    );
+    if (!hasErrorBacking) {
+      return {
+        valid:  false,
+        reason: 'negative-existence claim not backed by an error token in trace',
+      };
+    }
+  }
 
   // ── SCHEMA_MAP ──────────────────────────────────────────────────────────────
   if (ruleType === 'SCHEMA_MAP') {
