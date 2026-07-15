@@ -5,6 +5,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { enqueue, finalize, makeHeartbeat } from './queue';
@@ -30,6 +31,11 @@ const PRICE_OUTPUT_PER_M_USD = 15; // USD per 1M output tokens (Sonnet)
 function getBedrockClient(): BedrockRuntimeClient {
   return new BedrockRuntimeClient({
     region: process.env.BEDROCK_REGION ?? 'us-east-1',
+    // Explicit timeouts: the SDK default is 0 (no timeout), so a stalled Bedrock
+    // response leaves client.send() hanging forever with no error and no heartbeat.
+    // A 120s request cap fails fast into the SDK retry (maxAttempts=3) → per-object
+    // skip path. Found live during the WS8 T2 backfill (see fix commit).
+    requestHandler: new NodeHttpHandler({ requestTimeout: 120_000, connectionTimeout: 5_000 }),
     // No explicit credentials — uses default provider chain:
     // ECS task role in Fargate, local env vars / ~/.aws in dev
   });
@@ -515,7 +521,11 @@ export interface EnrichObjectStats {
   costUsd: number;
 }
 
-export async function enrichObject(objectId: string, orgId: string): Promise<EnrichObjectStats> {
+export async function enrichObject(
+  objectId: string,
+  orgId: string,
+  beat?: () => Promise<void>,
+): Promise<EnrichObjectStats> {
   // 1. Load object with columns, profiles, and schema siblings
   const obj = await prisma.platformContextObject.findUniqueOrThrow({
     where: { id: objectId },
@@ -576,6 +586,10 @@ export async function enrichObject(objectId: string, orgId: string): Promise<Enr
 
     // Intermediate batches: columns only
     for (let i = 0; i < batches.length - 1; i++) {
+      // Heartbeat between batches so a wide table's multi-call enrichment stays
+      // visibly alive — a single object can span several minutes of Bedrock calls,
+      // and the per-object beat in runT2Enrich only fires before enrichObject runs.
+      await beat?.();
       const msg = buildColumnsOnlyMessage(
         obj.full_path, obj.object_kind, obj.native_comment,
         batches[i], i, batches.length,
@@ -585,6 +599,9 @@ export async function enrichObject(objectId: string, orgId: string): Promise<Enr
       totalInputTokens += inputTokens;
       totalOutputTokens += outputTokens;
     }
+
+    // Heartbeat before the final (full-prompt) batch too.
+    await beat?.();
 
     // Final batch: full prompt (generates card + remaining columns)
     const lastBatch = batches[batches.length - 1];
@@ -790,7 +807,7 @@ export async function runT2Enrich(
   for (const obj of toEnrich) {
     await beat();
     try {
-      const stats = await enrichObject(obj.id, orgId);
+      const stats = await enrichObject(obj.id, orgId, beat);
       objectsEnriched++;
       columnsEnriched += stats.columnsEnriched;
       inputTokens += stats.inputTokens;

@@ -18,7 +18,7 @@
  */
 
 import prisma from '@/lib/db';
-import { enqueue, MAX_CONCURRENT_BY_KIND } from '@/lib/context/queue';
+import { enqueue, failStale, MAX_CONCURRENT_BY_KIND } from '@/lib/context/queue';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { runOrchestratorLoop } from './orchestrator';
 
@@ -28,6 +28,14 @@ const BACKFILL_TAG = 'ws8_t2_backfill';
 
 // How often the progress reporter samples job-status counts (ms).
 const PROGRESS_INTERVAL_MS = 15_000;
+
+// How often the drain-loop reaper flushes hung 'running' jobs to 'failed' (ms).
+// This path enqueues top-level jobs (parent_job_id IS NULL), so they never reach
+// advanceChildren's failStale() call — the only reaper hits are each worker's
+// single startup failStale(). Without this, a job whose Bedrock call hangs would
+// occupy its concurrency slot indefinitely. failStale(30) is idempotent and
+// scoped to jobs stale past the 30-minute heartbeat window.
+const REAPER_INTERVAL_MS = 60_000;
 
 interface UncoveredObject {
   id: string;
@@ -171,7 +179,16 @@ async function main() {
       .catch((err) => console.error('[backfill-t2] progress sample failed:', err));
   }, PROGRESS_INTERVAL_MS);
 
-  // 3. Drain the queue using `concurrency` copies of the real orchestrator loop.
+  // 3. Drain-loop reaper — flush hung 'running' jobs so a stalled worker frees its
+  //    concurrency slot. Top-level jobs in this path never reach advanceChildren's
+  //    failStale(), so we run it here on an interval.
+  const reaperTimer = setInterval(() => {
+    failStale(30)
+      .then((n) => { if (n > 0) console.warn(`[backfill-t2] reaper: flushed ${n} stale running job(s) → failed`); })
+      .catch((err) => console.error('[backfill-t2] reaper failStale failed:', err));
+  }, REAPER_INTERVAL_MS);
+
+  // 4. Drain the queue using `concurrency` copies of the real orchestrator loop.
   //    claimNext() uses SELECT FOR UPDATE SKIP LOCKED, so the workers cooperate
   //    without ever double-claiming a job; each returns when the queue is empty.
   const workers = Array.from({ length: concurrency }, () =>
@@ -182,9 +199,10 @@ async function main() {
     await Promise.all(workers);
   } finally {
     clearInterval(progressTimer);
+    clearInterval(reaperTimer);
   }
 
-  // 4. Final tally.
+  // 5. Final tally.
   const final = await backfillStatusCounts(orgId);
   console.log(`[backfill-t2] done: ${formatProgress(enqueued, final)}`);
   const stillOpen = final.queued + final.running;
