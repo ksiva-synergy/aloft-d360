@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { X } from 'lucide-react';
 import { History, FlaskConical, SquarePen } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
@@ -240,7 +241,9 @@ interface InspectorShellProps {
 
 export default function InspectorShell({ sessionId: initialSessionId }: InspectorShellProps = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [composer, setComposer] = useState('');
+  const [sourceChartNotice, setSourceChartNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('');
@@ -254,6 +257,25 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const [rightTab, setRightTab] = useState<RightPaneTab>('results');
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
+
+  // ── "View source" landing (Phase 2 provenance) ──────────────────────────────
+  // A widget's source link opens /inspector?sourceChart=<id>. Resolve the chart
+  // and pre-load the composer so the user can refine it in a fresh session; if
+  // the chart was deleted, say so gracefully (a dangling ref is expected).
+  const sourceChartId = searchParams?.get('sourceChart') ?? null;
+  useEffect(() => {
+    if (!sourceChartId) return;
+    let cancelled = false;
+    fetch(`/api/inspector/charts/${sourceChartId}`)
+      .then((r) => (r.ok ? r.json() as Promise<{ chart: { name: string } }> : Promise.reject(new Error(String(r.status)))))
+      .then((data) => {
+        if (cancelled) return;
+        setSourceChartNotice(`Refining source chart: ${data.chart.name}`);
+        setComposer((c) => c || `Refine the "${data.chart.name}" chart — `);
+      })
+      .catch(() => { if (!cancelled) setSourceChartNotice('That source chart is no longer available.'); });
+    return () => { cancelled = true; };
+  }, [sourceChartId]);
 
   // Check Databricks connectivity on mount
   useEffect(() => {
@@ -350,6 +372,24 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         }}
         onNewSession={handleReset}
       />
+
+      {sourceChartNotice && (
+        <div
+          style={{
+            ...mono, fontSize: 10, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 24px', flexShrink: 0, color: GOLD,
+            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)',
+          }}
+        >
+          <span style={{ flex: 1 }}>{sourceChartNotice}</span>
+          <button
+            onClick={() => setSourceChartNotice(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: GOLD, display: 'flex' }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* LEFT — 60% conversation */}

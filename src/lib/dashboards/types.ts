@@ -75,6 +75,74 @@ export interface WidgetSpec {
   };
   /** Grid placement. D1 uses placeholder values; D2 drag-drop builder populates. */
   position: { col: number; row: number; w: number; h: number };
+
+  /**
+   * Provenance back-reference to the platform_charts row this widget was
+   * copied from, if any (Phase 0 schema / Phase 2 "Open source chart in
+   * Inspector" UI).
+   *
+   * Non-authoritative: NEVER used to auto-propagate edits — drift is still
+   * computed only against live semantic definitions via measureSnapshots.
+   * Optional because widgets built directly in the builder have no chat
+   * origin, and the source chart may later be deleted (a dangling reference
+   * is expected and must be handled as "source unavailable" in the UI — this
+   * is not a DB relation).
+   */
+  source_chart_id?: string;
+
+  /**
+   * Freshness policy (scaffolded in Phase 0, wired up in Phase 2's viewer
+   * route + result cache). Absence == 'live' (always re-run on load), which
+   * is the safe default.
+   */
+  freshness?: {
+    mode: 'live' | 'cached' | 'scheduled';
+    /** Required semantics when mode === 'cached'. */
+    staleAfterSec?: number;
+    /** Cron string; required semantics when mode === 'scheduled'. */
+    schedule?: string;
+  };
+}
+
+// ── Widget data (Phase 1 live render path) ─────────────────────────────────────
+// Per-widget result returned by GET /api/inspector/dashboards/[dashboardId]/data.
+// The batch route executes every widget independently and returns a status-tagged
+// result per widget, so one failing widget never takes down the others.
+// Shared here so the route, the useDashboardData hook, and the viewer agree on shape.
+export type WidgetDataResult =
+  | {
+      status: 'ok';
+      rows: Record<string, unknown>[];
+      /** Compiled SQL — surfaced now for the Phase 3 trust spine. */
+      sql: string;
+      /** IDs of the governed definitions actually referenced (trust spine). */
+      definitionsUsed: { dimensions: string[]; measures: string[] };
+      /**
+       * ISO timestamp of execution — drives the "Last updated" stamp.
+       * For a cache hit this is the time the cached result was originally
+       * executed, NOT the time of the current request.
+       */
+      executedAt: string;
+      /**
+       * True when this result was served from the process-local result cache
+       * (widget freshness mode 'cached'). Absent/false means it executed fresh.
+       * Drives the viewer's "Cached · Last updated" indicator (Phase 2).
+       */
+      cached?: boolean;
+    }
+  | {
+      /** The dashboard's model is a candidate/archived — a UX state, not a 500. */
+      status: 'model_not_governed';
+      message: string;
+    }
+  | {
+      status: 'error';
+      message: string;
+    };
+
+/** Response body of the widget-data batch route. */
+export interface DashboardDataResponse {
+  widgets: Record<string, WidgetDataResult>;
 }
 
 // ── DashboardVersionLayout ────────────────────────────────────────────────────

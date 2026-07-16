@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
-import { getUserByEmail, getDashboardRole } from '@/lib/dashboards/permissions';
+import { getUserByEmail, getDashboardRole, canDeleteDashboard } from '@/lib/dashboards/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,9 @@ type Params = { params: Promise<{ dashboardId: string }> };
  *
  * DELETE /api/inspector/dashboards/[dashboardId]
  * Soft-deletes the dashboard. Requires owner role.
- * Body: { actor?: string }
+ * SEC-3: a valid session token that resolves to no User row is rejected with
+ * 401 rather than falling through and deleting. SEC-2: the audit actor is
+ * derived from the session, never from the request body.
  */
 
 export async function GET(
@@ -67,14 +69,13 @@ export async function GET(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: Params,
 ) {
   try {
     const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
-    const body = await request.json().catch(() => ({})) as { actor?: string };
 
     const dashboard = await prisma.platform_dashboards.findFirst({
       where: { id: dashboardId, org_id: org.id, deleted_at: null },
@@ -83,17 +84,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
     }
 
-    // Check delete permission — only owners can delete
+    // Check delete permission — only owners can delete.
+    // SEC-3: reject a valid token that resolves to no User row (e.g. a user
+    // deleted after their token was issued) with 401 instead of skipping the
+    // role check and deleting anyway.
     const userEmail = session?.user?.email ?? null;
     const currentUser = userEmail ? await getUserByEmail(userEmail) : null;
-    if (currentUser) {
-      const role = await getDashboardRole(dashboardId, currentUser.id, dashboard.visibility);
-      if (role !== 'owner') {
-        return NextResponse.json({ error: 'Only the owner can delete this dashboard' }, { status: 403 });
-      }
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const role = await getDashboardRole(dashboardId, currentUser.id, dashboard.visibility);
+    if (!canDeleteDashboard(role)) {
+      return NextResponse.json({ error: 'Only the owner can delete this dashboard' }, { status: 403 });
     }
 
-    const actor = body.actor ?? currentUser?.email ?? 'system';
+    const actor = currentUser.email;
     const now = new Date();
 
     await prisma.platform_dashboards.update({

@@ -1,9 +1,7 @@
 import { prisma } from '@/lib/db';
 import { executeDatabricksSQL, ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
 import { getAccessToken } from '@/lib/databricks/token-client';
-import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { profileResultSet } from '@/lib/studio/profiler';
-import { runChartPipeline, runSemanticChartPipeline } from './chart-pipeline';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
 
@@ -127,6 +125,7 @@ export async function executeInspectorTool(
       return JSON.stringify({ error: errMsg });
     }
     try {
+      const { runSemanticChartPipeline } = await import('./chart-pipeline');
       const result = await runSemanticChartPipeline({
         query,
         connectionId,
@@ -178,6 +177,7 @@ export async function executeInspectorTool(
     const sessionId = context?.sessionId ?? '';
 
     try {
+      const { runChartPipeline } = await import('./chart-pipeline');
       const pipelineResult = await runChartPipeline({
         userIntent,
         queryResult: lastQR,
@@ -310,6 +310,7 @@ export async function executeInspectorTool(
   }
 
   if (toolName === 'describe_schema') {
+    const { handleDescribeSchema } = await import('@/lib/context/dispatch');
     return handleDescribeSchema(toolInput);
   }
 

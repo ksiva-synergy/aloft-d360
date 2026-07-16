@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createId } from '@paralleldrive/cuid2';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import type { DashboardVersionLayout } from '@/lib/dashboards/types';
+import {
+  getUserByEmail,
+  getDashboardRole,
+  canEditDashboard,
+} from '@/lib/dashboards/permissions';
 import {
   validateWidgetReferences,
   computeMeasureSnapshots,
@@ -33,19 +40,23 @@ type Params = { params: Promise<{ dashboardId: string }> };
  *  5. Update parent dashboard's current_version_id
  *  6. Write audit row action='save_version'
  *
- * Body: { widgets: WidgetSpec[], layout?: DashboardVersionLayout, createdBy?: string, changeSummary?: string }
+ * Body: { widgets: WidgetSpec[], layout?: DashboardVersionLayout, changeSummary?: string }
+ *
+ * SEC-1: requires an authenticated user with an owner/editor role on this
+ * dashboard. SEC-2: the audit/created_by actor is derived from the session,
+ * never from the request body.
  */
 export async function POST(
   request: NextRequest,
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
     const body = await request.json() as {
       widgets: WidgetSpec[];
       layout?: DashboardVersionLayout;
-      createdBy?: string;
       changeSummary?: string;
     };
 
@@ -59,6 +70,20 @@ export async function POST(
     });
     if (!dashboard) {
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
+    }
+
+    // ── SEC-1: auth + role gate (owner/editor only) ───────────────────────────
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canEditDashboard(actorRole)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to save this dashboard' },
+        { status: 403 },
+      );
     }
 
     // ── 2. Cross-model widget reference validation ────────────────────────────
@@ -100,7 +125,6 @@ export async function POST(
     const nextVersionNumber = (maxVersion._max.version_number ?? 0) + 1;
 
     const versionId = createId();
-    const actor = body.createdBy ?? 'system';
     const layout = body.layout ?? { columns: 12, rows: [] };
 
     // ── 5. Write version row ──────────────────────────────────────────────────
@@ -111,7 +135,7 @@ export async function POST(
         version_number: nextVersionNumber,
         widgets: widgetsWithSnapshots as object[],
         layout: layout as object,
-        created_by: actor,
+        created_by: actor.email,
         change_summary: body.changeSummary ?? null,
       },
     });
@@ -130,7 +154,7 @@ export async function POST(
         dashboard_id: dashboardId,
         action: 'save_version',
         version_id: versionId,
-        actor,
+        actor: actor.email,
       },
     });
 

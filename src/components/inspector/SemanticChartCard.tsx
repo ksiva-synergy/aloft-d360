@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookmarkPlus, Check, X } from 'lucide-react';
+import { BookmarkPlus, Check, X, Pin } from 'lucide-react';
 import StudioChart from '@/components/studio/StudioChart';
+import { PinToDashboardDialog } from './PinToDashboardDialog';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 
@@ -27,6 +28,8 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [savedChartId, setSavedChartId] = useState<string | null>(null);
   const [chartName, setChartName] = useState(message.chartDsl.title);
   const [chartDesc, setChartDesc] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -64,6 +67,8 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
         setSaveError(data.error ?? `Save failed (${resp.status})`);
         return;
       }
+      const data = await resp.json().catch(() => ({})) as { chart?: { id: string } };
+      if (data.chart?.id) setSavedChartId(data.chart.id);
       setSaved(true);
       setShowDialog(false);
     } catch (err) {
@@ -124,6 +129,31 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
         >
           {message.chartDsl.kind}
         </span>
+        {/* Pin to dashboard — the signature Phase 2 action, always available */}
+        <button
+          onClick={() => setShowPinDialog(true)}
+          title="Pin to dashboard"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            ...MONO,
+            fontSize: 9,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            border: 'none',
+            borderRadius: 3,
+            padding: '3px 8px',
+            background: GOLD,
+            color: '#0D1B2A',
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          <Pin size={11} />
+          PIN
+        </button>
         {saved ? (
           <span
             style={{
@@ -296,6 +326,16 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
             {saving ? 'SAVING…' : 'SAVE'}
           </button>
         </div>
+      )}
+
+      {/* Pin to dashboard dialog */}
+      {showPinDialog && (
+        <PinToDashboardDialog
+          message={message}
+          savedChartId={savedChartId}
+          onChartSaved={(id) => { setSavedChartId(id); setSaved(true); }}
+          onClose={() => setShowPinDialog(false)}
+        />
       )}
     </div>
   );

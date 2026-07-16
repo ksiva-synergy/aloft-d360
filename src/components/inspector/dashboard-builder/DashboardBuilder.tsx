@@ -11,9 +11,9 @@ import { BuilderGrid } from './BuilderGrid';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
+import { dslKindToWidgetKind, encodingsToChartConfig } from './chart-mapping';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
-import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -230,6 +230,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         semanticQuery: chart.semantic_query,
         measureSnapshots: chart.measure_snapshots,
         chartConfig,
+        // Provenance: record the copied-from chart. Non-authoritative — this
+        // never drives drift (that stays on live definitions) and a later
+        // delete of the chart is fine (dangling ref handled in the UI).
+        source_chart_id: chart.id,
       });
     },
     [selectedWidgetId, updateWidget, showPickerHint],
@@ -538,55 +542,6 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       )}
     </div>
   );
-}
-
-// ── Chart helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Maps ChartDSLSpec.kind to WidgetSpec's chartKind (ChartSpec['kind'] subset).
- * DSL kinds not in ChartSpec are downgraded to the nearest equivalent.
- * Decision 0 resolution from PHASE_INSP_D4: explicit mapping, no silent drops.
- */
-function dslKindToWidgetKind(kind: string): WidgetSpec['chartKind'] {
-  switch (kind) {
-    case 'bar':        return 'bar';
-    case 'stacked-bar': return 'bar';   // downgrade: stack config preserved in echartsOption
-    case 'line':       return 'line';
-    case 'area':       return 'line';   // downgrade: area fill in echartsOption
-    case 'pie':        return 'donut';  // closest match
-    case 'scatter':    return 'scatter';
-    case 'heatmap':    return 'heatmap';
-    case 'histogram':  return 'histogram';
-    case 'boxplot':    return 'bar';    // fallback: no boxplot kind in WidgetSpec
-    default:           return 'bar';
-  }
-}
-
-/**
- * Converts ChartDSLSpec encodings to WidgetSpec.chartConfig axis slots.
- * Also preserves ECharts overrides for downgraded kinds (stacked-bar, area).
- */
-function encodingsToChartConfig(dsl: ChartDSLSpec): WidgetSpec['chartConfig'] {
-  const xEnc   = dsl.encodings.find((e) => e.role === 'x');
-  const yEncs  = dsl.encodings.filter((e) => e.role === 'y');
-  const series = dsl.encodings.find((e) => e.role === 'series');
-  const value  = dsl.encodings.find((e) => e.role === 'value');
-
-  const config: WidgetSpec['chartConfig'] = {
-    x:      xEnc?.columnId,
-    y:      yEncs.length ? yEncs.map((e) => e.columnId) : undefined,
-    series: series?.columnId,
-    value:  value?.columnId,
-  };
-
-  // Inject ECharts overrides for downgraded kinds so visual intent is preserved
-  if (dsl.kind === 'stacked-bar') {
-    config.echartsOption = { series: [{ stack: 'total' }] };
-  } else if (dsl.kind === 'area') {
-    config.echartsOption = { series: [{ areaStyle: {} }] };
-  }
-
-  return config;
 }
 
 // ── Drift computation ─────────────────────────────────────────────────────────

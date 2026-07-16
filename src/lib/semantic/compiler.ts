@@ -48,8 +48,13 @@ export function compileSafety(expression: string): { safe: boolean; reason?: str
 
 /**
  * Produce a safe SQL alias from a label (snake_case, no spaces or special chars).
+ *
+ * Exported because result-row columns are keyed by this alias, not by the
+ * human label. Any consumer that reads rows back (e.g. the dashboard widget
+ * mapper in WidgetPreview) MUST resolve columns with `toAlias(label)` — using
+ * the raw label yields undefined and silently-empty charts.
  */
-function toAlias(label: string): string {
+export function toAlias(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 

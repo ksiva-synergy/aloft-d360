@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, ExternalLink } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import type { ChartSpec } from '@/lib/studio/types';
 import type { SemanticFilter, FilterOp } from '@/lib/semantic/types';
@@ -58,6 +58,30 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
     const sq = { ...widget.semanticQuery };
     sq.measures = sq.measures.filter((m) => m.measureId !== measId);
     updateWidgetSemanticQuery(widget.widgetId, sq);
+  };
+
+  const DEFAULT_STALE_SEC = 300;
+
+  const handleFreshnessMode = (mode: 'live' | 'cached') => {
+    if (readOnly) return;
+    if (mode === 'live') {
+      // Absence == 'live' — keep the stored spec clean.
+      updateWidget(widget.widgetId, { freshness: undefined });
+    } else {
+      updateWidget(widget.widgetId, {
+        freshness: {
+          mode: 'cached',
+          staleAfterSec: widget.freshness?.staleAfterSec ?? DEFAULT_STALE_SEC,
+        },
+      });
+    }
+  };
+
+  const handleStaleSecChange = (seconds: number) => {
+    if (readOnly) return;
+    updateWidget(widget.widgetId, {
+      freshness: { mode: 'cached', staleAfterSec: Math.max(1, Math.round(seconds)) },
+    });
   };
 
   const handleConfigChange = (field: 'x' | 'series' | 'value', value: string) => {
@@ -257,6 +281,67 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
               ADD FILTER
             </button>
           </div>
+        </Section>
+      )}
+
+      {/* Data freshness (Phase 2) */}
+      <Section label="DATA FRESHNESS">
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['live', 'cached'] as const).map((mode) => {
+            const active = (widget.freshness?.mode ?? 'live') === mode;
+            return (
+              <button
+                key={mode}
+                onClick={() => handleFreshnessMode(mode)}
+                style={{
+                  ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  flex: 1, padding: '4px 8px', borderRadius: 3,
+                  border: `1px solid ${active ? '#FDB515' : 'var(--builder-border)'}`,
+                  background: active ? 'rgba(253,181,21,0.1)' : 'transparent',
+                  color: active ? '#FDB515' : 'var(--builder-text-muted)',
+                  cursor: readOnly ? 'default' : 'pointer',
+                }}
+              >
+                {mode}
+              </button>
+            );
+          })}
+        </div>
+        {widget.freshness?.mode === 'cached' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
+              Refresh every
+            </span>
+            <input
+              type="number"
+              min={1}
+              value={widget.freshness.staleAfterSec ?? DEFAULT_STALE_SEC}
+              onChange={(e) => handleStaleSecChange(Number(e.target.value))}
+              readOnly={readOnly}
+              style={{
+                ...MONO, fontSize: 10, width: 70,
+                background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
+                borderRadius: 3, padding: '3px 6px', color: 'var(--builder-text)', outline: 'none',
+              }}
+            />
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>sec</span>
+          </div>
+        )}
+      </Section>
+
+      {/* Provenance — link back to the source chart in the Inspector (Phase 2) */}
+      {widget.source_chart_id && (
+        <Section label="SOURCE">
+          <a
+            href={`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id)}`}
+            style={{
+              ...MONO, fontSize: 9, letterSpacing: '0.04em', color: '#FDB515',
+              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <ExternalLink size={11} />
+            Open source chart in Inspector
+          </a>
         </Section>
       )}
 

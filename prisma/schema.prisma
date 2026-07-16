@@ -2519,6 +2519,7 @@ model platform_dashboards {
   created_by                                                                                      String                             @default("system")
   visibility                                                                                      String                             @default("org")
   current_version_id                                                                              String?
+  connection_id                                                                                   String
   deleted_at                                                                                      DateTime?                          @db.Timestamptz(6)
   created_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)
   updated_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)

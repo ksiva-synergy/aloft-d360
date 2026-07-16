@@ -8,6 +8,7 @@ import {
   getUserByEmail,
   coerceVisibility,
 } from '@/lib/dashboards/permissions';
+import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -147,7 +148,6 @@ export async function POST(request: NextRequest) {
       name: string;
       description?: string;
       visibility?: string;
-      createdBy?: string;
     };
 
     if (!body.modelId || !body.name) {
@@ -165,13 +165,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
     }
 
-    // Resolve creator
+    // Resolve creator — SEC-2: actor comes from the session, never the body.
     const userEmail = session?.user?.email ?? null;
     const currentUser = userEmail ? await getUserByEmail(userEmail) : null;
-    const actor = body.createdBy ?? currentUser?.email ?? 'system';
+    const actor = currentUser?.email ?? 'system';
 
     const id = createId();
     const visibility = coerceVisibility(body.visibility);
+
+    // DEC-1: dashboards bind a Databricks connection at creation (connection_id
+    // is NOT NULL). Resolve it the same way the Inspector chat does — the
+    // tool_catalog 'synergy_dwh' entry's config.connection_id points at a
+    // platform_databricks_connections row. This is what the Phase 0 backfill used.
+    const catalogEntry = await resolveToolCatalogEntry('synergy_dwh');
+    const connectionId =
+      (catalogEntry?.config as Record<string, unknown> | null)?.connection_id;
+    if (typeof connectionId !== 'string' || !connectionId) {
+      return NextResponse.json(
+        { error: 'No Databricks connection is configured for dashboards' },
+        { status: 500 },
+      );
+    }
 
     const dashboard = await prisma.platform_dashboards.create({
       data: {
@@ -182,6 +196,7 @@ export async function POST(request: NextRequest) {
         description: body.description ?? null,
         created_by: actor,
         visibility,
+        connection_id: connectionId,
         current_version_id: null,
         deleted_at: null,
       },
