@@ -28,7 +28,7 @@ export interface AuditRowParams {
   modelId: string;
   tableName: string;
   rowId: string;
-  action: 'promote' | 'demote_archive' | 'edit' | 'submit';
+  action: 'promote' | 'demote_archive' | 'edit' | 'submit' | 'demote';
   fromStatus?: string | null;
   toStatus?: string | null;
   changedBy?: string;
@@ -44,9 +44,9 @@ export interface FieldValidation {
 
 export const ALLOWED_EDIT_FIELDS: Record<TableKind, Set<string>> = {
   entity: new Set(['entity_label', 'description', 'synonyms']),
-  dimension: new Set(['dimension_label', 'dimension_type', 'description', 'synonyms', 'format_hint']),
+  dimension: new Set(['dimension_label', 'dimension_type', 'description', 'synonyms', 'format_hint', 'nl_intent']),
   // column_name and entity_id are intentionally excluded — structural fields, not editable
-  measure: new Set(['measure_label', 'aggregate', 'metric_type', 'expression', 'synonyms', 'format_hint', 'unit']),
+  measure: new Set(['measure_label', 'aggregate', 'metric_type', 'expression', 'synonyms', 'format_hint', 'unit', 'nl_intent']),
 };
 
 // ── validateEditFields ────────────────────────────────────────────────────────

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookmarkPlus, Check, X, Pin, Info, Wand2, GitCompare } from 'lucide-react';
+import { BookmarkPlus, Check, X, Pin, Info, Wand2, GitCompare, Sparkles } from 'lucide-react';
 import StudioChart from '@/components/studio/StudioChart';
 import { PinToDashboardDialog } from './PinToDashboardDialog';
 import { DraftChangeCard } from './DraftChangeCard';
 import { TrustPanel } from './TrustPanel';
+import { DefineMetricPanel, type DefineMetricPrefill } from './authoring/DefineMetricPanel';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 
@@ -29,6 +30,12 @@ interface SemanticChartCardProps {
    * Used by the refinement input to re-run the grounded pipeline with a tweak.
    */
   onRefine?: (followUp: string) => void;
+  /**
+   * The user's originating question for this chart (Phase 3.5B chat-capture).
+   * Pre-fills the DefineMetricPanel NL-intent when saving the chart as a metric:
+   * the demonstration → the intent, captured automatically.
+   */
+  originalQuestion?: string;
 }
 
 /**
@@ -37,11 +44,12 @@ interface SemanticChartCardProps {
  * The chart can later be assigned to a dashboard widget via DefinitionPicker's
  * Charts tab (Decision 2: click-to-assign, Option B: one-time copy).
  */
-export function SemanticChartCard({ message, echartsOption, sourceChartId, onRefine }: SemanticChartCardProps) {
+export function SemanticChartCard({ message, echartsOption, sourceChartId, onRefine, originalQuestion }: SemanticChartCardProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [showPinDialog, setShowPinDialog] = useState(false);
+  const [showDefineMetric, setShowDefineMetric] = useState(false);
   const [savedChartId, setSavedChartId] = useState<string | null>(null);
   const [chartName, setChartName] = useState(message.chartDsl.title);
   const [chartDesc, setChartDesc] = useState('');
@@ -62,6 +70,20 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
       `to change, and stay within the governed semantic model.]`;
     onRefine(`${ctx}\n\n${text}`);
     setRefineText('');
+  };
+
+  // Chat-capture prefill (Phase 3.5B): seed the DefineMetricPanel from this
+  // chart's resolved semantic query + the originating question. The chart's
+  // measures are governed IDs; the panel resolves their definition from
+  // authoring-meta so the form fields land pre-filled (degrading to entity +
+  // label if the measure isn't in the caller's accessible set).
+  const firstMeasureId = message.semanticQuery.measures[0]?.measureId;
+  const metricPrefill: DefineMetricPrefill = {
+    tableKind: 'measure',
+    entityId: message.semanticQuery.entityId,
+    measureId: firstMeasureId,
+    measureLabel: (firstMeasureId && message.resolvedLabels?.[firstMeasureId]) || message.chartDsl.title,
+    nlIntent: originalQuestion,
   };
 
   // Build a minimal ChartSpec so StudioChart can render the pre-compiled option
@@ -183,6 +205,33 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
         >
           <Pin size={11} />
           PIN
+        </button>
+        {/* Save as metric — the chat-capture fast path into authoring (3.5B) */}
+        <button
+          onClick={() => setShowDefineMetric(true)}
+          title="Save as a semantic metric draft"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            ...MONO,
+            fontSize: 9,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            border: `1px solid rgba(253,181,21,0.35)`,
+            borderRadius: 3,
+            padding: '3px 8px',
+            background: 'transparent',
+            color: GOLD,
+            flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,0.10)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <Sparkles size={11} />
+          SAVE AS METRIC
         </button>
         {saved ? (
           <span
@@ -452,6 +501,15 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
           savedChartId={savedChartId}
           onChartSaved={(id) => { setSavedChartId(id); setSaved(true); }}
           onClose={() => setShowPinDialog(false)}
+        />
+      )}
+
+      {/* Save as metric — DefineMetricPanel prefilled from this chart (3.5B) */}
+      {showDefineMetric && (
+        <DefineMetricPanel
+          modelId={message.semanticQuery.modelId}
+          prefill={metricPrefill}
+          onClose={() => setShowDefineMetric(false)}
         />
       )}
     </div>

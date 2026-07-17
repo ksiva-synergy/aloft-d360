@@ -373,6 +373,21 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   // Generative empty state (Phase 3B): show starter prompts when a fresh session
   // has nothing yet — no conversation, cards, results, or in-flight query.
   const hasConversation = insp.messages.some((m) => m.content || (m.toolCalls && m.toolCalls.length > 0));
+
+  // The user's latest question — pre-fills DefineMetricPanel's NL-intent when a
+  // chart is saved as a metric (3.5B chat-capture). Strips the invisible
+  // "[Refining …]" context block a refinement prepends, so the captured intent
+  // reads as the human question, not the machinery. Not per-chart-tracked; the
+  // most recent user question is a good-enough seed the author can adjust.
+  const latestUserQuestion = (() => {
+    for (let i = insp.messages.length - 1; i >= 0; i--) {
+      const m = insp.messages[i];
+      if (m.role === 'user' && m.content) {
+        return m.content.replace(/^\s*\[[^\]]*\]\s*/s, '').trim();
+      }
+    }
+    return undefined;
+  })();
   const showChatEmptyState =
     !hasConversation &&
     insp.semanticChartMessages.length === 0 &&
@@ -484,6 +499,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                       echartsOption={scm.echartsOption}
                       sourceChartId={sourceChartId}
                       onRefine={(followUp) => insp.send(followUp)}
+                      originalQuestion={latestUserQuestion}
                     />
                   ))}
                   {insp.queryProgress && <QueryProgressCard progress={insp.queryProgress} />}
