@@ -12,14 +12,15 @@ export const dynamic = 'force-dynamic';
  *
  * Filtering rules (INSP-GOV hard prerequisite, Binding Correction 3):
  *  1. Model must be governed — non-governed models are not picker-eligible
- *  2. Entities are filtered to status != 'archived' FIRST — this scopes the
- *     entityIds used for dims/measures queries, so non-archived dims inside
- *     an archived entity cannot leak through
- *  3. Dimensions and measures are filtered to status != 'archived'
+ *  2. Entities are filtered to status NOT IN ('archived','draft') FIRST — this
+ *     scopes the entityIds used for dims/measures queries, so non-archived dims
+ *     inside an archived entity cannot leak through
+ *  3. Dimensions and measures are filtered to status NOT IN ('archived','draft')
  *
  * The status field is included on every returned entity/dimension/measure so
  * D2's UI can visually distinguish 'governed' (domain-reviewed) from
- * 'candidate' (not yet reviewed). Both are shown; only 'archived' is excluded.
+ * 'candidate' (not yet reviewed). Both are shown; 'archived' is excluded, and
+ * 'draft' (3.5A — personal, owner-only) is never surfaced in the shared picker.
  *
  * Response shape:
  *   { model: { id, name }, entities: [{ ...entity, dimensions: [...], measures: [...] }] }
@@ -43,22 +44,23 @@ export async function GET(
       );
     }
 
-    // ── 2. Entities — non-archived only ──────────────────────────────────────
+    // ── 2. Entities — non-archived, non-draft only ───────────────────────────
     // Critical: compute entityIds from this filtered set before any dim/measure
     // queries. A non-archived dim inside an archived entity must not appear.
+    // Draft (3.5A) is personal/owner-only and is never listed in this shared picker.
     const entities = await prisma.platform_sem_entities.findMany({
-      where: { model_id: modelId, org_id: org.id, status: { not: 'archived' } },
+      where: { model_id: modelId, org_id: org.id, status: { notIn: ['archived', 'draft'] } },
       orderBy: { created_at: 'asc' },
     });
     const entityIds = entities.map((e) => e.id);
 
-    // ── 3. Dimensions + measures — non-archived, scoped to active entities ───
+    // ── 3. Dimensions + measures — non-archived, non-draft, scoped to active entities ─
     const [dimensions, measures] = await Promise.all([
       prisma.platform_sem_dimensions.findMany({
         where: {
           entity_id: { in: entityIds },
           org_id: org.id,
-          status: { not: 'archived' },
+          status: { notIn: ['archived', 'draft'] },
         },
         orderBy: { created_at: 'asc' },
       }),
@@ -66,7 +68,7 @@ export async function GET(
         where: {
           entity_id: { in: entityIds },
           org_id: org.id,
-          status: { not: 'archived' },
+          status: { notIn: ['archived', 'draft'] },
         },
         orderBy: { created_at: 'asc' },
       }),

@@ -6,6 +6,7 @@ import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
+import type { ChartRecommendation } from '@/lib/dashboards/chart-defaults';
 
 export interface QueryResult {
   columns: { name: string; type_name: string }[];
@@ -32,6 +33,52 @@ export interface SemanticChartMessage {
   /** Pre-compiled ECharts option from the pipeline — used directly by StudioChart */
   echartsOption: object;
   timestamp: number;
+  // ── Trust-spine metadata (Phase 3A) — carried by the semantic_chart_result
+  //    event so SemanticChartCard can render a TrustPanel without a refetch. ──
+  rowCount?: number;
+  executedAt?: string;
+  definitionsUsed?: { dimensions: string[]; measures: string[] };
+  resolvedLabels?: Record<string, string>;
+  /** Smart-defaults "why this chart" recommendation (informational). */
+  recommendation?: ChartRecommendation;
+}
+
+/**
+ * A governed field the agent offers as a disambiguation candidate (Phase 3B).
+ * Surfaced by the emit_disambiguation tool via the semantic_disambiguation SSE
+ * event and rendered as a clickable chip in DisambiguationCard.
+ */
+export interface DisambiguationCandidate {
+  id: string;
+  label: string;
+  type: 'dimension' | 'measure';
+  relevance: 'exact' | 'partial' | 'none';
+}
+
+/**
+ * An interactive disambiguation prompt raised by the agent when a user's term
+ * maps to multiple governed fields, or to none. The user resolves it by
+ * clicking a candidate, which sends a clarifying follow-up message.
+ */
+export interface DisambiguationMessage {
+  id: string;
+  kind: 'disambiguation';
+  originalTerm: string;
+  candidates: DisambiguationCandidate[];
+  message: string;
+  timestamp: number;
+}
+
+/**
+ * Progressive-streaming state for the in-flight semantic chart query. Drives the
+ * staged "planning → compiling → executing → rendering" reveal in the chat UI so
+ * a multi-second query feels alive. Null when no query is in progress.
+ */
+export interface QueryProgress {
+  stage: 'planning' | 'executing' | 'rendering' | null;
+  intent?: string;
+  definitionsSelected?: string[];
+  compiledSQL?: string;
 }
 
 export type { ToolKind } from '@/lib/boost/classify';
@@ -72,6 +119,10 @@ interface UseInspectorChatReturn {
   sessionId: string | null;
   queryResults: QueryResult[];
   semanticChartMessages: SemanticChartMessage[];
+  /** Pending disambiguation prompts raised by the agent (Phase 3B). */
+  disambiguations: DisambiguationMessage[];
+  /** In-flight semantic-chart progressive state (null when idle). */
+  queryProgress: QueryProgress | null;
   send: (content: string) => void;
   abort: () => void;
   reset: () => void;
@@ -81,6 +132,8 @@ interface UseInspectorChatReturn {
 export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseInspectorChatOptions): UseInspectorChatReturn {
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [semanticChartMessages, setSemanticChartMessages] = useState<SemanticChartMessage[]>([]);
+  const [disambiguations, setDisambiguations] = useState<DisambiguationMessage[]>([]);
+  const [queryProgress, setQueryProgress] = useState<QueryProgress | null>(null);
   const [previewModel, setPreviewModel] = useState(AVAILABLE_MODELS[1].key);
 
   // Inspector owns its session id locally (see currentSessionId below). This ref
@@ -429,6 +482,32 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               setSuggestions(Array.isArray(event.items) ? event.items as string[] : []);
               break;
 
+            // ── Progressive streaming (Phase 3A) ──────────────────────────────
+            case 'semantic_plan':
+              setQueryProgress({
+                stage: 'planning',
+                intent: event.intent as string | undefined,
+                definitionsSelected: Array.isArray(event.definitionsSelected)
+                  ? (event.definitionsSelected as string[])
+                  : undefined,
+              });
+              break;
+
+            case 'semantic_sql':
+              setQueryProgress(prev => ({
+                ...(prev ?? { stage: null }),
+                compiledSQL: event.compiledSQL as string,
+              }));
+              break;
+
+            case 'semantic_progress': {
+              const stage = event.stage as 'compiling' | 'executing' | 'rendering';
+              // 'compiling' collapses into the 'planning' reveal client-side.
+              const uiStage = stage === 'compiling' ? 'planning' : stage;
+              setQueryProgress(prev => ({ ...(prev ?? {}), stage: uiStage }));
+              break;
+            }
+
             case 'semantic_chart_result': {
               const scm: SemanticChartMessage = {
                 id: `scm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -438,12 +517,42 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 sql: event.sql as string,
                 echartsOption: event.option as object,
                 timestamp: Date.now(),
+                rowCount: typeof event.rowCount === 'number' ? event.rowCount : undefined,
+                executedAt: event.executedAt as string | undefined,
+                definitionsUsed: event.definitionsUsed as SemanticChartMessage['definitionsUsed'],
+                resolvedLabels: event.resolvedLabels as SemanticChartMessage['resolvedLabels'],
+                recommendation: event.recommendation as SemanticChartMessage['recommendation'],
               };
               setSemanticChartMessages(prev => [...prev, scm]);
+              // A rendered chart means any pending ambiguity was resolved.
+              setDisambiguations([]);
+              setQueryProgress(null);
               break;
             }
 
+            case 'semantic_disambiguation': {
+              const dm: DisambiguationMessage = {
+                id: `dab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                kind: 'disambiguation',
+                originalTerm: typeof event.originalTerm === 'string' ? event.originalTerm : '',
+                candidates: Array.isArray(event.candidates)
+                  ? (event.candidates as DisambiguationCandidate[])
+                  : [],
+                message: typeof event.message === 'string' ? event.message : '',
+                timestamp: Date.now(),
+              };
+              setDisambiguations(prev => [...prev, dm]);
+              setQueryProgress(null);
+              break;
+            }
+
+            case 'semantic_chart_error':
+              setQueryProgress(null);
+              setError(event.reason as string);
+              break;
+
             case 'error':
+              setQueryProgress(null);
               setError(event.message as string);
               break;
 
@@ -460,6 +569,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
       }
     } finally {
       setIsStreaming(false);
+      setQueryProgress(null);
       abortControllerRef.current = null;
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -506,6 +616,8 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     setLocalMessages([]);
     setQueryResults([]);
     setSemanticChartMessages([]);
+    setDisambiguations([]);
+    setQueryProgress(null);
     setSuggestions([]);
     setInterrupted(false);
     setIsStreaming(false);
@@ -546,6 +658,8 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     sessionId: currentSessionId,
     queryResults,
     semanticChartMessages,
+    disambiguations,
+    queryProgress,
     send,
     abort,
     reset,

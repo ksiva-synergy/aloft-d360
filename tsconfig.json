@@ -28,6 +28,7 @@
     "tmp_*.ts",
     "agent-runner",
     "scripts",
+    "docs",
     "prisma/seeds",
     "**/*.stories.tsx",
     "**/*.stories.ts",

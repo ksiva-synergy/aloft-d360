@@ -1,0 +1,47 @@
+# ── Context Harvester ──────────────────────────────────────────────────────────
+# Runs scripts/context/orchestrator.ts on Fargate.
+# Uses tsx for direct TS execution (same as local dev) to avoid a custom tsc build.
+#
+# Build:
+#   docker build -t aloft-context-harvester -f Dockerfile.harvester .
+# ──────────────────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy prisma first (needed by postinstall)
+COPY prisma ./prisma
+
+# Install deps (postinstall runs prisma generate)
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Install tsx for TypeScript execution (dev dep needed at runtime for this image)
+RUN npm install tsx
+
+# Copy source
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts
+COPY infra ./infra
+
+# ── Runtime ───────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine AS runner
+RUN apk add --no-cache openssl libc6-compat
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/infra ./infra
+COPY --from=builder /app/package.json ./
+
+ENV NODE_ENV=production
+
+USER node
+
+# Default: run orchestrator (can be overridden via ECS containerOverrides)
+CMD ["npx", "tsx", "--require", "./scripts/context/noserver.cjs", "scripts/context/orchestrator.ts"]

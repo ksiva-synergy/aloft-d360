@@ -56,10 +56,13 @@ export async function validateWidgetReferences(
   });
   const modelEntityIdSet = new Set(modelEntities.map((e) => e.id));
 
-  // Check dimensions
+  // Check dimensions. DRAFT (3.5A) definitions are personal/owner-only and must
+  // NEVER enter a durable, shared dashboard version — reject them at save time
+  // (they resolve as "not found", failing validation) even though the picker
+  // already hides them. Candidates remain valid (dashboards may reference CAND).
   if (allDimIds.size > 0) {
     const dimRows = await prisma.platform_sem_dimensions.findMany({
-      where: { id: { in: Array.from(allDimIds) }, org_id: orgId },
+      where: { id: { in: Array.from(allDimIds) }, org_id: orgId, status: { not: 'draft' } },
       select: { id: true, entity_id: true },
     });
 
@@ -79,10 +82,10 @@ export async function validateWidgetReferences(
     }
   }
 
-  // Check measures
+  // Check measures — same draft exclusion as dimensions above.
   if (allMeasureIds.size > 0) {
     const measureRows = await prisma.platform_sem_measures.findMany({
-      where: { id: { in: Array.from(allMeasureIds) }, org_id: orgId },
+      where: { id: { in: Array.from(allMeasureIds) }, org_id: orgId, status: { not: 'draft' } },
       select: { id: true, entity_id: true },
     });
 
@@ -123,8 +126,11 @@ export async function computeMeasureSnapshots(
 ): Promise<MeasureSnapshot[]> {
   if (measureIds.length === 0) return [];
 
+  // Draft measures (3.5A) are never snapshotted into a durable dashboard
+  // version — they are omitted here, so a draft can never be frozen into a
+  // saved artifact even if a stale id reaches this path.
   const rows = await prisma.platform_sem_measures.findMany({
-    where: { id: { in: measureIds }, org_id: orgId },
+    where: { id: { in: measureIds }, org_id: orgId, status: { not: 'draft' } },
     select: {
       id: true,
       aggregate: true,

@@ -1264,6 +1264,155 @@ export async function listEstateObjects(
   return { rows: mapped, total, page, pageSize };
 }
 
+// ── 12b. getCoverageSummary ──────────────────────────────────────────────────
+// WS4: green T1 jobs hide degraded objects, and semantic coverage is invisible.
+// This rolls up — for a single source or the whole estate — active-object counts,
+// semantic coverage, and per-object/per-column degrade signals straight from
+// platform_context_profiles / platform_context_columns, so the summary API can
+// surface them without any manual table joins.
+
+// platform_context_semantics(subject_kind='object') is written by TWO tiers:
+//   - T2 semantic enrichment writes status='assumed' (the real semantic card).
+//   - T3 usage writes status='observed' (a usage narrative, NOT a semantic card).
+// Both append versions to the same subject, so semantic *coverage* must count only
+// T2 cards. We exclude the known T3 status rather than whitelisting 'assumed' so a
+// future human-confirmed upgrade status still counts as covered.
+// (Verified against live estate: 460 assumed / 226 observed rows = the "686" total.)
+const T3_USAGE_SEMANTIC_STATUS = 'observed';
+
+export interface CoverageSummary {
+  scope: 'source' | 'estate';
+  source_id: string | null;
+  /** Distinct active objects in scope. */
+  active_objects: number;
+  /**
+   * Distinct active objects that have a T2 semantic card (any semantics row whose
+   * status is not the T3-usage 'observed' status). This is the semantic-coverage
+   * numerator; T3 usage narratives do NOT count.
+   */
+  objects_with_semantic: number;
+  /** objects_with_semantic / active_objects, 0..1 (0 when no active objects). */
+  semantic_coverage_ratio: number;
+  /**
+   * Distinct active objects having ≥1 semantics row of each status (buckets can
+   * overlap — an object with both a T2 card and a T3 narrative appears in both).
+   * Makes the coverage number decomposable rather than a single soft scalar.
+   */
+  semantic_status_breakdown: Record<string, number>;
+  degrade: {
+    /** Objects whose latest profile is a partial sweep. */
+    objects_partial: number;
+    /** Objects whose latest profile is an unqueryable view. */
+    objects_view_unqueryable: number;
+    /** Objects degraded by either signal (partial OR view_unqueryable). */
+    objects_degraded: number;
+    /** Total active columns carrying a skip_reason. */
+    columns_skipped: number;
+    /** Active columns deferred to a lighter (null-only) profile. */
+    columns_stats_deferred: number;
+    /** skip_reason → column count (e.g. heavy_column_type, view_query_failed). */
+    skip_reason_distribution: Record<string, number>;
+  };
+}
+
+export async function getCoverageSummary(
+  orgId: string,
+  sourceId?: string,
+): Promise<CoverageSummary> {
+  // Scope fragment reused across queries (aliases the objects table as `o`).
+  const srcObj = sourceId ? Prisma.sql`AND o.source_id = ${sourceId}::uuid` : Prisma.empty;
+
+  const [coverageRows, statusRows, profileRows, skipRows, deferredRows] = await Promise.all([
+    // 1. Active objects + how many have a T2 semantic card (excludes T3 'observed').
+    prisma.$queryRaw<Array<{ active_objects: number; objects_with_semantic: number }>>(Prisma.sql`
+      SELECT
+        COUNT(*)::int AS active_objects,
+        COUNT(*) FILTER (WHERE sem.subject_id IS NOT NULL)::int AS objects_with_semantic
+      FROM platform_context_objects o
+      LEFT JOIN (
+        SELECT DISTINCT subject_id
+        FROM platform_context_semantics
+        WHERE subject_kind = 'object' AND org_id = ${orgId}
+          AND status <> ${T3_USAGE_SEMANTIC_STATUS}
+      ) sem ON sem.subject_id = o.id
+      WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
+    `),
+    // 1b. Distinct active objects by semantic status (decomposes the number above).
+    prisma.$queryRaw<Array<{ status: string; objects: number }>>(Prisma.sql`
+      SELECT s.status, COUNT(DISTINCT s.subject_id)::int AS objects
+      FROM platform_context_semantics s
+      JOIN platform_context_objects o ON o.id = s.subject_id
+      WHERE s.subject_kind = 'object' AND s.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
+      GROUP BY s.status
+    `),
+    // 2. Object-level degrade from each object's latest profile version.
+    prisma.$queryRaw<Array<{ objects_partial: number; objects_view_unqueryable: number; objects_degraded: number }>>(Prisma.sql`
+      WITH latest_profile AS (
+        SELECT DISTINCT ON (p.object_id) p.object_id, p.stats
+        FROM platform_context_profiles p
+        JOIN platform_context_objects o ON o.id = p.object_id
+        WHERE p.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
+        ORDER BY p.object_id, p.version DESC
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE stats->>'partial' = 'true')::int AS objects_partial,
+        COUNT(*) FILTER (WHERE stats->>'view_unqueryable' = 'true')::int AS objects_view_unqueryable,
+        COUNT(*) FILTER (WHERE stats->>'partial' = 'true' OR stats->>'view_unqueryable' = 'true')::int AS objects_degraded
+      FROM latest_profile
+    `),
+    // 3. Per-column skip_reason distribution across active columns.
+    prisma.$queryRaw<Array<{ skip_reason: string; cnt: number }>>(Prisma.sql`
+      SELECT c.profile->>'skip_reason' AS skip_reason, COUNT(*)::int AS cnt
+      FROM platform_context_columns c
+      JOIN platform_context_objects o ON o.id = c.object_id
+      WHERE c.org_id = ${orgId} AND c.lifecycle = 'active' AND o.lifecycle = 'active'
+        AND c.profile->>'skip_reason' IS NOT NULL ${srcObj}
+      GROUP BY c.profile->>'skip_reason'
+    `),
+    // 4. Columns deferred to a null-only profile (a lighter degrade than a skip).
+    prisma.$queryRaw<Array<{ cnt: number }>>(Prisma.sql`
+      SELECT COUNT(*)::int AS cnt
+      FROM platform_context_columns c
+      JOIN platform_context_objects o ON o.id = c.object_id
+      WHERE c.org_id = ${orgId} AND c.lifecycle = 'active' AND o.lifecycle = 'active'
+        AND c.profile->>'stats_deferred' = 'true' ${srcObj}
+    `),
+  ]);
+
+  const activeObjects = coverageRows[0]?.active_objects ?? 0;
+  const objectsWithSemantic = coverageRows[0]?.objects_with_semantic ?? 0;
+
+  const statusBreakdown: Record<string, number> = {};
+  for (const row of statusRows) {
+    if (row.status) statusBreakdown[row.status] = row.objects;
+  }
+
+  const skipDistribution: Record<string, number> = {};
+  let columnsSkipped = 0;
+  for (const row of skipRows) {
+    if (!row.skip_reason) continue;
+    skipDistribution[row.skip_reason] = row.cnt;
+    columnsSkipped += row.cnt;
+  }
+
+  return {
+    scope: sourceId ? 'source' : 'estate',
+    source_id: sourceId ?? null,
+    active_objects: activeObjects,
+    objects_with_semantic: objectsWithSemantic,
+    semantic_coverage_ratio: activeObjects > 0 ? objectsWithSemantic / activeObjects : 0,
+    semantic_status_breakdown: statusBreakdown,
+    degrade: {
+      objects_partial: profileRows[0]?.objects_partial ?? 0,
+      objects_view_unqueryable: profileRows[0]?.objects_view_unqueryable ?? 0,
+      objects_degraded: profileRows[0]?.objects_degraded ?? 0,
+      columns_skipped: columnsSkipped,
+      columns_stats_deferred: deferredRows[0]?.cnt ?? 0,
+      skip_reason_distribution: skipDistribution,
+    },
+  };
+}
+
 // ── 13. listEstateFacets ────────────────────────────────────────────────────
 
 export async function listEstateFacets(

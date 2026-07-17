@@ -9,6 +9,9 @@ import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
 import { AloftSigil } from '@/components/workbench/atoms';
 import { DashboardPane } from './DashboardPane';
 import { SemanticChartCard } from './SemanticChartCard';
+import { DisambiguationCard } from './DisambiguationCard';
+import { EmptyStatePrompts } from './EmptyStatePrompts';
+import { QueryProgressCard } from './QueryProgressCard';
 import { SemanticGovernancePanel, RightPaneTabBar } from './SemanticGovernancePanel';
 import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
@@ -277,6 +280,15 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     return () => { cancelled = true; };
   }, [sourceChartId]);
 
+  // ── Generative empty-state landing (Phase 3B) ────────────────────────────────
+  // A starter prompt from a dashboard empty state opens /inspector?prompt=<text>.
+  // Prefill the composer so the user can send it (or tweak it first).
+  const promptParam = searchParams?.get('prompt') ?? null;
+  useEffect(() => {
+    if (!promptParam) return;
+    setComposer((c) => c || promptParam);
+  }, [promptParam]);
+
   // Check Databricks connectivity on mount
   useEffect(() => {
     fetch('/api/databricks/connections')
@@ -358,6 +370,16 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     insp.reset();
   }, [insp]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Generative empty state (Phase 3B): show starter prompts when a fresh session
+  // has nothing yet — no conversation, cards, results, or in-flight query.
+  const hasConversation = insp.messages.some((m) => m.content || (m.toolCalls && m.toolCalls.length > 0));
+  const showChatEmptyState =
+    !hasConversation &&
+    insp.semanticChartMessages.length === 0 &&
+    insp.disambiguations.length === 0 &&
+    !insp.queryProgress &&
+    insp.queryResults.length === 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--wb-canvas)', overflow: 'hidden' }}>
       <InspectorStatusBar
@@ -424,8 +446,20 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           )}
           {rightTab === 'results' || !hasCandidateModels ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {/* Semantic chart cards — appear above query results when present */}
-              {insp.semanticChartMessages.length > 0 && (
+              {showChatEmptyState ? (
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyStatePrompts
+                    modelId={candidateModelId}
+                    title="Start exploring this model"
+                    includeWhatIsThis={!!candidateModelId}
+                    footerHint="Or type your own question in the chat →"
+                    onPromptClick={(p) => insp.send(p)}
+                  />
+                </div>
+              ) : (
+              <>
+              {/* Semantic chart cards + disambiguation + in-flight progress — above query results */}
+              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.queryProgress) && (
                 <div
                   style={{
                     flexShrink: 0,
@@ -435,13 +469,24 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                     borderBottom: '1px solid var(--wb-border-subtle)',
                   }}
                 >
+                  {insp.disambiguations.map((dm) => (
+                    <DisambiguationCard
+                      key={dm.id}
+                      message={dm}
+                      modelId={candidateModelId}
+                      onChoose={(followUp) => insp.send(followUp)}
+                    />
+                  ))}
                   {insp.semanticChartMessages.map((scm) => (
                     <SemanticChartCard
                       key={scm.id}
                       message={scm}
                       echartsOption={scm.echartsOption}
+                      sourceChartId={sourceChartId}
+                      onRefine={(followUp) => insp.send(followUp)}
                     />
                   ))}
+                  {insp.queryProgress && <QueryProgressCard progress={insp.queryProgress} />}
                 </div>
               )}
               <DashboardPane
@@ -449,6 +494,8 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                 onOpenStudio={() => setStudioOpen(true)}
                 expandButtonRef={expandButtonRef}
               />
+              </>
+              )}
             </div>
           ) : (
             <SemanticGovernancePanel modelId={candidateModelId!} />

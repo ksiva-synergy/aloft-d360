@@ -28,7 +28,7 @@ export interface AuditRowParams {
   modelId: string;
   tableName: string;
   rowId: string;
-  action: 'promote' | 'demote_archive' | 'edit';
+  action: 'promote' | 'demote_archive' | 'edit' | 'submit';
   fromStatus?: string | null;
   toStatus?: string | null;
   changedBy?: string;
@@ -116,6 +116,7 @@ export async function promoteEntities(
   entityIds: string[],
   modelId: string,
   orgId: string,
+  changedBy?: string,
 ): Promise<EntityTransitionResult> {
   const succeeded: string[] = [];
   const errors: { id: string; reason: string }[] = [];
@@ -149,6 +150,7 @@ export async function promoteEntities(
       action: 'promote',
       fromStatus: entity.status,
       toStatus: 'governed',
+      changedBy,
     });
     succeeded.push(entityId);
   }
@@ -178,6 +180,7 @@ export async function promoteDefinitions(
   tableKind: 'dimension' | 'measure',
   modelId: string,
   orgId: string,
+  changedBy?: string,
 ): Promise<EntityTransitionResult> {
   const succeeded: string[] = [];
   const errors: { id: string; reason: string }[] = [];
@@ -223,6 +226,7 @@ export async function promoteDefinitions(
         action: 'promote',
         fromStatus: def.status,
         toStatus: 'governed',
+        changedBy,
       });
       succeeded.push(definitionId);
     } else {
@@ -261,6 +265,7 @@ export async function promoteDefinitions(
         action: 'promote',
         fromStatus: def.status,
         toStatus: 'governed',
+        changedBy,
       });
       succeeded.push(definitionId);
     }
@@ -285,6 +290,7 @@ export async function archiveDefinitions(
   tableKind: 'dimension' | 'measure',
   modelId: string,
   orgId: string,
+  changedBy?: string,
 ): Promise<EntityTransitionResult> {
   const succeeded: string[] = [];
   const errors: { id: string; reason: string }[] = [];
@@ -319,6 +325,7 @@ export async function archiveDefinitions(
         action: 'demote_archive',
         fromStatus: def.status,
         toStatus: 'archived',
+        changedBy,
       });
       succeeded.push(definitionId);
     } else {
@@ -346,6 +353,7 @@ export async function archiveDefinitions(
         action: 'demote_archive',
         fromStatus: def.status,
         toStatus: 'archived',
+        changedBy,
       });
       succeeded.push(definitionId);
     }
@@ -360,6 +368,7 @@ export async function archiveEntities(
   entityIds: string[],
   modelId: string,
   orgId: string,
+  changedBy?: string,
 ): Promise<EntityTransitionResult> {
   const succeeded: string[] = [];
   const errors: { id: string; reason: string }[] = [];
@@ -388,12 +397,143 @@ export async function archiveEntities(
       action: 'demote_archive',
       fromStatus: entity.status,
       toStatus: 'archived',
+      changedBy,
     });
     succeeded.push(entityId);
   }
 
   if (succeeded.length > 0) {
     await recalculateModelStatus(modelId, orgId);
+  }
+
+  return { succeeded, errors };
+}
+
+// ── submitEntities / submitDefinitions (3.5A) ───────────────────────────────
+
+/**
+ * Submit personal DRAFT entities for governance: transition draft → candidate.
+ * "Submit for governance" is the draft→candidate rung of the 3.5A ladder — it
+ * makes an owner's personal draft org-visible and puts it in the review queue.
+ * There is NO reputation gate on submission (anyone may submit their OWN
+ * draft); reputation gates only the next hop (candidate → governed).
+ *
+ * Ownership is enforced by the route (created_by === caller) before this runs.
+ * Only rows currently in 'draft' transition; already-candidate/governed rows
+ * are idempotent no-op successes; archived rows are rejected. Does NOT call
+ * recalculateModelStatus — draft→candidate never yields a governed entity.
+ */
+export async function submitEntities(
+  entityIds: string[],
+  modelId: string,
+  orgId: string,
+  changedBy?: string,
+): Promise<EntityTransitionResult> {
+  const succeeded: string[] = [];
+  const errors: { id: string; reason: string }[] = [];
+
+  for (const entityId of entityIds) {
+    const entity = await prisma.platform_sem_entities.findFirst({
+      where: { id: entityId, model_id: modelId, org_id: orgId },
+    });
+    if (!entity) {
+      errors.push({ id: entityId, reason: 'not found in this model' });
+      continue;
+    }
+    if (entity.status === 'archived') {
+      errors.push({ id: entityId, reason: 'archived entities cannot be submitted' });
+      continue;
+    }
+    if (entity.status !== 'draft') {
+      // Already candidate or governed — already at/past the submitted state.
+      succeeded.push(entityId);
+      continue;
+    }
+    await prisma.platform_sem_entities.updateMany({
+      where: { id: entityId },
+      data: { status: 'candidate', updated_at: new Date() },
+    });
+    await writeAuditRow({
+      orgId,
+      modelId,
+      tableName: 'platform_sem_entities',
+      rowId: entityId,
+      action: 'submit',
+      fromStatus: entity.status,
+      toStatus: 'candidate',
+      changedBy,
+    });
+    succeeded.push(entityId);
+  }
+
+  return { succeeded, errors };
+}
+
+/**
+ * Submit personal DRAFT dimensions/measures for governance: draft → candidate.
+ * No parent-entity guard (candidate is an org-visible review state; the parent
+ * may legitimately still be a candidate). Ownership is enforced by the route.
+ */
+export async function submitDefinitions(
+  definitionIds: string[],
+  tableKind: 'dimension' | 'measure',
+  modelId: string,
+  orgId: string,
+  changedBy?: string,
+): Promise<EntityTransitionResult> {
+  const succeeded: string[] = [];
+  const errors: { id: string; reason: string }[] = [];
+
+  const tableName = tableKind === 'dimension'
+    ? 'platform_sem_dimensions'
+    : 'platform_sem_measures';
+
+  for (const definitionId of definitionIds) {
+    const def = tableKind === 'dimension'
+      ? await prisma.platform_sem_dimensions.findFirst({
+          where: { id: definitionId, org_id: orgId },
+          include: { platform_sem_entities: { select: { model_id: true } } },
+        })
+      : await prisma.platform_sem_measures.findFirst({
+          where: { id: definitionId, org_id: orgId },
+          include: { platform_sem_entities: { select: { model_id: true } } },
+        });
+
+    if (!def || def.platform_sem_entities.model_id !== modelId) {
+      errors.push({ id: definitionId, reason: 'not found in this model' });
+      continue;
+    }
+    if (def.status === 'archived') {
+      errors.push({ id: definitionId, reason: 'archived definitions cannot be submitted' });
+      continue;
+    }
+    if (def.status !== 'draft') {
+      succeeded.push(definitionId);
+      continue;
+    }
+
+    if (tableKind === 'dimension') {
+      await prisma.platform_sem_dimensions.updateMany({
+        where: { id: definitionId },
+        data: { status: 'candidate', updated_at: new Date() },
+      });
+    } else {
+      await prisma.platform_sem_measures.updateMany({
+        where: { id: definitionId },
+        data: { status: 'candidate', updated_at: new Date() },
+      });
+    }
+    await writeAuditRow({
+      orgId,
+      modelId,
+      tableName,
+      rowId: definitionId,
+      action: 'submit',
+      fromStatus: def.status,
+      toStatus: 'candidate',
+      changedBy,
+    });
+    succeeded.push(definitionId);
   }
 
   return { succeeded, errors };

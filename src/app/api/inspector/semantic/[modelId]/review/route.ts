@@ -10,6 +10,12 @@ export const dynamic = 'force-dynamic';
  * Returns the full candidate model with all entities + their
  * dimensions, measures, and joins — used by SemanticGovernancePanel.
  *
+ * DRAFT (3.5A) definitions are personal/owner-only and are EXCLUDED here: this
+ * is a shared, org-wide governance surface and must never expose another user's
+ * pre-submission drafts. Candidate / governed / archived remain visible (the
+ * panel shows all three). An owner-scoped draft view belongs to the authoring
+ * UI (Phase 3.5B), not this route.
+ *
  * Response: { model: { id, name, status }, entities: [...] }
  */
 export async function GET(
@@ -28,7 +34,7 @@ export async function GET(
     }
 
     const entities = await prisma.platform_sem_entities.findMany({
-      where: { model_id: modelId, org_id: org.id },
+      where: { model_id: modelId, org_id: org.id, status: { not: 'draft' } },
       orderBy: { created_at: 'asc' },
     });
 
@@ -36,11 +42,11 @@ export async function GET(
 
     const [dimensions, measures, joins] = await Promise.all([
       prisma.platform_sem_dimensions.findMany({
-        where: { entity_id: { in: entityIds }, org_id: org.id },
+        where: { entity_id: { in: entityIds }, org_id: org.id, status: { not: 'draft' } },
         orderBy: { created_at: 'asc' },
       }),
       prisma.platform_sem_measures.findMany({
-        where: { entity_id: { in: entityIds }, org_id: org.id },
+        where: { entity_id: { in: entityIds }, org_id: org.id, status: { not: 'draft' } },
         orderBy: { created_at: 'asc' },
       }),
       prisma.platform_sem_joins.findMany({

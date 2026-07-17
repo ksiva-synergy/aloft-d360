@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Save, History, ArrowLeft, Share2, Eye } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
@@ -8,10 +8,16 @@ import type { WidgetDriftInfo, DriftStatus } from './builder-store';
 import { DefinitionPicker } from './DefinitionPicker';
 import type { SavedChart } from './DefinitionPicker';
 import { BuilderGrid } from './BuilderGrid';
+import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
 import { dslKindToWidgetKind, encodingsToChartConfig } from './chart-mapping';
+import {
+  recommendChartKind,
+  recommendedKindToWidgetKind,
+  type ResolvedDefinitions,
+} from '@/lib/dashboards/chart-defaults';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
 
@@ -167,6 +173,36 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     return map;
   }, [entities]);
 
+  // ── Smart chart defaults (Phase 3A) ──────────────────────────────────────────
+  // Resolved definitions (types) drive recommendChartKind. Rebuilt when the
+  // definitions load; consumed by the add-field auto-kind + config panel.
+  const resolvedDefs = useMemo<ResolvedDefinitions>(() => {
+    const dimensions: ResolvedDefinitions['dimensions'] = {};
+    const measures: ResolvedDefinitions['measures'] = {};
+    for (const entity of entities) {
+      for (const dim of entity.dimensions) {
+        dimensions[dim.id] = { id: dim.id, type: dim.dimension_type };
+      }
+      for (const meas of entity.measures) {
+        measures[meas.id] = { id: meas.id };
+      }
+    }
+    return { dimensions, measures };
+  }, [entities]);
+
+  // Widgets whose chart kind the user set by hand — auto-recommendation must not
+  // clobber a manual choice. Transient (not persisted): a fresh session starts
+  // with every widget eligible for auto-kind.
+  const manualKindRef = useRef<Set<string>>(new Set());
+
+  const markManualKind = useCallback(
+    (widgetId: string, chartKind: WidgetSpec['chartKind']) => {
+      manualKindRef.current.add(widgetId);
+      updateWidget(widgetId, { chartKind });
+    },
+    [updateWidget],
+  );
+
   // ── Picker handlers ──────────────────────────────────────────────────────────
   const showPickerHint = useCallback((msg: string) => {
     setPickerHint(msg);
@@ -190,8 +226,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       sq.entityId = sq.entityId || entityId;
       sq.dimensions = [...sq.dimensions, { dimensionId: dim.id }];
       updateWidgetSemanticQuery(widgetId, sq);
+      // Smart default: recommend a chart kind for the new field combination
+      // unless the user has already chosen a kind by hand.
+      if (!manualKindRef.current.has(widgetId)) {
+        const rec = recommendChartKind(sq, resolvedDefs);
+        updateWidget(widgetId, { chartKind: recommendedKindToWidgetKind(rec.chartKind) });
+      }
     },
-    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, updateWidget, resolvedDefs, showPickerHint],
   );
 
   const handleAddMeasure = useCallback(
@@ -211,8 +253,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       sq.entityId = sq.entityId || entityId;
       sq.measures = [...sq.measures, { measureId: meas.id }];
       updateWidgetSemanticQuery(widgetId, sq);
+      // Smart default: recommend a chart kind for the new field combination
+      // unless the user has already chosen a kind by hand.
+      if (!manualKindRef.current.has(widgetId)) {
+        const rec = recommendChartKind(sq, resolvedDefs);
+        updateWidget(widgetId, { chartKind: recommendedKindToWidgetKind(rec.chartKind) });
+      }
     },
-    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, updateWidget, resolvedDefs, showPickerHint],
   );
 
   // ── Chart assign handler (Decision 2: click-to-assign, Option B: one-time copy) ──
@@ -304,6 +352,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   };
 
   const selectedWidget = widgets.find((w) => w.widgetId === selectedWidgetId) ?? null;
+
+  // "Why this chart" recommendation for the selected widget's current shape.
+  const selectedWidgetRecommendation = useMemo(() => {
+    if (!selectedWidget) return null;
+    const sq = selectedWidget.semanticQuery;
+    if (sq.dimensions.length === 0 && sq.measures.length === 0) return null;
+    return recommendChartKind(sq, resolvedDefs);
+  }, [selectedWidget, resolvedDefs]);
 
   const isReadOnly = myRole === 'viewer' || myRole === 'org_member';
   const canShare = myRole === 'owner' || myRole === 'editor';
@@ -493,9 +549,20 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           </div>
         )}
 
-        {/* Center: Grid */}
+        {/* Center: Grid (or generative empty state when there are no widgets) */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
+          {widgets.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
+              <EmptyStatePrompts
+                modelId={modelId}
+                title="This dashboard is empty. Get started:"
+                footerHint={isReadOnly ? undefined : 'Add a blank widget above, or build one in Inspector and pin it here.'}
+                onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
+              />
+            </div>
+          ) : (
+            <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
+          )}
         </div>
 
         {/* Right: Config / History */}
@@ -514,7 +581,13 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
           </div>
           {rightPanel === 'config' && selectedWidget && (
-            <WidgetConfigPanel widget={selectedWidget} definitions={definitionsMap} readOnly={isReadOnly} />
+            <WidgetConfigPanel
+              widget={selectedWidget}
+              definitions={definitionsMap}
+              readOnly={isReadOnly}
+              recommendation={selectedWidgetRecommendation}
+              onChartKindChange={(kind) => markManualKind(selectedWidget.widgetId, kind)}
+            />
           )}
           {rightPanel === 'config' && !selectedWidget && (
             <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>

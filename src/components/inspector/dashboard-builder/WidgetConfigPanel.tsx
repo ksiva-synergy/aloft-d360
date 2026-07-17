@@ -1,10 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Trash2, Plus, ExternalLink } from 'lucide-react';
+import { Trash2, Plus, ExternalLink, Info } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import type { ChartSpec } from '@/lib/studio/types';
 import type { SemanticFilter, FilterOp } from '@/lib/semantic/types';
+import {
+  recommendedKindToWidgetKind,
+  type ChartRecommendation,
+} from '@/lib/dashboards/chart-defaults';
 import { useBuilderStore } from './builder-store';
 
 const MONO: React.CSSProperties = {
@@ -31,9 +35,17 @@ interface WidgetConfigPanelProps {
   widget: WidgetSpec;
   definitions: Map<string, { label: string; status: string }>;
   readOnly?: boolean;
+  /** Smart-defaults recommendation for the current field shape (Phase 3A). */
+  recommendation?: ChartRecommendation | null;
+  /**
+   * Called when the user picks a chart kind by hand. When provided it replaces
+   * the store update so the parent can record the manual override (and stop
+   * auto-recommending). Falls back to the store update when omitted.
+   */
+  onChartKindChange?: (kind: ChartSpec['kind']) => void;
 }
 
-export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfigPanelProps) {
+export function WidgetConfigPanel({ widget, definitions, readOnly, recommendation, onChartKindChange }: WidgetConfigPanelProps) {
   const updateWidget = useBuilderStore((s) => s.updateWidget);
   const updateWidgetSemanticQuery = useBuilderStore((s) => s.updateWidgetSemanticQuery);
   const removeWidget = useBuilderStore((s) => s.removeWidget);
@@ -45,8 +57,16 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
   };
 
   const handleChartKindChange = (chartKind: ChartSpec['kind']) => {
-    updateWidget(widget.widgetId, { chartKind });
+    if (readOnly) return;
+    if (onChartKindChange) onChartKindChange(chartKind);
+    else updateWidget(widget.widgetId, { chartKind });
   };
+
+  // Alternative widget kinds from the recommendation, mapped to the widget kind
+  // subset and de-duplicated against the current kind.
+  const alternativeKinds = Array.from(
+    new Set((recommendation?.alternatives ?? []).map(recommendedKindToWidgetKind)),
+  ).filter((k) => k !== widget.chartKind);
 
   const handleRemoveDimension = (dimId: string) => {
     const sq = { ...widget.semanticQuery };
@@ -188,6 +208,36 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
             </button>
           ))}
         </div>
+
+        {/* "Why this chart" — smart-defaults rationale + one-click alternatives */}
+        {recommendation && (
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+              <Info size={11} style={{ color: 'var(--builder-text-muted)', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ ...MONO, fontSize: 9, lineHeight: 1.4, color: 'var(--builder-text-muted)' }}>
+                {recommendation.rationale}
+              </span>
+            </div>
+            {!readOnly && alternativeKinds.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>Try:</span>
+                {alternativeKinds.map((kind) => (
+                  <button
+                    key={kind}
+                    onClick={() => handleChartKindChange(kind)}
+                    style={{
+                      ...MONO, fontSize: 9, letterSpacing: '0.04em', textTransform: 'uppercase',
+                      padding: '2px 7px', borderRadius: 3, border: '1px dashed var(--builder-border)',
+                      background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
+                    }}
+                  >
+                    {kind}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* Assigned Dimensions */}

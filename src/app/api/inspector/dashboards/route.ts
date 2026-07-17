@@ -144,26 +144,42 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const body = await request.json() as {
-      modelId: string;
+      modelId?: string;
       name: string;
       description?: string;
       visibility?: string;
     };
 
-    if (!body.modelId || !body.name) {
+    if (!body.name) {
       return NextResponse.json(
-        { error: 'modelId and name are required' },
+        { error: 'name is required' },
         { status: 400 },
       );
     }
 
-    // Confirm the model exists and belongs to this org
-    const model = await prisma.platform_semantic_models.findFirst({
-      where: { id: body.modelId, org_id: org.id },
-    });
+    // Resolve the semantic model. Callers may pass an explicit modelId; when
+    // omitted we fall back to the org's governed model — the same one the
+    // Inspector chat binds to (see buildSemanticContext). This spares the UI
+    // from having to know a cuid up front.
+    const model = body.modelId
+      ? await prisma.platform_semantic_models.findFirst({
+          where: { id: body.modelId, org_id: org.id },
+        })
+      : await prisma.platform_semantic_models.findFirst({
+          where: { org_id: org.id, status: 'governed' },
+          orderBy: { created_at: 'desc' },
+        });
     if (!model) {
-      return NextResponse.json({ error: 'Model not found' }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: body.modelId
+            ? 'Model not found'
+            : 'No governed semantic model exists for this org yet',
+        },
+        { status: 404 },
+      );
     }
+    const modelId = model.id;
 
     // Resolve creator — SEC-2: actor comes from the session, never the body.
     const userEmail = session?.user?.email ?? null;
@@ -191,7 +207,7 @@ export async function POST(request: NextRequest) {
       data: {
         id,
         org_id: org.id,
-        model_id: body.modelId,
+        model_id: modelId,
         name: body.name,
         description: body.description ?? null,
         created_by: actor,

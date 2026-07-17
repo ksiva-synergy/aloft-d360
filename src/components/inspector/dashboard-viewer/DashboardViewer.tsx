@@ -8,6 +8,8 @@ import { ArrowLeft, Pencil, AlertCircle, RefreshCw, ExternalLink } from 'lucide-
 import type { WidgetSpec, WidgetDataResult } from '@/lib/dashboards/types';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { WidgetPreview } from '@/components/inspector/dashboard-builder/WidgetPreview';
+import { TrustPanel } from '@/components/inspector/TrustPanel';
+import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -279,7 +281,14 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
       {/* ── Grid (read-only) ───────────────────────────────────────────────── */}
       <div ref={containerRef as React.RefObject<HTMLDivElement>} style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
         {widgets.length === 0 ? (
-          <CenterMessage text="THIS DASHBOARD HAS NO WIDGETS" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
+            <EmptyStatePrompts
+              modelId={meta.modelId}
+              title="This dashboard is empty. Get started:"
+              footerHint="Clicking a prompt opens Inspector to build the chart, then pin it here."
+              onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
+            />
+          </div>
         ) : (
           mounted && (
             <GridLayout
@@ -351,8 +360,8 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                       )}
                     </div>
 
-                    {/* Body */}
-                    <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+                    {/* Body — overflow auto so an expanded trust panel can scroll */}
+                    <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
                       <WidgetBody
                         widget={widget}
                         definitions={definitions}
@@ -417,8 +426,27 @@ function WidgetBody({
     );
   }
 
-  // status === 'ok'
-  return <WidgetPreview widget={widget} definitions={definitions} rows={result.rows} />;
+  // status === 'ok' — chart + collapsible trust spine footer
+  const resolvedLabels: Record<string, string> = {};
+  for (const [id, def] of definitions) resolvedLabels[id] = def.label;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flex: 1, minHeight: 120 }}>
+        <WidgetPreview widget={widget} definitions={definitions} rows={result.rows} />
+      </div>
+      <div style={{ flexShrink: 0, padding: '4px 8px 8px' }}>
+        <TrustPanel
+          sql={result.sql}
+          definitionsUsed={result.definitionsUsed}
+          rowCount={result.rows.length}
+          executedAt={result.executedAt}
+          resolvedLabels={resolvedLabels}
+          summaryLabel="Details"
+        />
+      </div>
+    </div>
+  );
 }
 
 function WidgetSkeleton() {

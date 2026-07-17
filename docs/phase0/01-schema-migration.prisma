@@ -1,0 +1,57 @@
+// ============================================================================
+// 01-schema-migration.prisma
+// Diff against prisma/schema.prisma — apply, then run:
+//   npx prisma migrate dev --name dashboard_connection_binding_and_provenance
+// ============================================================================
+//
+// DEC-1 (per-dashboard, decided): connection_id lives on platform_dashboards.
+// platform_semantic_models is UNCHANGED — do not add connection_id there.
+//
+// Two-step nullability rollout (mandatory — see 02-backfill-migration.sql):
+//   Step A (this migration): add as nullable.
+//   Step B (follow-up migration, AFTER backfill runs clean): make NOT NULL.
+// Skipping the backfill between A and B breaks execution for every existing
+// dashboard — do not collapse these into one migration.
+
+model platform_dashboards {
+  // ...existing fields unchanged...
+
+  // --- DEC-1: connection binding (nullable in this migration) ---
+  // CORRECTED: connections live in `platform_databricks_connections` (Prisma
+  // model `PlatformDatabricksConnection`). The stored value is that model's
+  // `id`. There is NO `platform_db_connections` table.
+  connection_id String?
+  //
+  // A relation is OPTIONAL and can be added later. If you add it, note:
+  //   - PlatformDatabricksConnection currently has no back-relation field, so
+  //     adding a relation here requires adding the reciprocal field on that
+  //     model too (Prisma requires both sides), which widens this migration.
+  //   - Recommendation for Phase 0: keep connection_id as a plain nullable
+  //     String (no @relation) to keep the migration minimal. Referential
+  //     integrity to platform_databricks_connections is enforced in app code
+  //     (the resolver in 07), consistent with how tool_catalog.config already
+  //     references connection ids without an FK.
+  //
+  // If you DO want the relation:
+  //   connection PlatformDatabricksConnection? @relation(fields: [connection_id], references: [id], onUpdate: NoAction)
+  //   ...and add `platform_dashboards platform_dashboards[]` on PlatformDatabricksConnection.
+
+  // no other platform_dashboards changes required for Phase 0
+}
+
+// platform_semantic_models: NO CHANGE under per-dashboard DEC-1.
+// (If you ever revisit DEC-1 toward per-model, that migration is additive
+// and independent of this one — do not need to coordinate them.)
+
+
+// ----------------------------------------------------------------------------
+// Provenance + freshness on WidgetSpec
+// ----------------------------------------------------------------------------
+// WidgetSpec is stored as JSONB inside dashboard versions (per memory doc
+// §1.2 — "A dashboard version stores a JSONB array of these") — NOT a
+// relational table. So there is no schema migration for WidgetSpec itself;
+// the change is purely in the TypeScript type (see 08-widget-spec-types.ts)
+// and requires no Prisma migration. Listed here only so the two provenance-
+// related changes (schema + type) are tracked together.
+//
+// No action needed in this file for WidgetSpec — see 08-widget-spec-types.ts.
