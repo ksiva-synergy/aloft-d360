@@ -6,9 +6,11 @@ import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-lay
 import type { Layout } from 'react-grid-layout';
 import { ArrowLeft, Pencil, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import type { WidgetSpec, WidgetDataResult } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { WidgetPreview } from '@/components/inspector/dashboard-builder/WidgetPreview';
 import { TrustPanel } from '@/components/inspector/TrustPanel';
+import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 
 const MONO: React.CSSProperties = {
@@ -324,6 +326,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                       >
                         {widget.title || 'Untitled Widget'}
                       </span>
+                      {isRawSqlWidget(widget) && <RawSqlBadge size="xs" />}
                       {result?.status === 'ok' && (
                         <span
                           title={`Last updated ${formatTime(result.executedAt)}`}
@@ -429,6 +432,7 @@ function WidgetBody({
   // status === 'ok' — chart + collapsible trust spine footer
   const resolvedLabels: Record<string, string> = {};
   for (const [id, def] of definitions) resolvedLabels[id] = def.label;
+  const raw = result.isRawSql === true;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -438,11 +442,12 @@ function WidgetBody({
       <div style={{ flexShrink: 0, padding: '4px 8px 8px' }}>
         <TrustPanel
           sql={result.sql}
-          definitionsUsed={result.definitionsUsed}
+          definitionsUsed={raw ? undefined : result.definitionsUsed}
           rowCount={result.rows.length}
           executedAt={result.executedAt}
           resolvedLabels={resolvedLabels}
           summaryLabel="Details"
+          rawSql={raw}
         />
       </div>
     </div>

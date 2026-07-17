@@ -13,7 +13,8 @@
  * tests exist to prevent.
  */
 
-import type { WidgetSpec } from '@/lib/dashboards/types';
+import type { WidgetSpec, RawSqlWidgetSpec, SemanticWidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { ChartSpec } from '@/lib/studio/types';
 import { toAlias } from '@/lib/semantic/compiler';
 
@@ -46,6 +47,15 @@ export function widgetToChartSpec(
   definitions: DefinitionMap,
   rows?: Record<string, unknown>[],
 ): ChartSpec | null {
+  // Phase 3.5C — raw-SQL widgets diverge from the semantic path: their rows are
+  // keyed by the SQL's ACTUAL result column names, and chartConfig.x/.y already
+  // reference those real names. Bind row[column] DIRECTLY — no toAlias, no
+  // definitions lookup. This is the inverse of the §4.5 semantic gotcha: here
+  // aliasing would break the chart.
+  if (isRawSqlWidget(widget)) {
+    return rawSqlWidgetToChartSpec(widget, rows);
+  }
+
   const { chartKind, chartConfig, semanticQuery, title } = widget;
 
   const xLabel = chartConfig.x ?? resolveFirstDimLabel(semanticQuery, definitions);
@@ -101,8 +111,62 @@ export function widgetToChartSpec(
   };
 }
 
+/**
+ * Raw-SQL widget → ChartSpec. Binds chartConfig.x / .y directly to the SQL
+ * result column names (they ARE the aliases). No semantic definitions, no
+ * toAlias translation. Returns null when there isn't enough config to render.
+ */
+export function rawSqlWidgetToChartSpec(
+  widget: RawSqlWidgetSpec,
+  rows?: Record<string, unknown>[],
+): ChartSpec | null {
+  const { chartKind, chartConfig, title } = widget;
+  const xCol = chartConfig.x ?? null;
+  const yCols = chartConfig.y ?? [];
+
+  if (chartKind === 'kpi') {
+    const alias = yCols[0] ?? null;
+    const value = rows && rows.length > 0 && alias ? rows[0][alias] : undefined;
+    const label = yCols[0] ?? title ?? 'Value';
+    return {
+      id: widget.widgetId,
+      kind: 'kpi',
+      title: label,
+      rationale: title,
+      echartsOption: buildKpiOption(label, value),
+      rank: 0,
+      alternatives: [],
+    };
+  }
+
+  if (!xCol || yCols.length === 0) return null;
+
+  // dimAliases / series aliases ARE the real column names for raw SQL.
+  const dimAliases = [xCol];
+  const series: SeriesResolution[] = yCols.map((c) => ({ name: c, alias: c }));
+  const echartsOption = buildPreviewOption(chartKind, xCol, yCols, {
+    dimAliases,
+    series,
+    rows,
+  });
+
+  return {
+    id: widget.widgetId,
+    kind: chartKind,
+    title,
+    rationale: `${chartKind} · ${xCol} × ${yCols.join(', ')}`,
+    x: xCol,
+    y: yCols,
+    series: chartConfig.series ?? undefined,
+    value: chartConfig.value ?? undefined,
+    echartsOption,
+    rank: 0,
+    alternatives: [],
+  };
+}
+
 export function resolveFirstDimLabel(
-  sq: WidgetSpec['semanticQuery'],
+  sq: SemanticWidgetSpec['semanticQuery'],
   defs: DefinitionMap,
 ): string | null {
   if (sq.dimensions.length === 0) return null;
@@ -111,7 +175,7 @@ export function resolveFirstDimLabel(
 }
 
 export function resolveAllMeasureLabels(
-  sq: WidgetSpec['semanticQuery'],
+  sq: SemanticWidgetSpec['semanticQuery'],
   defs: DefinitionMap,
 ): string[] {
   return sq.measures.map((m) => {

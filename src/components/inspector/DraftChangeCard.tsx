@@ -5,7 +5,8 @@ import { GitCompare, Check, X, AlertCircle } from 'lucide-react';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { WidgetSpec } from '@/lib/dashboards/types';
-import { buildWidgetSpecFromChart, dslKindToWidgetKind, encodingsToChartConfig } from './dashboard-builder/chart-mapping';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
+import { buildWidgetSpecFromChart } from './dashboard-builder/chart-mapping';
 import {
   computeWidgetDiff,
   summarizeWidgetDiff,
@@ -154,13 +155,13 @@ export function DraftChangeCard({
     setPhase('applying');
     setError(null);
 
+    // afterWidget is a semantic widget (buildWidgetSpecFromChart) carrying the
+    // original widgetId/position/source_chart_id; preserve the original's
+    // freshness on top. (This apply flow is semantic-only — raw-SQL widgets are
+    // never refined through a source-chart draft.)
     const replaced: WidgetSpec = {
-      ...target.widget,
-      title: afterWidget.title,
-      chartKind: dslKindToWidgetKind(proposedChartDsl.kind),
-      semanticQuery: proposedSemanticQuery,
-      chartConfig: encodingsToChartConfig(proposedChartDsl),
-      // widgetId, position, source_chart_id, freshness preserved from the original.
+      ...afterWidget,
+      ...(target.widget.freshness ? { freshness: target.widget.freshness } : {}),
     };
 
     const attempt = async (): Promise<Response> => {
@@ -313,8 +314,9 @@ function WidgetFacet({
   resolveLabel: WidgetDiffLabelResolver;
   tone: 'muted' | 'gold';
 }) {
-  const dims = widget.semanticQuery.dimensions.map((d) => resolveLabel(d.dimensionId, 'dimension'));
-  const measures = widget.semanticQuery.measures.map((m) => resolveLabel(m.measureId, 'measure'));
+  const sq = isRawSqlWidget(widget) ? null : widget.semanticQuery;
+  const dims = (sq?.dimensions ?? []).map((d) => resolveLabel(d.dimensionId, 'dimension'));
+  const measures = (sq?.measures ?? []).map((m) => resolveLabel(m.measureId, 'measure'));
   const accent = tone === 'gold' ? GOLD : MUTED;
   return (
     <div

@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { createId } from '@paralleldrive/cuid2';
 import type { WidgetSpec, MeasureSnapshot } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { SemanticQuery } from '@/lib/semantic/types';
 
 export type DriftStatus = 'ok' | 'changed' | 'unavailable';
@@ -182,8 +183,9 @@ export const useBuilderStore = create<BuilderState>()(
     updateWidgetSemanticQuery: (widgetId, query) =>
       set((s) => {
         const idx = s.widgets.findIndex((w) => w.widgetId === widgetId);
-        if (idx >= 0) {
-          s.widgets[idx].semanticQuery = query;
+        // Raw-SQL widgets have no semanticQuery — this is a semantic-only action.
+        if (idx >= 0 && !isRawSqlWidget(s.widgets[idx])) {
+          (s.widgets[idx] as { semanticQuery: SemanticQuery }).semanticQuery = query;
           s.dirty = true;
         }
       }),

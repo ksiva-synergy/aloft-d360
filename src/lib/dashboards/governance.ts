@@ -12,6 +12,7 @@
 
 import prisma from '@/lib/db';
 import type { WidgetSpec, MeasureSnapshot } from './types';
+import { isRawSqlWidget } from './types';
 
 // ── validateWidgetReferences ──────────────────────────────────────────────────
 
@@ -41,6 +42,9 @@ export async function validateWidgetReferences(
   const allMeasureIds = new Set<string>();
 
   for (const w of widgets) {
+    // Raw-SQL widgets (Phase 3.5C) carry no model references — nothing to
+    // cross-model-validate. Skip them entirely.
+    if (isRawSqlWidget(w)) continue;
     for (const d of w.semanticQuery.dimensions) allDimIds.add(d.dimensionId);
     for (const m of w.semanticQuery.measures)   allMeasureIds.add(m.measureId);
   }

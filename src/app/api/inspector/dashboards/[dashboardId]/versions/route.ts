@@ -5,7 +5,9 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVersionLayout } from '@/lib/dashboards/types';
+import { enforceReadOnly } from '@/lib/databricks/execute';
 import {
   getUserByEmail,
   getDashboardRole,
@@ -86,6 +88,35 @@ export async function POST(
       );
     }
 
+    // ── Phase 3.5C: read-only guard for raw-SQL widgets (pin/save chokepoint) ──
+    // This route is where a raw-SQL chart becomes a durable dashboard widget
+    // (via the pin flow) AND where the builder saves. enforceReadOnly runs here
+    // as the belt-and-suspenders check the escape hatch demands — a mutating or
+    // malformed statement can never enter a dashboard version.
+    for (const w of body.widgets) {
+      if (isRawSqlWidget(w)) {
+        try {
+          enforceReadOnly(w.rawSql);
+        } catch (e) {
+          return NextResponse.json(
+            {
+              error: 'Raw-SQL widget rejected',
+              details: [
+                `Widget "${w.title || w.widgetId}": ${e instanceof Error ? e.message : 'not a read-only statement'}`,
+              ],
+            },
+            { status: 400 },
+          );
+        }
+        if (!w.connectionId) {
+          return NextResponse.json(
+            { error: 'Raw-SQL widget rejected', details: [`Widget "${w.title || w.widgetId}" has no connection`] },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     // ── 2. Cross-model widget reference validation ────────────────────────────
     const refCheck = await validateWidgetReferences(
       body.widgets,
@@ -100,22 +131,30 @@ export async function POST(
     }
 
     // ── 3. Compute measure snapshots ──────────────────────────────────────────
-    // Collect all unique measure IDs across all widgets
+    // Collect all unique measure IDs across all SEMANTIC widgets. Raw-SQL
+    // widgets have no measures and no snapshots — they are passed through
+    // untouched (measure_snapshots has no meaning for them).
     const allMeasureIds = Array.from(
       new Set(
-        body.widgets.flatMap((w) => w.semanticQuery.measures.map((m) => m.measureId)),
+        body.widgets.flatMap((w) =>
+          isRawSqlWidget(w) ? [] : w.semanticQuery.measures.map((m) => m.measureId),
+        ),
       ),
     );
     const snapshots = await computeMeasureSnapshots(allMeasureIds, org.id);
     const snapshotMap = new Map(snapshots.map((s) => [s.measureId, s]));
 
-    // Embed snapshots into each widget
-    const widgetsWithSnapshots: WidgetSpec[] = body.widgets.map((w) => ({
-      ...w,
-      measureSnapshots: w.semanticQuery.measures
-        .map((m) => snapshotMap.get(m.measureId))
-        .filter((s): s is NonNullable<typeof s> => s !== undefined),
-    }));
+    // Embed snapshots into each semantic widget; leave raw-SQL widgets as-is.
+    const widgetsWithSnapshots: WidgetSpec[] = body.widgets.map((w) =>
+      isRawSqlWidget(w)
+        ? w
+        : {
+            ...w,
+            measureSnapshots: w.semanticQuery.measures
+              .map((m) => snapshotMap.get(m.measureId))
+              .filter((s): s is NonNullable<typeof s> => s !== undefined),
+          },
+    );
 
     // ── 4. Compute version_number = max + 1 ───────────────────────────────────
     const maxVersion = await prisma.platform_dashboard_versions.aggregate({

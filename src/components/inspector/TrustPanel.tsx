@@ -30,6 +30,13 @@ export interface TrustPanelProps {
   summaryLabel?: string;
   /** Extra styles merged onto the outer container. */
   style?: React.CSSProperties;
+  /**
+   * Phase 3.5C — when true, this is a raw-SQL escape-hatch chart. Instead of
+   * "Semantic definitions used", the panel states it is NOT governed and NOT
+   * drift-checked, then shows the raw SQL itself (there is no compiled semantic
+   * query — `sql` IS the stored SQL).
+   */
+  rawSql?: boolean;
 }
 
 /**
@@ -51,6 +58,7 @@ export function TrustPanel({
   defaultOpen = false,
   summaryLabel = 'How this was computed',
   style,
+  rawSql = false,
 }: TrustPanelProps) {
   const [copied, setCopied] = useState(false);
 
@@ -105,8 +113,15 @@ export function TrustPanel({
       </summary>
 
       <div style={{ padding: '2px 8px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Raw-SQL governance notice (Phase 3.5C) — replaces the definitions block */}
+        {rawSql && (
+          <div style={{ fontSize: 10, color: GOLD, lineHeight: 1.5 }}>
+            Raw SQL — not governed, not drift-checked.
+          </div>
+        )}
+
         {/* Semantic definitions used */}
-        {(dims.length > 0 || measures.length > 0) && (
+        {!rawSql && (dims.length > 0 || measures.length > 0) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <TrustLabel text="Semantic definitions used" />
             {dims.length > 0 && (

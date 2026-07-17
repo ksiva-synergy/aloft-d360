@@ -51,20 +51,24 @@ export interface MeasureSnapshot {
 }
 
 // ── WidgetSpec ────────────────────────────────────────────────────────────────
-export interface WidgetSpec {
+//
+// Phase 3.5C: WidgetSpec is a DISCRIMINATED UNION on `chartSource`.
+//   - 'semantic' (or ABSENT — backward-compat for every widget stored before
+//     3.5C) → governed, drift-checked, references dims/measures by ID.
+//   - 'raw_sql' → the escape hatch: a frozen raw SQL string + its own warehouse
+//     connection. Never governed, never drift-checked, always badged.
+//
+// Every reader of `.semanticQuery` / `.measureSnapshots` MUST first narrow via
+// `isSemanticWidget` / `isRawSqlWidget` (or check `chartSource === 'raw_sql'`),
+// because those fields exist ONLY on the semantic variant. Treat an ABSENT
+// chartSource as 'semantic'.
+
+/** Fields shared by both widget variants. */
+export interface WidgetSpecBase {
   /** Stable identity for this widget across versions. cuid2 assigned at creation. */
   widgetId: string;
   title: string;
   chartKind: ChartSpec['kind']; // 'kpi' | 'bar' | 'line' | 'donut' | 'scatter' | 'heatmap' | 'histogram'
-  /** Structured query — references dims/measures BY ID. Labels stay live. */
-  semanticQuery: SemanticQuery;
-  /**
-   * Computation snapshot — frozen at save time.
-   * One entry per measure referenced in semanticQuery.measures.
-   * At render time: if current measure.aggregate/expression/metric_type differ
-   * from snapshot, surface a "Definition changed since last save" badge.
-   */
-  measureSnapshots: MeasureSnapshot[];
   chartConfig: {
     x?: string;
     y?: string[];
@@ -104,6 +108,50 @@ export interface WidgetSpec {
   };
 }
 
+/** Governed, drift-checked widget backed by the semantic layer (the default). */
+export interface SemanticWidgetSpec extends WidgetSpecBase {
+  /** Absent on every pre-3.5C stored widget — treat absent as 'semantic'. */
+  chartSource?: 'semantic';
+  /** Structured query — references dims/measures BY ID. Labels stay live. */
+  semanticQuery: SemanticQuery;
+  /**
+   * Computation snapshot — frozen at save time.
+   * One entry per measure referenced in semanticQuery.measures.
+   * At render time: if current measure.aggregate/expression/metric_type differ
+   * from snapshot, surface a "Definition changed since last save" badge.
+   */
+  measureSnapshots: MeasureSnapshot[];
+}
+
+/**
+ * Raw-SQL escape-hatch widget (Phase 3.5C). Explicitly outside semantic
+ * governance: no semanticQuery, no measureSnapshots, never drift-checked. Binds
+ * its own warehouse connection (a semantic widget resolves via the dashboard)
+ * and its chartConfig references the SQL's actual result column names directly
+ * — NOT toAlias(label). See widget-option.ts for the mapper divergence.
+ */
+export interface RawSqlWidgetSpec extends WidgetSpecBase {
+  chartSource: 'raw_sql';
+  /** The frozen SQL string. enforceReadOnly-guarded at save, pin, and render. */
+  rawSql: string;
+  /** Frozen result columns the chartConfig binds to. */
+  resultSchema: { name: string; type: string }[];
+  /** Databricks connection this raw SQL runs against. */
+  connectionId: string;
+}
+
+export type WidgetSpec = SemanticWidgetSpec | RawSqlWidgetSpec;
+
+/** True for a raw-SQL widget. Absent chartSource → false (backward-compat). */
+export function isRawSqlWidget(w: WidgetSpec): w is RawSqlWidgetSpec {
+  return w.chartSource === 'raw_sql';
+}
+
+/** True for a semantic widget. Absent chartSource → true (backward-compat). */
+export function isSemanticWidget(w: WidgetSpec): w is SemanticWidgetSpec {
+  return w.chartSource !== 'raw_sql';
+}
+
 // ── Widget data (Phase 1 live render path) ─────────────────────────────────────
 // Per-widget result returned by GET /api/inspector/dashboards/[dashboardId]/data.
 // The batch route executes every widget independently and returns a status-tagged
@@ -129,6 +177,13 @@ export type WidgetDataResult =
        * Drives the viewer's "Cached · Last updated" indicator (Phase 2).
        */
       cached?: boolean;
+      /**
+       * Phase 3.5C — true when this widget is a raw-SQL escape-hatch chart. The
+       * client uses it to render the "Unverified · Raw SQL" badge and to show the
+       * stored SQL (not a compiled semantic query) in the TrustPanel. For raw-SQL
+       * widgets `definitionsUsed` is empty (they reference no governed defs).
+       */
+      isRawSql?: boolean;
     }
   | {
       /** The dashboard's model is a candidate/archived — a UX state, not a 500. */

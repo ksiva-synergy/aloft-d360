@@ -19,6 +19,7 @@ import {
   type ResolvedDefinitions,
 } from '@/lib/dashboards/chart-defaults';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
 
 const MONO: React.CSSProperties = {
@@ -218,6 +219,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
       const widget = widgets.find((w) => w.widgetId === widgetId);
       if (!widget) return;
+      if (isRawSqlWidget(widget)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       if (widget.semanticQuery.dimensions.some((d) => d.dimensionId === dim.id)) {
         showPickerHint('Already assigned');
         return;
@@ -245,6 +250,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
       const widget = widgets.find((w) => w.widgetId === widgetId);
       if (!widget) return;
+      if (isRawSqlWidget(widget)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       if (widget.semanticQuery.measures.some((m) => m.measureId === meas.id)) {
         showPickerHint('Already assigned');
         return;
@@ -271,8 +280,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         showPickerHint('Select a widget first');
         return;
       }
+      const target = widgets.find((w) => w.widgetId === widgetId);
+      if (target && isRawSqlWidget(target)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       const chartConfig = encodingsToChartConfig(chart.chart_dsl);
       updateWidget(widgetId, {
+        chartSource: 'semantic',
         title: chart.name,
         chartKind: dslKindToWidgetKind(chart.chart_dsl.kind),
         semanticQuery: chart.semantic_query,
@@ -284,7 +299,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         source_chart_id: chart.id,
       });
     },
-    [selectedWidgetId, updateWidget, showPickerHint],
+    [selectedWidgetId, widgets, updateWidget, showPickerHint],
   );
 
   // ── Save handler ──────────────────────────────────────────────────────────────
@@ -355,7 +370,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
   // "Why this chart" recommendation for the selected widget's current shape.
   const selectedWidgetRecommendation = useMemo(() => {
-    if (!selectedWidget) return null;
+    if (!selectedWidget || isRawSqlWidget(selectedWidget)) return null;
     const sq = selectedWidget.semanticQuery;
     if (sq.dimensions.length === 0 && sq.measures.length === 0) return null;
     return recommendChartKind(sq, resolvedDefs);
@@ -642,6 +657,18 @@ function computeDriftMap(
   const result: Record<string, WidgetDriftInfo> = {};
 
   for (const widget of widgets) {
+    // Raw-SQL widgets (Phase 3.5C) are never drift-checked — they have no
+    // governed definitions and carry the "Unverified · Raw SQL" badge instead.
+    if (isRawSqlWidget(widget)) {
+      result[widget.widgetId] = {
+        widgetId: widget.widgetId,
+        status: 'ok',
+        changedMeasures: [],
+        unavailableIds: [],
+      };
+      continue;
+    }
+
     const unavailableIds: string[] = [];
     const changedMeasures: string[] = [];
 

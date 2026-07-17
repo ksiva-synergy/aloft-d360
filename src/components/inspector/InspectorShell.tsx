@@ -509,6 +509,8 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                 queryResults={insp.queryResults}
                 onOpenStudio={() => setStudioOpen(true)}
                 expandButtonRef={expandButtonRef}
+                latestQuestion={latestUserQuestion}
+                graduateModelId={candidateModelId}
               />
               </>
               )}

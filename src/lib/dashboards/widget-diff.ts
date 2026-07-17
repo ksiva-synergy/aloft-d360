@@ -20,6 +20,24 @@
  */
 
 import type { WidgetSpec } from './types';
+import { isRawSqlWidget } from './types';
+
+/** Empty semantic-query shape for diffing against a raw-SQL widget (no refs). */
+const EMPTY_SQ = { dimensions: [], measures: [], filters: [] } as const;
+
+/** Semantic parts of a widget for diffing — empty for raw-SQL widgets. */
+function semanticParts(w: WidgetSpec): {
+  dimensions: { dimensionId: string }[];
+  measures: { measureId: string }[];
+  filters: unknown[];
+} {
+  if (isRawSqlWidget(w)) return { ...EMPTY_SQ, dimensions: [], measures: [], filters: [] };
+  return {
+    dimensions: w.semanticQuery.dimensions,
+    measures: w.semanticQuery.measures,
+    filters: w.semanticQuery.filters,
+  };
+}
 
 export interface WidgetDiff {
   /** chartKind changed, e.g. { from: 'bar', to: 'line' }. */
@@ -68,9 +86,12 @@ export function computeWidgetDiff(
     diff.chartKindChanged = { from: before.chartKind, to: after.chartKind };
   }
 
+  const beforeSem = semanticParts(before);
+  const afterSem = semanticParts(after);
+
   // ── Dimensions (compared by dimensionId; labels surfaced) ───────────────
-  const beforeDims = new Set(before.semanticQuery.dimensions.map((d) => d.dimensionId));
-  const afterDims = new Set(after.semanticQuery.dimensions.map((d) => d.dimensionId));
+  const beforeDims = new Set(beforeSem.dimensions.map((d) => d.dimensionId));
+  const afterDims = new Set(afterSem.dimensions.map((d) => d.dimensionId));
 
   const dimsAdded = [...afterDims]
     .filter((id) => !beforeDims.has(id))
@@ -82,8 +103,8 @@ export function computeWidgetDiff(
   if (dimsRemoved.length > 0) diff.dimensionsRemoved = dimsRemoved;
 
   // ── Measures (compared by measureId; labels surfaced) ───────────────────
-  const beforeMeasures = new Set(before.semanticQuery.measures.map((m) => m.measureId));
-  const afterMeasures = new Set(after.semanticQuery.measures.map((m) => m.measureId));
+  const beforeMeasures = new Set(beforeSem.measures.map((m) => m.measureId));
+  const afterMeasures = new Set(afterSem.measures.map((m) => m.measureId));
 
   const measuresAdded = [...afterMeasures]
     .filter((id) => !beforeMeasures.has(id))
@@ -95,7 +116,7 @@ export function computeWidgetDiff(
   if (measuresRemoved.length > 0) diff.measuresRemoved = measuresRemoved;
 
   // ── Filters (structural compare — added / removed / edited) ─────────────
-  if (!stableEquals(before.semanticQuery.filters, after.semanticQuery.filters)) {
+  if (!stableEquals(beforeSem.filters, afterSem.filters)) {
     diff.filtersChanged = true;
   }
 

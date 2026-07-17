@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import StudioChart from '@/components/studio/StudioChart';
 import { widgetToChartSpec, type DefinitionMap } from './widget-option';
 
@@ -30,10 +31,12 @@ interface WidgetPreviewProps {
  * If the widget has no semantic query configured yet, shows a placeholder.
  */
 export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps) {
-  const hasDims = widget.semanticQuery.dimensions.length > 0;
-  const hasMeasures = widget.semanticQuery.measures.length > 0;
+  // Raw-SQL widgets (Phase 3.5C) have no semanticQuery — they render straight
+  // from their frozen chartConfig + result columns via widgetToChartSpec.
+  const hasDims = isRawSqlWidget(widget) ? false : widget.semanticQuery.dimensions.length > 0;
+  const hasMeasures = isRawSqlWidget(widget) ? false : widget.semanticQuery.measures.length > 0;
 
-  if (!hasDims && !hasMeasures) {
+  if (!isRawSqlWidget(widget) && !hasDims && !hasMeasures) {
     return (
       <div
         style={{

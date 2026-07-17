@@ -5,9 +5,11 @@ import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-lay
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { X, AlertTriangle, AlertCircle } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DriftStatus } from './builder-store';
 import { useBuilderStore } from './builder-store';
 import { WidgetPreview } from './WidgetPreview';
+import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -142,7 +144,7 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
                   >
                     {widget.title || 'Untitled Widget'}
                   </span>
-                  <DriftBadge drift={drift} />
+                  {isRawSqlWidget(widget) ? <RawSqlBadge size="xs" /> : <DriftBadge drift={drift} />}
                   <button
                     onClick={(e) => { e.stopPropagation(); removeWidget(widget.widgetId); }}
                     title="Remove widget"

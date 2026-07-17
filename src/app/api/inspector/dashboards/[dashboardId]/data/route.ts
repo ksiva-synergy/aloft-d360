@@ -9,7 +9,9 @@ import {
 } from '@/lib/dashboards/permissions';
 import { loadDashboardForExecution } from '@/lib/dashboards/connection';
 import { executeSemanticQuery } from '@/lib/semantic/execute';
+import { executeRawSql } from '@/lib/dashboards/execute-raw-sql';
 import { SemanticModelNotGovernedError } from '@/lib/semantic/errors';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import {
   widgetCacheKey,
   getFreshCached,
@@ -99,6 +101,27 @@ export async function GET(
     const entries = await Promise.all(
       widgets.map(async (widget): Promise<[string, WidgetDataResult]> => {
         try {
+          // ── Phase 3.5C: raw-SQL escape-hatch branch ──────────────────────────
+          // MUST come before any semantic-model resolution — a raw-SQL widget
+          // has no model and would wrongly throw SemanticModelNotGovernedError
+          // if it fell into the semantic path. It executes its own frozen SQL
+          // against its own connection via the guarded executeRawSql helper
+          // (enforceReadOnly runs there again as defense in depth).
+          if (isRawSqlWidget(widget)) {
+            const { rows } = await executeRawSql(widget.rawSql, widget.connectionId);
+            return [
+              widget.widgetId,
+              {
+                status: 'ok',
+                rows,
+                sql: widget.rawSql,
+                definitionsUsed: { dimensions: [], measures: [] },
+                executedAt: new Date().toISOString(),
+                isRawSql: true,
+              },
+            ];
+          }
+
           // Clone the stored query and PIN the model. validateWidgetReferences
           // guards entity ownership at save time but does NOT assert
           // semanticQuery.modelId === dashboard.model_id, so a stale/mismatched

@@ -2555,16 +2555,31 @@ model platform_dashboard_collaborators {
 model platform_charts {
   id                String    @id
   org_id            String
-  model_id          String
+  // Nullable as of Phase 3.5C: raw-SQL charts have no semantic model.
+  model_id          String?
   name              String
   description       String?
   created_by        String    @default("system")
   chart_dsl         Json
-  semantic_query    Json
+  // Nullable as of Phase 3.5C: null for raw-SQL charts (chart_source='raw_sql').
+  semantic_query    Json?
   measure_snapshots Json      @default("[]")
   created_at        DateTime  @default(now()) @db.Timestamptz(6)
   updated_at        DateTime  @default(now()) @db.Timestamptz(6)
   deleted_at        DateTime? @db.Timestamptz(6)
+
+  // ── Phase 3.5C: raw-SQL escape-hatch charts ────────────────────────────────
+  // Discriminates a governed semantic chart from an ungoverned raw-SQL chart.
+  // Defaults to 'semantic' so existing rows need no backfill.
+  chart_source      String    @default("semantic") // 'semantic' | 'raw_sql'
+  // The frozen SQL string (raw_sql charts only). enforceReadOnly-guarded at save.
+  raw_sql           String?
+  // Frozen result columns [{ name, type }] the chart_dsl binds to (raw_sql only).
+  result_schema     Json?
+  // The natural-language question this chart answers (prefilled from the prompt).
+  nl_intent         String?
+  // Which warehouse this raw SQL runs against (raw_sql charts carry their own).
+  connection_id     String?
 }
 
 // ── Maxwell watchdog models (MX0) ─────────────────────────────────────────────

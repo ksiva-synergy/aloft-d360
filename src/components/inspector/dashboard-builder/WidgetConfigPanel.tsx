@@ -3,6 +3,8 @@
 import React from 'react';
 import { Trash2, Plus, ExternalLink, Info } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
+import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import type { ChartSpec } from '@/lib/studio/types';
 import type { SemanticFilter, FilterOp } from '@/lib/semantic/types';
 import {
@@ -55,6 +57,74 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
   const handleTitleChange = (title: string) => {
     updateWidget(widget.widgetId, { title });
   };
+
+  // ── Phase 3.5C: raw-SQL widgets aren't semantically editable ────────────────
+  // They have no dimensions/measures/filters to configure — show a compact,
+  // read-only info panel (title + badge + frozen SQL) and the remove action.
+  if (isRawSqlWidget(widget)) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12, overflowY: 'auto', height: '100%', position: 'relative' }}>
+        {readOnly && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 10, cursor: 'default' }} title="View only — you cannot edit this dashboard" />
+        )}
+        <Section label="TITLE">
+          <input
+            type="text"
+            value={widget.title}
+            onChange={(e) => !readOnly && handleTitleChange(e.target.value)}
+            readOnly={readOnly}
+            style={{
+              ...MONO, fontSize: 11, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
+              borderRadius: 4, padding: '6px 8px', color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
+              width: '100%', outline: 'none', cursor: readOnly ? 'default' : undefined,
+            }}
+            placeholder="Widget title"
+          />
+        </Section>
+        <Section label="GOVERNANCE">
+          <RawSqlBadge />
+          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
+            This widget runs frozen raw SQL — it is not governed and not drift-checked.
+            Graduate it to a metric in the Inspector to bring it under governance.
+          </span>
+        </Section>
+        <Section label="SQL">
+          <pre
+            style={{
+              ...MONO, fontSize: 9, color: 'var(--builder-text)', background: 'var(--builder-surface)',
+              border: '1px solid var(--builder-border)', borderRadius: 4, padding: '8px', margin: 0,
+              overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220,
+            }}
+          >
+            {widget.rawSql}
+          </pre>
+        </Section>
+        {widget.chartConfig.x && (
+          <Section label="AXES">
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>
+              X: {widget.chartConfig.x} · Y: {(widget.chartConfig.y ?? []).join(', ') || '—'}
+            </span>
+          </Section>
+        )}
+        {!readOnly && (
+          <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+            <button
+              onClick={() => removeWidget(widget.widgetId)}
+              style={{
+                ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
+                border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
+                color: '#F87171', cursor: 'pointer', width: '100%', justifyContent: 'center',
+              }}
+            >
+              <Trash2 size={12} />
+              REMOVE WIDGET
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const handleChartKindChange = (chartKind: ChartSpec['kind']) => {
     if (readOnly) return;
@@ -587,6 +657,7 @@ function buildFilterFieldList(
   widget: WidgetSpec,
   definitions: Map<string, { label: string; status: string }>,
 ): { id: string; label: string; kind: 'dimension' | 'measure' }[] {
+  if (isRawSqlWidget(widget)) return [];
   const fields: { id: string; label: string; kind: 'dimension' | 'measure' }[] = [];
   for (const d of widget.semanticQuery.dimensions) {
     const def = definitions.get(d.dimensionId);
