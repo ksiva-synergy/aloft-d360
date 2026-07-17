@@ -146,14 +146,34 @@ const DEFAULT_GUARDRAIL: MemoryBullet = {
 // ── Phase-specific retrieval ──────────────────────────────────────────────────
 
 /**
+ * Sentinel for "no caller resolved" — never equals a real created_by, so
+ * retrieval falls back to org-visible rows only. Personal rules are fail-closed:
+ * absent a known caller, no personal-scoped rule is ever surfaced.
+ */
+const NO_USER_SENTINEL = '__no_user__';
+
+/**
+ * SQL visibility clause (Phase 3.5D). A bullet is visible if it is org-wide
+ * (the pre-3.5D default) OR it is the caller's own personal rule. Personal
+ * rules always carry visibility='personal' + created_by=<owner>, so this never
+ * leaks one user's rule into another user's context.
+ *
+ * `paramIndex` is the positional placeholder ($N) that carries callerUserId.
+ */
+function visibilityClause(paramIndex: number): string {
+  return `AND (visibility = 'org' OR created_by = $${paramIndex})`;
+}
+
+/**
  * Phase 0 — Fatal HARD_RULEs + default guardrail.
  *
  * Always returns at least the default instructional guardrail. Additional
  * DB-stored rules are included when they meet the confidence/harmful gate.
  */
 async function selectPhase0(
-  orgId:      string,
-  agentClass: string,
+  orgId:        string,
+  agentClass:   string,
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget   = getPhaseBudget(MemoryPhase.INIT);
   const cap      = PHASE_TIER1_CAP[MemoryPhase.INIT];
@@ -174,9 +194,10 @@ async function selectPhase0(
         AND rule_type   = 'HARD_RULE'
         AND confidence  >= $3
         AND harmful_count >= $4
+        ${visibilityClause(6)}
       ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
       LIMIT $5
-    `, orgId, agentClass, PHASE0_CONFIDENCE_FLOOR, PHASE0_MIN_HARMFUL, cap);
+    `, orgId, agentClass, PHASE0_CONFIDENCE_FLOOR, PHASE0_MIN_HARMFUL, cap, callerUserId);
 
     for (const row of rows) {
       const tokens = estimateTokens(row.rule_text);
@@ -208,9 +229,10 @@ async function selectPhase0(
  * No cosine search — deterministic, sorted by confidence × net-helpful score.
  */
 async function selectPhase1a(
-  orgId:      string,
-  agentClass: string,
-  topicKey:   string | null,
+  orgId:        string,
+  agentClass:   string,
+  topicKey:     string | null,
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget = getPhaseBudget(MemoryPhase.SCHEMA_GLOBAL);
   const cap    = PHASE_TIER1_CAP[MemoryPhase.SCHEMA_GLOBAL];
@@ -238,9 +260,10 @@ async function selectPhase1a(
               WHERE org_id = $1 AND topic_key = $3
             )
           )
+          ${visibilityClause(5)}
         ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
         LIMIT $4
-      `, orgId, agentClass, topicKey, cap);
+      `, orgId, agentClass, topicKey, cap, callerUserId);
     } else {
       // No topic context — fetch top global SCHEMA_MAPs.
       rows = await prisma.$queryRawUnsafe<HardRuleRow[]>(`
@@ -253,9 +276,10 @@ async function selectPhase1a(
           AND agent_class = $2
           AND status      = 'ACTIVE'
           AND rule_type   = 'SCHEMA_MAP'
+          ${visibilityClause(4)}
         ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
         LIMIT $3
-      `, orgId, agentClass, cap);
+      `, orgId, agentClass, cap, callerUserId);
     }
 
     const result: MemoryBullet[] = [];
@@ -298,10 +322,11 @@ async function selectPhase1a(
  * Flag OFF or org not in canary = exact legacy behavior (hard pre-filter in SQL).
  */
 async function selectPhase1b(
-  orgId:       string,
-  agentClass:  string,
-  taskContext: string,
-  excludeIds:  string[],
+  orgId:        string,
+  agentClass:   string,
+  taskContext:  string,
+  excludeIds:   string[],
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget    = getPhaseBudget(MemoryPhase.TASK_SCOPED);
   const ruleTypes = PHASE_RULE_TYPES[MemoryPhase.TASK_SCOPED];
@@ -345,10 +370,11 @@ async function selectPhase1b(
         AND embedding   IS NOT NULL
         AND rule_type   IN (${typeList})
         AND id          != ALL($3::text[])
+        ${visibilityClause(4)}
         ${distanceFilter}
       ORDER BY embedding <=> '${vecLiteral}'::vector ASC
       LIMIT ${candidateLimit}
-    `, orgId, agentClass, excludeList);
+    `, orgId, agentClass, excludeList, callerUserId);
 
     if (mmrEnabled && rows.length > 0) {
       const candidates: DiversityCandidate[] = rows
@@ -425,18 +451,22 @@ export interface SelectMemoryResult {
  *                  Scopes Phase 1a to the correct data domain. Pass null when unknown.
  */
 export async function selectMemoryAll(
-  orgId:       string,
-  agentClass:  string,
-  taskContext: string,
-  topicKey:    string | null = null,
+  orgId:        string,
+  agentClass:   string,
+  taskContext:  string,
+  topicKey:     string | null = null,
+  callerUserId: string | null = null,
 ): Promise<SelectMemoryResult> {
+  // Phase 3.5D — resolve to the sentinel when no caller is known, so retrieval
+  // returns org-visible rules only and never leaks a personal rule.
+  const caller = callerUserId ?? NO_USER_SENTINEL;
   const [phase0, phase1a] = await Promise.all([
-    selectPhase0(orgId, agentClass),
-    selectPhase1a(orgId, agentClass, topicKey),
+    selectPhase0(orgId, agentClass, caller),
+    selectPhase1a(orgId, agentClass, topicKey, caller),
   ]);
 
   const excludeIds = [...phase0, ...phase1a].map((b) => b.id);
-  const phase1b    = await selectPhase1b(orgId, agentClass, taskContext, excludeIds);
+  const phase1b    = await selectPhase1b(orgId, agentClass, taskContext, excludeIds, caller);
 
   // Fire-and-forget lastUsedAt bump.
   const allIds = [...excludeIds, ...phase1b.map((b) => b.id)];

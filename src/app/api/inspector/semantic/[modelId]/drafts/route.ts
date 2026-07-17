@@ -10,6 +10,7 @@ import {
   type DraftMeasureInput,
   type DraftDimensionInput,
 } from '@/lib/semantic/authoring-draft';
+import { upsertIntentEmbedding } from '@/lib/semantic/intent-embed';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -218,6 +219,17 @@ export async function POST(
       });
       // No audit row on draft creation — drafts are private and pre-governance;
       // the audit trail begins when the draft is submitted (draft → candidate).
+      // Embed the NL intent (non-fatal) so it can power matching once governed.
+      if (created.nl_intent) {
+        await upsertIntentEmbedding({
+          orgId: org.id,
+          sourceType: 'measure',
+          sourceId: id,
+          intentText: created.nl_intent,
+          modelId,
+          createdBy: currentUser.id,
+        });
+      }
       return NextResponse.json({ created: true, tableKind, definition: created });
     }
 
@@ -243,6 +255,16 @@ export async function POST(
           created_by: currentUser.id,
         },
       });
+      if (created.nl_intent) {
+        await upsertIntentEmbedding({
+          orgId: org.id,
+          sourceType: 'dimension',
+          sourceId: id,
+          intentText: created.nl_intent,
+          modelId,
+          createdBy: currentUser.id,
+        });
+      }
       return NextResponse.json({ created: true, tableKind, definition: created });
     } catch (err) {
       // ux_psd_entity_col unique (entity_id, column_name) — surface cleanly.

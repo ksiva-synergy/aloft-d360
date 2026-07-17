@@ -8,6 +8,7 @@ import type { TableKind } from '@/lib/semantic/governance';
 import { isAdmin, evaluatePromotionEligibility } from '@/lib/semantic/promotion-gate';
 import { decideEditGate, touchesComputation } from '@/lib/semantic/authoring-draft';
 import { compileSafety } from '@/lib/semantic/compiler';
+import { upsertIntentEmbedding } from '@/lib/semantic/intent-embed';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -123,6 +124,21 @@ export async function PATCH(
       changedBy: currentUser.id,
       diff,
     });
+
+    // ── Sync NL-intent embedding (dimensions/measures only) ───────────────────
+    // Re-embed when the intent text changed; clears the embedding if emptied.
+    // Non-fatal. Status is resolved live at match time, so nothing to sync here
+    // when only status changes (promote/demote handle that implicitly).
+    if ('nl_intent' in fields && (tableKind === 'measure' || tableKind === 'dimension')) {
+      await upsertIntentEmbedding({
+        orgId: org.id,
+        sourceType: tableKind,
+        sourceId: definitionId,
+        intentText: (fields.nl_intent as string | null | undefined) ?? null,
+        modelId,
+        createdBy: target.created_by,
+      });
+    }
 
     // ── Governed → candidate demotion on edit (deliverable 6) ─────────────────
     let demoted = false;

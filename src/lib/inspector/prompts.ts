@@ -295,6 +295,9 @@ function buildSemanticPromptSection(ctx: SemanticContext): string {
     '',
     'When the user asks about a metric or dimension listed below, call emit_semantic_chart with the exact IDs shown.',
     'Only fall back to emit_chart if the requested data is NOT in this list.',
+    'Each field may list governed aliases ("also called: ..."). If the user\'s term matches',
+    'a field\'s label OR one of its aliases, treat it as an unambiguous match for that field —',
+    'resolve it directly, do NOT open a disambiguation round-trip for a known alias.',
     '',
     '### REFUSE RATHER THAN GUESS — use emit_disambiguation',
     'The measures and dimensions below are the ONLY governed fields available. If a',
@@ -317,20 +320,28 @@ function buildSemanticPromptSection(ctx: SemanticContext): string {
   ];
 
   for (const entity of ctx.entities) {
+    // Synonyms are governed aliases the org has taught (Phase 3.5D). Surfacing
+    // them here is what lets the LLM resolve "ARR" → Annual Recurring Revenue
+    // without a disambiguation round-trip. A synonym nobody reads is dead weight.
+    const synHint = (syns: string[]) =>
+      syns.length > 0 ? `, also called: ${syns.slice(0, 6).join(', ')}` : '';
+    const entityHeader = entity.synonyms.length > 0
+      ? `### ${entity.entityLabel} (entity: ${entity.entityId}${synHint(entity.synonyms)})`
+      : `### ${entity.entityLabel} (entity: ${entity.entityId})`;
     const entityLines: string[] = [
-      `### ${entity.entityLabel} (entity: ${entity.entityId})`,
+      entityHeader,
       `Path: ${entity.fullPath}`,
     ];
     if (entity.dimensions.length > 0) {
       entityLines.push('Dimensions:');
       for (const d of entity.dimensions) {
-        entityLines.push(`  - ${d.label} (id: ${d.id}, type: ${d.type})`);
+        entityLines.push(`  - ${d.label} (id: ${d.id}, type: ${d.type}${synHint(d.synonyms)})`);
       }
     }
     if (entity.measures.length > 0) {
       entityLines.push('Measures:');
       for (const m of entity.measures) {
-        entityLines.push(`  - ${m.label} (id: ${m.id}, agg: ${m.aggregate}, type: ${m.metricType})`);
+        entityLines.push(`  - ${m.label} (id: ${m.id}, agg: ${m.aggregate}, type: ${m.metricType}${synHint(m.synonyms)})`);
       }
     }
     entityLines.push('');

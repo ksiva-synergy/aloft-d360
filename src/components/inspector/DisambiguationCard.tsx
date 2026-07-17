@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { HelpCircle, Search, ChevronDown } from 'lucide-react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { HelpCircle, Search, ChevronDown, Sparkles } from 'lucide-react';
 import type { DisambiguationMessage, DisambiguationCandidate } from '@/hooks/useInspectorChat';
 
 const MONO: React.CSSProperties = {
@@ -58,12 +58,70 @@ function messageFor(label: string, id: string): string {
  * "None of these — search all fields" affordance loads the full governed model
  * so the user can pick a field the agent did not surface.
  */
+interface RankResult {
+  order: Map<string, number>; // `${type}:${id}` → rank index (lower = better)
+  reasonById: Map<string, string>; // `${type}:${id}` → why it ranked
+  autoResolve?: { id: string; label: string; type: string };
+}
+
 export function DisambiguationCard({ message, modelId, onChoose }: DisambiguationCardProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [allFields, setAllFields] = useState<AllField[] | null>(null);
   const [loadingFields, setLoadingFields] = useState(false);
   const [query, setQuery] = useState('');
   const [resolved, setResolved] = useState(false);
+  // Phase 3.5D — server-side re-ranking by demonstrated usage (governed
+  // synonyms + matching governed nl_intents). Best-effort: until it resolves (or
+  // if it fails) the agent's emitted order is used unchanged.
+  const [rank, setRank] = useState<RankResult | null>(null);
+
+  useEffect(() => {
+    if (!modelId || message.candidates.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/inspector/semantic/${modelId}/disambiguation-rank`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originalTerm: message.originalTerm,
+            candidates: message.candidates.map((c) => ({
+              id: c.id,
+              label: c.label,
+              type: c.type,
+              relevance: c.relevance,
+            })),
+          }),
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          ranked?: { id: string; type: string; reason: string }[];
+          autoResolve?: { id: string; label: string; type: string };
+        };
+        if (cancelled || !json.ranked) return;
+        const order = new Map<string, number>();
+        const reasonById = new Map<string, string>();
+        json.ranked.forEach((r, i) => {
+          order.set(`${r.type}:${r.id}`, i);
+          if (r.reason) reasonById.set(`${r.type}:${r.id}`, r.reason);
+        });
+        setRank({ order, reasonById, autoResolve: json.autoResolve });
+      } catch {
+        /* keep agent order */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modelId, message.originalTerm, message.candidates]);
+
+  // Candidates in ranked order when the re-rank resolved, else agent order.
+  const orderedCandidates = useMemo(() => {
+    if (!rank) return message.candidates;
+    return [...message.candidates].sort((a, b) => {
+      const ra = rank.order.get(`${a.type}:${a.id}`) ?? Number.MAX_SAFE_INTEGER;
+      const rb = rank.order.get(`${b.type}:${b.id}`) ?? Number.MAX_SAFE_INTEGER;
+      return ra - rb;
+    });
+  }, [rank, message.candidates]);
 
   const loadAllFields = useCallback(async () => {
     if (!modelId || allFields || loadingFields) return;
@@ -139,16 +197,43 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
           </p>
         )}
 
-        {/* Candidate chips */}
+        {/* Auto-resolve banner — a single governed alias match (Phase 3.5D). */}
+        {rank?.autoResolve && !resolved && (
+          <button
+            onClick={() => choose(rank.autoResolve!.label, rank.autoResolve!.id)}
+            style={{
+              ...MONO,
+              fontSize: 11,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '7px 10px',
+              borderRadius: 5,
+              border: `1px solid ${BLUE}`,
+              background: 'rgba(147,197,253,0.12)',
+              color: BLUE,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            title="Your org has repeatedly meant this by that term"
+          >
+            <Sparkles size={12} style={{ flexShrink: 0 }} />
+            <span>Did you mean <strong>{rank.autoResolve.label}</strong>? — your org’s governed alias</span>
+          </button>
+        )}
+
+        {/* Candidate chips — ordered by demonstrated usage when re-ranking resolved. */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {message.candidates.map((c) => {
+          {orderedCandidates.map((c, idx) => {
             const s = relevanceStyle(c.relevance);
+            const reason = rank?.reasonById.get(`${c.type}:${c.id}`);
+            const isBest = !!rank && idx === 0 && !!reason;
             return (
               <button
                 key={`${c.type}:${c.id}`}
                 onClick={() => choose(c.label, c.id)}
                 disabled={resolved}
-                title={`${c.type} · ${c.relevance} match · ${c.id}`}
+                title={`${c.type} · ${c.relevance} match · ${c.id}${reason ? ` · ${reason}` : ''}`}
                 style={{
                   ...MONO,
                   fontSize: 10,
@@ -158,12 +243,14 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                   gap: 5,
                   padding: '5px 10px',
                   borderRadius: 14,
-                  border: `1px solid ${s.border}`,
+                  border: `1px solid ${isBest ? BLUE : s.border}`,
                   background: s.bg,
                   color: s.color,
                   cursor: resolved ? 'default' : 'pointer',
+                  boxShadow: isBest ? `0 0 0 1px ${BLUE} inset` : 'none',
                 }}
               >
+                {isBest && <Sparkles size={9} style={{ flexShrink: 0 }} />}
                 {c.label}
                 <span style={{ fontSize: 8, opacity: 0.7, textTransform: 'uppercase' }}>{c.type}</span>
               </button>

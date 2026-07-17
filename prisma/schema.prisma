@@ -1965,6 +1965,34 @@ model PlatformContextEmbedding {
   @@map("platform_context_embeddings")
 }
 
+/// Phase 3.5D — NL-intent embeddings for authored definitions & raw-SQL charts.
+///
+/// A PARALLEL table (not an extra row-kind on platform_context_embeddings)
+/// because that table's subject_id is @db.Uuid with a UNIQUE(subject_kind,
+/// subject_id) keyed to context objects/columns, whereas semantic-definition
+/// and chart IDs are cuid2 strings — they cannot cleanly share the UUID column
+/// or the unique key. Same Titan-v2 embedding path (embedQuery), 1024-dim.
+///
+/// Status is intentionally NOT denormalised here: matching JOINs live to the
+/// source row (platform_sem_measures / platform_sem_dimensions / platform_charts)
+/// so a promote/demote is reflected instantly with no status-sync writes.
+model PlatformNlIntentEmbedding {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id      String
+  source_type String // 'measure' | 'dimension' | 'raw_chart'
+  source_id   String // cuid2 of the definition / chart row (NOT a uuid)
+  intent_text String
+  embedding   Unsupported("vector")?
+  model_id    String?
+  created_by  String?
+  created_at  DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime               @default(now()) @db.Timestamptz(6)
+
+  @@unique([source_type, source_id], map: "platform_nl_intent_embeddings_source_key")
+  @@index([org_id], map: "idx_pnie_org")
+  @@map("platform_nl_intent_embeddings")
+}
+
 model PlatformContextMapping {
   id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   org_id          String
@@ -2227,9 +2255,16 @@ model PlatformAgentMemory {
   blurb            String?                @map("blurb")
   caveatContext    Json?                  @map("caveat_context")
   contributorRep   Float                  @default(1.0) @map("contributor_rep")
+  // Phase 3.5D — user-taught standing rules. createdBy is the authoring user
+  // (NULL for system/reflector-synthesised bullets). visibility gates who sees
+  // the rule at retrieval time: 'org' = everyone in the org (the default,
+  // preserving all pre-3.5D behaviour), 'personal' = only the author's sessions.
+  createdBy        String?                @map("created_by")
+  visibility       String                 @default("org")
 
   @@index([orgId, agentClass, status])
   @@index([taskSignature])
+  @@index([orgId, agentClass, visibility, createdBy], map: "idx_agent_memory_visibility")
   @@map("platform_agent_memory")
 }
 

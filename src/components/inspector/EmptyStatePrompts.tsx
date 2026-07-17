@@ -45,17 +45,37 @@ export function EmptyStatePrompts({
   footerHint,
 }: EmptyStatePromptsProps) {
   const [prompts, setPrompts] = useState<string[]>([]);
+  // Governed nl_intents the org has actually answered — surfaced ABOVE templates
+  // (Phase 3.5D). These are real demonstrated questions, so each governed
+  // contribution makes the next person's blank canvas smarter.
+  const [taughtPrompts, setTaughtPrompts] = useState<string[]>([]);
   const [loading, setLoading] = useState(!!modelId);
 
   useEffect(() => {
-    if (!modelId) { setPrompts([]); setLoading(false); return; }
+    if (!modelId) { setPrompts([]); setTaughtPrompts([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     (async () => {
       try {
-        const res = await fetch(`/api/inspector/semantic/${modelId}/definitions`);
-        if (!res.ok) { if (!cancelled) setPrompts([]); return; }
-        const json = (await res.json()) as {
+        // Fetch templated definitions and governed intents in parallel; intents
+        // are best-effort (a failure just falls back to templates alone).
+        const [defRes, intentRes] = await Promise.all([
+          fetch(`/api/inspector/semantic/${modelId}/definitions`),
+          fetch(`/api/inspector/semantic/${modelId}/intents?limit=5`).catch(() => null),
+        ]);
+
+        if (intentRes && intentRes.ok) {
+          const ij = (await intentRes.json()) as { intents?: Array<{ intentText: string }> };
+          const taught = (ij.intents ?? [])
+            .map((i) => i.intentText.trim())
+            .filter((t) => t.length > 0);
+          if (!cancelled) setTaughtPrompts(taught);
+        } else if (!cancelled) {
+          setTaughtPrompts([]);
+        }
+
+        if (!defRes.ok) { if (!cancelled) setPrompts([]); return; }
+        const json = (await defRes.json()) as {
           entities?: Array<{
             dimensions: Array<{ id: string; dimension_label: string; dimension_type: string }>;
             measures: Array<{ id: string; measure_label: string }>;
@@ -69,7 +89,7 @@ export function EmptyStatePrompts({
         }
         if (!cancelled) setPrompts(generateStarterPrompts(dims, measures));
       } catch {
-        if (!cancelled) setPrompts([]);
+        if (!cancelled) { setPrompts([]); setTaughtPrompts([]); }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -89,7 +109,25 @@ export function EmptyStatePrompts({
     );
   }
 
-  const finalPrompts = includeWhatIsThis ? [WHAT_IS_THIS_DATA_PROMPT, ...prompts] : prompts;
+  // Compose: the "what is this data?" spotter (chat only) → governed nl_intents
+  // the org has actually answered → templated fallbacks. Dedup case-insensitively
+  // and cap at 5 so the org's demonstrated vocabulary leads without overflowing.
+  const MAX_PROMPTS = 5;
+  const taughtSet = new Set(taughtPrompts.map((t) => t.toLowerCase()));
+  const finalPrompts: Array<{ text: string; taught: boolean }> = [];
+  const seen = new Set<string>();
+  const pushPrompt = (text: string, taught: boolean) => {
+    const key = text.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    finalPrompts.push({ text, taught });
+  };
+  if (includeWhatIsThis) pushPrompt(WHAT_IS_THIS_DATA_PROMPT, false);
+  for (const t of taughtPrompts) { if (finalPrompts.length >= MAX_PROMPTS) break; pushPrompt(t, true); }
+  for (const p of prompts) {
+    if (finalPrompts.length >= MAX_PROMPTS) break;
+    pushPrompt(p, taughtSet.has(p.toLowerCase()));
+  }
 
   return (
     <Frame>
@@ -102,10 +140,11 @@ export function EmptyStatePrompts({
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 420 }}>
-          {finalPrompts.map((p) => (
+          {finalPrompts.map(({ text, taught }) => (
             <button
-              key={p}
-              onClick={() => onPromptClick(p)}
+              key={text}
+              onClick={() => onPromptClick(text)}
+              title={taught ? 'A question your org has authored and governed an answer for' : undefined}
               style={{
                 ...MONO,
                 fontSize: 12,
@@ -124,8 +163,11 @@ export function EmptyStatePrompts({
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.background = 'rgba(253,181,21,0.1)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(253,181,21,0.2)'; e.currentTarget.style.background = 'rgba(253,181,21,0.04)'; }}
             >
-              <BarChart3 size={13} color={GOLD} style={{ flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</span>
+              {/* Sparkles marks a governed org question; BarChart3 a template. */}
+              {taught
+                ? <Sparkles size={13} color={GOLD} style={{ flexShrink: 0 }} />
+                : <BarChart3 size={13} color={GOLD} style={{ flexShrink: 0 }} />}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
             </button>
           ))}
         </div>

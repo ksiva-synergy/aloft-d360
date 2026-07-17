@@ -25,6 +25,9 @@ import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { getUserByEmail } from '@/lib/dashboards/permissions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -189,6 +192,17 @@ export async function POST(request: NextRequest) {
       const taskCtx  = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '').trim().slice(0, 500);
       const topicMap = await getCurrentTopicMap(org.id);
 
+      // Phase 3.5D — resolve the caller so their OWN personal rules inject while
+      // never leaking into anyone else's context. Best-effort: an unresolved
+      // caller means org-visible rules only (fail-closed).
+      let callerUserId: string | null = null;
+      try {
+        const session = await getServerSession(authOptions);
+        const email = session?.user?.email ?? null;
+        const caller = email ? await getUserByEmail(email) : null;
+        callerUserId = caller?.id ?? null;
+      } catch { /* org-only injection */ }
+
       // Derive topicKey from the first user message content, matching workbench approach:
       // walk the topic map to find the first entry whose topicKey keyword appears in the
       // message text. Fall back to null (Phase 1a returns top global SCHEMA_MAPs).
@@ -203,7 +217,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const { phase0, phase1a, phase1b } = await selectMemoryAll(org.id, 'inspector', taskCtx, topicKey);
+      const { phase0, phase1a, phase1b } = await selectMemoryAll(org.id, 'inspector', taskCtx, topicKey, callerUserId);
 
       const p0Block  = formatForInjection(phase0,  MemoryPhase.INIT);
       const p1aBlock = formatForInjection(phase1a, MemoryPhase.SCHEMA_GLOBAL);

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { createId } from '@paralleldrive/cuid2';
+import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
+import { getUserByEmail } from '@/lib/dashboards/permissions';
 import prisma from '@/lib/db';
 import { computeMeasureSnapshots } from '@/lib/dashboards/governance';
 import { enforceReadOnly } from '@/lib/databricks/execute';
 import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { upsertIntentEmbedding } from '@/lib/semantic/intent-embed';
 import type { RawSqlChartDsl } from '@/lib/dashboards/raw-sql-chart';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
@@ -50,6 +54,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const org = await getDefaultOrg();
+    // Best-effort author resolution so saved charts attribute to the real user
+    // (the "What I've taught" view + intent-embedding ownership depend on this).
+    // Falls back to the client-supplied createdBy, then 'system'.
+    let sessionUserId: string | null = null;
+    try {
+      const session = await getServerSession(authOptions);
+      const email = session?.user?.email ?? null;
+      const u = email ? await getUserByEmail(email) : null;
+      sessionUserId = u?.id ?? null;
+    } catch { /* anonymous / service caller */ }
     const body = await request.json() as {
       chartSource?: 'semantic' | 'raw_sql';
       modelId?: string;
@@ -102,6 +116,7 @@ export async function POST(request: NextRequest) {
       }
 
       const rawId = createId();
+      const rawAuthor = sessionUserId ?? body.createdBy ?? 'system';
       const chart = await prisma.platform_charts.create({
         data: {
           id: rawId,
@@ -109,7 +124,7 @@ export async function POST(request: NextRequest) {
           model_id: null,
           name: body.name,
           description: body.description ?? null,
-          created_by: body.createdBy ?? 'system',
+          created_by: rawAuthor,
           chart_dsl: body.chartDsl as object,
           semantic_query: undefined,
           measure_snapshots: [] as unknown as object[],
@@ -120,6 +135,19 @@ export async function POST(request: NextRequest) {
           connection_id: connectionId,
         },
       });
+
+      // Embed the intent (non-fatal) so this saved question can rank in
+      // disambiguation/matching for its author and in candidate-scoped contexts.
+      if (chart.nl_intent) {
+        await upsertIntentEmbedding({
+          orgId: org.id,
+          sourceType: 'raw_chart',
+          sourceId: rawId,
+          intentText: chart.nl_intent,
+          modelId: null,
+          createdBy: sessionUserId ?? null,
+        });
+      }
 
       return NextResponse.json({ chart }, { status: 201 });
     }
@@ -145,7 +173,7 @@ export async function POST(request: NextRequest) {
     const measureSnapshots = await computeMeasureSnapshots(measureIds, org.id);
 
     const id = createId();
-    const actor = body.createdBy ?? 'system';
+    const actor = sessionUserId ?? body.createdBy ?? 'system';
 
     const chart = await prisma.platform_charts.create({
       data: {
