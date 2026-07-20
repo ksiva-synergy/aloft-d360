@@ -1662,13 +1662,21 @@ function JobKindCard({
           )}
         </span>
         {sched && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md"
-            style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.08)' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            {relativeNextRun(sched)}
-          </span>
+          sched.deployment === 'manual' ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md"
+              style={{ color: 'var(--estate-text-muted)', backgroundColor: 'rgba(136,146,164,0.1)' }}
+              title="Manual / on-demand — no EventBridge rule deployed">
+              manual
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md"
+              style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.08)' }}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {relativeNextRun(sched)}
+            </span>
+          )
         )}
       </div>
     </button>
@@ -2237,16 +2245,25 @@ function JobsDrilldownNav({
       </nav>
 
       {schedForKind && (
-        <span
-          className="shrink-0 px-2 py-0.5 rounded border text-[11px] font-mono font-medium"
-          style={{
-            color: 'var(--estate-status-warning-text)',
-            backgroundColor: 'var(--estate-status-warning-bg)',
-            borderColor: 'var(--estate-status-warning-border)',
-          }}
-        >
-          Next {relativeNextRun(schedForKind)}
-        </span>
+        schedForKind.deployment === 'manual' ? (
+          <span
+            className="shrink-0 px-2 py-0.5 rounded border text-[11px] font-mono font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
+            title="Manual / on-demand — no EventBridge rule deployed"
+          >
+            Manual — not scheduled
+          </span>
+        ) : (
+          <span
+            className="shrink-0 px-2 py-0.5 rounded border text-[11px] font-mono font-medium"
+            style={{
+              color: 'var(--estate-status-warning-text)',
+              backgroundColor: 'var(--estate-status-warning-bg)',
+              borderColor: 'var(--estate-status-warning-border)',
+            }}
+          >
+            Next {relativeNextRun(schedForKind)}
+          </span>
+        )
       )}
     </div>
   );
@@ -2441,26 +2458,38 @@ function EstateJobsPageContent() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {HARVEST_SCHEDULES.map(sched => {
+                const isManual = sched.deployment === 'manual';
                 const nextRun = getNextRun(sched);
                 const relative = relativeNextRun(sched);
-                const isImminent = relative.startsWith('in') && (relative.includes('m') || relative.includes('1h'));
+                const isImminent = !isManual && relative.startsWith('in') && (relative.includes('m') || relative.includes('1h'));
                 return (
                   <span
                     key={sched.id}
-                    title={`${sched.description}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
+                    title={isManual
+                      ? `${sched.description}\nManual / on-demand — no EventBridge rule deployed`
+                      : `${sched.description}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-mono transition-all"
                     style={{
                       backgroundColor: isImminent ? 'rgba(253,181,21,0.06)' : 'var(--card)',
                       borderColor: isImminent ? 'rgba(253,181,21,0.3)' : 'var(--nav-border)',
+                      opacity: isManual ? 0.75 : 1,
                     }}
                   >
                     <span className="font-semibold text-[var(--foreground)]">{sched.label}</span>
                     <span className="text-[var(--text-tertiary)]">|</span>
-                    <span className="text-[10px] text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
-                    <span className="text-[var(--text-tertiary)]">|</span>
-                    <span className={`font-bold ${isImminent ? 'text-[#FDB515]' : 'text-[var(--text-secondary)]'}`}>
-                      {relative}
-                    </span>
+                    {isManual ? (
+                      <span className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-tertiary)]">
+                        manual · not scheduled
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
+                        <span className="text-[var(--text-tertiary)]">|</span>
+                        <span className={`font-bold ${isImminent ? 'text-[#FDB515]' : 'text-[var(--text-secondary)]'}`}>
+                          {relative}
+                        </span>
+                      </>
+                    )}
                   </span>
                 );
               })}

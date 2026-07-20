@@ -7,7 +7,9 @@ import { planSplit, TIME_BUDGET_MINUTES, MAX_CONCURRENT_TASKS, MAX_CONCURRENT_BY
 
 export const dynamic = 'force-dynamic';
 
-const T2_COST_PER_OBJECT_USD = 0.003;
+// Cost is derived by planSplit() (rolling average of recent t2 jobs, see
+// queue.ts / cost-model.ts) and returned as plan.estimatedCostUsd — no local
+// per-object constant here.
 
 /**
  * POST /api/agent-lab/context/jobs/plan

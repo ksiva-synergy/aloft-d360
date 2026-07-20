@@ -1,19 +1,29 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Save, History, ArrowLeft, Share2, Eye } from 'lucide-react';
+import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
 import type { WidgetDriftInfo, DriftStatus } from './builder-store';
 import { DefinitionPicker } from './DefinitionPicker';
 import type { SavedChart } from './DefinitionPicker';
 import { BuilderGrid } from './BuilderGrid';
+import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
+import { IntentStage } from './guided/IntentStage';
+import { BlueprintStage } from './guided/BlueprintStage';
+import { DrillInStage } from './guided/DrillInStage';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
+import { dslKindToWidgetKind, encodingsToChartConfig } from './chart-mapping';
+import {
+  recommendChartKind,
+  recommendedKindToWidgetKind,
+  type ResolvedDefinitions,
+} from '@/lib/dashboards/chart-defaults';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
-import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -61,7 +71,12 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DashboardVisibility>('org');
   const [shareOpen, setShareOpen] = useState(false);
-
+  // Guided-flow cursor: intent captured advances to Blueprint (Stage 2);
+  // accepting the blueprint hands off to the Phase-4 drill-in (Stage 3).
+  const [intentCaptured, setIntentCaptured] = useState(false);
+  const [blueprintAccepted, setBlueprintAccepted] = useState(false);
+  const guidedIntent = useBuilderStore((s) => s.guidedSession.intent);
+  const setBlueprint = useBuilderStore((s) => s.setBlueprint);
   const {
     modelId,
     dashboardName,
@@ -71,7 +86,9 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     saveError,
     saveErrorType,
     dirty,
+    mode,
     setDashboard,
+    setMode,
     loadWidgets,
     addWidget,
     selectWidget,
@@ -98,11 +115,15 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         setMyRole(role ?? null);
         setVisibility((dashboard.visibility ?? 'org') as DashboardVisibility);
 
-        if (currentVersion?.widgets) {
-          loadWidgets(currentVersion.widgets as WidgetSpec[]);
-        } else {
-          loadWidgets([]);
-        }
+        const loadedWidgets = (currentVersion?.widgets ?? []) as WidgetSpec[];
+        loadWidgets(loadedWidgets);
+
+        // Default mode (Phase 1): read-only → view; empty dashboard → guided
+        // (cold start is where a blank grid is most hostile); existing → manual.
+        // Set once on load; a later user toggle is never clobbered (this effect
+        // keys on dashboardId only).
+        const readOnly = role === 'viewer' || role === 'org_member';
+        setMode(readOnly ? 'view' : loadedWidgets.length === 0 ? 'guided' : 'manual');
       } catch (err) {
         console.error('[DashboardBuilder] load error:', err);
       } finally {
@@ -110,7 +131,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [dashboardId, setDashboard, loadWidgets]);
+  }, [dashboardId, setDashboard, loadWidgets, setMode]);
 
   // Open share dialog if navigated here with ?share=1
   useEffect(() => {
@@ -167,6 +188,36 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     return map;
   }, [entities]);
 
+  // ── Smart chart defaults (Phase 3A) ──────────────────────────────────────────
+  // Resolved definitions (types) drive recommendChartKind. Rebuilt when the
+  // definitions load; consumed by the add-field auto-kind + config panel.
+  const resolvedDefs = useMemo<ResolvedDefinitions>(() => {
+    const dimensions: ResolvedDefinitions['dimensions'] = {};
+    const measures: ResolvedDefinitions['measures'] = {};
+    for (const entity of entities) {
+      for (const dim of entity.dimensions) {
+        dimensions[dim.id] = { id: dim.id, type: dim.dimension_type };
+      }
+      for (const meas of entity.measures) {
+        measures[meas.id] = { id: meas.id };
+      }
+    }
+    return { dimensions, measures };
+  }, [entities]);
+
+  // Widgets whose chart kind the user set by hand — auto-recommendation must not
+  // clobber a manual choice. Transient (not persisted): a fresh session starts
+  // with every widget eligible for auto-kind.
+  const manualKindRef = useRef<Set<string>>(new Set());
+
+  const markManualKind = useCallback(
+    (widgetId: string, chartKind: WidgetSpec['chartKind']) => {
+      manualKindRef.current.add(widgetId);
+      updateWidget(widgetId, { chartKind });
+    },
+    [updateWidget],
+  );
+
   // ── Picker handlers ──────────────────────────────────────────────────────────
   const showPickerHint = useCallback((msg: string) => {
     setPickerHint(msg);
@@ -182,6 +233,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
       const widget = widgets.find((w) => w.widgetId === widgetId);
       if (!widget) return;
+      if (isRawSqlWidget(widget)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       if (widget.semanticQuery.dimensions.some((d) => d.dimensionId === dim.id)) {
         showPickerHint('Already assigned');
         return;
@@ -190,8 +245,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       sq.entityId = sq.entityId || entityId;
       sq.dimensions = [...sq.dimensions, { dimensionId: dim.id }];
       updateWidgetSemanticQuery(widgetId, sq);
+      // Smart default: recommend a chart kind for the new field combination
+      // unless the user has already chosen a kind by hand.
+      if (!manualKindRef.current.has(widgetId)) {
+        const rec = recommendChartKind(sq, resolvedDefs);
+        updateWidget(widgetId, { chartKind: recommendedKindToWidgetKind(rec.chartKind) });
+      }
     },
-    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, updateWidget, resolvedDefs, showPickerHint],
   );
 
   const handleAddMeasure = useCallback(
@@ -203,6 +264,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
       const widget = widgets.find((w) => w.widgetId === widgetId);
       if (!widget) return;
+      if (isRawSqlWidget(widget)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       if (widget.semanticQuery.measures.some((m) => m.measureId === meas.id)) {
         showPickerHint('Already assigned');
         return;
@@ -211,8 +276,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       sq.entityId = sq.entityId || entityId;
       sq.measures = [...sq.measures, { measureId: meas.id }];
       updateWidgetSemanticQuery(widgetId, sq);
+      // Smart default: recommend a chart kind for the new field combination
+      // unless the user has already chosen a kind by hand.
+      if (!manualKindRef.current.has(widgetId)) {
+        const rec = recommendChartKind(sq, resolvedDefs);
+        updateWidget(widgetId, { chartKind: recommendedKindToWidgetKind(rec.chartKind) });
+      }
     },
-    [selectedWidgetId, widgets, updateWidgetSemanticQuery, showPickerHint],
+    [selectedWidgetId, widgets, updateWidgetSemanticQuery, updateWidget, resolvedDefs, showPickerHint],
   );
 
   // ── Chart assign handler (Decision 2: click-to-assign, Option B: one-time copy) ──
@@ -223,16 +294,26 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         showPickerHint('Select a widget first');
         return;
       }
+      const target = widgets.find((w) => w.widgetId === widgetId);
+      if (target && isRawSqlWidget(target)) {
+        showPickerHint('Raw-SQL widgets aren’t edited here');
+        return;
+      }
       const chartConfig = encodingsToChartConfig(chart.chart_dsl);
       updateWidget(widgetId, {
+        chartSource: 'semantic',
         title: chart.name,
         chartKind: dslKindToWidgetKind(chart.chart_dsl.kind),
         semanticQuery: chart.semantic_query,
         measureSnapshots: chart.measure_snapshots,
         chartConfig,
+        // Provenance: record the copied-from chart. Non-authoritative — this
+        // never drives drift (that stays on live definitions) and a later
+        // delete of the chart is fine (dangling ref handled in the UI).
+        source_chart_id: chart.id,
       });
     },
-    [selectedWidgetId, updateWidget, showPickerHint],
+    [selectedWidgetId, widgets, updateWidget, showPickerHint],
   );
 
   // ── Save handler ──────────────────────────────────────────────────────────────
@@ -301,6 +382,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
   const selectedWidget = widgets.find((w) => w.widgetId === selectedWidgetId) ?? null;
 
+  // "Why this chart" recommendation for the selected widget's current shape.
+  const selectedWidgetRecommendation = useMemo(() => {
+    if (!selectedWidget || isRawSqlWidget(selectedWidget)) return null;
+    const sq = selectedWidget.semanticQuery;
+    if (sq.dimensions.length === 0 && sq.measures.length === 0) return null;
+    return recommendChartKind(sq, resolvedDefs);
+  }, [selectedWidget, resolvedDefs]);
+
   const isReadOnly = myRole === 'viewer' || myRole === 'org_member';
   const canShare = myRole === 'owner' || myRole === 'editor';
 
@@ -363,7 +452,30 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
         <div style={{ flex: 1 }} />
 
+        {/* Mode toggle (Phase 1) — two views over one WidgetSpec[]; lossless. */}
         {!isReadOnly && (
+          <div style={{ display: 'inline-flex', border: '1px solid var(--builder-border)', borderRadius: 5, overflow: 'hidden' }}>
+            {(['guided', 'manual'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                title={m === 'guided' ? 'NL-first guided authoring' : 'Manual grid builder'}
+                style={{
+                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none',
+                  background: mode === m ? '#FDB515' : 'transparent',
+                  color: mode === m ? '#0D1B2A' : 'var(--builder-text)',
+                  cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
+                }}
+              >
+                {m === 'guided' ? <Sparkles size={12} /> : <LayoutGrid size={12} />}
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!isReadOnly && mode === 'manual' && (
           <button
             onClick={handleAddWidget}
             style={{
@@ -457,72 +569,133 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Left: Definition Picker — hidden for read-only viewers */}
-        {!isReadOnly && (
-          <div
-            style={{
-              width: 260,
-              flexShrink: 0,
-              borderRight: '1px solid var(--builder-border)',
-              background: 'var(--builder-surface-raised)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
-              LIBRARY
-            </div>
-            {pickerHint && (
-              <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
-                {pickerHint}
+        {mode === 'guided' && !isReadOnly ? (
+          // ── Guided flow (Stage 1 Intent → Stage 2 Blueprint). Focused chrome.
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+            {!modelId ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+              </div>
+            ) : !intentCaptured ? (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <IntentStage
+                  modelId={modelId}
+                  onProceed={() => setIntentCaptured(true)}
+                  onCancel={() => setMode('manual')}
+                />
+              </div>
+            ) : !guidedIntent ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
+              </div>
+            ) : !blueprintAccepted ? (
+              // Stage 2 — Blueprint. Accepting hands off to Stage 3 (no widgets built here).
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <BlueprintStage
+                  modelId={modelId}
+                  intent={guidedIntent}
+                  onAccept={() => setBlueprintAccepted(true)}
+                  onBack={() => { setIntentCaptured(false); setBlueprint(null); }}
+                />
+              </div>
+            ) : (
+              // Stage 3 — per-chart drill-in. Renders "not wired" charts; confirm
+              // appends a WidgetSpec to the shared store (no execution this phase).
+              <DrillInStage
+                modelId={modelId}
+                resolvedDefs={resolvedDefs}
+                onBackToBlueprint={() => setBlueprintAccepted(false)}
+                onDone={() => setMode('manual')}
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Left: Definition Picker — hidden for read-only viewers */}
+            {!isReadOnly && (
+              <div
+                style={{
+                  width: 260,
+                  flexShrink: 0,
+                  borderRight: '1px solid var(--builder-border)',
+                  background: 'var(--builder-surface-raised)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                  LIBRARY
+                </div>
+                {pickerHint && (
+                  <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
+                    {pickerHint}
+                  </div>
+                )}
+                <DefinitionPicker
+                  entities={entities}
+                  loading={pickerLoading}
+                  modelId={modelId}
+                  onAddDimension={handleAddDimension}
+                  onAddMeasure={handleAddMeasure}
+                  onAddChart={handleAddChart}
+                />
               </div>
             )}
-            <DefinitionPicker
-              entities={entities}
-              loading={pickerLoading}
-              modelId={modelId}
-              onAddDimension={handleAddDimension}
-              onAddMeasure={handleAddMeasure}
-              onAddChart={handleAddChart}
-            />
-          </div>
-        )}
 
-        {/* Center: Grid */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
-        </div>
-
-        {/* Right: Config / History */}
-        <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            borderLeft: '1px solid var(--builder-border)',
-            background: 'var(--builder-surface-raised)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
-            {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
-          </div>
-          {rightPanel === 'config' && selectedWidget && (
-            <WidgetConfigPanel widget={selectedWidget} definitions={definitionsMap} readOnly={isReadOnly} />
-          )}
-          {rightPanel === 'config' && !selectedWidget && (
-            <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
-                {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
-              </span>
+            {/* Center: Grid (or generative empty state when there are no widgets) */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              {widgets.length === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
+                  <EmptyStatePrompts
+                    modelId={modelId}
+                    title="This dashboard is empty. Get started:"
+                    footerHint={isReadOnly ? undefined : 'Switch to Guided above, add a blank widget, or build one in Inspector and pin it here.'}
+                    onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
+                  />
+                </div>
+              ) : (
+                <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
+              )}
             </div>
-          )}
-          {rightPanel === 'history' && (
-            <VersionHistoryPanel dashboardId={dashboardId} />
-          )}
-        </div>
+
+            {/* Right: Config / History */}
+            <div
+              style={{
+                width: 280,
+                flexShrink: 0,
+                borderLeft: '1px solid var(--builder-border)',
+                background: 'var(--builder-surface-raised)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
+              </div>
+              {rightPanel === 'config' && selectedWidget && (
+                <WidgetConfigPanel
+                  widget={selectedWidget}
+                  definitions={definitionsMap}
+                  readOnly={isReadOnly}
+                  recommendation={selectedWidgetRecommendation}
+                  onChartKindChange={(kind) => markManualKind(selectedWidget.widgetId, kind)}
+                />
+              )}
+              {rightPanel === 'config' && !selectedWidget && (
+                <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+                    {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
+                  </span>
+                </div>
+              )}
+              {rightPanel === 'history' && (
+                <VersionHistoryPanel dashboardId={dashboardId} />
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Share Dialog ─────────────────────────────────────────────────────── */}
@@ -538,55 +711,6 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       )}
     </div>
   );
-}
-
-// ── Chart helpers ─────────────────────────────────────────────────────────────
-
-/**
- * Maps ChartDSLSpec.kind to WidgetSpec's chartKind (ChartSpec['kind'] subset).
- * DSL kinds not in ChartSpec are downgraded to the nearest equivalent.
- * Decision 0 resolution from PHASE_INSP_D4: explicit mapping, no silent drops.
- */
-function dslKindToWidgetKind(kind: string): WidgetSpec['chartKind'] {
-  switch (kind) {
-    case 'bar':        return 'bar';
-    case 'stacked-bar': return 'bar';   // downgrade: stack config preserved in echartsOption
-    case 'line':       return 'line';
-    case 'area':       return 'line';   // downgrade: area fill in echartsOption
-    case 'pie':        return 'donut';  // closest match
-    case 'scatter':    return 'scatter';
-    case 'heatmap':    return 'heatmap';
-    case 'histogram':  return 'histogram';
-    case 'boxplot':    return 'bar';    // fallback: no boxplot kind in WidgetSpec
-    default:           return 'bar';
-  }
-}
-
-/**
- * Converts ChartDSLSpec encodings to WidgetSpec.chartConfig axis slots.
- * Also preserves ECharts overrides for downgraded kinds (stacked-bar, area).
- */
-function encodingsToChartConfig(dsl: ChartDSLSpec): WidgetSpec['chartConfig'] {
-  const xEnc   = dsl.encodings.find((e) => e.role === 'x');
-  const yEncs  = dsl.encodings.filter((e) => e.role === 'y');
-  const series = dsl.encodings.find((e) => e.role === 'series');
-  const value  = dsl.encodings.find((e) => e.role === 'value');
-
-  const config: WidgetSpec['chartConfig'] = {
-    x:      xEnc?.columnId,
-    y:      yEncs.length ? yEncs.map((e) => e.columnId) : undefined,
-    series: series?.columnId,
-    value:  value?.columnId,
-  };
-
-  // Inject ECharts overrides for downgraded kinds so visual intent is preserved
-  if (dsl.kind === 'stacked-bar') {
-    config.echartsOption = { series: [{ stack: 'total' }] };
-  } else if (dsl.kind === 'area') {
-    config.echartsOption = { series: [{ areaStyle: {} }] };
-  }
-
-  return config;
 }
 
 // ── Drift computation ─────────────────────────────────────────────────────────
@@ -614,6 +738,18 @@ function computeDriftMap(
   const result: Record<string, WidgetDriftInfo> = {};
 
   for (const widget of widgets) {
+    // Raw-SQL widgets (Phase 3.5C) are never drift-checked — they have no
+    // governed definitions and carry the "Unverified · Raw SQL" badge instead.
+    if (isRawSqlWidget(widget)) {
+      result[widget.widgetId] = {
+        widgetId: widget.widgetId,
+        status: 'ok',
+        changedMeasures: [],
+        unavailableIds: [],
+      };
+      continue;
+    }
+
     const unavailableIds: string[] = [];
     const changedMeasures: string[] = [];
 

@@ -28,3 +28,21 @@ export class SemanticModelNotGovernedError extends Error {
     this.name = 'SemanticModelNotGovernedError';
   }
 }
+
+/**
+ * Thrown (3.5A) when a query executed in authoring mode references a `draft`
+ * definition owned by someone other than the authoring user. Drafts are
+ * strictly owner-only: a user may preview their OWN drafts in authoring mode,
+ * but never another user's. This is the authoring-mode security boundary.
+ */
+export class SemanticDraftAccessError extends Error {
+  constructor(
+    public readonly tableKind: 'entity' | 'dimension' | 'measure',
+    public readonly rowId: string,
+  ) {
+    super(
+      `Draft ${tableKind} '${rowId}' is owned by another user — drafts are only executable by their owner in authoring mode.`,
+    );
+    this.name = 'SemanticDraftAccessError';
+  }
+}

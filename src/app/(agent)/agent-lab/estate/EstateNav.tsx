@@ -14,6 +14,8 @@ interface TabItem {
 const TABS: TabItem[] = [
   { label: 'Overview', href: '/agent-lab/estate', matchType: 'exact' },
   { label: 'Catalog', href: '/agent-lab/estate/catalog', matchType: 'prefix' },
+  { label: 'Entities', href: '/agent-lab/estate/entities', matchType: 'prefix' },
+  { label: 'Lineage', href: '/agent-lab/estate/lineage', matchType: 'prefix' },
   { label: 'Jobs', href: '/agent-lab/estate/jobs', matchType: 'exact' },
   { label: 'Mapper', href: '/agent-lab/estate/mapper', matchType: 'exact' },
   { label: 'Silo Finder', href: '/agent-lab/estate/silo', matchType: 'exact' },

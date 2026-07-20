@@ -1,0 +1,63 @@
+{
+  "family": "aloft-context-harvester",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "context-harvester",
+      "image": "454073573537.dkr.ecr.ap-south-1.amazonaws.com/aloft-context-harvester:latest",
+      "essential": true,
+      "command": [
+        "npx",
+        "tsx",
+        "--require",
+        "./scripts/context/noserver.cjs",
+        "scripts/context/orchestrator.ts"
+      ],
+      "environment": [
+        { "name": "NODE_ENV",          "value": "production" },
+        { "name": "HARVESTER_VERSION", "value": "ch4" },
+        { "name": "DEFAULT_ORG_SLUG",  "value": "spinor-demo" },
+        { "name": "DEFAULT_ORG_ID",    "value": "cmpm82n5x0000dj0cn3fo9pug" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/aurora:DATABASE_URL::"
+        },
+        {
+          "name": "DIRECT_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/aurora:DIRECT_URL::"
+        },
+        {
+          "name": "DATABRICKS_CLIENT_ID",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/databricks:DATABRICKS_CLIENT_ID::"
+        },
+        {
+          "name": "DATABRICKS_CLIENT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/databricks:DATABRICKS_CLIENT_SECRET::"
+        },
+        {
+          "name": "DATABRICKS_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/databricks:DATABRICKS_HOST::"
+        },
+        {
+          "name": "DATABRICKS_HTTP_PATH",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:454073573537:secret:aloft/databricks:DATABRICKS_HTTP_PATH::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/aloft-context-harvester",
+          "awslogs-region":        "ap-south-1",
+          "awslogs-stream-prefix": "harvester"
+        }
+      }
+    }
+  ]
+}

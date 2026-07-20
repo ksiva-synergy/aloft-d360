@@ -1965,6 +1965,34 @@ model PlatformContextEmbedding {
   @@map("platform_context_embeddings")
 }
 
+/// Phase 3.5D — NL-intent embeddings for authored definitions & raw-SQL charts.
+///
+/// A PARALLEL table (not an extra row-kind on platform_context_embeddings)
+/// because that table's subject_id is @db.Uuid with a UNIQUE(subject_kind,
+/// subject_id) keyed to context objects/columns, whereas semantic-definition
+/// and chart IDs are cuid2 strings — they cannot cleanly share the UUID column
+/// or the unique key. Same Titan-v2 embedding path (embedQuery), 1024-dim.
+///
+/// Status is intentionally NOT denormalised here: matching JOINs live to the
+/// source row (platform_sem_measures / platform_sem_dimensions / platform_charts)
+/// so a promote/demote is reflected instantly with no status-sync writes.
+model PlatformNlIntentEmbedding {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id      String
+  source_type String // 'measure' | 'dimension' | 'raw_chart'
+  source_id   String // cuid2 of the definition / chart row (NOT a uuid)
+  intent_text String
+  embedding   Unsupported("vector")?
+  model_id    String?
+  created_by  String?
+  created_at  DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime               @default(now()) @db.Timestamptz(6)
+
+  @@unique([source_type, source_id], map: "platform_nl_intent_embeddings_source_key")
+  @@index([org_id], map: "idx_pnie_org")
+  @@map("platform_nl_intent_embeddings")
+}
+
 model PlatformContextMapping {
   id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   org_id          String
@@ -2227,10 +2255,41 @@ model PlatformAgentMemory {
   blurb            String?                @map("blurb")
   caveatContext    Json?                  @map("caveat_context")
   contributorRep   Float                  @default(1.0) @map("contributor_rep")
+  // Phase 3.5D — user-taught standing rules. createdBy is the authoring user
+  // (NULL for system/reflector-synthesised bullets). visibility gates who sees
+  // the rule at retrieval time: 'org' = everyone in the org (the default,
+  // preserving all pre-3.5D behaviour), 'personal' = only the author's sessions.
+  createdBy        String?                @map("created_by")
+  visibility       String                 @default("org")
 
   @@index([orgId, agentClass, status])
   @@index([taskSignature])
+  @@index([orgId, agentClass, visibility, createdBy], map: "idx_agent_memory_visibility")
   @@map("platform_agent_memory")
+}
+
+// Teach Phase 3 (capture-shape) — the typed learning envelope the Reflect loop
+// emits over SSE, persisted 1:1 with the personal rule row it annotates. Kept in
+// its own table so the memory-retrieval path (retrieve.ts) is left physically
+// unchanged; the read-only candidate feed (Phase 3) projects this table joined to
+// platform_agent_memory. Nothing here is read by the personal-taught lane.
+model PlatformTeachCandidate {
+  id           String   @id
+  orgId        String   @map("org_id")
+  authorUserId String   @map("author_user_id")
+  sessionId    String?  @map("session_id")
+  memoryId     String   @map("memory_id")
+  learningType String   @map("learning_type")
+  state        String
+  verification Json?
+  conflict     Json?
+  resolution   Json?
+  capturedAt   DateTime @default(now()) @map("captured_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([memoryId], map: "uq_teach_candidate_memory")
+  @@index([orgId, authorUserId, capturedAt(sort: Desc)], map: "idx_teach_candidate_author")
+  @@map("platform_teach_candidate")
 }
 
 model PlatformMemoryInjection {
@@ -2376,6 +2435,8 @@ model platform_sem_dimensions {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
+  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([entity_id, column_name], map: "ux_psd_entity_col")
@@ -2394,6 +2455,7 @@ model platform_sem_entities {
   created_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   status                                                                      String                    @default("candidate")
+  created_by                                                                  String?                   // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
   platform_sem_dimensions                                                     platform_sem_dimensions[]
   platform_semantic_models                                                    platform_semantic_models  @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities platform_sem_joins[]      @relation("platform_sem_joins_from_entity_idToplatform_sem_entities")
@@ -2440,6 +2502,8 @@ model platform_sem_measures {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
+  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([org_id], map: "idx_psmeas_org")
@@ -2519,6 +2583,7 @@ model platform_dashboards {
   created_by                                                                                      String                             @default("system")
   visibility                                                                                      String                             @default("org")
   current_version_id                                                                              String?
+  connection_id                                                                                   String
   deleted_at                                                                                      DateTime?                          @db.Timestamptz(6)
   created_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)
   updated_at                                                                                      DateTime                           @default(now()) @db.Timestamptz(6)
@@ -2549,16 +2614,31 @@ model platform_dashboard_collaborators {
 model platform_charts {
   id                String    @id
   org_id            String
-  model_id          String
+  // Nullable as of Phase 3.5C: raw-SQL charts have no semantic model.
+  model_id          String?
   name              String
   description       String?
   created_by        String    @default("system")
   chart_dsl         Json
-  semantic_query    Json
+  // Nullable as of Phase 3.5C: null for raw-SQL charts (chart_source='raw_sql').
+  semantic_query    Json?
   measure_snapshots Json      @default("[]")
   created_at        DateTime  @default(now()) @db.Timestamptz(6)
   updated_at        DateTime  @default(now()) @db.Timestamptz(6)
   deleted_at        DateTime? @db.Timestamptz(6)
+
+  // ── Phase 3.5C: raw-SQL escape-hatch charts ────────────────────────────────
+  // Discriminates a governed semantic chart from an ungoverned raw-SQL chart.
+  // Defaults to 'semantic' so existing rows need no backfill.
+  chart_source      String    @default("semantic") // 'semantic' | 'raw_sql'
+  // The frozen SQL string (raw_sql charts only). enforceReadOnly-guarded at save.
+  raw_sql           String?
+  // Frozen result columns [{ name, type }] the chart_dsl binds to (raw_sql only).
+  result_schema     Json?
+  // The natural-language question this chart answers (prefilled from the prompt).
+  nl_intent         String?
+  // Which warehouse this raw SQL runs against (raw_sql charts carry their own).
+  connection_id     String?
 }
 
 // ── Maxwell watchdog models (MX0) ─────────────────────────────────────────────

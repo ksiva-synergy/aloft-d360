@@ -11,6 +11,11 @@ import { executeSemanticQuery } from '@/lib/semantic/execute';
 import { profileResultSet } from '@/lib/studio/profiler';
 import prisma from '@/lib/db';
 import type { SemanticQuery, SemanticValidationError } from '@/lib/semantic/types';
+import {
+  recommendChartKind,
+  type ChartRecommendation,
+  type ResolvedDefinitions,
+} from '@/lib/dashboards/chart-defaults';
 
 type EChartsOption = Record<string, unknown>;
 
@@ -260,15 +265,49 @@ ${columnLines}`;
 
 // ── Semantic chart pipeline ───────────────────────────────────────────────────
 
+/**
+ * A progressive-streaming event emitted by runSemanticChartPipeline as it moves
+ * through plan → execute → render. The chat route wires onProgress to the SSE
+ * emitter so the client can reveal the plan and compiled SQL before the (multi-
+ * second) chart-render LLM call completes.
+ */
+export type SemanticProgressEvent =
+  | { type: 'semantic_plan'; intent: string; definitionsSelected: string[] }
+  | { type: 'semantic_sql'; compiledSQL: string }
+  | { type: 'semantic_progress'; stage: 'compiling' | 'executing' | 'rendering'; message: string };
+
 export interface SemanticChartPipelineInput {
   query: SemanticQuery;
   connectionId: string;
   model: string;
   sessionId: string;
+  /** User's natural-language intent — surfaced in the semantic_plan event. */
+  intent?: string;
+  /** Optional progressive-streaming sink. No-op when omitted. */
+  onProgress?: (event: SemanticProgressEvent) => void;
+}
+
+/** The governed definitions a semantic chart actually referenced (trust spine). */
+export interface SemanticDefinitionsUsed {
+  dimensions: string[];
+  measures: string[];
 }
 
 export type SemanticChartPipelineResult =
-  | { ok: true; sql: string; spec: ChartDSLSpec; option: EChartsOption }
+  | {
+      ok: true;
+      sql: string;
+      spec: ChartDSLSpec;
+      option: EChartsOption;
+      /** Trust-spine metadata (surfaced by TrustPanel in the chat card). */
+      rowCount: number;
+      executedAt: string;
+      definitionsUsed: SemanticDefinitionsUsed;
+      /** id → human label for every referenced dim/measure. */
+      resolvedLabels: Record<string, string>;
+      /** Smart-defaults recommendation for this query shape (informational). */
+      recommendation: ChartRecommendation;
+    }
   | { ok: false; reason: string; errors?: SemanticValidationError[] };
 
 /**
@@ -284,7 +323,8 @@ export type SemanticChartPipelineResult =
 export async function runSemanticChartPipeline(
   input: SemanticChartPipelineInput,
 ): Promise<SemanticChartPipelineResult> {
-  const { query, connectionId, model, sessionId } = input;
+  const { query, connectionId, model, sessionId, intent, onProgress } = input;
+  const emitProgress = onProgress ?? (() => {});
 
   // ── Load model for validation ─────────────────────────────────────────────
   let modelRow: Awaited<ReturnType<typeof prisma.platform_semantic_models.findFirstOrThrow>> | null = null;
@@ -300,18 +340,24 @@ export async function runSemanticChartPipeline(
     return { ok: false, reason: `Semantic model '${query.modelId}' is not governed (status: ${modelRow.status})` };
   }
 
-  // Only non-archived entities are loaded for validation — archived entities
-  // are retired and must not appear in query validation or execution.
+  // Only governed/candidate (non-archived, non-draft) entities are loaded for
+  // validation. Archived entities are retired; DRAFT definitions (3.5A) are
+  // personal, owner-only, and must NEVER be visible to the LLM tool — this
+  // path re-implements its own governance gate, so the draft exclusion must be
+  // applied here as well as in execute.ts.
   const entityRows = await prisma.platform_sem_entities.findMany({
-    where: { model_id: modelRow.id, status: { not: 'archived' } },
+    where: { model_id: modelRow.id, status: { notIn: ['archived', 'draft'] } },
     select: { id: true },
   });
 
   const entityIds = entityRows.map((e) => e.id);
-  // Only non-archived definitions are valid query targets.
+  // Only non-archived, non-draft definitions are valid query targets. Labels +
+  // types are loaded alongside the ids the validator needs so we can build the
+  // trust-spine metadata (resolved labels) and the smart-defaults
+  // recommendation without a second round-trip.
   const [dimensionRows, measureRows] = await Promise.all([
-    prisma.platform_sem_dimensions.findMany({ where: { entity_id: { in: entityIds }, status: { not: 'archived' } }, select: { id: true, entity_id: true } }),
-    prisma.platform_sem_measures.findMany({ where: { entity_id: { in: entityIds }, status: { not: 'archived' } }, select: { id: true, entity_id: true } }),
+    prisma.platform_sem_dimensions.findMany({ where: { entity_id: { in: entityIds }, status: { notIn: ['archived', 'draft'] } }, select: { id: true, entity_id: true, dimension_label: true, dimension_type: true } }),
+    prisma.platform_sem_measures.findMany({ where: { entity_id: { in: entityIds }, status: { notIn: ['archived', 'draft'] } }, select: { id: true, entity_id: true, measure_label: true } }),
   ]);
 
   // ── Validate before any Databricks call ───────────────────────────────────
@@ -329,7 +375,48 @@ export async function runSemanticChartPipeline(
     };
   }
 
+  // ── Resolve trust-spine metadata (labels + recommendation) ─────────────────
+  const dimLabelById = new Map(dimensionRows.map((d) => [d.id, d.dimension_label]));
+  const measureLabelById = new Map(measureRows.map((m) => [m.id, m.measure_label]));
+  const dimTypeById = new Map(dimensionRows.map((d) => [d.id, d.dimension_type]));
+
+  const definitionsUsed: SemanticDefinitionsUsed = {
+    dimensions: query.dimensions.map((d) => d.dimensionId),
+    measures: query.measures.map((m) => m.measureId),
+  };
+
+  const resolvedLabels: Record<string, string> = {};
+  for (const d of query.dimensions) {
+    resolvedLabels[d.dimensionId] = dimLabelById.get(d.dimensionId) ?? d.dimensionId;
+  }
+  for (const m of query.measures) {
+    resolvedLabels[m.measureId] = measureLabelById.get(m.measureId) ?? m.measureId;
+  }
+
+  const resolvedDefs: ResolvedDefinitions = {
+    dimensions: Object.fromEntries(
+      query.dimensions.map((d) => [d.dimensionId, { id: d.dimensionId, type: dimTypeById.get(d.dimensionId) }]),
+    ),
+    measures: Object.fromEntries(query.measures.map((m) => [m.measureId, { id: m.measureId }])),
+  };
+  const recommendation = recommendChartKind(query, resolvedDefs);
+
+  // Plan is known as soon as validation passes — surface it before execution.
+  emitProgress({
+    type: 'semantic_plan',
+    intent: intent ?? '',
+    definitionsSelected: [
+      ...query.dimensions.map((d) => resolvedLabels[d.dimensionId]),
+      ...query.measures.map((m) => resolvedLabels[m.measureId]),
+    ],
+  });
+
   // ── Execute ───────────────────────────────────────────────────────────────
+  // NOTE: compileSemanticQuery runs inside executeSemanticQuery (we do not touch
+  // its signature), so the compiled SQL is available immediately after execution
+  // resolves — emitted below via semantic_sql, ahead of the chart-render step.
+  emitProgress({ type: 'semantic_progress', stage: 'executing', message: 'Running query against warehouse…' });
+
   let execResult: Awaited<ReturnType<typeof executeSemanticQuery>>;
   try {
     execResult = await executeSemanticQuery(query, connectionId);
@@ -337,6 +424,9 @@ export async function runSemanticChartPipeline(
     const reason = err instanceof Error ? err.message : 'Semantic query execution failed';
     return { ok: false, reason };
   }
+
+  emitProgress({ type: 'semantic_sql', compiledSQL: execResult.sql });
+  emitProgress({ type: 'semantic_progress', stage: 'rendering', message: 'Building chart…' });
 
   // ── Build QueryResult and profile ─────────────────────────────────────────
   const queryResult: QueryResult = {
@@ -367,5 +457,10 @@ export async function runSemanticChartPipeline(
     sql: execResult.sql,
     spec: chartResult.spec,
     option: chartResult.option,
+    rowCount: execResult.rowCount,
+    executedAt: new Date().toISOString(),
+    definitionsUsed,
+    resolvedLabels,
+    recommendation,
   };
 }

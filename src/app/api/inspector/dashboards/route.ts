@@ -8,6 +8,11 @@ import {
   getUserByEmail,
   coerceVisibility,
 } from '@/lib/dashboards/permissions';
+import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import {
+  resolveModelConnection,
+  DashboardModelConnectionConflictError,
+} from '@/lib/dashboards/connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -143,45 +148,92 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const body = await request.json() as {
-      modelId: string;
+      modelId?: string;
       name: string;
       description?: string;
       visibility?: string;
-      createdBy?: string;
     };
 
-    if (!body.modelId || !body.name) {
+    if (!body.name) {
       return NextResponse.json(
-        { error: 'modelId and name are required' },
+        { error: 'name is required' },
         { status: 400 },
       );
     }
 
-    // Confirm the model exists and belongs to this org
-    const model = await prisma.platform_semantic_models.findFirst({
-      where: { id: body.modelId, org_id: org.id },
-    });
+    // Resolve the semantic model. Callers may pass an explicit modelId; when
+    // omitted we fall back to the org's governed model — the same one the
+    // Inspector chat binds to (see buildSemanticContext). This spares the UI
+    // from having to know a cuid up front.
+    const model = body.modelId
+      ? await prisma.platform_semantic_models.findFirst({
+          where: { id: body.modelId, org_id: org.id },
+        })
+      : await prisma.platform_semantic_models.findFirst({
+          where: { org_id: org.id, status: 'governed' },
+          orderBy: { created_at: 'desc' },
+        });
     if (!model) {
-      return NextResponse.json({ error: 'Model not found' }, { status: 404 });
+      return NextResponse.json(
+        {
+          error: body.modelId
+            ? 'Model not found'
+            : 'No governed semantic model exists for this org yet',
+        },
+        { status: 404 },
+      );
     }
+    const modelId = model.id;
 
-    // Resolve creator
+    // Resolve creator — SEC-2: actor comes from the session, never the body.
     const userEmail = session?.user?.email ?? null;
     const currentUser = userEmail ? await getUserByEmail(userEmail) : null;
-    const actor = body.createdBy ?? currentUser?.email ?? 'system';
+    const actor = currentUser?.email ?? 'system';
 
     const id = createId();
     const visibility = coerceVisibility(body.visibility);
+
+    // DEC-1: dashboards bind a Databricks connection at creation (connection_id
+    // is NOT NULL). Resolve the default the same way the Inspector chat does —
+    // the tool_catalog 'synergy_dwh' entry's config.connection_id points at a
+    // platform_databricks_connections row. This is what the Phase 0 backfill used.
+    const catalogEntry = await resolveToolCatalogEntry('synergy_dwh');
+    const defaultConnectionId =
+      (catalogEntry?.config as Record<string, unknown> | null)?.connection_id;
+    if (typeof defaultConnectionId !== 'string' || !defaultConnectionId) {
+      return NextResponse.json(
+        { error: 'No Databricks connection is configured for dashboards' },
+        { status: 500 },
+      );
+    }
+
+    // Issue #3 — bind-time guard: the per-dashboard schema (DEC-1) can't express
+    // "same model ⇒ same connection", so enforce it here. If another dashboard
+    // already binds this model, inherit its (canonical) connection; a differing
+    // supplied value is a genuine invariant violation and is rejected below.
+    let connectionId: string;
+    try {
+      connectionId = await resolveModelConnection(modelId, defaultConnectionId);
+    } catch (e) {
+      if (e instanceof DashboardModelConnectionConflictError) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: 409 },
+        );
+      }
+      throw e;
+    }
 
     const dashboard = await prisma.platform_dashboards.create({
       data: {
         id,
         org_id: org.id,
-        model_id: body.modelId,
+        model_id: modelId,
         name: body.name,
         description: body.description ?? null,
         created_by: actor,
         visibility,
+        connection_id: connectionId,
         current_version_id: null,
         deleted_at: null,
       },

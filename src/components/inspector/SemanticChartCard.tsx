@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookmarkPlus, Check, X } from 'lucide-react';
+import { BookmarkPlus, Check, X, Pin, Info, Wand2, GitCompare, Sparkles } from 'lucide-react';
 import StudioChart from '@/components/studio/StudioChart';
+import { PinToDashboardDialog } from './PinToDashboardDialog';
+import { DraftChangeCard } from './DraftChangeCard';
+import { TrustPanel } from './TrustPanel';
+import { DefineMetricPanel, type DefineMetricPrefill } from './authoring/DefineMetricPanel';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 
@@ -15,6 +19,23 @@ interface SemanticChartCardProps {
   message: SemanticChartMessage;
   /** Pre-compiled ECharts option from the SSE event — avoids re-running compiler */
   echartsOption: object;
+  /**
+   * platform_charts id this session is refining (from ?sourceChart=). When set,
+   * an "Apply to dashboard" affordance appears so a refined chart can be pushed
+   * back to the dashboard widget it came from — through a draft-accept diff.
+   */
+  sourceChartId?: string | null;
+  /**
+   * Sends a conversational follow-up to the chat (wired to useInspectorChat.send).
+   * Used by the refinement input to re-run the grounded pipeline with a tweak.
+   */
+  onRefine?: (followUp: string) => void;
+  /**
+   * The user's originating question for this chart (Phase 3.5B chat-capture).
+   * Pre-fills the DefineMetricPanel NL-intent when saving the chart as a metric:
+   * the demonstration → the intent, captured automatically.
+   */
+  originalQuestion?: string;
 }
 
 /**
@@ -23,13 +44,47 @@ interface SemanticChartCardProps {
  * The chart can later be assigned to a dashboard widget via DefinitionPicker's
  * Charts tab (Decision 2: click-to-assign, Option B: one-time copy).
  */
-export function SemanticChartCard({ message, echartsOption }: SemanticChartCardProps) {
+export function SemanticChartCard({ message, echartsOption, sourceChartId, onRefine, originalQuestion }: SemanticChartCardProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [showPinDialog, setShowPinDialog] = useState(false);
+  const [showDefineMetric, setShowDefineMetric] = useState(false);
+  const [savedChartId, setSavedChartId] = useState<string | null>(null);
   const [chartName, setChartName] = useState(message.chartDsl.title);
   const [chartDesc, setChartDesc] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [refineText, setRefineText] = useState('');
+  const [showDraft, setShowDraft] = useState(false);
+
+  const handleRefine = () => {
+    const text = refineText.trim();
+    if (!text || !onRefine) return;
+    // Prepend invisible context so the agent knows which chart is being refined
+    // and its current governed shape. The follow-up re-runs the grounded pipeline
+    // (compile → execute → chart) — never a client-side filter.
+    const ctx =
+      `[Refining the "${message.chartDsl.title}" chart. Its current governed query (JSON) is ` +
+      `${JSON.stringify(message.semanticQuery)}. Apply the change described below by calling ` +
+      `emit_semantic_chart again with the modified query — keep every field the user did not ask ` +
+      `to change, and stay within the governed semantic model.]`;
+    onRefine(`${ctx}\n\n${text}`);
+    setRefineText('');
+  };
+
+  // Chat-capture prefill (Phase 3.5B): seed the DefineMetricPanel from this
+  // chart's resolved semantic query + the originating question. The chart's
+  // measures are governed IDs; the panel resolves their definition from
+  // authoring-meta so the form fields land pre-filled (degrading to entity +
+  // label if the measure isn't in the caller's accessible set).
+  const firstMeasureId = message.semanticQuery.measures[0]?.measureId;
+  const metricPrefill: DefineMetricPrefill = {
+    tableKind: 'measure',
+    entityId: message.semanticQuery.entityId,
+    measureId: firstMeasureId,
+    measureLabel: (firstMeasureId && message.resolvedLabels?.[firstMeasureId]) || message.chartDsl.title,
+    nlIntent: originalQuestion,
+  };
 
   // Build a minimal ChartSpec so StudioChart can render the pre-compiled option
   const spec: ChartSpec = {
@@ -64,6 +119,8 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
         setSaveError(data.error ?? `Save failed (${resp.status})`);
         return;
       }
+      const data = await resp.json().catch(() => ({})) as { chart?: { id: string } };
+      if (data.chart?.id) setSavedChartId(data.chart.id);
       setSaved(true);
       setShowDialog(false);
     } catch (err) {
@@ -124,6 +181,58 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
         >
           {message.chartDsl.kind}
         </span>
+        {/* Pin to dashboard — the signature Phase 2 action, always available */}
+        <button
+          onClick={() => setShowPinDialog(true)}
+          title="Pin to dashboard"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            ...MONO,
+            fontSize: 9,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            border: 'none',
+            borderRadius: 3,
+            padding: '3px 8px',
+            background: GOLD,
+            color: '#0D1B2A',
+            fontWeight: 600,
+            flexShrink: 0,
+          }}
+        >
+          <Pin size={11} />
+          PIN
+        </button>
+        {/* Save as metric — the chat-capture fast path into authoring (3.5B) */}
+        <button
+          onClick={() => setShowDefineMetric(true)}
+          title="Save as a semantic metric draft"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            ...MONO,
+            fontSize: 9,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            cursor: 'pointer',
+            border: `1px solid rgba(253,181,21,0.35)`,
+            borderRadius: 3,
+            padding: '3px 8px',
+            background: 'transparent',
+            color: GOLD,
+            flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,0.10)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <Sparkles size={11} />
+          SAVE AS METRIC
+        </button>
         {saved ? (
           <span
             style={{
@@ -169,43 +278,130 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
         )}
       </div>
 
+      {/* "Why this chart" — smart-defaults rationale (Phase 3A) */}
+      {message.recommendation?.rationale && (
+        <div
+          title={message.recommendation.rationale}
+          style={{
+            ...MONO,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '4px 12px 0',
+            fontSize: 9,
+            color: 'var(--wb-muted)',
+          }}
+        >
+          <Info size={10} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {message.recommendation.rationale}
+          </span>
+        </div>
+      )}
+
       {/* Chart */}
       <div style={{ padding: '8px 4px' }}>
         <StudioChart spec={spec} height={260} />
       </div>
 
-      {/* SQL disclosure */}
-      <details style={{ padding: '0 12px 8px' }}>
-        <summary
-          style={{
-            ...MONO,
-            fontSize: 9,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--wb-muted)',
-            cursor: 'pointer',
-            userSelect: 'none',
-          }}
-        >
-          SQL
-        </summary>
-        <pre
-          style={{
-            ...MONO,
-            fontSize: 10,
-            color: 'var(--wb-ink-dim)',
-            overflowX: 'auto',
-            margin: '6px 0 0',
-            padding: '8px',
-            background: 'rgba(0,0,0,0.2)',
-            borderRadius: 3,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-          }}
-        >
-          {message.sql}
-        </pre>
-      </details>
+      {/* Trust Spine — how this was computed (collapsed by default) */}
+      <div style={{ padding: '0 12px 10px' }}>
+        <TrustPanel
+          sql={message.sql}
+          definitionsUsed={message.definitionsUsed}
+          rowCount={message.rowCount}
+          executedAt={message.executedAt}
+          resolvedLabels={message.resolvedLabels}
+        />
+      </div>
+
+      {/* Conversational refinement — re-runs the grounded pipeline with a tweak */}
+      {onRefine && (
+        <div style={{ padding: '0 12px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Wand2 size={12} color={GOLD} style={{ flexShrink: 0 }} />
+            <input
+              type="text"
+              value={refineText}
+              onChange={(e) => setRefineText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRefine(); } }}
+              placeholder='Refine this chart — e.g. "break out by region"'
+              style={{
+                ...MONO,
+                fontSize: 11,
+                flex: 1,
+                background: 'var(--wb-canvas)',
+                border: '1px solid rgba(253,181,21,0.2)',
+                borderRadius: 4,
+                padding: '6px 8px',
+                color: 'var(--wb-text)',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              onClick={handleRefine}
+              disabled={!refineText.trim()}
+              title="Refine chart"
+              style={{
+                ...MONO,
+                fontSize: 9,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: `1px solid rgba(253,181,21,0.35)`,
+                borderRadius: 3,
+                padding: '5px 10px',
+                background: refineText.trim() ? GOLD : 'transparent',
+                color: refineText.trim() ? '#0D1B2A' : GOLD,
+                fontWeight: 600,
+                cursor: refineText.trim() ? 'pointer' : 'default',
+                opacity: refineText.trim() ? 1 : 0.6,
+                flexShrink: 0,
+              }}
+            >
+              Refine
+            </button>
+          </div>
+
+          {/* Apply-to-dashboard (draft-accept) — only for charts refined from a widget */}
+          {sourceChartId && (
+            <>
+              <button
+                onClick={() => setShowDraft((s) => !s)}
+                style={{
+                  ...MONO,
+                  fontSize: 9,
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  alignSelf: 'flex-start',
+                  border: `1px solid rgba(253,181,21,0.25)`,
+                  borderRadius: 3,
+                  padding: '4px 9px',
+                  background: showDraft ? 'rgba(253,181,21,0.1)' : 'transparent',
+                  color: GOLD,
+                  cursor: 'pointer',
+                }}
+              >
+                <GitCompare size={11} />
+                Apply to dashboard
+              </button>
+              {showDraft && (
+                <DraftChangeCard
+                  modelId={message.semanticQuery.modelId}
+                  sourceChartId={sourceChartId}
+                  proposedChartDsl={message.chartDsl}
+                  proposedSemanticQuery={message.semanticQuery}
+                  proposedTitle={message.chartDsl.title}
+                  onClose={() => setShowDraft(false)}
+                />
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Save dialog */}
       {showDialog && (
@@ -296,6 +492,25 @@ export function SemanticChartCard({ message, echartsOption }: SemanticChartCardP
             {saving ? 'SAVING…' : 'SAVE'}
           </button>
         </div>
+      )}
+
+      {/* Pin to dashboard dialog */}
+      {showPinDialog && (
+        <PinToDashboardDialog
+          message={message}
+          savedChartId={savedChartId}
+          onChartSaved={(id) => { setSavedChartId(id); setSaved(true); }}
+          onClose={() => setShowPinDialog(false)}
+        />
+      )}
+
+      {/* Save as metric — DefineMetricPanel prefilled from this chart (3.5B) */}
+      {showDefineMetric && (
+        <DefineMetricPanel
+          modelId={message.semanticQuery.modelId}
+          prefill={metricPrefill}
+          onClose={() => setShowDefineMetric(false)}
+        />
       )}
     </div>
   );

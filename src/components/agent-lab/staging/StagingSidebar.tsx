@@ -37,6 +37,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Inspector',        href: '/inspector',            icon: Database },
       { label: 'Dashboards',       href: '/inspector/dashboards', icon: LayoutDashboard },
+      // TODO: repoint href to '/agent-lab/teach' when the full Teach page (Phase 4) ships; only the digest sub-route exists today.
+      { label: 'Teach',            href: '/agent-lab/teach/digest', icon: Wand2 },
       { label: 'Performance Lab',  href: '/performance-lab',      icon: TestTube2 },
       { label: 'Bandits',          href: '/agent-lab/bandits',    icon: Dices },
       { label: 'History',          href: '/agent-lab/history',    icon: History },

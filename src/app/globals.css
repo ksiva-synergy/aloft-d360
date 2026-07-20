@@ -134,7 +134,13 @@
   --estate-text-dim:    #aab3bb;
   --estate-border:      rgba(0, 50, 98, 0.12);
   --estate-border-gold: rgba(0, 50, 98, 0.12);
+  --estate-role-badge-text: #003262; /* navy on gold tint — light mode */
   --estate-hover:       rgba(0, 50, 98, 0.02);
+  /* Per-role badge text (UserMenu) — light mode */
+  --role-badge-platform-admin: #92400e;
+  --role-badge-admin:          #1e40af;
+  --role-badge-member:         #6b7280;
+  --role-badge-readonly:       #9ca3af;
   --estate-active-bg:   rgba(0, 50, 98, 0.04);
   --estate-btn-border:  #d0d6dc;
   --estate-th-bg:       #FAFAF7;
@@ -303,7 +309,13 @@
   --estate-text-dim:    #4a5765;
   --estate-border:      #1e2935;
   --estate-border-gold: rgba(253, 181, 21, 0.12);
+  --estate-role-badge-text: #FDB515; /* gold on gold tint — dark mode */
   --estate-hover:       #0e131a;
+  /* Per-role badge text (UserMenu) — dark mode (brightened for contrast) */
+  --role-badge-platform-admin: #FBBF24;
+  --role-badge-admin:          #93C5FD;
+  --role-badge-member:         #B6BECD;
+  --role-badge-readonly:       #9CA6B5;
   --estate-active-bg:   rgba(253, 181, 21, 0.08);
   --estate-btn-border:  #2a3a4a;
   --estate-th-bg:       #0F2236;

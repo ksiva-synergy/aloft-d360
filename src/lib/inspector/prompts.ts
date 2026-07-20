@@ -218,10 +218,56 @@ export const EMIT_SEMANTIC_CHART_TOOL: Tool = {
   },
 };
 
+/**
+ * JSON Schema for emit_disambiguation — the structured, interactive form of the
+ * "refuse rather than guess" behaviour. The agent calls this INSTEAD of a plain
+ * text refusal when a user's term maps to multiple governed fields (ambiguous)
+ * or to none (unrecognized), so the client can render clickable candidate chips
+ * rather than parsing prose.
+ */
+export const DISAMBIGUATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    originalTerm: { type: 'string', description: "The user's term that could not be resolved unambiguously, e.g. 'revenue'." },
+    candidates: {
+      type: 'array',
+      description: 'Governed fields the user might have meant. Order best-match first. Use exact IDs and labels from the GOVERNED SEMANTIC MODEL context.',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Exact dimension or measure ID from the governed semantic model.' },
+          label: { type: 'string', description: 'The governed human label for this field.' },
+          type: { type: 'string', enum: ['dimension', 'measure'], description: 'Whether this candidate is a dimension or a measure.' },
+          relevance: {
+            type: 'string',
+            enum: ['exact', 'partial', 'none'],
+            description: "'exact' — the term matches this field closely; 'partial' — a plausible but looser match; 'none' — offered only as a fallback.",
+          },
+        },
+        required: ['id', 'label', 'type', 'relevance'],
+      },
+    },
+    message: { type: 'string', description: 'A short natural-language explanation of the ambiguity and what you need from the user.' },
+  },
+  required: ['originalTerm', 'candidates', 'message'],
+} as const;
+
+export const EMIT_DISAMBIGUATION_TOOL: Tool = {
+  toolSpec: {
+    name: 'emit_disambiguation',
+    description: "Ask the user to disambiguate a term that maps to multiple governed fields, or to none. Call this INSTEAD of writing a plain-text refusal whenever the requested metric/dimension is ambiguous or unrecognized in the GOVERNED SEMANTIC MODEL context. The client renders your candidates as clickable choices. Do NOT call emit_semantic_chart in the same turn — stop after this call and wait for the user to pick.",
+    inputSchema: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      json: DISAMBIGUATION_SCHEMA as any,
+    },
+  },
+};
+
 export function buildToolConfig(
   contextMode: 'harvested' | 'warehouse_only',
   includeSemanticChart?: boolean,
 ): ToolConfiguration {
+  const semanticTools = includeSemanticChart ? [EMIT_SEMANTIC_CHART_TOOL, EMIT_DISAMBIGUATION_TOOL] : [];
   if (contextMode === 'warehouse_only') {
     const baseTools = INSPECTOR_TOOLS
       .filter(t => t.toolSpec?.name !== 'describe_schema')
@@ -231,12 +277,10 @@ export function buildToolConfig(
           description: 'Execute SQL against the synergy_dwh Databricks warehouse. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH, SHOW, DESCRIBE. Read-only. Always include LIMIT for data queries.',
         },
       } : t);
-    return { tools: includeSemanticChart ? [...baseTools, EMIT_SEMANTIC_CHART_TOOL] : baseTools };
+    return { tools: [...baseTools, ...semanticTools] };
   }
   return {
-    tools: includeSemanticChart
-      ? [...INSPECTOR_TOOLS, EMIT_SEMANTIC_CHART_TOOL]
-      : INSPECTOR_TOOLS,
+    tools: [...INSPECTOR_TOOLS, ...semanticTools],
   };
 }
 
@@ -251,26 +295,53 @@ function buildSemanticPromptSection(ctx: SemanticContext): string {
     '',
     'When the user asks about a metric or dimension listed below, call emit_semantic_chart with the exact IDs shown.',
     'Only fall back to emit_chart if the requested data is NOT in this list.',
+    'Each field may list governed aliases ("also called: ..."). If the user\'s term matches',
+    'a field\'s label OR one of its aliases, treat it as an unambiguous match for that field —',
+    'resolve it directly, do NOT open a disambiguation round-trip for a known alias.',
+    '',
+    '### REFUSE RATHER THAN GUESS — use emit_disambiguation',
+    'The measures and dimensions below are the ONLY governed fields available. If a',
+    'user asks for a metric or dimension that does NOT appear in this list, or their',
+    'term matches MORE THAN ONE governed field, do NOT invent one and do NOT substitute',
+    'a plausible-looking column via raw SQL. Instead, call the emit_disambiguation tool:',
+    '  - Ambiguous term (maps to several fields, e.g. "revenue" → Total Revenue, Net',
+    '    Revenue, Revenue per Unit): list each matching field as a candidate with',
+    "    relevance 'exact' or 'partial'.",
+    '  - Unrecognized term (maps to nothing, e.g. "customer satisfaction"): list the',
+    "    closest 5–10 governed fields as candidates with relevance 'partial' or 'none'.",
+    'After calling emit_disambiguation, STOP and wait for the user — do not call',
+    'emit_semantic_chart in the same turn. When the user replies naming a specific field',
+    '(e.g. "Use Total Revenue (msr_...)"), treat it as unambiguous and proceed with',
+    'emit_semantic_chart. Guessing a metric in a governed analytics product is worse than',
+    'asking — a wrong-but-confident number erodes trust.',
     '',
     `Model ID: ${ctx.modelId}`,
     '',
   ];
 
   for (const entity of ctx.entities) {
+    // Synonyms are governed aliases the org has taught (Phase 3.5D). Surfacing
+    // them here is what lets the LLM resolve "ARR" → Annual Recurring Revenue
+    // without a disambiguation round-trip. A synonym nobody reads is dead weight.
+    const synHint = (syns: string[]) =>
+      syns.length > 0 ? `, also called: ${syns.slice(0, 6).join(', ')}` : '';
+    const entityHeader = entity.synonyms.length > 0
+      ? `### ${entity.entityLabel} (entity: ${entity.entityId}${synHint(entity.synonyms)})`
+      : `### ${entity.entityLabel} (entity: ${entity.entityId})`;
     const entityLines: string[] = [
-      `### ${entity.entityLabel} (entity: ${entity.entityId})`,
+      entityHeader,
       `Path: ${entity.fullPath}`,
     ];
     if (entity.dimensions.length > 0) {
       entityLines.push('Dimensions:');
       for (const d of entity.dimensions) {
-        entityLines.push(`  - ${d.label} (id: ${d.id}, type: ${d.type})`);
+        entityLines.push(`  - ${d.label} (id: ${d.id}, type: ${d.type}${synHint(d.synonyms)})`);
       }
     }
     if (entity.measures.length > 0) {
       entityLines.push('Measures:');
       for (const m of entity.measures) {
-        entityLines.push(`  - ${m.label} (id: ${m.id}, agg: ${m.aggregate}, type: ${m.metricType})`);
+        entityLines.push(`  - ${m.label} (id: ${m.id}, agg: ${m.aggregate}, type: ${m.metricType}${synHint(m.synonyms)})`);
       }
     }
     entityLines.push('');

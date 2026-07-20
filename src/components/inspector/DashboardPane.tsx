@@ -1,13 +1,17 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   PieChart, Pie, Cell, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import type { QueryResult } from '@/hooks/useInspectorChat';
+import type { RawSqlChartDsl, RawChartKind } from '@/lib/dashboards/raw-sql-chart';
+import { RawSqlBadge } from './RawSqlBadge';
+import { PinRawSqlDialog } from './PinRawSqlDialog';
+import { DefineMetricPanel } from './authoring/DefineMetricPanel';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const GOLD   = '#FDB515';
@@ -151,9 +155,18 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 interface ChartBuilderProps {
   columns: { name: string; type_name: string }[];
   rows: Record<string, unknown>[];
+  /** The SQL that produced this result — frozen into a raw-SQL saved chart. */
+  sql: string;
+  /** The user's originating question — prefills a raw-SQL chart's nl_intent. */
+  latestQuestion?: string;
+  /**
+   * A semantic model to graduate a raw query into (opens DefineMetricPanel).
+   * When absent, the "Define this as a metric" nudge is hidden.
+   */
+  graduateModelId?: string | null;
 }
 
-function ChartBuilder({ columns, rows }: ChartBuilderProps) {
+function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: ChartBuilderProps) {
   const { xDefault, yDefault, numericCols } = useMemo(
     () => autoDetectAxes(columns, rows),
     [columns, rows],
@@ -164,7 +177,64 @@ function ChartBuilder({ columns, rows }: ChartBuilderProps) {
   const [yCol, setYCol] = useState(yDefault);
   const [y2Col, setY2Col] = useState('');
 
+  // ── Phase 3.5C: raw-SQL save / pin / graduate state ──────────────────────────
+  const [saving, setSaving] = useState(false);
+  const [savedRow, setSavedRow] = useState<{ id: string; connection_id: string } | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showPin, setShowPin] = useState(false);
+  const [showDefine, setShowDefine] = useState(false);
+  const [chartName, setChartName] = useState('');
+  const [nlIntent, setNlIntent] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const colNames = columns.map(c => c.name);
+
+  // The raw-SQL chart config, derived from the current builder selections.
+  // Only meaningful for a renderable (non-table) chart with a Y column chosen.
+  const rawDsl = useMemo<RawSqlChartDsl | null>(() => {
+    if (chartType === 'table' || !xCol || !yCol) return null;
+    const y = y2Col ? [yCol, y2Col] : [yCol];
+    return { source: 'raw_sql', kind: chartType as RawChartKind, x: xCol, y };
+  }, [chartType, xCol, yCol, y2Col]);
+
+  const resultSchema = useMemo(
+    () => columns.map((c) => ({ name: c.name, type: c.type_name })),
+    [columns],
+  );
+
+  const defaultName = (latestQuestion?.trim() || `${yCol} by ${xCol}`).slice(0, 80);
+
+  const handleSaveRaw = useCallback(async () => {
+    if (saving || !rawDsl) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const resp = await fetch('/api/inspector/charts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chartSource: 'raw_sql',
+          name: chartName.trim() || defaultName,
+          rawSql: sql,
+          resultSchema,
+          chartDsl: rawDsl,
+          nlIntent: nlIntent.trim() || latestQuestion || undefined,
+        }),
+      });
+      if (!resp.ok) {
+        const data = (await resp.json().catch(() => ({}))) as { error?: string };
+        setSaveError(data.error ?? `Save failed (${resp.status})`);
+        return;
+      }
+      const data = (await resp.json()) as { chart: { id: string; connection_id: string } };
+      setSavedRow({ id: data.chart.id, connection_id: data.chart.connection_id });
+      setShowSaveDialog(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Network error');
+    } finally {
+      setSaving(false);
+    }
+  }, [saving, rawDsl, chartName, defaultName, sql, resultSchema, nlIntent, latestQuestion]);
 
   // Normalize chart data: numeric values, limit to 200 points for performance
   const chartData = useMemo(() => {
@@ -331,9 +401,106 @@ function ChartBuilder({ columns, rows }: ChartBuilderProps) {
           Select a numeric Y column to render the chart
         </div>
       )}
+
+      {/* ── Phase 3.5C: raw-SQL save / pin / graduate actions ─────────────────── */}
+      {rawDsl && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <RawSqlBadge size="xs" />
+            <div style={{ flex: 1 }} />
+            {savedRow ? (
+              <span style={{ ...mono, fontSize: 9, color: '#86EFAC', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Check size={11} /> SAVED
+              </span>
+            ) : (
+              <button
+                onClick={() => { setChartName(defaultName); setNlIntent(latestQuestion ?? ''); setShowSaveDialog(true); }}
+                title="Save this raw-SQL chart"
+                style={rawActionBtn(false)}
+              >
+                <BookmarkPlus size={11} /> SAVE CHART
+              </button>
+            )}
+            <button onClick={() => setShowPin(true)} title="Pin to dashboard" style={rawActionBtn(true)}>
+              <Pin size={11} /> PIN
+            </button>
+            {graduateModelId && (
+              <button
+                onClick={() => setShowDefine(true)}
+                title="Turn this into a governed, drift-checked metric others can reuse"
+                style={rawActionBtn(false)}
+              >
+                <Sparkles size={11} /> DEFINE AS METRIC
+              </button>
+            )}
+          </div>
+
+          {/* Save dialog — name + the question this answers */}
+          {showSaveDialog && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 4, background: SURF }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ ...mono, fontSize: 9, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>SAVE RAW-SQL CHART</span>
+                <button onClick={() => { setShowSaveDialog(false); setSaveError(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TXT2, display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </div>
+              <input value={chartName} onChange={(e) => setChartName(e.target.value)} placeholder="Chart name" style={rawInput} />
+              <input value={nlIntent} onChange={(e) => setNlIntent(e.target.value)} placeholder="What question does this answer?" style={rawInput} />
+              {saveError && <span style={{ ...mono, fontSize: 9, color: '#F87171' }}>{saveError}</span>}
+              <button onClick={handleSaveRaw} disabled={saving} style={{ ...rawActionBtn(true), justifyContent: 'center', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'SAVING…' : 'SAVE'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pin dialog */}
+      {showPin && rawDsl && (
+        <PinRawSqlDialog
+          chart={{
+            name: chartName.trim() || defaultName,
+            rawSql: sql,
+            resultSchema,
+            dsl: rawDsl,
+            nlIntent: nlIntent.trim() || latestQuestion,
+            saved: savedRow,
+          }}
+          onSaved={(row) => setSavedRow(row)}
+          onClose={() => setShowPin(false)}
+        />
+      )}
+
+      {/* Graduate nudge → DefineMetricPanel (3.5B authoring flow) */}
+      {showDefine && graduateModelId && (
+        <DefineMetricPanel
+          modelId={graduateModelId}
+          prefill={{ tableKind: 'measure', nlIntent: nlIntent.trim() || latestQuestion }}
+          onClose={() => setShowDefine(false)}
+        />
+      )}
     </div>
   );
 }
+
+/** Raw-SQL action button style. `primary` = gold fill, else outlined gold. */
+function rawActionBtn(primary: boolean): React.CSSProperties {
+  return {
+    ...mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+    display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
+    border: `1px solid ${primary ? GOLD : 'rgba(253,181,21,0.35)'}`,
+    borderRadius: 3, padding: '3px 8px',
+    background: primary ? GOLD : 'transparent',
+    color: primary ? '#0D1B2A' : GOLD,
+    fontWeight: primary ? 600 : 400,
+  };
+}
+
+const rawInput: React.CSSProperties = {
+  ...mono, fontSize: 10, width: '100%', boxSizing: 'border-box',
+  background: BG, border: `1px solid ${LINE}`, borderRadius: 3,
+  padding: '5px 7px', color: TXT, outline: 'none',
+};
 
 // ── SQL preview badge ─────────────────────────────────────────────────────────
 function SqlBadge({ sql }: { sql: string }) {
@@ -399,9 +566,13 @@ interface DashboardPaneProps {
   queryResults: QueryResult[];
   onOpenStudio?: () => void;
   expandButtonRef?: React.RefObject<HTMLButtonElement>;
+  /** The latest user question — prefills a raw-SQL chart's nl_intent (3.5C). */
+  latestQuestion?: string;
+  /** Semantic model to graduate a raw query into via DefineMetricPanel (3.5C). */
+  graduateModelId?: string | null;
 }
 
-export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef }: DashboardPaneProps) {
+export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef, latestQuestion, graduateModelId }: DashboardPaneProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -521,7 +692,13 @@ export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef }: D
           </div>
 
           {/* Chart builder — bottom section */}
-          <ChartBuilder columns={active.columns} rows={active.rows} />
+          <ChartBuilder
+            columns={active.columns}
+            rows={active.rows}
+            sql={active.sql}
+            latestQuestion={latestQuestion}
+            graduateModelId={graduateModelId}
+          />
         </div>
       )}
     </div>

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createId } from '@paralleldrive/cuid2';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
+import {
+  getUserByEmail,
+  getDashboardRole,
+  canEditDashboard,
+} from '@/lib/dashboards/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,22 +25,25 @@ type Params = { params: Promise<{ dashboardId: string }> };
  * history remains intact. A D3 re-save after restore will create a new version
  * row forked from the restored content.
  *
- * Body: { versionId: string, actor?: string }
+ * Body: { versionId: string }
+ *
+ * SEC-1: requires an authenticated user with an owner/editor role on this
+ * dashboard. SEC-2: the audit actor is derived from the session, never from
+ * the request body.
  */
 export async function POST(
   request: NextRequest,
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
-    const body = await request.json() as { versionId: string; actor?: string };
+    const body = await request.json() as { versionId: string };
 
     if (!body.versionId) {
       return NextResponse.json({ error: 'versionId is required' }, { status: 400 });
     }
-
-    const actor = body.actor ?? 'system';
 
     // ── Confirm dashboard exists and is not deleted ───────────────────────────
     const dashboard = await prisma.platform_dashboards.findFirst({
@@ -41,6 +51,20 @@ export async function POST(
     });
     if (!dashboard) {
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
+    }
+
+    // ── SEC-1: auth + role gate (owner/editor only) ───────────────────────────
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canEditDashboard(actorRole)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to restore this dashboard' },
+        { status: 403 },
+      );
     }
 
     // ── Confirm the target version belongs to this dashboard ─────────────────
@@ -68,7 +92,7 @@ export async function POST(
         dashboard_id: dashboardId,
         action: 'restore_version',
         version_id: body.versionId,
-        actor,
+        actor: actor.email,
       },
     });
 

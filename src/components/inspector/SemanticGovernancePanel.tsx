@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useCallback, useEffect } from 'react';
+import { MyDraftsSection } from './authoring/MyDraftsSection';
+import { SynonymEditor } from './authoring/SynonymEditor';
+import { WhatIveTaughtSection } from './authoring/WhatIveTaughtSection';
 
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = '#FDB515';
@@ -106,12 +109,18 @@ function EditableField({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
+    setEditError(null);
     try {
       await onSave(draft);
       setEditing(false);
+    } catch (e) {
+      // Surface the gated-edit rejection (e.g. a provisional non-admin editing a
+      // governed def) as a human-readable message rather than a silent no-op.
+      setEditError(e instanceof Error ? e.message : 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -177,7 +186,7 @@ function EditableField({
           {saving ? 'SAVING…' : 'SAVE'}
         </button>
         <button
-          onClick={() => setEditing(false)}
+          onClick={() => { setEditing(false); setEditError(null); }}
           style={{
             ...mono, fontSize: 9, letterSpacing: '0.06em',
             background: 'transparent', color: MUTED,
@@ -187,6 +196,9 @@ function EditableField({
           CANCEL
         </button>
       </div>
+      {editError && (
+        <span style={{ ...mono, fontSize: 9, color: '#f43f5e', lineHeight: 1.4 }}>{editError}</span>
+      )}
     </div>
   );
 }
@@ -338,6 +350,13 @@ function EntityCard({
               multiline
               onSave={v => patchField('entity', entity.id, 'description', v)}
             />
+            <SynonymEditor
+              modelId={modelId}
+              tableKind="entity"
+              defId={entity.id}
+              synonyms={entity.synonyms ?? []}
+              onSaved={(next) => onFieldSaved(entity.id, 'entity', entity.id, 'synonyms', next)}
+            />
           </div>
 
           {/* Dimensions */}
@@ -357,6 +376,14 @@ function EntityCard({
                     </div>
                     <EditableField label="LABEL" value={d.dimension_label} onSave={v => patchField('dimension', d.id, 'dimension_label', v)} />
                     <EditableField label="DESCRIPTION" value={d.description ?? ''} multiline onSave={v => patchField('dimension', d.id, 'description', v)} />
+                    <SynonymEditor
+                      modelId={modelId}
+                      tableKind="dimension"
+                      defId={d.id}
+                      synonyms={d.synonyms ?? []}
+                      compact
+                      onSaved={(next) => onFieldSaved(entity.id, 'dimension', d.id, 'synonyms', next)}
+                    />
                   </div>
                 ))}
               </div>
@@ -382,6 +409,14 @@ function EntityCard({
                     <EditableField label="LABEL" value={m.measure_label} onSave={v => patchField('measure', m.id, 'measure_label', v)} />
                     <EditableField label="DESCRIPTION" value={m.description ?? ''} multiline onSave={v => patchField('measure', m.id, 'description', v)} />
                     <EditableField label="UNIT" value={m.unit ?? ''} onSave={v => patchField('measure', m.id, 'unit', v || null)} />
+                    <SynonymEditor
+                      modelId={modelId}
+                      tableKind="measure"
+                      defId={m.id}
+                      synonyms={m.synonyms ?? []}
+                      compact
+                      onSaved={(next) => onFieldSaved(entity.id, 'measure', m.id, 'synonyms', next)}
+                    />
                   </div>
                 ))}
               </div>
@@ -566,9 +601,21 @@ export function SemanticGovernancePanel({ modelId }: SemanticGovernancePanelProp
 
       {/* Entity list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
+        {/* My Drafts — owner-scoped authoring surface (Phase 3.5B). Lives above
+            the shared candidate/governed sections; the lifecycle reads top-down:
+            My Drafts (yours, private) → Candidates (in review) → Governed. */}
+        <MyDraftsSection modelId={modelId} />
+
+        {/* What I've taught + coaching (Phase 3.5D) — the loop-legible payoff:
+            metrics, synonyms, standing rules (teach/promote/retire), SQL charts. */}
+        <WhatIveTaughtSection modelId={modelId} />
+
+        <div style={{ ...mono, fontSize: 10, letterSpacing: '0.10em', color: MUTED, margin: '4px 0 8px' }}>
+          GOVERNANCE QUEUE
+        </div>
         {data.entities.length === 0 ? (
-          <div style={{ ...mono, fontSize: 10, color: MUTED, textAlign: 'center', marginTop: 40 }}>
-            No entities in this model
+          <div style={{ ...mono, fontSize: 10, color: MUTED, textAlign: 'center', marginTop: 16 }}>
+            No submitted entities yet
           </div>
         ) : (
           data.entities.map(entity => (

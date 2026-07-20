@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createId } from '@paralleldrive/cuid2';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVersionLayout } from '@/lib/dashboards/types';
+import { enforceReadOnly } from '@/lib/databricks/execute';
+import {
+  getUserByEmail,
+  getDashboardRole,
+  canEditDashboard,
+  canViewDashboard,
+} from '@/lib/dashboards/permissions';
 import {
   validateWidgetReferences,
   computeMeasureSnapshots,
+  resolveDeferredEntityIds,
 } from '@/lib/dashboards/governance';
+import {
+  resolveModelConnection,
+  DashboardModelConnectionConflictError,
+} from '@/lib/dashboards/connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,19 +48,23 @@ type Params = { params: Promise<{ dashboardId: string }> };
  *  5. Update parent dashboard's current_version_id
  *  6. Write audit row action='save_version'
  *
- * Body: { widgets: WidgetSpec[], layout?: DashboardVersionLayout, createdBy?: string, changeSummary?: string }
+ * Body: { widgets: WidgetSpec[], layout?: DashboardVersionLayout, changeSummary?: string }
+ *
+ * SEC-1: requires an authenticated user with an owner/editor role on this
+ * dashboard. SEC-2: the audit/created_by actor is derived from the session,
+ * never from the request body.
  */
 export async function POST(
   request: NextRequest,
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
     const body = await request.json() as {
       widgets: WidgetSpec[];
       layout?: DashboardVersionLayout;
-      createdBy?: string;
       changeSummary?: string;
     };
 
@@ -61,9 +80,78 @@ export async function POST(
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
     }
 
+    // ── SEC-1: auth + role gate (owner/editor only) ───────────────────────────
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canEditDashboard(actorRole)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to save this dashboard' },
+        { status: 403 },
+      );
+    }
+
+    // ── Phase 3.5C: read-only guard for raw-SQL widgets (pin/save chokepoint) ──
+    // This route is where a raw-SQL chart becomes a durable dashboard widget
+    // (via the pin flow) AND where the builder saves. enforceReadOnly runs here
+    // as the belt-and-suspenders check the escape hatch demands — a mutating or
+    // malformed statement can never enter a dashboard version.
+    for (const w of body.widgets) {
+      if (isRawSqlWidget(w)) {
+        try {
+          enforceReadOnly(w.rawSql);
+        } catch (e) {
+          return NextResponse.json(
+            {
+              error: 'Raw-SQL widget rejected',
+              details: [
+                `Widget "${w.title || w.widgetId}": ${e instanceof Error ? e.message : 'not a read-only statement'}`,
+              ],
+            },
+            { status: 400 },
+          );
+        }
+        if (!w.connectionId) {
+          return NextResponse.json(
+            { error: 'Raw-SQL widget rejected', details: [`Widget "${w.title || w.widgetId}" has no connection`] },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    // ── Issue #3 — same-model⇒same-connection guard (save chokepoint) ─────────
+    // Model binding happens at create (this route never rebinds model_id or
+    // connection_id — see Task-1 delta), so on data created after issue #3 this
+    // is always consistent. It runs here as defense-in-depth against a dashboard
+    // whose stored connection diverged from its model's canonical connection
+    // out-of-band (e.g. a legacy row backfilled before the guard, or a future
+    // deferred-bind path) — reusing the SINGLE resolveModelConnection choke point
+    // so a divergent dashboard is caught before it snapshots another version.
+    try {
+      await resolveModelConnection(dashboard.model_id, dashboard.connection_id);
+    } catch (e) {
+      if (e instanceof DashboardModelConnectionConflictError) {
+        return NextResponse.json({ error: e.message }, { status: 409 });
+      }
+      throw e;
+    }
+
+    // ── Server-side entity binding (guided defer-to-save) ─────────────────────
+    // A guided-authored widget seeds semanticQuery.entityId = '' because the
+    // client has no catalog to resolve field IDs → primary entity. Resolve it
+    // HERE, server-side, so a guided widget is stored indistinguishable from a
+    // manual one (which got its entityId from the picker). No-op for manual
+    // widgets (entityId already set) and raw-SQL widgets. This is server-derived,
+    // never client-trusted — same posture as the snapshot re-freeze below.
+    const resolvedWidgets = await resolveDeferredEntityIds(body.widgets, org.id);
+
     // ── 2. Cross-model widget reference validation ────────────────────────────
     const refCheck = await validateWidgetReferences(
-      body.widgets,
+      resolvedWidgets,
       dashboard.model_id,
       org.id,
     );
@@ -75,22 +163,30 @@ export async function POST(
     }
 
     // ── 3. Compute measure snapshots ──────────────────────────────────────────
-    // Collect all unique measure IDs across all widgets
+    // Collect all unique measure IDs across all SEMANTIC widgets. Raw-SQL
+    // widgets have no measures and no snapshots — they are passed through
+    // untouched (measure_snapshots has no meaning for them).
     const allMeasureIds = Array.from(
       new Set(
-        body.widgets.flatMap((w) => w.semanticQuery.measures.map((m) => m.measureId)),
+        resolvedWidgets.flatMap((w) =>
+          isRawSqlWidget(w) ? [] : w.semanticQuery.measures.map((m) => m.measureId),
+        ),
       ),
     );
     const snapshots = await computeMeasureSnapshots(allMeasureIds, org.id);
     const snapshotMap = new Map(snapshots.map((s) => [s.measureId, s]));
 
-    // Embed snapshots into each widget
-    const widgetsWithSnapshots: WidgetSpec[] = body.widgets.map((w) => ({
-      ...w,
-      measureSnapshots: w.semanticQuery.measures
-        .map((m) => snapshotMap.get(m.measureId))
-        .filter((s): s is NonNullable<typeof s> => s !== undefined),
-    }));
+    // Embed snapshots into each semantic widget; leave raw-SQL widgets as-is.
+    const widgetsWithSnapshots: WidgetSpec[] = resolvedWidgets.map((w) =>
+      isRawSqlWidget(w)
+        ? w
+        : {
+            ...w,
+            measureSnapshots: w.semanticQuery.measures
+              .map((m) => snapshotMap.get(m.measureId))
+              .filter((s): s is NonNullable<typeof s> => s !== undefined),
+          },
+    );
 
     // ── 4. Compute version_number = max + 1 ───────────────────────────────────
     const maxVersion = await prisma.platform_dashboard_versions.aggregate({
@@ -100,7 +196,6 @@ export async function POST(
     const nextVersionNumber = (maxVersion._max.version_number ?? 0) + 1;
 
     const versionId = createId();
-    const actor = body.createdBy ?? 'system';
     const layout = body.layout ?? { columns: 12, rows: [] };
 
     // ── 5. Write version row ──────────────────────────────────────────────────
@@ -111,7 +206,7 @@ export async function POST(
         version_number: nextVersionNumber,
         widgets: widgetsWithSnapshots as object[],
         layout: layout as object,
-        created_by: actor,
+        created_by: actor.email,
         change_summary: body.changeSummary ?? null,
       },
     });
@@ -130,7 +225,7 @@ export async function POST(
         dashboard_id: dashboardId,
         action: 'save_version',
         version_id: versionId,
-        actor,
+        actor: actor.email,
       },
     });
 
@@ -162,6 +257,7 @@ export async function GET(
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
     const includeWidgets = request.nextUrl.searchParams.get('includeWidgets') === 'true';
@@ -171,6 +267,20 @@ export async function GET(
     });
     if (!dashboard) {
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
+    }
+
+    // ── SEC-4: read-side authz gate (any role may view) ───────────────────────
+    // Version history exposes structure + authorship; an authenticated user with
+    // no role on this dashboard must not read it. 401 on no-User-row matches the
+    // write routes; 403 on no role matches share/route.ts.
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canViewDashboard(actorRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const select: Record<string, boolean> = {

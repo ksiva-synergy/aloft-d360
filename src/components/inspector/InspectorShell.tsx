@@ -1,13 +1,17 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { X } from 'lucide-react';
 import { History, FlaskConical, SquarePen } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
 import { AloftSigil } from '@/components/workbench/atoms';
 import { DashboardPane } from './DashboardPane';
 import { SemanticChartCard } from './SemanticChartCard';
+import { DisambiguationCard } from './DisambiguationCard';
+import { EmptyStatePrompts } from './EmptyStatePrompts';
+import { QueryProgressCard } from './QueryProgressCard';
 import { SemanticGovernancePanel, RightPaneTabBar } from './SemanticGovernancePanel';
 import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
@@ -240,7 +244,9 @@ interface InspectorShellProps {
 
 export default function InspectorShell({ sessionId: initialSessionId }: InspectorShellProps = {}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [composer, setComposer] = useState('');
+  const [sourceChartNotice, setSourceChartNotice] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('');
@@ -254,6 +260,34 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const [rightTab, setRightTab] = useState<RightPaneTab>('results');
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
+
+  // ── "View source" landing (Phase 2 provenance) ──────────────────────────────
+  // A widget's source link opens /inspector?sourceChart=<id>. Resolve the chart
+  // and pre-load the composer so the user can refine it in a fresh session; if
+  // the chart was deleted, say so gracefully (a dangling ref is expected).
+  const sourceChartId = searchParams?.get('sourceChart') ?? null;
+  useEffect(() => {
+    if (!sourceChartId) return;
+    let cancelled = false;
+    fetch(`/api/inspector/charts/${sourceChartId}`)
+      .then((r) => (r.ok ? r.json() as Promise<{ chart: { name: string } }> : Promise.reject(new Error(String(r.status)))))
+      .then((data) => {
+        if (cancelled) return;
+        setSourceChartNotice(`Refining source chart: ${data.chart.name}`);
+        setComposer((c) => c || `Refine the "${data.chart.name}" chart — `);
+      })
+      .catch(() => { if (!cancelled) setSourceChartNotice('That source chart is no longer available.'); });
+    return () => { cancelled = true; };
+  }, [sourceChartId]);
+
+  // ── Generative empty-state landing (Phase 3B) ────────────────────────────────
+  // A starter prompt from a dashboard empty state opens /inspector?prompt=<text>.
+  // Prefill the composer so the user can send it (or tweak it first).
+  const promptParam = searchParams?.get('prompt') ?? null;
+  useEffect(() => {
+    if (!promptParam) return;
+    setComposer((c) => c || promptParam);
+  }, [promptParam]);
 
   // Check Databricks connectivity on mount
   useEffect(() => {
@@ -336,6 +370,31 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     insp.reset();
   }, [insp]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Generative empty state (Phase 3B): show starter prompts when a fresh session
+  // has nothing yet — no conversation, cards, results, or in-flight query.
+  const hasConversation = insp.messages.some((m) => m.content || (m.toolCalls && m.toolCalls.length > 0));
+
+  // The user's latest question — pre-fills DefineMetricPanel's NL-intent when a
+  // chart is saved as a metric (3.5B chat-capture). Strips the invisible
+  // "[Refining …]" context block a refinement prepends, so the captured intent
+  // reads as the human question, not the machinery. Not per-chart-tracked; the
+  // most recent user question is a good-enough seed the author can adjust.
+  const latestUserQuestion = (() => {
+    for (let i = insp.messages.length - 1; i >= 0; i--) {
+      const m = insp.messages[i];
+      if (m.role === 'user' && m.content) {
+        return m.content.replace(/^\s*\[[^\]]*\]\s*/s, '').trim();
+      }
+    }
+    return undefined;
+  })();
+  const showChatEmptyState =
+    !hasConversation &&
+    insp.semanticChartMessages.length === 0 &&
+    insp.disambiguations.length === 0 &&
+    !insp.queryProgress &&
+    insp.queryResults.length === 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--wb-canvas)', overflow: 'hidden' }}>
       <InspectorStatusBar
@@ -350,6 +409,24 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         }}
         onNewSession={handleReset}
       />
+
+      {sourceChartNotice && (
+        <div
+          style={{
+            ...mono, fontSize: 10, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
+            padding: '6px 24px', flexShrink: 0, color: GOLD,
+            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)',
+          }}
+        >
+          <span style={{ flex: 1 }}>{sourceChartNotice}</span>
+          <button
+            onClick={() => setSourceChartNotice(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: GOLD, display: 'flex' }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* LEFT — 60% conversation */}
@@ -384,8 +461,20 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           )}
           {rightTab === 'results' || !hasCandidateModels ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {/* Semantic chart cards — appear above query results when present */}
-              {insp.semanticChartMessages.length > 0 && (
+              {showChatEmptyState ? (
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <EmptyStatePrompts
+                    modelId={candidateModelId}
+                    title="Start exploring this model"
+                    includeWhatIsThis={!!candidateModelId}
+                    footerHint="Or type your own question in the chat →"
+                    onPromptClick={(p) => insp.send(p)}
+                  />
+                </div>
+              ) : (
+              <>
+              {/* Semantic chart cards + disambiguation + in-flight progress — above query results */}
+              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.queryProgress) && (
                 <div
                   style={{
                     flexShrink: 0,
@@ -395,20 +484,36 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                     borderBottom: '1px solid var(--wb-border-subtle)',
                   }}
                 >
+                  {insp.disambiguations.map((dm) => (
+                    <DisambiguationCard
+                      key={dm.id}
+                      message={dm}
+                      modelId={candidateModelId}
+                      onChoose={(followUp) => insp.send(followUp)}
+                    />
+                  ))}
                   {insp.semanticChartMessages.map((scm) => (
                     <SemanticChartCard
                       key={scm.id}
                       message={scm}
                       echartsOption={scm.echartsOption}
+                      sourceChartId={sourceChartId}
+                      onRefine={(followUp) => insp.send(followUp)}
+                      originalQuestion={latestUserQuestion}
                     />
                   ))}
+                  {insp.queryProgress && <QueryProgressCard progress={insp.queryProgress} />}
                 </div>
               )}
               <DashboardPane
                 queryResults={insp.queryResults}
                 onOpenStudio={() => setStudioOpen(true)}
                 expandButtonRef={expandButtonRef}
+                latestQuestion={latestUserQuestion}
+                graduateModelId={candidateModelId}
               />
+              </>
+              )}
             </div>
           ) : (
             <SemanticGovernancePanel modelId={candidateModelId!} />

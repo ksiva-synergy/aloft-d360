@@ -1,9 +1,7 @@
 import { prisma } from '@/lib/db';
 import { executeDatabricksSQL, ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
 import { getAccessToken } from '@/lib/databricks/token-client';
-import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { profileResultSet } from '@/lib/studio/profiler';
-import { runChartPipeline, runSemanticChartPipeline } from './chart-pipeline';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
 
@@ -117,6 +115,28 @@ export async function executeInspectorTool(
   emit: ToolEmit = () => {},
   context?: InspectorToolContext,
 ): Promise<string> {
+  // ── emit_disambiguation ─────────────────────────────────────────────────────
+  // Structured, interactive form of "refuse rather than guess". Surfaces the
+  // agent's candidate options to the client as clickable chips and stops the
+  // turn — the agent must wait for the user to pick before charting.
+  if (toolName === 'emit_disambiguation') {
+    const originalTerm = typeof toolInput.originalTerm === 'string' ? toolInput.originalTerm : '';
+    const candidatesRaw = Array.isArray(toolInput.candidates) ? toolInput.candidates : [];
+    const message = typeof toolInput.message === 'string' ? toolInput.message : '';
+    emit({
+      type: 'semantic_disambiguation',
+      originalTerm,
+      candidates: candidatesRaw,
+      message,
+    });
+    // Tell the model the card is shown; it should end its turn and await the pick.
+    return JSON.stringify({
+      ok: true,
+      surfaced: true,
+      note: 'Disambiguation options shown to the user. End your turn now and wait for the user to choose.',
+    });
+  }
+
   // ── emit_semantic_chart ─────────────────────────────────────────────────────
   if (toolName === 'emit_semantic_chart') {
     const query = toolInput as unknown as SemanticQuery;
@@ -127,11 +147,16 @@ export async function executeInspectorTool(
       return JSON.stringify({ error: errMsg });
     }
     try {
+      const { runSemanticChartPipeline } = await import('./chart-pipeline');
       const result = await runSemanticChartPipeline({
         query,
         connectionId,
         model: context?.model ?? 'us.anthropic.claude-sonnet-4-6',
         sessionId: context?.sessionId ?? '',
+        intent: context?.lastUserMessage ?? '',
+        // Progressive streaming: relay plan / SQL / stage events to the SSE
+        // stream as they become available, ahead of the final chart result.
+        onProgress: (ev) => emit({ ...ev }),
       });
       if (result.ok) {
         emit({
@@ -140,6 +165,12 @@ export async function executeInspectorTool(
           spec: result.spec,
           option: result.option,
           semanticQuery: query,
+          // Trust-spine metadata (TrustPanel) + smart-defaults rationale.
+          rowCount: result.rowCount,
+          executedAt: result.executedAt,
+          definitionsUsed: result.definitionsUsed,
+          resolvedLabels: result.resolvedLabels,
+          recommendation: result.recommendation,
           sessionId: context?.sessionId,
         });
         return JSON.stringify({ ok: true, sql: result.sql, spec: result.spec });
@@ -178,6 +209,7 @@ export async function executeInspectorTool(
     const sessionId = context?.sessionId ?? '';
 
     try {
+      const { runChartPipeline } = await import('./chart-pipeline');
       const pipelineResult = await runChartPipeline({
         userIntent,
         queryResult: lastQR,
@@ -310,6 +342,7 @@ export async function executeInspectorTool(
   }
 
   if (toolName === 'describe_schema') {
+    const { handleDescribeSchema } = await import('@/lib/context/dispatch');
     return handleDescribeSchema(toolInput);
   }
 

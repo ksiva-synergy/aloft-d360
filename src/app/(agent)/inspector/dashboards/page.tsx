@@ -65,15 +65,16 @@ export default function DashboardsListPage() {
     try {
       const name = window.prompt('Dashboard name');
       if (!name?.trim()) { setCreating(false); return; }
-      const modelId = window.prompt('Semantic model ID');
-      if (!modelId?.trim()) { setCreating(false); return; }
 
       const resp = await fetch('/api/inspector/dashboards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ modelId: modelId.trim(), name: name.trim(), visibility: 'org' }),
+        body: JSON.stringify({ name: name.trim(), visibility: 'org' }),
       });
-      if (!resp.ok) throw new Error(`Create failed: ${resp.status}`);
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error ?? `Create failed: ${resp.status}`);
+      }
       const data = await resp.json() as { dashboard: { id: string } };
       router.push(`/inspector/dashboards/${data.dashboard.id}/builder`);
     } catch (err) {

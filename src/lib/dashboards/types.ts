@@ -51,20 +51,24 @@ export interface MeasureSnapshot {
 }
 
 // ── WidgetSpec ────────────────────────────────────────────────────────────────
-export interface WidgetSpec {
+//
+// Phase 3.5C: WidgetSpec is a DISCRIMINATED UNION on `chartSource`.
+//   - 'semantic' (or ABSENT — backward-compat for every widget stored before
+//     3.5C) → governed, drift-checked, references dims/measures by ID.
+//   - 'raw_sql' → the escape hatch: a frozen raw SQL string + its own warehouse
+//     connection. Never governed, never drift-checked, always badged.
+//
+// Every reader of `.semanticQuery` / `.measureSnapshots` MUST first narrow via
+// `isSemanticWidget` / `isRawSqlWidget` (or check `chartSource === 'raw_sql'`),
+// because those fields exist ONLY on the semantic variant. Treat an ABSENT
+// chartSource as 'semantic'.
+
+/** Fields shared by both widget variants. */
+export interface WidgetSpecBase {
   /** Stable identity for this widget across versions. cuid2 assigned at creation. */
   widgetId: string;
   title: string;
   chartKind: ChartSpec['kind']; // 'kpi' | 'bar' | 'line' | 'donut' | 'scatter' | 'heatmap' | 'histogram'
-  /** Structured query — references dims/measures BY ID. Labels stay live. */
-  semanticQuery: SemanticQuery;
-  /**
-   * Computation snapshot — frozen at save time.
-   * One entry per measure referenced in semanticQuery.measures.
-   * At render time: if current measure.aggregate/expression/metric_type differ
-   * from snapshot, surface a "Definition changed since last save" badge.
-   */
-  measureSnapshots: MeasureSnapshot[];
   chartConfig: {
     x?: string;
     y?: string[];
@@ -75,6 +79,157 @@ export interface WidgetSpec {
   };
   /** Grid placement. D1 uses placeholder values; D2 drag-drop builder populates. */
   position: { col: number; row: number; w: number; h: number };
+
+  /**
+   * Provenance back-reference to the platform_charts row this widget was
+   * copied from, if any (Phase 0 schema / Phase 2 "Open source chart in
+   * Inspector" UI).
+   *
+   * Non-authoritative: NEVER used to auto-propagate edits — drift is still
+   * computed only against live semantic definitions via measureSnapshots.
+   * Optional because widgets built directly in the builder have no chat
+   * origin, and the source chart may later be deleted (a dangling reference
+   * is expected and must be handled as "source unavailable" in the UI — this
+   * is not a DB relation).
+   */
+  source_chart_id?: string;
+
+  /**
+   * Freshness policy (scaffolded in Phase 0, wired up in Phase 2's viewer
+   * route + result cache). Absence == 'live' (always re-run on load), which
+   * is the safe default.
+   */
+  freshness?: {
+    mode: 'live' | 'cached' | 'scheduled';
+    /** Required semantics when mode === 'cached'. */
+    staleAfterSec?: number;
+    /** Cron string; required semantics when mode === 'scheduled'. */
+    schedule?: string;
+  };
+}
+
+/** Governed, drift-checked widget backed by the semantic layer (the default). */
+export interface SemanticWidgetSpec extends WidgetSpecBase {
+  /** Absent on every pre-3.5C stored widget — treat absent as 'semantic'. */
+  chartSource?: 'semantic';
+  /** Structured query — references dims/measures BY ID. Labels stay live. */
+  semanticQuery: SemanticQuery;
+  /**
+   * Computation snapshot — frozen at save time.
+   * One entry per measure referenced in semanticQuery.measures.
+   * At render time: if current measure.aggregate/expression/metric_type differ
+   * from snapshot, surface a "Definition changed since last save" badge.
+   */
+  measureSnapshots: MeasureSnapshot[];
+}
+
+/**
+ * Raw-SQL escape-hatch widget (Phase 3.5C). Explicitly outside semantic
+ * governance: no semanticQuery, no measureSnapshots, never drift-checked. Binds
+ * its own warehouse connection (a semantic widget resolves via the dashboard)
+ * and its chartConfig references the SQL's actual result column names directly
+ * — NOT toAlias(label). See widget-option.ts for the mapper divergence.
+ */
+export interface RawSqlWidgetSpec extends WidgetSpecBase {
+  chartSource: 'raw_sql';
+  /** The frozen SQL string. enforceReadOnly-guarded at save, pin, and render. */
+  rawSql: string;
+  /** Frozen result columns the chartConfig binds to. */
+  resultSchema: { name: string; type: string }[];
+  /** Databricks connection this raw SQL runs against. */
+  connectionId: string;
+}
+
+export type WidgetSpec = SemanticWidgetSpec | RawSqlWidgetSpec;
+
+/** True for a raw-SQL widget. Absent chartSource → false (backward-compat). */
+export function isRawSqlWidget(w: WidgetSpec): w is RawSqlWidgetSpec {
+  return w.chartSource === 'raw_sql';
+}
+
+/** True for a semantic widget. Absent chartSource → true (backward-compat). */
+export function isSemanticWidget(w: WidgetSpec): w is SemanticWidgetSpec {
+  return w.chartSource !== 'raw_sql';
+}
+
+// ── Widget data (Phase 1 live render path) ─────────────────────────────────────
+// Per-widget result returned by GET /api/inspector/dashboards/[dashboardId]/data.
+// The batch route executes every widget independently and returns a status-tagged
+// result per widget, so one failing widget never takes down the others.
+// Shared here so the route, the useDashboardData hook, and the viewer agree on shape.
+export type WidgetDataResult =
+  | {
+      status: 'ok';
+      rows: Record<string, unknown>[];
+      /** Compiled SQL — surfaced now for the Phase 3 trust spine. */
+      sql: string;
+      /** IDs of the governed definitions actually referenced (trust spine). */
+      definitionsUsed: { dimensions: string[]; measures: string[] };
+      /**
+       * ISO timestamp of execution — drives the "Last updated" stamp.
+       * For a cache hit this is the time the cached result was originally
+       * executed, NOT the time of the current request.
+       */
+      executedAt: string;
+      /**
+       * True when this result was served from the process-local result cache
+       * (widget freshness mode 'cached'). Absent/false means it executed fresh.
+       * Drives the viewer's "Cached · Last updated" indicator (Phase 2).
+       */
+      cached?: boolean;
+      /**
+       * Phase 3.5C — true when this widget is a raw-SQL escape-hatch chart. The
+       * client uses it to render the "Unverified · Raw SQL" badge and to show the
+       * stored SQL (not a compiled semantic query) in the TrustPanel. For raw-SQL
+       * widgets `definitionsUsed` is empty (they reference no governed defs).
+       */
+      isRawSql?: boolean;
+      /**
+       * Guided authoring-preview flag (Phase 0 contract; wired in the guided
+       * drill-in phase). True ONLY when these rows came from an owner-scoped
+       * authoring-mode execution that referenced at least one non-governed
+       * (draft/candidate) definition — i.e. the model is not yet `governed` but
+       * its OWNER is previewing it live. Mirrors `SemanticQueryResult.isDraft`
+       * (see semantic/execute.ts). The client renders the chart normally AND
+       * stamps a persistent "Draft — not governed" badge.
+       *
+       * Distinct from `status: 'model_not_governed'`, which is the NON-owner /
+       * shared-consumption path (no rows, "publish to see live data"). The
+       * owner-only boundary is enforced inside executeSemanticQuery
+       * (SemanticDraftAccessError), never here. Absent/false on the default
+       * governed path — the only path the data route drives today; the
+       * authoring-scoped call (owner-scoped AuthoringOpts) lands in the guided
+       * drill-in phase, not Phase 0.
+       */
+      isDraft?: boolean;
+    }
+  | {
+      /** The dashboard's model is a candidate/archived — a UX state, not a 500. */
+      status: 'model_not_governed';
+      message: string;
+      /**
+       * Compiled SQL, when the semantic layer got far enough to produce it before
+       * blocking (issue #2 — the trust panel shows the SQL even in a blocked
+       * state). Optional because the governance gate throws BEFORE compilation
+       * (execute.ts pins the gate ahead of compileSemanticQuery), so on the
+       * common governed-gate block there is no SQL to carry — the field is then
+       * absent, never fabricated.
+       */
+      sql?: string;
+    }
+  | {
+      status: 'error';
+      message: string;
+      /**
+       * Compiled SQL, when available before the failure (issue #2 — trust panel
+       * in the error state). Absent when the error occurred pre-compilation.
+       */
+      sql?: string;
+    };
+
+/** Response body of the widget-data batch route. */
+export interface DashboardDataResponse {
+  widgets: Record<string, WidgetDataResult>;
 }
 
 // ── DashboardVersionLayout ────────────────────────────────────────────────────

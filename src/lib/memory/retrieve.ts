@@ -43,6 +43,31 @@ import { mmrSelect, parsePgVector, type DiversityCandidate } from './diversity';
 /** Used when no phase is specified (legacy callers). */
 const DEFAULT_BUDGET_TOKENS = 2000;
 
+/**
+ * Personal-taught lane (Teach Phase 2, Step 1 — the retrieve fix).
+ *
+ * A freshly-taught personal SCHEMA_MAP rule has helpful_count=0, so the Phase-1a
+ * net-helpful ranking (confidence × GREATEST(helpful−harmful,0)) scores it 0 and
+ * the LIMIT-cap truncates it below any org whose slots are already net-positive
+ * (DEFAULT_ORG: 149 bullets fill all 10 slots). A rule needs helpful_count to
+ * inject but only earns it by being injected — chicken-and-egg starvation.
+ *
+ * The lane is a SMALL, RECENCY-ORDERED, ADDITIVE second pass that surfaces the
+ * caller's OWN personal taught rules alongside the net-helpful set, without
+ * reordering or evicting anything the net-helpful ranking chose. It runs ONLY
+ * when a real caller is resolved — for the NO_USER_SENTINEL caller (boost eval,
+ * unresolved Inspector) the lane never runs and Phase 1a is byte-for-byte
+ * unchanged. Deduped against the net-helpful result so a personal rule that
+ * already made the cap is not double-listed. Its own dedicated token sub-budget
+ * (never the shared 600) so the net-helpful set is never squeezed.
+ */
+const PERSONAL_TAUGHT_LANE_CAP = 5;
+function personalTaughtLaneBudget(): number {
+  const v = process.env.MEMORY_PERSONAL_LANE_BUDGET;
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 400;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface MemoryBullet {
@@ -146,14 +171,34 @@ const DEFAULT_GUARDRAIL: MemoryBullet = {
 // ── Phase-specific retrieval ──────────────────────────────────────────────────
 
 /**
+ * Sentinel for "no caller resolved" — never equals a real created_by, so
+ * retrieval falls back to org-visible rows only. Personal rules are fail-closed:
+ * absent a known caller, no personal-scoped rule is ever surfaced.
+ */
+const NO_USER_SENTINEL = '__no_user__';
+
+/**
+ * SQL visibility clause (Phase 3.5D). A bullet is visible if it is org-wide
+ * (the pre-3.5D default) OR it is the caller's own personal rule. Personal
+ * rules always carry visibility='personal' + created_by=<owner>, so this never
+ * leaks one user's rule into another user's context.
+ *
+ * `paramIndex` is the positional placeholder ($N) that carries callerUserId.
+ */
+function visibilityClause(paramIndex: number): string {
+  return `AND (visibility = 'org' OR created_by = $${paramIndex})`;
+}
+
+/**
  * Phase 0 — Fatal HARD_RULEs + default guardrail.
  *
  * Always returns at least the default instructional guardrail. Additional
  * DB-stored rules are included when they meet the confidence/harmful gate.
  */
 async function selectPhase0(
-  orgId:      string,
-  agentClass: string,
+  orgId:        string,
+  agentClass:   string,
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget   = getPhaseBudget(MemoryPhase.INIT);
   const cap      = PHASE_TIER1_CAP[MemoryPhase.INIT];
@@ -174,9 +219,10 @@ async function selectPhase0(
         AND rule_type   = 'HARD_RULE'
         AND confidence  >= $3
         AND harmful_count >= $4
+        ${visibilityClause(6)}
       ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
       LIMIT $5
-    `, orgId, agentClass, PHASE0_CONFIDENCE_FLOOR, PHASE0_MIN_HARMFUL, cap);
+    `, orgId, agentClass, PHASE0_CONFIDENCE_FLOOR, PHASE0_MIN_HARMFUL, cap, callerUserId);
 
     for (const row of rows) {
       const tokens = estimateTokens(row.rule_text);
@@ -208,9 +254,10 @@ async function selectPhase0(
  * No cosine search — deterministic, sorted by confidence × net-helpful score.
  */
 async function selectPhase1a(
-  orgId:      string,
-  agentClass: string,
-  topicKey:   string | null,
+  orgId:        string,
+  agentClass:   string,
+  topicKey:     string | null,
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget = getPhaseBudget(MemoryPhase.SCHEMA_GLOBAL);
   const cap    = PHASE_TIER1_CAP[MemoryPhase.SCHEMA_GLOBAL];
@@ -238,9 +285,10 @@ async function selectPhase1a(
               WHERE org_id = $1 AND topic_key = $3
             )
           )
+          ${visibilityClause(5)}
         ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
         LIMIT $4
-      `, orgId, agentClass, topicKey, cap);
+      `, orgId, agentClass, topicKey, cap, callerUserId);
     } else {
       // No topic context — fetch top global SCHEMA_MAPs.
       rows = await prisma.$queryRawUnsafe<HardRuleRow[]>(`
@@ -253,9 +301,10 @@ async function selectPhase1a(
           AND agent_class = $2
           AND status      = 'ACTIVE'
           AND rule_type   = 'SCHEMA_MAP'
+          ${visibilityClause(4)}
         ORDER BY confidence * GREATEST(helpful_count - harmful_count, 0) DESC
         LIMIT $3
-      `, orgId, agentClass, cap);
+      `, orgId, agentClass, cap, callerUserId);
     }
 
     const result: MemoryBullet[] = [];
@@ -273,10 +322,79 @@ async function selectPhase1a(
       });
       used += tokens;
     }
+
+    // ── Personal-taught lane (additive; only for a resolved caller) ───────────
+    // Byte-for-byte no-op for NO_USER_SENTINEL callers (boost eval, unresolved
+    // Inspector): the query is not issued and `result` is returned as-is.
+    if (callerUserId !== NO_USER_SENTINEL) {
+      await appendPersonalTaughtLane(orgId, agentClass, callerUserId, result);
+    }
+
     return result;
   } catch (err) {
     console.warn('[memory/retrieve] Phase 1a query failed (non-fatal):', err instanceof Error ? err.message : String(err));
     return [];
+  }
+}
+
+/**
+ * Append the caller's OWN personal taught SCHEMA_MAP rules (recency-ordered,
+ * sub-capped, sub-budgeted) to an already-built Phase-1a result, in place.
+ *
+ * ADDITIVE by construction: `netHelpfulResult` is never reordered or evicted —
+ * lane rows are only appended, and only ones not already present (dedup by id).
+ * The lane query hard-filters visibility='personal' AND created_by=<caller>, so
+ * it can never surface an org row or another user's personal rule (fail-closed
+ * scoping holds inside the lane). Its own try/catch — a lane failure never
+ * breaks the net-helpful result the product surface relies on.
+ *
+ * Taught rules carry task_signature=NULL (teach.ts writes global rules), so the
+ * lane deliberately does NOT topic-filter — a standing rule the user taught must
+ * recall regardless of the current topic.
+ */
+async function appendPersonalTaughtLane(
+  orgId:        string,
+  agentClass:   string,
+  callerUserId: string,
+  netHelpfulResult: MemoryBullet[],
+): Promise<void> {
+  try {
+    const laneBudget = personalTaughtLaneBudget();
+    const rows = await prisma.$queryRawUnsafe<HardRuleRow[]>(`
+      SELECT id, rule_text, rule_type,
+             confidence::float AS confidence,
+             helpful_count, harmful_count
+      FROM platform_agent_memory
+      WHERE
+        org_id      = $1
+        AND agent_class = $2
+        AND status      = 'ACTIVE'
+        AND rule_type   = 'SCHEMA_MAP'
+        AND visibility  = 'personal'
+        AND created_by  = $3
+      ORDER BY created_at DESC
+      LIMIT $4
+    `, orgId, agentClass, callerUserId, PERSONAL_TAUGHT_LANE_CAP);
+
+    const already = new Set(netHelpfulResult.map((b) => b.id));
+    let laneUsed = 0;
+    for (const row of rows) {
+      if (already.has(row.id)) continue; // already surfaced by the net-helpful pass
+      const tokens = estimateTokens(row.rule_text);
+      if (laneUsed + tokens > laneBudget && laneUsed > 0) break;
+      netHelpfulResult.push({
+        id:           row.id,
+        ruleText:     row.rule_text,
+        ruleType:     row.rule_type,
+        confidence:   parseConfidence(row.confidence),
+        helpfulCount: Number(row.helpful_count),
+        harmfulCount: Number(row.harmful_count),
+      });
+      already.add(row.id);
+      laneUsed += tokens;
+    }
+  } catch (err) {
+    console.warn('[memory/retrieve] personal-taught lane failed (non-fatal):', err instanceof Error ? err.message : String(err));
   }
 }
 
@@ -298,10 +416,11 @@ async function selectPhase1a(
  * Flag OFF or org not in canary = exact legacy behavior (hard pre-filter in SQL).
  */
 async function selectPhase1b(
-  orgId:       string,
-  agentClass:  string,
-  taskContext: string,
-  excludeIds:  string[],
+  orgId:        string,
+  agentClass:   string,
+  taskContext:  string,
+  excludeIds:   string[],
+  callerUserId: string = NO_USER_SENTINEL,
 ): Promise<MemoryBullet[]> {
   const budget    = getPhaseBudget(MemoryPhase.TASK_SCOPED);
   const ruleTypes = PHASE_RULE_TYPES[MemoryPhase.TASK_SCOPED];
@@ -345,10 +464,11 @@ async function selectPhase1b(
         AND embedding   IS NOT NULL
         AND rule_type   IN (${typeList})
         AND id          != ALL($3::text[])
+        ${visibilityClause(4)}
         ${distanceFilter}
       ORDER BY embedding <=> '${vecLiteral}'::vector ASC
       LIMIT ${candidateLimit}
-    `, orgId, agentClass, excludeList);
+    `, orgId, agentClass, excludeList, callerUserId);
 
     if (mmrEnabled && rows.length > 0) {
       const candidates: DiversityCandidate[] = rows
@@ -425,18 +545,22 @@ export interface SelectMemoryResult {
  *                  Scopes Phase 1a to the correct data domain. Pass null when unknown.
  */
 export async function selectMemoryAll(
-  orgId:       string,
-  agentClass:  string,
-  taskContext: string,
-  topicKey:    string | null = null,
+  orgId:        string,
+  agentClass:   string,
+  taskContext:  string,
+  topicKey:     string | null = null,
+  callerUserId: string | null = null,
 ): Promise<SelectMemoryResult> {
+  // Phase 3.5D — resolve to the sentinel when no caller is known, so retrieval
+  // returns org-visible rules only and never leaks a personal rule.
+  const caller = callerUserId ?? NO_USER_SENTINEL;
   const [phase0, phase1a] = await Promise.all([
-    selectPhase0(orgId, agentClass),
-    selectPhase1a(orgId, agentClass, topicKey),
+    selectPhase0(orgId, agentClass, caller),
+    selectPhase1a(orgId, agentClass, topicKey, caller),
   ]);
 
   const excludeIds = [...phase0, ...phase1a].map((b) => b.id);
-  const phase1b    = await selectPhase1b(orgId, agentClass, taskContext, excludeIds);
+  const phase1b    = await selectPhase1b(orgId, agentClass, taskContext, excludeIds, caller);
 
   // Fire-and-forget lastUsedAt bump.
   const allIds = [...excludeIds, ...phase1b.map((b) => b.id)];

@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-term Resolution · The Metric Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'IBM Plex Mono', ui-monospace, monospace; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  a { color: var(--accent-bright); text-decoration: none; }
+
+  :root {
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --serif: 'Source Serif 4', Georgia, serif;
+
+    --bg: #0d1117;
+    --app-bg: radial-gradient(1200px 700px at 18% -8%, #16203a 0%, #0d1117 55%);
+    --panel: #141b29;
+    --panel-2: #1a2334;
+    --panel-hi: #212c42;
+    --border: rgba(139,124,246,0.16);
+    --border-soft: rgba(255,255,255,0.07);
+    --ink: #e9ebf4;
+    --ink-dim: #9aa3b8;
+    --ink-mute: #616c85;
+    --accent: #8b5cf6;
+    --accent-bright: #a78bfa;
+    --accent-soft: rgba(139,92,246,0.14);
+    --accent-line: rgba(139,92,246,0.34);
+    --shelf-rail: rgba(139,124,246,0.16);
+
+    --t-metric: #a78bfa; --t-metric-lite: #d6ccff; --t-metric-glow: rgba(139,92,246,0.6); --t-metric-halo: rgba(139,92,246,0.30);
+    --t-owner:  #34d399; --t-owner-lite:  #b6f4dc; --t-owner-glow:  rgba(52,211,153,0.55); --t-owner-halo:  rgba(52,211,153,0.28);
+    --t-flag:   #38bdf8; --t-flag-lite:   #bfe9ff; --t-flag-glow:   rgba(56,189,248,0.55); --t-flag-halo:   rgba(56,189,248,0.28);
+    --t-vtype:  #fbbf24; --t-vtype-lite:  #ffe9ad; --t-vtype-glow:  rgba(251,191,36,0.5);  --t-vtype-halo:  rgba(251,191,36,0.28);
+    --t-port:   #f472b6; --t-port-lite:   #ffd4ea; --t-port-glow:   rgba(244,114,182,0.5); --t-port-halo:   rgba(244,114,182,0.26);
+
+    --ok:   #34d399; --ok-soft: rgba(52,211,153,0.13);
+    --warn: #fbbf24; --warn-soft: rgba(251,191,36,0.12);
+    --bad:  #f87171; --bad-soft: rgba(248,113,113,0.12);
+
+    --orb-glow-a: 0 0 30px 4px;
+    --orb-glow-cand: 0 0 15px 1px;
+    --orb-halo-ring: 0 0 0 0 transparent;
+    --orb-drop: inset 0 2px 4px rgba(255,255,255,0.28);
+    --orb-ring: rgba(255,255,255,0.20);
+
+    --shadow-panel: 0 1px 0 rgba(255,255,255,0.03) inset;
+    --scrim: rgba(4,7,14,0.6);
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f2f0ea;
+    --app-bg: radial-gradient(1200px 700px at 18% -8%, #ffffff 0%, #efece4 60%);
+    --panel: #ffffff;
+    --panel-2: #f7f5f0;
+    --panel-hi: #f1ecfb;
+    --border: rgba(109,40,217,0.16);
+    --border-soft: rgba(20,20,45,0.09);
+    --ink: #191d2b;
+    --ink-dim: #515b73;
+    --ink-mute: #8b93a6;
+    --accent: #6d28d9;
+    --accent-bright: #7c3aed;
+    --accent-soft: rgba(109,40,217,0.09);
+    --accent-line: rgba(109,40,217,0.24);
+    --shelf-rail: rgba(109,40,217,0.16);
+
+    --t-metric: #6d28d9; --t-metric-lite: #a78bfa; --t-metric-glow: rgba(124,58,237,0.32); --t-metric-halo: rgba(124,58,237,0.20);
+    --t-owner:  #047857; --t-owner-lite:  #34d399; --t-owner-glow:  rgba(5,150,105,0.30);  --t-owner-halo:  rgba(5,150,105,0.18);
+    --t-flag:   #0369a1; --t-flag-lite:   #38bdf8; --t-flag-glow:   rgba(2,132,199,0.30);  --t-flag-halo:   rgba(2,132,199,0.18);
+    --t-vtype:  #b45309; --t-vtype-lite:  #f59e0b; --t-vtype-glow:  rgba(180,83,9,0.30);   --t-vtype-halo:  rgba(180,83,9,0.20);
+    --t-port:   #be185d; --t-port-lite:   #f472b6; --t-port-glow:   rgba(190,24,93,0.28);  --t-port-halo:   rgba(190,24,93,0.16);
+
+    --ok:   #047857; --ok-soft: rgba(5,150,105,0.12);
+    --warn: #b45309; --warn-soft: rgba(180,83,9,0.12);
+    --bad:  #dc2626; --bad-soft: rgba(220,38,38,0.10);
+
+    --orb-glow-a: 0 0 9px 0;
+    --orb-glow-cand: 0 0 5px 0;
+    --orb-halo-ring: 0 0 0 8px;
+    --orb-drop: 0 12px 22px -8px rgba(40,25,70,0.4), inset 0 3px 5px rgba(255,255,255,0.55);
+    --orb-ring: rgba(255,255,255,0.65);
+
+    --shadow-panel: 0 6px 20px -12px rgba(30,20,60,0.28);
+    --scrim: rgba(40,35,60,0.28);
+  }
+
+  @keyframes orbPulse { 0%,100% { opacity:.68; transform:scale(0.955);} 50% { opacity:1; transform:scale(1.035);} }
+  @keyframes slideIn { from { transform:translateY(6px); opacity:0;} to { transform:translateY(0); opacity:1;} }
+  @keyframes barGrow { from { transform: scaleY(0.04); } to { transform: scaleY(1); } }
+  @keyframes dashPulse { 0%,100% { opacity:.7; } 50% { opacity:1; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb { background: var(--accent-soft); border-radius:5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  :focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; border-radius: 4px; }
+
+  /* ---------- shell ---------- */
+  .app { display:grid; grid-template-columns:250px 1fr; height:100vh; width:100vw; background:var(--bg); color:var(--ink); font-family:var(--mono); overflow:hidden; }
+  aside.sidebar { display:flex; flex-direction:column; background:var(--panel); border-right:1px solid var(--border); min-height:0; }
+  nav.side-nav { flex:1; overflow-y:auto; padding:18px 12px; min-height:0; }
+  .nav-group-label { padding:0 8px; font-size:9px; letter-spacing:0.24em; color:var(--ink-mute); margin-bottom:9px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; color:var(--ink-dim); font-size:12px; letter-spacing:0.03em; border:1px solid transparent; cursor:pointer; background:none; width:100%; text-align:left; font-family:var(--mono); }
+  .nav-item .dot { width:5px; height:5px; border-radius:50%; background:var(--ink-mute); flex:none; }
+  .nav-item.active { background:var(--accent-soft); color:var(--accent-bright); border-color:var(--accent-line); }
+  .nav-item.active .dot { background:var(--accent-bright); box-shadow:0 0 8px var(--accent); }
+
+  main.main { min-width:0; min-height:0; display:flex; flex-direction:column; background:var(--app-bg); }
+  .eyebrow { font-size:10px; letter-spacing:0.26em; color:var(--ink-mute); margin-bottom:8px; }
+  .h1 { font-family:var(--serif); font-weight:600; font-size:32px; letter-spacing:-0.01em; color:var(--ink); line-height:1.02; }
+  .sub { font-size:11px; letter-spacing:0.05em; color:var(--ink-dim); margin-top:8px; line-height:1.5; }
+
+  .section-label { font-size:9px; letter-spacing:0.2em; color:var(--accent-bright); font-weight:600; margin-bottom:10px; text-transform:uppercase; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:13px; box-shadow:var(--shadow-panel); }
+  .subcard { background:var(--panel-2); border:1px solid var(--border-soft); border-radius:9px; }
+
+  .btn { font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:0.1em; border-radius:8px; padding:11px 14px; cursor:pointer; border:1px solid transparent; text-transform:uppercase; transition:filter .14s ease; }
+  .btn:hover:not(:disabled) { filter:brightness(1.08); }
+  .btn:disabled { opacity:.42; cursor:not-allowed; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-ghost { background:transparent; color:var(--accent-bright); border-color:var(--accent-line); }
+  .btn-sm { padding:7px 11px; font-size:9px; }
+
+  .badge { display:inline-flex; align-items:center; gap:6px; font-size:9px; letter-spacing:0.12em; padding:3px 9px; border-radius:20px; font-weight:600; text-transform:uppercase; }
+  .chip { display:inline-flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--border); border-radius:7px; padding:6px 10px; font-size:11px; color:var(--ink); }
+
+  .orb { border-radius:50%; flex:none; }
+  .orb.gov { border:1px solid var(--orb-ring); }
+  .orb.cand { border:1.5px dashed currentColor; animation:orbPulse 2.6s ease-in-out infinite; opacity:.9; }
+
+  .callout { border-radius:10px; padding:13px 15px; display:flex; gap:12px; align-items:flex-start; animation:slideIn .2s ease; }
+  .callout .ico { flex:none; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:700; margin-top:1px; }
+  .callout .body { flex:1; min-width:0; }
+  .callout .ct { font-size:11px; letter-spacing:0.04em; font-weight:600; margin-bottom:4px; }
+  .callout .cd { font-family:var(--serif); font-size:12.5px; line-height:1.55; color:var(--ink-dim); }
+  .callout.warn { background:var(--warn-soft); border:1px solid var(--warn); }
+  .callout.warn .ico { background:var(--warn); color:#1a1200; } .callout.warn .ct { color:var(--warn); }
+  .callout.bad { background:var(--bad-soft); border:1px solid var(--bad); }
+  .callout.bad .ico { background:var(--bad); color:#fff; } .callout.bad .ct { color:var(--bad); }
+  .callout.ok { background:var(--ok-soft); border:1px solid var(--ok); }
+  .callout.ok .ico { background:var(--ok); color:#04120c; } .callout.ok .ct { color:var(--ok); }
+  .callout.port { background:var(--t-port-halo); border:1px solid var(--t-port); }
+  .callout.port .ico { background:var(--t-port); color:#fff; } .callout.port .ct { color:var(--t-port); }
+
+  .kv-row { display:flex; gap:14px; }
+  .kv-row .k { width:88px; flex:none; font-size:9px; letter-spacing:0.1em; color:var(--ink-mute); text-transform:uppercase; padding-top:3px; }
+  .kv-row .v { font-size:12px; color:var(--ink); font-family:var(--mono); line-height:1.5; }
+
+  .scroll { flex:1; overflow-y:auto; min-height:0; }
+  .cols { display:grid; grid-template-columns: minmax(0,1.32fr) minmax(0,1fr); gap:20px; align-items:start; }
+  @media (max-width: 1100px) { .cols { grid-template-columns:1fr; } }
+  @media (max-width: 820px) { .app { grid-template-columns:1fr; } aside.sidebar { display:none; } }
+  .stack { display:flex; flex-direction:column; gap:20px; }
+
+  /* ---------- query bar ---------- */
+  .qbar { display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; }
+  .qbar input { flex:1 1 60%; min-width:0; background:var(--panel-2); border:1px solid var(--border); border-radius:10px; color:var(--ink); font-family:var(--serif); font-size:16px; padding:14px 16px; outline:none; letter-spacing:0.005em; }
+  @media (max-width:560px){ .qbar > button { width:100%; } }
+  .qbar input:focus { border-color:var(--accent-line); }
+  .qbar input::placeholder { color:var(--ink-mute); font-style:italic; }
+  .starter { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .starter button { font-family:var(--serif); font-size:12px; color:var(--ink-dim); background:var(--panel-2); border:1px solid var(--border-soft); border-radius:20px; padding:6px 13px; cursor:pointer; text-align:left; }
+  .starter button:hover { border-color:var(--accent-line); color:var(--ink); }
+  .seed-note { font-family:var(--serif); font-size:11px; color:var(--ink-mute); margin-top:12px; line-height:1.5; }
+
+  /* ---------- resolution strip ---------- */
+  .res-strip { display:flex; flex-wrap:wrap; gap:10px 12px; align-items:flex-start; }
+  .term { display:inline-flex; flex-direction:column; align-items:center; gap:7px; padding:4px 2px; min-width:0; }
+  .term .word { font-family:var(--serif); font-size:18px; line-height:1.1; color:var(--ink); padding-bottom:2px; white-space:nowrap; }
+  .term .word.u-solid { border-bottom:2.5px solid currentColor; }
+  .term .word.u-amber { text-decoration:underline; text-decoration-style:wavy; text-decoration-color:var(--warn); text-underline-offset:4px; color:var(--warn); }
+  .term .word.u-red   { text-decoration:underline; text-decoration-style:dotted; text-decoration-color:var(--bad); text-underline-offset:4px; color:var(--bad); }
+  .term .arrow { font-size:11px; color:var(--ink-mute); line-height:1; }
+  .term .ttype { display:inline-flex; align-items:center; gap:6px; font-size:8.5px; letter-spacing:0.12em; font-weight:600; text-transform:uppercase; padding:3px 8px; border-radius:20px; border:1px solid currentColor; white-space:nowrap; }
+  .term .torb { width:11px; height:11px; }
+  .term .shelf { font-size:8.5px; letter-spacing:0.04em; color:var(--ink-mute); font-family:var(--serif); font-size:10px; white-space:nowrap; }
+  .conn { align-self:center; font-family:var(--serif); font-size:14px; color:var(--ink-mute); padding:0 1px; }
+  .conn.subj { color:var(--ink-dim); border-bottom:1px dotted var(--border); }
+
+  .chooser { display:inline-flex; gap:6px; padding:4px; background:var(--panel-2); border:1px solid var(--warn); border-radius:9px; animation:slideIn .18s ease; }
+  .chooser button { font-family:var(--mono); font-size:9px; letter-spacing:0.06em; padding:5px 9px; border-radius:6px; border:1px solid currentColor; background:none; cursor:pointer; text-transform:uppercase; font-weight:600; display:inline-flex; align-items:center; gap:5px; }
+  .term .undo { font-size:8.5px; letter-spacing:0.08em; color:var(--ink-mute); background:none; border:none; cursor:pointer; font-family:var(--mono); text-transform:uppercase; text-decoration:underline; }
+  .term .define { font-size:8.5px; letter-spacing:0.06em; color:var(--bad); background:var(--bad-soft); border:1px solid var(--bad); border-radius:20px; padding:3px 9px; cursor:pointer; font-family:var(--mono); text-transform:uppercase; font-weight:600; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-soft); }
+  .legend .li { display:inline-flex; align-items:center; gap:7px; font-size:9.5px; letter-spacing:0.04em; color:var(--ink-mute); }
+  .legend .sw { width:22px; height:0; border-bottom-width:2.5px; border-bottom-style:solid; }
+
+  /* ---------- composed answer ---------- */
+  .kpi { display:flex; align-items:baseline; gap:12px; }
+  .kpi .val { font-family:var(--serif); font-weight:700; font-size:44px; line-height:1; color:var(--ink); letter-spacing:-0.01em; }
+  .kpi .unit { font-size:12px; color:var(--ink-dim); letter-spacing:0.04em; }
+  .bars { display:flex; align-items:flex-end; gap:10px; height:92px; padding:0 4px; }
+  .bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+  .bar { width:100%; border-radius:5px 5px 0 0; background:linear-gradient(180deg, var(--t-metric-lite), var(--t-metric)); transform-origin:bottom; animation:barGrow .5s ease; }
+  .bar.cap { background:repeating-linear-gradient(135deg, var(--t-port) 0 6px, var(--t-port-lite) 6px 12px); animation:barGrow .5s ease, dashPulse 2.4s ease-in-out infinite; }
+  .bar-lab { font-size:8.5px; letter-spacing:0.06em; color:var(--ink-mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .demo-tag { font-size:8px; letter-spacing:0.14em; color:var(--warn); border:1px dashed var(--warn); border-radius:5px; padding:2px 7px; text-transform:uppercase; }
+
+  /* ---------- trust spine ---------- */
+  pre.code { background:var(--panel-2); border:1px solid var(--border-soft); border-radius:9px; padding:13px 15px; font-family:var(--mono); font-size:11px; line-height:1.65; color:var(--ink-dim); overflow-x:auto; white-space:pre; }
+  pre.code .k { color:var(--accent-bright); } pre.code .s { color:var(--t-owner); } pre.code .c { color:var(--ink-mute); font-style:italic; } pre.code .p { color:var(--ink-mute); }
+  .filt { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border-soft); font-size:11px; }
+  .filt:last-child { border-bottom:none; }
+  .filt .ff { color:var(--ink); } .filt .fo { color:var(--ink-mute); } .filt .fv { color:var(--ink); font-family:var(--serif); font-size:12.5px; }
+  .pin-line { font-size:9.5px; letter-spacing:0.04em; color:var(--ink-mute); margin-top:10px; font-family:var(--serif); font-size:11px; line-height:1.5; }
+  .pin-line b { color:var(--t-owner); font-family:var(--mono); font-size:10px; }
+
+  /* ---------- omissions + pins ---------- */
+  .om-row { display:flex; gap:11px; padding:11px 0; border-bottom:1px solid var(--border-soft); align-items:flex-start; }
+  .om-row:last-child { border-bottom:none; }
+  .om-row .ut { flex:none; font-size:8px; letter-spacing:0.12em; color:var(--warn); border:1px solid var(--warn); border-radius:20px; padding:2px 7px; font-weight:600; margin-top:2px; }
+  .om-row .ob { min-width:0; } .om-row .of { font-size:11px; color:var(--ink); letter-spacing:0.02em; margin-bottom:3px; }
+  .om-row .ord { font-family:var(--serif); font-size:12px; color:var(--ink-dim); line-height:1.5; }
+
+  .pin { padding:12px 0; border-bottom:1px solid var(--border-soft); } .pin:last-child { border-bottom:none; }
+  .pin .ph { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .pin .pflip { font-size:8px; letter-spacing:0.1em; font-weight:600; border-radius:20px; padding:2px 7px; }
+  .pin .pflip.c { color:var(--ok); border:1px solid var(--ok); background:var(--ok-soft); }
+  .pin .pflip.rt { color:var(--warn); border:1px solid var(--warn); background:var(--warn-soft); }
+  .pin .pname { font-size:11px; color:var(--ink); letter-spacing:0.02em; }
+  .pin .pd { font-family:var(--serif); font-size:12px; color:var(--ink-dim); line-height:1.55; }
+  .pin .pd code { font-family:var(--mono); font-size:10px; color:var(--accent-bright); background:var(--accent-soft); padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div style="padding:20px 20px 16px; border-bottom:1px solid var(--border-soft); display:flex; align-items:center; gap:11px;">
+      <div style="width:26px; height:26px; position:relative; flex:none;">
+        <div style="position:absolute; inset:0; border:1.5px solid var(--accent); transform:rotate(45deg);"></div>
+        <div style="position:absolute; inset:7px; border:1.5px solid var(--accent-bright); transform:rotate(45deg); opacity:.7;"></div>
+      </div>
+      <div style="line-height:1.1;">
+        <div style="font-size:12px; letter-spacing:0.22em; color:var(--ink); font-weight:600;">SPINOR</div>
+        <div style="font-size:9px; letter-spacing:0.42em; color:var(--ink-mute);">ALOFT · AGENT LAB</div>
+      </div>
+    </div>
+
+    <nav class="side-nav">
+      <div class="nav-group-label">BROWSE</div>
+      <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:22px;">
+        <button class="nav-item active"><span class="dot"></span> Multi-term Search</button>
+        <button class="nav-item"><span class="dot"></span> Metric Store</button>
+        <button class="nav-item"><span class="dot"></span> Entities</button>
+        <button class="nav-item"><span class="dot"></span> Shelves</button>
+      </div>
+      <div class="nav-group-label">GOVERNANCE</div>
+      <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:22px;">
+        <button class="nav-item"><span class="dot"></span> Define a Metric</button>
+        <button class="nav-item"><span class="dot"></span> Catalog</button>
+        <button class="nav-item"><span class="dot"></span> Lineage</button>
+        <button class="nav-item"><span class="dot"></span> Data Estate</button>
+      </div>
+      <div class="nav-group-label">AGENTS</div>
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <button class="nav-item"><span class="dot"></span> Inspector</button>
+        <button class="nav-item"><span class="dot"></span> Teach</button>
+      </div>
+    </nav>
+
+    <div style="padding:14px 16px; border-top:1px solid var(--border-soft); display:flex; flex-direction:column; gap:12px;">
+      <button type="button" id="themeBtn" style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; cursor:pointer; font-family:var(--mono);">
+        <span style="font-size:9px; letter-spacing:0.18em; color:var(--ink-mute);">THEME</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;">
+          <span id="darkLab" style="font-size:10px; letter-spacing:0.14em;">DARK</span>
+          <span style="width:26px; height:15px; border-radius:8px; background:var(--accent-soft); border:1px solid var(--accent-line); position:relative; display:inline-block;"><span id="knob" style="position:absolute; top:1px; left:1px; width:11px; height:11px; border-radius:50%; background:var(--accent); transition:left .18s ease;"></span></span>
+          <span id="lightLab" style="font-size:10px; letter-spacing:0.14em;">LIGHT</span>
+        </span>
+      </button>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:26px; height:26px; border-radius:50%; background:var(--panel-hi); border:1px solid var(--border); display:grid; place-items:center; font-size:10px; color:var(--accent-bright); letter-spacing:0.05em;">EV</div>
+        <div style="line-height:1.2;">
+          <div style="font-size:11px; color:var(--ink);">Elin Vardø</div>
+          <div style="font-size:9px; color:var(--ink-mute); letter-spacing:0.06em;">Contributor</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+    <header style="padding:22px 32px 4px;">
+      <div class="eyebrow">SPINOR / ALOFT / METRIC STORE / <span style="color:var(--accent-bright);">MULTI-TERM RESOLUTION</span></div>
+      <h1 class="h1">Resolve every term before you answer</h1>
+      <div class="sub">The Store classifies each term of a whole question — <b style="color:var(--t-owner);">owner</b>, <b style="color:var(--t-flag);">flag</b>, <b style="color:var(--t-vtype);">vessel type</b>, <b style="color:var(--t-metric);">metric</b> — <b style="color:var(--ink);">before</b> it composes a governed answer. Unrecognized or ambiguous terms are surfaced, never guessed.</div>
+    </header>
+
+    <div class="scroll" style="padding:20px 32px 40px;">
+      <div class="stack">
+
+        <!-- ===== QUERY BAR ===== -->
+        <section class="card" style="padding:20px 24px;">
+          <div class="qbar">
+            <input id="q" type="text" aria-label="Ask the Store a question" placeholder="Ask the whole question — e.g. how many Liberian tankers owned by Spar last quarter">
+            <button class="btn btn-primary" id="resolveBtn" style="flex:none;">▸ Resolve</button>
+          </div>
+          <div class="starter" id="starter"></div>
+          <div class="seed-note">
+            Starter prompts <b style="color:var(--ink-dim);">seeded from NL-intent embeddings captured over the populated org</b>
+            <span style="color:var(--warn); border:1px solid var(--warn); border-radius:20px; padding:1px 6px; font-size:8px; letter-spacing:0.12em;">[U] SUBSTRATE</span> —
+            recency-ranked. Usage-based reranking is <b style="color:var(--ink-dim);">not</b> backed by the model → see Omissions.
+          </div>
+        </section>
+
+        <!-- ===== RESOLUTION STRIP ===== -->
+        <section class="card" style="padding:22px 24px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px; flex-wrap:wrap;">
+            <div class="section-label" style="margin-bottom:0;">Resolution — each term classified independently</div>
+            <div id="stripStat" style="font-size:10px; letter-spacing:0.08em; color:var(--ink-mute);"></div>
+          </div>
+          <div class="res-strip" id="strip"></div>
+          <div id="defineNudge"></div>
+          <div class="legend">
+            <span class="li"><span class="sw" style="border-color:var(--t-owner);"></span> solid — matched governed field</span>
+            <span class="li"><span class="sw" style="border-color:var(--warn); border-bottom-style:dashed;"></span> amber — ambiguous, choose</span>
+            <span class="li"><span class="sw" style="border-color:var(--bad); border-bottom-style:dotted;"></span> red — unrecognized, refuse</span>
+            <span class="li"><span class="orb cand" style="width:11px;height:11px;color:var(--t-port);background:radial-gradient(circle at 34% 28%,var(--t-port-lite),var(--t-port));"></span> dashed orb — candidate (caps the answer)</span>
+          </div>
+        </section>
+
+        <!-- ===== COLS ===== -->
+        <div class="cols">
+
+          <!-- LEFT: composed answer -->
+          <section class="card" style="padding:22px 24px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <div class="section-label" style="margin-bottom:0;">Composed answer</div>
+              <span id="answerBadge" class="badge"></span>
+            </div>
+            <div id="answerBody"></div>
+          </section>
+
+          <!-- RIGHT: trust spine + omissions + pins -->
+          <div class="stack">
+
+            <section class="card" style="padding:20px 22px;">
+              <div class="section-label">Composition — resolved terms become governed filters</div>
+              <div id="filters" style="margin-bottom:14px;"></div>
+              <div style="font-size:9px; letter-spacing:0.14em; color:var(--ink-mute); margin-bottom:8px;">SEMANTICQUERY</div>
+              <pre class="code" id="sq"></pre>
+              <div style="font-size:9px; letter-spacing:0.14em; color:var(--ink-mute); margin:14px 0 8px;">COMPILED SQL · READ-ONLY PEEK <span style="color:var(--ink-mute); text-transform:none; letter-spacing:0; font-family:var(--serif); font-size:11px;">— the trust spine</span></div>
+              <pre class="code" id="sql"></pre>
+              <div class="pin-line">Execution pins <b>modelId</b> defensively — a query only ever runs against the model it was resolved on. Read-only; governed-model gated.</div>
+            </section>
+
+            <section class="card" style="padding:20px 22px;">
+              <div class="section-label">Omissions — not shown, no backing in the real model</div>
+              <div id="omissions"></div>
+            </section>
+
+            <section class="card" style="padding:20px 22px;">
+              <div class="section-label">Phase 0 — substrate pins <span style="color:var(--ink-mute); text-transform:none; letter-spacing:0; font-family:var(--serif); font-size:11px;">[U] → [C] with file:line</span></div>
+              <div id="pins"></div>
+            </section>
+
+          </div>
+        </div>
+
+        <!-- caveat -->
+        <div class="card" style="padding:16px 20px; border-style:dashed; border-color:var(--warn);">
+          <div style="display:flex; gap:11px; align-items:flex-start;">
+            <span style="flex:none; font-size:9px; letter-spacing:0.14em; color:var(--warn); font-weight:600; border:1px solid var(--warn); border-radius:20px; padding:3px 9px; margin-top:1px;">[U] PROTOTYPE</span>
+            <div style="font-family:var(--serif); font-size:12.5px; line-height:1.6; color:var(--ink-dim);">
+              Design prototype — not wired to code. The <b style="color:var(--ink); font-family:var(--mono); font-size:11px;">classifier</b>, the NL-intent
+              <b style="color:var(--ink); font-family:var(--mono); font-size:11px;">embeddings</b>, <b style="color:var(--ink); font-family:var(--mono); font-size:11px;">synonym</b> resolution and every
+              composed-answer <b style="color:var(--warn);">number</b> are placeholder demo data / [U] substrate — pin against the real 3.5A–D source
+              (the Phase-0 panel names the file:line for each) before the behavior is real. The <b style="color:var(--ink);">Omissions</b> channel is first-class:
+              a field the resolver can't back on the real model reports itself here, never as a governed-looking blank.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.documentElement;
+  function el(id){ return document.getElementById(id); }
+  function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function normKey(s){ return (s||'').toLowerCase().replace(/^[?.,!;:"']+/,'').replace(/[?.,!;:"']+$/,'').trim(); }
+
+  // ---------- theme ----------
+  var state = { theme:'dark', query:'', terms:[], choices:{}, defineIdx:null };
+  function applyTheme(){
+    root.setAttribute('data-theme', state.theme);
+    var dark = state.theme==='dark';
+    el('knob').style.left = dark ? '1px' : '13px';
+    el('darkLab').style.color = dark ? 'var(--accent-bright)' : 'var(--ink-mute)';
+    el('lightLab').style.color = dark ? 'var(--ink-mute)' : 'var(--accent-bright)';
+  }
+  el('themeBtn').addEventListener('click', function(){ state.theme = state.theme==='dark'?'light':'dark'; applyTheme(); });
+
+  // ---------- estate (shared with Define a Metric / Entities+Lineage) ----------
+  var MODEL_ID = 'mdl_fleet_emissions_v3';
+  var SOURCE   = 'gold.voyage_emissions_daily';
+
+  var TYPES = {
+    owner:  { c:'--t-owner',  lab:'OWNER',       shelf:'Ownership & Registration' },
+    flag:   { c:'--t-flag',   lab:'FLAG',        shelf:'Ownership & Registration' },
+    vtype:  { c:'--t-vtype',  lab:'VESSEL TYPE', shelf:'Vessel Characteristics' },
+    port:   { c:'--t-port',   lab:'PORT',        shelf:'Voyage & Ports' },
+    metric: { c:'--t-metric', lab:'METRIC',      shelf:'Regulatory Efficiency' },
+    intent: { c:'--t-metric', lab:'MEASURE · INFERRED', shelf:'Regulatory Efficiency' },
+    time:   { c:'--ink-dim',  lab:'TIME FILTER', shelf:null }
+  };
+
+  // classification source: the model's real distinct values + synonyms.
+  function m(type, label, field, governed, extra){ var o={type:type,label:label,field:field,governed:governed}; if(extra) for(var k in extra) o[k]=extra[k]; return o; }
+  var INDEX = {
+    // owners (owner_name distinct values + synonym)
+    'spar':          m('owner','Spar Shipping','owner_name',true,{syn:'“Spar” → owner_name = “Spar Shipping”'}),
+    'spar shipping': m('owner','Spar Shipping','owner_name',true),
+    'frontline':     m('owner','Frontline','owner_name',true),
+    // flags (flag_state distinct values; adjective forms as synonyms)
+    'liberian':          m('flag','Liberia','flag_state',true,{syn:'“Liberian” (adjective) → flag_state = “Liberia”'}),
+    'liberia':           m('flag','Liberia','flag_state',true),
+    'marshall islands':  m('flag','Marshall Islands','flag_state',true),
+    // vessel types (vessel_type distinct values, sing/plural)
+    'tanker': m('vtype','Tanker','vessel_type',true), 'tankers': m('vtype','Tanker','vessel_type',true),
+    'bulker': m('vtype','Bulker','vessel_type',true), 'bulkers': m('vtype','Bulker','vessel_type',true),
+    'container': m('vtype','Container','vessel_type',true), 'containers': m('vtype','Container','vessel_type',true),
+    // metrics (measures)
+    'eexi':      m('metric','EEXI','eexi',true,{agg:'avg', unit:'gCO₂/t·nm', demo:{val:'4.7', by:'vtype'}}),
+    'eeoi':      m('metric','EEOI','eeoi',true,{agg:'avg', unit:'gCO₂/t·nm', demo:{val:'7.4', by:'vtype'}}),
+    'cii':       m('metric','CII','cii_rating',true,{agg:'rating', unit:'CII rating', demo:{val:'C', by:'vtype'}}),
+    'aer':       m('metric','AER','aer',true,{agg:'avg', unit:'gCO₂/t·nm', demo:{val:'5.1', by:'vtype'}}),
+    'emissions': m('metric','CO₂ emissions','co2_emissions_t',true,{agg:'sum', unit:'t CO₂', demo:{val:'12,480', by:'month'}}),
+    // ambiguous: a value matching more than one governed field
+    'panama': { ambiguous:true, options:[
+      m('flag','Panama','flag_state',true),
+      m('port','Panama','load_port',false)
+    ]},
+    // ports (candidate — not governed)
+    'rotterdam': m('port','Rotterdam','discharge_port',false),
+    // time filters (voyage_date governed dimension)
+    'last quarter': m('time','last quarter','voyage_date',true,{range:['2026-04-01','2026-07-01'], human:'2026-04-01 … 2026-06-30'}),
+    'this year':    m('time','this year','voyage_date',true,{range:['2026-01-01','2027-01-01'], human:'2026-01-01 … 2026-12-31'}),
+    // count intent → inferred measure
+    'how many':  m('intent','count of vessels','imo',true,{agg:'count_distinct', measure:'COUNT(DISTINCT %imo%)', alias:'vessel_count', demo:{val:'18', unit:'vessels', by:'month'}}),
+    'number of': m('intent','count of vessels','imo',true,{agg:'count_distinct', measure:'COUNT(DISTINCT %imo%)', alias:'vessel_count', demo:{val:'18', unit:'vessels', by:'month'}})
+  };
+  var AGG = { 'average':'avg','avg':'avg','mean':'avg','total':'sum','sum':'sum','max':'max','maximum':'max','min':'min','minimum':'min' };
+  var SUBJECT = { 'vessels':1,'ships':1,'vessel':1,'ship':1,'fleet':1,'vessels?':1 };
+  var STOP = { 'how':1,'owned':1,'by':1,'with':1,'for':1,'the':1,'in':1,'of':1,'and':1,'a':1,'an':1,'calling':1,'at':1,'to':1,'from':1,'that':1,'are':1,'is':1,'me':1,'show':1,'trend':1,'over':1,'per':1,'their':1 };
+
+  var DEMO_BARS = {
+    month: [{l:'Apr',v:0.62},{l:'May',v:0.86},{l:'Jun',v:0.71}],
+    vtype: [{l:'Bulker',v:0.62},{l:'Tanker',v:0.74},{l:'Container',v:0.95},{l:'RoRo',v:0.55},{l:'Gas',v:0.83}]
+  };
+
+  var STARTERS = [
+    'how many Liberian tankers owned by Spar last quarter',
+    'average EEXI for Panama vessels this year',
+    'CII trend for bulkers calling Rotterdam',
+    'total emissions for scrubber-fitted panamax ships'
+  ];
+
+  // ---------- classifier ----------
+  function classify(query){
+    var tokens = query.trim().split(/\s+/).filter(Boolean);
+    var terms = [], pendingAgg = null, i = 0;
+    while(i < tokens.length){
+      var matched = null, span = 1, key = null;
+      for(var n = Math.min(3, tokens.length - i); n >= 1; n--){
+        var joinKey = normKey(tokens.slice(i, i+n).join(' '));
+        if(INDEX[joinKey]){ matched = INDEX[joinKey]; span = n; key = joinKey; break; }
+        if(n===1 && AGG[joinKey]){ pendingAgg = AGG[joinKey]; matched = 'AGG'; span = 1; break; }
+        if(n===1 && (SUBJECT[joinKey] || STOP[joinKey])){ matched = SUBJECT[joinKey] ? 'SUBJ' : 'STOP'; span = 1; break; }
+      }
+      var text = tokens.slice(i, i+span).join(' ');
+      if(matched==='AGG'){ /* fold into next metric */ }
+      else if(matched==='SUBJ'){ terms.push({ kind:'conn', subj:true, text:text }); }
+      else if(matched==='STOP'){ terms.push({ kind:'conn', text:text }); }
+      else if(matched && matched.ambiguous){ terms.push({ kind:'amb', text:text, entry:matched }); }
+      else if(matched){
+        var e = matched, agg = pendingAgg;
+        pendingAgg = null;
+        terms.push({ kind:'term', text:text, entry:e, agg:agg });
+      } else {
+        // no match — refuse rather than guess
+        if(normKey(text)) terms.push({ kind:'red', text:text });
+      }
+      i += span;
+    }
+    return terms;
+  }
+
+  // resolved entry for a term at index idx (ambiguous → chosen option or null)
+  function resolved(term, idx){
+    if(term.kind==='term') return term.entry;
+    if(term.kind==='amb'){ var c = state.choices[idx]; return (c==null)? null : term.entry.options[c]; }
+    return null;
+  }
+
+  // ---------- render: resolution strip ----------
+  function cvar(type){ return 'var('+TYPES[type].c+')'; }
+  function orbHtml(type, governed){
+    var col = cvar(type);
+    var cls = governed ? 'orb gov torb' : 'orb cand torb';
+    var glow = governed ? 'box-shadow:0 0 7px '+col+';' : '';
+    return '<span class="'+cls+'" style="color:'+col+';background:radial-gradient(circle at 34% 28%, var('+TYPES[type].c+'-lite), '+col+' 72%);'+glow+'"></span>';
+  }
+  function termTypeHtml(type, governed){
+    var col = cvar(type), t = TYPES[type];
+    var orb = type==='time' ? '<span style="width:9px;height:9px;border-radius:50%;background:var(--ink-mute);flex:none;"></span>' : orbHtml(type, governed);
+    var cand = governed ? '' : ' <span style="font-size:8px;color:'+col+';">· cand</span>';
+    return '<span class="ttype" style="color:'+col+';">'+orb+' '+t.lab+cand+'</span>'
+      + (t.shelf ? '<span class="shelf">→ '+esc(t.shelf)+'</span>' : '<span class="shelf">→ WHERE voyage_date</span>');
+  }
+
+  function renderStrip(){
+    var wrap = el('strip'); wrap.innerHTML='';
+    state.terms.forEach(function(term, idx){
+      if(term.kind==='conn'){
+        var s = document.createElement('span'); s.className='conn'+(term.subj?' subj':''); s.textContent = term.text;
+        wrap.appendChild(s); return;
+      }
+      var d = document.createElement('div'); d.className='term';
+
+      if(term.kind==='red'){
+        d.innerHTML = '<span class="word u-red">'+esc(term.text)+'</span>'
+          + '<span class="arrow">↓</span>'
+          + '<span class="ttype" style="color:var(--bad);">✕ UNRECOGNIZED</span>'
+          + '<button class="define" data-i="'+idx+'">define it?</button>';
+        d.querySelector('.define').addEventListener('click', function(){ state.defineIdx = (state.defineIdx===idx?null:idx); render(); });
+        wrap.appendChild(d); return;
+      }
+
+      if(term.kind==='amb' && state.choices[idx]==null){
+        var opts = term.entry.options.map(function(o, oi){
+          return '<button data-i="'+idx+'" data-o="'+oi+'" style="color:'+cvar(o.type)+';">'+orbHtml(o.type, o.governed)+' '+TYPES[o.type].lab+(o.governed?'':' · cand')+'</button>';
+        }).join('');
+        d.innerHTML = '<span class="word u-amber">'+esc(term.text)+'</span>'
+          + '<span class="arrow" style="color:var(--warn);">↓ ambiguous</span>'
+          + '<span class="chooser">'+opts+'</span>';
+        Array.prototype.forEach.call(d.querySelectorAll('.chooser button'), function(b){
+          b.addEventListener('click', function(){ state.choices[b.getAttribute('data-i')] = +b.getAttribute('data-o'); render(); });
+        });
+        wrap.appendChild(d); return;
+      }
+
+      // resolved term (plain, or ambiguous-now-chosen)
+      var e = resolved(term, idx);
+      var col = cvar(e.type);
+      var label = e.label;
+      if(term.kind==='term' && term.entry.type==='metric' && term.agg){ label = term.agg + ' ' + label; }
+      var wordCls = e.type==='time' ? 'word u-solid' : 'word u-solid';
+      var undo = term.kind==='amb' ? '<button class="undo" data-i="'+idx+'">↺ was ambiguous · change</button>' : '';
+      d.innerHTML = '<span class="'+wordCls+'" style="color:'+col+';">'+esc(term.text)+'</span>'
+        + '<span class="arrow">↓</span>'
+        + termTypeHtml(e.type, e.governed)
+        + undo;
+      if(term.kind==='amb'){
+        d.querySelector('.undo').addEventListener('click', function(){ delete state.choices[idx]; render(); });
+      }
+      wrap.appendChild(d);
+    });
+
+    // strip status
+    var st = computeState();
+    var counts = { solid:0, amber:0, red:0, cand:0 };
+    state.terms.forEach(function(t,idx){
+      if(t.kind==='red') counts.red++;
+      else if(t.kind==='amb' && state.choices[idx]==null) counts.amber++;
+      else { var e = resolved(t, idx); if(e){ if(e.governed) counts.solid++; else counts.cand++; } }
+    });
+    el('stripStat').innerHTML = '<span style="color:var(--ok);">'+counts.solid+' matched</span>'
+      + (counts.cand?' · <span style="color:var(--t-port);">'+counts.cand+' candidate</span>':'')
+      + (counts.amber?' · <span style="color:var(--warn);">'+counts.amber+' ambiguous</span>':'')
+      + (counts.red?' · <span style="color:var(--bad);">'+counts.red+' unrecognized</span>':'');
+
+    // define nudge (refuse-rather-than-guess)
+    var dn = el('defineNudge');
+    if(state.defineIdx!=null && state.terms[state.defineIdx] && state.terms[state.defineIdx].kind==='red'){
+      var word = state.terms[state.defineIdx].text;
+      dn.innerHTML = '<div class="callout bad" style="margin-top:16px;"><div class="ico">!</div><div class="body">'
+        + '<div class="ct">“'+esc(word)+'” is not a governed term</div>'
+        + '<div class="cd">It matches no distinct value or synonym on <b style="color:var(--ink);font-family:var(--mono);font-size:11px;">'+MODEL_ID+'</b>. The Store <b style="color:var(--ink);">refuses to guess</b> — fabricating a filter here would be worse than none. Define it, then re-ask.</div>'
+        + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
+        + '<button class="btn btn-ghost btn-sm">Define “'+esc(word)+'” in Define a Metric →</button>'
+        + '<button class="btn btn-ghost btn-sm" style="border-color:var(--border);color:var(--ink-mute);">Teach it as a synonym →</button>'
+        + '</div></div></div>';
+    } else { dn.innerHTML=''; }
+  }
+
+  // ---------- compute composed state ----------
+  function computeState(){
+    var reds=[], ambigs=[], cands=[], filters=[], measure=null;
+    state.terms.forEach(function(t, idx){
+      if(t.kind==='red'){ reds.push(t.text); return; }
+      if(t.kind==='amb' && state.choices[idx]==null){ ambigs.push(t.text); return; }
+      var e = resolved(t, idx);
+      if(!e) return;
+      if(e.type==='intent' || e.type==='metric'){ if(!measure) measure = { e:e, agg:(t.agg||e.agg), text:t.text }; return; }
+      if(!e.governed) cands.push(e);
+      if(e.type==='time'){ filters.push({ field:e.field, op:'between', value:e.range, human:e.human, governed:true, type:'time' }); }
+      else { filters.push({ field:e.field, op:'=', value:e.label, governed:e.governed, type:e.type }); }
+    });
+    var s = reds.length ? 'refuse' : ambigs.length ? 'ambiguous' : !measure ? 'nomeasure' : cands.length ? 'capped' : 'governed';
+    return { s:s, reds:reds, ambigs:ambigs, cands:cands, filters:filters, measure:measure };
+  }
+
+  // ---------- render: composed answer ----------
+  function barsHtml(by, capped){
+    var data = DEMO_BARS[by] || DEMO_BARS.vtype;
+    return '<div class="bars">' + data.map(function(x){
+      return '<div class="bar-wrap"><div class="bar'+(capped?' cap':'')+'" style="height:'+Math.max(6,Math.round(x.v*74))+'px;"></div><div class="bar-lab">'+esc(x.l)+'</div></div>';
+    }).join('') + '</div>';
+  }
+  function renderAnswer(st){
+    var badge = el('answerBadge'), body = el('answerBody');
+    function setBadge(txt, col, bg){ badge.textContent = txt; badge.style.color=col; badge.style.background=bg; badge.style.border='1px solid '+col; }
+
+    if(st.s==='refuse'){
+      setBadge('REFUSED', 'var(--bad)', 'var(--bad-soft)');
+      body.innerHTML = '<div class="callout bad"><div class="ico">⦸</div><div class="body">'
+        + '<div class="ct">No answer — '+st.reds.length+' term'+(st.reds.length>1?'s aren’t':' isn’t')+' governed</div>'
+        + '<div class="cd">The sentence contains <b style="color:var(--ink);">'+st.reds.map(function(r){return '“'+esc(r)+'”';}).join(', ')+'</b>, which resolve to no governed value. '
+        + 'Refuse rather than guess: a composed number resting on a fabricated filter would look authoritative and be wrong. Define the term(s), then re-ask.</div></div></div>';
+      return;
+    }
+    if(st.s==='ambiguous'){
+      setBadge('WAITING', 'var(--warn)', 'var(--warn-soft)');
+      body.innerHTML = '<div class="callout warn"><div class="ico">?</div><div class="body">'
+        + '<div class="ct">Waiting on '+st.ambigs.length+' term'+(st.ambigs.length>1?'s':'')+'</div>'
+        + '<div class="cd">Every term must be accounted for before an answer composes. <b style="color:var(--ink);">'+st.ambigs.map(function(r){return '“'+esc(r)+'”';}).join(', ')+'</b> matches more than one governed field — pick one in the strip above and the rest of the sentence recomposes around it.</div></div></div>';
+      return;
+    }
+    if(st.s==='nomeasure'){
+      setBadge('NO MEASURE', 'var(--ink-mute)', 'var(--panel-hi)');
+      body.innerHTML = '<div class="callout warn" style="border-color:var(--border);background:var(--panel-2);"><div class="ico" style="background:var(--ink-mute);color:var(--panel);">∑</div><div class="body">'
+        + '<div class="ct" style="color:var(--ink-dim);">Filters resolve — but what should I compute?</div>'
+        + '<div class="cd">The terms narrow the estate, but no measure or count is named. Add one — <b style="color:var(--ink);">“how many”</b>, <b style="color:var(--ink);">“average EEXI”</b>, <b style="color:var(--ink);">“total emissions”</b> — to compose an answer.</div></div></div>';
+      return;
+    }
+
+    // governed | capped — render the KPI + bars
+    var mez = st.measure, e = mez.e;
+    var demo = e.demo || {val:'—', by:'vtype'};
+    var unit = demo.unit || e.unit || '';
+    var aggTxt = mez.agg ? (mez.agg==='rating'?'':mez.agg+' ') : '';
+    var capped = st.s==='capped';
+    if(capped){
+      setBadge('CAPPED · GOVERNANCE CEILING', 'var(--t-port)', 'var(--t-port-halo)');
+    } else {
+      setBadge('GOVERNED', 'var(--t-owner)', 'var(--t-owner-halo)');
+    }
+
+    var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;">'
+      + '<div style="font-family:var(--serif);font-size:13px;color:var(--ink-dim);">'+esc(aggTxt+e.label)+' · '+st.filters.length+' governed filter'+(st.filters.length===1?'':'s')+'</div>'
+      + '<span class="demo-tag">[U] demo value</span></div>';
+    var kpi = '<div class="kpi"><span class="val" style="'+(capped?'color:var(--t-port);':'')+'">'+esc(demo.val)+'</span><span class="unit">'+esc(unit)+'</span></div>';
+    var chart = '<div style="margin-top:16px;padding:16px 12px 12px;background:var(--panel-2);border:1px solid var(--border-soft);border-radius:10px;'+(capped?'border-style:dashed;border-color:var(--t-port);':'')+'">'+barsHtml(demo.by, capped)+'</div>';
+
+    var banner = '';
+    if(capped){
+      var cd = st.cands[0];
+      banner = '<div class="callout port" style="margin-top:16px;"><div class="ico">▲</div><div class="body">'
+        + '<div class="ct">Governance ceiling — capped</div>'
+        + '<div class="cd">The answer rests on a <b style="color:var(--ink);">candidate</b> dimension — <b style="color:var(--ink);font-family:var(--mono);font-size:11px;">'+esc(cd.type)+' · '+esc(cd.field)+'</b>. '
+        + 'A candidate def <b style="color:var(--ink);">executes</b> inside a governed model, so this is a real read — but it isn’t governed org-wide, so the Store caps it: rendered, flagged, and dashed like its orb. '
+        + 'An honest ceiling — <b style="color:var(--ink);">never a faked number, never a 500</b>. Promote the dimension to lift the cap.</div></div></div>';
+    } else {
+      banner = '<div class="callout ok" style="margin-top:16px;"><div class="ico">✓</div><div class="body">'
+        + '<div class="ct">Every term governed · answer composed</div>'
+        + '<div class="cd">All '+st.filters.length+' filters map to governed fields and the measure resolves. Compiled read-only against <b style="color:var(--ink);">'+SOURCE+'</b>, pinned to <b style="color:var(--ink);font-family:var(--mono);font-size:11px;">'+MODEL_ID+'</b>.</div></div></div>';
+    }
+    body.innerHTML = head + kpi + chart + banner;
+  }
+
+  // ---------- render: composition (filters + semanticQuery + SQL) ----------
+  function renderComposition(st){
+    // filters list
+    var fl = el('filters');
+    if(!st.filters.length && !st.measure){ fl.innerHTML = '<div style="font-family:var(--serif);font-size:12px;color:var(--ink-mute);">No terms resolved yet.</div>'; }
+    else {
+      var rows = st.filters.map(function(f){
+        var val = (f.op==='between') ? '['+f.value.join(' , ')+']' : '“'+esc(f.value)+'”';
+        var tint = f.governed ? '' : 'color:var(--t-port);';
+        return '<div class="filt"><span class="ff" style="'+tint+'">'+esc(f.field)+'</span>'
+          + '<span class="fo">'+esc(f.op)+'</span>'
+          + '<span class="fv">'+val+'</span>'
+          + (f.governed?'':'<span style="margin-left:auto;font-size:8px;color:var(--t-port);border:1px solid var(--t-port);border-radius:20px;padding:1px 6px;letter-spacing:0.1em;">CANDIDATE</span>')
+          + '</div>';
+      }).join('');
+      fl.innerHTML = rows || '<div style="font-family:var(--serif);font-size:12px;color:var(--ink-mute);">Measure only — no filters.</div>';
+    }
+
+    // semanticQuery JSON
+    var measLine = st.measure
+      ? '    { id: <span class="s">"'+(st.measure.e.alias||st.measure.e.field)+'"</span>, agg: <span class="s">"'+(st.measure.agg||st.measure.e.agg||'?')+'"</span>, field: <span class="s">"'+st.measure.e.field+'"</span> }'
+      : '    <span class="c">/* no measure named */</span>';
+    var filtLines = st.filters.map(function(f){
+      var v = (f.op==='between') ? '['+f.value.map(function(x){return '"'+x+'"';}).join(', ')+']' : '"'+f.value+'"';
+      return '    { field: <span class="s">"'+f.field+'"</span>, op: <span class="s">"'+f.op+'"</span>, value: <span class="s">'+v+'</span>'+(f.governed?'':' <span class="c">// candidate → caps answer</span>')+' }';
+    }).join(',\n');
+    el('sq').innerHTML =
+      '<span class="p">{</span>\n'
+      + '  modelId: <span class="s">"'+MODEL_ID+'"</span>,  <span class="c">// pinned at execution (defensive)</span>\n'
+      + '  measures: <span class="p">[</span>\n' + measLine + '\n  <span class="p">]</span>,\n'
+      + '  dimensions: <span class="p">[]</span>,\n'
+      + '  filters: <span class="p">[</span>\n' + (filtLines||'    <span class="c">/* none */</span>') + '\n  <span class="p">]</span>\n'
+      + '<span class="p">}</span>';
+
+    // compiled SQL peek
+    var measExpr = st.measure
+      ? (st.measure.e.type==='intent'
+          ? 'COUNT(DISTINCT v.imo)'
+          : (st.measure.agg==='sum'?'SUM':st.measure.agg==='avg'?'AVG':st.measure.agg==='rating'?'MODE':'AVG')+'(v.'+st.measure.e.field+')')
+      : '<span class="c">/* measure? */</span>';
+    var alias = st.measure ? (st.measure.e.alias || ((st.measure.agg||'val')+'_'+st.measure.e.field)) : 'value';
+    var whereLines = st.filters.map(function(f){
+      if(f.op==='between') return "  AND v."+f.field+" >= <span class='s'>'"+f.value[0]+"'</span> AND v."+f.field+" &lt; <span class='s'>'"+f.value[1]+"'</span>";
+      return "  AND v."+f.field+" = <span class='s'>'"+esc(f.value)+"'</span>"+(f.governed?'':" <span class='c'>-- candidate dim</span>");
+    });
+    var whereBlock = whereLines.length ? ('<span class="k">WHERE</span> 1=1\n'+whereLines.join('\n')) : '<span class="c">-- no filters</span>';
+    el('sql').innerHTML =
+      '<span class="k">SELECT</span> '+measExpr+' <span class="k">AS</span> '+alias+'\n'
+      + '<span class="k">FROM</span> '+SOURCE+' v\n'
+      + whereBlock + '\n'
+      + '<span class="c">-- read-only · governed-model gated · modelId '+MODEL_ID+' pinned</span>';
+  }
+
+  // ---------- static: omissions + pins + starters ----------
+  var OMISSIONS = [
+    { field:'Numeric per-term confidence score (e.g. “87%”)',
+      reason:'There is no stored per-match score on the model. The solid / amber / red tiers are derived from <b style="color:var(--ink);">match type</b> — governed field, value-matches-two-fields, or no match — not a probability. A percentage here would be invented.' },
+    { field:'Usage-based reranking of starter prompts',
+      reason:'<code>listGovernedIntents</code> orders captured intents by <b style="color:var(--ink);">recency + dedup</b>; there is no usage/frequency counter column. A “most-asked this month” signal has no backing field to rank on.' },
+    { field:'Inline example values per term (e.g. flag: Liberia, Panama…)',
+      reason:'A dimension’s distinct values live only in Databricks — a live <code>DISTINCT</code> read through <code>executeDatabricksSQL</code>, not catalog metadata. Showing them inline as if free would fake a warehouse round-trip.' }
+  ];
+  function renderOmissions(){
+    el('omissions').innerHTML = OMISSIONS.map(function(o){
+      return '<div class="om-row"><span class="ut">[U]</span><div class="ob"><div class="of">'+o.field+'</div><div class="ord">'+o.reason+'</div></div></div>';
+    }).join('');
+  }
+
+  var PINS = [
+    { name:'NL-intent embeddings scoped to the populated org', flip:'c', rt:true,
+      d:'<code>platform_nl_intent_embeddings</code> (schema.prisma:1979); org resolves via <code>getDefaultOrg()</code> → <code>DEFAULT_ORG_SLUG</code>, single-org (agents.ts:79); seeds read by <code>listGovernedIntents</code>, org- <b>and</b> model-scoped (intent-match.ts:213). ⏳ Runtime-pending: is the row-count non-empty for the <b style="color:var(--ink);">populated</b> org (vs the demo org)?' },
+    { name:'Synonyms reach the resolver AND the LLM context', flip:'c',
+      d:'Loaded onto summaries in <code>buildSemanticContext</code> (context-builder.ts:174) and rendered into the system prompt (prompts.ts:326, :363) — not merely a DB column. Two traps mirrored in the UI: <b style="color:var(--ink);">governed-only load</b> (context-builder.ts:71) + <b style="color:var(--ink);">top-K cap</b> (context-builder.ts:68) — a synonym on a candidate or below-cap def is dead until governed and ranked.' },
+    { name:'Classification source: term → type', flip:'c',
+      d:'Model-side dimensions + synonyms (<code>dimension_type</code> schema.prisma:2406; <code>ai_context</code>/<code>synonyms</code> :2408). Distinct values are a live Databricks <code>DISTINCT</code> via <code>executeDatabricksSQL</code> (execute.ts:211), not catalog metadata → surfaced as an omission, not faked. <b style="color:var(--ink);">Ambiguity (amber)</b> = one value matching more than one governed field.' },
+    { name:'Composition → governed filters + defensive modelId pin', flip:'c',
+      d:'Resolved ids become <code>WHERE</code> filters through the compiler (<code>full_path</code> compiler.ts:273, <code>column_name</code>); execution is governed-model gated (execute.ts:117). A candidate def <b style="color:var(--ink);">executes</b> inside a governed model — the cap is a UX governance rollup, <b style="color:var(--ink);">not</b> an execution gate (authoring-access.ts:52; Entities+Lineage pin #3).' }
+  ];
+  function renderPins(){
+    el('pins').innerHTML = PINS.map(function(p){
+      var flip = '<span class="pflip c">[C] STATIC</span>' + (p.rt?' <span class="pflip rt">⏳ RUNTIME</span>':'');
+      return '<div class="pin"><div class="ph">'+flip+'<span class="pname">'+esc(p.name)+'</span></div><div class="pd">'+p.d+'</div></div>';
+    }).join('');
+  }
+  function renderStarters(){
+    el('starter').innerHTML = STARTERS.map(function(s,i){ return '<button data-q="'+i+'">'+esc(s)+'</button>'; }).join('');
+    Array.prototype.forEach.call(el('starter').querySelectorAll('button'), function(b){
+      b.addEventListener('click', function(){ el('q').value = STARTERS[+b.getAttribute('data-q')]; resolve(); });
+    });
+  }
+
+  // ---------- resolve + master render ----------
+  function resolve(){
+    state.query = el('q').value;
+    state.terms = classify(state.query);
+    state.choices = {};
+    state.defineIdx = null;
+    render();
+  }
+  function render(){
+    var st = computeState();
+    renderStrip();
+    renderAnswer(st);
+    renderComposition(st);
+  }
+  el('resolveBtn').addEventListener('click', resolve);
+  el('q').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); resolve(); } });
+
+  // ---------- init ----------
+  applyTheme();
+  renderOmissions();
+  renderPins();
+  renderStarters();
+  el('q').value = STARTERS[0];
+  resolve();
+
+  // web-font race guard: nothing is positioned off measured text, but re-render
+  // after fonts settle so a cold-load first paint is never stale.
+  if(document.fonts && document.fonts.ready && document.fonts.ready.then){
+    document.fonts.ready.then(function(){ render(); });
+  }
+})();
+</script>
+</body>
+</html>

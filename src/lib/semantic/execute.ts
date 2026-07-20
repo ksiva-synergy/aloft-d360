@@ -14,16 +14,69 @@ import type { SemanticQuery, SemanticModel } from './types';
 import { executeDatabricksSQL } from '@/lib/databricks/execute';
 import { getAccessToken } from '@/lib/databricks/token-client';
 import prisma from '@/lib/db';
-import { SemanticModelNotGovernedError, SemanticValidationFailureError } from './errors';
+import {
+  SemanticModelNotGovernedError,
+  SemanticValidationFailureError,
+  SemanticDraftAccessError,
+} from './errors';
+import {
+  decideDefinitionAccess,
+  deriveIsDraft,
+  isAuthoringExecution,
+  type AuthoringOpts,
+  type SemTableKind,
+} from './authoring-access';
 
 // Re-export error classes so callers can import them from this module
-export { SemanticModelNotGovernedError, SemanticValidationFailureError };
+export { SemanticModelNotGovernedError, SemanticValidationFailureError, SemanticDraftAccessError };
+export type { AuthoringOpts };
 
 export interface SemanticQueryResult {
   sql: string;
   columns: { name: string; type: string }[];
   rows: Record<string, unknown>[];
   rowCount: number;
+  /**
+   * 3.5A — true when this was an authoring-mode execution that referenced at
+   * least one non-governed (draft) definition, so the UI can stamp
+   * "Draft — not governed". Always false on the default (governed) path.
+   */
+  isDraft: boolean;
+}
+
+/** Rows carry status + created_by after the 3.5A schema change. */
+type AccessibleRow = { id: string; status: string; created_by: string | null };
+
+/**
+ * Partition loaded rows into the compilable set. A referenced row that is
+ * another user's draft throws SemanticDraftAccessError (the owner-only
+ * boundary); an excluded referenced row is simply dropped so ordinary
+ * reference validation rejects it (the clean forbid for the default path).
+ */
+function filterAccessible<T extends AccessibleRow>(
+  rows: T[],
+  referenced: Set<string>,
+  tableKind: SemTableKind,
+  opts: AuthoringOpts | undefined,
+): T[] {
+  const out: T[] = [];
+  for (const row of rows) {
+    const decision = decideDefinitionAccess(
+      { status: row.status, createdBy: row.created_by },
+      opts,
+    );
+    if (decision === 'allow') {
+      out.push(row);
+    } else if (decision === 'forbid-draft' && referenced.has(row.id)) {
+      throw new SemanticDraftAccessError(tableKind, row.id);
+    }
+    // 'exclude', or 'forbid-draft' on an unreferenced row → drop silently
+  }
+  return out;
+}
+
+function referencedStatuses(rows: AccessibleRow[], referenced: Set<string>): string[] {
+  return rows.filter((r) => referenced.has(r.id)).map((r) => r.status);
 }
 
 /**
@@ -41,9 +94,11 @@ export interface SemanticQueryResult {
 export async function executeSemanticQuery(
   query: SemanticQuery,
   connectionId: string,
+  opts?: AuthoringOpts,
 ): Promise<SemanticQueryResult> {
   // ── 1. Org scope ──────────────────────────────────────────────────────────
   const org = await getDefaultOrg();
+  const authoring = isAuthoringExecution(opts);
 
   // ── 2. Load model from Prisma ─────────────────────────────────────────────
   const modelRow = await prisma.platform_semantic_models.findFirstOrThrow({
@@ -51,26 +106,52 @@ export async function executeSemanticQuery(
   });
 
   // ── Governance gate ───────────────────────────────────────────────────────
-  // Only 'governed' models are queryable. Candidates have not yet been
-  // reviewed + promoted by a domain expert. Archived models are retired.
-  if (modelRow.status !== 'governed') {
+  // DEFAULT PATH (no opts — the LLM tool, dashboards, materialization): only
+  // 'governed' models are queryable. Candidates have not yet been reviewed +
+  // promoted; archived models are retired. This is UNCHANGED from pre-3.5A.
+  //
+  // AUTHORING PATH (3.5A — an owner previewing their own drafts): the
+  // model-level gate is bypassed. Access is instead enforced per referenced
+  // definition below (decideDefinitionAccess), so an owner can execute against
+  // a candidate/draft model while non-owners and shared consumption cannot.
+  if (!authoring && modelRow.status !== 'governed') {
     throw new SemanticModelNotGovernedError(modelRow.id, modelRow.status);
   }
 
-  // Only non-archived entities are queryable — archived entities are retired.
-  const entityRows = await prisma.platform_sem_entities.findMany({
-    where: { model_id: modelRow.id, org_id: org.id, status: { not: 'archived' } },
+  // Load every entity/dim/measure for the model (ALL statuses). Access is then
+  // decided per-row: the default path drops 'draft' + 'archived' (so drafts are
+  // invisible), while authoring mode additionally admits the requesting user's
+  // OWN drafts and hard-forbids another user's referenced draft.
+  const allEntities = await prisma.platform_sem_entities.findMany({
+    where: { model_id: modelRow.id, org_id: org.id },
   });
+  const allEntityIds = allEntities.map((e) => e.id);
 
-  const entityIds = entityRows.map((e) => e.id);
-
-  // Only non-archived definitions are compiled into queries — an archived
-  // dimension or measure must not execute even if referenced by ID.
-  const [dimensionRows, measureRows, joinRows] = await Promise.all([
-    prisma.platform_sem_dimensions.findMany({ where: { entity_id: { in: entityIds }, org_id: org.id, status: { not: 'archived' } } }),
-    prisma.platform_sem_measures.findMany({   where: { entity_id: { in: entityIds }, org_id: org.id, status: { not: 'archived' } } }),
-    prisma.platform_sem_joins.findMany({      where: { model_id: modelRow.id,        org_id: org.id } }),
+  const [allDimensions, allMeasures, joinRows] = await Promise.all([
+    prisma.platform_sem_dimensions.findMany({ where: { entity_id: { in: allEntityIds }, org_id: org.id } }),
+    prisma.platform_sem_measures.findMany({   where: { entity_id: { in: allEntityIds }, org_id: org.id } }),
+    prisma.platform_sem_joins.findMany({      where: { model_id: modelRow.id,           org_id: org.id } }),
   ]);
+
+  // Referenced definitions: primary entity + each dimension + each measure.
+  const refEntityIds = new Set<string>([query.entityId]);
+  const refDimIds = new Set(query.dimensions.map((d) => d.dimensionId));
+  const refMeasureIds = new Set(query.measures.map((m) => m.measureId));
+
+  const entityRows = filterAccessible(allEntities, refEntityIds, 'entity', opts);
+  const dimensionRows = filterAccessible(allDimensions, refDimIds, 'dimension', opts);
+  const measureRows = filterAccessible(allMeasures, refMeasureIds, 'measure', opts);
+
+  // isDraft is meaningful only for authoring executions; the default path is
+  // governed consumption and must never be labelled a draft.
+  const isDraft = deriveIsDraft(
+    [
+      ...referencedStatuses(entityRows, refEntityIds),
+      ...referencedStatuses(dimensionRows, refDimIds),
+      ...referencedStatuses(measureRows, refMeasureIds),
+    ],
+    authoring,
+  );
 
   const model: SemanticModel = {
     id: modelRow.id,
@@ -142,5 +223,6 @@ export async function executeSemanticQuery(
     columns: result.columns.map((c) => ({ name: c.name, type: c.type_name })),
     rows: result.rows,
     rowCount: result.row_count,
+    isDraft,
   };
 }

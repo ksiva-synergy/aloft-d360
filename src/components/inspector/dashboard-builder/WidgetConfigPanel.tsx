@@ -1,10 +1,16 @@
 'use client';
 
 import React from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, ExternalLink, Info } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { isRawSqlWidget } from '@/lib/dashboards/types';
+import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import type { ChartSpec } from '@/lib/studio/types';
 import type { SemanticFilter, FilterOp } from '@/lib/semantic/types';
+import {
+  recommendedKindToWidgetKind,
+  type ChartRecommendation,
+} from '@/lib/dashboards/chart-defaults';
 import { useBuilderStore } from './builder-store';
 
 const MONO: React.CSSProperties = {
@@ -31,9 +37,17 @@ interface WidgetConfigPanelProps {
   widget: WidgetSpec;
   definitions: Map<string, { label: string; status: string }>;
   readOnly?: boolean;
+  /** Smart-defaults recommendation for the current field shape (Phase 3A). */
+  recommendation?: ChartRecommendation | null;
+  /**
+   * Called when the user picks a chart kind by hand. When provided it replaces
+   * the store update so the parent can record the manual override (and stop
+   * auto-recommending). Falls back to the store update when omitted.
+   */
+  onChartKindChange?: (kind: ChartSpec['kind']) => void;
 }
 
-export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfigPanelProps) {
+export function WidgetConfigPanel({ widget, definitions, readOnly, recommendation, onChartKindChange }: WidgetConfigPanelProps) {
   const updateWidget = useBuilderStore((s) => s.updateWidget);
   const updateWidgetSemanticQuery = useBuilderStore((s) => s.updateWidgetSemanticQuery);
   const removeWidget = useBuilderStore((s) => s.removeWidget);
@@ -44,9 +58,85 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
     updateWidget(widget.widgetId, { title });
   };
 
+  // ── Phase 3.5C: raw-SQL widgets aren't semantically editable ────────────────
+  // They have no dimensions/measures/filters to configure — show a compact,
+  // read-only info panel (title + badge + frozen SQL) and the remove action.
+  if (isRawSqlWidget(widget)) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12, overflowY: 'auto', height: '100%', position: 'relative' }}>
+        {readOnly && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 10, cursor: 'default' }} title="View only — you cannot edit this dashboard" />
+        )}
+        <Section label="TITLE">
+          <input
+            type="text"
+            value={widget.title}
+            onChange={(e) => !readOnly && handleTitleChange(e.target.value)}
+            readOnly={readOnly}
+            style={{
+              ...MONO, fontSize: 11, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
+              borderRadius: 4, padding: '6px 8px', color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
+              width: '100%', outline: 'none', cursor: readOnly ? 'default' : undefined,
+            }}
+            placeholder="Widget title"
+          />
+        </Section>
+        <Section label="GOVERNANCE">
+          <RawSqlBadge />
+          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
+            This widget runs frozen raw SQL — it is not governed and not drift-checked.
+            Graduate it to a metric in the Inspector to bring it under governance.
+          </span>
+        </Section>
+        <Section label="SQL">
+          <pre
+            style={{
+              ...MONO, fontSize: 9, color: 'var(--builder-text)', background: 'var(--builder-surface)',
+              border: '1px solid var(--builder-border)', borderRadius: 4, padding: '8px', margin: 0,
+              overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220,
+            }}
+          >
+            {widget.rawSql}
+          </pre>
+        </Section>
+        {widget.chartConfig.x && (
+          <Section label="AXES">
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>
+              X: {widget.chartConfig.x} · Y: {(widget.chartConfig.y ?? []).join(', ') || '—'}
+            </span>
+          </Section>
+        )}
+        {!readOnly && (
+          <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+            <button
+              onClick={() => removeWidget(widget.widgetId)}
+              style={{
+                ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
+                border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
+                color: '#F87171', cursor: 'pointer', width: '100%', justifyContent: 'center',
+              }}
+            >
+              <Trash2 size={12} />
+              REMOVE WIDGET
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const handleChartKindChange = (chartKind: ChartSpec['kind']) => {
-    updateWidget(widget.widgetId, { chartKind });
+    if (readOnly) return;
+    if (onChartKindChange) onChartKindChange(chartKind);
+    else updateWidget(widget.widgetId, { chartKind });
   };
+
+  // Alternative widget kinds from the recommendation, mapped to the widget kind
+  // subset and de-duplicated against the current kind.
+  const alternativeKinds = Array.from(
+    new Set((recommendation?.alternatives ?? []).map(recommendedKindToWidgetKind)),
+  ).filter((k) => k !== widget.chartKind);
 
   const handleRemoveDimension = (dimId: string) => {
     const sq = { ...widget.semanticQuery };
@@ -58,6 +148,30 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
     const sq = { ...widget.semanticQuery };
     sq.measures = sq.measures.filter((m) => m.measureId !== measId);
     updateWidgetSemanticQuery(widget.widgetId, sq);
+  };
+
+  const DEFAULT_STALE_SEC = 300;
+
+  const handleFreshnessMode = (mode: 'live' | 'cached') => {
+    if (readOnly) return;
+    if (mode === 'live') {
+      // Absence == 'live' — keep the stored spec clean.
+      updateWidget(widget.widgetId, { freshness: undefined });
+    } else {
+      updateWidget(widget.widgetId, {
+        freshness: {
+          mode: 'cached',
+          staleAfterSec: widget.freshness?.staleAfterSec ?? DEFAULT_STALE_SEC,
+        },
+      });
+    }
+  };
+
+  const handleStaleSecChange = (seconds: number) => {
+    if (readOnly) return;
+    updateWidget(widget.widgetId, {
+      freshness: { mode: 'cached', staleAfterSec: Math.max(1, Math.round(seconds)) },
+    });
   };
 
   const handleConfigChange = (field: 'x' | 'series' | 'value', value: string) => {
@@ -164,6 +278,36 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
             </button>
           ))}
         </div>
+
+        {/* "Why this chart" — smart-defaults rationale + one-click alternatives */}
+        {recommendation && (
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
+              <Info size={11} style={{ color: 'var(--builder-text-muted)', flexShrink: 0, marginTop: 1 }} />
+              <span style={{ ...MONO, fontSize: 9, lineHeight: 1.4, color: 'var(--builder-text-muted)' }}>
+                {recommendation.rationale}
+              </span>
+            </div>
+            {!readOnly && alternativeKinds.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>Try:</span>
+                {alternativeKinds.map((kind) => (
+                  <button
+                    key={kind}
+                    onClick={() => handleChartKindChange(kind)}
+                    style={{
+                      ...MONO, fontSize: 9, letterSpacing: '0.04em', textTransform: 'uppercase',
+                      padding: '2px 7px', borderRadius: 3, border: '1px dashed var(--builder-border)',
+                      background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
+                    }}
+                  >
+                    {kind}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </Section>
 
       {/* Assigned Dimensions */}
@@ -257,6 +401,67 @@ export function WidgetConfigPanel({ widget, definitions, readOnly }: WidgetConfi
               ADD FILTER
             </button>
           </div>
+        </Section>
+      )}
+
+      {/* Data freshness (Phase 2) */}
+      <Section label="DATA FRESHNESS">
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['live', 'cached'] as const).map((mode) => {
+            const active = (widget.freshness?.mode ?? 'live') === mode;
+            return (
+              <button
+                key={mode}
+                onClick={() => handleFreshnessMode(mode)}
+                style={{
+                  ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  flex: 1, padding: '4px 8px', borderRadius: 3,
+                  border: `1px solid ${active ? '#FDB515' : 'var(--builder-border)'}`,
+                  background: active ? 'rgba(253,181,21,0.1)' : 'transparent',
+                  color: active ? '#FDB515' : 'var(--builder-text-muted)',
+                  cursor: readOnly ? 'default' : 'pointer',
+                }}
+              >
+                {mode}
+              </button>
+            );
+          })}
+        </div>
+        {widget.freshness?.mode === 'cached' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
+              Refresh every
+            </span>
+            <input
+              type="number"
+              min={1}
+              value={widget.freshness.staleAfterSec ?? DEFAULT_STALE_SEC}
+              onChange={(e) => handleStaleSecChange(Number(e.target.value))}
+              readOnly={readOnly}
+              style={{
+                ...MONO, fontSize: 10, width: 70,
+                background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
+                borderRadius: 3, padding: '3px 6px', color: 'var(--builder-text)', outline: 'none',
+              }}
+            />
+            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>sec</span>
+          </div>
+        )}
+      </Section>
+
+      {/* Provenance — link back to the source chart in the Inspector (Phase 2) */}
+      {widget.source_chart_id && (
+        <Section label="SOURCE">
+          <a
+            href={`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id)}`}
+            style={{
+              ...MONO, fontSize: 9, letterSpacing: '0.04em', color: '#FDB515',
+              textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <ExternalLink size={11} />
+            Open source chart in Inspector
+          </a>
         </Section>
       )}
 
@@ -452,6 +657,7 @@ function buildFilterFieldList(
   widget: WidgetSpec,
   definitions: Map<string, { label: string; status: string }>,
 ): { id: string; label: string; kind: 'dimension' | 'measure' }[] {
+  if (isRawSqlWidget(widget)) return [];
   const fields: { id: string; label: string; kind: 'dimension' | 'measure' }[] = [];
   for (const d of widget.semanticQuery.dimensions) {
     const def = definitions.get(d.dimensionId);

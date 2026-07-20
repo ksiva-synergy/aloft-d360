@@ -22,10 +22,10 @@ function getInitials(name?: string | null, email?: string | null): string {
 
 /** Per-role badge style — color tokens are CSS variables so they respect both light and dark themes. */
 const ROLE_BADGE_STYLES: Record<string, { color: string; bg: string }> = {
-  platform_admin: { color: '#92400e', bg: 'rgba(251,191,36,0.18)' }, // amber
-  admin:          { color: '#1e40af', bg: 'rgba(96,165,250,0.15)' },  // blue
-  member:         { color: '#6b7280', bg: 'rgba(156,163,175,0.15)' }, // gray
-  readonly:       { color: '#9ca3af', bg: 'rgba(209,213,219,0.12)' }, // muted
+  platform_admin: { color: 'var(--role-badge-platform-admin)', bg: 'rgba(251,191,36,0.18)' }, // amber
+  admin:          { color: 'var(--role-badge-admin)', bg: 'rgba(96,165,250,0.15)' },  // blue
+  member:         { color: 'var(--role-badge-member)', bg: 'rgba(156,163,175,0.15)' }, // gray
+  readonly:       { color: 'var(--role-badge-readonly)', bg: 'rgba(209,213,219,0.12)' }, // muted
 };
 
 function RoleBadge({ role, label }: { role: string; label: string }) {
