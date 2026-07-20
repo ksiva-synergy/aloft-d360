@@ -161,7 +161,13 @@ the workbench. Layout:
   warehouse-only), plus New session / Performance Lab / History buttons.
 - **Left 60%** — `PromptCanvas` conversation, backed by the `useInspectorChat` hook.
 - **Right 40%** — tabbed between **Results** and **Semantic Governance**
-  (`SemanticGovernancePanel`, shown only when candidate semantic models exist):
+  (`SemanticGovernancePanel`, shown here only when a candidate semantic model
+  exists in the session). `SemanticGovernancePanel` has exactly two mount sites:
+  this in-session tab, and the always-available **`/agent-lab/metrics`** route
+  ([page.tsx](<../src/app/(agent)/agent-lab/metrics/page.tsx>)), which mounts the
+  same component with org-wide scope (My Drafts / What I've Taught aggregated
+  across every model) so the authoring surface is reachable without an active
+  Inspector session. It is **not** mounted in `DashboardBuilder`.
   - `SemanticChartCard`s stack above the results when the agent emits semantic charts.
   - `DashboardPane` below shows the latest query result.
 

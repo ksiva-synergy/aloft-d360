@@ -9,10 +9,11 @@ import {
   Rocket, FlaskConical, Inbox, HeartPulse, DollarSign,
   Shield, Server, ScrollText, Layers, Wand2,
   Radio, Brain, Lightbulb, LayoutTemplate, Route, LayoutDashboard,
-  ChevronRight, History, Zap, Users, TestTube2,
+  ChevronRight, History, Zap, Users, TestTube2, Ruler,
 } from 'lucide-react';
 import { UserMenu } from '@/components/shell/UserMenu';
 import type { Session } from 'next-auth';
+import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
 
 interface NavItem {
   label: string;
@@ -37,8 +38,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Inspector',        href: '/inspector',            icon: Database },
       { label: 'Dashboards',       href: '/inspector/dashboards', icon: LayoutDashboard },
-      // TODO: repoint href to '/agent-lab/teach' when the full Teach page (Phase 4) ships; only the digest sub-route exists today.
-      { label: 'Teach',            href: '/agent-lab/teach/digest', icon: Wand2 },
+      { label: 'Metrics',          href: '/agent-lab/metrics',    icon: Ruler },
+      { label: 'Teach',            href: '/agent-lab/teach',        icon: Wand2 },
       { label: 'Performance Lab',  href: '/performance-lab',      icon: TestTube2 },
       { label: 'Bandits',          href: '/agent-lab/bandits',    icon: Dices },
       { label: 'History',          href: '/agent-lab/history',    icon: History },
@@ -56,13 +57,14 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Data Estate',
     id: 'estate',
-    items: [
-      { label: 'Overview',    href: '/agent-lab/estate',          icon: Layers, exact: true },
-      { label: 'Catalog',     href: '/agent-lab/estate/catalog',  icon: BookOpen },
-      { label: 'Jobs',        href: '/agent-lab/estate/jobs',     icon: Zap },
-      { label: 'Mapper',      href: '/agent-lab/estate/mapper',   icon: Route },
-      { label: 'Silo Finder', href: '/agent-lab/estate/silo',     icon: Server },
-    ],
+    // Single source of truth shared with the in-page tab bar (EstateNav) so the
+    // two can't drift — Entities + Lineage used to be missing here.
+    items: ESTATE_NAV_ITEMS.map((it) => ({
+      label: it.label,
+      href: it.href,
+      icon: it.icon,
+      exact: it.match === 'exact',
+    })),
   },
   {
     label: 'Govern',

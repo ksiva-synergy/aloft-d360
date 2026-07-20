@@ -103,6 +103,10 @@ export async function GET(
     for (const m of measures) ensure(m.entity_id).measures.push(m);
 
     const entitiesOut = [...groups.values()].map((g) => ({
+      // Carry the model identity per group so a shared MyDraftsSection can route
+      // mutations without knowing whether it's model- or org-scoped (W1).
+      modelId: model.id,
+      modelName: model.name,
       entityId: g.entityId,
       entityLabel: g.entityLabel,
       dimensions: g.dimensions.map((d) => ({
