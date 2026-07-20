@@ -10,6 +10,45 @@ re-implement any of them.
 
 ---
 
+## Live verification (2026-07-20) — one real conversation against the real substrate
+
+Ran read-mostly against the real Postgres + Bedrock (`DEFAULT_ORG`); the one row written was
+hard-deleted (0 leftover). Results:
+
+| Check | Result | Notes |
+|---|---|---|
+| 1. Reflect decline (live LLM turn) | **PASS** | Marcus declined in prose, invoked **zero** tools, emitted no learning_item. Resolved allowlist = `[recall_memory, capture_learning, verify_claim]` — no mutation tool. The prompt-layer refusal (untestable in units) works. |
+| 2. Persistence + fail-closed scoping | **PARTIAL** | Row is correct (personal / created_by=author / SCHEMA_MAP / ACTIVE) and **absent for a different user** (fail-closed ✓). But `selectMemoryAll` did **not** return it for the author — see finding below. |
+| 3. Injection trap (reaches the prompt?) | **FAIL — key finding** | The taught rule is in the table but **not in the assembled prompt**. |
+| 4. Reputation timing | **PASS** | mean/evidence unchanged (0.72 / 0) across capture — no credit at capture, live-confirmed. |
+| 5. learning_item event | **PASS** | One typed event, all fields, `state='proposed'`, driven by the tool result, with a real DB write. |
+| 6. verify_claim vs ungoverned | **PASS (with caveat)** | Typed `not_verifiable`, no uncaught throw. Caveat: `DEFAULT_ORG` has **zero** semantic models, so the live path was *model-not-found*, not the `SemanticModelNotGovernedError` gate. The gate path is covered by the unit test. |
+
+### The finding: Phase-1a ranking + cap **starves** a freshly-taught rule (the real dead-rule trap)
+
+Checks 2-author and 3 share one root cause in **`retrieve.ts` (pre-existing, not introduced by
+Teach)**: `selectPhase1a` orders SCHEMA_MAP bullets by
+`confidence * GREATEST(helpful_count - harmful_count, 0) DESC` and caps at
+`PHASE_TIER1_CAP[SCHEMA_GLOBAL] = 10`. A brand-new bullet has `helpful_count=0` → sort key
+`confidence × 0 = 0` (the minimum, **regardless of confidence**). `DEFAULT_ORG` has **149**
+org-visible inspector SCHEMA_MAP bullets; exactly **10** have net-helpful>0 and fill all 10 slots.
+The other 139 zero-score bullets — every freshly-taught rule included — are truncated.
+
+- **Chicken-and-egg:** a rule needs `helpful_count` to be injected, but only earns it (via the
+  attribution loop) after being injected and used. In a mature org a new rule never injects.
+- This is the Phase-0 dead-rule class **via the ranking/cap mechanism**, not the flag
+  (`MEMORY_INJECT_ENABLED` was on) or rule-type (`SCHEMA_MAP` was correct). Unit tests were green;
+  only the live run caught it. It also **falsifies teach.ts's module-header claim** that a
+  null-signature SCHEMA_MAP "reliably applies for everyone."
+- **Not a Phase-1 bug to fix here** — Phase 1's capture writes the correct injecting row; the
+  starvation is shared retrieve-layer ranking. It is the **top Phase-2 retrieve dependency**:
+  a dedicated lane for the caller's OWN personal taught rules that bypasses net-helpful ranking
+  (small sub-cap, recency order), or a recency tiebreaker, or a relaxed cap for personal rows —
+  guarded, in retrieve.ts. Conflict detection (Phase 2) is blind to the user's own recent
+  teachings until this lands.
+
+---
+
 ## Files
 
 | File | Role |
