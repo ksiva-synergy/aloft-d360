@@ -207,10 +207,24 @@ export type WidgetDataResult =
       /** The dashboard's model is a candidate/archived — a UX state, not a 500. */
       status: 'model_not_governed';
       message: string;
+      /**
+       * Compiled SQL, when the semantic layer got far enough to produce it before
+       * blocking (issue #2 — the trust panel shows the SQL even in a blocked
+       * state). Optional because the governance gate throws BEFORE compilation
+       * (execute.ts pins the gate ahead of compileSemanticQuery), so on the
+       * common governed-gate block there is no SQL to carry — the field is then
+       * absent, never fabricated.
+       */
+      sql?: string;
     }
   | {
       status: 'error';
       message: string;
+      /**
+       * Compiled SQL, when available before the failure (issue #2 — trust panel
+       * in the error state). Absent when the error occurred pre-compilation.
+       */
+      sql?: string;
     };
 
 /** Response body of the widget-data batch route. */

@@ -19,6 +19,22 @@
 import prisma from '@/lib/db';
 import { getDefaultOrg } from '@/lib/platform/agents';
 
+/**
+ * Thrown when a dashboard resolves but has no bound Databricks connection
+ * (issue #2). DEC-1 made `platform_dashboards.connection_id` NOT NULL and
+ * backfilled it, so this is DEFENSIVE-ONLY today — it cannot arise from
+ * `loadDashboardForExecution` on current data. It exists so the execution
+ * caller can map an unbound connection to a typed WidgetDataResult error state
+ * ("no bound connection") rather than crashing, and so a future nullable /
+ * unbind path has a named boundary instead of a raw throw.
+ */
+export class DashboardConnectionUnboundError extends Error {
+  constructor(public readonly dashboardId: string) {
+    super(`Dashboard '${dashboardId}' has no bound Databricks connection.`);
+    this.name = 'DashboardConnectionUnboundError';
+  }
+}
+
 export interface DashboardExecutionContext {
   dashboardId: string;
   /** platform_dashboards.model_id — the ONLY model widgets may execute against. */
