@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
-import { getUserByEmail, getDashboardRole, canDeleteDashboard } from '@/lib/dashboards/permissions';
+import { getUserByEmail, getDashboardRole, canDeleteDashboard, canViewDashboard } from '@/lib/dashboards/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +38,21 @@ export async function GET(
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
     }
 
+    // ── SEC-4: read-side authz gate (any role may view) ───────────────────────
+    // This response includes the collaborator list and version pointer — an
+    // authenticated user with no role on this dashboard must not read it. Gate
+    // BEFORE the currentVersion/collaborators fetches; reuse myRole for the
+    // response so no second getDashboardRole call is needed.
+    const userEmail = session?.user?.email ?? null;
+    const currentUser = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const myRole = await getDashboardRole(dashboardId, currentUser.id, dashboard.visibility);
+    if (!canViewDashboard(myRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     let currentVersion: Awaited<ReturnType<typeof prisma.platform_dashboard_versions.findUnique>> | null = null;
     if (dashboard.current_version_id) {
       currentVersion = await prisma.platform_dashboard_versions.findUnique({
@@ -53,13 +68,6 @@ export async function GET(
       },
       orderBy: { created_at: 'asc' },
     });
-
-    // Effective role for the requesting user
-    const userEmail = session?.user?.email ?? null;
-    const currentUser = userEmail ? await getUserByEmail(userEmail) : null;
-    const myRole = currentUser
-      ? await getDashboardRole(dashboardId, currentUser.id, dashboard.visibility)
-      : null;
 
     return NextResponse.json({ dashboard, currentVersion, collaborators, myRole });
   } catch (err) {

@@ -12,6 +12,7 @@ import {
   getUserByEmail,
   getDashboardRole,
   canEditDashboard,
+  canViewDashboard,
 } from '@/lib/dashboards/permissions';
 import {
   validateWidgetReferences,
@@ -225,6 +226,7 @@ export async function GET(
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
     const includeWidgets = request.nextUrl.searchParams.get('includeWidgets') === 'true';
@@ -234,6 +236,20 @@ export async function GET(
     });
     if (!dashboard) {
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
+    }
+
+    // ── SEC-4: read-side authz gate (any role may view) ───────────────────────
+    // Version history exposes structure + authorship; an authenticated user with
+    // no role on this dashboard must not read it. 401 on no-User-row matches the
+    // write routes; 403 on no role matches share/route.ts.
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canViewDashboard(actorRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const select: Record<string, boolean> = {

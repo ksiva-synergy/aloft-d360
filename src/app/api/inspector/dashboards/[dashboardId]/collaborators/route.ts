@@ -8,6 +8,7 @@ import {
   getUserByEmail,
   getDashboardRole,
   canShareDashboard,
+  canViewDashboard,
 } from '@/lib/dashboards/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,7 @@ export async function GET(
   { params }: Params,
 ) {
   try {
+    const session = await getServerSession(authOptions);
     const org = await getDefaultOrg();
     const { dashboardId } = await params;
 
@@ -40,6 +42,19 @@ export async function GET(
     });
     if (!dashboard) {
       return NextResponse.json({ error: 'Dashboard not found' }, { status: 404 });
+    }
+
+    // ── SEC-4: read-side authz gate (any role may view) ───────────────────────
+    // The collaborator list names who has access — an authenticated user with no
+    // role on this dashboard must not read it. 401 on no-User-row, 403 on no role.
+    const userEmail = session?.user?.email ?? null;
+    const actor = userEmail ? await getUserByEmail(userEmail) : null;
+    if (!actor) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const actorRole = await getDashboardRole(dashboardId, actor.id, dashboard.visibility);
+    if (!canViewDashboard(actorRole)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const collaborators = await prisma.platform_dashboard_collaborators.findMany({
