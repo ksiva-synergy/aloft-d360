@@ -549,7 +549,7 @@ export function DashboardView({
             <span
               style={{
                 fontFamily: MONO, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-                color: '#003262', background: 'color-mix(in srgb, #FDB515 16%, transparent)',
+                color: 'var(--estate-role-badge-text)', background: 'color-mix(in srgb, #FDB515 16%, transparent)',
                 border: '1px solid color-mix(in srgb, #FDB515 40%, transparent)', borderRadius: 20, padding: '4px 12px',
               }}
             >
