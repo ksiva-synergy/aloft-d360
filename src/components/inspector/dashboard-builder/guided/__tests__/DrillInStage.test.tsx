@@ -20,6 +20,16 @@ import { useBuilderStore } from '../../builder-store';
 import { isSemanticWidget } from '@/lib/dashboards/types';
 import type { ChartBlueprint, GuidedBlueprint } from '@/lib/dashboards/guided-types';
 import type { ResolvedDefinitions } from '@/lib/dashboards/chart-defaults';
+import type { WidgetDataResult } from '@/lib/dashboards/types';
+
+/** A benign per-widget result so a confirmed item's live-preview fetch resolves. */
+const OK_RESULT: WidgetDataResult = {
+  status: 'ok',
+  rows: [{ month: 'Jan', accident_count: 3 }],
+  sql: 'SELECT month, accident_count FROM ...',
+  definitionsUsed: { dimensions: ['dim_month'], measures: ['meas_accidents'] },
+  executedAt: '2026-07-20T00:00:00.000Z',
+};
 
 const RESOLVED_DEFS: ResolvedDefinitions = {
   dimensions: { dim_month: { id: 'dim_month', type: 'temporal' } },
@@ -57,8 +67,12 @@ describe('DrillInStage — Phase 4 shell', () => {
     useBuilderStore.getState().loadWidgets([]);
     useBuilderStore.getState().clearGuidedSession();
     useBuilderStore.getState().setMode('manual');
-    // The shell must NOT touch the network — no execution this phase.
-    vi.spyOn(global, 'fetch').mockRejectedValue(new Error('no fetch expected in the shell'));
+    // A confirmed item now fetches its per-widget live preview; resolve it benignly.
+    // An UNCONFIRMED item still fetches nothing (asserted below) — the not-wired case.
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => OK_RESULT,
+    } as Response);
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -102,8 +116,10 @@ describe('DrillInStage — Phase 4 shell', () => {
     expect(useBuilderStore.getState().guidedSession.drillIn.widgetIdByItemId['bp_governed']).toBe(w.widgetId);
     // Confirmed state is visible.
     expect(screen.getByText(/Added to dashboard/i)).toBeInTheDocument();
-    // Still no execution.
-    expect(global.fetch).not.toHaveBeenCalled();
+    // Confirm is spec-mutation-only: no measureSnapshots were computed here
+    // (re-frozen server-side at save). The live-preview fetch that a confirmed
+    // item triggers is the render layer's, not part of the confirm mutation —
+    // the route contract for that fetch is proven in DrillInStage.data-contract.
   });
 
   it('re-confirming patches the same widget instead of duplicating', () => {

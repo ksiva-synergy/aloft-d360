@@ -9,7 +9,13 @@ import {
 import { createId } from '@paralleldrive/cuid2';
 import { useBuilderStore } from '../builder-store';
 import { NotWiredChart } from './NotWiredChart';
-import { awaitingData } from '@/lib/dashboards/widget-render-state';
+import {
+  awaitingData,
+  renderStateFromResult,
+  type WidgetRenderState,
+  type WidgetChartShape,
+} from '@/lib/dashboards/widget-render-state';
+import { useWidgetPreview } from '@/hooks/useWidgetPreview';
 import { blueprintToWidgetSpec } from '@/lib/dashboards/blueprint-widget';
 import {
   recommendChartKind, recommendedKindToWidgetKind,
@@ -90,6 +96,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
   const blueprint = useBuilderStore((s) => s.guidedSession.blueprint);
   const drillIn = useBuilderStore((s) => s.guidedSession.drillIn);
   const widgets = useBuilderStore((s) => s.widgets);
+  const dashboardId = useBuilderStore((s) => s.dashboardId);
   const setDrillInCursor = useBuilderStore((s) => s.setDrillInCursor);
   const recordDrillInConfirm = useBuilderStore((s) => s.recordDrillInConfirm);
   const appendWidgetSpec = useBuilderStore((s) => s.appendWidgetSpec);
@@ -126,6 +133,39 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
   );
 
   const draft = current ? (drafts[current.id] ?? seedDraft(current)) : null;
+
+  // ── Live preview (the integration seam) ──────────────────────────────────────
+  // A confirmed item has a widgetId; the drill-in fetches ITS per-widget
+  // authoring-preview route (owner-scoped bypass) — never the batch viewer route.
+  // Unconfirmed items have no widgetId → the hook fetches nothing → not-wired.
+  const currentWidgetId = current ? (drillIn.widgetIdByItemId[current.id] ?? null) : null;
+  const { result, loading, error, refetch } = useWidgetPreview(dashboardId, currentWidgetId);
+
+  // The shape rowsToOption needs — chosen chartKind + resolved labels (the label
+  // drives toAlias, the row key). Sourced from the blueprint item + the draft's
+  // chart-kind pick; never re-resolved.
+  const chartShape = useMemo<WidgetChartShape | null>(() => {
+    if (!current) return null;
+    return {
+      chartKind: draft?.chartKind ?? recommendedKindToWidgetKind(current.chartKindGuess),
+      dimensions: current.dimensionIds.map((id, i) => ({ dimensionId: id, label: current.dimensionLabels[i] ?? id })),
+      measures: current.measureIds.map((id, i) => ({ measureId: id, label: current.measureLabels[i] ?? id })),
+    };
+  }, [current, draft?.chartKind]);
+
+  const renderState = useMemo<WidgetRenderState>(() => {
+    if (!currentWidgetId) return awaitingData();        // not confirmed → not wired
+    if (loading) return { kind: 'loading' };
+    if (error) return { kind: 'error', message: error }; // transport/HTTP failure → inspectable, never blank
+    if (result && chartShape) return renderStateFromResult(result, chartShape);
+    return awaitingData();
+  }, [currentWidgetId, loading, error, result, chartShape]);
+
+  // SQL for the Source trust-panel slot — present on every non-loading data state
+  // that produced compiled SQL (absent on awaiting/loading and on the governed
+  // gate block, which throws pre-compile).
+  const previewSql = 'sql' in renderState ? renderState.sql : undefined;
+  const canRefine = !!currentWidgetId;
 
   const patchDraft = useCallback(
     (patch: Partial<DrillDraft>) => {
@@ -271,30 +311,35 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
           )}
         </div>
 
-        <NotWiredChart state={awaitingData()} chartKindGuess={current?.chartKindGuess} />
+        <NotWiredChart state={renderState} chartKindGuess={current?.chartKindGuess} />
 
-        {/* NL-refine — present + wired into state, but inert this phase. */}
+        {/* NL-refine — re-runs the SAME per-widget preview route once the chart is
+            added. Inert (with a "wire first" hint) until the item is confirmed. */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(136,146,164,0.28)', background: 'rgba(0,0,0,0.18)' }}>
             <Sparkles size={13} color={MUTED} style={{ flexShrink: 0 }} />
             <input
               value={draft?.refineText ?? ''}
               onChange={(e) => patchDraft({ refineText: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter' && canRefine && !loading) refetch(); }}
               placeholder="Refine in words — e.g. “break out by vessel type”, “last quarter only”"
               aria-label="Refine this chart in natural language"
               style={{ ...MONO, fontSize: 11.5, flex: 1, background: 'transparent', border: 'none', outline: 'none', color: INK }}
             />
           </div>
           <button
-            disabled
-            title="Refine runs the grounded pipeline once data is wired (data layer)"
+            onClick={() => { if (canRefine) refetch(); }}
+            disabled={!canRefine || loading}
+            title={canRefine ? 'Re-run this chart’s query' : 'Add the chart first — refine then re-runs its query'}
             style={{
               ...MONO, fontSize: 10, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '0 14px', borderRadius: 8, border: '1px dashed rgba(136,146,164,0.4)',
-              background: 'transparent', color: MUTED, cursor: 'not-allowed', whiteSpace: 'nowrap',
+              padding: '0 14px', borderRadius: 8,
+              border: canRefine ? `1px solid ${GOLD}66` : '1px dashed rgba(136,146,164,0.4)',
+              background: canRefine ? 'rgba(253,181,21,0.10)' : 'transparent',
+              color: canRefine ? GOLD : MUTED, cursor: !canRefine || loading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
             }}
           >
-            <CornerDownLeft size={12} /> Refine runs once data is wired
+            <CornerDownLeft size={12} /> {canRefine ? (loading ? 'Re-running…' : 'Re-run') : 'Refine runs once data is wired'}
           </button>
         </div>
       </div>
@@ -305,7 +350,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
           style={{ width: 320, flexShrink: 0, borderLeft: '1px solid rgba(136,146,164,0.18)', overflowY: 'auto', background: 'rgba(0,0,0,0.12)' }}
           data-testid="drill-in-panel"
         >
-          <SourceSection item={current} modelStatus={blueprint.modelStatus} />
+          <SourceSection item={current} modelStatus={blueprint.modelStatus} sql={previewSql} />
           <FiltersSection item={current} draft={draft} onChange={(filters) => patchDraft({ filters })} />
           <VisualSection item={current} draft={draft} resolvedDefs={resolvedDefs} modelId={modelId} onPick={(k) => patchDraft({ chartKind: k })} />
           <PolishSection draft={draft} onChange={patchDraft} />
@@ -355,7 +400,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
  * Panel sections
  * ──────────────────────────────────────────────────────────────────────────── */
 
-function SourceSection({ item, modelStatus }: { item: ChartBlueprint; modelStatus: 'governed' | 'candidate' }) {
+function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; modelStatus: 'governed' | 'candidate'; sql?: string }) {
   const [sqlOpen, setSqlOpen] = useState(false);
   return (
     <PanelSection icon={<Database size={12} color={BLUE} />} label="Source">
@@ -374,9 +419,22 @@ function SourceSection({ item, modelStatus }: { item: ChartBlueprint; modelStatu
         Compiled SQL
       </button>
       {sqlOpen && (
-        <div data-testid="sql-trust-panel" style={{ ...MONO, fontSize: 9.5, color: MUTED, padding: '8px 10px', borderRadius: 6, border: '1px dashed rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
-          SQL available once wired — the read-only trust panel shows the compiled query when the data layer is connected.
-        </div>
+        sql ? (
+          <pre
+            data-testid="sql-trust-panel"
+            style={{
+              ...MONO, fontSize: 9.5, color: INK, padding: '8px 10px', borderRadius: 6,
+              border: '1px solid rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.3)', marginTop: 4,
+              lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowX: 'auto', maxHeight: 200, margin: '4px 0 0',
+            }}
+          >
+            {sql}
+          </pre>
+        ) : (
+          <div data-testid="sql-trust-panel" style={{ ...MONO, fontSize: 9.5, color: MUTED, padding: '8px 10px', borderRadius: 6, border: '1px dashed rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
+            SQL appears here once the chart is added and its query runs — the read-only trust panel shows the compiled query.
+          </div>
+        )
       )}
     </PanelSection>
   );
