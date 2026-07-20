@@ -8,6 +8,7 @@ import { createId } from '@paralleldrive/cuid2';
 import type { WidgetSpec, MeasureSnapshot } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { SemanticQuery } from '@/lib/semantic/types';
+import type { ResolvedIntent } from '@/lib/dashboards/guided-types';
 
 export type DriftStatus = 'ok' | 'changed' | 'unavailable';
 
@@ -27,9 +28,18 @@ export type SaveErrorType = 'validation' | 'conflict' | 'other' | null;
  *   - 'manual' → the RGL grid + library/config panels;
  *   - 'view'   → read-only grid (viewers).
  * Switching guided↔manual is lossless because both operate on the same `widgets`
- * on this single store — there is no parallel tree.
+ * and the same `guidedSession` on this single store — there is no parallel tree.
  */
 export type BuilderMode = 'guided' | 'manual' | 'view';
+
+/**
+ * Guided-session slice (Phase 2) — the NL-first flow's non-widget state, held on
+ * the SAME shared store as `mode`/`widgets` (no parallel tree). Stage 1 (Intent)
+ * writes `intent`; later stages add blueprint / drill-in cursor here.
+ */
+interface GuidedSession {
+  intent: ResolvedIntent | null;
+}
 
 interface BuilderState {
   dashboardId: string;
@@ -44,11 +54,16 @@ interface BuilderState {
   dirty: boolean;
   currentVersionId: string | null;
   mode: BuilderMode;
+  guidedSession: GuidedSession;
 
   // Actions
   setDashboard: (id: string, modelId: string, name: string, versionId: string | null) => void;
-  /** Switch authoring mode. Lossless — never touches widgets. */
+  /** Switch authoring mode. Lossless — never touches widgets or guidedSession. */
   setMode: (mode: BuilderMode) => void;
+  /** Emit / replace the Stage-1 resolved intent (null clears it). */
+  setIntent: (intent: ResolvedIntent | null) => void;
+  /** Reset guided-session state (e.g. on bail-to-manual or dashboard switch). */
+  clearGuidedSession: () => void;
   loadWidgets: (widgets: WidgetSpec[]) => void;
   addWidget: (chartKind: WidgetSpec['chartKind'], title: string) => string;
   removeWidget: (widgetId: string) => void;
@@ -126,6 +141,7 @@ export const useBuilderStore = create<BuilderState>()(
     dirty: false,
     currentVersionId: null,
     mode: 'manual',
+    guidedSession: { intent: null },
 
     setDashboard: (id, modelId, name, versionId) =>
       set((s) => {
@@ -138,6 +154,16 @@ export const useBuilderStore = create<BuilderState>()(
     setMode: (mode) =>
       set((s) => {
         s.mode = mode;
+      }),
+
+    setIntent: (intent) =>
+      set((s) => {
+        s.guidedSession.intent = intent;
+      }),
+
+    clearGuidedSession: () =>
+      set((s) => {
+        s.guidedSession = { intent: null };
       }),
 
     loadWidgets: (widgets) =>

@@ -9,6 +9,7 @@ import { DefinitionPicker } from './DefinitionPicker';
 import type { SavedChart } from './DefinitionPicker';
 import { BuilderGrid } from './BuilderGrid';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
+import { IntentStage } from './guided/IntentStage';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
@@ -68,6 +69,8 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DashboardVisibility>('org');
   const [shareOpen, setShareOpen] = useState(false);
+  // Ephemeral post-capture banner in guided mode (Stage 2 not built yet).
+  const [intentCaptured, setIntentCaptured] = useState(false);
   const {
     modelId,
     dashboardName,
@@ -561,21 +564,27 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {/* ── Main content ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'guided' && !isReadOnly ? (
-          // ── Guided flow — focused surface (no library/config chrome). The
-          // NL-first stages (Intent → Blueprint → drill-in) mount here; until
-          // then this is the placeholder the toggle switches to.
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0, overflowY: 'auto', gap: 12 }}>
-            <Sparkles size={20} color="#FDB515" />
-            <span style={{ ...MONO, fontSize: 12, color: 'var(--builder-text)' }}>Guided authoring</span>
-            <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', maxWidth: 360, textAlign: 'center', lineHeight: 1.5 }}>
-              The NL-first guided flow mounts here. Switch to Manual to build on the grid — your work carries over either way.
-            </span>
-            <button
-              onClick={() => setMode('manual')}
-              style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              Switch to manual
-            </button>
+          // ── Guided flow (Stage 1: Intent). Focused — no library/config chrome.
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
+            {intentCaptured && (
+              <div style={{ ...MONO, fontSize: 10, color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 12px', background: 'rgba(52,211,153,0.06)', borderBottom: '1px solid rgba(52,211,153,0.2)' }}>
+                Intent captured — Blueprint (Stage 2) is next.
+                <button onClick={() => setMode('manual')} style={{ ...MONO, fontSize: 10, color: '#34D399', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                  or switch to manual
+                </button>
+              </div>
+            )}
+            {modelId ? (
+              <IntentStage
+                modelId={modelId}
+                onProceed={() => setIntentCaptured(true)}
+                onCancel={() => setMode('manual')}
+              />
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+              </div>
+            )}
           </div>
         ) : (
           <>
