@@ -64,3 +64,96 @@ export interface ResolvedIntent {
   relevantDimensionIds: string[];
   disambiguations?: IntentDisambiguation[];
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Stage 2 — Blueprint (Phase 3)
+ *
+ * The blueprint is a reviewable OUTLINE of 4–6 proposed charts the user curates
+ * before anything is built. Nothing here is executed or rendered — a
+ * ChartBlueprint is a spec, not a live chart (that's Phase 4 drill-in).
+ *
+ * Pinned to the Phase-0 contract reconciliation, NOT the build-plan's Appendix B
+ * three-state draft:
+ *   - grounding is TWO-STATE per item ('governed' | 'undefined'); candidate-ness
+ *     is a MODEL-level property (one dashboard = one model) carried on
+ *     `GuidedBlueprint.modelStatus` for a banner, never per row;
+ *   - resolved display labels ride BESIDE the IDs so a card renders "Accident
+ *     count" / "by Root cause category" with no second lookup;
+ *   - an undefined item carries the raw `undefinedTerm` to prefill the Teach
+ *     nudge, plus cap-aware provenance so a capped-but-real metric (Pin-2 trap)
+ *     is not mis-surfaced as genuinely-absent.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+import type { SemanticFilter } from '@/lib/semantic/types';
+
+/**
+ * Chart kinds a blueprint item can guess. This is the recommender's output type
+ * (`RecommendedChartKind` in chart-defaults.ts) — a SUPERSET of
+ * `WidgetSpec['chartKind']`: 'pie'/'table' have no first-class widget and are
+ * mapped to a widget kind only at pin time. Kept as its own alias so the
+ * blueprint layer never silently narrows the guess.
+ */
+export type ChartKindGuess =
+  | 'line' | 'bar' | 'scatter' | 'kpi' | 'pie' | 'heatmap' | 'table';
+
+/**
+ * Two-state grounding for a single blueprint item.
+ *   - 'governed'  → every field resolved to a real governed definition ID.
+ *   - 'undefined' → a requested metric/breakdown has NO governed definition; the
+ *                   item is a "define-it" placeholder, never a fabricated ID.
+ * (Candidate-ness is model-level — see `GuidedBlueprint.modelStatus`.)
+ */
+export type BlueprintGrounding = 'governed' | 'undefined';
+
+/** Model-level governance state, for the whole-blueprint banner (not per row). */
+export type BlueprintModelStatus = 'governed' | 'candidate';
+
+/**
+ * Provenance for an `undefined` item, so the UI can tell three visibly-different
+ * situations apart instead of blanket-nudging "define it in Teach":
+ *   - genuinely absent (default: neither flag set) → "not defined — define it";
+ *   - `candidateExists` → a real but not-yet-promoted def exists → "govern it";
+ *   - `cappedByTopK` → absence UNPROVEN (a Phase-2 embedding assist hit its
+ *     top-K cap); a real governed match may exist past the cap → do NOT assert
+ *     absence. Mirrors `IntentDisambiguation.cappedByTopK` — seeded from the
+ *     resolved intent rather than re-derived (Pin-2 trap).
+ */
+export interface UndefinedProvenance {
+  candidateExists?: boolean;
+  cappedByTopK?: boolean;
+}
+
+export interface ChartBlueprint {
+  id: string;
+  title: string;
+  measureIds: string[];
+  dimensionIds: string[];
+  /** Resolved labels beside the IDs so the card needs no second lookup. */
+  measureLabels: string[];
+  dimensionLabels: string[];
+  /** Inferred at proposal; editable in the Phase-4 drill-in. */
+  filters: SemanticFilter[];
+  /** From recommendChartKind — a CALL into the shipped recommender, not new inference. */
+  chartKindGuess: ChartKindGuess;
+  /** One line, "why this chart". */
+  rationale: string;
+  /** Two-state; candidate-ness is model-level, never here. */
+  grounding: BlueprintGrounding;
+  /** Raw requested term — prefill for the Teach nudge. Set iff grounding==='undefined'. */
+  undefinedTerm?: string;
+  /** Cap-aware provenance for an undefined item (see UndefinedProvenance). */
+  undefinedProvenance?: UndefinedProvenance;
+}
+
+/**
+ * The guided-session blueprint slice: the curated item list plus the model-level
+ * governance banner state. Held on the ONE shared builder store — no parallel tree.
+ */
+export interface GuidedBlueprint {
+  /** Carried so the defensive pin (semanticQuery.modelId = dashboard.model_id)
+   *  can hold at Phase-4/pin time without trusting a stored value later. */
+  modelId: string;
+  items: ChartBlueprint[];
+  /** Whole-model banner — 'candidate' when the bound model isn't governed yet. */
+  modelStatus: BlueprintModelStatus;
+}

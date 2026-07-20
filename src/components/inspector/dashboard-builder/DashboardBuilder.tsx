@@ -10,6 +10,7 @@ import type { SavedChart } from './DefinitionPicker';
 import { BuilderGrid } from './BuilderGrid';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 import { IntentStage } from './guided/IntentStage';
+import { BlueprintStage } from './guided/BlueprintStage';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
@@ -69,8 +70,12 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DashboardVisibility>('org');
   const [shareOpen, setShareOpen] = useState(false);
-  // Ephemeral post-capture banner in guided mode (Stage 2 not built yet).
+  // Guided-flow cursor: intent captured advances to Blueprint (Stage 2);
+  // accepting the blueprint hands off to the Phase-4 drill-in (Stage 3).
   const [intentCaptured, setIntentCaptured] = useState(false);
+  const [blueprintAccepted, setBlueprintAccepted] = useState(false);
+  const guidedIntent = useBuilderStore((s) => s.guidedSession.intent);
+  const setBlueprint = useBuilderStore((s) => s.setBlueprint);
   const {
     modelId,
     dashboardName,
@@ -564,25 +569,37 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {/* ── Main content ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'guided' && !isReadOnly ? (
-          // ── Guided flow (Stage 1: Intent). Focused — no library/config chrome.
+          // ── Guided flow (Stage 1 Intent → Stage 2 Blueprint). Focused chrome.
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
-            {intentCaptured && (
+            {blueprintAccepted && (
               <div style={{ ...MONO, fontSize: 10, color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 12px', background: 'rgba(52,211,153,0.06)', borderBottom: '1px solid rgba(52,211,153,0.2)' }}>
-                Intent captured — Blueprint (Stage 2) is next.
+                Blueprint accepted — per-chart drill-in (Stage 3) is next.
                 <button onClick={() => setMode('manual')} style={{ ...MONO, fontSize: 10, color: '#34D399', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
                   or switch to manual
                 </button>
               </div>
             )}
-            {modelId ? (
+            {!modelId ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+              </div>
+            ) : !intentCaptured ? (
               <IntentStage
                 modelId={modelId}
                 onProceed={() => setIntentCaptured(true)}
                 onCancel={() => setMode('manual')}
               />
+            ) : guidedIntent ? (
+              // Stage 2 — Blueprint. Accepting hands off to Phase 4 (no widgets built here).
+              <BlueprintStage
+                modelId={modelId}
+                intent={guidedIntent}
+                onAccept={() => setBlueprintAccepted(true)}
+                onBack={() => { setIntentCaptured(false); setBlueprint(null); }}
+              />
             ) : (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
               </div>
             )}
           </div>

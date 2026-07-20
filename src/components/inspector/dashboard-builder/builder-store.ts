@@ -8,7 +8,7 @@ import { createId } from '@paralleldrive/cuid2';
 import type { WidgetSpec, MeasureSnapshot } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { SemanticQuery } from '@/lib/semantic/types';
-import type { ResolvedIntent } from '@/lib/dashboards/guided-types';
+import type { ResolvedIntent, GuidedBlueprint, ChartBlueprint } from '@/lib/dashboards/guided-types';
 
 export type DriftStatus = 'ok' | 'changed' | 'unavailable';
 
@@ -39,6 +39,10 @@ export type BuilderMode = 'guided' | 'manual' | 'view';
  */
 interface GuidedSession {
   intent: ResolvedIntent | null;
+  /** Stage-2 curated blueprint (null until proposed/accepted). Proposals are
+   *  grounded server-side; curate ops here mutate ONLY this slice — accepting the
+   *  blueprint hands off to Phase 4 and does not build widgets. */
+  blueprint: GuidedBlueprint | null;
 }
 
 interface BuilderState {
@@ -62,6 +66,16 @@ interface BuilderState {
   setMode: (mode: BuilderMode) => void;
   /** Emit / replace the Stage-1 resolved intent (null clears it). */
   setIntent: (intent: ResolvedIntent | null) => void;
+  /** Emit / replace the Stage-2 blueprint (null clears it). */
+  setBlueprint: (blueprint: GuidedBlueprint | null) => void;
+  /** Curate: move an item from one index to another (reorder). No-op if out of range. */
+  reorderBlueprintItem: (fromIndex: number, toIndex: number) => void;
+  /** Curate: rename an item inline. */
+  renameBlueprintItem: (id: string, title: string) => void;
+  /** Curate: remove an item. */
+  removeBlueprintItem: (id: string) => void;
+  /** Curate: "add another" — append a fully-formed (already-grounded) item. */
+  addBlueprintItem: (item: ChartBlueprint) => void;
   /** Reset guided-session state (e.g. on bail-to-manual or dashboard switch). */
   clearGuidedSession: () => void;
   loadWidgets: (widgets: WidgetSpec[]) => void;
@@ -141,7 +155,7 @@ export const useBuilderStore = create<BuilderState>()(
     dirty: false,
     currentVersionId: null,
     mode: 'manual',
-    guidedSession: { intent: null },
+    guidedSession: { intent: null, blueprint: null },
 
     setDashboard: (id, modelId, name, versionId) =>
       set((s) => {
@@ -161,9 +175,42 @@ export const useBuilderStore = create<BuilderState>()(
         s.guidedSession.intent = intent;
       }),
 
+    setBlueprint: (blueprint) =>
+      set((s) => {
+        s.guidedSession.blueprint = blueprint;
+      }),
+
+    reorderBlueprintItem: (fromIndex, toIndex) =>
+      set((s) => {
+        const bp = s.guidedSession.blueprint;
+        if (!bp) return;
+        const n = bp.items.length;
+        if (fromIndex < 0 || fromIndex >= n || toIndex < 0 || toIndex >= n || fromIndex === toIndex) return;
+        const [moved] = bp.items.splice(fromIndex, 1);
+        bp.items.splice(toIndex, 0, moved);
+      }),
+
+    renameBlueprintItem: (id, title) =>
+      set((s) => {
+        const item = s.guidedSession.blueprint?.items.find((i) => i.id === id);
+        if (item) item.title = title;
+      }),
+
+    removeBlueprintItem: (id) =>
+      set((s) => {
+        const bp = s.guidedSession.blueprint;
+        if (!bp) return;
+        bp.items = bp.items.filter((i) => i.id !== id);
+      }),
+
+    addBlueprintItem: (item) =>
+      set((s) => {
+        s.guidedSession.blueprint?.items.push(item);
+      }),
+
     clearGuidedSession: () =>
       set((s) => {
-        s.guidedSession = { intent: null };
+        s.guidedSession = { intent: null, blueprint: null };
       }),
 
     loadWidgets: (widgets) =>
