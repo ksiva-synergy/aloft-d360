@@ -43,7 +43,29 @@ interface GuidedSession {
    *  grounded server-side; curate ops here mutate ONLY this slice — accepting the
    *  blueprint hands off to Phase 4 and does not build widgets. */
   blueprint: GuidedBlueprint | null;
+  /**
+   * Stage-3 (Phase 4) per-chart drill-in state, on the SAME shared store (no
+   * parallel tree — the Phase-1 commitment). Held here rather than in component
+   * state so the guided↔manual round-trip is lossless: which item is open, and
+   * which confirmed widget each blueprint item produced.
+   *   - `cursor`           → index of the blueprint item currently drilled in.
+   *   - `widgetIdByItemId` → ChartBlueprint.id → the WidgetSpec.widgetId it was
+   *     confirmed into. Lets re-entry PATCH the same widget (never duplicate) and
+   *     lets the drill-in derive "already added" state after a re-mount.
+   */
+  drillIn: DrillInSession;
 }
+
+export interface DrillInSession {
+  cursor: number;
+  widgetIdByItemId: Record<string, string>;
+}
+
+const EMPTY_GUIDED_SESSION: GuidedSession = {
+  intent: null,
+  blueprint: null,
+  drillIn: { cursor: 0, widgetIdByItemId: {} },
+};
 
 interface BuilderState {
   dashboardId: string;
@@ -76,10 +98,24 @@ interface BuilderState {
   removeBlueprintItem: (id: string) => void;
   /** Curate: "add another" — append a fully-formed (already-grounded) item. */
   addBlueprintItem: (item: ChartBlueprint) => void;
+  /** Phase 4: move the drill-in cursor to a blueprint item (jump / skip). */
+  setDrillInCursor: (cursor: number) => void;
+  /** Phase 4: record that a blueprint item was confirmed into a widget (so
+   *  re-entry patches instead of duplicating, and confirmed-state survives a
+   *  guided↔manual round-trip). */
+  recordDrillInConfirm: (itemId: string, widgetId: string) => void;
   /** Reset guided-session state (e.g. on bail-to-manual or dashboard switch). */
   clearGuidedSession: () => void;
   loadWidgets: (widgets: WidgetSpec[]) => void;
   addWidget: (chartKind: WidgetSpec['chartKind'], title: string) => string;
+  /**
+   * Phase 4: append a FULLY-FORMED WidgetSpec (as produced by
+   * blueprintToWidgetSpec) into the shared widget list, auto-placed in the grid.
+   * Unlike `addWidget` (which mints a blank semantic widget), this takes the
+   * caller's exact spec — the drill-in confirm path — and only assigns an open
+   * position + selection. No execution, no snapshot compute.
+   */
+  appendWidgetSpec: (spec: WidgetSpec) => void;
   removeWidget: (widgetId: string) => void;
   updateWidget: (widgetId: string, patch: Partial<WidgetSpec>) => void;
   updateWidgetPosition: (widgetId: string, pos: { col: number; row: number; w: number; h: number }) => void;
@@ -155,7 +191,11 @@ export const useBuilderStore = create<BuilderState>()(
     dirty: false,
     currentVersionId: null,
     mode: 'manual',
-    guidedSession: { intent: null, blueprint: null },
+    guidedSession: {
+      intent: null,
+      blueprint: null,
+      drillIn: { cursor: 0, widgetIdByItemId: {} },
+    },
 
     setDashboard: (id, modelId, name, versionId) =>
       set((s) => {
@@ -208,9 +248,19 @@ export const useBuilderStore = create<BuilderState>()(
         s.guidedSession.blueprint?.items.push(item);
       }),
 
+    setDrillInCursor: (cursor) =>
+      set((s) => {
+        s.guidedSession.drillIn.cursor = cursor;
+      }),
+
+    recordDrillInConfirm: (itemId, widgetId) =>
+      set((s) => {
+        s.guidedSession.drillIn.widgetIdByItemId[itemId] = widgetId;
+      }),
+
     clearGuidedSession: () =>
       set((s) => {
-        s.guidedSession = { intent: null, blueprint: null };
+        s.guidedSession = { intent: null, blueprint: null, drillIn: { cursor: 0, widgetIdByItemId: {} } };
       }),
 
     loadWidgets: (widgets) =>
@@ -247,6 +297,18 @@ export const useBuilderStore = create<BuilderState>()(
       });
       return widgetId;
     },
+
+    appendWidgetSpec: (spec) =>
+      set((s) => {
+        const size = { w: spec.position.w, h: spec.position.h };
+        const pos = findOpenPosition(s.widgets, size.w, size.h);
+        // Keep the caller's spec verbatim (its semanticQuery IDs, empty
+        // measureSnapshots, chartKind, chartConfig) — only assign a real grid
+        // slot so guided-appended widgets don't stack on the placeholder origin.
+        s.widgets.push({ ...spec, position: { col: pos.col, row: pos.row, ...size } });
+        s.selectedWidgetId = spec.widgetId;
+        s.dirty = true;
+      }),
 
     removeWidget: (widgetId) =>
       set((s) => {

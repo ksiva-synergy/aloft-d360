@@ -11,6 +11,7 @@ import { BuilderGrid } from './BuilderGrid';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 import { IntentStage } from './guided/IntentStage';
 import { BlueprintStage } from './guided/BlueprintStage';
+import { DrillInStage } from './guided/DrillInStage';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
@@ -570,37 +571,42 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {mode === 'guided' && !isReadOnly ? (
           // ── Guided flow (Stage 1 Intent → Stage 2 Blueprint). Focused chrome.
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
-            {blueprintAccepted && (
-              <div style={{ ...MONO, fontSize: 10, color: '#34D399', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 12px', background: 'rgba(52,211,153,0.06)', borderBottom: '1px solid rgba(52,211,153,0.2)' }}>
-                Blueprint accepted — per-chart drill-in (Stage 3) is next.
-                <button onClick={() => setMode('manual')} style={{ ...MONO, fontSize: 10, color: '#34D399', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-                  or switch to manual
-                </button>
-              </div>
-            )}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {!modelId ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
               </div>
             ) : !intentCaptured ? (
-              <IntentStage
-                modelId={modelId}
-                onProceed={() => setIntentCaptured(true)}
-                onCancel={() => setMode('manual')}
-              />
-            ) : guidedIntent ? (
-              // Stage 2 — Blueprint. Accepting hands off to Phase 4 (no widgets built here).
-              <BlueprintStage
-                modelId={modelId}
-                intent={guidedIntent}
-                onAccept={() => setBlueprintAccepted(true)}
-                onBack={() => { setIntentCaptured(false); setBlueprint(null); }}
-              />
-            ) : (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <IntentStage
+                  modelId={modelId}
+                  onProceed={() => setIntentCaptured(true)}
+                  onCancel={() => setMode('manual')}
+                />
+              </div>
+            ) : !guidedIntent ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
               </div>
+            ) : !blueprintAccepted ? (
+              // Stage 2 — Blueprint. Accepting hands off to Stage 3 (no widgets built here).
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <BlueprintStage
+                  modelId={modelId}
+                  intent={guidedIntent}
+                  onAccept={() => setBlueprintAccepted(true)}
+                  onBack={() => { setIntentCaptured(false); setBlueprint(null); }}
+                />
+              </div>
+            ) : (
+              // Stage 3 — per-chart drill-in. Renders "not wired" charts; confirm
+              // appends a WidgetSpec to the shared store (no execution this phase).
+              <DrillInStage
+                modelId={modelId}
+                resolvedDefs={resolvedDefs}
+                onBackToBlueprint={() => setBlueprintAccepted(false)}
+                onDone={() => setMode('manual')}
+              />
             )}
           </div>
         ) : (
