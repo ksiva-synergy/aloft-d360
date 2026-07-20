@@ -122,6 +122,10 @@ export async function resolveModelConnection(
 
 export interface DashboardExecutionContext {
   dashboardId: string;
+  /** The resolving org (getDefaultOrg). Carried so callers can org-scope further
+   *  lookups (e.g. the guided ephemeral preview's deferred-entity resolution)
+   *  without re-importing the server-only getDefaultOrg into node-safe modules. */
+  orgId: string;
   /** platform_dashboards.model_id — the ONLY model widgets may execute against. */
   modelId: string;
   /** platform_dashboards.connection_id — the Databricks connection (DEC-1). */
@@ -157,6 +161,7 @@ export async function loadDashboardForExecution(
 
   return {
     dashboardId: dashboard.id,
+    orgId: org.id,
     modelId: dashboard.model_id,
     connectionId: dashboard.connection_id,
     currentVersionId: dashboard.current_version_id,

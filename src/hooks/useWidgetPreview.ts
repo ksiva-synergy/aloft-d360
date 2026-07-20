@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import type { WidgetDataResult } from '@/lib/dashboards/types';
+import type { WidgetDataResult, WidgetSpec } from '@/lib/dashboards/types';
 
 /**
  * src/hooks/useWidgetPreview.ts
@@ -30,6 +30,17 @@ import type { WidgetDataResult } from '@/lib/dashboards/types';
  *
  * Unlike the batch hook, this returns ONE `WidgetDataResult` (the per-widget
  * route responds with the result directly, not a `{ widgets: {...} }` map).
+ *
+ * ── TWO MODES on the SAME URL (Phase 5) ──────────────────────────────────────
+ * The guided drill-in authors brand-new widgets that have NOT been saved yet, so
+ * the version-backed GET (which resolves the widget from a saved version) would
+ * 404 — a confirmed-but-unsaved chart showing an error where its preview belongs.
+ * When an `ephemeralWidget` spec is supplied, this hook POSTs that in-progress
+ * spec to the SAME per-widget URL (the ephemeral authoring-preview; executes and
+ * returns, persists nothing). Absent a spec it falls back to the version-backed
+ * GET (a saved widget, or the graceful degrade if a confirmed widget has no live
+ * spec in the store). EITHER WAY the URL is the per-widget route — the drill-in's
+ * route contract (never the governed-only batch route) holds for both methods.
  */
 
 export interface UseWidgetPreviewReturn {
@@ -52,10 +63,16 @@ export interface UseWidgetPreviewReturn {
 export function useWidgetPreview(
   dashboardId: string,
   widgetId: string | null,
+  ephemeralWidget?: WidgetSpec | null,
 ): UseWidgetPreviewReturn {
   const [result, setResult] = useState<WidgetDataResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stable serialization: the in-progress spec is a fresh object each render, so
+  // depend on its JSON (not its identity) to avoid a re-fetch loop. Doubles as
+  // the POST body.
+  const specJson = ephemeralWidget ? JSON.stringify(ephemeralWidget) : null;
 
   const refetch = useCallback(async () => {
     // No confirmed widget to preview → nothing to fetch. The drill-in renders
@@ -71,9 +88,16 @@ export function useWidgetPreview(
     setError(null);
     try {
       // PER-WIDGET route — see the contract note above. NEVER `${dashboardId}/data`.
-      const res = await fetch(
-        `/api/inspector/dashboards/${dashboardId}/widgets/${widgetId}/data`,
-      );
+      const url = `/api/inspector/dashboards/${dashboardId}/widgets/${widgetId}/data`;
+      // With an in-progress spec → POST the ephemeral authoring-preview (nothing
+      // persisted). Otherwise → version-backed GET.
+      const res = specJson
+        ? await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: `{"widget":${specJson}}`,
+          })
+        : await fetch(url);
 
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -90,7 +114,7 @@ export function useWidgetPreview(
     } finally {
       setLoading(false);
     }
-  }, [dashboardId, widgetId]);
+  }, [dashboardId, widgetId, specJson]);
 
   // Fetch on mount and whenever the previewed widget changes (drill-in cursor
   // moves to another confirmed item).

@@ -135,11 +135,18 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
   const draft = current ? (drafts[current.id] ?? seedDraft(current)) : null;
 
   // ── Live preview (the integration seam) ──────────────────────────────────────
-  // A confirmed item has a widgetId; the drill-in fetches ITS per-widget
-  // authoring-preview route (owner-scoped bypass) — never the batch viewer route.
-  // Unconfirmed items have no widgetId → the hook fetches nothing → not-wired.
+  // A confirmed item has a widgetId AND a spec in the shared store. The drill-in
+  // previews THAT in-progress spec via the per-widget route's EPHEMERAL mode
+  // (Phase 5, decision (b)): the spec has never been saved, so it's POSTed and
+  // executed without persisting anything — never the batch viewer route, and
+  // never a version-backed 404 for an unsaved widget. Unconfirmed items have no
+  // widgetId → the hook fetches nothing → not-wired.
   const currentWidgetId = current ? (drillIn.widgetIdByItemId[current.id] ?? null) : null;
-  const { result, loading, error, refetch } = useWidgetPreview(dashboardId, currentWidgetId);
+  const currentWidget = useMemo<WidgetSpec | null>(
+    () => (currentWidgetId ? widgets.find((w) => w.widgetId === currentWidgetId) ?? null : null),
+    [currentWidgetId, widgets],
+  );
+  const { result, loading, error, refetch } = useWidgetPreview(dashboardId, currentWidgetId, currentWidget);
 
   // The shape rowsToOption needs — chosen chartKind + resolved labels (the label
   // drives toAlias, the row key). Sourced from the blueprint item + the draft's

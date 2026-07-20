@@ -36,6 +36,7 @@ import {
   canViewDashboard,
   canEditDashboard,
 } from '@/lib/dashboards/permissions';
+import { resolveDeferredEntityIds } from '@/lib/dashboards/governance';
 import {
   loadDashboardForExecution,
   DashboardConnectionUnboundError,
@@ -167,38 +168,136 @@ export async function buildWidgetPreview(
       },
     };
   } catch (err) {
-    // ── OWNER BOUNDARY (security centerpiece) ───────────────────────────────
-    // A referenced draft owned by another user. Return a generic 403 — NEVER
-    // the error message (it names the draft row id), never rows, never isDraft.
-    // The draft's existence must not be inferable from this response.
-    if (err instanceof SemanticDraftAccessError) {
-      return { status: 403, body: { error: 'Forbidden' } };
-    }
+    return mapExecutionError(err, widgetId);
+  }
+}
 
-    // ── Governance gate → typed UX state, not a 500 ─────────────────────────
-    // The engine throws this BEFORE compiling (execute.ts orders the gate ahead
-    // of compileSemanticQuery), so there is no compiled SQL to attach — `sql?`
-    // is left absent rather than fabricated.
-    if (err instanceof SemanticModelNotGovernedError) {
-      return {
-        status: 200,
-        body: {
-          status: 'model_not_governed',
-          message: "This dashboard's model is still a candidate — publish it to see live data.",
-        },
-      };
-    }
+/**
+ * Shared execution-failure mapping for BOTH preview paths (version-backed and
+ * ephemeral). Kept in one place so the owner-boundary + typed-state guarantees
+ * cannot drift between the two entry points.
+ *
+ *  - SemanticDraftAccessError → generic 403 (the security centrepiece: NEVER the
+ *    message — it names the draft row id — never rows, never isDraft);
+ *  - SemanticModelNotGovernedError → 200 model_not_governed (no sql: thrown
+ *    pre-compile);
+ *  - DashboardConnectionUnboundError → 200 typed error;
+ *  - anything else → 200 typed error (never a 500 for the chart area).
+ */
+function mapExecutionError(err: unknown, label: string): WidgetPreviewOutcome {
+  if (err instanceof SemanticDraftAccessError) {
+    return { status: 403, body: { error: 'Forbidden' } };
+  }
+  if (err instanceof SemanticModelNotGovernedError) {
+    return {
+      status: 200,
+      body: {
+        status: 'model_not_governed',
+        message: "This dashboard's model is still a candidate — publish it to see live data.",
+      },
+    };
+  }
+  if (err instanceof DashboardConnectionUnboundError) {
+    return {
+      status: 200,
+      body: { status: 'error', message: 'This dashboard has no bound Databricks connection.' },
+    };
+  }
+  const message = err instanceof Error ? err.message : 'Unknown execution error';
+  console.error(`[widgets/${label}/data] execution failed:`, err);
+  return { status: 200, body: { status: 'error', message } };
+}
 
-    // ── Connection unbound → typed error state, not a crash ─────────────────
-    if (err instanceof DashboardConnectionUnboundError) {
-      return {
-        status: 200,
-        body: { status: 'error', message: 'This dashboard has no bound Databricks connection.' },
-      };
-    }
+/**
+ * Resolve + execute an EPHEMERAL, in-progress widget preview (guided authoring,
+ * decision (b)). Executes a REQUEST-SUPPLIED spec that has NOT been saved and
+ * PERSISTS NOTHING — no version, no audit, no dashboard mutation. It exists so a
+ * confirmed-but-unsaved guided widget can show a live chart during the drill-in
+ * instead of the version-backed path's failsafe 404 (a widget that isn't in any
+ * saved version).
+ *
+ * ── Why this opens no new hole (the guards do not depend on persistence) ─────
+ *  1. AUTHORING-ONLY. The dashboard-level boundary is TIGHTER than the
+ *     version-backed route: it requires canEditDashboard (not merely canView).
+ *     A pure viewer has no in-progress spec to preview and is refused (403) —
+ *     they can never drive an arbitrary spec through execution.
+ *  2. MODEL IS SERVER-PINNED. `semanticQuery.modelId` is overwritten with the
+ *     dashboard's own model_id, so a caller cannot point an ephemeral spec at a
+ *     foreign model. entityId is likewise resolved SERVER-SIDE from the grounded
+ *     fields (never trusted from the body).
+ *  3. IDENTITY FROM SESSION (SEC-2). `authoringUserId` is the authenticated
+ *     actor, so the per-definition owner boundary still fires: a referenced
+ *     draft the caller does not own → SemanticDraftAccessError → generic 403,
+ *     leaking nothing (same mapExecutionError path as the version-backed route).
+ *  4. READ-ONLY CHOKEPOINT. Execution stays behind executeSemanticQuery →
+ *     executeDatabricksSQL. Raw-SQL is REFUSED here entirely (400): the guided
+ *     flow only produces semantic widgets, and a client-supplied rawSql +
+ *     connectionId would be an unvalidated foreign-connection surface this
+ *     preview deliberately does not accept. A semantic widget's connection is
+ *     the dashboard's own (server-side), never client-supplied.
+ */
+export async function buildEphemeralWidgetPreview(
+  dashboardId: string,
+  widget: WidgetSpec,
+  actor: PreviewActor | null,
+): Promise<WidgetPreviewOutcome> {
+  if (!actor) return { status: 401, body: { error: 'Unauthorized' } };
 
-    const message = err instanceof Error ? err.message : 'Unknown execution error';
-    console.error(`[widgets/${widgetId}/data] execution failed:`, err);
-    return { status: 200, body: { status: 'error', message } };
+  const ctx = await loadDashboardForExecution(dashboardId);
+  if (!ctx) return { status: 404, body: { error: 'Dashboard not found' } };
+
+  // Authoring-only: the ephemeral preview executes a client-supplied spec, so it
+  // is gated by EDIT rights, not merely view. A non-editor → 403.
+  const role = await getDashboardRole(dashboardId, actor.id, ctx.visibility);
+  if (!canEditDashboard(role)) return { status: 403, body: { error: 'Forbidden' } };
+
+  // Raw-SQL is out of scope for ephemeral preview (see guard #4). Refuse before
+  // any execution — never run a client-supplied rawSql against a client-supplied
+  // connection.
+  if (isRawSqlWidget(widget)) {
+    return { status: 400, body: { error: 'Raw-SQL widgets cannot be previewed ephemerally' } };
+  }
+
+  if (!ctx.connectionId) {
+    return {
+      status: 200,
+      body: { status: 'error', message: 'This dashboard has no bound Databricks connection.' },
+    };
+  }
+
+  try {
+    // Server-side entity binding — the guided spec defers entityId to the server
+    // (it has no catalog). Resolve it the SAME way save does, so preview and the
+    // eventual saved render compile identically.
+    const [resolved] = await resolveDeferredEntityIds([widget], ctx.orgId);
+    const semantic = resolved as Extract<WidgetSpec, { semanticQuery: SemanticQuery }>;
+
+    // DEFENSIVE PIN — never trust the stored/supplied modelId.
+    const query: SemanticQuery = { ...semantic.semanticQuery, modelId: ctx.modelId };
+
+    const definitionsUsed = {
+      dimensions: query.dimensions.map((d) => d.dimensionId),
+      measures: query.measures.map((m) => m.measureId),
+    };
+
+    // Owner-scoped authoring bypass — always on here (canEditDashboard is proven
+    // above), identity from the session actor (SEC-2), never the body.
+    const opts: AuthoringOpts = { authoringMode: true, authoringUserId: actor.id };
+
+    const result = await executeSemanticQuery(query, ctx.connectionId, opts);
+
+    return {
+      status: 200,
+      body: {
+        status: 'ok',
+        rows: result.rows,
+        sql: result.sql,
+        definitionsUsed,
+        isDraft: result.isDraft,
+        executedAt: new Date().toISOString(),
+      },
+    };
+  } catch (err) {
+    return mapExecutionError(err, widget.widgetId);
   }
 }

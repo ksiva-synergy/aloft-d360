@@ -17,6 +17,7 @@ import {
 import {
   validateWidgetReferences,
   computeMeasureSnapshots,
+  resolveDeferredEntityIds,
 } from '@/lib/dashboards/governance';
 import {
   resolveModelConnection,
@@ -139,9 +140,18 @@ export async function POST(
       throw e;
     }
 
+    // ── Server-side entity binding (guided defer-to-save) ─────────────────────
+    // A guided-authored widget seeds semanticQuery.entityId = '' because the
+    // client has no catalog to resolve field IDs → primary entity. Resolve it
+    // HERE, server-side, so a guided widget is stored indistinguishable from a
+    // manual one (which got its entityId from the picker). No-op for manual
+    // widgets (entityId already set) and raw-SQL widgets. This is server-derived,
+    // never client-trusted — same posture as the snapshot re-freeze below.
+    const resolvedWidgets = await resolveDeferredEntityIds(body.widgets, org.id);
+
     // ── 2. Cross-model widget reference validation ────────────────────────────
     const refCheck = await validateWidgetReferences(
-      body.widgets,
+      resolvedWidgets,
       dashboard.model_id,
       org.id,
     );
@@ -158,7 +168,7 @@ export async function POST(
     // untouched (measure_snapshots has no meaning for them).
     const allMeasureIds = Array.from(
       new Set(
-        body.widgets.flatMap((w) =>
+        resolvedWidgets.flatMap((w) =>
           isRawSqlWidget(w) ? [] : w.semanticQuery.measures.map((m) => m.measureId),
         ),
       ),
@@ -167,7 +177,7 @@ export async function POST(
     const snapshotMap = new Map(snapshots.map((s) => [s.measureId, s]));
 
     // Embed snapshots into each semantic widget; leave raw-SQL widgets as-is.
-    const widgetsWithSnapshots: WidgetSpec[] = body.widgets.map((w) =>
+    const widgetsWithSnapshots: WidgetSpec[] = resolvedWidgets.map((w) =>
       isRawSqlWidget(w)
         ? w
         : {

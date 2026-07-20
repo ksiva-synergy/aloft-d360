@@ -6,9 +6,12 @@
  *   - BATCH   GET .../[dashboardId]/data              → governed-only for everyone
  *             (the shared DashboardViewer's route; it can never render another
  *             user's candidate/draft data).
- *   - PER-WIDGET GET .../[dashboardId]/widgets/[widgetId]/data → owner-scoped
+ *   - PER-WIDGET .../[dashboardId]/widgets/[widgetId]/data → owner-scoped
  *             authoring bypass, confined to the drill-in, guarded per-definition
- *             by the owner-boundary 403 in buildWidgetPreview.
+ *             by the owner-boundary 403 in buildWidgetPreview (GET) /
+ *             buildEphemeralWidgetPreview (POST). Phase 5 previews the unsaved
+ *             in-progress spec via POST (ephemeral, decision (b)); the batch
+ *             route remains forbidden for BOTH methods.
  *
  * The drill-in MUST call the per-widget route and MUST NOT call the batch route.
  * If it ever calls the batch route "because the shell grounded against it for
@@ -22,6 +25,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DrillInStage } from '../DrillInStage';
 import { useBuilderStore } from '../../builder-store';
+import { blueprintToWidgetSpec } from '@/lib/dashboards/blueprint-widget';
 import type { ChartBlueprint, GuidedBlueprint } from '@/lib/dashboards/guided-types';
 import type { ResolvedDefinitions } from '@/lib/dashboards/chart-defaults';
 import type { WidgetDataResult } from '@/lib/dashboards/types';
@@ -58,8 +62,10 @@ const OK_RESULT: WidgetDataResult = {
   executedAt: '2026-07-20T00:00:00.000Z',
 };
 
-/** Seed a governed blueprint with the current item already CONFIRMED (has a
- *  widgetId) so the drill-in has something to preview. */
+/** Seed a governed blueprint with the current item already CONFIRMED — both the
+ *  drill-in mapping AND the in-progress WidgetSpec in the shared store, exactly
+ *  as `commit` does (appendWidgetSpec + recordDrillInConfirm). The store spec is
+ *  what the drill-in previews EPHEMERALLY (POST), so it must be present. */
 function seedConfirmed() {
   const bp: GuidedBlueprint = { modelId: 'model_1', modelStatus: 'governed', items: [GOVERNED] };
   const s = useBuilderStore.getState();
@@ -68,6 +74,8 @@ function seedConfirmed() {
   s.setMode('guided');
   s.setDashboard(DASHBOARD_ID, 'model_1', 'Safety', 'ver_1');
   s.setBlueprint(bp);
+  const spec = blueprintToWidgetSpec(GOVERNED, { modelId: 'model_1', entityId: '', widgetId: WIDGET_ID })!;
+  s.appendWidgetSpec(spec);
   s.recordDrillInConfirm(GOVERNED.id, WIDGET_ID);
 }
 
@@ -107,6 +115,25 @@ describe('DrillInStage — per-widget route CONTRACT', () => {
     // The per-widget path is strictly longer — a batch URL is a prefix of it, so
     // assert the widgets segment is actually present (prefix confusion guard).
     expect(urls[0]).toMatch(/\/widgets\/w_confirmed\/data(\?|$)/);
+  });
+
+  it('EPHEMERAL (decision b): previews the in-progress spec via POST to the per-widget route, carrying the widget in the body', async () => {
+    const spy = mockFetch(OK_RESULT);
+    render(<DrillInStage modelId="model_1" resolvedDefs={RESOLVED_DEFS} />);
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+
+    // The drill-in POSTs the unsaved spec (never a version-backed GET), so a
+    // confirmed-but-unsaved widget previews live instead of 404-ing.
+    const [url, init] = spy.mock.calls[0];
+    expect(String(url)).toContain(PER_WIDGET_URL);
+    expect((init as RequestInit)?.method).toBe('POST');
+
+    // The body carries the in-progress widget spec (this is what makes the
+    // preview possible without persisting a version).
+    const parsed = JSON.parse((init as RequestInit).body as string);
+    expect(parsed.widget).toBeTruthy();
+    expect(parsed.widget.widgetId).toBe(WIDGET_ID);
   });
 
   it('renders the live chart from the per-widget result and populates the SQL trust panel', async () => {

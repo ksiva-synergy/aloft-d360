@@ -112,6 +112,84 @@ export async function validateWidgetReferences(
   return { valid: errors.length === 0, errors };
 }
 
+// ── resolveDeferredEntityIds ──────────────────────────────────────────────────
+
+/**
+ * Bind the PRIMARY entity for any semantic widget whose `semanticQuery.entityId`
+ * was deferred (empty string) during guided authoring.
+ *
+ * WHY THIS EXISTS. The compiler (compileSemanticQuery) requires a real
+ * `entityId` — it is the FROM anchor — and throws on an empty one. A manually
+ * authored widget gets its entityId from the picker (the first added field's
+ * entity). The guided drill-in has no catalog on the client, so it seeds
+ * `entityId: ''` and DEFERS resolution to the server (the "defer-to-first-save"
+ * binding decision recorded in DrillInStage / blueprint-widget). This helper is
+ * that server-side resolution: it turns a deferred widget into one indistinguishable
+ * at rest from a manually authored one, so a guided-authored version and a
+ * manually authored version compile and render identically.
+ *
+ * Primary = the entity that owns the widget's FIRST measure, else its first
+ * dimension. For the single-entity charts the guided flow produces this is
+ * unambiguous; for a multi-entity chart the compiler treats the remaining
+ * involved entities as join targets (unchanged behaviour), so any involved
+ * entity is a valid primary.
+ *
+ * STATUS-AGNOSTIC BY DESIGN. It resolves the id→entity mapping regardless of
+ * definition status; it does NOT enforce draft policy. That stays where it
+ * belongs: validateWidgetReferences rejects draft/cross-model refs at save, and
+ * executeSemanticQuery's per-definition owner boundary governs the authoring
+ * preview. Resolving a draft's entity here never widens access — a bad ref still
+ * fails downstream.
+ *
+ * A widget that already carries a non-empty entityId, a raw-SQL widget, or a
+ * deferred widget with no resolvable grounded field is returned UNCHANGED (the
+ * last case is left for validateWidgetReferences to reject loudly).
+ */
+export async function resolveDeferredEntityIds(
+  widgets: WidgetSpec[],
+  orgId: string,
+): Promise<WidgetSpec[]> {
+  const deferred = widgets.filter(
+    (w): w is Extract<WidgetSpec, { semanticQuery: unknown }> =>
+      !isRawSqlWidget(w) && !w.semanticQuery.entityId,
+  );
+  if (deferred.length === 0) return widgets;
+
+  const measureIds = new Set<string>();
+  const dimIds = new Set<string>();
+  for (const w of deferred) {
+    for (const m of w.semanticQuery.measures) measureIds.add(m.measureId);
+    for (const d of w.semanticQuery.dimensions) dimIds.add(d.dimensionId);
+  }
+
+  const [measureRows, dimRows] = await Promise.all([
+    measureIds.size
+      ? prisma.platform_sem_measures.findMany({
+          where: { id: { in: Array.from(measureIds) }, org_id: orgId },
+          select: { id: true, entity_id: true },
+        })
+      : Promise.resolve([] as { id: string; entity_id: string }[]),
+    dimIds.size
+      ? prisma.platform_sem_dimensions.findMany({
+          where: { id: { in: Array.from(dimIds) }, org_id: orgId },
+          select: { id: true, entity_id: true },
+        })
+      : Promise.resolve([] as { id: string; entity_id: string }[]),
+  ]);
+
+  const measureEntity = new Map(measureRows.map((r) => [r.id, r.entity_id]));
+  const dimEntity = new Map(dimRows.map((r) => [r.id, r.entity_id]));
+
+  return widgets.map((w) => {
+    if (isRawSqlWidget(w) || w.semanticQuery.entityId) return w;
+    const primary =
+      w.semanticQuery.measures.map((m) => measureEntity.get(m.measureId)).find(Boolean) ??
+      w.semanticQuery.dimensions.map((d) => dimEntity.get(d.dimensionId)).find(Boolean);
+    if (!primary) return w; // no grounded field resolved — validateWidgetReferences will reject
+    return { ...w, semanticQuery: { ...w.semanticQuery, entityId: primary } };
+  });
+}
+
 // ── computeMeasureSnapshots ───────────────────────────────────────────────────
 
 /**
