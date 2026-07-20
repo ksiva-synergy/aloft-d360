@@ -20,6 +20,17 @@ export interface WidgetDriftInfo {
 
 export type SaveErrorType = 'validation' | 'conflict' | 'other' | null;
 
+/**
+ * Authoring mode — two views over ONE `WidgetSpec[]` dashboard state (guided P1's
+ * one architectural commitment), plus read-only view:
+ *   - 'guided' → NL-first stage flow (Intent → Blueprint → drill-in);
+ *   - 'manual' → the RGL grid + library/config panels;
+ *   - 'view'   → read-only grid (viewers).
+ * Switching guided↔manual is lossless because both operate on the same `widgets`
+ * on this single store — there is no parallel tree.
+ */
+export type BuilderMode = 'guided' | 'manual' | 'view';
+
 interface BuilderState {
   dashboardId: string;
   modelId: string;
@@ -32,9 +43,12 @@ interface BuilderState {
   saveErrorType: SaveErrorType;
   dirty: boolean;
   currentVersionId: string | null;
+  mode: BuilderMode;
 
   // Actions
   setDashboard: (id: string, modelId: string, name: string, versionId: string | null) => void;
+  /** Switch authoring mode. Lossless — never touches widgets. */
+  setMode: (mode: BuilderMode) => void;
   loadWidgets: (widgets: WidgetSpec[]) => void;
   addWidget: (chartKind: WidgetSpec['chartKind'], title: string) => string;
   removeWidget: (widgetId: string) => void;
@@ -111,6 +125,7 @@ export const useBuilderStore = create<BuilderState>()(
     saveErrorType: null,
     dirty: false,
     currentVersionId: null,
+    mode: 'manual',
 
     setDashboard: (id, modelId, name, versionId) =>
       set((s) => {
@@ -118,6 +133,11 @@ export const useBuilderStore = create<BuilderState>()(
         s.modelId = modelId;
         s.dashboardName = name;
         s.currentVersionId = versionId;
+      }),
+
+    setMode: (mode) =>
+      set((s) => {
+        s.mode = mode;
       }),
 
     loadWidgets: (widgets) =>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Save, History, ArrowLeft, Share2, Eye } from 'lucide-react';
+import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
 import type { WidgetDriftInfo, DriftStatus } from './builder-store';
 import { DefinitionPicker } from './DefinitionPicker';
@@ -68,7 +68,6 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   const [myRole, setMyRole] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<DashboardVisibility>('org');
   const [shareOpen, setShareOpen] = useState(false);
-
   const {
     modelId,
     dashboardName,
@@ -78,7 +77,9 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     saveError,
     saveErrorType,
     dirty,
+    mode,
     setDashboard,
+    setMode,
     loadWidgets,
     addWidget,
     selectWidget,
@@ -105,11 +106,15 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         setMyRole(role ?? null);
         setVisibility((dashboard.visibility ?? 'org') as DashboardVisibility);
 
-        if (currentVersion?.widgets) {
-          loadWidgets(currentVersion.widgets as WidgetSpec[]);
-        } else {
-          loadWidgets([]);
-        }
+        const loadedWidgets = (currentVersion?.widgets ?? []) as WidgetSpec[];
+        loadWidgets(loadedWidgets);
+
+        // Default mode (Phase 1): read-only → view; empty dashboard → guided
+        // (cold start is where a blank grid is most hostile); existing → manual.
+        // Set once on load; a later user toggle is never clobbered (this effect
+        // keys on dashboardId only).
+        const readOnly = role === 'viewer' || role === 'org_member';
+        setMode(readOnly ? 'view' : loadedWidgets.length === 0 ? 'guided' : 'manual');
       } catch (err) {
         console.error('[DashboardBuilder] load error:', err);
       } finally {
@@ -117,7 +122,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [dashboardId, setDashboard, loadWidgets]);
+  }, [dashboardId, setDashboard, loadWidgets, setMode]);
 
   // Open share dialog if navigated here with ?share=1
   useEffect(() => {
@@ -438,7 +443,30 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
         <div style={{ flex: 1 }} />
 
+        {/* Mode toggle (Phase 1) — two views over one WidgetSpec[]; lossless. */}
         {!isReadOnly && (
+          <div style={{ display: 'inline-flex', border: '1px solid var(--builder-border)', borderRadius: 5, overflow: 'hidden' }}>
+            {(['guided', 'manual'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                title={m === 'guided' ? 'NL-first guided authoring' : 'Manual grid builder'}
+                style={{
+                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none',
+                  background: mode === m ? '#FDB515' : 'transparent',
+                  color: mode === m ? '#0D1B2A' : 'var(--builder-text)',
+                  cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
+                }}
+              >
+                {m === 'guided' ? <Sparkles size={12} /> : <LayoutGrid size={12} />}
+                {m}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!isReadOnly && mode === 'manual' && (
           <button
             onClick={handleAddWidget}
             style={{
@@ -532,89 +560,110 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {/* Left: Definition Picker — hidden for read-only viewers */}
-        {!isReadOnly && (
-          <div
-            style={{
-              width: 260,
-              flexShrink: 0,
-              borderRight: '1px solid var(--builder-border)',
-              background: 'var(--builder-surface-raised)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
-              LIBRARY
-            </div>
-            {pickerHint && (
-              <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
-                {pickerHint}
+        {mode === 'guided' && !isReadOnly ? (
+          // ── Guided flow — focused surface (no library/config chrome). The
+          // NL-first stages (Intent → Blueprint → drill-in) mount here; until
+          // then this is the placeholder the toggle switches to.
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0, overflowY: 'auto', gap: 12 }}>
+            <Sparkles size={20} color="#FDB515" />
+            <span style={{ ...MONO, fontSize: 12, color: 'var(--builder-text)' }}>Guided authoring</span>
+            <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', maxWidth: 360, textAlign: 'center', lineHeight: 1.5 }}>
+              The NL-first guided flow mounts here. Switch to Manual to build on the grid — your work carries over either way.
+            </span>
+            <button
+              onClick={() => setMode('manual')}
+              style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Switch to manual
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Left: Definition Picker — hidden for read-only viewers */}
+            {!isReadOnly && (
+              <div
+                style={{
+                  width: 260,
+                  flexShrink: 0,
+                  borderRight: '1px solid var(--builder-border)',
+                  background: 'var(--builder-surface-raised)',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                  LIBRARY
+                </div>
+                {pickerHint && (
+                  <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
+                    {pickerHint}
+                  </div>
+                )}
+                <DefinitionPicker
+                  entities={entities}
+                  loading={pickerLoading}
+                  modelId={modelId}
+                  onAddDimension={handleAddDimension}
+                  onAddMeasure={handleAddMeasure}
+                  onAddChart={handleAddChart}
+                />
               </div>
             )}
-            <DefinitionPicker
-              entities={entities}
-              loading={pickerLoading}
-              modelId={modelId}
-              onAddDimension={handleAddDimension}
-              onAddMeasure={handleAddMeasure}
-              onAddChart={handleAddChart}
-            />
-          </div>
+
+            {/* Center: Grid (or generative empty state when there are no widgets) */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              {widgets.length === 0 ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
+                  <EmptyStatePrompts
+                    modelId={modelId}
+                    title="This dashboard is empty. Get started:"
+                    footerHint={isReadOnly ? undefined : 'Switch to Guided above, add a blank widget, or build one in Inspector and pin it here.'}
+                    onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
+                  />
+                </div>
+              ) : (
+                <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
+              )}
+            </div>
+
+            {/* Right: Config / History */}
+            <div
+              style={{
+                width: 280,
+                flexShrink: 0,
+                borderLeft: '1px solid var(--builder-border)',
+                background: 'var(--builder-surface-raised)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
+              </div>
+              {rightPanel === 'config' && selectedWidget && (
+                <WidgetConfigPanel
+                  widget={selectedWidget}
+                  definitions={definitionsMap}
+                  readOnly={isReadOnly}
+                  recommendation={selectedWidgetRecommendation}
+                  onChartKindChange={(kind) => markManualKind(selectedWidget.widgetId, kind)}
+                />
+              )}
+              {rightPanel === 'config' && !selectedWidget && (
+                <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                  <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+                    {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
+                  </span>
+                </div>
+              )}
+              {rightPanel === 'history' && (
+                <VersionHistoryPanel dashboardId={dashboardId} />
+              )}
+            </div>
+          </>
         )}
-
-        {/* Center: Grid (or generative empty state when there are no widgets) */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {widgets.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto' }}>
-              <EmptyStatePrompts
-                modelId={modelId}
-                title="This dashboard is empty. Get started:"
-                footerHint={isReadOnly ? undefined : 'Add a blank widget above, or build one in Inspector and pin it here.'}
-                onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
-              />
-            </div>
-          ) : (
-            <BuilderGrid widgets={widgets} definitions={definitionsMap} readOnly={isReadOnly} />
-          )}
-        </div>
-
-        {/* Right: Config / History */}
-        <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            borderLeft: '1px solid var(--builder-border)',
-            background: 'var(--builder-surface-raised)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
-            {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
-          </div>
-          {rightPanel === 'config' && selectedWidget && (
-            <WidgetConfigPanel
-              widget={selectedWidget}
-              definitions={definitionsMap}
-              readOnly={isReadOnly}
-              recommendation={selectedWidgetRecommendation}
-              onChartKindChange={(kind) => markManualKind(selectedWidget.widgetId, kind)}
-            />
-          )}
-          {rightPanel === 'config' && !selectedWidget && (
-            <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
-                {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
-              </span>
-            </div>
-          )}
-          {rightPanel === 'history' && (
-            <VersionHistoryPanel dashboardId={dashboardId} />
-          )}
-        </div>
       </div>
 
       {/* ── Share Dialog ─────────────────────────────────────────────────────── */}
