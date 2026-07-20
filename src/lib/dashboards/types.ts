@@ -184,6 +184,24 @@ export type WidgetDataResult =
        * widgets `definitionsUsed` is empty (they reference no governed defs).
        */
       isRawSql?: boolean;
+      /**
+       * Guided authoring-preview flag (Phase 0 contract; wired in the guided
+       * drill-in phase). True ONLY when these rows came from an owner-scoped
+       * authoring-mode execution that referenced at least one non-governed
+       * (draft/candidate) definition — i.e. the model is not yet `governed` but
+       * its OWNER is previewing it live. Mirrors `SemanticQueryResult.isDraft`
+       * (see semantic/execute.ts). The client renders the chart normally AND
+       * stamps a persistent "Draft — not governed" badge.
+       *
+       * Distinct from `status: 'model_not_governed'`, which is the NON-owner /
+       * shared-consumption path (no rows, "publish to see live data"). The
+       * owner-only boundary is enforced inside executeSemanticQuery
+       * (SemanticDraftAccessError), never here. Absent/false on the default
+       * governed path — the only path the data route drives today; the
+       * authoring-scoped call (owner-scoped AuthoringOpts) lands in the guided
+       * drill-in phase, not Phase 0.
+       */
+      isDraft?: boolean;
     }
   | {
       /** The dashboard's model is a candidate/archived — a UX state, not a 500. */
