@@ -101,6 +101,10 @@ export async function POST(request: NextRequest) {
     orgId: org.id,
     userId: callerUserId,
     connectionId,
+    // Thread the Teach session id onto captured candidates so the read-only feed
+    // (Phase 3) can scope by author + session. guardInspectorChat above already
+    // verified the caller owns this session.
+    sessionId: body.sessionId ?? null,
   };
 
   const stream = new ReadableStream({

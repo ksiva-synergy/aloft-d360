@@ -2268,6 +2268,30 @@ model PlatformAgentMemory {
   @@map("platform_agent_memory")
 }
 
+// Teach Phase 3 (capture-shape) — the typed learning envelope the Reflect loop
+// emits over SSE, persisted 1:1 with the personal rule row it annotates. Kept in
+// its own table so the memory-retrieval path (retrieve.ts) is left physically
+// unchanged; the read-only candidate feed (Phase 3) projects this table joined to
+// platform_agent_memory. Nothing here is read by the personal-taught lane.
+model PlatformTeachCandidate {
+  id           String   @id
+  orgId        String   @map("org_id")
+  authorUserId String   @map("author_user_id")
+  sessionId    String?  @map("session_id")
+  memoryId     String   @map("memory_id")
+  learningType String   @map("learning_type")
+  state        String
+  verification Json?
+  conflict     Json?
+  resolution   Json?
+  capturedAt   DateTime @default(now()) @map("captured_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([memoryId], map: "uq_teach_candidate_memory")
+  @@index([orgId, authorUserId, capturedAt(sort: Desc)], map: "idx_teach_candidate_author")
+  @@map("platform_teach_candidate")
+}
+
 model PlatformMemoryInjection {
   id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
   orgId        String    @map("org_id")

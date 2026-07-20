@@ -190,14 +190,34 @@ const CAPTURE_LEARNING_TOOL: Tool = {
   },
 };
 
+/**
+ * verify_claim's input schema. A NEW object that SPREADS the shared
+ * SEMANTIC_QUERY_SCHEMA's properties and adds an optional `learningId` — so the
+ * verification can be attached to the candidate it verifies WITHOUT mutating the
+ * shared SEMANTIC_QUERY_SCHEMA (also used by Inspector's emit_semantic_chart).
+ * `required` is inherited unchanged (learningId is optional). When present it is
+ * the `memoryId` returned by the capture_learning that produced the learning.
+ */
+export const VERIFY_CLAIM_SCHEMA = {
+  ...SEMANTIC_QUERY_SCHEMA,
+  properties: {
+    ...SEMANTIC_QUERY_SCHEMA.properties,
+    learningId: {
+      type: 'string',
+      description:
+        'Optional. The memoryId returned by the capture_learning call whose claim this query verifies — pass it to attach this verification to that learning.',
+    },
+  },
+} as const;
+
 const VERIFY_CLAIM_TOOL: Tool = {
   toolSpec: {
     name: 'verify_claim',
     description:
-      'Advisory, READ-ONLY verification of a checkable factual claim against the GOVERNED data estate. Runs a governed semantic query (governed models only) through the read-only Databricks chokepoint. Never blocks capturing a learning; if the model is not governed it returns a "not_verifiable" state, not an error.',
+      'Advisory, READ-ONLY verification of a checkable factual claim against the GOVERNED data estate. Runs a governed semantic query (governed models only) through the read-only Databricks chokepoint. Never blocks capturing a learning; if the model is not governed it returns a "not_verifiable" state, not an error. Pass learningId (the memoryId of the learning you just captured) to attach the result to that learning.',
     inputSchema: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      json: SEMANTIC_QUERY_SCHEMA as any,
+      json: VERIFY_CLAIM_SCHEMA as any,
     },
   },
 };
@@ -430,6 +450,17 @@ export function defaultDetectConflict(
 export const CONFLICT_RESOLUTION_CHOICES = ['keep_new', 'keep_existing', 'scope_by_context'] as const;
 export type ConflictChoice = (typeof CONFLICT_RESOLUTION_CHOICES)[number];
 
+/**
+ * The learning-card state a resolution choice advances to — single source of
+ * truth shared by resolveConflict (client/card transition) and the persistence
+ * store (teach-candidate-store.resolveCandidateByMemoryId). keep_existing means
+ * the user kept the prior rule, so the NEW learning is 'rejected'; keep_new /
+ * scope_by_context advance it out of 'conflict' back to 'proposed'.
+ */
+export function nextStateForResolution(choice: ConflictChoice): LearningState {
+  return choice === 'keep_existing' ? 'rejected' : 'proposed';
+}
+
 /** The captured user decision on a conflict. Recorded as a learning outcome —
  *  NOT a governed-memory write (Build commits later). */
 export interface ConflictResolution {
@@ -457,7 +488,7 @@ export function resolveConflict(
     scopeNote: opts.scopeNote,
     resolvedAt: opts.resolvedAt ?? new Date().toISOString(),
   };
-  const nextState: LearningState = choice === 'keep_existing' ? 'rejected' : 'proposed';
+  const nextState: LearningState = nextStateForResolution(choice);
   return {
     learning: { ...learning, state: nextState },
     resolution,
@@ -471,6 +502,30 @@ export interface ReflectToolContext {
   userId: string | null;
   connectionId: string | null;
   agentClass?: string;
+  /** The Teach session that captured these learnings (workbench_sessions.id).
+   *  Persisted on the candidate row so the feed can scope by author + session;
+   *  null when unresolved (feed then scopes by author only). */
+  sessionId?: string | null;
+}
+
+/** Envelope persisted at capture — the transient learning_item made durable. */
+export interface PersistCandidateArgs {
+  orgId: string;
+  authorUserId: string;
+  sessionId: string | null;
+  memoryId: string;
+  learningType: LearningType;
+  state: LearningState;
+  conflict: ConflictInfo | null;
+}
+
+/** Attach a verification outcome to an already-captured candidate. */
+export interface AttachVerificationArgs {
+  orgId: string;
+  authorUserId: string;
+  memoryId: string;
+  verification: VerificationResult;
+  state: LearningState;
 }
 
 export interface ReflectToolDeps {
@@ -497,6 +552,18 @@ export interface ReflectToolDeps {
    * Build (Phase 3+) wires it at the promotion moment.
    */
   credit?: (orgId: string, userId: string) => Promise<void>;
+  /**
+   * Teach Phase 3 (capture-shape) — persist the typed envelope the learning_item
+   * event carries, so a read-only feed can project it. Best-effort by contract:
+   * a persistence failure NEVER sinks a capture (C2 — capture never blocks).
+   * Injected; the default lazy-imports the server-only store.
+   */
+  persistCandidate?: (args: PersistCandidateArgs) => Promise<void>;
+  /**
+   * Teach Phase 3 (capture-shape) — attach a verification outcome + resulting
+   * card state to a previously-captured candidate (keyed by memoryId). Best-effort.
+   */
+  attachVerification?: (args: AttachVerificationArgs) => Promise<void>;
 }
 
 async function defaultRecall(
@@ -538,6 +605,14 @@ const DEFAULT_DEPS: ReflectToolDeps = {
   },
   detectConflict: async (newStatement, hits) => defaultDetectConflict(newStatement, hits),
   // credit intentionally undefined — capture does not credit in Phase 1.
+  persistCandidate: async (args) => {
+    const { persistCapturedCandidate } = await import('./teach-candidate-store');
+    await persistCapturedCandidate(args);
+  },
+  attachVerification: async (args) => {
+    const { attachVerificationToCandidate } = await import('./teach-candidate-store');
+    await attachVerificationToCandidate(args);
+  },
 };
 
 // ── Dispatcher ──────────────────────────────────────────────────────────────────
@@ -630,6 +705,26 @@ export async function executeReflectTool(
         related_memory_hits: hits,
         conflict,
       });
+
+      // ── Teach Phase 3 (capture-shape) — persist the typed envelope ───────────
+      // Make the transient learning_item durable so a read-only feed can project
+      // it. BEST-EFFORT: a persistence failure is logged, never thrown — capture
+      // never blocks (C2). ctx.userId is non-null here (guarded above).
+      try {
+        await d.persistCandidate?.({
+          orgId: ctx.orgId,
+          authorUserId: ctx.userId,
+          sessionId: ctx.sessionId ?? null,
+          memoryId: rule.id,
+          learningType,
+          state: learning.state,
+          conflict,
+        });
+      } catch (persistErr) {
+        console.warn('[reflect-tools] candidate persistence failed (non-fatal, capture stands):',
+          persistErr instanceof Error ? persistErr.message : String(persistErr));
+      }
+
       const event: LearningItemEvent = { type: 'learning_item', learning };
       emit(event as unknown as Record<string, unknown>);
       return JSON.stringify({ ok: true, memoryId: rule.id, learning });
@@ -642,7 +737,33 @@ export async function executeReflectTool(
 
   // ── verify_claim (read-only, advisory) ──────────────────────────────────────────
   if (toolName === 'verify_claim') {
-    const query = toolInput as unknown as SemanticQuery;
+    // Strip the Teach-only `learningId` (see VERIFY_CLAIM_SCHEMA) before the rest
+    // is handed to the semantic executor as a SemanticQuery. When present, it is
+    // the memoryId of the captured learning this verification attaches to.
+    const { learningId: rawLearningId, ...queryInput } = toolInput;
+    const learningId = typeof rawLearningId === 'string' ? rawLearningId : null;
+    const query = queryInput as unknown as SemanticQuery;
+
+    // Teach Phase 3 (capture-shape) — attach the verification outcome to the
+    // captured candidate (keyed by memoryId). Best-effort: a persistence failure
+    // never turns an advisory verification into an error. Only fires when a
+    // learningId AND a resolved author are present (fail-closed).
+    const maybeAttach = async (result: VerificationResult, state: LearningState) => {
+      if (!learningId || !ctx.userId) return;
+      try {
+        await d.attachVerification?.({
+          orgId: ctx.orgId,
+          authorUserId: ctx.userId,
+          memoryId: learningId,
+          verification: result,
+          state,
+        });
+      } catch (attachErr) {
+        console.warn('[reflect-tools] verification attach failed (non-fatal):',
+          attachErr instanceof Error ? attachErr.message : String(attachErr));
+      }
+    };
+
     if (!ctx.connectionId) {
       const result: VerificationResult = {
         ok: false,
@@ -650,6 +771,7 @@ export async function executeReflectTool(
         reason: 'No active governed connection to verify against.',
       };
       const learningState = learningStateForVerification(result);
+      await maybeAttach(result, learningState);
       emit({ type: 'verification_result', callId, result, learningState });
       return JSON.stringify({ ok: false, result, learningState });
     }
@@ -665,6 +787,7 @@ export async function executeReflectTool(
       // a CONFIRMED result advances the learning proposed → verified; a 0-row
       // (unconfirmed) result stays 'proposed' (honest, advisory, promotable-later).
       const learningState = learningStateForVerification(result);
+      await maybeAttach(result, learningState);
       emit({ type: 'verification_result', callId, result, learningState });
       return JSON.stringify({ ok: true, result, learningState });
     } catch (err) {
@@ -682,6 +805,7 @@ export async function executeReflectTool(
       }
       const result: VerificationResult = { ok: false, state: 'not_verifiable', reason };
       const learningState = learningStateForVerification(result);
+      await maybeAttach(result, learningState);
       emit({ type: 'verification_result', callId, result, learningState });
       return JSON.stringify({ ok: false, result, learningState });
     }
