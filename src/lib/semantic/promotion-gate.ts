@@ -210,6 +210,41 @@ export async function evaluateApprovalQuorum(
 
 // ── Reputation attribution — close the trust loop ────────────────────────────
 
+/** A promotion target as far as credit attribution is concerned. */
+export interface PromotionTarget {
+  id: string;
+  created_by: string | null;
+}
+
+/**
+ * Select the DISTINCT author ids to credit for a promotion.
+ *
+ * The credit follows the ROW AUTHOR (`created_by`), NEVER the caller/approver:
+ * an admin promoting someone else's candidate must credit that candidate's
+ * author, not themselves. This is the seam the promote route relies on, factored
+ * out so the "who gets credited" property is unit-testable without a route
+ * harness — the exact weak-assertion trap (assert the user + delta, not row
+ * existence) called out for this phase.
+ *
+ * Rules:
+ *   - only rows that ACTUALLY promoted (`promotedIds`) count — a target that
+ *     failed to promote credits nobody;
+ *   - a row with no author (`created_by == null`) credits nobody;
+ *   - authors are deduped, so a multi-row promotion by one author credits once.
+ */
+export function selectAuthoringCreditRecipients(
+  targets: PromotionTarget[],
+  promotedIds: Iterable<string>,
+): string[] {
+  const promoted = new Set(promotedIds);
+  const authors = new Set(
+    targets
+      .filter((t) => promoted.has(t.id) && t.created_by)
+      .map((t) => t.created_by as string),
+  );
+  return [...authors];
+}
+
 /**
  * Credit a contributor for a definition successfully promoted to `governed`.
  * This is what makes the system's trust grow with demonstrated, validated

@@ -8,6 +8,7 @@ import {
   isAdmin,
   evaluatePromotionEligibility,
   creditAuthoringPromotion,
+  selectAuthoringCreditRecipients,
 } from '@/lib/semantic/promotion-gate';
 import prisma from '@/lib/db';
 
@@ -129,10 +130,9 @@ export async function POST(
       : await promoteDefinitions(ids, tableKind!, modelId, org.id, currentUser.id);
 
     // ── Credit the AUTHOR of each successfully-promoted row (trust loop) ────────
-    const promoted = new Set(result.succeeded);
-    const authors = new Set(
-      targets.filter((t) => promoted.has(t.id) && t.created_by).map((t) => t.created_by as string),
-    );
+    // Recipient selection is the row author, never the caller — factored into
+    // selectAuthoringCreditRecipients so that property is unit-tested.
+    const authors = selectAuthoringCreditRecipients(targets, result.succeeded);
     for (const authorId of authors) {
       await creditAuthoringPromotion(org.id, authorId);
     }
