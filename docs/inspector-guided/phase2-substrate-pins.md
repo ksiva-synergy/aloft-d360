@@ -9,11 +9,16 @@ not name-trusted; every claim carries a `file:line`.
 
 **Verdict up front:** All three pins flip from `[U]`/`[I]` to **`[C]` (static-confirmed)**. The
 substrate exists, is org- and model-scoped by construction, and reaches the assembled prompt. The
-**only** residual is a live-data question — *did the backfill run against the populated org, and
-are there rows?* — which sits behind the same dark-cred gate as SEC-4 and is flagged
-**runtime-pending**, not confirmed. This is the shared `[U]` substrate the Teach pass
+**only** residual was a live-data question — *did the backfill run against the populated org, and
+are there rows?* — originally flagged behind "the same dark-cred gate as SEC-4," runtime-pending.
+**That framing was falsified by a live verification run on 2026-07-20:** the residual is **not
+credential-blocked — it is substrate-blocked.** The credentials the gate pointed at are confirmed
+present and working (Postgres live & writable; AWS Bedrock/Titan-v2 returns real 1024-dim vectors);
+what is empty is the `nl_intent` **source data** itself — universally null across every org (see
+PIN-A below for the live evidence). This is the shared `[U]` substrate the Teach pass
 ([teach-phase0-substrate-pins.md](../teach%20mode/teach-phase0-substrate-pins.md)) and the Metric
-Store plan also depend on — pinned once, here.
+Store plan also depend on — pinned once, here, and now more sharply so: the substrate is empty
+because the **capture path** that fills it (guided/Teach authoring) has never run against this DB.
 
 ---
 
@@ -158,13 +163,15 @@ blueprint step, not raw IDs.)
 | Stage 1 seed query is org- **and** model-scoped, governed-only | **Static-confirmed** |
 | Synonyms reach the **assembled prompt** (not just the table); governed-only + top-K traps | **Static-confirmed** |
 | `chart-defaults.ts` exists, pure, and is wired into **both** chat + builder | **Static-confirmed** |
-| **Actual embedding row count per org** (are there governed intents to seed?) | ⏳ **Runtime-pending (live creds)** |
-| **`DEFAULT_ORG_SLUG` resolves to the *populated* org, not the demo/empty org** | ⏳ **Runtime-pending (live creds)** |
-| Backfill was actually **run** on the target org (its embeddings exist) | ⏳ **Runtime-pending (live creds)** |
+| **Actual embedding row count per org** (are there governed intents to seed?) | 🟥 **Substrate-empty (verified 2026-07-20)** — 0 embeddings any org; creds confirmed, `nl_intent` source rows absent |
+| **`DEFAULT_ORG_SLUG` resolves to the *populated* org, not the demo/empty org** | 🟥 **Still `spinor-demo`** — one-line change, not a blocker; no org has captured intents anyway |
+| Backfill was actually **run** on the target org (its embeddings exist) | 🟥 **Substrate-empty** — a run embeds 0 rows (source `nl_intent` universally null) |
 
-The two runtime-pending items are the substance of Risk 2 (substrate empty/wrong-org → generic
-blueprints). They sit behind the **same dark-cred gate as the SEC-4 runtime verification** — do not
-claim confirmed. Verification command when creds land (read-only):
+These three items are the substance of Risk 2 (substrate empty/wrong-org → generic blueprints).
+**As of the 2026-07-20 live run they are no longer credential-pending** — the credentials the
+"dark-cred gate" implied are confirmed present and working (see PIN-A); the items are
+**substrate-empty**: the `nl_intent` source columns the backfill reads are absent across every org.
+The verification command below stays useful — run it once source rows exist (read-only):
 `SELECT org_id, count(*) FROM platform_nl_intent_embeddings GROUP BY org_id;` and cross-check the
 top-count `org_id` against the org `DEFAULT_ORG_SLUG` resolves to.
 
@@ -222,7 +229,7 @@ top-count `org_id` against the org `DEFAULT_ORG_SLUG` resolves to.
    [:106](../../scripts/backfill-nl-intent-embeddings.ts#L106)), but the org is env-only
    ([:24-25](../../scripts/backfill-nl-intent-embeddings.ts#L24) reads `DEFAULT_ORG_SLUG`) and the only
    committed value is a **demo** org ([task-definition.json:24](../../infra/context/task-definition.json#L24) = `spinor-demo`).
-   The runtime-pending row already sits in this doc at [the split table above](#L162). No embeddings are
+   The runtime-pending row already sits in this doc at [the split table above](#L166). No embeddings are
    proven to exist for the real populated org. This is the empty-org-backfill finding, live. **`[U]` (runtime).**
 
 ### Verified state — full table
@@ -230,7 +237,7 @@ top-count `org_id` against the org `DEFAULT_ORG_SLUG` resolves to.
 | Item | Verdict | Evidence (re-grepped by symbol) |
 |---|---|---|
 | NL-intent backfill script | `[C]` | [backfill-nl-intent-embeddings.ts:36-57](../../scripts/backfill-nl-intent-embeddings.ts#L36) (org-filtered fetch), idempotent [:28-32](../../scripts/backfill-nl-intent-embeddings.ts#L28), Titan upsert [:106](../../scripts/backfill-nl-intent-embeddings.ts#L106) |
-| …scoped to populated org | **`[U]`** | env-only [`DEFAULT_ORG_SLUG`:24-25](../../scripts/backfill-nl-intent-embeddings.ts#L24) → [`spinor-demo`](../../infra/context/task-definition.json#L24); [runtime-pending](#L162) |
+| …scoped to populated org | **`[U]`** | env-only [`DEFAULT_ORG_SLUG`:24-25](../../scripts/backfill-nl-intent-embeddings.ts#L24) → [`spinor-demo`](../../infra/context/task-definition.json#L24); [runtime-pending](#L166) |
 | Synonyms → resolver + prompt | `[C]` (watch) | [intent-resolve.ts:50](../../src/lib/dashboards/intent-resolve.ts#L50); [context-builder.ts:174](../../src/lib/semantic/context-builder.ts#L174) → [prompts.ts:326](../../src/lib/inspector/prompts.ts#L326) → [chat/route.ts:175](../../src/app/api/inspector/chat/route.ts#L175) |
 | Domain-type term classifier (owner/flag/vtype/metric) | **`[P]`** | mock only: [Multi-term Resolution (standalone).html:414-435](../metric%20store/Multi-term%20Resolution%20(standalone).html) |
 | Multi-term resolve route (governance-state axis) | `[C]` | [resolve-intent/route.ts:111](../../src/app/api/inspector/semantic/[modelId]/resolve-intent/route.ts#L111); [intent-resolve.ts:76](../../src/lib/dashboards/intent-resolve.ts#L76); [IntentStage.tsx:111](../../src/components/inspector/dashboard-builder/guided/IntentStage.tsx#L111) |
@@ -258,9 +265,54 @@ the captured-intents it will embed come from `platform_sem_measures` / `platform
 (`nl_intent IS NOT NULL`, [backfill:36-53](../../scripts/backfill-nl-intent-embeddings.ts#L36)) +
 `platform_charts` ([:54-57](../../scripts/backfill-nl-intent-embeddings.ts#L54)).
 
-#### PIN-A — TRACKED BLOCKER (dark-cred gate, same as SEC-4). Runnable-on-arrival.
+#### PIN-A — `[U]` SUBSTRATE-EMPTY (credentials CONFIRMED 2026-07-20; capture path unrun)
 
-Not a spec — the literal block below executes the instant creds land, no re-derivation:
+**Verified state (2026-07-20, live).** The three credentials the "dark-cred gate" pointed at were
+checked live against the configured environment. Two of three are empirically present and working;
+the third is a one-line config value. **Credentials are not the blocker.**
+
+| Gate | Verdict | Evidence (live, 2026-07-20) |
+|---|---|---|
+| Postgres — live & writable | ✅ **confirmed** | Prisma authenticated to `aloft-prod-writer…ap-south-1.rds.amazonaws.com/aloftdb`; read queries ran |
+| AWS Bedrock embedding | ✅ **confirmed valid** | `embedQuery`'s exact call returned a **non-null 1024-dim vector** from us-east-1 Titan-v2; the null-swallow trap is **not** firing. Env `AWS_REGION=ap-south-1` is harmless — [embed.ts:18](../../src/lib/context/embed.ts#L18) hardcodes `us-east-1` and the account has us-east-1 Titan access |
+| `DEFAULT_ORG_SLUG` → populated org | ❌ `spinor-demo` | live `.env.local`; a one-line change, **not** a provisioning blocker |
+
+**The real blocker — empty source data.** `nl_intent` is universally null across all rows in all
+three orgs present in this DB (`smoke-test-org`, `spinor-demo`, `spinor-internal`). The backfill
+reads exactly these three sources ([backfill:36-57](../../scripts/backfill-nl-intent-embeddings.ts#L36));
+with every `nl_intent` null there is nothing to embed:
+
+| Source table | Total rows | With `nl_intent` |
+|---|---|---|
+| `platform_sem_measures` | 3134 | **0** |
+| `platform_sem_dimensions` | 7814 | **0** |
+| `platform_charts` (live) | 0 | **0** |
+| `platform_sem_entities` | 697 total | 5 governed |
+
+The measures/dimensions came from **schema ingestion**, which never sets `nl_intent`. The NL-intent
+**capture path** (guided authoring / Teach / define-a-metric) has never run against this DB — so the
+column that feeds the backfill is empty by construction, not by accident.
+
+**Consequence — provisioning cannot flip PIN-A.** Pointed at any org, with the confirmed-valid creds,
+the backfill would embed **0 rows** and exit cleanly: a clean, honest, *empty* result (the
+zero-source case). The actual unblock is **upstream** — intents must first be captured via
+guided/Teach authoring, or a deliberate seed path that writes `nl_intent`, before there is anything
+to embed. This empirically confirms the Teach / Metric-Store **"features feed the substrate"**
+dependency: the substrate is downstream of the capture features, not of credentials.
+
+**Planning consequence — this changes what "PIN-A blocked" *means*.** Under the old dark-cred
+framing, PIN-A waited on an **ops action** (get creds) that could land any day. Under the verified
+framing, it waits on **usage or a seed path** — the capture flow actually running against this DB —
+which is a different kind of thing and **may never happen on its own**. That is a genuine roadmap
+fork for whoever owns it, which this doc records but does not resolve: either (a) accept that Stage-1
+seeds stay empty until real authoring accumulates intents, or (b) build a deliberate `nl_intent`
+seed path as its own small task. The doc records the state; the fork is the decision it implies.
+
+The literal block below stays runnable-on-arrival — but it now runs **after the substrate is
+populated**, not on credential-arrival:
+
+**Note (2026-07-20):** this block is valid but will PASS only once `nl_intent` source rows exist.
+Running it today returns `0 == 0` and correctly holds PIN-A `[U]` — see the source-emptiness table above.
 
 ```
 ACTION:  Run scripts/backfill-nl-intent-embeddings.ts with DEFAULT_ORG_SLUG set to the
@@ -286,7 +338,7 @@ ASSERT:  -- (1) embeddings actually landed for the populated org:
                    (equal, minus rows with empty intent_text skipped at backfill:102-104).
 
 GUARD:   populated org_id != demo org_id. Resolve both explicitly —
-           SELECT id, slug FROM platform_org WHERE slug IN (:populated_slug, 'spinor-demo');
+           SELECT id, slug FROM platform_orgs WHERE slug IN (:populated_slug, 'spinor-demo');
          — and confirm the green row's org_id is the POPULATED id, not spinor-demo passing
          in disguise (Step 0.3 — the empty/wrong-org signature).
 
@@ -295,6 +347,13 @@ FAIL-TO: embeddings(:populated) = 0, OR only the demo org_id appears in the GROU
          assumes "embeddings exist for the real org" may ship as working (Stage-1 topic seeds,
          PIN-B taxonomy, Teach retrieval, Guided starters).
 ```
+
+**FAIL-TO held (2026-07-20).** On the live run the FAIL-TO clause did exactly its job: the
+zero-source case (backfill completes cleanly having embedded **nothing**) is precisely the
+two-headed false-green this assertion guards against. The `embeddings(:populated) > 0` check is the
+**only** thing distinguishing *"the backfill ran"* from *"the backfill did something"* — it is
+**load-bearing**. Do **not** weaken it to a count-agnostic "did it run" check; it is strict on
+purpose, and that strictness is what surfaced the empty-substrate reality instead of masking it.
 
 #### PIN-B — AVAILABLE now (cred-free design), but gated on PIN-A to *ship as working*
 
@@ -309,8 +368,11 @@ working until PIN-A is green* — otherwise it just moves the unfalsifiable-grou
 
 ### Reconciled remaining spine — inherit state, not a thread
 
-- **BLOCKED (needs creds):** **PIN-A** — the runnable block above. Tracked blocker behind the dark-cred
-  gate (same as SEC-4); executes on arrival, no re-derivation.
+- **BLOCKED — substrate-empty; creds confirmed (verified 2026-07-20):** **PIN-A** — the runnable
+  block above stays valid but PASSes only once `nl_intent` source rows exist. Credentials are
+  confirmed present and working (Postgres, Bedrock); the unblock is **upstream intent capture, not
+  provisioning**, and may not happen on its own — a roadmap fork (accept empty Stage-1 seeds until
+  authoring accumulates intents, vs. build a deliberate `nl_intent` seed path). See PIN-A above.
 - **AVAILABLE now (cred-free):**
   - **PIN-B taxonomy DESIGN** — domain-type (owner/flag/vessel-type/metric) layered on the existing
     `resolve-intent` resolver, incl. amber-ambiguity representation. Design now; **do not ship as
