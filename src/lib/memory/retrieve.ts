@@ -43,6 +43,31 @@ import { mmrSelect, parsePgVector, type DiversityCandidate } from './diversity';
 /** Used when no phase is specified (legacy callers). */
 const DEFAULT_BUDGET_TOKENS = 2000;
 
+/**
+ * Personal-taught lane (Teach Phase 2, Step 1 — the retrieve fix).
+ *
+ * A freshly-taught personal SCHEMA_MAP rule has helpful_count=0, so the Phase-1a
+ * net-helpful ranking (confidence × GREATEST(helpful−harmful,0)) scores it 0 and
+ * the LIMIT-cap truncates it below any org whose slots are already net-positive
+ * (DEFAULT_ORG: 149 bullets fill all 10 slots). A rule needs helpful_count to
+ * inject but only earns it by being injected — chicken-and-egg starvation.
+ *
+ * The lane is a SMALL, RECENCY-ORDERED, ADDITIVE second pass that surfaces the
+ * caller's OWN personal taught rules alongside the net-helpful set, without
+ * reordering or evicting anything the net-helpful ranking chose. It runs ONLY
+ * when a real caller is resolved — for the NO_USER_SENTINEL caller (boost eval,
+ * unresolved Inspector) the lane never runs and Phase 1a is byte-for-byte
+ * unchanged. Deduped against the net-helpful result so a personal rule that
+ * already made the cap is not double-listed. Its own dedicated token sub-budget
+ * (never the shared 600) so the net-helpful set is never squeezed.
+ */
+const PERSONAL_TAUGHT_LANE_CAP = 5;
+function personalTaughtLaneBudget(): number {
+  const v = process.env.MEMORY_PERSONAL_LANE_BUDGET;
+  const n = v ? parseInt(v, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 400;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface MemoryBullet {
@@ -297,10 +322,79 @@ async function selectPhase1a(
       });
       used += tokens;
     }
+
+    // ── Personal-taught lane (additive; only for a resolved caller) ───────────
+    // Byte-for-byte no-op for NO_USER_SENTINEL callers (boost eval, unresolved
+    // Inspector): the query is not issued and `result` is returned as-is.
+    if (callerUserId !== NO_USER_SENTINEL) {
+      await appendPersonalTaughtLane(orgId, agentClass, callerUserId, result);
+    }
+
     return result;
   } catch (err) {
     console.warn('[memory/retrieve] Phase 1a query failed (non-fatal):', err instanceof Error ? err.message : String(err));
     return [];
+  }
+}
+
+/**
+ * Append the caller's OWN personal taught SCHEMA_MAP rules (recency-ordered,
+ * sub-capped, sub-budgeted) to an already-built Phase-1a result, in place.
+ *
+ * ADDITIVE by construction: `netHelpfulResult` is never reordered or evicted —
+ * lane rows are only appended, and only ones not already present (dedup by id).
+ * The lane query hard-filters visibility='personal' AND created_by=<caller>, so
+ * it can never surface an org row or another user's personal rule (fail-closed
+ * scoping holds inside the lane). Its own try/catch — a lane failure never
+ * breaks the net-helpful result the product surface relies on.
+ *
+ * Taught rules carry task_signature=NULL (teach.ts writes global rules), so the
+ * lane deliberately does NOT topic-filter — a standing rule the user taught must
+ * recall regardless of the current topic.
+ */
+async function appendPersonalTaughtLane(
+  orgId:        string,
+  agentClass:   string,
+  callerUserId: string,
+  netHelpfulResult: MemoryBullet[],
+): Promise<void> {
+  try {
+    const laneBudget = personalTaughtLaneBudget();
+    const rows = await prisma.$queryRawUnsafe<HardRuleRow[]>(`
+      SELECT id, rule_text, rule_type,
+             confidence::float AS confidence,
+             helpful_count, harmful_count
+      FROM platform_agent_memory
+      WHERE
+        org_id      = $1
+        AND agent_class = $2
+        AND status      = 'ACTIVE'
+        AND rule_type   = 'SCHEMA_MAP'
+        AND visibility  = 'personal'
+        AND created_by  = $3
+      ORDER BY created_at DESC
+      LIMIT $4
+    `, orgId, agentClass, callerUserId, PERSONAL_TAUGHT_LANE_CAP);
+
+    const already = new Set(netHelpfulResult.map((b) => b.id));
+    let laneUsed = 0;
+    for (const row of rows) {
+      if (already.has(row.id)) continue; // already surfaced by the net-helpful pass
+      const tokens = estimateTokens(row.rule_text);
+      if (laneUsed + tokens > laneBudget && laneUsed > 0) break;
+      netHelpfulResult.push({
+        id:           row.id,
+        ruleText:     row.rule_text,
+        ruleType:     row.rule_type,
+        confidence:   parseConfidence(row.confidence),
+        helpfulCount: Number(row.helpful_count),
+        harmfulCount: Number(row.harmful_count),
+      });
+      already.add(row.id);
+      laneUsed += tokens;
+    }
+  } catch (err) {
+    console.warn('[memory/retrieve] personal-taught lane failed (non-fatal):', err instanceof Error ? err.message : String(err));
   }
 }
 

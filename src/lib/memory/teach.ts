@@ -22,9 +22,23 @@
  *
  * RULE TYPE — why SCHEMA_MAP by default: retrieval injects Phase 0 HARD_RULEs
  * only once they have a real harmful hit (PHASE0_MIN_HARMFUL=1), so a freshly
- * taught HARD_RULE would never surface. Phase 1a SCHEMA_MAP bullets with a NULL
- * task_signature are injected globally with no confidence/harmful gate — the
- * only path that makes a brand-new standing rule reliably "apply for everyone".
+ * taught HARD_RULE would never surface. Phase 1a SCHEMA_MAP bullets are the
+ * right lane instead — no confidence/harmful GATE blocks them.
+ *
+ * CORRECTION (Teach Phase 2, from the 142a020 live run): an earlier version of
+ * this header claimed a null-signature SCHEMA_MAP "is injected globally … the
+ * only path that makes a brand-new standing rule reliably 'apply for everyone'."
+ * The live run DISPROVED that on two counts:
+ *   1. Not "for everyone" — teachRule writes a PERSONAL rule (visibility='personal',
+ *      created_by=you); it applies to the author's own sessions until promoteRuleToOrg.
+ *   2. Not "reliably" injected — Phase 1a is ranked by confidence × net-helpful and
+ *      LIMIT-capped (cap 10). A fresh bullet scores 0 (helpful_count=0) and is
+ *      truncated below the cap in any mature org (DEFAULT_ORG: 149 bullets fill the
+ *      slots). It sat in the table but never reached the assembled prompt.
+ * Retrieval now carries a small additive personal-taught lane (retrieve.ts,
+ * appendPersonalTaughtLane) that recalls the author's own taught rules alongside
+ * the net-helpful set. So a taught rule reliably recalls FOR ITS AUTHOR — not for
+ * everyone (that still requires promotion to org-wide).
  */
 
 import 'server-only';

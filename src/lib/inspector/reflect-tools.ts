@@ -293,6 +293,177 @@ export function isVisibleToCaller(
  */
 export const CAPTURE_CREDITS_REPUTATION = false;
 
+// ── Phase 2, Step 3 — verify → learning-state mapping ───────────────────────────
+
+/**
+ * Map a verification outcome onto the learning-card state machine.
+ *
+ * Only a CONFIRMED read-only result advances a learning to 'verified'. An
+ * unconfirmed (0-row) or not_verifiable (ungoverned / model-not-found / no
+ * connection) result is an honest NON-confirming state — it stays 'proposed'
+ * (advisory; the shared verification-tiering rule keeps it promotable-later, it
+ * does NOT reject or block the learning). Verification never gates capture.
+ */
+export function learningStateForVerification(result: VerificationResult): LearningState {
+  return result.ok && result.state === 'confirmed' ? 'verified' : 'proposed';
+}
+
+// ── Phase 2, Step 2 — conflict detection (pure, deterministic default) ──────────
+
+const CONFLICT_MONTHS = [
+  'january', 'february', 'march', 'april', 'may', 'june', 'july',
+  'august', 'september', 'october', 'november', 'december',
+];
+// A negation/exclusion flip on a shared subject is a contradiction signal.
+const CONFLICT_NEGATIONS = ['not', 'never', 'no', "n't", 'exclude', 'excluding', 'without', 'omit', 'ignore'];
+const CONFLICT_STOP = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'to', 'of', 'in', 'on', 'for',
+  'and', 'or', 'we', 'our', 'us', 'you', 'when', 'means', 'mean', 'that', 'this', 'it',
+  'as', 'by', 'with', 'always', 'should', 'must', 'from', 'at', 'they', 'them',
+]);
+
+function conflictTokens(s: string): string[] {
+  return s.toLowerCase().replace(/[^a-z0-9'=]+/g, ' ').split(' ').filter(Boolean);
+}
+function conflictContentWords(tokens: string[]): Set<string> {
+  // Strip an `=value` suffix so `status='a'` and `status='active'` both
+  // contribute the SUBJECT token `status` to the overlap — the differing value
+  // is then judged separately by conflictAssignmentValues.
+  return new Set(
+    tokens
+      .map((t) => { const eq = t.indexOf('='); return eq >= 0 ? t.slice(0, eq) : t; })
+      .filter((t) => !CONFLICT_STOP.has(t) && t.length > 1),
+  );
+}
+function conflictJaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  const uni = new Set([...a, ...b]).size;
+  return uni === 0 ? 0 : inter / uni;
+}
+function conflictMonth(tokens: string[]): string | null {
+  return tokens.find((t) => CONFLICT_MONTHS.includes(t)) ?? null;
+}
+/** Values on the RHS of an assignment token like `status='a'` or `type=t`. */
+function conflictAssignmentValues(tokens: string[]): string[] {
+  const out: string[] = [];
+  for (const t of tokens) {
+    const eq = t.indexOf('=');
+    if (eq >= 0 && eq < t.length - 1) out.push(t.slice(eq + 1).replace(/'/g, ''));
+  }
+  return out;
+}
+function conflictNumbers(tokens: string[]): string[] {
+  return tokens.filter((t) => /^\d+$/.test(t));
+}
+function conflictHasNegation(tokens: string[]): boolean {
+  return tokens.some((t) => CONFLICT_NEGATIONS.includes(t));
+}
+
+/**
+ * Deterministic, PRECISION-oriented contradiction check between two standing
+ * statements about the same subject. Returns a human note when they contradict.
+ *
+ * Fires only when the two statements clearly concern the SAME subject (content-
+ * word overlap) AND disagree on a DECISIVE token: a differing month, a differing
+ * assignment value (status='A' vs status='ACTIVE'), a differing standalone
+ * number, or a negation/exclusion flip. Precision over recall by design — a
+ * missed contradiction is caught later at Build review, whereas a false conflict
+ * wrongly stalls a capture-advance. Injectable (ReflectToolDeps.detectConflict)
+ * so a future LLM-backed detector can raise recall without touching callers.
+ */
+export function detectStatementConflict(
+  newStatement: string,
+  existingStatement: string,
+): { conflict: boolean; note?: string } {
+  const nt = conflictTokens(newStatement);
+  const et = conflictTokens(existingStatement);
+  const overlap = conflictJaccard(conflictContentWords(nt), conflictContentWords(et));
+  if (overlap < 0.4) return { conflict: false };
+
+  const nMonth = conflictMonth(nt), eMonth = conflictMonth(et);
+  if (nMonth && eMonth && nMonth !== eMonth) {
+    return { conflict: true, note: `same subject, differing month (${eMonth} → ${nMonth})` };
+  }
+
+  const nVals = conflictAssignmentValues(nt), eVals = conflictAssignmentValues(et);
+  if (nVals.length > 0 && eVals.length > 0) {
+    const differ = nVals.some((v) => !eVals.includes(v)) || eVals.some((v) => !nVals.includes(v));
+    if (differ) return { conflict: true, note: `same subject, differing value (${eVals.join(',')} → ${nVals.join(',')})` };
+  }
+
+  const nNums = conflictNumbers(nt), eNums = conflictNumbers(et);
+  if (nNums.length > 0 && eNums.length > 0) {
+    const differ = nNums.join(',') !== eNums.join(',');
+    if (differ) return { conflict: true, note: `same subject, differing number (${eNums.join(',')} → ${nNums.join(',')})` };
+  }
+
+  if (overlap >= 0.5 && conflictHasNegation(nt) !== conflictHasNegation(et)) {
+    return { conflict: true, note: 'same subject, negation/exclusion flipped' };
+  }
+
+  return { conflict: false };
+}
+
+/**
+ * Default conflict detector: diff a new statement against recalled memory and
+ * return the FIRST contradicting hit as a ConflictInfo. Null when nothing
+ * contradicts. (The just-written rule must be excluded from `hits` by the caller
+ * so a learning never conflicts with itself.)
+ */
+export function defaultDetectConflict(
+  newStatement: string,
+  hits: RelatedMemoryHit[],
+): ConflictInfo | null {
+  for (const h of hits) {
+    const { conflict, note } = detectStatementConflict(newStatement, h.ruleText);
+    if (conflict) {
+      return { existingMemoryId: h.id, existingStatement: h.ruleText, note };
+    }
+  }
+  return null;
+}
+
+// ── Phase 2, Step 2 — conflict resolution capture (no governed write) ───────────
+
+export const CONFLICT_RESOLUTION_CHOICES = ['keep_new', 'keep_existing', 'scope_by_context'] as const;
+export type ConflictChoice = (typeof CONFLICT_RESOLUTION_CHOICES)[number];
+
+/** The captured user decision on a conflict. Recorded as a learning outcome —
+ *  NOT a governed-memory write (Build commits later). */
+export interface ConflictResolution {
+  choice: ConflictChoice;
+  /** For scope_by_context: the disambiguating context the user supplied. */
+  scopeNote?: string;
+  resolvedAt: string;
+}
+
+/**
+ * Capture the user's resolution of a conflicted learning and advance the card —
+ * WITHOUT promoting or writing governed memory (that is Build's job; there is no
+ * auto-supersede here). Pure state transition + a recorded outcome:
+ *   keep_new / scope_by_context → learning advances out of 'conflict' to 'proposed'
+ *   keep_existing               → the new learning is 'rejected' (user kept prior)
+ * The conflict field is retained on the learning so the resolution stays auditable.
+ */
+export function resolveConflict(
+  learning: Learning,
+  choice: ConflictChoice,
+  opts: { scopeNote?: string; resolvedAt?: string } = {},
+): { learning: Learning; resolution: ConflictResolution } {
+  const resolution: ConflictResolution = {
+    choice,
+    scopeNote: opts.scopeNote,
+    resolvedAt: opts.resolvedAt ?? new Date().toISOString(),
+  };
+  const nextState: LearningState = choice === 'keep_existing' ? 'rejected' : 'proposed';
+  return {
+    learning: { ...learning, state: nextState },
+    resolution,
+  };
+}
+
 // ── Dependency-injected engine seams ────────────────────────────────────────────
 
 export interface ReflectToolContext {
@@ -313,6 +484,13 @@ export interface ReflectToolDeps {
     args: ReturnType<typeof mapCaptureToTeachArgs>,
   ) => Promise<{ id: string; ruleText: string; ruleType: string }>;
   verify: (query: SemanticQuery, connectionId: string) => Promise<{ rowCount: number; sql: string }>;
+  /**
+   * Phase 2, Step 2 — conflict detector. Diffs a new statement against recalled
+   * memory and returns the contradicting hit (or null). Injectable so the default
+   * deterministic heuristic can be swapped for an LLM-backed detector without
+   * touching the dispatcher. The default is defaultDetectConflict.
+   */
+  detectConflict: (newStatement: string, hits: RelatedMemoryHit[]) => Promise<ConflictInfo | null>;
   /**
    * Reputation-credit hook. Present so the timing decision is EXPLICIT and
    * testable — Phase 1 never invokes it on capture (see CAPTURE_CREDITS_REPUTATION).
@@ -358,6 +536,7 @@ const DEFAULT_DEPS: ReflectToolDeps = {
     const res = await executeSemanticQuery(query, connectionId);
     return { rowCount: res.rowCount, sql: res.sql };
   },
+  detectConflict: async (newStatement, hits) => defaultDetectConflict(newStatement, hits),
   // credit intentionally undefined — capture does not credit in Phase 1.
 };
 
@@ -423,12 +602,33 @@ export async function executeReflectTool(
       // credit here, even though a credit hook may be injected. Build promotes.
       // (CAPTURE_CREDITS_REPUTATION === false — the hook stays uncalled.)
 
+      // ── Phase 2, Step 2 — recall + conflict detection (ADVISORY) ─────────────
+      // Capture has ALREADY succeeded (the row is written). Recall the caller's
+      // own memory (Step-1 personal lane makes their fresh rules visible) and diff
+      // the new statement against it. On contradiction the learning is emitted in
+      // 'conflict' state for user resolution — but the memory row STANDS: conflict
+      // never un-writes a capture (C2). Recall/detect failures are swallowed so a
+      // transient recall error can never sink a successful capture.
+      let hits: RelatedMemoryHit[] = [];
+      let conflict: ConflictInfo | null = null;
+      try {
+        const recalled = await d.recall(ctx.orgId, agentClass, statement, ctx.userId);
+        // Exclude the just-written rule so a learning never conflicts with itself.
+        hits = recalled.filter((h) => h.id !== rule.id);
+        conflict = await d.detectConflict(statement, hits);
+      } catch (recallErr) {
+        console.warn('[reflect-tools] recall/conflict-detect failed (non-fatal, capture stands):',
+          recallErr instanceof Error ? recallErr.message : String(recallErr));
+      }
+
       const learning = buildLearning({
         id: callId,
         type: learningType,
         statement,
         memoryId: rule.id,
-        state: 'proposed',
+        state: conflict ? 'conflict' : 'proposed',
+        related_memory_hits: hits,
+        conflict,
       });
       const event: LearningItemEvent = { type: 'learning_item', learning };
       emit(event as unknown as Record<string, unknown>);
@@ -449,8 +649,9 @@ export async function executeReflectTool(
         state: 'not_verifiable',
         reason: 'No active governed connection to verify against.',
       };
-      emit({ type: 'verification_result', callId, result });
-      return JSON.stringify({ ok: false, result });
+      const learningState = learningStateForVerification(result);
+      emit({ type: 'verification_result', callId, result, learningState });
+      return JSON.stringify({ ok: false, result, learningState });
     }
     try {
       const res = await d.verify(query, ctx.connectionId);
@@ -460,11 +661,17 @@ export async function executeReflectTool(
         rowCount: res.rowCount,
         sql: res.sql,
       };
-      emit({ type: 'verification_result', callId, result });
-      return JSON.stringify({ ok: true, result });
+      // Phase 2, Step 3 — attach the card-state transition the Phase-4 rail binds:
+      // a CONFIRMED result advances the learning proposed → verified; a 0-row
+      // (unconfirmed) result stays 'proposed' (honest, advisory, promotable-later).
+      const learningState = learningStateForVerification(result);
+      emit({ type: 'verification_result', callId, result, learningState });
+      return JSON.stringify({ ok: true, result, learningState });
     } catch (err) {
       // Governed-only gate (and validation/draft-access) surface as a TYPED state,
-      // never a 500 — Phase 1 just proves it doesn't throw uncaught. Full UX = Phase 2.
+      // never a 500. A candidate/draft model → SemanticModelNotGovernedError →
+      // 'not_verifiable'; capture is never gated on this (C2). model-not-found
+      // (Prisma NotFound) falls through the same typed path.
       let reason = err instanceof Error ? err.message : 'verification failed';
       if (
         err instanceof SemanticModelNotGovernedError ||
@@ -474,8 +681,9 @@ export async function executeReflectTool(
         reason = err.message;
       }
       const result: VerificationResult = { ok: false, state: 'not_verifiable', reason };
-      emit({ type: 'verification_result', callId, result });
-      return JSON.stringify({ ok: false, result });
+      const learningState = learningStateForVerification(result);
+      emit({ type: 'verification_result', callId, result, learningState });
+      return JSON.stringify({ ok: false, result, learningState });
     }
   }
 
