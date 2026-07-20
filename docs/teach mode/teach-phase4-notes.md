@@ -98,3 +98,11 @@ Removed from `globals.css`: the `.teach-surface { --tm-* }` and
 - `tsc --noEmit` and `eslint` clean for the Teach surface.
 - Remaining: live side-by-side of `/agent-lab/teach` vs `/teach/digest` in app light AND
   dark via the global toggle (requires the running app + auth/Bedrock).
+
+## Fast-follows (Phase 4.1 — not blocking the Phase 4 merge)
+The five live-pass checks (event-driven rail, Reflect decline, honest verify states,
+conflict→resolve→gone-from-recall, native theming) are closed. These two items are
+deferred, not regressions:
+- **Session history** — list/resume past Teach sessions. Net-new; never in Phase 4 scope.
+- **UI polish** — spacing, copy, and chip-state refinements (specific items to be
+  enumerated during 4.1). Cosmetic, no correctness impact.
