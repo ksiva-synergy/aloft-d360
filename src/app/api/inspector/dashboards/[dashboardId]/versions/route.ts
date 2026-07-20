@@ -18,6 +18,10 @@ import {
   validateWidgetReferences,
   computeMeasureSnapshots,
 } from '@/lib/dashboards/governance';
+import {
+  resolveModelConnection,
+  DashboardModelConnectionConflictError,
+} from '@/lib/dashboards/connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +120,23 @@ export async function POST(
           );
         }
       }
+    }
+
+    // ── Issue #3 — same-model⇒same-connection guard (save chokepoint) ─────────
+    // Model binding happens at create (this route never rebinds model_id or
+    // connection_id — see Task-1 delta), so on data created after issue #3 this
+    // is always consistent. It runs here as defense-in-depth against a dashboard
+    // whose stored connection diverged from its model's canonical connection
+    // out-of-band (e.g. a legacy row backfilled before the guard, or a future
+    // deferred-bind path) — reusing the SINGLE resolveModelConnection choke point
+    // so a divergent dashboard is caught before it snapshots another version.
+    try {
+      await resolveModelConnection(dashboard.model_id, dashboard.connection_id);
+    } catch (e) {
+      if (e instanceof DashboardModelConnectionConflictError) {
+        return NextResponse.json({ error: e.message }, { status: 409 });
+      }
+      throw e;
     }
 
     // ── 2. Cross-model widget reference validation ────────────────────────────

@@ -35,6 +35,91 @@ export class DashboardConnectionUnboundError extends Error {
   }
 }
 
+/**
+ * Thrown at bind time (issue #3) when a dashboard would bind a model to a
+ * connection that differs from the one an existing dashboard already bound for
+ * that same model.
+ *
+ * DEC-1 keeps `connection_id` PER-DASHBOARD, so the schema cannot express "all
+ * dashboards on model X share connection Y" — nothing stops two dashboards on
+ * one model from pointing at different warehouses and silently disagreeing on
+ * the same numbers. `resolveModelConnection` enforces that invariant at the
+ * application layer; this typed error is how a genuine divergence surfaces to
+ * the caller (a loud reject, never a silent store).
+ */
+export class DashboardModelConnectionConflictError extends Error {
+  constructor(
+    public readonly modelId: string,
+    public readonly boundConnectionId: string,
+    public readonly suppliedConnectionId: string,
+  ) {
+    super(
+      `Model '${modelId}' is already bound to connection '${boundConnectionId}' by ` +
+        `an existing dashboard; refusing to bind another dashboard on the same ` +
+        `model to a different connection '${suppliedConnectionId}'. All dashboards ` +
+        `on one model must share a connection so their numbers agree (DEC-1).`,
+    );
+    this.name = 'DashboardModelConnectionConflictError';
+  }
+}
+
+/**
+ * Resolve the Databricks connection a dashboard must bind for `modelId`,
+ * enforcing the DEC-1 invariant that every dashboard on one model shares one
+ * connection (issue #3 — the bind-time guard).
+ *
+ * The per-dashboard schema permits a reachable violation: two dashboards on the
+ * same model with different connections. This is the single choke point both
+ * binding paths (create + save) call so the invariant is enforced application-
+ * side rather than left to the incidental fact that connection resolution is
+ * deterministic today.
+ *
+ * Rules:
+ *  - If a non-deleted dashboard in the org already binds `modelId`, the earliest
+ *    such dashboard's connection is CANONICAL. It is returned (inherited). If
+ *    `supplied` is given and DIFFERS from it, throw
+ *    DashboardModelConnectionConflictError (reject, never silently store).
+ *  - If no dashboard yet binds `modelId`, `supplied` stands and becomes the
+ *    canonical connection for that model. `supplied` is required in that case —
+ *    there is nothing to inherit, so a missing value is a programming error.
+ *
+ * Org-scoped via getDefaultOrg() and soft-delete-aware, matching every other
+ * dashboard access path in this module.
+ */
+export async function resolveModelConnection(
+  modelId: string,
+  supplied?: string,
+): Promise<string> {
+  const org = await getDefaultOrg();
+
+  // Earliest-created dashboard on this model is the canonical connection holder.
+  const existing = await prisma.platform_dashboards.findFirst({
+    where: { org_id: org.id, model_id: modelId, deleted_at: null },
+    orderBy: { created_at: 'asc' },
+    select: { connection_id: true },
+  });
+
+  if (existing) {
+    if (supplied && supplied !== existing.connection_id) {
+      throw new DashboardModelConnectionConflictError(
+        modelId,
+        existing.connection_id,
+        supplied,
+      );
+    }
+    return existing.connection_id;
+  }
+
+  // First dashboard to bind this model — the supplied/default connection stands.
+  if (!supplied) {
+    throw new Error(
+      `resolveModelConnection: model '${modelId}' has no bound dashboard yet and ` +
+        `no connection was supplied to establish the canonical binding.`,
+    );
+  }
+  return supplied;
+}
+
 export interface DashboardExecutionContext {
   dashboardId: string;
   /** platform_dashboards.model_id — the ONLY model widgets may execute against. */

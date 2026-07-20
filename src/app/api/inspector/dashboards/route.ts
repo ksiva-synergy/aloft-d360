@@ -9,6 +9,10 @@ import {
   coerceVisibility,
 } from '@/lib/dashboards/permissions';
 import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import {
+  resolveModelConnection,
+  DashboardModelConnectionConflictError,
+} from '@/lib/dashboards/connection';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,17 +194,34 @@ export async function POST(request: NextRequest) {
     const visibility = coerceVisibility(body.visibility);
 
     // DEC-1: dashboards bind a Databricks connection at creation (connection_id
-    // is NOT NULL). Resolve it the same way the Inspector chat does — the
-    // tool_catalog 'synergy_dwh' entry's config.connection_id points at a
+    // is NOT NULL). Resolve the default the same way the Inspector chat does —
+    // the tool_catalog 'synergy_dwh' entry's config.connection_id points at a
     // platform_databricks_connections row. This is what the Phase 0 backfill used.
     const catalogEntry = await resolveToolCatalogEntry('synergy_dwh');
-    const connectionId =
+    const defaultConnectionId =
       (catalogEntry?.config as Record<string, unknown> | null)?.connection_id;
-    if (typeof connectionId !== 'string' || !connectionId) {
+    if (typeof defaultConnectionId !== 'string' || !defaultConnectionId) {
       return NextResponse.json(
         { error: 'No Databricks connection is configured for dashboards' },
         { status: 500 },
       );
+    }
+
+    // Issue #3 — bind-time guard: the per-dashboard schema (DEC-1) can't express
+    // "same model ⇒ same connection", so enforce it here. If another dashboard
+    // already binds this model, inherit its (canonical) connection; a differing
+    // supplied value is a genuine invariant violation and is rejected below.
+    let connectionId: string;
+    try {
+      connectionId = await resolveModelConnection(modelId, defaultConnectionId);
+    } catch (e) {
+      if (e instanceof DashboardModelConnectionConflictError) {
+        return NextResponse.json(
+          { error: e.message },
+          { status: 409 },
+        );
+      }
+      throw e;
     }
 
     const dashboard = await prisma.platform_dashboards.create({
