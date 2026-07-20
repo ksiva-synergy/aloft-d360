@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Eye, Pencil, Send, Trash2 } from 'lucide-react';
 import { DefineMetricPanel, type DefineMetricEdit } from './DefineMetricPanel';
+import type { AuthoringScope } from './scope';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = '#FDB515';
@@ -25,36 +26,53 @@ interface DraftDimension {
   format_hint: string | null; nl_intent: string | null; status: string;
 }
 interface DraftEntityGroup {
+  modelId: string; modelName: string;
   entityId: string; entityLabel: string; dimensions: DraftDimension[]; measures: DraftMeasure[];
 }
 
 type PanelState =
-  | { mode: 'new' }
-  | { mode: 'edit' | 'preview'; edit: DefineMetricEdit }
+  | { mode: 'new'; modelId: string }
+  | { mode: 'edit' | 'preview'; edit: DefineMetricEdit; modelId: string }
   | null;
 
 interface MyDraftsSectionProps {
-  modelId: string;
+  /** Where drafts come from: one session model, or the whole org (W1). */
+  scope: AuthoringScope;
+  /**
+   * Target model for a NEW draft ("Define a Metric"). In model scope this is the
+   * session model; in org scope it's the route's selected authoring model. When
+   * absent (org scope with no models yet) the New-Metric button is disabled.
+   */
+  authorModelId?: string;
 }
 
 /**
  * "My Drafts" — the owner-scoped section of the governance panel (Phase 3.5B,
  * deliverable 5). Shows only the current user's draft definitions and makes the
  * lifecycle legible: My Drafts (private) → Candidates (in review) → Governed.
- * Fetches GET /drafts (server enforces created_by === caller, status = draft).
+ *
+ * Owner-scoping is enforced server-side (created_by === caller, status = draft).
+ * The list source depends on `scope`: a single model's /drafts, or the org-wide
+ * /my-drafts aggregate. Either way each group carries its own modelId, so
+ * submit/delete/edit route to the right per-model handler regardless of scope.
  */
-export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
+export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) {
   const [groups, setGroups] = useState<DraftEntityGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // definitionId being acted on
   const [panel, setPanel] = useState<PanelState>(null);
+  const isOrg = scope.kind === 'org';
+
+  const listUrl = scope.kind === 'model'
+    ? `/api/inspector/semantic/${scope.modelId}/drafts`
+    : `/api/inspector/semantic/my-drafts`;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/inspector/semantic/${modelId}/drafts`);
+      const res = await fetch(listUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = (await res.json()) as { entities: DraftEntityGroup[] };
       setGroups(json.entities ?? []);
@@ -63,14 +81,14 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
     } finally {
       setLoading(false);
     }
-  }, [modelId]);
+  }, [listUrl]);
 
   useEffect(() => { load(); }, [load]);
 
-  const submitDraft = useCallback(async (id: string, tableKind: 'measure' | 'dimension') => {
+  const submitDraft = useCallback(async (defModelId: string, id: string, tableKind: 'measure' | 'dimension') => {
     setBusy(id);
     try {
-      const res = await fetch(`/api/inspector/semantic/${modelId}/submit`, {
+      const res = await fetch(`/api/inspector/semantic/${defModelId}/submit`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ definitionIds: [id], tableKind }),
       });
@@ -84,12 +102,12 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
     } finally {
       setBusy(null);
     }
-  }, [modelId, load]);
+  }, [load]);
 
-  const deleteDraft = useCallback(async (id: string, tableKind: 'measure' | 'dimension') => {
+  const deleteDraft = useCallback(async (defModelId: string, id: string, tableKind: 'measure' | 'dimension') => {
     setBusy(id);
     try {
-      const res = await fetch(`/api/inspector/semantic/${modelId}/archive`, {
+      const res = await fetch(`/api/inspector/semantic/${defModelId}/archive`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ definitionIds: [id], tableKind }),
       });
@@ -103,7 +121,7 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
     } finally {
       setBusy(null);
     }
-  }, [modelId, load]);
+  }, [load]);
 
   const editForMeasure = (g: DraftEntityGroup, m: DraftMeasure): DefineMetricEdit => ({
     tableKind: 'measure', id: m.id, entityId: g.entityId,
@@ -128,13 +146,15 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
           {totalDrafts > 0 && <span style={{ ...mono, fontSize: 9, color: MUTED }}>({totalDrafts})</span>}
         </div>
         <button
-          onClick={() => setPanel({ mode: 'new' })}
-          title="Define a new metric"
+          onClick={() => { if (authorModelId) setPanel({ mode: 'new', modelId: authorModelId }); }}
+          disabled={!authorModelId}
+          title={authorModelId ? 'Define a new metric' : 'No semantic model available to author against yet'}
           style={{
             ...mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
             display: 'inline-flex', alignItems: 'center', gap: 5,
-            background: GOLD, color: NAVY, border: 'none', borderRadius: 4, padding: '5px 11px',
-            cursor: 'pointer', fontWeight: 600,
+            background: authorModelId ? GOLD : 'transparent', color: authorModelId ? NAVY : MUTED,
+            border: authorModelId ? 'none' : `1px solid ${DRAFT_BD}`, borderRadius: 4, padding: '5px 11px',
+            cursor: authorModelId ? 'pointer' : 'default', fontWeight: 600,
           }}
         >
           <Plus size={12} /> Define a Metric
@@ -159,7 +179,10 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
 
       {groups.map((g) => (
         <div key={g.entityId} style={{ marginBottom: 8 }}>
-          <div style={{ ...mono, fontSize: 9, color: MUTED, marginBottom: 4 }}>{g.entityLabel}</div>
+          <div style={{ ...mono, fontSize: 9, color: MUTED, marginBottom: 4 }}>
+            {g.entityLabel}
+            {isOrg && <span style={{ opacity: 0.6 }}> · {g.modelName}</span>}
+          </div>
           {g.measures.map((m) => (
             <DraftRow
               key={m.id}
@@ -167,10 +190,10 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
               subtitle={m.nl_intent}
               typeTag={m.metric_type}
               busy={busy === m.id}
-              onPreview={() => setPanel({ mode: 'preview', edit: editForMeasure(g, m) })}
-              onEdit={() => setPanel({ mode: 'edit', edit: editForMeasure(g, m) })}
-              onSubmit={() => submitDraft(m.id, 'measure')}
-              onDelete={() => deleteDraft(m.id, 'measure')}
+              onPreview={() => setPanel({ mode: 'preview', edit: editForMeasure(g, m), modelId: g.modelId })}
+              onEdit={() => setPanel({ mode: 'edit', edit: editForMeasure(g, m), modelId: g.modelId })}
+              onSubmit={() => submitDraft(g.modelId, m.id, 'measure')}
+              onDelete={() => deleteDraft(g.modelId, m.id, 'measure')}
             />
           ))}
           {g.dimensions.map((d) => (
@@ -180,10 +203,10 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
               subtitle={d.nl_intent}
               typeTag={`dim · ${d.dimension_type}`}
               busy={busy === d.id}
-              onPreview={() => setPanel({ mode: 'preview', edit: editForDimension(g, d) })}
-              onEdit={() => setPanel({ mode: 'edit', edit: editForDimension(g, d) })}
-              onSubmit={() => submitDraft(d.id, 'dimension')}
-              onDelete={() => deleteDraft(d.id, 'dimension')}
+              onPreview={() => setPanel({ mode: 'preview', edit: editForDimension(g, d), modelId: g.modelId })}
+              onEdit={() => setPanel({ mode: 'edit', edit: editForDimension(g, d), modelId: g.modelId })}
+              onSubmit={() => submitDraft(g.modelId, d.id, 'dimension')}
+              onDelete={() => deleteDraft(g.modelId, d.id, 'dimension')}
             />
           ))}
         </div>
@@ -191,7 +214,7 @@ export function MyDraftsSection({ modelId }: MyDraftsSectionProps) {
 
       {panel && (
         <DefineMetricPanel
-          modelId={modelId}
+          modelId={panel.modelId}
           edit={panel.mode === 'new' ? undefined : panel.edit}
           autoPreview={panel.mode === 'preview'}
           onSaved={load}

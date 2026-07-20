@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { MyDraftsSection } from './authoring/MyDraftsSection';
 import { SynonymEditor } from './authoring/SynonymEditor';
 import { WhatIveTaughtSection } from './authoring/WhatIveTaughtSection';
+import type { AuthoringScope } from './authoring/scope';
 
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = '#FDB515';
@@ -448,10 +449,21 @@ function EntityCard({
 // ── SemanticGovernancePanel ───────────────────────────────────────────────────
 
 interface SemanticGovernancePanelProps {
+  /** The model whose governance queue (+ header stats, promote/archive) is shown. */
   modelId: string;
+  /**
+   * Where My Drafts / What I've Taught source their data. Defaults to this model
+   * (in-session behaviour). The standalone /agent-lab/metrics route passes
+   * { kind: 'org' } so those two sections aggregate across every model (W1).
+   */
+  authoringScope?: AuthoringScope;
+  /** Target model for a NEW draft. Defaults to `modelId`. */
+  authorModelId?: string;
 }
 
-export function SemanticGovernancePanel({ modelId }: SemanticGovernancePanelProps) {
+export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId }: SemanticGovernancePanelProps) {
+  const scope: AuthoringScope = authoringScope ?? { kind: 'model', modelId };
+  const authorTarget = authorModelId ?? modelId;
   const [data, setData] = useState<ReviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -604,11 +616,11 @@ export function SemanticGovernancePanel({ modelId }: SemanticGovernancePanelProp
         {/* My Drafts — owner-scoped authoring surface (Phase 3.5B). Lives above
             the shared candidate/governed sections; the lifecycle reads top-down:
             My Drafts (yours, private) → Candidates (in review) → Governed. */}
-        <MyDraftsSection modelId={modelId} />
+        <MyDraftsSection scope={scope} authorModelId={authorTarget} />
 
         {/* What I've taught + coaching (Phase 3.5D) — the loop-legible payoff:
             metrics, synonyms, standing rules (teach/promote/retire), SQL charts. */}
-        <WhatIveTaughtSection modelId={modelId} />
+        <WhatIveTaughtSection scope={scope} />
 
         <div style={{ ...mono, fontSize: 10, letterSpacing: '0.10em', color: MUTED, margin: '4px 0 8px' }}>
           GOVERNANCE QUEUE

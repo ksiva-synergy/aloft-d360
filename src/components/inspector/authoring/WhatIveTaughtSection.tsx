@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { GraduationCap, Plus, ArrowUpCircle, X, Tag, Ruler, MessageSquareText, Code2, ChevronDown } from 'lucide-react';
+import type { AuthoringScope } from './scope';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const SANS: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
@@ -27,20 +28,26 @@ interface ContribData { definitions: ContribDefinition[]; synonyms: ContribSynon
  *
  * Impact counters ("answered N questions") are deferred — the list is the MVP.
  */
-export function WhatIveTaughtSection({ modelId }: { modelId: string }) {
+export function WhatIveTaughtSection({ scope }: { scope: AuthoringScope }) {
   const [data, setData] = useState<ContribData | null>(null);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // One session model's contributions, or the org-wide aggregate (W1). Same
+  // response shape either way, so the rendering below is scope-agnostic.
+  const feedUrl = scope.kind === 'model'
+    ? `/api/inspector/semantic/${scope.modelId}/contributions`
+    : `/api/inspector/semantic/my-contributions`;
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/inspector/semantic/${modelId}/contributions`);
+      const res = await fetch(feedUrl);
       if (res.ok) setData((await res.json()) as ContribData);
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
-  }, [modelId]);
+  }, [feedUrl]);
 
   useEffect(() => { if (open && !data) load(); }, [open, data, load]);
 
