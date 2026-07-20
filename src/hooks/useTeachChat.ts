@@ -1,0 +1,333 @@
+'use client';
+
+/**
+ * useTeachChat — Teach Phase 4 client state.
+ *
+ * A focused fork of useInspectorChat. It keeps the same SSE plumbing but points
+ * at /api/inspector/teach (the Reflect loop) and, crucially, maintains a
+ * normalized `learnings` map that the "What Marcus is learning" rail binds to.
+ *
+ * The rail is driven ONLY by typed events — never by scraping the chat text:
+ *   learning_item        → UPSERT a card into `learnings` (keyed by learning.id)
+ *   verification_result  → advance the matching card's state + verification chip
+ *                          (bound by learning.memoryId === event.learningId)
+ *   memory_recall        → attach a "recalled N memories" affordance to the turn
+ *
+ * UPSERT, not append: a learning transitions proposed → verifying → verified /
+ * conflict / rejected via repeated events on the same id (or memoryId). Appending
+ * would show a card twice, reading as "Marcus learned the same thing twice".
+ */
+
+import { useCallback, useRef, useState } from 'react';
+import type {
+  Learning,
+  LearningState,
+  RelatedMemoryHit,
+  VerificationResult,
+} from '@/lib/inspector/reflect-tools';
+
+export type { Learning, LearningState, RelatedMemoryHit, VerificationResult };
+
+/** A single turn in the Teach thread — narrative only (no cards live here). */
+export interface TeachMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  /** e.g. "Follow-up question" / "Verifying a claim" — a colored sub-tag. */
+  subTag?: string;
+  /** Standalone recall_memory affordance surfaced in Marcus's bubble. */
+  recall?: { query: string; count: number; hits: RelatedMemoryHit[] };
+  /** An inline verification chip rendered in the bubble (mockup §5). */
+  verification?: VerificationResult;
+  timestamp: number;
+}
+
+/** Live counters for the session header — derived from the learnings map. */
+export interface TeachCounters {
+  proposed: number;
+  verified: number;
+  pending: number; // currently verifying
+  conflicts: number;
+}
+
+interface UseTeachChatReturn {
+  messages: TeachMessage[];
+  learnings: Record<string, Learning>;
+  /** Insertion order of learning ids, so the rail renders first-seen first. */
+  learningOrder: string[];
+  counters: TeachCounters;
+  isStreaming: boolean;
+  error: string | null;
+  sessionId: string | null;
+  send: (content: string) => void;
+  abort: () => void;
+  reset: () => void;
+  /** Client-transient conflict resolution (no governed write — commit is Build). */
+  resolveLearning: (learningId: string, nextState: LearningState) => void;
+}
+
+function deriveCounters(
+  learnings: Record<string, Learning>,
+  order: string[],
+): TeachCounters {
+  const c: TeachCounters = { proposed: 0, verified: 0, pending: 0, conflicts: 0 };
+  for (const id of order) {
+    const l = learnings[id];
+    if (!l) continue;
+    switch (l.state) {
+      case 'verified': c.verified++; break;
+      case 'verifying': c.pending++; break;
+      case 'conflict': c.conflicts++; break;
+      case 'proposed': c.proposed++; break;
+      // 'rejected' is intentionally not counted in any headline tile.
+    }
+  }
+  return c;
+}
+
+export function useTeachChat(initialSessionId: string | null = null): UseTeachChatReturn {
+  const [messages, setMessages] = useState<TeachMessage[]>([]);
+  const [learnings, setLearnings] = useState<Record<string, Learning>>({});
+  const [learningOrder, setLearningOrder] = useState<string[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId);
+
+  const sessionIdRef = useRef<string | null>(initialSessionId);
+  const abortRef = useRef<AbortController | null>(null);
+  const idCounter = useRef(0);
+  const nextId = () => `teach_${Date.now()}_${++idCounter.current}`;
+
+  /** UPSERT a learning by its id; preserve fields the event omits. */
+  const upsertLearning = useCallback((learning: Learning) => {
+    setLearnings((prev) => ({
+      ...prev,
+      [learning.id]: { ...prev[learning.id], ...learning },
+    }));
+    setLearningOrder((prev) => (prev.includes(learning.id) ? prev : [...prev, learning.id]));
+  }, []);
+
+  /** Patch a card found by its memoryId (verification binds by memoryId). */
+  const patchByMemoryId = useCallback(
+    (memoryId: string | null, patch: Partial<Learning>) => {
+      if (!memoryId) return;
+      setLearnings((prev) => {
+        const entry = Object.values(prev).find((l) => l.memoryId === memoryId);
+        if (!entry) return prev;
+        return { ...prev, [entry.id]: { ...entry, ...patch } };
+      });
+    },
+    [],
+  );
+
+  const doSend = useCallback(async (content: string, sid: string | null) => {
+    const userMsg: TeachMessage = { id: nextId(), role: 'user', content, timestamp: Date.now() };
+    const assistantId = nextId();
+    const assistantMsg: TeachMessage = { id: assistantId, role: 'assistant', content: '', timestamp: Date.now() };
+
+    let history: TeachMessage[] = [];
+    setMessages((prev) => {
+      history = prev;
+      return [...prev, userMsg, assistantMsg];
+    });
+
+    setIsStreaming(true);
+    setError(null);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    // Track which verify_claim call targets which memoryId, so verifying-state
+    // can be applied on tool_call_running (the running event carries the input).
+    const verifyTargets: Record<string, string> = {}; // callId -> learningId
+    let rawContent = '';
+
+    try {
+      const resp = await fetch('/api/inspector/teach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: sid,
+          messages: [...history, userMsg]
+            .filter((m) => m.content?.trim())
+            .map((m) => ({ role: m.role, content: m.content })),
+        }),
+        signal: ctrl.signal,
+      });
+
+      if (!resp.ok || !resp.body) {
+        setError(`Reflect stream error (${resp.status})`);
+        setIsStreaming(false);
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const setAssistant = (patch: Partial<TeachMessage>) =>
+        setMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === assistantId);
+          if (idx < 0) return prev;
+          const next = [...prev];
+          next[idx] = { ...next[idx], ...patch };
+          return next;
+        });
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+          let event: Record<string, unknown>;
+          try { event = JSON.parse(raw); } catch { continue; }
+
+          switch (event.type) {
+            case 'text':
+              rawContent += (event.delta as string) ?? '';
+              setAssistant({ content: sanitize(rawContent) });
+              break;
+
+            case 'tool_call_running': {
+              const toolName = event.toolName as string;
+              if (toolName === 'verify_claim') {
+                const input = event.input as Record<string, unknown> | undefined;
+                const learningId = typeof input?.learningId === 'string' ? input.learningId : null;
+                setAssistant({ subTag: 'Verifying a claim' });
+                if (learningId) {
+                  verifyTargets[event.callId as string] = learningId;
+                  patchByMemoryId(learningId, { state: 'verifying' });
+                }
+              } else if (toolName === 'recall_memory') {
+                setAssistant({ subTag: 'Recalling memory' });
+              }
+              break;
+            }
+
+            case 'learning_item':
+              upsertLearning(event.learning as Learning);
+              break;
+
+            case 'memory_recall':
+              setAssistant({
+                recall: {
+                  query: (event.query as string) ?? '',
+                  count: (event.count as number) ?? 0,
+                  hits: (event.hits as RelatedMemoryHit[]) ?? [],
+                },
+              });
+              break;
+
+            case 'verification_result': {
+              const result = event.result as VerificationResult;
+              const learningState = (event.learningState as LearningState) ?? 'proposed';
+              const learningId =
+                (typeof event.learningId === 'string' ? event.learningId : null) ??
+                verifyTargets[event.callId as string] ??
+                null;
+              // Rail card: bind by memoryId and advance its state + chip.
+              patchByMemoryId(learningId, { verification_result: result, state: learningState });
+              // Thread: also surface the inline verification chip (mockup §5).
+              setAssistant({ verification: result });
+              break;
+            }
+
+            case 'error':
+              setError((event.message as string) ?? 'Reflect stream failed');
+              break;
+
+            case 'done':
+              // Clear any lingering "verifying" sub-tag on the turn.
+              setAssistant({ subTag: undefined });
+              break;
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        setError(err instanceof Error ? err.message : 'Reflect stream failed');
+      }
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
+  }, [patchByMemoryId, upsertLearning]);
+
+  const send = useCallback((content: string) => {
+    const text = content.trim();
+    if (!text) return;
+    setError(null);
+
+    const sid = sessionIdRef.current;
+    if (sid) { void doSend(text, sid); return; }
+
+    // No session yet — create one (mirrors useInspectorChat), then send.
+    fetch('/api/inspector/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: text.slice(0, 80), surface: 'teach' }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((data: { session: { id: string } }) => {
+        const id = data.session.id;
+        setCurrentSessionId(id);
+        sessionIdRef.current = id;
+        void doSend(text, id);
+      })
+      .catch(() => { void doSend(text, null); }); // fall through session-less
+  }, [doSend]);
+
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+    setIsStreaming(false);
+  }, []);
+
+  const reset = useCallback(() => {
+    abortRef.current?.abort();
+    setMessages([]);
+    setLearnings({});
+    setLearningOrder([]);
+    setError(null);
+    setIsStreaming(false);
+    setCurrentSessionId(null);
+    sessionIdRef.current = null;
+    idCounter.current = 0;
+  }, []);
+
+  const resolveLearning = useCallback((learningId: string, nextState: LearningState) => {
+    setLearnings((prev) => {
+      const l = prev[learningId];
+      if (!l) return prev;
+      return { ...prev, [learningId]: { ...l, state: nextState } };
+    });
+  }, []);
+
+  return {
+    messages,
+    learnings,
+    learningOrder,
+    counters: deriveCounters(learnings, learningOrder),
+    isStreaming,
+    error,
+    sessionId: currentSessionId,
+    send,
+    abort,
+    reset,
+    resolveLearning,
+  };
+}
+
+/** Strip the loop's control markup from streamed narrative (mirrors inspector). */
+function sanitize(text: string): string {
+  return text
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?thinking>/gi, '')
+    .replace(/<query_result>[\s\S]*?<\/query_result>/gi, '')
+    .trim();
+}

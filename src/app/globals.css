@@ -1496,3 +1496,26 @@ body {
   --ag-pill-inactive-text: rgba(255,255,255,0.25);
   --ag-pill-inactive-border: rgba(255,255,255,0.08);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Teach ("Marcus Reflect") surface — Phase 4.
+
+   The Teach surface is NATIVE to the app: its components consume the app's own
+   light/dark theme tokens (the `:root` / `.dark` vars above), exactly like its
+   sibling the Teach Digest. There is NO scoped palette here — the earlier
+   prototype `--tm-*` palette was removed. All that remains is (a) a native
+   scrollbar hook and (b) pure-motion keyframes shared by the components.
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Native scoped scrollbar — uses the app's border/muted tokens (theme-aware). */
+.teach-surface ::-webkit-scrollbar { width:10px; height:10px; }
+.teach-surface ::-webkit-scrollbar-thumb { background:var(--border); border-radius:8px; border:3px solid transparent; background-clip:content-box; }
+.teach-surface ::-webkit-scrollbar-track { background:transparent; }
+
+/* Teach animation set — PURE MOTION (tm- prefixed to avoid global collisions).
+   tm-ring emphasizes the "verifying" card; it borrows the app's --primary. */
+@keyframes tm-spin    { to { transform:rotate(360deg); } }
+@keyframes tm-shimmer { 0% { background-position:200% 0; } 100% { background-position:-200% 0; } }
+@keyframes tm-pulse   { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+@keyframes tm-up      { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@keyframes tm-ring    { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); } 100% { box-shadow:0 0 0 7px color-mix(in srgb, var(--primary) 0%, transparent); } }

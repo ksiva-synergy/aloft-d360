@@ -772,7 +772,7 @@ export async function executeReflectTool(
       };
       const learningState = learningStateForVerification(result);
       await maybeAttach(result, learningState);
-      emit({ type: 'verification_result', callId, result, learningState });
+      emit({ type: 'verification_result', callId, learningId, result, learningState });
       return JSON.stringify({ ok: false, result, learningState });
     }
     try {
@@ -788,7 +788,7 @@ export async function executeReflectTool(
       // (unconfirmed) result stays 'proposed' (honest, advisory, promotable-later).
       const learningState = learningStateForVerification(result);
       await maybeAttach(result, learningState);
-      emit({ type: 'verification_result', callId, result, learningState });
+      emit({ type: 'verification_result', callId, learningId, result, learningState });
       return JSON.stringify({ ok: true, result, learningState });
     } catch (err) {
       // Governed-only gate (and validation/draft-access) surface as a TYPED state,
@@ -806,7 +806,7 @@ export async function executeReflectTool(
       const result: VerificationResult = { ok: false, state: 'not_verifiable', reason };
       const learningState = learningStateForVerification(result);
       await maybeAttach(result, learningState);
-      emit({ type: 'verification_result', callId, result, learningState });
+      emit({ type: 'verification_result', callId, learningId, result, learningState });
       return JSON.stringify({ ok: false, result, learningState });
     }
   }
