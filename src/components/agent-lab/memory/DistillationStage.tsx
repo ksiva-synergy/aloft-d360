@@ -789,7 +789,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               y={358 - 152}
               width={76}
               height={152}
-              href="/uploads/keeper.jpg"
+              href="/uploads/keeper.png"
               preserveAspectRatio="xMidYMax meet"
               style={{
                 filter: isLight
