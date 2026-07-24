@@ -80,11 +80,45 @@ describe('builder-store — blueprint curate ops mutate ONLY the blueprint', () 
     expect(useBuilderStore.getState().guidedSession.blueprint!.items.map((i) => i.id)).toEqual(['a', 'b', 'c', 'd']);
   });
 
+  it('updateBlueprintItem patches one item in place, leaving the rest intact', () => {
+    useBuilderStore.getState().updateBlueprintItem('b', { title: 'Beta v2', rationale: 'new why', chartKindGuess: 'line' });
+    const items = useBuilderStore.getState().guidedSession.blueprint!.items;
+    const b = items.find((i) => i.id === 'b')!;
+    expect(b.title).toBe('Beta v2');
+    expect(b.rationale).toBe('new why');
+    expect(b.chartKindGuess).toBe('line');
+    // order + siblings untouched
+    expect(items.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+    expect(items.find((i) => i.id === 'a')!.title).toBe('Alpha');
+  });
+
+  it('updateBlueprintItem flips an undefined item to grounded (the inline-define path)', () => {
+    useBuilderStore.getState().addBlueprintItem(item('u', 'near-miss rate', 'undefined'));
+    useBuilderStore.getState().updateBlueprintItem('u', {
+      grounding: 'governed',
+      undefinedTerm: undefined,
+      measureIds: ['meas_new'],
+      measureLabels: ['Near-miss rate'],
+      pendingDefinition: { id: 'meas_new', tableKind: 'measure', label: 'Near-miss rate', tier: 'candidate' },
+    });
+    const u = useBuilderStore.getState().guidedSession.blueprint!.items.find((i) => i.id === 'u')!;
+    expect(u.grounding).toBe('governed');
+    expect(u.undefinedTerm).toBeUndefined();
+    expect(u.measureIds).toEqual(['meas_new']);
+    expect(u.pendingDefinition).toEqual({ id: 'meas_new', tableKind: 'measure', label: 'Near-miss rate', tier: 'candidate' });
+  });
+
+  it('updateBlueprintItem is a no-op for an unknown id', () => {
+    useBuilderStore.getState().updateBlueprintItem('nope', { title: 'X' });
+    expect(useBuilderStore.getState().guidedSession.blueprint!.items.map((i) => i.title)).toEqual(['Alpha', 'Beta', 'Gamma']);
+  });
+
   it('no curate op ever creates a widget', () => {
     useBuilderStore.getState().reorderBlueprintItem(0, 1);
     useBuilderStore.getState().renameBlueprintItem('a', 'x');
     useBuilderStore.getState().removeBlueprintItem('c');
     useBuilderStore.getState().addBlueprintItem(item('e', 'Echo'));
+    useBuilderStore.getState().updateBlueprintItem('a', { title: 'y' });
     expect(useBuilderStore.getState().widgets).toEqual([]);
   });
 });

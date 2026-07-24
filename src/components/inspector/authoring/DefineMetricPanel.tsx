@@ -60,11 +60,25 @@ export interface DefineMetricEdit {
   nl_intent?: string | null;
 }
 
+/** What a freshly-created draft definition reports back to its host. */
+export interface CreatedDefinition {
+  id: string;
+  tableKind: 'measure' | 'dimension';
+  label: string;
+  entityId: string;
+}
+
 interface DefineMetricPanelProps {
   modelId: string;
   onClose: () => void;
   /** Called after a successful save (create or edit) so hosts can refresh. */
   onSaved?: () => void;
+  /**
+   * Called ONCE after a successful CREATE (not edit), with the new draft's
+   * identity. Lets a host (e.g. the guided Blueprint) drive the submit/promote
+   * ladder and flip the card to grounded. Optional — existing callers ignore it.
+   */
+  onDefinitionCreated?: (def: CreatedDefinition) => void;
   prefill?: DefineMetricPrefill;
   edit?: DefineMetricEdit;
   /** When editing, run the preview automatically once metadata has loaded. */
@@ -81,7 +95,7 @@ interface PreviewState {
   pairMeasureId: string | null;
 }
 
-export function DefineMetricPanel({ modelId, onClose, onSaved, prefill, edit, autoPreview }: DefineMetricPanelProps) {
+export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreated, prefill, edit, autoPreview }: DefineMetricPanelProps) {
   const isEdit = !!edit;
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -246,6 +260,17 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, prefill, edit, au
       setSavedId(id);
       setSaved(true);
       onSaved?.();
+      // Report the new draft's identity so a host can drive the governance ladder
+      // (guided Blueprint inline-define). Label falls back per kind.
+      if (id) {
+        onDefinitionCreated?.({
+          id,
+          tableKind,
+          label: (tableKind === 'measure' ? measureLabel : dimensionLabel).trim()
+            || (tableKind === 'measure' ? 'Metric' : 'Dimension'),
+          entityId,
+        });
+      }
       return id;
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Save failed');
@@ -255,7 +280,8 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, prefill, edit, au
     }
   }, [
     isEdit, edit, tableKind, modelId, entityId, measureLabel, metricType, aggregate, isColumnMetric,
-    isExpressionMetric, expression, columnName, unit, formatHint, nlIntent, dimensionLabel, dimensionType, onSaved,
+    isExpressionMetric, expression, columnName, unit, formatHint, nlIntent, dimensionLabel, dimensionType,
+    onSaved, onDefinitionCreated,
   ]);
 
   // ── Preview (authoring-mode execution) ───────────────────────────────────────

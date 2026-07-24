@@ -94,6 +94,14 @@ interface BuilderState {
   reorderBlueprintItem: (fromIndex: number, toIndex: number) => void;
   /** Curate: rename an item inline. */
   renameBlueprintItem: (id: string, title: string) => void;
+  /**
+   * Curate: patch an item in place (regenerate-from-feedback + inline-define
+   * ladder). Merges `patch` onto the item with the given id — used both to
+   * replace a card with its LLM-regenerated spec (Request 1) and to advance a
+   * card's `pendingDefinition` / flip it to grounded after inline authoring
+   * (Request 2). No-op if the id isn't found.
+   */
+  updateBlueprintItem: (id: string, patch: Partial<ChartBlueprint>) => void;
   /** Curate: remove an item. */
   removeBlueprintItem: (id: string) => void;
   /** Curate: "add another" — append a fully-formed (already-grounded) item. */
@@ -242,6 +250,14 @@ export const useBuilderStore = create<BuilderState>()(
       set((s) => {
         const item = s.guidedSession.blueprint?.items.find((i) => i.id === id);
         if (item) item.title = title;
+      }),
+
+    updateBlueprintItem: (id, patch) =>
+      set((s) => {
+        const items = s.guidedSession.blueprint?.items;
+        if (!items) return;
+        const idx = items.findIndex((i) => i.id === id);
+        if (idx >= 0) Object.assign(items[idx], patch);
       }),
 
     removeBlueprintItem: (id) =>

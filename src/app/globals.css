@@ -124,6 +124,13 @@
   --wb-ink-dim:      #2C3E50;
   --wb-border-subtle:rgba(13,27,42,0.10);
 
+  /* Guided blueprint palette — light mode (darkened for parchment legibility) */
+  --bp-card-bg:      rgba(13,27,42,0.02);
+  --bp-card-border:  rgba(13,27,42,0.12);
+  --bp-measure:      #0F766E;
+  --bp-dimension:    #1D4ED8;
+  --bp-undefined:    #7C3AED;
+
   /* Data Estate palette — light mode */
   --estate-bg:          #F5F2EB;
   --estate-surface:     #FFFFFF;
@@ -281,6 +288,13 @@
   --wb-ink:          #e8eef5;
   --wb-ink-dim:      #aeb9c7;
   --wb-border-subtle:rgba(253,181,21,0.08);
+
+  /* Guided blueprint palette — dark mode (original bright accents) */
+  --bp-card-bg:      rgba(0,0,0,0.15);
+  --bp-card-border:  rgba(136,146,164,0.2);
+  --bp-measure:      #34D399;
+  --bp-dimension:    #93C5FD;
+  --bp-undefined:    #C4B5FD;
 
   /* Activity-tracking analytics palette (dark) */
   --at-bg-base: #0A0E27;

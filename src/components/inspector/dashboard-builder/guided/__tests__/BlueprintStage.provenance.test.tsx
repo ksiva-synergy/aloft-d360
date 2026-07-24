@@ -5,10 +5,10 @@
  *
  * A `grounding: 'undefined'` blueprint item can be undefined for three visibly-
  * DIFFERENT reasons, and BlueprintStage renders `undefinedProvenance` into three
- * distinct Teach-nudge messages:
- *   - genuinely absent        → "not defined yet — define it"
- *   - a candidate def exists   → "defined but not governed — govern it"
- *   - absence unproven (topK)  → "may exist beyond search — confirm or define"
+ * distinct inline-define nudge messages:
+ *   - genuinely absent        → "not defined yet — define it here"
+ *   - a candidate def exists   → "defined but not governed — govern it here"
+ *   - absence unproven (topK)  → "may exist beyond search — confirm or define it here"
  * Collapsing these to one "define it" nudge is the Pin-2 false-green — a
  * capped-but-real metric mis-surfaced as genuinely absent. Only a render
  * assertion distinguishes them; the store carries all three identically.
@@ -52,11 +52,11 @@ describe('BlueprintStage — cap-aware undefinedProvenance (Phase-3 render invar
     render(<BlueprintStage modelId="model_1" intent={INTENT} />);
 
     // Genuinely absent — "define it".
-    expect(screen.getByText(/not defined yet — define it in Teach/i)).toBeInTheDocument();
+    expect(screen.getByText(/not defined yet — define it here/i)).toBeInTheDocument();
     // A real-but-not-promoted def exists — "govern it", NOT "define from scratch".
-    expect(screen.getByText(/defined but not governed — govern it in Teach/i)).toBeInTheDocument();
+    expect(screen.getByText(/defined but not governed — govern it here/i)).toBeInTheDocument();
     // Absence UNPROVEN (top-K cap) — must not be reported as genuinely absent.
-    expect(screen.getByText(/may exist beyond search — confirm or define in Teach/i)).toBeInTheDocument();
+    expect(screen.getByText(/may exist beyond search — confirm or define it here/i)).toBeInTheDocument();
   });
 
   it('carries the raw undefined term on each nudge for the Teach prefill', () => {
