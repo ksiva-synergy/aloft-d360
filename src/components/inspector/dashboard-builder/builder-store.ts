@@ -37,7 +37,7 @@ export type BuilderMode = 'guided' | 'manual' | 'view';
  * the SAME shared store as `mode`/`widgets` (no parallel tree). Stage 1 (Intent)
  * writes `intent`; later stages add blueprint / drill-in cursor here.
  */
-interface GuidedSession {
+export interface GuidedSession {
   intent: ResolvedIntent | null;
   /** Stage-2 curated blueprint (null until proposed/accepted). Proposals are
    *  grounded server-side; curate ops here mutate ONLY this slice — accepting the
@@ -107,6 +107,14 @@ interface BuilderState {
   /** Reset guided-session state (e.g. on bail-to-manual or dashboard switch). */
   clearGuidedSession: () => void;
   loadWidgets: (widgets: WidgetSpec[]) => void;
+  /**
+   * Track B (draft retention): hydrate an uncommitted draft. Unlike `loadWidgets`
+   * (which loads a committed version → clean), this restores work that was NEVER
+   * saved, so it marks the store DIRTY — the Save button reflects that there are
+   * uncommitted changes, and drift is recomputed from the restored live refs on
+   * the next definitions pass (no snapshot re-freeze happened at draft time).
+   */
+  loadDraft: (widgets: WidgetSpec[], guidedSession?: GuidedSession | null) => void;
   addWidget: (chartKind: WidgetSpec['chartKind'], title: string) => string;
   /**
    * Phase 4: append a FULLY-FORMED WidgetSpec (as produced by
@@ -267,6 +275,15 @@ export const useBuilderStore = create<BuilderState>()(
       set((s) => {
         s.widgets = widgets;
         s.dirty = false;
+      }),
+
+    loadDraft: (widgets, guidedSession) =>
+      set((s) => {
+        s.widgets = widgets;
+        if (guidedSession) s.guidedSession = guidedSession;
+        // A restored draft is, by definition, uncommitted work — keep it dirty so
+        // Save stays enabled and clear-on-save has something to rebase against.
+        s.dirty = true;
       }),
 
     addWidget: (chartKind, title) => {

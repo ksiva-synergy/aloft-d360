@@ -4,7 +4,9 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
-import type { WidgetDriftInfo, DriftStatus } from './builder-store';
+import type { WidgetDriftInfo, DriftStatus, GuidedSession } from './builder-store';
+import { useDraftAutosave } from './use-draft-autosave';
+import { computeVersionDiff, type VersionDiffSummary } from './version-diff';
 import { DefinitionPicker } from './DefinitionPicker';
 import type { SavedChart } from './DefinitionPicker';
 import { BuilderGrid } from './BuilderGrid';
@@ -75,6 +77,20 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   // accepting the blueprint hands off to the Phase-4 drill-in (Stage 3).
   const [intentCaptured, setIntentCaptured] = useState(false);
   const [blueprintAccepted, setBlueprintAccepted] = useState(false);
+
+  // ── Track B: draft-retention state ──────────────────────────────────────────
+  // `draftBanner` drives the non-destructive hydrate prompt. Autosave is armed
+  // (`autosaveEnabled`) only once the hydrate decision is resolved — never while a
+  // 'stale' banner is open, or a blind write would clobber the stale draft.
+  const [draftBanner, setDraftBanner] = useState<'fresh' | 'stale' | null>(null);
+  const [autosaveEnabled, setAutosaveEnabled] = useState(false);
+  const [showDraftDiff, setShowDraftDiff] = useState(false);
+  // Held for the 'stale' decision: the committed version to revert to on Discard
+  // and the user's draft to restore on Keep (+ compute the diff between them).
+  const committedWidgetsRef = useRef<WidgetSpec[]>([]);
+  const staleDraftRef = useRef<{ widgets: WidgetSpec[]; guidedSession: GuidedSession | null } | null>(null);
+
+  const autosave = useDraftAutosave(dashboardId, autosaveEnabled);
   const guidedIntent = useBuilderStore((s) => s.guidedSession.intent);
   const setBlueprint = useBuilderStore((s) => s.setBlueprint);
   const {
@@ -90,6 +106,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     setDashboard,
     setMode,
     loadWidgets,
+    loadDraft,
     addWidget,
     selectWidget,
     updateWidget,
@@ -100,9 +117,12 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     markClean,
   } = useBuilderStore();
 
-  // ── Load dashboard ───────────────────────────────────────────────────────────
+  // ── Load dashboard (+ Track B draft hydrate) ─────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    // Default mode (Phase 1): empty → guided (cold start is where a blank grid is
+    // most hostile); existing → manual. Applied to whichever widget set we hydrate.
+    const pickMode = (w: WidgetSpec[]): 'guided' | 'manual' => (w.length === 0 ? 'guided' : 'manual');
     (async () => {
       try {
         const res = await fetch(`/api/inspector/dashboards/${dashboardId}`);
@@ -115,15 +135,64 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         setMyRole(role ?? null);
         setVisibility((dashboard.visibility ?? 'org') as DashboardVisibility);
 
-        const loadedWidgets = (currentVersion?.widgets ?? []) as WidgetSpec[];
-        loadWidgets(loadedWidgets);
+        const committedWidgets = (currentVersion?.widgets ?? []) as WidgetSpec[];
+        committedWidgetsRef.current = committedWidgets;
 
-        // Default mode (Phase 1): read-only → view; empty dashboard → guided
-        // (cold start is where a blank grid is most hostile); existing → manual.
-        // Set once on load; a later user toggle is never clobbered (this effect
-        // keys on dashboardId only).
+        // Read-only roles cannot edit → no draft layer; hydrate the committed
+        // version and never arm autosave.
         const readOnly = role === 'viewer' || role === 'org_member';
-        setMode(readOnly ? 'view' : loadedWidgets.length === 0 ? 'guided' : 'manual');
+        if (readOnly) {
+          loadWidgets(committedWidgets);
+          setMode('view');
+          return;
+        }
+
+        // Editable → reconcile any per-user draft against the current version
+        // (Track B, B3). The draft route classifies freshness server-side.
+        let draftStatus: 'none' | 'fresh' | 'stale' = 'none';
+        let draftPayload: { widgets: WidgetSpec[]; guidedSession: GuidedSession | null } | null = null;
+        try {
+          const dres = await fetch(`/api/inspector/dashboards/${dashboardId}/draft`);
+          if (dres.ok) {
+            const d = await dres.json();
+            if (d.status === 'fresh' || d.status === 'stale') {
+              draftStatus = d.status;
+              draftPayload = {
+                widgets: (d.draft?.widgets ?? []) as WidgetSpec[],
+                guidedSession: (d.draft?.guidedSession ?? null) as GuidedSession | null,
+              };
+            }
+          }
+        } catch (e) {
+          // A draft-read failure must never block the builder — fall back to the
+          // committed version (status stays 'none').
+          console.error('[DashboardBuilder] draft load error:', e);
+        }
+        if (cancelled) return;
+
+        if (draftStatus === 'fresh' && draftPayload) {
+          // (1) draft forked from the current version → restore it silently and
+          // show a non-destructive "restored · Discard" banner. Arm autosave.
+          loadDraft(draftPayload.widgets, draftPayload.guidedSession);
+          setMode(pickMode(draftPayload.widgets));
+          if (draftPayload.guidedSession?.intent) setIntentCaptured(true);
+          if (draftPayload.guidedSession?.blueprint) setBlueprintAccepted(true);
+          setDraftBanner('fresh');
+          setAutosaveEnabled(true);
+        } else if (draftStatus === 'stale' && draftPayload) {
+          // (2) a newer version was saved since the draft forked. Show the
+          // committed version, hold the draft for a Keep/Discard/View-diff choice,
+          // and DO NOT arm autosave yet (a blind write would clobber the draft).
+          loadWidgets(committedWidgets);
+          setMode(pickMode(committedWidgets));
+          staleDraftRef.current = draftPayload;
+          setDraftBanner('stale');
+        } else {
+          // (3) no draft → hydrate the current version, as before. Arm autosave.
+          loadWidgets(committedWidgets);
+          setMode(pickMode(committedWidgets));
+          setAutosaveEnabled(true);
+        }
       } catch (err) {
         console.error('[DashboardBuilder] load error:', err);
       } finally {
@@ -131,7 +200,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [dashboardId, setDashboard, loadWidgets, setMode]);
+  }, [dashboardId, setDashboard, loadWidgets, loadDraft, setMode]);
 
   // Open share dialog if navigated here with ?share=1
   useEffect(() => {
@@ -316,11 +385,70 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
     [selectedWidgetId, widgets, updateWidget, showPickerHint],
   );
 
+  // ── Track B: draft-banner actions ────────────────────────────────────────────
+  // Diff between the newer committed version and the user's held draft (the
+  // "View diff" affordance in the 'stale' banner). Reuses version-diff.ts.
+  const draftDiff = useMemo<VersionDiffSummary | null>(() => {
+    if (draftBanner !== 'stale' || !staleDraftRef.current) return null;
+    return computeVersionDiff(
+      { widgets: committedWidgetsRef.current },
+      { widgets: staleDraftRef.current.widgets },
+    );
+  }, [draftBanner]);
+
+  const handleDiscardDraft = useCallback(async () => {
+    autosave.cancel();
+    try {
+      await fetch(`/api/inspector/dashboards/${dashboardId}/draft`, { method: 'DELETE' });
+    } catch {
+      /* idempotent — a leftover row simply re-classifies on the next load */
+    }
+    // Revert the store to the committed version. loadWidgets marks the store
+    // clean, so the armed autosave will NOT re-create the row we just deleted.
+    loadWidgets(committedWidgetsRef.current);
+    staleDraftRef.current = null;
+    setShowDraftDiff(false);
+    setDraftBanner(null);
+    setAutosaveEnabled(true);
+  }, [dashboardId, autosave, loadWidgets]);
+
+  const handleKeepDraft = useCallback(async () => {
+    const draft = staleDraftRef.current;
+    if (!draft) return;
+    autosave.cancel();
+    // Rebase the draft onto the current version FIRST and synchronously, so an
+    // immediate reload re-classifies as 'fresh' (never 'stale' again).
+    try {
+      await fetch(`/api/inspector/dashboards/${dashboardId}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgets: draft.widgets,
+          layouts: { columns: 12, rows: draft.widgets.map((w) => ({ widgetId: w.widgetId, ...w.position })) },
+          guidedSession: draft.guidedSession,
+          baseVersionId: useBuilderStore.getState().currentVersionId,
+        }),
+      });
+    } catch {
+      /* best-effort — the armed autosave re-persists on the next edit */
+    }
+    loadDraft(draft.widgets, draft.guidedSession);
+    setMode(draft.widgets.length === 0 ? 'guided' : 'manual');
+    if (draft.guidedSession?.intent) setIntentCaptured(true);
+    if (draft.guidedSession?.blueprint) setBlueprintAccepted(true);
+    staleDraftRef.current = null;
+    setShowDraftDiff(false);
+    setDraftBanner('fresh'); // now a fresh draft against the current version
+    setAutosaveEnabled(true);
+  }, [dashboardId, autosave, loadDraft, setMode]);
+
   // ── Save handler ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (saving) return;
     setSaving(true);
     setSaveError(null);
+    // Stop a queued debounced draft write from racing the version save.
+    autosave.cancel();
 
     try {
       const res = await fetch(`/api/inspector/dashboards/${dashboardId}/versions`, {
@@ -341,7 +469,12 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
 
       if (res.status === 409) {
-        setSaveError('Concurrent save detected — another user saved at the same time. Please reload and retry.', 'conflict');
+        // B5: the loser of a concurrent save. Persist their edits to the draft
+        // synchronously BEFORE the reload prompt so reloading lands in the B3
+        // 'stale' recovery path (Keep / Discard / View diff) instead of the old
+        // window.location.reload() that silently discarded the work.
+        await autosave.flushNow();
+        setSaveError('Another user saved at the same time. Your edits are saved as a draft — reload to review and merge them.', 'conflict');
         return;
       }
 
@@ -368,12 +501,26 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         // Fallback: just mark clean without full reload
         markClean();
       }
+
+      // B4: promotion succeeded → clear the draft so the "restored" banner does
+      // not reappear against freshly-committed work. The reload above already
+      // synced the store to the new version (clean), so a leftover draft row is
+      // pure noise. DELETE is simpler than rebase-with-empty-payload and reaches
+      // the same end state (next edit forks a fresh draft off the new version).
+      try {
+        await fetch(`/api/inspector/dashboards/${dashboardId}/draft`, { method: 'DELETE' });
+      } catch {
+        /* best-effort */
+      }
+      staleDraftRef.current = null;
+      setShowDraftDiff(false);
+      setDraftBanner(null);
     } catch (err) {
       setSaveError(`Network error: ${err instanceof Error ? err.message : 'Unknown'}`, 'other');
     } finally {
       setSaving(false);
     }
-  }, [dashboardId, widgets, saving, setSaving, setSaveError, markClean, setDashboard, loadWidgets]);
+  }, [dashboardId, widgets, saving, autosave, setSaving, setSaveError, markClean, setDashboard, loadWidgets]);
 
   // ── Add widget ────────────────────────────────────────────────────────────────
   const handleAddWidget = () => {
@@ -564,6 +711,64 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           >
             dismiss
           </button>
+        </div>
+      )}
+
+      {/* ── Track B: draft-retention banner ──────────────────────────────────── */}
+      {draftBanner === 'fresh' && (
+        <div
+          style={{
+            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)', color: '#93C5FD',
+          }}
+        >
+          <span style={{ flex: 1 }}>Unsaved changes restored — pick up where you left off. Save to commit them as a version.</span>
+          <button
+            onClick={handleDiscardDraft}
+            style={{ ...MONO, fontSize: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
+          >
+            DISCARD
+          </button>
+        </div>
+      )}
+
+      {draftBanner === 'stale' && (
+        <div
+          style={{
+            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
+            display: 'flex', flexDirection: 'column', gap: 6,
+            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)', color: '#FDB515',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1 }}>
+              This dashboard changed since your draft — someone saved a newer version. Keep your draft, or discard it for the current version?
+            </span>
+            <button
+              onClick={handleKeepDraft}
+              style={{ ...MONO, fontSize: 10, background: '#FDB515', border: 'none', borderRadius: 3, color: '#0D1B2A', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
+            >
+              KEEP DRAFT
+            </button>
+            <button
+              onClick={() => setShowDraftDiff((v) => !v)}
+              style={{ ...MONO, fontSize: 10, background: 'transparent', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+            >
+              {showDraftDiff ? 'HIDE DIFF' : 'VIEW DIFF'}
+            </button>
+            <button
+              onClick={handleDiscardDraft}
+              style={{ ...MONO, fontSize: 10, background: 'transparent', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+            >
+              DISCARD
+            </button>
+          </div>
+          {showDraftDiff && draftDiff && (
+            <div style={{ ...MONO, fontSize: 9, opacity: 0.85 }}>
+              Your draft vs. the current version — {draftDiff.added} added · {draftDiff.removed} removed · {draftDiff.modified} modified widget(s).
+            </div>
+          )}
         </div>
       )}
 
