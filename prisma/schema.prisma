@@ -2611,6 +2611,42 @@ model platform_dashboard_collaborators {
   @@index([user_id], map: "idx_pdc_user")
 }
 
+// ── Session draft retention (Track B) ─────────────────────────────────────────
+// A MUTABLE per-user scratch layer for uncommitted builder edits between the last
+// Save and the next. This is deliberately NOT a version (versions are immutable,
+// snapshot-frozen, RBAC-gated, audited) and NOT `workbench_sessions` (a JSON chat
+// store with no org_id, no ownership check, no on-unload flush — the exact bug
+// this track exists to fix). One row per (dashboard_id, user_id); last-write-wins.
+//
+//   - dashboard_id is NOT NULL: dashboards are eager-created (a platform_dashboards
+//     row with current_version_id=null exists before the builder ever loads), so a
+//     draft always keys on a real dashboard.
+//   - base_version_id is the version the draft forked from; NULL means the
+//     dashboard has never saved a version. Compared to platform_dashboards
+//     .current_version_id on hydrate to detect "someone saved a newer version".
+//   - org_id is EXPLICIT (deviating from workbench_sessions' process-wide org).
+//   - widgets/layouts hold LIVE references and are stored VERBATIM — this route
+//     never re-freezes measure snapshots (unlike the versions route), so drift is
+//     recomputed on hydrate. guided_session reserves the guided flow's non-widget
+//     state (intent+blueprint+cursor) so enabling it needs no later migration.
+model platform_dashboard_drafts {
+  id             String   @id
+  dashboard_id   String
+  user_id        String
+  org_id         String
+  base_version_id String?
+  widgets        Json     @default("[]")
+  layouts        Json     @default("{}")
+  guided_session Json?
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([dashboard_id, user_id], map: "uq_pdd_dashboard_user")
+  @@index([dashboard_id], map: "idx_pdd_dashboard")
+  @@index([user_id], map: "idx_pdd_user")
+  @@index([org_id], map: "idx_pdd_org")
+}
+
 model platform_charts {
   id                String    @id
   org_id            String
