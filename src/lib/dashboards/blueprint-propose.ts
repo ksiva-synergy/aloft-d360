@@ -14,7 +14,7 @@
 import type { Tool, ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import type { RawBlueprintItem, GroundingCatalog } from './blueprint-ground';
 import { BLUEPRINT_MIN_ITEMS, BLUEPRINT_MAX_ITEMS } from './blueprint-ground';
-import type { ResolvedIntent } from './guided-types';
+import type { ChartBlueprint, ResolvedIntent } from './guided-types';
 
 export const PROPOSE_BLUEPRINT_TOOL_NAME = 'propose_blueprint';
 
@@ -132,6 +132,69 @@ export function buildBlueprintSystemPrompt(
     '- Give each item a short title and a one-line rationale.',
     '- Prefer variety (a KPI, a trend, a breakdown) over near-duplicates.',
     '- Call propose_blueprint exactly once with all charts.',
+  ].join('\n');
+}
+
+/** Compact one-line description of the existing item, for the refine prompt. */
+function renderExistingItem(item: ChartBlueprint): string {
+  const measures = item.measureLabels.length ? item.measureLabels.join(', ') : '(none)';
+  const dims = item.dimensionLabels.length ? item.dimensionLabels.join(', ') : '(none)';
+  const lines = [
+    `  title:       "${item.title}"`,
+    `  measures:    ${measures}`,
+    `  breakdown:   ${dims}`,
+    `  chart kind:  ${item.chartKindGuess}`,
+  ];
+  if (item.rationale) lines.push(`  rationale:   ${item.rationale}`);
+  if (item.grounding === 'undefined' && item.undefinedTerm) {
+    lines.push(`  status:      UNDEFINED — needs "${item.undefinedTerm}" which isn't in the catalog yet`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * System prompt for REGENERATING a SINGLE blueprint item from user feedback
+ * (Guided Stage 2, per-card "refine"). Same catalog + refuse-rather-than-guess
+ * rule as {@link buildBlueprintSystemPrompt}, but the task is one chart, not a
+ * whole dashboard. Two behaviours the caller depends on are stated explicitly:
+ *   - keep the existing title unless the feedback asks to change it (so a user
+ *     rename is never silently clobbered);
+ *   - if the feedback needs a metric/breakdown NOT in the catalog, return it as
+ *     an `undefinedTerm` item (empty ids) instead of mis-picking a nearby field —
+ *     the grounder turns that into a define-it row, which is the intended
+ *     classifier outcome (refine OR fall through to define).
+ * Pure / node-safe → unit-testable.
+ */
+export function buildRefineItemSystemPrompt(
+  intent: ResolvedIntent,
+  catalog: GroundingCatalog,
+  existingItem: ChartBlueprint,
+  feedback: string,
+): string {
+  return [
+    'You are REFINING ONE chart in a dashboard blueprint — a reviewable spec, not a live chart.',
+    'Nothing you propose is executed or rendered; the user is curating this one card.',
+    '',
+    `The dashboard's overall decision to answer:\n"${intent.topic}"`,
+    '',
+    'The chart being refined, as it stands now:',
+    renderExistingItem(existingItem),
+    '',
+    `The user's feedback on THIS chart:\n"${feedback}"`,
+    '',
+    'You may ONLY use these governed definitions. Reference them by id, exactly:',
+    '',
+    renderCatalog(catalog),
+    '',
+    'RULES:',
+    '- Re-propose EXACTLY ONE chart that applies the feedback. Call propose_blueprint once, with a',
+    '  single-element `charts` array.',
+    '- Use ONLY the ids above. Never invent an id or a metric.',
+    '- Keep the existing title UNLESS the feedback asks to rename it.',
+    '- If the feedback needs a metric or breakdown that is NOT in the catalog, return the chart with',
+    '  `undefinedTerm` set to that human name and empty measureIds — a "define it" row. Do NOT',
+    '  approximate it with a different governed field.',
+    '- Give the chart a one-line rationale reflecting the change.',
   ].join('\n');
 }
 

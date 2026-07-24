@@ -139,10 +139,30 @@ export interface ChartBlueprint {
   rationale: string;
   /** Two-state; candidate-ness is model-level, never here. */
   grounding: BlueprintGrounding;
-  /** Raw requested term — prefill for the Teach nudge. Set iff grounding==='undefined'. */
+  /** Raw requested term — prefill for the inline define nudge. Set iff grounding==='undefined'. */
   undefinedTerm?: string;
   /** Cap-aware provenance for an undefined item (see UndefinedProvenance). */
   undefinedProvenance?: UndefinedProvenance;
+  /**
+   * Inline-authoring ladder state for a metric the user defined FROM this card
+   * (Request 2). Held ON the item so it rides `guidedSession.blueprint` and
+   * survives a "Back to intent" round-trip / reload — never in ephemeral React
+   * state. `tier` tracks how far up the draft → candidate → governed ladder the
+   * new definition has climbed:
+   *   - 'draft'     → created, private to the author, NOT yet grounded (a draft is
+   *                   invisible to the shared blueprint/resolve loads);
+   *   - 'candidate' → submitted for governance; the item is flipped to grounded;
+   *   - 'governed'  → promoted (reputation-gated; admin-only in practice day one).
+   */
+  pendingDefinition?: PendingDefinition;
+}
+
+/** Inline-authoring ladder state carried on a ChartBlueprint (Request 2). */
+export interface PendingDefinition {
+  id: string;
+  tableKind: 'measure' | 'dimension';
+  label: string;
+  tier: 'draft' | 'candidate' | 'governed';
 }
 
 /**
