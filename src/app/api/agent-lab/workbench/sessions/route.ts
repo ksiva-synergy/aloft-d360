@@ -25,12 +25,16 @@ export async function GET(request: NextRequest) {
     }
     const wantAll = canReadAll && scope === 'all';
 
-    // Build surface filter (null = workbench for pre-Inspector sessions)
+    // Build surface filter (null = workbench for pre-Inspector sessions).
+    // Without an explicit 'teach' branch, ?surface=teach would fall through to
+    // {} and leak every surface into the Teach history drawer.
     const surfaceFilter = surface === 'inspector'
       ? { surface: 'inspector' as string }
-      : surface === 'workbench'
-        ? { OR: [{ surface: 'workbench' as string }, { surface: null }] }
-        : {};
+      : surface === 'teach'
+        ? { surface: 'teach' as string }
+        : surface === 'workbench'
+          ? { OR: [{ surface: 'workbench' as string }, { surface: null }] }
+          : {};
 
     const data = await prisma.workbench_sessions.findMany({
       select: {

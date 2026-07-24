@@ -143,3 +143,38 @@ export async function guardInspectorChat(
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+/**
+ * Guard a session READ that must ALWAYS enforce ownership — regardless of the
+ * global `INSPECTOR_AUTH_ENFORCE` flag (which stays a Track-B/observe decision).
+ *
+ * This is the Teach-retention posture (session-draft-retention plan §2.1,
+ * deviation #1): loading someone else's teaching session must 403, never serve.
+ * Reusing `guardInspectorChat` here would inherit its observe-mode default and
+ * silently serve a stranger's session, which is exactly the hole a persisted
+ * hydrate route opens. Ownership evaluation is otherwise identical: unauthenticated
+ * → 401, non-owner of a persisted session → 403, unowned/new session → allow.
+ *
+ * Returns a `Response` ONLY when the request must be blocked; `null` to proceed.
+ */
+export async function guardSessionRead(
+  req: Request,
+  sessionId: string | undefined,
+  opts: { route?: string } = {},
+): Promise<Response | null> {
+  const principal = await resolveInspectorPrincipal(req);
+  const { verdict, callerId, sessionOwner } = await evaluate(principal, sessionId);
+
+  if (verdict.ok) return null;
+
+  console.warn(
+    `[inspector-auth] mode=enforce action=reject route=${opts.route ?? 'session-read'} ` +
+      `status=${verdict.status} reason=${verdict.reason} ` +
+      `caller=${callerId} sessionOwner=${sessionOwner ?? 'none'} sessionId=${sessionId ?? 'none'}`,
+  );
+
+  return new Response(JSON.stringify({ error: verdict.reason }), {
+    status: verdict.status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}

@@ -18,13 +18,18 @@
  * would show a card twice, reading as "Marcus learned the same thing twice".
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   Learning,
   LearningState,
   RelatedMemoryHit,
   VerificationResult,
 } from '@/lib/inspector/reflect-tools';
+// Type-only import — erased at compile time, so this never pulls teach-feed's
+// server-side prisma access into the client bundle.
+import type { TeachCandidate } from '@/lib/inspector/teach-feed';
+// Value import — teach-rail is client-safe (type-only imports itself).
+import { projectCandidatesToRail } from '@/lib/inspector/teach-rail';
 
 export type { Learning, LearningState, RelatedMemoryHit, VerificationResult };
 
@@ -58,6 +63,9 @@ interface UseTeachChatReturn {
   counters: TeachCounters;
   isStreaming: boolean;
   error: string | null;
+  /** Set when a hydrate (reload of a persisted session) fails — 403 for a
+   *  session the caller doesn't own, 404 for a missing/non-teach session. */
+  sessionLoadError: string | null;
   sessionId: string | null;
   send: (content: string) => void;
   abort: () => void;
@@ -91,12 +99,104 @@ export function useTeachChat(initialSessionId: string | null = null): UseTeachCh
   const [learningOrder, setLearningOrder] = useState<string[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId);
 
   const sessionIdRef = useRef<string | null>(initialSessionId);
   const abortRef = useRef<AbortController | null>(null);
   const idCounter = useRef(0);
   const nextId = () => `teach_${Date.now()}_${++idCounter.current}`;
+
+  // Persistence plumbing (Track A retention).
+  const messagesRef = useRef<TeachMessage[]>(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirtyRef = useRef(false); // unsaved message delta pending a PATCH
+  const hydratedRef = useRef(false); // one-shot hydrate guard
+
+  // ── Hydrate on mount (persisted reload) ───────────────────────────────────────
+  // Reload of /agent-lab/teach/[sessionId] → replay the messages blob AND rebuild
+  // the rail from the persisted candidate projection. Goes through the guarded,
+  // always-enforce Teach hydrate route (deviation #1): a session the caller does
+  // not own 403s rather than serving. No verify queries are re-fired (A3).
+  useEffect(() => {
+    if (!initialSessionId || hydratedRef.current) return;
+    hydratedRef.current = true;
+    let cancelled = false;
+    fetch(`/api/inspector/teach/session/${initialSessionId}`)
+      .then((r) => {
+        if (r.status === 403) throw new Error("You don't have access to this teaching session.");
+        if (r.status === 404) throw new Error('That teaching session no longer exists.');
+        if (!r.ok) throw new Error(`Session load failed (${r.status})`);
+        return r.json();
+      })
+      .then((data: { session?: { messages?: TeachMessage[] }; feed?: { candidates?: TeachCandidate[] } }) => {
+        if (cancelled) return;
+        setMessages((data.session?.messages as TeachMessage[] | undefined) ?? []);
+
+        // Rebuild the rail from the persisted candidate projection (Option A —
+        // the rail is child-row state, never the message blob).
+        const { learnings: map, order } = projectCandidatesToRail(data.feed?.candidates ?? []);
+        setLearnings(map);
+        setLearningOrder(order);
+
+        setCurrentSessionId(initialSessionId);
+        sessionIdRef.current = initialSessionId;
+        setSessionLoadError(null);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setSessionLoadError(e instanceof Error ? e.message : 'Failed to load session');
+      });
+    return () => { cancelled = true; };
+  }, [initialSessionId]);
+
+  // ── Autosave (2s-debounced PATCH of the messages blob) ────────────────────────
+  // Mirrors useInspectorChat. The rail is NOT saved here — it is a projection of
+  // platform_teach_candidate (child rows written at capture, Option A), never the
+  // message blob.
+  useEffect(() => {
+    if (!currentSessionId) return;
+    dirtyRef.current = true;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      fetch(`/api/agent-lab/workbench/sessions/${currentSessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: messagesRef.current }),
+      })
+        .then(() => { dirtyRef.current = false; })
+        .catch(() => {});
+    }, 2000);
+    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
+  }, [currentSessionId, messages]);
+
+  // ── Flush-on-hide (deviation #3) ──────────────────────────────────────────────
+  // A 2s debounce loses the last delta if the tab is closed/hidden mid-window. On
+  // visibilitychange→hidden / pagehide, synchronously flush the pending write with
+  // a keepalive fetch (survives unload; PATCH rules out sendBeacon, which is POST).
+  useEffect(() => {
+    const flush = () => {
+      const sid = sessionIdRef.current;
+      if (!sid || !dirtyRef.current) return;
+      if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null; }
+      dirtyRef.current = false;
+      try {
+        fetch(`/api/agent-lab/workbench/sessions/${sid}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: messagesRef.current }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {/* unload path — best effort */}
+    };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
 
   /** UPSERT a learning by its id; preserve fields the event omits. */
   const upsertLearning = useCallback((learning: Learning) => {
@@ -278,6 +378,12 @@ export function useTeachChat(initialSessionId: string | null = null): UseTeachCh
         const id = data.session.id;
         setCurrentSessionId(id);
         sessionIdRef.current = id;
+        // Swap the URL to the durable per-session route WITHOUT remounting (a
+        // router.push would re-run the server component and blow away this state).
+        // A reload now lands on /agent-lab/teach/[id] and hydrates.
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', `/agent-lab/teach/${id}`);
+        }
         void doSend(text, id);
       })
       .catch(() => { void doSend(text, null); }); // fall through session-less
@@ -290,10 +396,13 @@ export function useTeachChat(initialSessionId: string | null = null): UseTeachCh
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    if (autosaveTimer.current) { clearTimeout(autosaveTimer.current); autosaveTimer.current = null; }
+    dirtyRef.current = false;
     setMessages([]);
     setLearnings({});
     setLearningOrder([]);
     setError(null);
+    setSessionLoadError(null);
     setIsStreaming(false);
     setCurrentSessionId(null);
     sessionIdRef.current = null;
@@ -315,6 +424,7 @@ export function useTeachChat(initialSessionId: string | null = null): UseTeachCh
     counters: deriveCounters(learnings, learningOrder),
     isStreaming,
     error,
+    sessionLoadError,
     sessionId: currentSessionId,
     send,
     abort,
