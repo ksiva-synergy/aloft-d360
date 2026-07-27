@@ -76,16 +76,21 @@ describe('DrillInStage — Phase 4 shell', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it('renders the typed "awaiting data / not wired" chart state, not a live chart (Task 4)', () => {
+  it('renders the sample-data preview for an unconfirmed item, not a live chart (Task 4)', () => {
     seedBlueprint([GOVERNED]);
     const { container } = render(<DrillInStage modelId="model_1" resolvedDefs={RESOLVED_DEFS} />);
 
+    // Redesign (pre-approved by the step-4 empty-state replacement): an
+    // unconfirmed item now renders a SAMPLE preview, a DISTINCT render-state we
+    // deliberately added (never overloaded onto 'ok'), so it still cannot be
+    // mistaken for live data. Was 'awaiting_data' / "Not wired". The "Sample
+    // data" chip now carries what the hatched box used to.
     const chartArea = container.querySelector('[data-testid="widget-chart-area"]');
-    expect(chartArea).toHaveAttribute('data-widget-render-state', 'awaiting_data');
-    expect(screen.getByText(/Awaiting data/i)).toBeInTheDocument();
-    expect(screen.getByText(/Not wired/i)).toBeInTheDocument();
+    expect(chartArea).toHaveAttribute('data-widget-render-state', 'sample');
+    expect(screen.getByText(/Sample data/i)).toBeInTheDocument();
     // The NL-refine control is present but inert this phase.
     expect(screen.getByText(/Refine runs once data is wired/i)).toBeInTheDocument();
+    // Governance-gate purity: sample data is local, so nothing is fetched.
     expect(global.fetch).not.toHaveBeenCalled();
   });
 

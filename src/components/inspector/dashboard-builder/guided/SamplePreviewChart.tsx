@@ -147,7 +147,9 @@ function SamplePreviewChartImpl({
           <Chip color={ACCENT_AMBER} label="Sample data" />
         ) : null}
         {isLive && (renderState as Extract<WidgetRenderState, { kind: 'ok' }>).isDraft && (
-          <Chip color={CANDIDATE} label="Draft" icon={<AlertTriangle size={9} />} testId="draft-badge" />
+          // Explicit "not governed" warning — a DIFFERENT affordance from the
+          // ambient governance dot; copy preserved verbatim for the contract test.
+          <Chip color={CANDIDATE} label="Draft — not governed" icon={<AlertTriangle size={9} />} testId="draft-badge" />
         )}
       </div>
       {governance && (

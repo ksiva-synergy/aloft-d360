@@ -3,12 +3,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Sparkles, ArrowLeft, Check, ChevronRight, SkipForward, FastForward, Database,
-  Filter as FilterIcon, Palette, Code2, ChevronDown, Plus, X, AlertTriangle, CornerDownLeft,
+  Filter as FilterIcon, Palette, ChevronDown, Plus, X, AlertTriangle, CornerDownLeft,
   BarChart3, LineChart, ScatterChart, PieChart, Table2, Hash, Grid3x3,
 } from 'lucide-react';
 import { createId } from '@paralleldrive/cuid2';
 import { useBuilderStore } from '../builder-store';
-import { NotWiredChart } from './NotWiredChart';
+import { SamplePreviewChart } from './SamplePreviewChart';
 import {
   awaitingData,
   renderStateFromResult,
@@ -25,14 +25,22 @@ import type { ChartBlueprint } from '@/lib/dashboards/guided-types';
 import type { SemanticWidgetSpec, WidgetSpec } from '@/lib/dashboards/types';
 import { isSemanticWidget } from '@/lib/dashboards/types';
 import type { SemanticFilter, SemanticQuery, FilterOp } from '@/lib/semantic/types';
+import {
+  UI_FONT, MONO_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
+  CANVAS, OKABE_ITO,
+} from '@/lib/dashboards/inspector-viz-tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
-const GREEN = '#34D399';
-const VIOLET = '#C4B5FD';
-const BLUE = '#93C5FD';
-const MUTED = '#8892A4';
-const INK = 'var(--wb-ink, #E6ECF5)';
+// Inter for ALL UI; mono ONLY inside the SQL trust panel (spec §1).
+const UI: React.CSSProperties = { fontFamily: UI_FONT };
+const MONO: React.CSSProperties = { fontFamily: MONO_FONT };
+const GOLD = ACCENT_AMBER;
+const GREEN = GOVERNED;
+const VIOLET = CANDIDATE;
+const BLUE = '#56B4E9'; // Okabe-Ito sky-blue — dimensions
+const MUTED = INK_MUTED;
+const INK = INK_TOK;
+
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 type NumFmt = 'auto' | 'compact' | 'percent' | 'currency';
 
@@ -140,7 +148,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
   // (Phase 5, decision (b)): the spec has never been saved, so it's POSTed and
   // executed without persisting anything — never the batch viewer route, and
   // never a version-backed 404 for an unsaved widget. Unconfirmed items have no
-  // widgetId → the hook fetches nothing → not-wired.
+  // widgetId → the hook fetches nothing → sample preview (below).
   const currentWidgetId = current ? (drillIn.widgetIdByItemId[current.id] ?? null) : null;
   const currentWidget = useMemo<WidgetSpec | null>(
     () => (currentWidgetId ? widgets.find((w) => w.widgetId === currentWidgetId) ?? null : null),
@@ -160,18 +168,37 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
     };
   }, [current, draft?.chartKind]);
 
+  // Real render state — meaningful ONLY when the item is confirmed (has a
+  // widgetId to preview). For an unconfirmed governed item we render a SAMPLE
+  // instead (see previewRenderState below), so this is only consumed then.
   const renderState = useMemo<WidgetRenderState>(() => {
-    if (!currentWidgetId) return awaitingData();        // not confirmed → not wired
+    if (!currentWidgetId) return awaitingData();
     if (loading) return { kind: 'loading' };
     if (error) return { kind: 'error', message: error }; // transport/HTTP failure → inspectable, never blank
     if (result && chartShape) return renderStateFromResult(result, chartShape);
     return awaitingData();
   }, [currentWidgetId, loading, error, result, chartShape]);
 
+  // What the center canvas shows:
+  //   - undefined item        → awaiting_data (genuinely nothing to preview; the
+  //                             distinct not-wired state stays exercised)
+  //   - governed, confirmed   → the real render state (loading/ok/empty/…)
+  //   - governed, unconfirmed → SAMPLE (renderState=undefined) — the redesign's
+  //                             show-don't-describe default, badged "Sample data";
+  //                             NO fetch happens (governance-gate purity).
+  const confirmable = current ? isConfirmable(current) : false;
+  const previewRenderState: WidgetRenderState | undefined = !current
+    ? undefined
+    : !confirmable
+      ? awaitingData()
+      : currentWidgetId
+        ? renderState
+        : undefined;
+
   // SQL for the Source trust-panel slot — present on every non-loading data state
-  // that produced compiled SQL (absent on awaiting/loading and on the governed
-  // gate block, which throws pre-compile).
-  const previewSql = 'sql' in renderState ? renderState.sql : undefined;
+  // that produced compiled SQL (absent on awaiting/loading/sample and on the
+  // governed gate block, which throws pre-compile).
+  const previewSql = currentWidgetId && 'sql' in renderState ? renderState.sql : undefined;
   const canRefine = !!currentWidgetId;
 
   const patchDraft = useCallback(
@@ -237,32 +264,33 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
 
   if (!blueprint || items.length === 0) {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...MONO, fontSize: 11, color: MUTED }}>No blueprint to refine — go back and propose one.</span>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: CANVAS }}>
+        <span style={{ ...UI, fontSize: 12, color: MUTED }}>No blueprint to refine — go back and propose one.</span>
       </div>
     );
   }
 
   const allGovernedConfirmed = items.filter(isConfirmable).every((i) => drillIn.widgetIdByItemId[i.id]);
+  const modelGovernance: 'governed' | 'candidate' = blueprint.modelStatus === 'candidate' ? 'candidate' : 'governed';
 
   return (
-    <div style={{ flex: 1, display: 'flex', minWidth: 0, minHeight: 0 }} data-testid="drill-in-stage">
+    <div style={{ flex: 1, display: 'flex', minWidth: 0, minHeight: 0, background: CANVAS }} data-testid="drill-in-stage">
       {/* ── Progress rail = the blueprint (jump / skip / accept-rest) ──────────── */}
       <div
         style={{
-          width: 232, flexShrink: 0, borderRight: '1px solid rgba(136,146,164,0.18)',
-          display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(0,0,0,0.12)',
+          width: 240, flexShrink: 0, borderRight: `1px solid ${tint(MUTED, 18)}`,
+          display: 'flex', flexDirection: 'column', overflowY: 'auto', background: 'rgba(0,0,0,0.14)',
         }}
         data-testid="drill-in-rail"
       >
-        <div style={{ padding: '14px 14px 8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+        <div style={{ padding: '16px 14px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <Sparkles size={13} color={GOLD} />
-            <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: GOLD }}>
+            <span style={{ ...UI, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, fontWeight: 600 }}>
               Guided · Step 3 · Refine
             </span>
           </div>
-          <span style={{ ...MONO, fontSize: 9.5, color: MUTED }}>
+          <span style={{ ...UI, fontSize: 11, color: MUTED }}>
             {confirmedCount}/{items.filter(isConfirmable).length} charts added · jump to any
           </span>
         </div>
@@ -279,10 +307,10 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
                 aria-current={active ? 'true' : undefined}
                 data-confirmed={confirmed ? 'true' : 'false'}
                 style={{
-                  ...MONO, fontSize: 10.5, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 10px', borderRadius: 6, cursor: 'pointer', color: INK,
-                  border: `1px solid ${active ? `${GOLD}66` : 'transparent'}`,
-                  background: active ? 'rgba(253,181,21,0.08)' : 'transparent',
+                  ...UI, fontSize: 11.5, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '9px 10px', borderRadius: 6, cursor: 'pointer', color: INK,
+                  border: `1px solid ${active ? tint(GOLD, 45) : 'transparent'}`,
+                  background: active ? tint(GOLD, 8) : 'transparent',
                 }}
               >
                 <StatusDot confirmed={confirmed} undef={undef} />
@@ -295,35 +323,45 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
           })}
         </div>
 
-        <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(136,146,164,0.15)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ padding: '10px 12px', borderTop: `1px solid ${tint(MUTED, 15)}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button onClick={handleAcceptRest} style={railBtn(GOLD)} title="Confirm every remaining governed chart with its defaults">
             <FastForward size={12} /> Accept the rest as-is
           </button>
           {onBackToBlueprint && (
-            <button onClick={onBackToBlueprint} style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <ArrowLeft size={11} /> Back to blueprint
+            <button onClick={onBackToBlueprint} style={{ ...UI, fontSize: 11, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <ArrowLeft size={12} /> Back to blueprint
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Chart area (not wired) + NL-refine bar ────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '18px 20px', overflowY: 'auto', gap: 14 }}>
+      {/* ── Chart canvas (sample → live) + NL-refine bar ──────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '20px 22px', overflowY: 'auto', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ ...MONO, fontSize: 14, fontWeight: 600, color: INK }}>{draft?.title}</span>
+          <span style={{ ...UI, fontSize: 15, fontWeight: 600, color: INK }}>{draft?.title}</span>
           {current && drillIn.widgetIdByItemId[current.id] && (
-            <span style={{ ...MONO, fontSize: 9, color: GREEN, border: `1px solid ${GREEN}55`, borderRadius: 4, padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Check size={10} /> Added to dashboard
+            <span style={{ ...UI, fontSize: 10, color: GREEN, border: `1px solid ${tint(GREEN, 45)}`, borderRadius: 4, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <Check size={11} /> Added to dashboard
             </span>
           )}
         </div>
 
-        <NotWiredChart state={renderState} chartKindGuess={current?.chartKindGuess} />
+        {current && draft && (
+          <SamplePreviewChart
+            chartKind={draft.chartKind}
+            measureLabels={current.measureLabels}
+            dimensionLabels={current.dimensionLabels}
+            measureIds={current.measureIds}
+            renderState={previewRenderState}
+            governance={modelGovernance}
+            size="canvas"
+          />
+        )}
 
         {/* NL-refine — re-runs the SAME per-widget preview route once the chart is
             added. Inert (with a "wire first" hint) until the item is confirmed. */}
         <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(136,146,164,0.28)', background: 'rgba(0,0,0,0.18)' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, border: `1px solid ${tint(MUTED, 28)}`, background: 'rgba(0,0,0,0.18)' }}>
             <Sparkles size={13} color={MUTED} style={{ flexShrink: 0 }} />
             <input
               value={draft?.refineText ?? ''}
@@ -331,7 +369,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
               onKeyDown={(e) => { if (e.key === 'Enter' && canRefine && !loading) refetch(); }}
               placeholder="Refine in words — e.g. “break out by vessel type”, “last quarter only”"
               aria-label="Refine this chart in natural language"
-              style={{ ...MONO, fontSize: 11.5, flex: 1, background: 'transparent', border: 'none', outline: 'none', color: INK }}
+              style={{ ...UI, fontSize: 12, flex: 1, background: 'transparent', border: 'none', outline: 'none', color: INK }}
             />
           </div>
           <button
@@ -339,10 +377,10 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
             disabled={!canRefine || loading}
             title={canRefine ? 'Re-run this chart’s query' : 'Add the chart first — refine then re-runs its query'}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 6,
+              ...UI, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '0 14px', borderRadius: 8,
-              border: canRefine ? `1px solid ${GOLD}66` : '1px dashed rgba(136,146,164,0.4)',
-              background: canRefine ? 'rgba(253,181,21,0.10)' : 'transparent',
+              border: canRefine ? `1px solid ${tint(GOLD, 45)}` : `1px dashed ${tint(MUTED, 40)}`,
+              background: canRefine ? tint(GOLD, 10) : 'transparent',
               color: canRefine ? GOLD : MUTED, cursor: !canRefine || loading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
             }}
           >
@@ -351,10 +389,10 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
         </div>
       </div>
 
-      {/* ── Panel: Source / Filters / Visual / Polish ─────────────────────────── */}
+      {/* ── Inspector: Source / Filters / Visual / Polish ─────────────────────── */}
       {current && draft && (
         <div
-          style={{ width: 320, flexShrink: 0, borderLeft: '1px solid rgba(136,146,164,0.18)', overflowY: 'auto', background: 'rgba(0,0,0,0.12)' }}
+          style={{ width: 328, flexShrink: 0, borderLeft: `1px solid ${tint(MUTED, 18)}`, overflowY: 'auto', background: 'rgba(0,0,0,0.14)' }}
           data-testid="drill-in-panel"
         >
           <SourceSection item={current} modelStatus={blueprint.modelStatus} sql={previewSql} />
@@ -363,7 +401,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
           <PolishSection draft={draft} onChange={patchDraft} />
 
           {/* Confirm → append/patch WidgetSpec */}
-          <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(136,146,164,0.15)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ padding: '16px', borderTop: `1px solid ${tint(MUTED, 15)}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {isConfirmable(current) ? (
               <>
                 <button onClick={handleConfirmAndNext} style={primaryBtn()} data-testid="drill-in-confirm">
@@ -371,7 +409,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
                   <ChevronRight size={13} />
                 </button>
                 {cursor < items.length - 1 && (
-                  <button onClick={() => goTo(cursor + 1)} style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 11, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                     <SkipForward size={11} /> Skip for now
                   </button>
                 )}
@@ -380,12 +418,12 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <AlertTriangle size={12} color={VIOLET} />
-                  <span style={{ ...MONO, fontSize: 10, color: VIOLET }}>Not defined yet — can’t add</span>
+                  <span style={{ ...UI, fontSize: 11, color: VIOLET }}>Not defined yet — can’t add</span>
                 </div>
-                <span style={{ ...MONO, fontSize: 9.5, color: MUTED, lineHeight: 1.5 }}>
-                  This chart needs a metric that isn’t governed. Define it in Teach, then it becomes addable — we won’t fabricate a chart with no data.
+                <span style={{ ...UI, fontSize: 10.5, color: MUTED, lineHeight: 1.5 }}>
+                  This chart needs a metric that isn’t governed. Define it back on the blueprint, then it becomes addable — we won’t fabricate a chart with no data.
                 </span>
-                <button onClick={() => goTo(cursor + 1)} style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: '1px solid rgba(136,146,164,0.25)', borderRadius: 6, padding: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 10.5, color: MUTED, background: 'transparent', border: `1px solid ${tint(MUTED, 25)}`, borderRadius: 6, padding: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <SkipForward size={11} /> Skip this one
                 </button>
               </div>
@@ -412,16 +450,17 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
   return (
     <PanelSection icon={<Database size={12} color={BLUE} />} label="Source">
       {modelStatus === 'candidate' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 9px', borderRadius: 6, border: `1px solid ${VIOLET}55`, background: `${VIOLET}12`, marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderRadius: 6, border: `1px solid ${tint(VIOLET, 40)}`, background: tint(VIOLET, 8), marginBottom: 8 }}>
           <AlertTriangle size={11} color={VIOLET} />
-          <span style={{ ...MONO, fontSize: 9.5, color: INK, lineHeight: 1.4 }}>Model isn’t governed — renders in draft (owner-only) until published.</span>
+          <span style={{ ...UI, fontSize: 10.5, color: INK, lineHeight: 1.4 }}>Model isn’t governed — renders in draft (owner-only) until published.</span>
         </div>
       )}
-      <FieldList label="Measures" ids={item.measureIds} labels={item.measureLabels} color={GREEN} />
-      <FieldList label="Dimensions" ids={item.dimensionIds} labels={item.dimensionLabels} color={BLUE} />
+      {/* Governed LABELS only — never raw definition IDs (spec §3). */}
+      <FieldList label="Measures" labels={item.measureLabels} color={GREEN} />
+      <FieldList label="Dimensions" labels={item.dimensionLabels} color={BLUE} />
 
-      {/* Read-only SQL trust-panel slot — populated by the data half. */}
-      <button onClick={() => setSqlOpen((o) => !o)} style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 0 0' }}>
+      {/* Read-only SQL trust-panel slot — the ONLY place mono type is used. */}
+      <button onClick={() => setSqlOpen((o) => !o)} style={{ ...UI, fontSize: 10.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 0 0' }}>
         <ChevronDown size={11} style={{ transform: sqlOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.1s' }} />
         Compiled SQL
       </button>
@@ -430,15 +469,15 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
           <pre
             data-testid="sql-trust-panel"
             style={{
-              ...MONO, fontSize: 9.5, color: INK, padding: '8px 10px', borderRadius: 6,
-              border: '1px solid rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.3)', marginTop: 4,
+              ...MONO, fontSize: 10, color: INK, padding: '8px 10px', borderRadius: 6,
+              border: `1px solid ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.3)', marginTop: 4,
               lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowX: 'auto', maxHeight: 200, margin: '4px 0 0',
             }}
           >
             {sql}
           </pre>
         ) : (
-          <div data-testid="sql-trust-panel" style={{ ...MONO, fontSize: 9.5, color: MUTED, padding: '8px 10px', borderRadius: 6, border: '1px dashed rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
+          <div data-testid="sql-trust-panel" style={{ ...UI, fontSize: 10.5, color: MUTED, padding: '8px 10px', borderRadius: 6, border: `1px dashed ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
             SQL appears here once the chart is added and its query runs — the read-only trust panel shows the compiled query.
           </div>
         )
@@ -476,7 +515,7 @@ function FiltersSection({ item, draft, onChange }: { item: ChartBlueprint; draft
   return (
     <PanelSection icon={<FilterIcon size={12} color={GOLD} />} label="Filters">
       {draft.filters.length === 0 && (
-        <span style={{ ...MONO, fontSize: 9.5, color: MUTED }}>No filters — the chart uses every row the metric returns.</span>
+        <span style={{ ...UI, fontSize: 10.5, color: MUTED }}>No filters — the chart uses every row the metric returns.</span>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {draft.filters.map((f, i) => (
@@ -493,14 +532,14 @@ function FiltersSection({ item, draft, onChange }: { item: ChartBlueprint; draft
             {f.op !== 'is_null' && f.op !== 'is_not_null' && (
               <input value={String(f.value ?? '')} onChange={(e) => patchAt(i, { value: e.target.value })} placeholder="value" aria-label="Filter value" style={{ ...selectStyle(), width: 60, flex: 'none' }} />
             )}
-            <button onClick={() => removeAt(i)} aria-label="Remove filter" style={{ background: 'transparent', border: 'none', color: '#F87171', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
+            <button onClick={() => removeAt(i)} aria-label="Remove filter" style={{ background: 'transparent', border: 'none', color: '#D55E00', cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
               <X size={13} />
             </button>
           </div>
         ))}
       </div>
       {fields.length > 0 && (
-        <button onClick={addFilter} style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: '1px dashed rgba(136,146,164,0.35)', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+        <button onClick={addFilter} style={{ ...UI, fontSize: 10.5, color: MUTED, background: 'transparent', border: `1px dashed ${tint(MUTED, 35)}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
           <Plus size={11} /> Add filter
         </button>
       )}
@@ -528,7 +567,7 @@ function VisualSection({
 
   return (
     <PanelSection icon={<BarChart3 size={12} color={GREEN} />} label="Visual">
-      <p style={{ ...MONO, fontSize: 9.5, color: MUTED, margin: '0 0 8px', lineHeight: 1.5 }}>
+      <p style={{ ...UI, fontSize: 10.5, color: MUTED, margin: '0 0 8px', lineHeight: 1.5 }}>
         Recommended: <strong style={{ color: INK }}>{rec.chartKind}</strong> — {rec.rationale}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -542,9 +581,9 @@ function VisualSection({
               aria-pressed={selected}
               title={k === rec.chartKind ? 'Recommended' : `Alternative: ${k}`}
               style={{
-                ...MONO, fontSize: 9.5, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 9px', borderRadius: 6, cursor: 'pointer',
-                border: `1px solid ${selected ? GREEN : 'rgba(136,146,164,0.25)'}`,
-                background: selected ? `${GREEN}18` : 'transparent', color: selected ? GREEN : INK,
+                ...UI, fontSize: 10.5, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 9px', borderRadius: 6, cursor: 'pointer',
+                border: `1px solid ${selected ? GREEN : tint(MUTED, 25)}`,
+                background: selected ? tint(GREEN, 12) : 'transparent', color: selected ? GREEN : INK,
               }}
             >
               <KindGlyph kind={k} color={selected ? GREEN : MUTED} />
@@ -558,13 +597,14 @@ function VisualSection({
 }
 
 function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patch: Partial<DrillDraft>) => void }) {
-  const swatches = ['', GOLD, GREEN, BLUE, VIOLET, '#F87171'];
+  // Palette swatches drawn from Okabe-Ito (spec §1) + an "auto" (theme default).
+  const swatches = ['', OKABE_ITO[0], OKABE_ITO[1], OKABE_ITO[2], OKABE_ITO[4], OKABE_ITO[6]];
   return (
     <PanelSection icon={<Palette size={12} color={VIOLET} />} label="Polish">
-      <label style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>Title</label>
+      <label style={{ ...UI, fontSize: 9.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Title</label>
       <input value={draft.title} onChange={(e) => onChange({ title: e.target.value })} aria-label="Chart title" style={{ ...selectStyle(), width: '100%', marginTop: 4, marginBottom: 12 }} />
 
-      <label style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
+      <label style={{ ...UI, fontSize: 9.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
       <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12 }}>
         {swatches.map((c) => (
           <button
@@ -576,7 +616,7 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
               width: 22, height: 22, borderRadius: 5, cursor: 'pointer',
               border: `2px solid ${draft.color === c ? INK : 'transparent'}`,
               background: c || 'transparent',
-              ...(c ? {} : { ...MONO, fontSize: 8, color: MUTED, borderColor: 'rgba(136,146,164,0.4)' }),
+              ...(c ? {} : { ...UI, fontSize: 8, color: MUTED, borderColor: tint(MUTED, 40) }),
             }}
           >
             {c ? '' : 'A'}
@@ -584,14 +624,14 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
         ))}
       </div>
 
-      <label style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
+      <label style={{ ...UI, fontSize: 9.5, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
       <select value={draft.format} onChange={(e) => onChange({ format: e.target.value as NumFmt })} aria-label="Number format" style={{ ...selectStyle(), width: '100%', marginTop: 4 }}>
         <option value="auto">Auto</option>
         <option value="compact">Compact (1.2k)</option>
         <option value="percent">Percent</option>
         <option value="currency">Currency</option>
       </select>
-      <span style={{ ...MONO, fontSize: 9, color: MUTED, display: 'block', marginTop: 5, lineHeight: 1.4 }}>
+      <span style={{ ...UI, fontSize: 9.5, color: MUTED, display: 'block', marginTop: 5, lineHeight: 1.4 }}>
         Applied to the chart once it renders with data.
       </span>
     </PanelSection>
@@ -602,27 +642,27 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
 
 function PanelSection({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(136,146,164,0.12)' }}>
+    <div style={{ padding: '14px 16px', borderBottom: `1px solid ${tint(MUTED, 12)}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         {icon}
-        <span style={{ ...MONO, fontSize: 9.5, letterSpacing: '0.10em', textTransform: 'uppercase', color: INK, fontWeight: 600 }}>{label}</span>
+        <span style={{ ...UI, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: INK, fontWeight: 600 }}>{label}</span>
       </div>
       {children}
     </div>
   );
 }
 
-function FieldList({ label, ids, labels, color }: { label: string; ids: string[]; labels: string[]; color: string }) {
-  if (ids.length === 0) return null;
+/** Governed field labels only — raw definition IDs are never rendered (spec §3). */
+function FieldList({ label, labels, color }: { label: string; labels: string[]; color: string }) {
+  if (labels.length === 0) return null;
   return (
     <div style={{ marginBottom: 8 }}>
-      <span style={{ ...MONO, fontSize: 8.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 3 }}>
-        {ids.map((id, i) => (
-          <div key={id} style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-            <span style={{ ...MONO, fontSize: 10.5, color }}>{labels[i] ?? id}</span>
-            <span style={{ ...MONO, fontSize: 8.5, color: MUTED, opacity: 0.7 }} title="governed definition id">{id}</span>
-          </div>
+      <span style={{ ...UI, fontSize: 9, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+        {labels.map((l, i) => (
+          <span key={i} style={{ ...UI, fontSize: 11, color, border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), borderRadius: 12, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+            {l}
+          </span>
         ))}
       </div>
     </div>
@@ -663,21 +703,21 @@ function extractColor(config: SemanticWidgetSpec['chartConfig']): string {
 
 function railBtn(color: string): React.CSSProperties {
   return {
-    ...MONO, fontSize: 10, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    padding: '7px 10px', borderRadius: 6, border: `1px solid ${color}55`, background: `${color}12`, color, cursor: 'pointer',
+    ...UI, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+    padding: '8px 10px', borderRadius: 6, border: `1px solid ${tint(color, 45)}`, background: tint(color, 12), color, cursor: 'pointer',
   };
 }
 
 function primaryBtn(): React.CSSProperties {
   return {
-    ...MONO, fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    padding: '9px 14px', borderRadius: 6, border: 'none', background: GOLD, color: '#0D1B2A', cursor: 'pointer', fontWeight: 500,
+    ...UI, fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+    padding: '11px 14px', borderRadius: 8, border: 'none', background: GOLD, color: '#0D1B2A', cursor: 'pointer', fontWeight: 600,
   };
 }
 
 function selectStyle(): React.CSSProperties {
   return {
-    ...MONO, fontSize: 10.5, flex: 1, minWidth: 0, padding: '5px 7px', borderRadius: 5,
-    border: '1px solid rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.25)', color: INK, outline: 'none',
+    ...UI, fontSize: 11, flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 5,
+    border: `1px solid ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.25)', color: INK, outline: 'none',
   };
 }

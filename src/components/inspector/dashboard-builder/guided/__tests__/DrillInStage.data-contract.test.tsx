@@ -146,7 +146,15 @@ describe('DrillInStage — per-widget route CONTRACT', () => {
       expect(area).toHaveAttribute('data-widget-render-state', 'ok');
     });
     expect(screen.getByText(/^Live$/i)).toBeInTheDocument();
-    expect(container.querySelector('[data-testid="live-chart-svg"]')).toBeTruthy();
+    // Renderer decision (SVG → ECharts): the ok chart mounts ECharts (stubbed in
+    // jsdom) rather than the old hand-rolled SVG. Assert the mount AND that its
+    // option carries the toAlias-bound series — strictly stronger than "an SVG
+    // exists", and it re-guards the §4.5 seam at the drill-in, where live data
+    // actually enters. rows keyed accident_count/month → series data [3, 5].
+    await waitFor(() => {
+      const opt = JSON.parse(screen.getByTestId('echarts-mock').getAttribute('data-echarts-option') || '{}');
+      expect(opt.series[0].data).toEqual([3, 5]);
+    });
 
     // Source → Compiled SQL slot shows the SQL the per-widget result carried.
     fireEvent.click(screen.getByText(/Compiled SQL/i));
