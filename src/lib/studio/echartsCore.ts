@@ -20,6 +20,7 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer, SVGRenderer } from 'echarts/renderers';
 import { aloftDarkTheme, aloftLightTheme } from './aloftDarkTheme';
+import { inspectorDarkTheme, inspectorLightTheme } from './inspectorEchartsTheme';
 
 // Histogram is rendered as a BarChart with barWidth/barGap overrides — no separate HistogramChart.
 echarts.use([
@@ -41,5 +42,9 @@ echarts.use([
 
 echarts.registerTheme('aloft-dark', aloftDarkTheme);
 echarts.registerTheme('aloft-light', aloftLightTheme);
+
+// Guided dashboard-builder redesign — Okabe-Ito palette (inspector-viz-tokens.ts).
+echarts.registerTheme('inspector-dark', inspectorDarkTheme);
+echarts.registerTheme('inspector-light', inspectorLightTheme);
 
 export default echarts;
