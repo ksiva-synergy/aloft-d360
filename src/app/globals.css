@@ -131,6 +131,23 @@
   --bp-dimension:    #1D4ED8;
   --bp-undefined:    #7C3AED;
 
+  /* Metrics catalog (.metrics-catalog) — classification + governance-status
+     palette. Okabe–Ito-derived (colorblind-safe; always paired with a label),
+     darkened here for AA on parchment; brightened in .dark below. Kind = the
+     definition type; status = governance lifecycle; res = search-resolution
+     state (4-state resolver). */
+  --mc-kind-entity:     #036347;
+  --mc-kind-measure:    #0369A1;
+  --mc-kind-dimension:  #6D28D9;
+  --mc-status-governed:   #0F6B31;
+  --mc-status-candidate:  #92400E;
+  --mc-status-draft:      #64748B;
+  --mc-status-archived:   #94A3B8;
+  --mc-res-matched:       #0F6B31;
+  --mc-res-notgov:        #92400E;
+  --mc-res-ambiguous:     #92400E;
+  --mc-res-unrecognized:  #B91C1C;
+
   /* Inspector-viz surfaces (guided Blueprint gallery + Refine canvas) — light.
      Mirrored as literals in src/lib/dashboards/inspector-viz-tokens.ts. */
   --iv-canvas:        #F5F2EB;
@@ -306,6 +323,19 @@
   --bp-measure:      #34D399;
   --bp-dimension:    #93C5FD;
   --bp-undefined:    #C4B5FD;
+
+  /* Metrics catalog — dark (Okabe–Ito bright against deep space). */
+  --mc-kind-entity:     #34D399;
+  --mc-kind-measure:    #56B4E9;
+  --mc-kind-dimension:  #C4B5FD;
+  --mc-status-governed:   #2EA043;
+  --mc-status-candidate:  #FDB515;
+  --mc-status-draft:      #8892A4;
+  --mc-status-archived:   #5A6A7A;
+  --mc-res-matched:       #3FB950;
+  --mc-res-notgov:        #FDB515;
+  --mc-res-ambiguous:     #E3C000;
+  --mc-res-unrecognized:  #F85149;
 
   /* Inspector-viz surfaces (guided Blueprint gallery + Refine canvas) — dark
      (near-black canvas, glowing cards). Mirrored in inspector-viz-tokens.ts. */
