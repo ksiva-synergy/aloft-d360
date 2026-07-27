@@ -32,16 +32,17 @@
  * distinct from the theme's positional default palette. Everything else (axes,
  * fonts, gridlines, tooltip) rides the registered inspector-dark/-light theme; we
  * never redefine the palette inline.
+ *
+ * size modes:
+ *   - 'canvas' → fixed 260px height (Refine canvas)
+ *   - 'thumb'  → kind-aware height: KPI=120px, bar/line/scatter/heatmap=240px, table=200px
+ *   - 'fill'   → 100% of parent height (Blueprint grid cards — parent is the RGL cell)
  */
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useIsDark } from '@/hooks/useIsDark';
 import echartsCore from '@/lib/studio/echartsCore';
-// Modular echarts-for-react core — fed OUR chokepoint instance (echartsCore), so
-// no full-barrel echarts is pulled. Mounting is gated on a client `mounted` flag
-// (below) so ECharts (canvas/ResizeObserver) never renders during SSR — the same
-// SSR-safety next/dynamic ssr:false gives StudioChart, but deterministic in tests.
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import { NotWiredChart } from './NotWiredChart';
 import { buildSampleData } from '@/lib/dashboards/sample-data';
@@ -57,6 +58,14 @@ import {
 
 export type { PreviewChartKind };
 
+/** Kind-aware thumb height: avoids a cramped 132px for all chart types. */
+function thumbHeightFor(kind: PreviewChartKind): number {
+  const k = canon(kind);
+  if (k === 'kpi') return 120;
+  if (k === 'table') return 200;
+  return 240; // bar / line / scatter / heatmap / pie
+}
+
 export interface SamplePreviewChartProps {
   chartKind: PreviewChartKind;
   measureLabels: string[];
@@ -64,13 +73,24 @@ export interface SamplePreviewChartProps {
   /** Stable colour/seed identity (definition ids). Falls back to labels. */
   measureIds?: string[];
   /**
+   * Domain-specific example values per dimension label, sourced from the semantic
+   * model. When present, used by buildSampleData for domain-relevant categories
+   * instead of the generic NATO-alphabet vocabulary.
+   */
+  dimensionHints?: Record<string, string[]>;
+  /**
    * Real render state. ABSENT → sample mode. See the module header for the full
    * mode table. Passing an 'ok' state fills from real (toAlias-mapped) rows.
    */
   renderState?: WidgetRenderState;
   /** Quiet governance affordance — a dot/halo, never a loud badge. */
   governance?: 'governed' | 'candidate';
-  size?: 'thumb' | 'canvas';
+  /**
+   * 'canvas' → fixed 260px (Refine canvas)
+   * 'thumb'  → kind-aware height (Blueprint thumbnails)
+   * 'fill'   → 100% of parent (Blueprint grid — parent is the RGL cell)
+   */
+  size?: 'thumb' | 'canvas' | 'fill';
   /** Lazy-mount: render a skeleton until scrolled into view (blueprint grid). */
   lazy?: boolean;
   className?: string;
@@ -79,7 +99,7 @@ export interface SamplePreviewChartProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 function SamplePreviewChartImpl({
-  chartKind, measureLabels, dimensionLabels, measureIds,
+  chartKind, measureLabels, dimensionLabels, measureIds, dimensionHints,
   renderState, governance, size = 'canvas', lazy = false, className,
 }: SamplePreviewChartProps) {
   // All hooks run unconditionally (rules of hooks) — the delegated early-return
@@ -92,7 +112,28 @@ function SamplePreviewChartImpl({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const height = size === 'thumb' ? 132 : 260;
+  // Resolve pixel height: 'fill' means 100% of the parent, tracked via ResizeObserver.
+  const [fillHeight, setFillHeight] = useState(240);
+  const fillRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (size !== 'fill') return;
+    const el = fillRef.current?.parentElement ?? fillRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h && h > 0) setFillHeight(h);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [size]);
+
+  const height =
+    size === 'fill'
+      ? fillHeight
+      : size === 'thumb'
+        ? thumbHeightFor(chartKind)
+        : 260;
+
   const seriesIdentities = useMemo(
     () => measureLabels.map((label, i) => measureIds?.[i] || label),
     [measureLabels, measureIds],
@@ -104,7 +145,7 @@ function SamplePreviewChartImpl({
   // Sample branch is fed ONLY by the local deterministic generator.
   const result: RowsToOptionResult = useMemoResult(
     isLive ? (renderState as Extract<WidgetRenderState, { kind: 'ok' }>).chart : null,
-    chartKind, measureLabels, dimensionLabels, measureIds,
+    chartKind, measureLabels, dimensionLabels, measureIds, dimensionHints,
   );
 
   const option = useMemo(
@@ -126,18 +167,29 @@ function SamplePreviewChartImpl({
   const stateAttr = isLive ? 'ok' : isLoading ? 'loading' : 'sample';
   const showSkeleton = isLoading || !mounted || (lazy && !inView);
 
+  const containerStyle: React.CSSProperties =
+    size === 'fill'
+      ? {
+          position: 'relative', display: 'flex', flexDirection: 'column',
+          width: '100%', height: '100%',
+          overflow: 'hidden',
+          border: `1px solid ${governanceRing(governance, isDark)}`,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+        }
+      : {
+          position: 'relative', display: 'flex', flexDirection: 'column',
+          borderRadius: 10, overflow: 'hidden', minHeight: height,
+          border: `1px solid ${governanceRing(governance, isDark)}`,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+        };
+
   return (
     <div
-      ref={ref}
+      ref={size === 'fill' ? fillRef : ref}
       data-testid="widget-chart-area"
       data-widget-render-state={stateAttr}
       className={className}
-      style={{
-        position: 'relative', display: 'flex', flexDirection: 'column',
-        borderRadius: 10, overflow: 'hidden', minHeight: height,
-        border: `1px solid ${governanceRing(governance, isDark)}`,
-        boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
-      }}
+      style={containerStyle}
     >
       {/* Mode chip + governance dot */}
       <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -147,8 +199,6 @@ function SamplePreviewChartImpl({
           <Chip color={ACCENT_AMBER} label="Sample data" />
         ) : null}
         {isLive && (renderState as Extract<WidgetRenderState, { kind: 'ok' }>).isDraft && (
-          // Explicit "not governed" warning — a DIFFERENT affordance from the
-          // ambient governance dot; copy preserved verbatim for the contract test.
           <Chip color={CANDIDATE} label="Draft — not governed" icon={<AlertTriangle size={9} />} testId="draft-badge" />
         )}
       </div>
@@ -167,16 +217,19 @@ function SamplePreviewChartImpl({
       {chartKind === 'table' && !isLoading ? (
         <SampleTable result={result} inkColor={inkColor} height={height} />
       ) : showSkeleton ? (
-        <ChartSkeleton kind={canon(chartKind)} height={height} />
+        <ChartSkeleton kind={canon(chartKind)} height={size === 'fill' ? fillHeight : height} />
       ) : (
-        <div style={{ width: '100%', height }}>
+        <div
+          ref={size !== 'fill' ? ref : undefined}
+          style={size === 'fill' ? { width: '100%', flex: 1, minHeight: 0 } : { width: '100%', height }}
+        >
           <ReactEChartsCore
             echarts={echartsCore}
             option={option}
             theme={theme}
             notMerge
             opts={{ renderer: 'canvas' }}
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '100%', height: size === 'fill' ? '100%' : height }}
           />
         </div>
       )}
@@ -195,11 +248,12 @@ function useMemoResult(
   measureLabels: string[],
   dimensionLabels: string[],
   measureIds?: string[],
+  dimensionHints?: Record<string, string[]>,
 ): RowsToOptionResult {
   return useMemo(() => {
     if (liveChart) return liveChart;
-    return buildSampleData({ chartKind: guessFor(chartKind), measureLabels, dimensionLabels, measureIds });
-  }, [liveChart, chartKind, measureLabels, dimensionLabels, measureIds]);
+    return buildSampleData({ chartKind: guessFor(chartKind), measureLabels, dimensionLabels, measureIds, dimensionHints });
+  }, [liveChart, chartKind, measureLabels, dimensionLabels, measureIds, dimensionHints]);
 }
 
 /** Map the preview kind back to a ChartKindGuess for sample-data / NotWiredChart. */
@@ -252,11 +306,23 @@ function ChartSkeleton({ kind, height }: { kind: CanonKind; height: number }) {
   );
 }
 
-/** Minimal HTML table for the 'table' kind (not an ECharts chart). */
+/**
+ * Minimal HTML table for the 'table' kind (not an ECharts chart).
+ * overflow is hidden — no scrollbars in small tiles; a truncation indicator
+ * shows when there are more rows than visible.
+ */
 function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult; inkColor: string; height: number }) {
-  const rows = result.categories.slice(0, 6);
+  // Row height ≈ 26px; header ≈ 28px; padding 12px top+bottom = 24px.
+  const ROW_H = 26;
+  const HEADER_H = 28;
+  const PADDING = 24;
+  const maxRows = Math.max(1, Math.floor((height - HEADER_H - PADDING) / ROW_H));
+  const allRows = result.categories;
+  const rows = allRows.slice(0, maxRows);
+  const remaining = allRows.length - rows.length;
+
   return (
-    <div style={{ width: '100%', height, overflow: 'auto', padding: 12 }}>
+    <div style={{ width: '100%', height, overflow: 'hidden', padding: '12px 12px 0' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: UI_FONT, fontSize: 11, color: inkColor }}>
         <thead>
           <tr>
@@ -273,6 +339,11 @@ function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult;
           ))}
         </tbody>
       </table>
+      {remaining > 0 && (
+        <div style={{ fontFamily: UI_FONT, fontSize: 9.5, color: INK_MUTED, padding: '4px 0 8px', letterSpacing: '0.02em' }}>
+          +{remaining} more row{remaining === 1 ? '' : 's'}
+        </div>
+      )}
     </div>
   );
 }

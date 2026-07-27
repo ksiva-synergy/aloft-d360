@@ -38,6 +38,16 @@ export interface SampleDataInput {
   dimensionLabels: string[];
   /** Stable per-series identity for seeding — falls back to the label. */
   measureIds?: string[];
+  /**
+   * Domain-specific example values per dimension label, sourced from the semantic
+   * model's governed definitions (e.g. "Vessel Type" → ["Tanker", "Bulk Carrier"]).
+   * When present, these replace the generic NATO-alphabet categories so the preview
+   * reflects the actual business domain rather than Alpha/Bravo/Charlie.
+   * Falls back to the generic vocabulary when absent or when the dimension label
+   * doesn't match any key. PURITY IS PRESERVED: these values come from the client's
+   * already-loaded definitions — no I/O occurs here.
+   */
+  dimensionHints?: Record<string, string[]>;
 }
 
 // ── Deterministic PRNG (mulberry32) seeded from a string identity ─────────────
@@ -85,16 +95,21 @@ function pointCountFor(kind: ChartKindGuess): number {
  * inputs always yield identical output, and there is no I/O of any kind.
  */
 export function buildSampleData(input: SampleDataInput): RowsToOptionResult {
-  const { chartKind, measureLabels, dimensionLabels, measureIds } = input;
+  const { chartKind, measureLabels, dimensionLabels, measureIds, dimensionHints } = input;
 
   const n = pointCountFor(chartKind);
   const dim0 = dimensionLabels[0];
 
-  // Categories from dim[0] (KPI has none). Time-ish dims → month labels;
-  // otherwise a stable NATO-ish vocabulary. Never randomised selection.
+  // Categories from dim[0] (KPI has none).
+  // Priority: (1) domain hints for dim0 label, (2) time-ish → month labels,
+  // (3) NATO-ish generic vocabulary. Never randomised selection.
   let categories: string[] = [];
   if (chartKind !== 'kpi') {
-    if (dim0 && isTimeish(dim0)) {
+    const hints = dim0 && dimensionHints?.[dim0];
+    if (hints && hints.length > 0) {
+      // Use domain-specific values, cycling if fewer than n points needed.
+      categories = Array.from({ length: n }, (_, i) => hints[i % hints.length]);
+    } else if (dim0 && isTimeish(dim0)) {
       categories = MONTHS.slice(0, n);
     } else if (dim0) {
       categories = Array.from({ length: n }, (_, i) => CAT_WORDS[i % CAT_WORDS.length]);

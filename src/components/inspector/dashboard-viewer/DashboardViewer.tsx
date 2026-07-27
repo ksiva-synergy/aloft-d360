@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
-import { ArrowLeft, Pencil, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Pencil, AlertCircle, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
 import type { WidgetSpec, WidgetDataResult } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -12,6 +12,7 @@ import { WidgetPreview } from '@/components/inspector/dashboard-builder/WidgetPr
 import { TrustPanel } from '@/components/inspector/TrustPanel';
 import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
+import { ScopedInspectorPanel } from '@/components/inspector/dashboard-builder/ScopedInspectorPanel';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -135,6 +136,9 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
   const widgets = meta?.widgets ?? [];
   const canEdit = meta?.role === 'owner' || meta?.role === 'editor';
 
+  // Scoped inspector panel (explore data in this dashboard's model)
+  const [exploreOpen, setExploreOpen] = useState(false);
+
   // ── Resolve which source charts still exist (provenance link state) ──────────
   // One list call per model, only when some widget carries a source_chart_id.
   // A missing id is expected (charts are soft-deletable) — the widget then shows
@@ -243,6 +247,23 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             }}
           >
             <Pencil size={12} />EDIT
+          </button>
+        )}
+
+        {/* Explore data — scoped Inspector panel */}
+        {meta?.modelId && (
+          <button
+            onClick={() => setExploreOpen((o) => !o)}
+            title="Explore data in this model"
+            style={{
+              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              border: `1px solid ${exploreOpen ? '#FDB515' : 'var(--builder-border)'}`,
+              background: exploreOpen ? 'rgba(253,181,21,0.08)' : 'transparent',
+              color: exploreOpen ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+            }}
+          >
+            <MessageSquare size={12} />EXPLORE
           </button>
         )}
       </div>
@@ -380,6 +401,15 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           )
         )}
       </div>
+
+      {/* ── Scoped Inspector (Explore data) ──────────────────────────────────── */}
+      {exploreOpen && meta?.modelId && (
+        <ScopedInspectorPanel
+          modelId={meta.modelId}
+          dashboardName={meta.name}
+          onClose={() => setExploreOpen(false)}
+        />
+      )}
     </div>
   );
 }

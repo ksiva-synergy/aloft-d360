@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid } from 'lucide-react';
+import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid, MessageSquare } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
 import type { WidgetDriftInfo, DriftStatus, GuidedSession } from './builder-store';
 import { useDraftAutosave } from './use-draft-autosave';
@@ -17,6 +17,7 @@ import { DrillInStage } from './guided/DrillInStage';
 import { WidgetConfigPanel } from './WidgetConfigPanel';
 import { VersionHistoryPanel } from './VersionHistoryPanel';
 import { ShareDialog } from './ShareDialog';
+import { ScopedInspectorPanel } from './ScopedInspectorPanel';
 import { dslKindToWidgetKind, encodingsToChartConfig } from './chart-mapping';
 import {
   recommendChartKind,
@@ -272,6 +273,34 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       }
     }
     return { dimensions, measures };
+  }, [entities]);
+
+  // ── Dimension hints for domain-contextual sample data ────────────────────────
+  // Maps dimension label → example category values sourced from dimension_type
+  // metadata (e.g. "Vessel Type" → ["Tanker", "Bulk Carrier"]). These are
+  // derived entirely from labels already loaded — no I/O.
+  const dimensionHints = useMemo<Record<string, string[]>>(() => {
+    const hints: Record<string, string[]> = {};
+    for (const entity of entities) {
+      for (const dim of entity.dimensions) {
+        // The dimension_label is the key; we don't have actual enum values from
+        // the definitions API (those would need a profile query), but we can use
+        // sibling dimension labels from the same entity as plausible categories
+        // for categorical dimensions.
+        if (dim.dimension_type && dim.dimension_type !== 'time') {
+          // Use other dimension labels from the same entity as hints only if
+          // there are enough siblings to be meaningful.
+          const siblings = entity.dimensions
+            .filter((d) => d.id !== dim.id && d.dimension_type === dim.dimension_type)
+            .map((d) => d.dimension_label)
+            .slice(0, 6);
+          if (siblings.length >= 2) {
+            hints[dim.dimension_label] = siblings;
+          }
+        }
+      }
+    }
+    return hints;
   }, [entities]);
 
   // Widgets whose chart kind the user set by hand — auto-recommendation must not
@@ -540,6 +569,9 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   const isReadOnly = myRole === 'viewer' || myRole === 'org_member';
   const canShare = myRole === 'owner' || myRole === 'editor';
 
+  // Scoped inspector panel (explore data in this dashboard's model)
+  const [exploreOpen, setExploreOpen] = useState(false);
+
   if (initialLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -660,6 +692,23 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             }}
           >
             <Share2 size={12} />SHARE
+          </button>
+        )}
+
+        {/* Explore data — scoped Inspector panel */}
+        {modelId && (
+          <button
+            onClick={() => setExploreOpen((o) => !o)}
+            title="Explore data in this model"
+            style={{
+              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              border: `1px solid ${exploreOpen ? '#FDB515' : 'var(--builder-border)'}`,
+              background: exploreOpen ? 'rgba(253,181,21,0.08)' : 'transparent',
+              color: exploreOpen ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+            }}
+          >
+            <MessageSquare size={12} />EXPLORE
           </button>
         )}
 
@@ -801,6 +850,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   intent={guidedIntent}
                   onAccept={() => setBlueprintAccepted(true)}
                   onBack={() => { setIntentCaptured(false); setBlueprint(null); }}
+                  dimensionHints={dimensionHints}
                 />
               </div>
             ) : (
@@ -912,6 +962,15 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           myRole={myRole}
           onClose={() => setShareOpen(false)}
           onVisibilityChange={(v) => setVisibility(v)}
+        />
+      )}
+
+      {/* ── Scoped Inspector (Explore data) ──────────────────────────────────── */}
+      {exploreOpen && modelId && (
+        <ScopedInspectorPanel
+          modelId={modelId}
+          dashboardName={dashboardName || 'Dashboard'}
+          onClose={() => setExploreOpen(false)}
         />
       )}
     </div>

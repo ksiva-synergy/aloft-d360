@@ -105,20 +105,23 @@ function renderCatalog(catalog: GroundingCatalog): string {
 }
 
 /**
- * The blueprint system prompt. Grounds the model in the governed catalog and the
- * resolved intent, and states the refuse-rather-than-guess rule. The rule is
- * ENFORCED downstream regardless — this is persuasion; blueprint-ground.ts is the
- * guardrail.
+ * The blueprint system prompt. Grounds the model in the governed catalog and
+ * states the refuse-rather-than-guess rule. The rule is ENFORCED downstream
+ * regardless — this is persuasion; blueprint-ground.ts is the guardrail.
+ *
+ * The user's specific decision (intent.topic) is intentionally NOT embedded here
+ * — it rides in the user message instead. That keeps this system prompt
+ * model-stable (a function of the catalog only), so the route can attach a
+ * Bedrock cachePoint and every proposal for the same model reuses the cached
+ * prefix (lower TTFT + input cost) within the cache TTL.
  */
 export function buildBlueprintSystemPrompt(
-  intent: ResolvedIntent,
   catalog: GroundingCatalog,
 ): string {
   return [
     'You are proposing a dashboard BLUEPRINT — a reviewable outline of charts, not live charts.',
     'Nothing you propose is executed or rendered; the user curates this list before anything is built.',
-    '',
-    `The user's decision to answer:\n"${intent.topic}"`,
+    'The user states the decision they want this dashboard to answer in their message.',
     '',
     'You may ONLY use these governed definitions. Reference them by id, exactly:',
     '',
@@ -129,7 +132,11 @@ export function buildBlueprintSystemPrompt(
     '- Use ONLY the ids above. Never invent an id or a metric.',
     '- If the decision needs a metric that is NOT above, add ONE item with `undefinedTerm` set to its',
     '  human name and empty measureIds — a "define it" row. Do not approximate it with a different metric.',
-    '- Give each item a short title and a one-line rationale.',
+    '- Give each item a short, DOMAIN-SPECIFIC title that reflects the business question being answered,',
+    '  NOT generic axis-name combinations like "Category by Type". For example, prefer',
+    '  "Accidents by root cause" over "Incident Count by Category", or "Monthly injury trend" over',
+    '  "Total Injuries by Month". The title should describe the decision insight, not the chart axes.',
+    '- Give each item a one-line rationale explaining WHY this chart answers the decision.',
     '- Prefer variety (a KPI, a trend, a breakdown) over near-duplicates.',
     '- Call propose_blueprint exactly once with all charts.',
   ].join('\n');
