@@ -37,7 +37,8 @@ export const maxDuration = 300;
  * Returns: { item: ChartBlueprint }  (id preserved so the client replaces in place)
  */
 
-const BLUEPRINT_MODEL = 'us.anthropic.claude-sonnet-4-6';
+// Shares the propose-step model knob with ../blueprint (grounded server-side).
+const BLUEPRINT_MODEL = process.env.INSPECTOR_BLUEPRINT_MODEL_ID || 'us.anthropic.claude-sonnet-4-6';
 
 function isBedrockConfigured(): boolean {
   return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
@@ -115,6 +116,10 @@ export async function POST(
         },
       ];
       const captured: RawBlueprintItem[][] = [];
+      // Same one-call short-circuit as ../blueprint: the propose tool is forced,
+      // so trip the abort the moment the single refined chart is captured — the
+      // generic loop would otherwise make a redundant second forced round-trip.
+      const abortSignal = { value: false };
       try {
         await runAgentLoop({
           modelId: BLUEPRINT_MODEL,
@@ -124,6 +129,7 @@ export async function POST(
           executeTool: async (toolName, toolInput) => {
             if (toolName === PROPOSE_BLUEPRINT_TOOL_NAME) {
               captured.push(parseProposedItems(toolInput));
+              abortSignal.value = true; // refined chart in hand — no 2nd forced call
               return 'Refined chart received.';
             }
             return 'Unknown tool.';
@@ -133,6 +139,7 @@ export async function POST(
           // Forcing a single tool (toolChoice) is incompatible with extended
           // thinking on Anthropic — keep thinking off for this structured turn.
           supportsThinking: false,
+          abortSignal,
         });
       } catch (err) {
         console.warn('[blueprint/refine-item POST] proposal loop failed; grounding fallback:', err);

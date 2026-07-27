@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Sparkles, ArrowRight, Check, Loader2, Database } from 'lucide-react';
 import { useBuilderStore } from '../builder-store';
 import { DisambiguationUnderline } from './DisambiguationUnderline';
+import { prefetchBlueprint } from './blueprint-prefetch';
 import type { ResolvedIntent, IntentDisambiguation } from '@/lib/dashboards/guided-types';
 
 const MONO: React.CSSProperties = {
@@ -153,6 +154,25 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
   const unresolvedAmbiguous = mergedTerms.some((d) => d.resolution === 'ambiguous' && !d.chosenId);
 
   const canProceed = !!resolved && modelConfirmed && topic.trim().length > 0 && !unresolvedAmbiguous;
+
+  // ── Prefetch/overlap: warm the ~25s blueprint call the moment the intent is
+  //    fully resolved (topic + all ambiguous terms chosen), so it runs in the
+  //    background while the user confirms the model and clicks through. Keyed on
+  //    the exact intent — re-choosing a term re-warms; nothing stale is served.
+  //    Deliberately does NOT wait on modelConfirmed (the blueprint route ignores
+  //    it), so the overlap starts as early as possible. ─────────────────────────
+  useEffect(() => {
+    if (!resolved || unresolvedAmbiguous) return;
+    const t = topic.trim();
+    if (!t) return;
+    prefetchBlueprint(modelId, {
+      modelId,
+      topic: t,
+      relevantMeasureIds,
+      relevantDimensionIds,
+      disambiguations: mergedTerms,
+    });
+  }, [resolved, unresolvedAmbiguous, modelId, topic, relevantMeasureIds, relevantDimensionIds, mergedTerms]);
 
   const handleUseIntent = useCallback(() => {
     if (!canProceed || !resolved) return;

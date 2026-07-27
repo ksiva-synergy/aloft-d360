@@ -37,7 +37,10 @@ export const maxDuration = 300;
  * a MODEL-level banner (`modelStatus`), not per row (one dashboard = one model).
  */
 
-const BLUEPRINT_MODEL = 'us.anthropic.claude-sonnet-4-6';
+// Propose-step model. Configurable via env so ops can trade quality for speed
+// (e.g. a Haiku tier) without a code change — the proposal is grounded
+// server-side regardless, so a faster model can never emit a fabricated id.
+const BLUEPRINT_MODEL = process.env.INSPECTOR_BLUEPRINT_MODEL_ID || 'us.anthropic.claude-sonnet-4-6';
 
 function isBedrockConfigured(): boolean {
   return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
@@ -99,22 +102,34 @@ export async function POST(
     let rawItems: RawBlueprintItem[] = [];
 
     if (isBedrockConfigured() && (catalog.measures.length > 0 || catalog.dimensions.length > 0)) {
+      // Topic lives in the user message (not the system prompt) so the system
+      // prefix stays model-stable and cacheable — see buildBlueprintSystemPrompt.
       const messages: Message[] = [
         {
           role: 'user',
-          content: [{ text: `Propose the blueprint for: ${intent.topic}` } as ContentBlock],
+          content: [{ text: `The decision I want this dashboard to answer:\n"${intent.topic}"\n\nPropose the blueprint.` } as ContentBlock],
         },
       ];
       const captured: RawBlueprintItem[][] = [];
+      // The propose tool is FORCED (toolChoice). We only need one structured
+      // turn — but the generic loop can't be run with maxLoops:1, because it
+      // drops the tool config on the last loop when no tool blocks exist yet
+      // (so the model would never be offered the tool). Instead we let the loop
+      // start (maxLoops:2) and trip this abort the moment the first proposal is
+      // captured: the loop re-checks abortSignal at the top of its while, so the
+      // forced second LLM round-trip never fires. One call, not two — and no
+      // duplicate proposal from a redundant forced turn.
+      const abortSignal = { value: false };
       try {
         await runAgentLoop({
           modelId: BLUEPRINT_MODEL,
-          systemPrompt: buildBlueprintSystemPrompt(intent, catalog),
+          systemPrompt: buildBlueprintSystemPrompt(catalog),
           messages,
           tools: buildBlueprintToolConfig(),
           executeTool: async (toolName, toolInput) => {
             if (toolName === PROPOSE_BLUEPRINT_TOOL_NAME) {
               captured.push(parseProposedItems(toolInput));
+              abortSignal.value = true; // proposal in hand — don't make a 2nd forced call
               return 'Blueprint proposal received.';
             }
             return 'Unknown tool.';
@@ -124,6 +139,9 @@ export async function POST(
           // Forcing a single tool (toolChoice) is incompatible with extended
           // thinking on Anthropic — keep thinking off for this structured turn.
           supportsThinking: false,
+          // Model-stable system prefix (catalog only) → cache it across proposals.
+          cacheSystemPrompt: true,
+          abortSignal,
         });
       } catch (err) {
         console.warn('[blueprint POST] proposal loop failed; grounding empty proposal:', err);

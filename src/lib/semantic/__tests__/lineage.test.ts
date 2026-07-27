@@ -151,7 +151,7 @@ describe('compiledSqlForMeasure (trust-spine peek — PURE, Pin #1)', () => {
     const sql = compiledSqlForMeasure(makeCatalog(), 'meas_co2');
     expect(sql).toBeTruthy();
     expect(sql!).toContain('lake.voyage.emissions'); // real table
-    expect(sql!).toContain('SUM(co2_emissions_t)'); // aggregate over real field
+    expect(sql!).toContain('SUM(a.co2_emissions_t)'); // aggregate over real field (table-aliased)
     expect(sql!).toContain('AS co2_emissions'); // toAlias key
   });
 

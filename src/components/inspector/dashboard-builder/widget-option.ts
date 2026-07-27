@@ -297,6 +297,7 @@ export function buildHeatmapOption(
       animation: false,
       xAxis: { type: 'category', data: [], name: xLabel ?? '' },
       yAxis: { type: 'category', data: [], name: yLabel },
+      visualMap: { min: 0, max: 1, show: false },
       series: [{ type: 'heatmap', data: [] }],
       graphic: {
         elements: [

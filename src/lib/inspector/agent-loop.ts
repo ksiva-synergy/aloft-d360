@@ -3,6 +3,7 @@ import {
   ConverseStreamCommand,
   type Message,
   type ContentBlock,
+  type SystemContentBlock,
   type ToolConfiguration,
 } from '@aws-sdk/client-bedrock-runtime';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
@@ -43,6 +44,15 @@ export type AgentLoopParams = {
   maxLoops: number;
   supportsTools: boolean;
   supportsThinking: boolean;
+  /**
+   * Opt-in Bedrock prompt caching: append a cachePoint after the system prompt so
+   * a STABLE system prefix (identical text across calls within the ~5-min TTL) is
+   * cached, cutting TTFT + input cost on repeats. Only worth enabling when the
+   * system prompt is model-stable (e.g. a per-model catalog) — a prompt that
+   * embeds per-request text would just pay cache-writes with no hits. Below the
+   * model's min cacheable size the cachePoint is silently ignored, never an error.
+   */
+  cacheSystemPrompt?: boolean;
   onTextChunk?: (delta: string) => void;
   onThinkingChunk?: (delta: string) => void;
   onToolCallEvent?: (event: ToolCallEvent) => void;
@@ -79,6 +89,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
     maxLoops,
     supportsTools,
     supportsThinking,
+    cacheSystemPrompt,
     onTextChunk,
     onThinkingChunk,
     onToolCallEvent,
@@ -89,6 +100,11 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
   } = params;
 
   const client = getBedrockClient();
+
+  // Stable system prefix + cachePoint when opted in; plain text otherwise.
+  const system: SystemContentBlock[] = cacheSystemPrompt
+    ? [{ text: systemPrompt }, { cachePoint: { type: 'default' } } as SystemContentBlock]
+    : [{ text: systemPrompt }];
 
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
@@ -113,7 +129,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       const command = new ConverseStreamCommand({
         modelId,
         messages,
-        system: [{ text: systemPrompt }],
+        system,
         ...(mustIncludeToolConfig ? { toolConfig: tools } : {}),
         inferenceConfig: {
           maxTokens: 4096,
