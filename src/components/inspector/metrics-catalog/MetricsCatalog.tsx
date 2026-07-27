@@ -12,7 +12,7 @@ import { useCatalogData } from './use-catalog-data';
 import { TopModelBar } from './TopModelBar';
 import { SearchStrip } from './SearchStrip';
 import { CoveragePanel } from './CoveragePanel';
-import { FacetRail } from './FacetRail';
+import { FilterBar } from './FilterBar';
 import { CatalogTable, type RowAction } from './CatalogTable';
 import { BulkActionBar } from './BulkActionBar';
 import { DetailDrawer } from './DetailDrawer';
@@ -186,8 +186,9 @@ export function MetricsCatalog() {
         <>
           <SearchStrip onDefine={handleDefine} />
           <CoveragePanel />
+          <FilterBar />
           {/* Result summary + lens hint */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 20px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
             <span style={{ ...MONO, fontSize: 10, color: INK_DIM }}>
               <span style={{ color: GOLD }}>{filteredCount}</span> definitions · {filterSummary}
             </span>
@@ -197,7 +198,6 @@ export function MetricsCatalog() {
           </div>
 
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            <FacetRail />
             <CatalogTable onRowClick={openDrawer} onRowAction={handleRowAction} />
           </div>
 

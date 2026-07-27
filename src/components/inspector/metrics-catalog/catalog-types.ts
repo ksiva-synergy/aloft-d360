@@ -78,6 +78,15 @@ export interface CatalogRow {
 
   /** True when the row came from the owner-scoped my-drafts overlay. */
   isDraft: boolean;
+
+  /** Similarity cluster: rows with the same clusterId form a group (entityId-scoped). */
+  clusterId?: string;
+  /** Human-readable stem shared by all rows in the cluster (e.g. "FOHS Consumption"). */
+  clusterLabel?: string;
+  /** True on the synthetic header row that represents the collapsed cluster. */
+  isClusterParent?: boolean;
+  /** Number of children when isClusterParent is true. */
+  clusterSize?: number;
 }
 
 // ── Node-id mirror (keep in sync with src/lib/semantic/lineage.ts) ───────────

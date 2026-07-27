@@ -138,8 +138,143 @@ function measRow(m: ReviewMeasure, entity: { id: string; label: string; fullPath
   });
 }
 
+// ── Similarity clustering ────────────────────────────────────────────────────
+
+/**
+ * Longest common prefix length between two strings (word-boundary aware).
+ * Returns the number of characters in the shared leading segment.
+ */
+function lcp(a: string, b: string): number {
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i;
+}
+
+/**
+ * Longest common suffix length between two strings.
+ */
+function lcs(a: string, b: string): number {
+  let i = 0;
+  while (i < a.length && i < b.length && a[a.length - 1 - i] === b[b.length - 1 - i]) i++;
+  return i;
+}
+
+/**
+ * Cluster rows within an entity group whose labels share a long common
+ * prefix OR suffix (>= 60% of the shorter label). Clusters with 3+ members
+ * get a clusterId and a clusterLabel (the shared stem, trimmed).
+ *
+ * This is intentionally approximate — the goal is visual grouping of
+ * obviously-related names like "24hr AE FOHS Consumption" / "24hr MF FOHS
+ * Consumption" / "24hr Total FOHS Consumption", not semantic dedup.
+ */
+function clusterByEntity(rows: CatalogRow[]): CatalogRow[] {
+  // Group non-entity rows by entityId
+  const byEntity = new Map<string, CatalogRow[]>();
+  const entityRows: CatalogRow[] = [];
+
+  for (const r of rows) {
+    if (r.kind === 'entity') {
+      entityRows.push(r);
+      continue;
+    }
+    const bucket = byEntity.get(r.entityId) ?? [];
+    bucket.push(r);
+    byEntity.set(r.entityId, bucket);
+  }
+
+  let clusterSeq = 0;
+  const result: CatalogRow[] = [...entityRows];
+
+  for (const [, members] of byEntity) {
+    if (members.length < 3) {
+      result.push(...members);
+      continue;
+    }
+
+    // Build a union-find structure to merge rows that are similar to at least one other
+    const parent = members.map((_, i) => i);
+    const findRoot = (x: number): number => {
+      while (parent[x] !== x) {
+        parent[x] = parent[parent[x]!]!;
+        x = parent[x]!;
+      }
+      return x;
+    };
+    const merge = (x: number, y: number) => {
+      parent[findRoot(x)] = findRoot(y);
+    };
+
+    for (let i = 0; i < members.length; i++) {
+      for (let j = i + 1; j < members.length; j++) {
+        const la = members[i]!.label;
+        const lb = members[j]!.label;
+        const shorter = Math.min(la.length, lb.length);
+        if (shorter < 6) continue;
+        const threshold = Math.ceil(shorter * 0.6);
+        if (lcp(la, lb) >= threshold || lcs(la, lb) >= threshold) {
+          merge(i, j);
+        }
+      }
+    }
+
+    // Collect groups
+    const groups = new Map<number, CatalogRow[]>();
+    for (let i = 0; i < members.length; i++) {
+      const root = findRoot(i);
+      const g = groups.get(root) ?? [];
+      g.push(members[i]!);
+      groups.set(root, g);
+    }
+
+    for (const group of groups.values()) {
+      if (group.length < 3) {
+        result.push(...group);
+        continue;
+      }
+
+      // Compute the shared stem: try prefix first, then suffix
+      let stem = group[0]!.label;
+      for (const r of group.slice(1)) {
+        const prefixLen = lcp(stem, r.label);
+        const suffixLen = lcs(stem, r.label);
+        if (prefixLen >= suffixLen) {
+          stem = stem.slice(0, prefixLen).trim().replace(/[_\-,]+$/, '').trim();
+        } else {
+          stem = stem.slice(stem.length - suffixLen).trim().replace(/^[_\-,]+/, '').trim();
+        }
+      }
+      if (!stem || stem.length < 3) stem = group[0]!.label;
+
+      const clusterId = `cluster-${++clusterSeq}`;
+      const clusterSize = group.length;
+
+      // Synthetic parent row (the collapsed cluster header)
+      const rep = group[0]!;
+      const parentRow: CatalogRow = {
+        ...rep,
+        rowKey: `cluster:${clusterId}`,
+        clusterId,
+        clusterLabel: stem,
+        isClusterParent: true,
+        clusterSize,
+        label: stem,
+      };
+      result.push(parentRow);
+
+      // Tag each child
+      for (const r of group) {
+        result.push({ ...r, clusterId, clusterLabel: stem, isClusterParent: false });
+      }
+    }
+  }
+
+  return result;
+}
+
 /**
  * Flatten review + drafts into themed rows. Pure.
+ * After flattening: (1) dedup by rowKey preferring non-draft, (2) cluster similar labels.
  */
 export function buildRows(
   review: ReviewResponse | null,
@@ -191,7 +326,18 @@ export function buildRows(
     }
   }
 
-  return rows;
+  // Phase A: dedup by rowKey — prefer the non-draft version when both exist
+  const seen = new Map<string, CatalogRow>();
+  for (const r of rows) {
+    const existing = seen.get(r.rowKey);
+    if (!existing || (existing.isDraft && !r.isDraft)) {
+      seen.set(r.rowKey, r);
+    }
+  }
+  const deduped = [...seen.values()];
+
+  // Phase B: similarity clustering
+  return clusterByEntity(deduped);
 }
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {

@@ -124,6 +124,10 @@ interface CatalogState {
 
   /** Optimistic status flip on acted rows post-mutation (before refetch reconcile). */
   optimisticStatus: (rowKeys: string[], status: GovStatus) => void;
+
+  /** Expanded similarity-cluster parent rows (keyed by clusterId). */
+  expandedClusters: Record<string, true>;
+  toggleCluster: (clusterId: string) => void;
 }
 
 const EMPTY_SEARCH: SearchState = {
@@ -157,7 +161,7 @@ export const useCatalogStore = create<CatalogState>()(
     selection: {},
     drawerOpen: null,
     toast: null,
-
+    expandedClusters: {} as Record<string, true>,
     // ── session + data ──────────────────────────────────────────────────────
     setSession: (s) =>
       set((st) => {
@@ -303,6 +307,13 @@ export const useCatalogStore = create<CatalogState>()(
         const keys = new Set(rowKeys);
         for (const r of st.rows) if (keys.has(r.rowKey)) r.status = status;
       }),
+
+    // ── cluster expand/collapse ─────────────────────────────────────────────
+    toggleCluster: (clusterId) =>
+      set((st) => {
+        if (st.expandedClusters[clusterId]) delete st.expandedClusters[clusterId];
+        else st.expandedClusters[clusterId] = true;
+      }),
   })),
 );
 
@@ -344,6 +355,8 @@ export function selectFilteredRows(state: SelectableState): CatalogRow[] {
   const activeDefs = search.activeDefIds.length ? new Set(search.activeDefIds) : null;
 
   return rows.filter((r) => {
+    // Cluster parent rows are virtual — exclude from filtered count and facet matching
+    if (r.isClusterParent) return false;
     if (facets.status.length && !facets.status.includes(r.status)) return false;
     if (facets.type.length && !facets.type.includes(r.kind)) return false;
     if (facets.theme.length && !facets.theme.includes(r.theme)) return false;
@@ -397,6 +410,7 @@ export function selectSortedRows(state: SelectableState): CatalogRow[] {
 export function selectCoverage(rows: CatalogRow[]): CoverageBucket[] {
   const byTheme = new Map<string, CoverageBucket>();
   for (const r of rows) {
+    if (r.isClusterParent) continue; // synthetic rows — don't double-count
     let b = byTheme.get(r.theme);
     if (!b) {
       b = { theme: r.theme, total: 0, governed: 0, candidate: 0, draft: 0, govPct: 0, gap: false };
@@ -431,6 +445,7 @@ export function selectFacetCounts(rows: CatalogRow[], me: string | null) {
   let myDrafts = 0;
   let authored = 0;
   for (const r of rows) {
+    if (r.isClusterParent) continue; // skip synthetic header rows
     status.set(r.status, (status.get(r.status) ?? 0) + 1);
     type.set(r.kind, (type.get(r.kind) ?? 0) + 1);
     theme.set(r.theme, (theme.get(r.theme) ?? 0) + 1);
