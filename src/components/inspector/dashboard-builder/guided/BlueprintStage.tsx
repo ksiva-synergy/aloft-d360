@@ -2,48 +2,30 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Sparkles, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, X, Plus, Loader2,
-  BarChart3, LineChart, ScatterChart, PieChart, Table2, Hash, Grid3x3, AlertTriangle,
-  MessageSquare, CornerDownLeft, PenLine, Send, ShieldCheck, Check,
+  Sparkles, ArrowRight, ArrowLeft, X, Plus, Loader2, AlertTriangle,
+  MessageSquare, CornerDownLeft, PenLine, Send, ShieldCheck, Check, GripVertical,
+  ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useBuilderStore } from '../builder-store';
+import { consumePrefetchedBlueprint, fetchBlueprint } from './blueprint-prefetch';
+import { SamplePreviewChart } from './SamplePreviewChart';
 import { DefineMetricPanel, type CreatedDefinition } from '../../authoring/DefineMetricPanel';
 import type {
-  ResolvedIntent, ChartBlueprint, ChartKindGuess, GuidedBlueprint,
+  ResolvedIntent, ChartBlueprint, GuidedBlueprint,
 } from '@/lib/dashboards/guided-types';
+import {
+  UI_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
+  CANVAS, CARD, BORDER,
+} from '@/lib/dashboards/inspector-viz-tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
-// Theme-aware accents: bright on dark, darkened for parchment legibility on light.
-const GREEN = 'var(--bp-measure, #34D399)';
-const BLUE = 'var(--bp-dimension, #93C5FD)';
-const VIOLET = 'var(--bp-undefined, #C4B5FD)';
-const MUTED = 'var(--wb-muted, #8892A4)';
-const INK = 'var(--wb-ink, #E6ECF5)';
+const GOLD = ACCENT_AMBER;
+const GREEN = GOVERNED;
+const VIOLET = CANDIDATE;
+const MUTED = INK_MUTED;
+const INK = INK_TOK;
 
 /** Alpha-tint any color (incl. a CSS var) — theme-safe, no hex concatenation. */
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
-
-/**
- * Chart-kind → glyph. The guess comes from recommendChartKind (server-side).
- * Color rides on `style` (not the `color` prop) so a CSS-var accent resolves —
- * var() is invalid in the SVG `stroke` attribute lucide's `color` prop writes to,
- * but valid in `style.color`, which the default `stroke="currentColor"` inherits.
- */
-function KindIcon({ kind, color }: { kind: ChartKindGuess; color: string }) {
-  const size = 15;
-  const s = { color };
-  switch (kind) {
-    case 'kpi': return <Hash size={size} style={s} />;
-    case 'line': return <LineChart size={size} style={s} />;
-    case 'scatter': return <ScatterChart size={size} style={s} />;
-    case 'heatmap': return <Grid3x3 size={size} style={s} />;
-    case 'pie': return <PieChart size={size} style={s} />;
-    case 'table': return <Table2 size={size} style={s} />;
-    case 'bar':
-    default: return <BarChart3 size={size} style={s} />;
-  }
-}
 
 interface Props {
   /** The dashboard's bound model. */
@@ -59,10 +41,15 @@ interface Props {
 /**
  * Guided Stage 2 — Blueprint (the hero, the single human-judgment gate).
  *
- * Renders the server-grounded ChartBlueprint[] as a reviewable outline the user
- * curates (reorder / rename / remove / add / accept-all). NOTHING renders live —
- * each card is a proposed spec, not an executed chart. Curate ops mutate only
- * `guidedSession.blueprint`; accepting hands off to Phase 4 (no widgets built).
+ * REDESIGN: a responsive GRID of chart-PREVIEW cards, not a monospace pill-list.
+ * Each governed card shows a `SamplePreviewChart` thumbnail (sample-badged — no
+ * query runs here) in its proposed kind; each undefined card shows a distinct
+ * soft "define it" state, never a fabricated chart. Curate ops (drag-reorder /
+ * rename / remove / add / accept-all) mutate only `guidedSession.blueprint`;
+ * accepting hands off to Phase 4 (no widgets built).
+ *
+ * The per-card affordances (NL feedback → regenerate, inline define + governance
+ * ladder) and their seams (refine-item / submit / promote routes) are unchanged.
  */
 export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
   const blueprint = useBuilderStore((s) => s.guidedSession.blueprint);
@@ -106,13 +93,9 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
     setError(null);
     (async () => {
       try {
-        const res = await fetch(`/api/inspector/semantic/${modelId}/blueprint`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ intent }),
-        });
-        if (!res.ok) throw new Error(`Blueprint request failed: ${res.status}`);
-        const json = (await res.json()) as GuidedBlueprint;
+        // Reuse the call Stage 1 warmed for this exact intent, if any; otherwise
+        // fetch fresh. Either way the ~25s may already be done by now.
+        const json = await (consumePrefetchedBlueprint(modelId, intent) ?? fetchBlueprint(modelId, intent));
         if (!cancelled) setBlueprint(json);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not propose a blueprint.');
@@ -120,13 +103,20 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Reset so a re-mount (React StrictMode double-invoke, or a real re-mount)
+      // can re-fetch. Without this, the second mount sees requestedRef=true and
+      // bails out, while the in-flight promise from the first mount resolves with
+      // cancelled=true — discarding the result and leaving the spinner forever.
+      requestedRef.current = false;
+    };
   }, [blueprint, modelId, intent, setBlueprint]);
 
   const handleAddAnother = useCallback(() => {
     const bp = useBuilderStore.getState().guidedSession.blueprint;
     if (!bp) return;
-    // "Add another" seeds a define-it row the user fills in the drill-in / Teach.
+    // "Add another" seeds a define-it card the user fills in via inline define.
     // Never fabricated: empty ids, grounding 'undefined' until a real def is chosen.
     const next: ChartBlueprint = {
       id: `bp_added_${bp.items.length}_${bp.items.reduce((n, i) => n + i.title.length, 0)}`,
@@ -138,32 +128,46 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
     useBuilderStore.getState().addBlueprintItem(next);
   }, []);
 
+  // ── Drag-to-reorder (grid-native HTML5 DnD; replaces the up/down arrows) ──────
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const handleDrop = useCallback(
+    (toIndex: number) => {
+      const from = dragIndexRef.current;
+      dragIndexRef.current = null;
+      setDragOverIndex(null);
+      if (from == null || from === toIndex) return;
+      reorderItem(from, toIndex);
+    },
+    [reorderItem],
+  );
+
   const governedCount = blueprint?.items.filter((i) => i.grounding === 'governed').length ?? 0;
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: 20, background: CANVAS, minHeight: '100%' }}>
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color={GOLD} />
-          <span style={{ ...MONO, fontSize: 10, letterSpacing: '0.10em', textTransform: 'uppercase', color: GOLD }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, fontWeight: 600 }}>
             Guided · Step 2 · Blueprint
           </span>
         </div>
-        <h2 style={{ ...MONO, fontSize: 17, lineHeight: 1.4, color: INK, margin: 0, fontWeight: 600 }}>
+        <h2 style={{ fontFamily: UI_FONT, fontSize: 20, lineHeight: 1.35, color: INK, margin: 0, fontWeight: 600 }}>
           Here’s a plan. Curate it before we build anything.
         </h2>
-        <p style={{ ...MONO, fontSize: 11, color: MUTED, margin: 0, lineHeight: 1.5 }}>
-          Each row is a proposed chart — nothing runs yet. Reorder, rename, remove, or add. This is the
-          one place to review the whole dashboard at once.
+        <p style={{ fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, margin: 0, lineHeight: 1.5, maxWidth: 640 }}>
+          Each card is a proposed chart with sample data — nothing has run yet. Drag to reorder, rename,
+          remove, or add. This is the one place to see the whole dashboard at once.
         </p>
       </div>
 
-      {/* ── Model-level candidate banner (never per-row) ────────────────────────── */}
+      {/* ── Model-level candidate banner (never per-card) ───────────────────────── */}
       {blueprint?.modelStatus === 'candidate' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 6, border: `1px solid ${tint(VIOLET, 34)}`, background: tint(VIOLET, 8) }}>
-          <AlertTriangle size={13} style={{ color: VIOLET }} />
-          <span style={{ ...MONO, fontSize: 10.5, color: INK, lineHeight: 1.4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, border: `1px solid ${tint(VIOLET, 34)}`, background: tint(VIOLET, 8) }}>
+          <AlertTriangle size={14} style={{ color: VIOLET }} />
+          <span style={{ fontFamily: UI_FONT, fontSize: 11.5, color: INK, lineHeight: 1.4 }}>
             This model isn’t governed yet — charts will render in draft (owner-only) until it’s published.
           </span>
         </div>
@@ -171,78 +175,83 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
 
       {/* ── Loading / error / empty ─────────────────────────────────────────────── */}
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...MONO, fontSize: 11, color: MUTED, padding: '18px 0' }}>
-          <Loader2 size={14} className="spin" /> Proposing charts from your governed metrics…
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, padding: '18px 0' }}>
+          <Loader2 size={15} className="spin" /> Proposing charts from your governed metrics…
         </div>
       )}
       {error && !loading && (
-        <div style={{ ...MONO, fontSize: 11, color: '#F87171', padding: '10px 12px', borderRadius: 6, background: 'rgba(248,113,113,0.08)' }}>
+        <div style={{ fontFamily: UI_FONT, fontSize: 12, color: '#F87171', padding: '10px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.08)' }}>
           {error}
         </div>
       )}
       {!loading && blueprint && blueprint.items.length === 0 && (
-        <p style={{ ...MONO, fontSize: 11, color: MUTED, lineHeight: 1.5 }}>
+        <p style={{ fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, lineHeight: 1.5, maxWidth: 640 }}>
           No charts could be grounded in this model’s governed metrics for that intent. Add one below, or
-          define the metric you need in Teach — we won’t invent a metric that doesn’t exist.
+          define the metric you need — we won’t invent a metric that doesn’t exist.
         </p>
       )}
 
-      {/* ── Card list ───────────────────────────────────────────────────────────── */}
+      {/* ── Card GRID ───────────────────────────────────────────────────────────── */}
       {!loading && blueprint && blueprint.items.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, alignItems: 'stretch' }}
+        >
           {blueprint.items.map((item, idx) => (
             <BlueprintCard
               key={item.id}
               item={item}
               index={idx}
-              count={blueprint.items.length}
               modelId={modelId}
               intent={intent}
+              dragOver={dragOverIndex === idx}
               onRename={(title) => renameItem(item.id, title)}
               onRemove={() => removeItem(item.id)}
-              onMoveUp={() => reorderItem(idx, idx - 1)}
-              onMoveDown={() => reorderItem(idx, idx + 1)}
               onUpdate={(patch) => updateItem(item.id, patch)}
               onOpenDefine={() => setDefiningItemId(item.id)}
+              onDragStart={() => { dragIndexRef.current = idx; }}
+              onDragEnter={() => setDragOverIndex(idx)}
+              onDrop={() => handleDrop(idx)}
             />
           ))}
-        </div>
-      )}
 
-      {/* ── Curate controls ─────────────────────────────────────────────────────── */}
-      {!loading && blueprint && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+          {/* Ghost "Add another" card at the grid's end. */}
           <button
             onClick={handleAddAnother}
             style={{
-              ...MONO, fontSize: 10.5, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '7px 12px', borderRadius: 6, border: `1px dashed ${tint(MUTED, 55)}`,
-              background: 'transparent', color: MUTED, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              minHeight: 220, borderRadius: 10, border: `1px dashed ${tint(MUTED, 45)}`, background: 'transparent',
+              color: MUTED, cursor: 'pointer', fontFamily: UI_FONT, fontSize: 12,
             }}
           >
-            <Plus size={13} /> Add another
+            <Plus size={22} /> Add another chart
           </button>
-          <div style={{ flex: 1 }} />
+        </div>
+      )}
+
+      {/* ── Curate footer ───────────────────────────────────────────────────────── */}
+      {!loading && blueprint && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
           {onBack && (
             <button
               onClick={onBack}
-              style={{ ...MONO, fontSize: 10, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              style={{ fontFamily: UI_FONT, fontSize: 11.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <ArrowLeft size={12} /> Back to intent
+              <ArrowLeft size={13} /> Back to intent
             </button>
           )}
+          <div style={{ flex: 1 }} />
           <button
             onClick={() => blueprint && onAccept?.(blueprint)}
             disabled={governedCount === 0}
             title={governedCount === 0 ? 'Add at least one grounded chart first' : 'Accept all — refine each chart next'}
             style={{
-              ...MONO, fontSize: 11, letterSpacing: '0.04em', textTransform: 'uppercase',
-              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 6, border: 'none',
-              background: governedCount > 0 ? GOLD : 'rgba(253,181,21,0.3)', color: '#0D1B2A',
-              cursor: governedCount > 0 ? 'pointer' : 'default', fontWeight: 500,
+              fontFamily: UI_FONT, fontSize: 12.5, letterSpacing: '0.02em',
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 22px', borderRadius: 8, border: 'none',
+              background: governedCount > 0 ? GOLD : tint(GOLD, 30), color: '#0D1B2A',
+              cursor: governedCount > 0 ? 'pointer' : 'default', fontWeight: 600,
             }}
           >
-            Accept all — refine next <ArrowRight size={13} />
+            Accept all — refine next <ArrowRight size={15} />
           </button>
         </div>
       )}
@@ -265,28 +274,33 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack }: Props) {
 }
 
 /**
- * One blueprint card: title (inline-editable), chips, kind icon, rationale, a
- * per-chart NL feedback → regenerate control (Request 1), and — for an undefined
- * item — the inline define-metric affordance + governance ladder (Request 2).
+ * One blueprint card in the grid: a preview thumbnail (governed) or a soft
+ * define-it state (undefined), title (inline-editable), a compact type chip, a
+ * collapsed field summary, a one-line rationale, the per-chart NL feedback →
+ * regenerate control (Request 1), and — for an undefined item — the inline
+ * define-metric affordance + governance ladder (Request 2).
  */
 function BlueprintCard({
-  item, index, count, modelId, intent, onRename, onRemove, onMoveUp, onMoveDown, onUpdate, onOpenDefine,
+  item, index, modelId, intent, dragOver,
+  onRename, onRemove, onUpdate, onOpenDefine, onDragStart, onDragEnter, onDrop,
 }: {
   item: ChartBlueprint;
   index: number;
-  count: number;
   modelId: string;
   intent: ResolvedIntent;
+  dragOver: boolean;
   onRename: (title: string) => void;
   onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onUpdate: (patch: Partial<ChartBlueprint>) => void;
   onOpenDefine: () => void;
+  onDragStart: () => void;
+  onDragEnter: () => void;
+  onDrop: () => void;
 }) {
   const undefined_ = item.grounding === 'undefined';
   const accent = undefined_ ? VIOLET : GREEN;
   const pd = item.pendingDefinition;
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   // ── Request 1: NL feedback → regenerate THIS chart ───────────────────────────
   const [showFeedback, setShowFeedback] = useState(false);
@@ -384,7 +398,7 @@ function BlueprintCard({
     }
   }, [pd, ladderBusy, modelId, onUpdate]);
 
-  // Provenance-aware nudge copy — now inline-define, not Teach.
+  // Provenance-aware nudge copy — inline-define, not Teach. (Strings preserved.)
   const prov = item.undefinedProvenance;
   const nudgeLabel = prov?.candidateExists
     ? 'defined but not governed — govern it here'
@@ -392,140 +406,189 @@ function BlueprintCard({
       ? 'may exist beyond search — confirm or define it here'
       : 'not defined yet — define it here';
 
+  const measureCount = item.measureLabels.length;
+  const dimCount = item.dimensionLabels.length;
+
   return (
     <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnter={onDragEnter}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={onDrop}
+      data-testid="blueprint-card"
       style={{
-        display: 'flex', gap: 12, padding: '12px 14px', borderRadius: 8,
-        border: `1px solid ${undefined_ ? tint(VIOLET, 27) : 'var(--bp-card-border, rgba(136,146,164,0.2))'}`,
-        background: undefined_ ? tint(VIOLET, 6) : 'var(--bp-card-bg, rgba(0,0,0,0.15))',
+        display: 'flex', flexDirection: 'column', gap: 10, padding: 14, borderRadius: 10,
+        border: `1px solid ${dragOver ? tint(GOLD, 60) : undefined_ ? tint(VIOLET, 30) : BORDER}`,
+        background: undefined_ ? tint(VIOLET, 6) : CARD,
+        boxShadow: undefined_ ? undefined : `0 0 0 1px ${tint(GREEN, 10)}, 0 6px 20px -12px rgba(0,0,0,0.6)`,
       }}
     >
-      {/* Kind icon */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, paddingTop: 2 }}>
-        <KindIcon kind={item.chartKindGuess} color={accent} />
-        <span style={{ ...MONO, fontSize: 8, color: MUTED, textTransform: 'uppercase' }}>{item.chartKindGuess}</span>
-      </div>
+      {/* Thumbnail (governed) or soft define-it panel (undefined) */}
+      {undefined_ ? (
+        <DefineItCard
+          nudgeLabel={nudgeLabel}
+          term={item.undefinedTerm ?? item.title}
+          hasPending={!!pd}
+          onOpenDefine={onOpenDefine}
+        />
+      ) : (
+        <SamplePreviewChart
+          chartKind={item.chartKindGuess}
+          measureLabels={item.measureLabels}
+          dimensionLabels={item.dimensionLabels}
+          measureIds={item.measureIds}
+          governance={item.grounding === 'governed' ? 'governed' : 'candidate'}
+          size="thumb"
+          lazy
+        />
+      )}
 
-      {/* Body */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {/* Title row: drag handle + inline rename + type chip + remove */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span aria-hidden style={{ color: tint(MUTED, 70), cursor: 'grab', display: 'inline-flex' }} title="Drag to reorder">
+          <GripVertical size={14} />
+        </span>
         <input
           value={item.title}
           onChange={(e) => onRename(e.target.value)}
           aria-label="Chart title"
           style={{
-            ...MONO, fontSize: 13, fontWeight: 600, color: INK, background: 'transparent',
-            border: 'none', borderBottom: '1px solid transparent', outline: 'none', padding: '1px 0',
+            fontFamily: UI_FONT, fontSize: 13.5, fontWeight: 600, color: INK, background: 'transparent',
+            border: 'none', borderBottom: '1px solid transparent', outline: 'none', padding: '1px 0', flex: 1, minWidth: 0,
           }}
-          onFocus={(e) => (e.target.style.borderBottomColor = 'rgba(136,146,164,0.4)')}
+          onFocus={(e) => (e.target.style.borderBottomColor = tint(MUTED, 50))}
           onBlur={(e) => (e.target.style.borderBottomColor = 'transparent')}
         />
+        <span style={typeChip(accent)}>{item.chartKindGuess}</span>
+        <button onClick={onRemove} aria-label="Remove" style={{ background: 'transparent', border: 'none', color: tint(MUTED, 75), cursor: 'pointer', padding: 2, display: 'inline-flex' }}>
+          <X size={14} />
+        </button>
+      </div>
 
-        {/* Chips — labels ride beside IDs (no second lookup) */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          {item.measureLabels.map((label, i) => (
-            <span key={`m${i}`} style={chipStyle(GREEN)}>{label}</span>
-          ))}
-          {item.dimensionLabels.length > 0 && (
-            <span style={{ ...MONO, fontSize: 9, color: MUTED }}>by</span>
+      {/* Collapsed field summary — "N measures · M dimensions", expands to labels */}
+      {(measureCount > 0 || dimCount > 0) && (
+        <div>
+          <button
+            onClick={() => setSummaryOpen((o) => !o)}
+            style={{ fontFamily: UI_FONT, fontSize: 11, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0 }}
+          >
+            {summaryOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            {measureCount} measure{measureCount === 1 ? '' : 's'} · {dimCount} dimension{dimCount === 1 ? '' : 's'}
+          </button>
+          {summaryOpen && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {item.measureLabels.map((label, i) => (
+                <span key={`m${i}`} style={fieldChip(GREEN)}>{label}</span>
+              ))}
+              {dimCount > 0 && <span style={{ fontFamily: UI_FONT, fontSize: 10, color: MUTED, alignSelf: 'center' }}>by</span>}
+              {item.dimensionLabels.map((label, i) => (
+                <span key={`d${i}`} style={fieldChip(BLUE)}>{label}</span>
+              ))}
+            </div>
           )}
-          {item.dimensionLabels.map((label, i) => (
-            <span key={`d${i}`} style={chipStyle(BLUE)}>{label}</span>
-          ))}
         </div>
+      )}
 
-        {/* Undefined + not yet defined → inline define affordance (provenance-aware). */}
-        {undefined_ && !pd && (
-          <button
-            onClick={onOpenDefine}
-            data-undefined-term={item.undefinedTerm ?? ''}
+      {/* Governance ladder for an inline-defined metric. */}
+      {pd && <LadderStrip pd={pd} busy={ladderBusy} error={ladderError} onSubmit={handleSubmitForGovernance} onPromote={handlePromote} />}
+
+      {item.rationale && (
+        <p style={{ fontFamily: UI_FONT, fontSize: 11.5, color: MUTED, margin: 0, lineHeight: 1.5 }}>{item.rationale}</p>
+      )}
+
+      {/* Request 1: NL feedback → regenerate this chart. */}
+      {showFeedback ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleRegenerate(); }}
+            rows={2}
+            autoFocus
+            aria-label="Feedback for this chart"
+            placeholder="e.g. “wrong metric — use lost-time injuries”, “make it a line by month”"
             style={{
-              ...MONO, fontSize: 10, color: VIOLET, background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 5, textAlign: 'left', padding: 0,
+              fontFamily: UI_FONT, fontSize: 11.5, resize: 'vertical', color: INK, lineHeight: 1.5,
+              background: 'rgba(0,0,0,0.18)', border: `1px solid ${tint(MUTED, 30)}`, borderRadius: 6,
+              padding: '7px 9px', outline: 'none',
             }}
-          >
-            <PenLine size={11} />
-            <span style={{ textDecoration: 'underline dotted', textDecorationColor: VIOLET }}>
-              “{item.undefinedTerm ?? item.title}” — {nudgeLabel}
-            </span>
-            <ArrowRight size={11} />
-          </button>
-        )}
-
-        {/* Governance ladder for an inline-defined metric. */}
-        {pd && <LadderStrip pd={pd} busy={ladderBusy} error={ladderError} onSubmit={handleSubmitForGovernance} onPromote={handlePromote} />}
-
-        {item.rationale && (
-          <p style={{ ...MONO, fontSize: 10.5, color: MUTED, margin: 0, lineHeight: 1.5 }}>{item.rationale}</p>
-        )}
-
-        {/* Request 1: NL feedback → regenerate this chart. */}
-        {showFeedback ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
-              <textarea
-                value={feedback}
-                onChange={(e) => setFeedback(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleRegenerate(); }}
-                rows={2}
-                autoFocus
-                aria-label="Feedback for this chart"
-                placeholder="e.g. “wrong metric — use lost-time injuries”, “make it a line by month”, “add avg days between inspections”"
-                style={{
-                  ...MONO, fontSize: 10.5, flex: 1, resize: 'vertical', color: INK, lineHeight: 1.5,
-                  background: 'rgba(0,0,0,0.18)', border: '1px solid rgba(136,146,164,0.28)', borderRadius: 6,
-                  padding: '7px 9px', outline: 'none',
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                onClick={handleRegenerate}
-                disabled={!feedback.trim() || regenerating}
-                style={{
-                  ...MONO, fontSize: 10, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 11px', borderRadius: 6,
-                  border: feedback.trim() ? `1px solid ${tint(GOLD, 60)}` : '1px dashed rgba(136,146,164,0.4)',
-                  background: feedback.trim() ? tint(GOLD, 10) : 'transparent',
-                  color: feedback.trim() ? GOLD : MUTED, cursor: !feedback.trim() || regenerating ? 'default' : 'pointer',
-                }}
-              >
-                {regenerating ? <Loader2 size={12} className="spin" /> : <CornerDownLeft size={12} />}
-                {regenerating ? 'Regenerating…' : 'Regenerate chart'}
-              </button>
-              <button
-                onClick={() => { setShowFeedback(false); setFeedback(''); setRegenError(null); }}
-                style={{ ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-              {regenError && <span style={{ ...MONO, fontSize: 9.5, color: '#F87171' }}>{regenError}</span>}
-            </div>
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={handleRegenerate}
+              disabled={!feedback.trim() || regenerating}
+              style={{
+                fontFamily: UI_FONT, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '6px 11px', borderRadius: 6,
+                border: feedback.trim() ? `1px solid ${tint(GOLD, 60)}` : `1px dashed ${tint(MUTED, 40)}`,
+                background: feedback.trim() ? tint(GOLD, 10) : 'transparent',
+                color: feedback.trim() ? GOLD : MUTED, cursor: !feedback.trim() || regenerating ? 'default' : 'pointer',
+              }}
+            >
+              {regenerating ? <Loader2 size={12} className="spin" /> : <CornerDownLeft size={12} />}
+              {regenerating ? 'Regenerating…' : 'Regenerate chart'}
+            </button>
+            <button
+              onClick={() => { setShowFeedback(false); setFeedback(''); setRegenError(null); }}
+              style={{ fontFamily: UI_FONT, fontSize: 10.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            >
+              Cancel
+            </button>
+            {regenError && <span style={{ fontFamily: UI_FONT, fontSize: 10.5, color: '#F87171' }}>{regenError}</span>}
           </div>
-        ) : (
-          <button
-            onClick={() => setShowFeedback(true)}
-            style={{
-              ...MONO, fontSize: 9.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, marginTop: 2, alignSelf: 'flex-start',
-            }}
-          >
-            <MessageSquare size={11} /> Give feedback / refine
-          </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowFeedback(true)}
+          style={{
+            fontFamily: UI_FONT, fontSize: 10.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, alignSelf: 'flex-start', marginTop: 'auto',
+          }}
+        >
+          <MessageSquare size={12} /> Give feedback / refine
+        </button>
+      )}
+    </div>
+  );
+}
 
-      {/* Controls */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-        <button onClick={onMoveUp} disabled={index === 0} aria-label="Move up" style={iconBtn(index === 0)}>
-          <ArrowUp size={13} />
+/** The distinct soft "define it" state for an undefined item (no fabricated chart). */
+function DefineItCard({
+  nudgeLabel, term, hasPending, onOpenDefine,
+}: {
+  nudgeLabel: string;
+  term: string;
+  hasPending: boolean;
+  onOpenDefine: () => void;
+}) {
+  return (
+    <div
+      style={{
+        minHeight: 132, borderRadius: 10, border: `1px dashed ${tint(VIOLET, 40)}`, background: tint(VIOLET, 5),
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, textAlign: 'center',
+      }}
+    >
+      <PenLine size={20} style={{ color: VIOLET }} />
+      {!hasPending ? (
+        <button
+          onClick={onOpenDefine}
+          data-undefined-term={term}
+          style={{
+            fontFamily: UI_FONT, fontSize: 11.5, color: VIOLET, background: 'transparent', border: 'none', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1.4, maxWidth: 240,
+          }}
+        >
+          <span style={{ textDecoration: 'underline dotted', textDecorationColor: VIOLET }}>
+            “{term}” — {nudgeLabel}
+          </span>
+          <ArrowRight size={12} />
         </button>
-        <button onClick={onMoveDown} disabled={index === count - 1} aria-label="Move down" style={iconBtn(index === count - 1)}>
-          <ArrowDown size={13} />
-        </button>
-        <button onClick={onRemove} aria-label="Remove" style={{ ...iconBtn(false), color: '#F87171' }}>
-          <X size={13} />
-        </button>
-      </div>
+      ) : (
+        <span data-undefined-term={term} style={{ fontFamily: UI_FONT, fontSize: 11, color: MUTED, lineHeight: 1.4 }}>
+          Defining “{term}” — finish it on the ladder below.
+        </span>
+      )}
     </div>
   );
 }
@@ -545,12 +608,12 @@ function LadderStrip({
   onPromote: () => void;
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '7px 9px', borderRadius: 6, border: `1px solid ${tint(GOLD, 28)}`, background: tint(GOLD, 6) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '8px 10px', borderRadius: 6, border: `1px solid ${tint(GOLD, 28)}`, background: tint(GOLD, 6) }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <span style={{ ...MONO, fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, border: '1px solid rgba(136,146,164,0.35)', borderRadius: 3, padding: '1px 6px' }}>
+        <span style={{ fontFamily: UI_FONT, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, border: `1px solid ${tint(MUTED, 40)}`, borderRadius: 3, padding: '1px 6px' }}>
           {pd.tier}
         </span>
-        <span style={{ ...MONO, fontSize: 10, color: INK }}>{pd.label}</span>
+        <span style={{ fontFamily: UI_FONT, fontSize: 11, color: INK }}>{pd.label}</span>
         <span style={{ flex: 1 }} />
         {pd.tier === 'draft' && (
           <button onClick={onSubmit} disabled={busy} style={ladderBtn(GOLD, busy)}>
@@ -563,39 +626,41 @@ function LadderStrip({
           </button>
         )}
         {pd.tier === 'governed' && (
-          <span style={{ ...MONO, fontSize: 9.5, color: GREEN, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 10.5, color: GREEN, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Check size={12} /> Governed
           </span>
         )}
       </div>
       {pd.tier === 'draft' && (
-        <span style={{ ...MONO, fontSize: 9, color: MUTED, lineHeight: 1.4 }}>
+        <span style={{ fontFamily: UI_FONT, fontSize: 10, color: MUTED, lineHeight: 1.4 }}>
           Draft is private to you — submit it so this chart can use it.
         </span>
       )}
-      {error && <span style={{ ...MONO, fontSize: 9.5, color: '#F87171', lineHeight: 1.4 }}>{error}</span>}
+      {error && <span style={{ fontFamily: UI_FONT, fontSize: 10.5, color: '#F87171', lineHeight: 1.4 }}>{error}</span>}
     </div>
   );
 }
 
-function chipStyle(color: string): React.CSSProperties {
+const BLUE = '#56B4E9'; // Okabe-Ito sky-blue for dimension chips
+
+function typeChip(color: string): React.CSSProperties {
   return {
-    ...MONO, fontSize: 10, padding: '3px 8px', borderRadius: 12,
-    border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), color, whiteSpace: 'nowrap',
+    fontFamily: UI_FONT, fontSize: 9.5, letterSpacing: '0.04em', textTransform: 'uppercase',
+    padding: '3px 8px', borderRadius: 4, border: `1px solid ${tint(color, 40)}`, background: tint(color, 12), color,
+    whiteSpace: 'nowrap', fontWeight: 600,
   };
 }
 
-function iconBtn(disabled: boolean): React.CSSProperties {
+function fieldChip(color: string): React.CSSProperties {
   return {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22,
-    borderRadius: 4, border: '1px solid var(--bp-card-border, rgba(136,146,164,0.2))', background: 'transparent',
-    color: disabled ? tint(MUTED, 40) : MUTED, cursor: disabled ? 'default' : 'pointer',
+    fontFamily: UI_FONT, fontSize: 11, padding: '3px 9px', borderRadius: 12,
+    border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), color, whiteSpace: 'nowrap',
   };
 }
 
 function ladderBtn(color: string, disabled: boolean): React.CSSProperties {
   return {
-    ...MONO, fontSize: 9, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', gap: 5,
+    fontFamily: UI_FONT, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '5px 9px', borderRadius: 5, border: `1px solid ${tint(color, 55)}`,
     background: tint(color, 12), color, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.6 : 1,
   };
