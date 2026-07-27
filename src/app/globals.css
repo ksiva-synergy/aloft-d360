@@ -131,6 +131,17 @@
   --bp-dimension:    #1D4ED8;
   --bp-undefined:    #7C3AED;
 
+  /* Inspector-viz surfaces (guided Blueprint gallery + Refine canvas) — light.
+     Mirrored as literals in src/lib/dashboards/inspector-viz-tokens.ts. */
+  --iv-canvas:        #F5F2EB;
+  --iv-card:          #FFFFFF;
+  --iv-card-elevated: #FAFAF7;
+  --iv-border:        #C8C2AD;
+  --iv-border-subtle: #E4DFCF;
+  --iv-ink:           #0f172a;
+  --iv-ink-muted:     #5A6A7A;
+  --iv-ink-dim:       #8892A4;
+
   /* Data Estate palette — light mode */
   --estate-bg:          #F5F2EB;
   --estate-surface:     #FFFFFF;
@@ -295,6 +306,17 @@
   --bp-measure:      #34D399;
   --bp-dimension:    #93C5FD;
   --bp-undefined:    #C4B5FD;
+
+  /* Inspector-viz surfaces (guided Blueprint gallery + Refine canvas) — dark
+     (near-black canvas, glowing cards). Mirrored in inspector-viz-tokens.ts. */
+  --iv-canvas:        #05070b;
+  --iv-card:          #161b22;
+  --iv-card-elevated: #1c222b;
+  --iv-border:        #262d36;
+  --iv-border-subtle: #1a2029;
+  --iv-ink:           #e6edf3;
+  --iv-ink-muted:     #8892A4;
+  --iv-ink-dim:       #768390;
 
   /* Activity-tracking analytics palette (dark) */
   --at-bg-base: #0A0E27;
