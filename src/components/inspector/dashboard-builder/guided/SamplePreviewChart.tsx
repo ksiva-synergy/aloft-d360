@@ -35,10 +35,14 @@
  */
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { AlertTriangle } from 'lucide-react';
 import { useIsDark } from '@/hooks/useIsDark';
 import echartsCore from '@/lib/studio/echartsCore';
+// Modular echarts-for-react core — fed OUR chokepoint instance (echartsCore), so
+// no full-barrel echarts is pulled. Mounting is gated on a client `mounted` flag
+// (below) so ECharts (canvas/ResizeObserver) never renders during SSR — the same
+// SSR-safety next/dynamic ssr:false gives StudioChart, but deterministic in tests.
+import ReactEChartsCore from 'echarts-for-react/lib/core';
 import { NotWiredChart } from './NotWiredChart';
 import { buildSampleData } from '@/lib/dashboards/sample-data';
 import type { RowsToOptionResult } from '@/lib/dashboards/rows-to-option';
@@ -50,10 +54,6 @@ import {
 import {
   UI_FONT, GOVERNED, CANDIDATE, ACCENT_AMBER, INK_MUTED,
 } from '@/lib/dashboards/inspector-viz-tokens';
-
-// Modular echarts-for-react core — fed OUR chokepoint instance (echartsCore), so
-// no full-barrel echarts is pulled. ssr:false: ECharts needs canvas/ResizeObserver.
-const ReactEChartsCore = dynamic(() => import('echarts-for-react/lib/core'), { ssr: false });
 
 export type { PreviewChartKind };
 
@@ -88,6 +88,9 @@ function SamplePreviewChartImpl({
   const inkColor = isDark ? '#e6edf3' : '#0f172a';
   const theme = isDark ? 'inspector-dark' : 'inspector-light';
   const [ref, inView] = useInView<HTMLDivElement>(!lazy);
+  // Client-only mount gate — ECharts never renders during SSR (no canvas there).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const height = size === 'thumb' ? 132 : 260;
   const seriesIdentities = useMemo(
@@ -121,7 +124,7 @@ function SamplePreviewChartImpl({
   }
 
   const stateAttr = isLive ? 'ok' : isLoading ? 'loading' : 'sample';
-  const showSkeleton = isLoading || (lazy && !inView);
+  const showSkeleton = isLoading || !mounted || (lazy && !inView);
 
   return (
     <div
