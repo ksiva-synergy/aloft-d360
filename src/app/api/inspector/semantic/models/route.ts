@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getUserByEmail } from '@/lib/dashboards/permissions';
+import { isAdmin } from '@/lib/semantic/promotion-gate';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,12 @@ export const dynamic = 'force-dynamic';
  * the same resolution the Inspector chat / dashboards POST use: prefer the latest
  * governed model, else the latest candidate — so the route lands on a sensible
  * model with entities to author against.
+ *
+ * Also returns `isAdmin` (org-global governance override, via promotion-gate)
+ * and `currentUserId` so the catalog UI can gate action EMPHASIS correctly:
+ * role gates the actions (admin, or own-row ownership), the lens gates only
+ * emphasis. This is UX-emphasis only — the promote/archive/PATCH routes enforce
+ * the real gate server-side regardless of what the client shows.
  */
 export async function GET() {
   try {
@@ -36,9 +43,13 @@ export async function GET() {
     const candidate = models.find((m) => m.status === 'candidate');
     const defaultModelId = (governed ?? candidate ?? models[0])?.id ?? null;
 
+    const admin = await isAdmin(currentUser.id);
+
     return NextResponse.json({
       models: models.map((m) => ({ id: m.id, name: m.name, status: m.status })),
       defaultModelId,
+      isAdmin: admin,
+      currentUserId: currentUser.id,
     });
   } catch (err) {
     console.error('[semantic/models GET]', err);
