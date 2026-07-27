@@ -17,6 +17,7 @@ import type {
   SemanticModelDimension,
   SemanticModelMeasure,
   SemanticModelEntity,
+  SemanticModelJoin,
   SemanticFilter,
   SemanticSort,
 } from './types';
@@ -81,43 +82,6 @@ function renderDimExpr(columnName: string, grain: string | undefined): string {
   return columnName;
 }
 
-/**
- * Render a measure aggregate expression. Returns { expr, alias }.
- * Validates expression safety for derived/ratio metric types.
- */
-function renderMeasureExpr(
-  measure: SemanticModelMeasure,
-): { expr: string; alias: string } {
-  const alias = toAlias(measure.measure_label);
-
-  if (measure.metric_type === 'ratio' || measure.metric_type === 'derived') {
-    if (!measure.expression) {
-      throw new Error(
-        `Measure '${measure.id}' (${measure.metric_type}) has no expression field`,
-      );
-    }
-    const safety = compileSafety(measure.expression);
-    if (!safety.safe) {
-      throw new Error(
-        `Measure '${measure.id}' expression rejected: ${safety.reason}`,
-      );
-    }
-    return { expr: measure.expression, alias };
-  }
-
-  if (measure.metric_type === 'cumulative' || measure.metric_type === 'simple') {
-    if (!measure.column_name) {
-      throw new Error(
-        `Measure '${measure.id}' (${measure.metric_type}) requires column_name`,
-      );
-    }
-    const aggFn = aggToSql(measure.aggregate);
-    return { expr: `${aggFn}(${measure.column_name})`, alias };
-  }
-
-  throw new Error(`Unknown metric_type '${measure.metric_type}' on measure '${measure.id}'`);
-}
-
 function aggToSql(aggregate: string): string {
   switch (aggregate) {
     case 'sum':           return 'SUM';
@@ -133,10 +97,10 @@ function aggToSql(aggregate: string): string {
 
 /**
  * Full aggregate expression (handles multi-word aggregates).
+ * col is already fully-qualified (e.g. "a.revenue") by the caller.
  */
-function fullAggExpr(measure: SemanticModelMeasure): string {
-  if (!measure.column_name) throw new Error(`column_name required for aggregate on '${measure.id}'`);
-  const col = measure.column_name;
+function fullAggExpr(measure: SemanticModelMeasure, qualifiedCol: string): string {
+  const col = qualifiedCol;
   switch (measure.aggregate) {
     case 'count_distinct': return `COUNT(DISTINCT ${col})`;
     case 'median':         return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${col})`;
@@ -154,6 +118,8 @@ function renderFilter(
   measureAliasMap: Map<string, string>,
   globalGrain: string | undefined,
   dimRefMap: Map<string, { timeGrain?: string }>,
+  entityAlias: Map<string, string>,
+  primaryAlias: string,
 ): string {
   const { fieldId, fieldKind, op, value } = filter;
 
@@ -161,7 +127,8 @@ function renderFilter(
     const dim = dimMap.get(fieldId);
     if (!dim) throw new Error(`Filter references unknown dimension '${fieldId}'`);
     const grain = resolveGrain(dimRefMap.get(fieldId) ?? {}, globalGrain, dim);
-    const colExpr = renderDimExpr(dim.column_name, grain);
+    const tAlias = entityAlias.get(dim.entity_id) ?? primaryAlias;
+    const colExpr = renderDimExpr(`${tAlias}.${dim.column_name}`, grain);
     return renderOpExpr(colExpr, op, value);
   } else {
     // measure filter → HAVING uses SELECT alias
@@ -209,13 +176,15 @@ function renderOpExpr(lhs: string, op: string, value: unknown): string {
  *
  * Supported patterns:
  *  (a) Single entity — SELECT dims, AGG(measures) FROM full_path GROUP BY dims
- *  (b) Two-entity join — adds {join_type} JOIN entity_b ON join_on_sql
+ *  (b) Multi-entity join — BFS over the joins graph; builds a chain of JOINs
+ *      covering all involved entities. Each entity gets a sequential alias (a, b, c …).
+ *      All column references are table-alias-prefixed to avoid ambiguity.
  *  (c) Simple metric — AGG(column_name)
  *  (d) Ratio metric — inline expression (safety-checked)
  *  (e) Cumulative metric — two-layer CTE (inner GROUP BY, outer OVER window)
  *  (f) Derived metric — inline expression (safety-checked)
  *
- * Throws on: unknown IDs, unsafe expressions, missing required fields, missing join.
+ * Throws on: unknown IDs, unsafe expressions, missing required fields, no join path.
  */
 export function compileSemanticQuery(
   query: SemanticQuery,
@@ -260,38 +229,74 @@ export function compileSemanticQuery(
 
   const secondaryEntityIds = [...involvedEntityIds].filter((id) => id !== query.entityId);
 
-  if (secondaryEntityIds.length > 1) {
-    throw new Error(
-      `S1 compiler supports at most one secondary entity (two-entity joins). ` +
-      `Got ${secondaryEntityIds.length}: ${secondaryEntityIds.join(', ')}`,
-    );
+  // ── Resolve join path via BFS (supports chained multi-entity joins) ───────
+  // joinPath: ordered list of entities to join in, each with its assigned SQL alias.
+  // entityAlias: entityId → the alias used in the FROM/JOIN clause.
+  const ALIASES = 'abcdefghijklmnopqrstuvwxyz';
+  const entityAlias = new Map<string, string>([[query.entityId, ALIASES[0]]]);
+
+  type JoinStep = {
+    entity: SemanticModelEntity;
+    join: SemanticModelJoin;
+    alias: string;
+  };
+  const joinSteps: JoinStep[] = [];
+
+  if (secondaryEntityIds.length > 0) {
+    // Build adjacency list (undirected — joins are bidirectional for path-finding)
+    const adj = new Map<string, { neighbourId: string; join: SemanticModelJoin }[]>();
+    for (const j of model.joins) {
+      if (!adj.has(j.from_entity_id)) adj.set(j.from_entity_id, []);
+      if (!adj.has(j.to_entity_id))   adj.set(j.to_entity_id, []);
+      adj.get(j.from_entity_id)!.push({ neighbourId: j.to_entity_id, join: j });
+      adj.get(j.to_entity_id)!.push({ neighbourId: j.from_entity_id, join: j });
+    }
+
+    // BFS from primaryEntity to find shortest path to each secondary
+    const resolveJoinPath = (targetId: string): Array<{ entityId: string; join: SemanticModelJoin }> => {
+      const visited = new Set<string>([query.entityId]);
+      const queue: Array<{ entityId: string; path: Array<{ entityId: string; join: SemanticModelJoin }> }> = [
+        { entityId: query.entityId, path: [] },
+      ];
+      while (queue.length > 0) {
+        const { entityId, path } = queue.shift()!;
+        for (const { neighbourId, join } of (adj.get(entityId) ?? [])) {
+          if (visited.has(neighbourId)) continue;
+          visited.add(neighbourId);
+          const newPath = [...path, { entityId: neighbourId, join }];
+          if (neighbourId === targetId) return newPath;
+          queue.push({ entityId: neighbourId, path: newPath });
+        }
+      }
+      return [];
+    };
+
+    // Resolve join paths for all secondary entities, accumulating new steps only
+    for (const secId of secondaryEntityIds) {
+      const path = resolveJoinPath(secId);
+      if (path.length === 0) {
+        throw new Error(
+          `No join path found between entity '${query.entityId}' and '${secId}'. ` +
+          `Add platform_sem_joins rows to connect these entities.`,
+        );
+      }
+      for (const step of path) {
+        if (entityAlias.has(step.entityId)) continue; // already joined
+        const alias = ALIASES[entityAlias.size] ?? `t${entityAlias.size}`;
+        entityAlias.set(step.entityId, alias);
+        const entity = entityMap.get(step.entityId);
+        if (!entity) throw new Error(`Entity '${step.entityId}' not found in model`);
+        joinSteps.push({ entity, join: step.join, alias });
+      }
+    }
   }
 
   // ── Build FROM clause ─────────────────────────────────────────────────────
-  // full_path is already lowercased canonical form (buildFullPath convention)
-  const primaryAlias = 'a';
+  const primaryAlias = ALIASES[0];
   let fromClause = `${primaryEntity.full_path} ${primaryAlias}`;
-
-  if (secondaryEntityIds.length === 1) {
-    const secId = secondaryEntityIds[0];
-    const secEntity = entityMap.get(secId);
-    if (!secEntity) throw new Error(`Secondary entity '${secId}' not found in model`);
-
-    const join = model.joins.find(
-      (j) =>
-        (j.from_entity_id === query.entityId && j.to_entity_id === secId) ||
-        (j.from_entity_id === secId && j.to_entity_id === query.entityId),
-    );
-    if (!join) {
-      throw new Error(
-        `No join defined between entity '${query.entityId}' and '${secId}'. ` +
-        `Add a platform_sem_joins row for this pair.`,
-      );
-    }
-
-    const secondaryAlias = 'b';
-    const jt = join.join_type.toUpperCase();
-    fromClause = `${primaryEntity.full_path} ${primaryAlias}\n  ${jt} JOIN ${secEntity.full_path} ${secondaryAlias} ON ${join.join_on_sql}`;
+  for (const step of joinSteps) {
+    const jt = step.join.join_type.toUpperCase();
+    fromClause += `\n  ${jt} JOIN ${step.entity.full_path} ${step.alias} ON ${step.join.join_on_sql}`;
   }
 
   // ── Build a map of dimId → DimRef (for grain resolution) ─────────────────
@@ -302,7 +307,8 @@ export function compileSemanticQuery(
   // ── Build SELECT fragments ────────────────────────────────────────────────
   const dimSelectParts: string[] = requestedDims.map(({ ref, dim }) => {
     const grain = resolveGrain(ref, query.timeGrain, dim);
-    const expr = renderDimExpr(dim.column_name, grain);
+    const tAlias = entityAlias.get(dim.entity_id) ?? primaryAlias;
+    const expr = renderDimExpr(`${tAlias}.${dim.column_name}`, grain);
     const alias = toAlias(dim.dimension_label);
     return `${expr} AS ${alias}`;
   });
@@ -322,7 +328,7 @@ export function compileSemanticQuery(
   const havingParts: string[] = [];
 
   for (const filter of query.filters) {
-    const fragment = renderFilter(filter, dimMap, measureAliasMap, query.timeGrain, dimRefMap);
+    const fragment = renderFilter(filter, dimMap, measureAliasMap, query.timeGrain, dimRefMap, entityAlias, primaryAlias);
     if (filter.fieldKind === 'dimension') {
       whereParts.push(fragment);
     } else {
@@ -333,7 +339,8 @@ export function compileSemanticQuery(
   // ── Build GROUP BY ────────────────────────────────────────────────────────
   const groupByParts: string[] = requestedDims.map(({ ref, dim }) => {
     const grain = resolveGrain(ref, query.timeGrain, dim);
-    return renderDimExpr(dim.column_name, grain);
+    const tAlias = entityAlias.get(dim.entity_id) ?? primaryAlias;
+    return renderDimExpr(`${tAlias}.${dim.column_name}`, grain);
   });
 
   // ── ORDER BY ──────────────────────────────────────────────────────────────
@@ -343,7 +350,8 @@ export function compileSemanticQuery(
       if (!dim) throw new Error(`Sort references unknown dimension '${s.fieldId}'`);
       const ref = dimRefMap.get(s.fieldId) ?? {};
       const grain = resolveGrain(ref, query.timeGrain, dim);
-      return `${renderDimExpr(dim.column_name, grain)} ${s.direction.toUpperCase()}`;
+      const tAlias = entityAlias.get(dim.entity_id) ?? primaryAlias;
+      return `${renderDimExpr(`${tAlias}.${dim.column_name}`, grain)} ${s.direction.toUpperCase()}`;
     } else {
       const alias = measureAliasMap.get(s.fieldId);
       if (!alias) throw new Error(`Sort references unknown measure '${s.fieldId}'`);
@@ -366,7 +374,9 @@ export function compileSemanticQuery(
         }
         return `${measure.expression} AS ${toAlias(measure.measure_label)}`;
       }
-      return `${fullAggExpr(measure)} AS ${toAlias(measure.measure_label)}`;
+      if (!measure.column_name) throw new Error(`column_name required for aggregate on '${measure.id}'`);
+      const tAlias = entityAlias.get(measure.entity_id) ?? primaryAlias;
+      return `${fullAggExpr(measure, `${tAlias}.${measure.column_name}`)} AS ${toAlias(measure.measure_label)}`;
     });
 
     const selectParts = [...dimSelectParts, ...measureSelectParts];
@@ -418,7 +428,9 @@ export function compileSemanticQuery(
       }
       return `${measure.expression} AS ${toAlias(measure.measure_label)}`;
     }
-    return `${fullAggExpr(measure)} AS ${toAlias(measure.measure_label)}`;
+    if (!measure.column_name) throw new Error(`column_name required for aggregate on '${measure.id}'`);
+    const tAlias = entityAlias.get(measure.entity_id) ?? primaryAlias;
+    return `${fullAggExpr(measure, `${tAlias}.${measure.column_name}`)} AS ${toAlias(measure.measure_label)}`;
   });
 
   const innerSelectParts = [...dimSelectParts, ...innerMeasureParts];
