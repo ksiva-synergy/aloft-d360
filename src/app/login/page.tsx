@@ -85,7 +85,7 @@ export default function LoginPage() {
 
   return (
     <main
-      title="Powered by ALOFT v0.4 · spinorlabs.io"
+      title="Powered by ALOFT v0.4 · data360.synergymarinegroup.com"
       style={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #4B55C1 0%, #3B6FCA 50%, #5B7FE8 100%)',
@@ -356,7 +356,7 @@ export default function LoginPage() {
 
       {/* Easter egg: invisible in DOM, findable in source */}
       <span style={{ opacity: 0, position: 'absolute', fontSize: 0, pointerEvents: 'none' }} aria-hidden="true">
-        spinorlabs.io
+        data360.synergymarinegroup.com
       </span>
 
       {/* Konami code toast */}
@@ -378,7 +378,7 @@ export default function LoginPage() {
             animation: 'fade-in 0.3s ease-out',
           }}
         >
-          Built on Spinor Labs ALOFT v0.4
+          Built on Data 360 ALOFT v0.4
         </div>
       )}
     </main>

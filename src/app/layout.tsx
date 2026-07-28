@@ -4,7 +4,7 @@ import AuthSessionProvider from '@/components/providers/SessionProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Agent Lab — Spinor Labs',
+  title: 'Agent Lab — Data 360',
   description: 'Design, stage, and operate AI agent pipelines. Powered by ALOFT.',
 };
 

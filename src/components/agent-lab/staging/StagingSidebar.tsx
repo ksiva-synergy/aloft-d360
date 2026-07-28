@@ -145,7 +145,7 @@ export function UnifiedAgentSidebar({ initialSession }: { initialSession?: Sessi
             className="text-[13px] font-semibold tracking-[0.12em] uppercase"
             style={{ fontFamily: '"Inter Tight", Inter, sans-serif', color: 'var(--nav-text)' }}
           >
-            SPINOR LABS
+            DATA 360
           </div>
           <div
             className="text-[10px] font-mono font-medium tracking-widest uppercase"

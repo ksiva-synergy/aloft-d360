@@ -59,7 +59,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
       {/* LEFT — breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)', whiteSpace: 'nowrap', minWidth: 0 }}>
         <AloftSigil size={14} />
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>SPINOR</span>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>DATA 360</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
         <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10, color: GOLD }}>INSPECTOR</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>

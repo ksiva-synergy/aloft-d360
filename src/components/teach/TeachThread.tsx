@@ -116,7 +116,15 @@ function UserBubble({ m }: { m: TeachMessage }) {
 function MarcusBubble({ m, streaming }: { m: TeachMessage; streaming: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      <div style={avatarMarcus}>M</div>
+      <div style={avatarMarcus}>
+        <span style={avatarFallback}>C</span>
+        <img
+          src="/mariner-avatar.png"
+          alt="Captain Track Sparrow"
+          style={avatarImg}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      </div>
       <div
         style={{
           maxWidth: 600,
@@ -130,7 +138,7 @@ function MarcusBubble({ m, streaming }: { m: TeachMessage; streaming: boolean })
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
           <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
-            Marcus
+            Captain Track Sparrow
           </span>
           {m.subTag && (
             <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
@@ -211,7 +219,7 @@ function Composer({
               onSubmit();
             }
           }}
-          placeholder="Teach Marcus something about the estate…"
+          placeholder="Teach Captain Track Sparrow something about the estate…"
           style={{
             flex: 1,
             border: 'none',
@@ -281,6 +289,8 @@ const avatarUser: React.CSSProperties = {
 };
 
 const avatarMarcus: React.CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
   width: 30,
   height: 30,
   borderRadius: 9,
@@ -294,6 +304,24 @@ const avatarMarcus: React.CSSProperties = {
   fontWeight: 600,
   boxShadow: '0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent)',
   flexShrink: 0,
+};
+
+// Sits behind the avatar image; shows through if the image is missing/fails.
+const avatarFallback: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+// Absolutely covers the avatar box; hidden via onError until the asset exists.
+const avatarImg: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
 };
 
 export default TeachThread;

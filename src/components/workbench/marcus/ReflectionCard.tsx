@@ -2,12 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
 const TECHNIQUE_LABELS: Record<string, string> = {
-  self_examination:     'MARCUS · SELF-EXAMINATION',
-  evening_review:       'MARCUS · REVIEW',
-  premeditatio:         'MARCUS · PREMEDITATIO',
-  necessity:            'MARCUS · NECESSITY',
+  self_examination:     'CAPTAIN TRACK SPARROW · SELF-EXAMINATION',
+  evening_review:       'CAPTAIN TRACK SPARROW · REVIEW',
+  premeditatio:         'CAPTAIN TRACK SPARROW · PREMEDITATIO',
+  necessity:            'CAPTAIN TRACK SPARROW · NECESSITY',
   dichotomy_epictetus:  'STOIC · DICHOTOMY OF CONTROL',
-  view_from_above:      'MARCUS · VIEW FROM ABOVE',
+  view_from_above:      'CAPTAIN TRACK SPARROW · VIEW FROM ABOVE',
 };
 
 export interface ReflectionCardProps {
@@ -46,7 +46,7 @@ export function ReflectionCard({
     return () => clearTimeout(t);
   }, []);
 
-  const label = TECHNIQUE_LABELS[technique] || `MARCUS · ${technique.toUpperCase()}`;
+  const label = TECHNIQUE_LABELS[technique] || `CAPTAIN TRACK SPARROW · ${technique.toUpperCase()}`;
   const dotColor = severity === 'gate' ? '#e85a5a' : severity === 'caution' ? '#e8934a' : '#FDB515';
 
   if (!mounted) return null;

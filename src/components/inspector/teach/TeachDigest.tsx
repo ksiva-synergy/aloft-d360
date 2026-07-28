@@ -116,7 +116,7 @@ export function TeachDigest({ sessionId }: { sessionId?: string }) {
 
       {!loading && !error && feed && feed.candidates.length === 0 && (
         <div className="rounded-lg border border-dashed border-border py-12 text-center text-muted-foreground text-sm">
-          No candidates captured yet. Teach Marcus something and it will appear here as a candidate.
+          No candidates captured yet. Teach Captain Track Sparrow something and it will appear here as a candidate.
         </div>
       )}
 

@@ -63,7 +63,7 @@ export function CandidatePanel({
           >
             <div className="flex items-center justify-between">
               <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--foer-text-mut)]">
-                Marcus Sieved
+                Captain Track Sparrow Sieved
               </span>
               <HelpCircle size={10} className="text-[var(--foer-text-mut)] cursor-help" />
             </div>

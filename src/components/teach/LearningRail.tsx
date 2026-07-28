@@ -61,7 +61,7 @@ export function LearningRail({
             }}
           />
           <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foreground)' }}>
-            What Marcus is learning
+            What Captain Track Sparrow is learning
           </span>
         </div>
         <p style={{ fontSize: 11.5, color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
@@ -109,7 +109,7 @@ function RailEmpty() {
         <Pencil size={16} />
       </div>
       <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-        Nothing yet. As you teach Marcus, each learning appears here — tagged, tracked, and checked
+        Nothing yet. As you teach Captain Track Sparrow, each learning appears here — tagged, tracked, and checked
         against the estate.
       </p>
     </div>

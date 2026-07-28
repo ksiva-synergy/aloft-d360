@@ -55,7 +55,7 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
             lineHeight: 1.2,
           }}
         >
-          {topic || 'What should Marcus understand?'}
+          {topic || 'What should Captain Track Sparrow understand?'}
         </h1>
       </div>
 

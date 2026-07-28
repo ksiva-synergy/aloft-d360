@@ -18,15 +18,16 @@
  */
 
 import {
-  CATEGORICAL,
+  PREVIEW_PALETTE,
   SURFACE_DARK,
   SURFACE_LIGHT,
   ACCENT_AMBER,
   UI_FONT,
 } from '@/lib/dashboards/inspector-viz-tokens';
 
-// CATEGORICAL is a readonly cap-6 Okabe-Ito set; ECharts wants a mutable string[].
-const PALETTE = [...CATEGORICAL];
+// PREVIEW_PALETTE is gold-primary → slate blues, optimised for the dark canvas.
+// ECharts wants a mutable string[].
+const PALETTE = [...PREVIEW_PALETTE];
 
 // ── inspector-dark ────────────────────────────────────────────────────────────
 const DARK_INK = '#e6edf3';
@@ -79,8 +80,8 @@ export const inspectorDarkTheme = {
     splitLine: { lineStyle: { color: DARK_SPLIT } },
     axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
   },
-  line: { lineStyle: { width: 2 }, symbolSize: 5, symbol: 'circle', smooth: false },
-  bar: { itemStyle: { barBorderRadius: [3, 3, 0, 0] } },
+  line: { lineStyle: { width: 2 }, symbolSize: 4, symbol: 'circle', smooth: 0.3 },
+  bar: { itemStyle: { barBorderRadius: [4, 4, 0, 0], opacity: 0.92 }, barMaxWidth: 48 },
   pie: { itemStyle: { borderColor: SURFACE_DARK.card, borderWidth: 2 } },
   scatter: { itemStyle: { opacity: 0.85 } },
 };
@@ -136,8 +137,8 @@ export const inspectorLightTheme = {
     splitLine: { lineStyle: { color: LIGHT_SPLIT } },
     axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
   },
-  line: { lineStyle: { width: 2 }, symbolSize: 5, symbol: 'circle', smooth: false },
-  bar: { itemStyle: { barBorderRadius: [3, 3, 0, 0] } },
+  line: { lineStyle: { width: 2 }, symbolSize: 4, symbol: 'circle', smooth: 0.3 },
+  bar: { itemStyle: { barBorderRadius: [4, 4, 0, 0], opacity: 0.92 }, barMaxWidth: 48 },
   pie: { itemStyle: { borderColor: '#ffffff', borderWidth: 2 } },
   scatter: { itemStyle: { opacity: 0.85 } },
 };

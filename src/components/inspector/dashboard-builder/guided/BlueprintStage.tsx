@@ -368,7 +368,7 @@ function BlueprintCard({
       {undefined_ ? (
         <DefineItPlaceholder term={item.undefinedTerm ?? item.title} />
       ) : (
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minHeight: 0, height: '100%' }}>
           <SamplePreviewChart
             chartKind={item.chartKindGuess}
             measureLabels={item.measureLabels}

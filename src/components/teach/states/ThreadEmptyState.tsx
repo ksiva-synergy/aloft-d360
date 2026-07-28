@@ -30,9 +30,11 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         animation: 'tm-up .4s ease',
       }}
     >
-      {/* Gradient "M" tile */}
+      {/* Captain Track Sparrow avatar tile (falls back to "C" if the asset is missing) */}
       <div
         style={{
+          position: 'relative',
+          overflow: 'hidden',
           width: 56,
           height: 56,
           borderRadius: 16,
@@ -47,7 +49,13 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
           boxShadow: '0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent)',
         }}
       >
-        M
+        <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>C</span>
+        <img
+          src="/mariner-avatar.png"
+          alt="Captain Track Sparrow"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
       </div>
 
       {/* Listening pill */}
@@ -65,7 +73,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
       >
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
         <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--primary)' }}>
-          Reflect Mode · Marcus is listening
+          Reflect Mode · Captain Track Sparrow is listening
         </span>
       </span>
 
@@ -82,7 +90,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
           maxWidth: 560,
         }}
       >
-        What should Marcus <span style={{ fontStyle: 'italic', color: 'var(--primary)' }}>understand</span> today?
+        What should Captain Track Sparrow <span style={{ fontStyle: 'italic', color: 'var(--primary)' }}>understand</span> today?
       </h1>
 
       <p style={{ fontFamily: FONT_BODY, fontSize: 14.5, lineHeight: 1.6, color: 'var(--muted-foreground)', margin: '14px 0 0', maxWidth: 500 }}>

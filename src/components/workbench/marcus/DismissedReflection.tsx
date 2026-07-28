@@ -38,7 +38,7 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
           color: '#5a6a82',
           flexShrink: 0,
         }}>
-          <span style={{ color: 'rgba(253,181,21,0.45)' }}>MARCUS</span> · {technique.replace(/_/g, ' ')}
+          <span style={{ color: 'rgba(253,181,21,0.45)' }}>CAPTAIN TRACK SPARROW</span> · {technique.replace(/_/g, ' ')}
         </div>
         <div style={{
           fontFamily: "'Inter Tight', system-ui, sans-serif",

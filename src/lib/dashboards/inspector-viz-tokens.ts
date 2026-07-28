@@ -46,6 +46,22 @@ export const MAX_CATEGORICAL = 6 as const;
 /** The UI-visible categorical set (respects the cap). */
 export const CATEGORICAL: readonly string[] = OKABE_ITO.slice(0, MAX_CATEGORICAL);
 
+/**
+ * Dark-surface-optimised preview palette for the guided dashboard builder.
+ * Gold primary → slate blues, matching the aloft-dark production theme so
+ * blueprint thumbnails feel like the real dashboard, not a science poster.
+ * Distinct from CATEGORICAL (Okabe-Ito) which is used for governed/candidate
+ * semantic status encoding throughout the rest of the inspector.
+ */
+export const PREVIEW_PALETTE: readonly string[] = [
+  '#FDB515', // gold — primary, mirrors aloft-dark[0]
+  '#4A90C4', // saturated slate-blue
+  '#3A7AAD', // mid slate-blue
+  '#56B4E9', // sky blue — contrast-safe on dark
+  '#009E73', // bluish green — contrast-safe
+  '#8BAFC8', // light slate — soft 6th hue
+] as const;
+
 /** Neutral hue for the grouped "Other" bucket (never black on the dark canvas). */
 export const OKABE_ITO_OTHER = '#768390' as const;
 

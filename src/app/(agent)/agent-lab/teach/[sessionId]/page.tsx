@@ -4,8 +4,8 @@ import TeachShell from '@/components/teach/TeachShell';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Teach · Marcus Reflect',
-  description: 'A saved Teach session — the conversation and the live "What Marcus is learning" rail, restored.',
+  title: 'Teach · Captain Track Sparrow Reflect',
+  description: 'A saved Teach session — the conversation and the live "What Captain Track Sparrow is learning" rail, restored.',
 };
 
 interface TeachSessionPageProps {

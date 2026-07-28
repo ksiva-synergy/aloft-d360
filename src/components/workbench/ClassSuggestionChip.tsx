@@ -22,7 +22,7 @@ const CLASS_NAMES: Record<string, string> = {
   rama: 'Rama',
   // Seneca = agent class (communication, Coming Soon) — not builder persona
   seneca: 'Seneca',
-  marcus: 'Marcus',
+  marcus: 'Captain Track Sparrow',
 };
 
 function classDisplayName(classId: string): string {

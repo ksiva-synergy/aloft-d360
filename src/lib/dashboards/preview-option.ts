@@ -47,6 +47,13 @@ export interface BuildOptionOpts {
   seriesIdentities: string[];
 }
 
+/** Compact axis number formatter — keeps small tiles readable. */
+function compactNum(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(v);
+}
+
 /**
  * RowsToOptionResult → ECharts option. The only colour set inline is the
  * per-series identity encoding (`colorForMeasure`), so the SAME metric is the
@@ -80,11 +87,19 @@ export function buildPreviewOption(
   if (k === 'pie') {
     const s0 = series[0];
     const raw = categories.map((c, i) => ({ name: String(c), value: toNum(s0?.data?.[i]) }));
-    const capped = capSlices(raw, 6); // no many-slice pies (spec restraint)
+    const capped = capSlices(raw, 6);
     return {
       animation: false,
       color: [...CATEGORICAL, OKABE_ITO_OTHER],
-      series: [{ type: 'pie', radius: ['45%', '72%'], data: capped, label: { color: inkColor, fontFamily: UI_FONT } }],
+      series: [{
+        type: 'pie',
+        radius: ['42%', '70%'],
+        data: capped,
+        // No external labels — they overflow small tiles; tooltip/hover reveals detail.
+        label: { show: false },
+        labelLine: { show: false },
+        emphasis: { label: { show: true, color: inkColor, fontFamily: UI_FONT, fontSize: 11 } },
+      }],
     };
   }
 
@@ -100,10 +115,19 @@ export function buildPreviewOption(
     });
     return {
       animation: false,
-      grid: { left: 80, right: 16, top: 16, bottom: 40 },
-      xAxis: { type: 'category', data: categories.map(String) },
-      yAxis: { type: 'category', data: series.map((s) => s.name) },
-      visualMap: { min: Number.isFinite(min) ? min : 0, max: Number.isFinite(max) ? max : 1, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: [...VIRIDIS] } },
+      grid: { containLabel: true, left: 12, right: 80, top: 28, bottom: 8 },
+      xAxis: { type: 'category', data: categories.map(String), axisLabel: { fontSize: 10, interval: 0, overflow: 'truncate', width: 60 } },
+      yAxis: { type: 'category', data: series.map((s) => s.name), axisLabel: { fontSize: 10 } },
+      visualMap: {
+        min: Number.isFinite(min) ? min : 0,
+        max: Number.isFinite(max) ? max : 1,
+        calculable: true,
+        orient: 'vertical',
+        right: 0,
+        top: 'center',
+        itemHeight: 80,
+        inRange: { color: [...VIRIDIS] },
+      },
       series: [{ type: 'heatmap', data: cells }],
     };
   }
@@ -115,24 +139,52 @@ export function buildPreviewOption(
         : series.map((s, i) => ({ name: s.name, type: 'scatter', color: seriesColors[i], data: s.data.map((d, xi) => [xi, toNum(d)]) }));
     return {
       animation: false,
-      grid: { left: 48, right: 16, top: 16, bottom: 32 },
-      xAxis: { type: 'value' },
-      yAxis: { type: 'value' },
+      grid: { containLabel: true, left: 12, right: 12, top: 28, bottom: 8 },
+      xAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: compactNum } },
+      yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: compactNum } },
       series: seriesArr,
     };
   }
 
   // bar / line — series data passed through verbatim (the guard seam).
   const type = k === 'line' ? 'line' : 'bar';
+  const catCount = categories.length;
   return {
     animation: false,
     color: seriesColors,
-    grid: { left: 48, right: 16, top: 16, bottom: 32 },
-    legend: series.length > 1 ? { show: true, bottom: 0, textStyle: { color: INK_MUTED, fontFamily: UI_FONT } } : { show: false },
+    grid: {
+      containLabel: true,  // labels stay inside the card — no overflow/scrollbar illusion
+      left: 12,
+      right: 12,
+      top: 28,             // clearance for the "Sample data" chip
+      bottom: 8,
+    },
+    legend: series.length > 1
+      ? { show: true, bottom: 0, textStyle: { color: INK_MUTED, fontFamily: UI_FONT, fontSize: 10 } }
+      : { show: false },
     tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: categories.map(String) },
-    yAxis: { type: 'value' },
-    series: series.map((s) => ({ name: s.name, type, data: s.data })),
+    xAxis: {
+      type: 'category',
+      data: categories.map(String),
+      axisLabel: {
+        fontSize: 10,
+        interval: 0,
+        rotate: catCount > 5 ? 35 : 0,
+        overflow: 'truncate',
+        width: catCount > 5 ? 55 : 80,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { fontSize: 10, formatter: compactNum },
+    },
+    series: series.map((s) => ({
+      name: s.name,
+      type,
+      data: s.data,
+      barMaxWidth: 40,
+      ...(type === 'line' ? { areaStyle: { opacity: 0.08 }, smooth: 0.3 } : {}),
+    })),
   };
 }
 

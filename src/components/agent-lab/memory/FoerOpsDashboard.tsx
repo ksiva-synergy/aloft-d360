@@ -732,7 +732,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '18px', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Distil</div>
-                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Marcus</div>
+                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Captain Track Sparrow</div>
               </div>
               {stats.lastRun ? (
                 <>

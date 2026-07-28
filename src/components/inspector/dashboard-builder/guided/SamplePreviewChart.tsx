@@ -117,8 +117,10 @@ function SamplePreviewChartImpl({
   const fillRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (size !== 'fill') return;
-    const el = fillRef.current?.parentElement ?? fillRef.current;
+    const el = fillRef.current;
     if (!el) return;
+    // Seed immediately from current layout so the first render has a real size.
+    if (el.offsetHeight > 0) setFillHeight(el.offsetHeight);
     const obs = new ResizeObserver((entries) => {
       const h = entries[0]?.contentRect.height;
       if (h && h > 0) setFillHeight(h);
@@ -192,7 +194,7 @@ function SamplePreviewChartImpl({
       style={containerStyle}
     >
       {/* Mode chip + governance dot */}
-      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 2, display: 'flex', alignItems: 'center', gap: 6, opacity: size === 'fill' && !isLive ? 0.65 : 1 }}>
         {isLive ? (
           <Chip color={GOVERNED} label="Live" />
         ) : !isLoading ? (

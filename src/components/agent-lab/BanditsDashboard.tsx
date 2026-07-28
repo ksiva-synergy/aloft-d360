@@ -280,7 +280,7 @@ export function BanditsDashboard() {
           fontFamily: MONO, fontSize: 11, letterSpacing: '0.08em',
           color: TEXT_MUT, display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <span>SPINOR LABS</span>
+          <span>DATA 360</span>
           <span style={{ opacity: 0.4 }}>/</span>
           <span>ALOFT � AGENT LAB</span>
           <span style={{ opacity: 0.4 }}>/</span>
