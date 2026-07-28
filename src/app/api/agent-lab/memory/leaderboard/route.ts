@@ -36,9 +36,26 @@ const COHORT_SIZE = 30;
 type EnrichedEntry = Omit<LeaderboardEntry, 'userId'> & { displayName: string };
 
 /**
- * Distinct agent_class domains that actually exist in the store, busiest first.
- * This is the allow-list we validate the `domain` query param against — we never
- * trust arbitrary input straight into the ranking query.
+ * Demo / test agent classes suppressed from the leaderboard. These carry memory
+ * rows in the store but are not real, contributor-facing classes, so we hide
+ * them from the tabs AND from the query-param allow-list. Data is untouched —
+ * this is a display filter; drop a class from this set to surface it again.
+ * Any genuinely new class NOT in this set still appears automatically.
+ */
+const HIDDEN_AGENT_CLASSES = new Set([
+  'feynman',
+  'marcus',
+  'seneca',
+  'grossmann',
+  'am34-test-phantom',
+  'verify-am13-agent',
+]);
+
+/**
+ * Distinct agent_class domains that actually exist in the store, busiest first,
+ * minus the suppressed demo/test classes (HIDDEN_AGENT_CLASSES). This is the
+ * allow-list we validate the `domain` query param against — we never trust
+ * arbitrary input straight into the ranking query.
  */
 async function listDomains(orgId: string): Promise<string[]> {
   const rows = await prisma.$queryRaw<Array<{ agent_class: string; n: bigint }>>`
@@ -48,7 +65,7 @@ async function listDomains(orgId: string): Promise<string[]> {
     GROUP BY agent_class
     ORDER BY n DESC, agent_class ASC
   `;
-  return rows.map((r) => r.agent_class);
+  return rows.map((r) => r.agent_class).filter((c) => !HIDDEN_AGENT_CLASSES.has(c));
 }
 
 /**
