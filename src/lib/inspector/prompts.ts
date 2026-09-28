@@ -14,8 +14,15 @@ the table, schema path, or filter conditions for this query. If it does, skip
 Step 1 and proceed directly to Step 2A using the recalled table path. Only run
 catalog search when OPERATING MEMORY has no guidance for the current query.
 
+### Step 0b — SESSION KNOWLEDGE (same Inspector session)
+If a SESSION KNOWLEDGE block appears in the system prompt, every table path, entity
+ID, and heuristic listed there is already confirmed for this session. Do NOT repeat
+describe_schema search, information_schema column probes, or vessel ID lookups for
+those objects. Proceed directly to the stated next step or the user's question.
+
 ### Step 1 — Search the harvested catalog FIRST (zero warehouse cost)
-Always begin by calling describe_schema with action:'search', connection:'synergy_dwh', and a short natural-language query derived from what the user asked.
+When SESSION KNOWLEDGE and OPERATING MEMORY do not already cover the needed tables,
+begin by calling describe_schema with action:'search', connection:'synergy_dwh', and a short natural-language query derived from what the user asked.
 
 Example: user asks about "crew certificates" → call describe_schema action:'search' query:'crew certificates' k:8
 
@@ -46,6 +53,10 @@ This is not an error — it means the data exists in the warehouse but hasn't be
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.
 - Summarize what the data reveals; do not just repeat the raw table.
+- Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
+- Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).
+- Prefer bullet lists for short facts; bold key numbers.
+- Do not narrate tool steps in the final answer ("I'll look up…", "Next I'll query…") — put the analysis only.
 - End every response with 2–3 short follow-up suggestions the user can tap.`;
 
 export const INSPECTOR_WAREHOUSE_ONLY_PROMPT = `You are a data analyst helping users explore the Synergy Maritime Databricks warehouse directly, without any pre-harvested catalog context.
@@ -64,6 +75,10 @@ You have only one tool: execute_tool (Databricks SQL). Use it to discover and qu
 - Use WITH (CTEs) for multi-step queries.
 - No DDL or DML — read-only access only.
 
+### Session knowledge
+If a SESSION KNOWLEDGE block is in the system prompt, treat listed paths and entity
+IDs as confirmed — do not re-run discovery SQL for those objects.
+
 ### Strategy
 1. Start with SHOW CATALOGS if the user hasn't specified a path.
 2. Drill down: catalog → schema → table → columns.
@@ -73,13 +88,17 @@ You have only one tool: execute_tool (Databricks SQL). Use it to discover and qu
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.
 - Summarize what the data reveals; do not just repeat the raw table.
+- Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
+- Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).
+- Prefer bullet lists for short facts; bold key numbers.
+- Do not narrate tool steps in the final answer ("I'll look up…", "Next I'll query…") — put the analysis only.
 - End every response with 2–3 short follow-up suggestions the user can tap.`;
 
 export const INSPECTOR_TOOLS: Tool[] = [
   {
     toolSpec: {
       name: 'execute_tool',
-      description: 'Execute SQL against the synergy_dwh Databricks warehouse. ONLY call this after confirming the table path exists in the harvested catalog via describe_schema. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH. Read-only. Always include LIMIT.',
+      description: 'Execute SQL against the synergy_dwh Databricks warehouse. ONLY call this after confirming the table path exists in the harvested catalog via describe_schema. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH. Read-only. Always include LIMIT for interactive preview. For full CSV download (up to 100000 rows), use export_query_result after a successful query — do not raise LIMIT above a few thousand in execute_tool.',
       inputSchema: {
         json: {
           type: 'object',
@@ -129,6 +148,36 @@ columnId values MUST be exact column names from the query result — copy them v
             k: { type: 'number', description: "Number of results for 'search'. Default 5, max 20." },
           },
           required: ['action', 'connection'],
+        },
+      },
+    },
+  },
+  {
+    toolSpec: {
+      name: 'export_query_result',
+      description: `Offer a CSV download of warehouse rows (up to 100000). Use when the user asks to download, export, or get all records as CSV/Excel (Excel not supported — offer CSV). Prefer the last successful execute_tool SQL; optionally pass statement to override. Does NOT dump rows into chat — surfaces a download button. Preview first with execute_tool (LIMIT), then call this for the full extract.`,
+      inputSchema: {
+        json: {
+          type: 'object',
+          properties: {
+            statement: {
+              type: 'string',
+              description: 'Optional SQL to export. If omitted, uses the last successful query in this session.',
+            },
+            filename: {
+              type: 'string',
+              description: 'Optional download filename ending in .csv',
+            },
+            maxRows: {
+              type: 'number',
+              description: 'Optional row cap (default 100000, hard max 100000).',
+            },
+            tool_name: {
+              type: 'string',
+              description: 'db_query tool slug. Default synergy_dwh.',
+              default: 'synergy_dwh',
+            },
+          },
         },
       },
     },
@@ -274,7 +323,7 @@ export function buildToolConfig(
       .map(t => t.toolSpec?.name === 'execute_tool' ? {
         toolSpec: {
           ...t.toolSpec,
-          description: 'Execute SQL against the synergy_dwh Databricks warehouse. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH, SHOW, DESCRIBE. Read-only. Always include LIMIT for data queries.',
+          description: 'Execute SQL against the synergy_dwh Databricks warehouse. Always pass tool_name "synergy_dwh". Put SQL in args.statement. Valid: SELECT, WITH, SHOW, DESCRIBE. Read-only. Always include LIMIT for interactive preview. For full CSV download (up to 100000 rows), use export_query_result after a successful query.',
         },
       } : t);
     return { tools: [...baseTools, ...semanticTools] };
