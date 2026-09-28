@@ -2,12 +2,14 @@ import 'server-only';
 
 import { prisma } from '@/lib/db';
 import type { TrajectoryEntry } from '@/lib/inspector/agent-loop';
+import { generateNarrativeSessionSummary } from '@/lib/inspector/session-knowledge-llm';
 import {
   PROGRESS_KEY,
   emptySessionKnowledge,
   formatSessionKnowledgeForPrompt,
   mergeTurnIntoSessionKnowledge,
   parseSessionKnowledge,
+  withTemplateSummary,
   type InspectorSessionKnowledge,
 } from '@/lib/inspector/session-knowledge-core';
 
@@ -46,7 +48,7 @@ export async function saveSessionKnowledge(
     data: {
       progress: {
         ...existing,
-        [PROGRESS_KEY]: knowledge,
+        [PROGRESS_KEY]: withTemplateSummary(knowledge),
       },
       updated_at: new Date(),
     },
@@ -56,12 +58,32 @@ export async function saveSessionKnowledge(
 export async function persistSessionKnowledgeAfterTurn(
   sessionId: string,
   trajectory: TrajectoryEntry[],
-  meta: { userMessage?: string; taskGoal?: string } = {},
+  meta: {
+    userMessage?: string;
+    taskGoal?: string;
+    assistantExcerpt?: string;
+  } = {},
 ): Promise<void> {
   if (trajectory.length === 0) return;
   const prev = await loadSessionKnowledge(sessionId);
   const next = mergeTurnIntoSessionKnowledge(prev, trajectory, meta);
   await saveSessionKnowledge(sessionId, next);
+
+  const narrative = await generateNarrativeSessionSummary(next, trajectory, {
+    userMessage: meta.userMessage,
+    assistantExcerpt: meta.assistantExcerpt,
+  });
+  if (!narrative) return;
+
+  const withNarrative = withTemplateSummary({
+    ...next,
+    summaries: {
+      template: next.summaries?.template ?? '',
+      narrative,
+      narrativeUpdatedAt: new Date().toISOString(),
+    },
+  });
+  await saveSessionKnowledge(sessionId, withNarrative);
 }
 
 export async function buildSessionKnowledgeContext(sessionId: string | undefined): Promise<string> {

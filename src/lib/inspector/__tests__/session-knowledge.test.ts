@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { TrajectoryEntry } from '@/lib/inspector/agent-loop';
 import {
+  buildTemplateSessionSummary,
   emptySessionKnowledge,
   formatSessionKnowledgeForPrompt,
   mergeTurnIntoSessionKnowledge,
   parseSessionKnowledge,
+  validateNarrativeAgainstFacts,
+  withTemplateSummary,
 } from '@/lib/inspector/session-knowledge-core';
 
 function traj(partial: Partial<TrajectoryEntry> & Pick<TrajectoryEntry, 'tool'>): TrajectoryEntry {
@@ -90,6 +93,48 @@ describe('session-knowledge', () => {
     expect(text).toContain('SESSION KNOWLEDGE');
     expect(text).toContain('EPIC RADIANCE');
     expect(text).toContain('do not re-discover');
+  });
+
+  it('buildTemplateSessionSummary composes goal, entities, and schemas', () => {
+    const k = withTemplateSummary({
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      schemaPaths: ['landing_zone.db_spv2_somi_dbo.admvessel'],
+      entities: [{ type: 'vessel', label: 'EPIC RADIANCE', id: '78' }],
+      heuristics: ['Tree uses larparentid.'],
+      task: { goal: 'Spares with components', status: 'in_progress' },
+    });
+    const summary = buildTemplateSessionSummary(k);
+    expect(summary).toContain('Spares with components');
+    expect(summary).toContain('EPIC RADIANCE');
+    expect(summary).toContain('landing_zone.db_spv2_somi');
+  });
+
+  it('formatSessionKnowledgeForPrompt includes template and narrative summaries', () => {
+    const text = formatSessionKnowledgeForPrompt({
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      schemaPaths: ['landing_zone.db_spv2_somi_dbo.admvessel'],
+      entities: [],
+      heuristics: [],
+      summaries: {
+        template: 'Goal: test (status: exploring).',
+        narrative: 'Vessel IDs are confirmed; final extract is still pending.',
+      },
+    });
+    expect(text).toContain('Summary (structured)');
+    expect(text).toContain('Summary (narrative)');
+  });
+
+  it('validateNarrativeAgainstFacts rejects unknown table paths', () => {
+    const k = withTemplateSummary({
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      schemaPaths: ['landing_zone.db_spv2_somi_dbo.admvessel'],
+      entities: [],
+      heuristics: [],
+    });
+    expect(validateNarrativeAgainstFacts('See curated_db.other.other_table.', k)).toBe(false);
   });
 
   it('parseSessionKnowledge round-trips versioned shape', () => {

@@ -18,6 +18,13 @@ export interface SessionTaskState {
   nextStep?: string;
 }
 
+/** Deterministic + optional LLM narrative recap (facts must match structured fields). */
+export interface SessionSummaries {
+  template: string;
+  narrative?: string;
+  narrativeUpdatedAt?: string;
+}
+
 export interface InspectorSessionKnowledge {
   version: typeof SESSION_KNOWLEDGE_VERSION;
   updatedAt: string;
@@ -25,6 +32,7 @@ export interface InspectorSessionKnowledge {
   entities: SessionEntity[];
   heuristics: string[];
   task?: SessionTaskState;
+  summaries?: SessionSummaries;
 }
 
 const MAX_PATHS = 48;
@@ -79,14 +87,28 @@ export function parseSessionKnowledge(raw: unknown): InspectorSessionKnowledge {
     }
   }
 
-  return capKnowledge({
+  let summaries: SessionSummaries | undefined;
+  if (o.summaries && typeof o.summaries === 'object') {
+    const s = o.summaries as Record<string, unknown>;
+    const template = typeof s.template === 'string' ? s.template.slice(0, 1200) : '';
+    const narrative = typeof s.narrative === 'string' ? s.narrative.slice(0, 1200) : undefined;
+    const narrativeUpdatedAt =
+      typeof s.narrativeUpdatedAt === 'string' ? s.narrativeUpdatedAt : undefined;
+    if (template || narrative) {
+      summaries = { template, narrative, narrativeUpdatedAt };
+    }
+  }
+
+  const base = capKnowledge({
     version: SESSION_KNOWLEDGE_VERSION,
     updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : new Date(0).toISOString(),
     schemaPaths: dedupeStrings(schemaPaths),
     entities: dedupeEntities(entities),
     heuristics: dedupeStrings(heuristics),
     task,
+    summaries,
   });
+  return withTemplateSummary(base);
 }
 
 function capKnowledge(k: InspectorSessionKnowledge): InspectorSessionKnowledge {
@@ -310,14 +332,120 @@ export function mergeTurnIntoSessionKnowledge(
 
   const task = inferTaskUpdate(prev, meta, hadSuccessfulDataTool);
 
-  return capKnowledge({
+  const merged = capKnowledge({
     version: SESSION_KNOWLEDGE_VERSION,
     updatedAt: new Date().toISOString(),
     schemaPaths: dedupeStrings(schemaPaths),
     entities: dedupeEntities(entities),
     heuristics: dedupeStrings(heuristics),
     task,
+    summaries: prev.summaries,
   });
+  return withTemplateSummary(merged);
+}
+
+function uniqueSchemaPrefixes(paths: string[]): string[] {
+  const prefixes = new Set<string>();
+  for (const p of paths) {
+    const parts = p.split('.');
+    if (parts.length >= 2) prefixes.add(`${parts[0]}.${parts[1]}`);
+    else if (parts.length === 1) prefixes.add(parts[0]);
+  }
+  return [...prefixes].slice(0, 6);
+}
+
+function truncate(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+/**
+ * Rolling deterministic summary from structured facts only (no LLM).
+ */
+export function buildTemplateSessionSummary(k: InspectorSessionKnowledge): string {
+  const parts: string[] = [];
+
+  if (k.task?.goal) {
+    parts.push(`Goal: ${truncate(k.task.goal, 220)} (status: ${k.task.status}).`);
+  }
+
+  if (k.entities.length > 0) {
+    const ent = k.entities
+      .slice(0, 10)
+      .map((e) => `${e.type} "${e.label}"→${e.id}`)
+      .join(', ');
+    parts.push(`Resolved entities: ${ent}.`);
+  }
+
+  if (k.schemaPaths.length > 0) {
+    const prefixes = uniqueSchemaPrefixes(k.schemaPaths);
+    const tableSample = k.schemaPaths.slice(0, 6).join(', ');
+    const more = k.schemaPaths.length > 6 ? ` (+${k.schemaPaths.length - 6} more tables)` : '';
+    parts.push(
+      `Confirmed data: ${prefixes.join(', ')}; key tables include ${tableSample}${more}.`,
+    );
+  }
+
+  if (k.heuristics.length > 0) {
+    parts.push(`Working notes: ${k.heuristics.slice(0, 4).join(' | ')}`);
+  }
+
+  if (k.task?.nextStep) {
+    parts.push(`Pending: ${truncate(k.task.nextStep, 200)}`);
+  }
+
+  return parts.join(' ').trim();
+}
+
+export function withTemplateSummary(k: InspectorSessionKnowledge): InspectorSessionKnowledge {
+  const template = buildTemplateSessionSummary(k);
+  if (!template && !k.summaries?.narrative) {
+    return { ...k, summaries: undefined };
+  }
+  return {
+    ...k,
+    summaries: {
+      template,
+      narrative: k.summaries?.narrative,
+      narrativeUpdatedAt: k.summaries?.narrativeUpdatedAt,
+    },
+  };
+}
+
+const NARRATIVE_PATH_RE =
+  /(?:landing_zone|curated_db|reporting_layer|raw_db|synergy_dwh)\.[a-z0-9_]+\.[a-z0-9_]+/gi;
+
+/** Reject LLM narratives that cite qualified table paths not in session facts. */
+export function validateNarrativeAgainstFacts(
+  narrative: string,
+  knowledge: InspectorSessionKnowledge,
+): boolean {
+  const cited = narrative.match(NARRATIVE_PATH_RE) ?? [];
+  if (cited.length === 0) return true;
+  const allowed = new Set(knowledge.schemaPaths.map((p) => p.toLowerCase()));
+  return cited.every((path) => allowed.has(path.toLowerCase()));
+}
+
+export function summarizeTrajectoryOutline(trajectory: TrajectoryEntry[]): string {
+  return trajectory
+    .map((t) => {
+      const input = t.input ?? {};
+      const stmt =
+        (input as { args?: { statement?: string } }).args?.statement ??
+        t.sqlExcerpt ??
+        (typeof input.path === 'string' ? `path=${input.path}` : '') ??
+        (typeof input.query === 'string' ? `query=${input.query.slice(0, 60)}` : '');
+      const action =
+        t.tool === 'describe_schema' && typeof input.action === 'string'
+          ? `${input.action}`
+          : '';
+      const label = [t.tool, action].filter(Boolean).join('/');
+      const status = t.status === 'error' ? 'FAILED' : 'ok';
+      const excerpt = typeof stmt === 'string' ? truncate(stmt.replace(/\s+/g, ' '), 100) : '';
+      return `- [${status}] ${label}${excerpt ? `: ${excerpt}` : ''}`;
+    })
+    .join('\n');
 }
 
 export function formatSessionKnowledgeForPrompt(k: InspectorSessionKnowledge): string {
@@ -325,11 +453,22 @@ export function formatSessionKnowledgeForPrompt(k: InspectorSessionKnowledge): s
   const hasEntities = k.entities.length > 0;
   const hasHeuristics = k.heuristics.length > 0;
   const hasTask = !!k.task?.goal;
-  if (!hasPaths && !hasEntities && !hasHeuristics && !hasTask) return '';
+  const templateSummary = k.summaries?.template?.trim() ?? '';
+  const narrativeSummary = k.summaries?.narrative?.trim() ?? '';
+  if (!hasPaths && !hasEntities && !hasHeuristics && !hasTask && !templateSummary && !narrativeSummary) {
+    return '';
+  }
 
   const lines: string[] = [
     '=== SESSION KNOWLEDGE (confirmed earlier in this Inspector session — do not re-discover) ===',
   ];
+
+  if (templateSummary) {
+    lines.push(`Summary (structured): ${templateSummary}`);
+  }
+  if (narrativeSummary) {
+    lines.push(`Summary (narrative): ${narrativeSummary}`);
+  }
 
   if (hasTask && k.task) {
     lines.push(`Task: ${k.task.goal}`);

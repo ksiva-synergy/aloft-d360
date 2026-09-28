@@ -669,6 +669,7 @@ export async function POST(request: NextRequest) {
           persistSessionKnowledgeAfterTurn(sessionId, result.toolCalls, {
             userMessage: lastUserMessageText,
             taskGoal: firstUserMessageText,
+            assistantExcerpt: result.finalText ?? undefined,
           }).catch((e) => {
             console.warn(
               '[inspector/chat] session knowledge persist failed (non-fatal):',
