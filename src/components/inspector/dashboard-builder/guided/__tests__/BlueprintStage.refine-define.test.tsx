@@ -114,7 +114,7 @@ describe('BlueprintStage — inline define + governance ladder (Request 2)', () 
     );
 
     render(<BlueprintStage modelId="model_1" intent={INTENT} />);
-    fireEvent.click(screen.getByText(/submit for governance/i));
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => expect(itemsNow()[0].grounding).toBe('governed'));
     expect(String(fetchMock.mock.calls[0][0])).toContain('/api/inspector/semantic/model_1/submit');
