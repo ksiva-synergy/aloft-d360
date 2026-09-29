@@ -66,12 +66,15 @@ describe('F1 — Seafarer rank recommender', () => {
     expect(bar!.rationale).toMatch(/card.*32.*>\s*8|32.*>\s*8.*no donut/i);
   });
 
-  test('Bar chart echartsOption is self-contained (uses hex colors, not theme name)', () => {
+  test('Bar chart echartsOption is theme-agnostic (no baked-in colors)', () => {
+    // compileSpecToOption is deliberately theme-agnostic (see its docstring in
+    // compiler.ts) — colors ride the registered ECharts theme by name at
+    // render time, so the compiled option must not embed a literal hex color.
     const bar = specs.find(s => s.kind === 'bar');
     expect(bar).toBeDefined();
     const str = JSON.stringify(bar!.echartsOption);
     expect(str).not.toContain('"spinor"');
-    expect(str).toMatch(/#[0-9a-fA-F]{6}/);
+    expect(str).not.toMatch(/#[0-9a-fA-F]{6}/);
   });
 });
 

@@ -7,6 +7,13 @@
  *     the DefineMetricPanel (never the old Teach out-link).
  *   - A card carrying a draft pendingDefinition can Submit → flips to grounded;
  *     a candidate can Promote, and a 403 surfaces its gate reason (never a crash).
+ *
+ * All of the above live in BlueprintDetailDrawer, which opens on a card click —
+ * the card itself stays visually minimal (redesign per BlueprintDetailDrawer's
+ * own header comment). Each test below opens the drawer first (clicking the
+ * card's drag-handle), then drives the drawer's controls; only the card-level
+ * "not defined yet" nudge (see BlueprintStage.provenance.test.tsx) renders
+ * without a click.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -38,6 +45,13 @@ function seed(items: ChartBlueprint[]) {
 
 const itemsNow = () => useBuilderStore.getState().guidedSession.blueprint!.items;
 
+/** Opens the detail drawer for the (single) rendered card by clicking its drag-handle. */
+function openDrawer(container: HTMLElement) {
+  const handle = container.querySelector('.drag-handle');
+  if (!handle) throw new Error('no blueprint card rendered');
+  fireEvent.click(handle);
+}
+
 describe('BlueprintStage — regenerate from feedback (Request 1)', () => {
   beforeEach(() => useBuilderStore.getState().clearGuidedSession());
   afterEach(() => vi.restoreAllMocks());
@@ -51,11 +65,11 @@ describe('BlueprintStage — regenerate from feedback (Request 1)', () => {
       new Response(JSON.stringify({ item: refined }), { status: 200 }),
     );
 
-    render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    const { container } = render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    openDrawer(container);
 
-    fireEvent.click(screen.getByText(/give feedback \/ refine/i));
-    fireEvent.change(screen.getByLabelText(/feedback for this chart/i), { target: { value: 'make it a line by month' } });
-    fireEvent.click(screen.getByText(/regenerate chart/i));
+    fireEvent.change(screen.getByPlaceholderText(/wrong metric/i), { target: { value: 'make it a line by month' } });
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }));
 
     await waitFor(() => expect(itemsNow()[0].chartKindGuess).toBe('line'));
     const [url, init] = fetchMock.mock.calls[0];
@@ -74,10 +88,11 @@ describe('BlueprintStage — regenerate from feedback (Request 1)', () => {
       new Response(JSON.stringify({ item: asUndefined }), { status: 200 }),
     );
 
-    render(<BlueprintStage modelId="model_1" intent={INTENT} />);
-    fireEvent.click(screen.getByText(/give feedback \/ refine/i));
-    fireEvent.change(screen.getByLabelText(/feedback for this chart/i), { target: { value: 'exclude near misses' } });
-    fireEvent.click(screen.getByText(/regenerate chart/i));
+    const { container } = render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    openDrawer(container);
+
+    fireEvent.change(screen.getByPlaceholderText(/wrong metric/i), { target: { value: 'exclude near misses' } });
+    fireEvent.click(screen.getByRole('button', { name: /regenerate/i }));
 
     // Classifier outcome: the card now offers to define the term inline.
     await waitFor(() => expect(itemsNow()[0].grounding).toBe('undefined'));
@@ -97,8 +112,9 @@ describe('BlueprintStage — inline define + governance ladder (Request 2)', () 
     );
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    render(<BlueprintStage modelId="model_1" intent={INTENT} />);
-    fireEvent.click(screen.getByText(/not defined yet — define it here/i));
+    const { container } = render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    openDrawer(container);
+    fireEvent.click(screen.getByText(/define this metric/i));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText(/define a metric/i)).toBeInTheDocument();
@@ -113,7 +129,8 @@ describe('BlueprintStage — inline define + governance ladder (Request 2)', () 
       new Response(JSON.stringify({ submitted: ['meas_new'], errors: [] }), { status: 200 }),
     );
 
-    render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    const { container } = render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    openDrawer(container);
     fireEvent.click(screen.getByRole('button', { name: /submit/i }));
 
     await waitFor(() => expect(itemsNow()[0].grounding).toBe('governed'));
@@ -134,8 +151,9 @@ describe('BlueprintStage — inline define + governance ladder (Request 2)', () 
       new Response(JSON.stringify({ error: 'not authorized to promote', reason: 'requires admin approval' }), { status: 403 }),
     );
 
-    render(<BlueprintStage modelId="model_1" intent={INTENT} />);
-    fireEvent.click(screen.getByText(/promote to governed/i));
+    const { container } = render(<BlueprintStage modelId="model_1" intent={INTENT} />);
+    openDrawer(container);
+    fireEvent.click(screen.getByRole('button', { name: /promote/i }));
 
     expect(await screen.findByText(/requires admin approval/i)).toBeInTheDocument();
     // still a candidate — no false promotion

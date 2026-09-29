@@ -12,7 +12,7 @@ import { SamplePreviewChart } from './SamplePreviewChart';
 import { BlueprintDetailDrawer } from './BlueprintDetailDrawer';
 import { DefineMetricPanel, type CreatedDefinition } from '../../authoring/DefineMetricPanel';
 import type {
-  ResolvedIntent, ChartBlueprint, GuidedBlueprint, ChartKindGuess,
+  ResolvedIntent, ChartBlueprint, GuidedBlueprint, ChartKindGuess, UndefinedProvenance,
 } from '@/lib/dashboards/guided-types';
 import {
   UI_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
@@ -366,7 +366,10 @@ function BlueprintCard({
     >
       {/* Chart area — full bleed, fills the card */}
       {undefined_ ? (
-        <DefineItPlaceholder term={item.undefinedTerm ?? item.title} />
+        <DefineItPlaceholder
+          term={item.undefinedTerm ?? item.title}
+          provenance={item.undefinedProvenance}
+        />
       ) : (
         <div style={{ flex: 1, minHeight: 0, height: '100%' }}>
           <SamplePreviewChart
@@ -426,10 +429,23 @@ function BlueprintCard({
   );
 }
 
-/** Soft "define it" placeholder for undefined blueprint items. */
-function DefineItPlaceholder({ term }: { term: string }) {
+/**
+ * Soft "define it" placeholder for undefined blueprint items. `undefinedProvenance`
+ * tells three visibly-different situations apart (see UndefinedProvenance in
+ * guided-types.ts) — collapsing them to one generic "define it" nudge would
+ * mis-surface a capped-but-real metric as genuinely absent (the Pin-2 false-green).
+ * `data-undefined-term` carries the raw term for the Teach prefill.
+ */
+function DefineItPlaceholder({ term, provenance }: { term: string; provenance?: UndefinedProvenance }) {
+  const message = provenance?.candidateExists
+    ? `"${term}" defined but not governed — govern it here`
+    : provenance?.cappedByTopK
+    ? `"${term}" may exist beyond search — confirm or define it here`
+    : `"${term}" not defined yet — define it here`;
+
   return (
     <div
+      data-undefined-term={term}
       style={{
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         gap: 8, padding: 16, textAlign: 'center',
@@ -438,7 +454,7 @@ function DefineItPlaceholder({ term }: { term: string }) {
     >
       <PenLine size={22} style={{ color: VIOLET }} />
       <span style={{ fontFamily: UI_FONT, fontSize: 11.5, color: VIOLET, lineHeight: 1.4, maxWidth: 200 }}>
-        "{term}" — click to define this metric
+        {message}
       </span>
     </div>
   );

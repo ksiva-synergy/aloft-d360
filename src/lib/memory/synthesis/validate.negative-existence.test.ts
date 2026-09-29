@@ -22,6 +22,7 @@
  */
 
 import assert from 'node:assert/strict';
+import { describe, it } from 'vitest';
 import { validateAgainstTrace } from './validate';
 import type { CandidateBullet } from './reflect';
 import type { TraceWalkRow } from '@/lib/memory/trace/reconstruct';
@@ -84,28 +85,29 @@ const unresolvedColumnDeadEnd = node(
 );
 
 // ── Cases ───────────────────────────────────────────────────────────────────
+// Wrapped in a Vitest suite (this file was originally a standalone `tsx`
+// script, per the header above — Vitest now runs the repo's `*.test.ts`
+// glob and reported "No test suite found" for the bare script form).
 
-// Case 1 — jlx394v5-style: negative claim, no error token anywhere. BLOCKED.
-{
-  const res = validateAgainstTrace(CANDIDATE, [describeOutcome]);
-  assert.equal(res.valid, false, 'case 1: expected negative-existence claim to be blocked');
-  assert.match(
-    res.reason ?? '',
-    /negative-existence/,
-    'case 1: expected the negative-existence guard to be the blocking reason',
-  );
-  console.log('  ok  case 1 (no error token) -> blocked:', res.reason);
-}
+describe('validate.ts negative-existence guard', () => {
+  it('case 1 — jlx394v5-style: negative claim, no error token anywhere. BLOCKED.', () => {
+    const res = validateAgainstTrace(CANDIDATE, [describeOutcome]);
+    assert.equal(res.valid, false, 'case 1: expected negative-existence claim to be blocked');
+    assert.match(
+      res.reason ?? '',
+      /negative-existence/,
+      'case 1: expected the negative-existence guard to be the blocking reason',
+    );
+    console.log('  ok  case 1 (no error token) -> blocked:', res.reason);
+  });
 
-// Case 2 — Mistral-style: same claim, backed by UNRESOLVED_COLUMN. ADMITTED.
-{
-  const res = validateAgainstTrace(CANDIDATE, [describeOutcome, unresolvedColumnDeadEnd]);
-  assert.equal(
-    res.valid,
-    true,
-    `case 2: expected error-backed negative claim to pass, got reason="${res.reason ?? ''}"`,
-  );
-  console.log('  ok  case 2 (UNRESOLVED_COLUMN present) -> admitted');
-}
-
-console.log('\nvalidate.ts negative-existence guard: all cases passed');
+  it('case 2 — Mistral-style: same claim, backed by UNRESOLVED_COLUMN. ADMITTED.', () => {
+    const res = validateAgainstTrace(CANDIDATE, [describeOutcome, unresolvedColumnDeadEnd]);
+    assert.equal(
+      res.valid,
+      true,
+      `case 2: expected error-backed negative claim to pass, got reason="${res.reason ?? ''}"`,
+    );
+    console.log('  ok  case 2 (UNRESOLVED_COLUMN present) -> admitted');
+  });
+});

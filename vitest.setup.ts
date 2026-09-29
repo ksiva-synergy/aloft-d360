@@ -31,3 +31,16 @@ vi.mock('echarts-for-react/lib/core', () => ({
       'data-echarts-option': JSON.stringify(props.option ?? {}),
     }),
 }));
+
+/**
+ * jsdom has no ResizeObserver. Components that size themselves to a 'fill'
+ * container (e.g. SamplePreviewChart) construct one on mount, which otherwise
+ * throws under the jsdom render tests.
+ */
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

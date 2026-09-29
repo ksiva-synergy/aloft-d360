@@ -1,3 +1,4 @@
+import { describe, it } from 'vitest';
 import {
   ROLE_PRIORS,
   DEFAULT_CONFIG,
@@ -22,6 +23,15 @@ function approx(a: number, b: number, eps = 1e-9) {
 }
 
 const t0 = Date.parse('2026-01-01T00:00:00Z');
+
+// This file predates the project's Vitest wiring and was written as a
+// self-contained script (see the matching validate.negative-existence.test.ts
+// header) — every case is a plain `check()` call, not a `describe`/`it` block,
+// so Vitest reported "No test suite found" even though all checks passed.
+// A single `it()` wrapper makes it a real Vitest suite without touching the
+// pinned assertions below.
+describe('reputation engine', () => {
+  it('runs all reputation-engine pinning checks', () => {
 
 // 1. Cold start: a brand-new user sits exactly at their role prior.
 {
@@ -111,3 +121,5 @@ const t0 = Date.parse('2026-01-01T00:00:00Z');
 
 console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : failures + ' CHECK(S) FAILED'}`);
 if (failures > 0) throw new Error(`${failures} reputation-engine check(s) failed`);
+  });
+});
