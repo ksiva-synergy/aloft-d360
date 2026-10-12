@@ -1,6 +1,6 @@
 export type ModelTier = 'frontier' | 'production' | 'value' | 'cheap' | 'reasoning';
 export type TokenParam = 'max_tokens' | 'max_completion_tokens';
-export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle';
+export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle' | 'xai';
 
 export type BoostModel = {
   key: string;
@@ -38,6 +38,10 @@ export const BOOST_MODELS: BoostModel[] = [
     tier: 'frontier' },
 
   // ── Azure Foundry Resource 2 (pb-az-openai) ──────────────────
+  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'foundry',
+    apiType: 'foundry',  modelId: 'gpt-6-luna',
+    resource: 'resource2', tokenParam: 'max_completion_tokens',
+    tier: 'production' },
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'foundry',
     apiType: 'foundry',  modelId: 'grok-4.3-PBC',
     resource: 'resource2', tokenParam: 'max_tokens',
@@ -54,4 +58,10 @@ export const BOOST_MODELS: BoostModel[] = [
     apiType: 'foundry',  modelId: 'o3-mini',
     resource: 'resource2', tokenParam: 'max_completion_tokens',
     tier: 'reasoning' },
+
+  // ── Direct xAI (Grok) — uses XAI_API_KEY + XAI_MODEL ─────────────────────
+  { key: 'grok-xai',    label: 'Grok 4.7 (xAI direct)', provider: 'foundry',
+    apiType: 'foundry',  modelId: process.env.XAI_MODEL || 'grok-4.7',
+    resource: 'xai', tokenParam: 'max_tokens',
+    tier: 'frontier' },
 ];

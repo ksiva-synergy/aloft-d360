@@ -28,17 +28,22 @@ const RESOURCE_CONFIG = {
     getApiKey: () => process.env.BEDROCK_MANTLE_API_KEY!,
     getDefaultQuery: (): Record<string, string> => ({}),
   },
+  xai: {
+    getBaseURL: (_: string) =>
+      process.env.XAI_BASE_URL || 'https://api.x.ai/v1',
+    getApiKey: () => process.env.XAI_API_KEY!,
+    getDefaultQuery: (): Record<string, string> => ({}),
+  },
 } as const;
 
 function getFoundryClient(model: BoostModel): OpenAI {
   const resource = model.resource ?? 'resource2';
-  const cfg = RESOURCE_CONFIG[resource];
+  const cfg = RESOURCE_CONFIG[resource as keyof typeof RESOURCE_CONFIG];
   const apiKey = cfg.getApiKey();
 
-  // Bedrock Mantle uses standard Authorization: Bearer header (no api-key header)
-  const defaultHeaders = resource === 'bedrock-mantle'
-    ? {}
-    : { 'api-key': apiKey };
+  // xAI and Bedrock Mantle use standard OpenAI Bearer auth (no special api-key header)
+  const usesStandardAuth = resource === 'bedrock-mantle' || resource === 'xai';
+  const defaultHeaders = usesStandardAuth ? {} : { 'api-key': apiKey };
 
   return new OpenAI({
     apiKey,
@@ -115,7 +120,7 @@ export async function runFoundryAgentLoop(
 ): Promise<AgentLoopResult> {
   const {
     model, systemPrompt, messages: initialMessages, tools, executeTool, maxLoops, abortSignal,
-    onLoopStart, onTextChunk, onToolCallEvent, onLoopUsage,
+    onLoopStart, onTextChunk, onToolCallEvent, onLoopUsage, onTextReplace,
   } = params;
 
   const client = getFoundryClient(model);
@@ -247,6 +252,8 @@ export async function runFoundryAgentLoop(
       // ── No tool calls → model returned final answer ────────────────────────
       if (toolCalls.length === 0) {
         finalText = assistantContent.trim() || null;
+        // Replace accumulated interim narration (prior tool loops) with the final answer only.
+        if (finalText) onTextReplace?.(finalText);
         return {
           finalText,
           toolCalls: trajectory,
