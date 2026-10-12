@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 import { profileResultSet } from '@/lib/studio/profiler';
@@ -11,11 +11,14 @@ import { DatasetRail } from './DatasetRail';
 import { DashboardGrid } from './DashboardGrid';
 import { InsightRail } from './InsightRail';
 import type { InsightCacheEntry, InsightResult } from './InsightRail';
+import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
+import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
 
 export interface DataStudioProps {
   open: boolean;
   results: QueryResult[];
   onClose: () => void;
+  sessionId?: string;
 }
 
 // ── No results guard ──────────────────────────────────────────────────────────
@@ -51,7 +54,7 @@ function NoResultsState() {
 }
 
 // ── DataStudio ────────────────────────────────────────────────────────────────
-export function DataStudio({ open, results, onClose }: DataStudioProps) {
+export function DataStudio({ open, results, onClose, sessionId }: DataStudioProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [canvasMode, setCanvasMode] = useState<'table' | 'dashboard'>('dashboard');
   // V3 — chart type overrides per dataset per card: overrides[resultIndex][specId]
@@ -381,6 +384,7 @@ export function DataStudio({ open, results, onClose }: DataStudioProps) {
                     }));
                   }}
                   specs={specs}
+                  sessionId={sessionId}
                 />
               )}
             </div>
@@ -444,6 +448,7 @@ function StudioMainCanvas({
   highlightedColumns,
   columnsTruncated,
   specs,
+  sessionId,
 }: {
   result: QueryResult;
   resultIndex: number;
@@ -454,8 +459,29 @@ function StudioMainCanvas({
   highlightedColumns: string[];
   columnsTruncated: boolean;
   specs: ChartSpec[];
+  sessionId?: string;
 }) {
   const isZeroRows = result.rows.length === 0;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleDownloadCsv = async () => {
+    if (!result.sql?.trim() || exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await downloadInspectorCsv({
+        sql: result.sql,
+        filename: `inspector-result-${resultIndex + 1}.csv`,
+        maxRows: EXPORT_MAX_ROWS,
+        sessionId,
+      });
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -533,7 +559,55 @@ function StudioMainCanvas({
             SHOWING 50 OF {result.columns.length} COLUMNS · PROFILING TRUNCATED
           </span>
         )}
+
+        <div style={{ flex: 1 }} />
+
+        <button
+          type="button"
+          onClick={() => { void handleDownloadCsv(); }}
+          disabled={!result.sql?.trim() || exporting}
+          title={
+            result.sql?.trim()
+              ? `Download up to ${EXPORT_MAX_ROWS.toLocaleString()} rows as CSV (re-runs the query)`
+              : 'No SQL available to export'
+          }
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            background: exporting ? 'rgba(253,181,21,0.08)' : 'transparent',
+            border: '1px solid rgba(253,181,21,0.35)',
+            color: !result.sql?.trim() || exporting ? 'var(--builder-text-label)' : 'var(--builder-gold)',
+            borderRadius: 4,
+            padding: '3px 10px',
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            fontSize: 10,
+            letterSpacing: '0.10em',
+            textTransform: 'uppercase',
+            cursor: !result.sql?.trim() || exporting ? 'not-allowed' : 'pointer',
+            opacity: !result.sql?.trim() ? 0.45 : 1,
+          }}
+        >
+          <Download size={12} />
+          {exporting ? 'EXPORTING…' : 'DOWNLOAD CSV'}
+        </button>
       </div>
+
+      {exportError && (
+        <div
+          style={{
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            fontSize: 11,
+            color: '#f87171',
+            background: 'rgba(248,113,113,0.08)',
+            borderBottom: '1px solid var(--builder-border)',
+            padding: '6px 16px',
+            flexShrink: 0,
+          }}
+        >
+          EXPORT FAILED · {exportError}
+        </div>
+      )}
 
       {/* Truncation banner */}
       {result.truncated && (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
+import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
@@ -69,6 +70,18 @@ export interface DisambiguationMessage {
   timestamp: number;
 }
 
+/** CSV export offer surfaced by export_query_result (does not contain row data). */
+export interface ExportReadyMessage {
+  id: string;
+  kind: 'export_ready';
+  sql: string;
+  filename: string;
+  maxRows: number;
+  toolSlug: string;
+  sessionId?: string;
+  timestamp: number;
+}
+
 /**
  * Progressive-streaming state for the in-flight semantic chart query. Drives the
  * staged "planning → compiling → executing → rendering" reveal in the chat UI so
@@ -121,6 +134,8 @@ interface UseInspectorChatReturn {
   semanticChartMessages: SemanticChartMessage[];
   /** Pending disambiguation prompts raised by the agent (Phase 3B). */
   disambiguations: DisambiguationMessage[];
+  /** CSV download offers from export_query_result. */
+  exportOffers: ExportReadyMessage[];
   /** In-flight semantic-chart progressive state (null when idle). */
   queryProgress: QueryProgress | null;
   send: (content: string) => void;
@@ -133,8 +148,12 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [semanticChartMessages, setSemanticChartMessages] = useState<SemanticChartMessage[]>([]);
   const [disambiguations, setDisambiguations] = useState<DisambiguationMessage[]>([]);
+  const [exportOffers, setExportOffers] = useState<ExportReadyMessage[]>([]);
   const [queryProgress, setQueryProgress] = useState<QueryProgress | null>(null);
-  const [previewModel, setPreviewModel] = useState(AVAILABLE_MODELS[1].key);
+  const defaultModelKey = AVAILABLE_MODELS.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
+    ? DEFAULT_INSPECTOR_MODEL_KEY
+    : AVAILABLE_MODELS[1].key;
+  const [previewModel, setPreviewModel] = useState(defaultModelKey);
 
   // Inspector owns its session id locally (see currentSessionId below). This ref
   // mirrors it for use inside async stream callbacks. Init matches the prop, which
@@ -384,7 +403,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 truncated: event.truncated as boolean,
               };
               setQueryResults(prev => {
-                const seq = prev.length;
+                const appendIndex = prev.length;
                 const sid2 = sessionIdRef.current;
                 if (sid2) {
                   fetch('/api/studio/results', {
@@ -392,7 +411,6 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       sessionId: sid2,
-                      seq,
                       sql: qr.sql,
                       columns: qr.columns,
                       rows: qr.rows,
@@ -404,7 +422,9 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                     .then(res => {
                       if (res?.id) {
                         setQueryResults(curr =>
-                          curr.map((r, i) => i === seq ? { ...r, persistedId: res.id } : r),
+                          curr.map((r, i) =>
+                            i === appendIndex ? { ...r, persistedId: res.id } : r,
+                          ),
                         );
                       }
                     })
@@ -412,6 +432,23 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 }
                 return [...prev, qr];
               });
+              break;
+            }
+
+            case 'export_ready': {
+              const offer: ExportReadyMessage = {
+                id: nextMsgId(),
+                kind: 'export_ready',
+                sql: String(event.sql ?? ''),
+                filename: String(event.filename ?? 'inspector-export.csv'),
+                maxRows: typeof event.maxRows === 'number' ? event.maxRows : 100_000,
+                toolSlug: String(event.toolSlug ?? 'synergy_dwh'),
+                sessionId: typeof event.sessionId === 'string' ? event.sessionId : sessionIdRef.current ?? undefined,
+                timestamp: Date.now(),
+              };
+              if (offer.sql) {
+                setExportOffers(prev => [...prev, offer]);
+              }
               break;
             }
 
@@ -617,6 +654,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     setQueryResults([]);
     setSemanticChartMessages([]);
     setDisambiguations([]);
+    setExportOffers([]);
     setQueryProgress(null);
     setSuggestions([]);
     setInterrupted(false);
@@ -659,6 +697,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     queryResults,
     semanticChartMessages,
     disambiguations,
+    exportOffers,
     queryProgress,
     send,
     abort,

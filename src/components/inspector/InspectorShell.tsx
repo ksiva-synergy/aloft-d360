@@ -10,6 +10,7 @@ import { AloftSigil } from '@/components/workbench/atoms';
 import { DashboardPane } from './DashboardPane';
 import { SemanticChartCard } from './SemanticChartCard';
 import { DisambiguationCard } from './DisambiguationCard';
+import { ExportReadyCard } from './ExportReadyCard';
 import { EmptyStatePrompts } from './EmptyStatePrompts';
 import { QueryProgressCard } from './QueryProgressCard';
 import { SemanticGovernancePanel, RightPaneTabBar } from './SemanticGovernancePanel';
@@ -474,7 +475,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
               ) : (
               <>
               {/* Semantic chart cards + disambiguation + in-flight progress — above query results */}
-              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.queryProgress) && (
+              {(insp.semanticChartMessages.length > 0 || insp.disambiguations.length > 0 || insp.exportOffers.length > 0 || insp.queryProgress) && (
                 <div
                   style={{
                     flexShrink: 0,
@@ -491,6 +492,9 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                       modelId={candidateModelId}
                       onChoose={(followUp) => insp.send(followUp)}
                     />
+                  ))}
+                  {insp.exportOffers.map((eo) => (
+                    <ExportReadyCard key={eo.id} message={eo} />
                   ))}
                   {insp.semanticChartMessages.map((scm) => (
                     <SemanticChartCard
@@ -511,6 +515,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                 expandButtonRef={expandButtonRef}
                 latestQuestion={latestUserQuestion}
                 graduateModelId={candidateModelId}
+                sessionId={insp.sessionId ?? undefined}
               />
               </>
               )}
@@ -524,6 +529,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       <DataStudio
         open={studioOpen}
         results={insp.queryResults}
+        sessionId={insp.sessionId ?? undefined}
         onClose={() => {
           setStudioOpen(false);
           // Return focus to the EXPAND button that opened the Studio
