@@ -63,6 +63,7 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   'qwen3-32b':        { bedrockId: 'qwen.qwen3-32b-v1:0',                           supportsTools: true,  supportsThinking: false },
   // ── Azure AI Foundry ────────────────────────────────────────────────────────
   'gpt-5-4':          { bedrockId: '', foundryDeployment: 'gpt-5.4-PBC',   supportsTools: true,  supportsThinking: false },
+  'gpt-6-luna':       { bedrockId: '', foundryDeployment: 'gpt-6-luna',    supportsTools: true,  supportsThinking: false },
   'grok-4-3':         { bedrockId: '', foundryDeployment: 'grok-4.3-PBC',  supportsTools: true,  supportsThinking: false },
   'kimi-k2-6':        { bedrockId: '', foundryDeployment: 'kimi-k2-6-PBC', supportsTools: true,  supportsThinking: false },
   'deepseek-v4':      { bedrockId: '', foundryDeployment: 'DeepSeek-V4-Pro', supportsTools: true, supportsThinking: true  },

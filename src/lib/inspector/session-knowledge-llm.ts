@@ -84,20 +84,54 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
   const client = getFoundrySummaryClient();
   if (!client) return null;
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_SUMMARY_MODEL,
-    messages: [
-      {
-        role: 'system',
-        content: 'You write brief, factual data-session recaps. Plain text only.',
-      },
-      { role: 'user', content: prompt },
-    ],
-    max_tokens: 220,
-    temperature: 0,
-  });
+  // Prefer registry tokenParam; newer Foundry chat models reject `max_tokens`.
+  let tokenParam: 'max_tokens' | 'max_completion_tokens' = 'max_completion_tokens';
+  try {
+    const { BOOST_MODELS } = await import('@/lib/boost/models');
+    const registered = BOOST_MODELS.find((m) => m.modelId === DEFAULT_SUMMARY_MODEL || m.key === DEFAULT_SUMMARY_MODEL);
+    if (registered?.tokenParam) tokenParam = registered.tokenParam;
+  } catch {
+    /* keep default */
+  }
 
-  return response.choices[0]?.message?.content?.trim() ?? null;
+  const tokenConfig = { [tokenParam]: 220 } as Record<string, number>;
+
+  // Omit temperature: gpt-6-luna / GPT-5-family Foundry models only allow default (1).
+  // Matching runFoundryAgentLoop, which also leaves temperature unset.
+  try {
+    const response = await client.chat.completions.create({
+      model: DEFAULT_SUMMARY_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: 'You write brief, factual data-session recaps. Plain text only.',
+        },
+        { role: 'user', content: prompt },
+      ],
+      ...tokenConfig,
+    });
+    return response.choices[0]?.message?.content?.trim() ?? null;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // One retry with the alternate param if the deployment rejects the first.
+    if (msg.includes('max_tokens') || msg.includes('max_completion_tokens')) {
+      const alt: 'max_tokens' | 'max_completion_tokens' =
+        tokenParam === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens';
+      const response = await client.chat.completions.create({
+        model: DEFAULT_SUMMARY_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You write brief, factual data-session recaps. Plain text only.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        [alt]: 220,
+      });
+      return response.choices[0]?.message?.content?.trim() ?? null;
+    }
+    throw err;
+  }
 }
 
 async function callBedrockSummary(prompt: string): Promise<string | null> {

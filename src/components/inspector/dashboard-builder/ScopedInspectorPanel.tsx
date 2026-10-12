@@ -19,7 +19,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  X, Send, Loader2, Sparkles, RotateCcw, Pin,
+  X, Send, Loader2, Sparkles, RotateCcw, Pin, AlertTriangle,
 } from 'lucide-react';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
 import { SemanticChartCard } from '@/components/inspector/SemanticChartCard';
@@ -193,6 +193,24 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
                   {suggestion}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {insp.error && (
+          <div
+            role="alert"
+            style={{
+              display: 'flex', gap: 8, alignItems: 'flex-start',
+              padding: '10px 12px', borderRadius: 8,
+              background: tint('#F87171', 12), border: `1px solid ${tint('#F87171', 35)}`,
+              fontSize: 12, color: INK, lineHeight: 1.5,
+            }}
+          >
+            <AlertTriangle size={14} color="#F87171" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Could not run that question</div>
+              <div style={{ color: MUTED }}>{insp.error}</div>
             </div>
           </div>
         )}
