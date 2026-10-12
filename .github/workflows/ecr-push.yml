@@ -13,9 +13,10 @@
 #   elasticbeanstalk:CreateApplicationVersion, UpdateEnvironment, Describe*
 #   s3:PutObject, s3:GetObject on elasticbeanstalk-ap-south-1-ACCOUNT_ID (or your EB artifacts bucket)
 #
-# OIDC trust (repo Synergy-Marine-Group/aloft-d360):
-#   token.actions.githubusercontent.com:sub = repo:Synergy-Marine-Group/aloft-d360:ref:refs/heads/main
-#   (add :ref:refs/heads/develop for develop pushes)
+# OIDC trust — see infra/aws/github-oidc-trust-policy.example.json
+#   aud = sts.amazonaws.com
+#   sub = repo:Synergy-Marine-Group/aloft-d360:*
+#   Actions: sts:AssumeRoleWithWebIdentity (+ sts:TagSession unless role-skip-session-tagging)
 
 name: Build, push ECR, deploy Beanstalk
 
@@ -54,6 +55,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          role-skip-session-tagging: true
 
       - name: Login to Amazon ECR
         id: ecr
@@ -82,6 +84,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          role-skip-session-tagging: true
 
       - name: Login to Amazon ECR
         id: ecr
@@ -121,6 +124,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          role-skip-session-tagging: true
 
       - name: Package Beanstalk source bundle
         id: bundle
