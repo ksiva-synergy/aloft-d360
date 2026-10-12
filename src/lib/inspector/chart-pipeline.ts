@@ -2,6 +2,7 @@ import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-r
 import { emitChartSpec } from './chart-emitter';
 import { validateAndRepair, type ValidationResult } from '@/lib/studio/validator';
 import { compileSpecToOption } from '@/lib/studio/compiler';
+import { recommendCharts } from '@/lib/studio/recommender';
 import type { ChartDSLSpec } from '@/lib/studio/types';
 import type { ProfileResult } from '@/lib/studio/types';
 import type { QueryResult } from '@/hooks/useInspectorChat';
@@ -22,6 +23,45 @@ type EChartsOption = Record<string, unknown>;
 export type ChartPipelineResult =
   | { ok: true; spec: ChartDSLSpec; option: EChartsOption; repaired: boolean; attempts: number }
   | { ok: false; reason: string; attempts: number; errors: ValidationResult['errors'] };
+
+/** Deterministic chart when Bedrock emit/repair is unavailable (e.g. ops F-001). */
+function tryRecommenderFallback(
+  profileResult: ProfileResult,
+  queryResult: QueryResult,
+  userIntent: string,
+): ChartPipelineResult | null {
+  const candidates = recommendCharts(profileResult, queryResult.rows).filter(
+    (s) => s.dsl && s.kind !== 'kpi',
+  );
+  const pick = candidates[0];
+  if (!pick?.dsl) return null;
+
+  const dsl: ChartDSLSpec = {
+    ...pick.dsl,
+    title: userIntent.length > 8 && userIntent.length < 120 ? userIntent : pick.dsl.title,
+  };
+
+  const validation = validateAndRepair(dsl, profileResult);
+  if (validation.rejected || !validation.spec) return null;
+
+  try {
+    const option = compileSpecToOption(
+      validation.spec,
+      profileResult,
+      queryResult.rows,
+      validation.spec.themeSlot ?? 'aloft-dark',
+    );
+    return {
+      ok: true,
+      spec: validation.spec,
+      option,
+      repaired: true,
+      attempts: 1,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // Reuse same client factory as agent-loop.ts
 function getBedrockClient(): BedrockRuntimeClient {
@@ -94,6 +134,11 @@ export async function runChartPipeline(input: {
   });
 
   if ('error' in emitResult1) {
+    const fallback = tryRecommenderFallback(profileResult, queryResult, userIntent);
+    if (fallback) {
+      console.warn('[chart-pipeline] Bedrock emit failed; using recommender fallback:', emitResult1.error);
+      return fallback;
+    }
     return { ok: false, reason: emitResult1.error, attempts: 1, errors: [] };
   }
 

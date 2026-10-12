@@ -1,30 +1,25 @@
 // INVARIANT: no warehouse access in this file.
 // All reads come exclusively from platform_context_* tables via Prisma.
 // executeDatabricksSQL must never be called here, directly or transitively.
+//
+// Embedding: Azure OpenAI / Foundry text-embedding-3-large via embedWithFallback
+// in @/lib/azure/embed-client (Titan / Bedrock embed disabled).
 
 import 'server-only';
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import prisma from '@/lib/db';
+import {
+  embedWithFallback,
+  CURRENT_EMBEDDING_MODEL,
+  OPENAI_EMBED_MODEL,
+  TITAN_EMBED_MODEL,
+} from '@/lib/azure/embed-client';
 import { enqueue, finalize } from './queue';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-export const TITAN_MODEL = 'amazon.titan-embed-text-v2:0';
-const EMBED_DIMS = 1024;
+export { OPENAI_EMBED_MODEL, TITAN_EMBED_MODEL as TITAN_MODEL, CURRENT_EMBEDDING_MODEL };
 
-// ── Bedrock client (hardcoded us-east-1 — Titan v2 is only in us-east-1) ──────
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
-
-// ── Row types for embed_text composition ──────────────────────────────────────
+const EMBED_DIMS = 1024;// ── Row types for embed_text composition ──────────────────────────────────────
 
 export interface ObjectEmbedRow {
   full_path: string;
@@ -74,27 +69,13 @@ export function composeEmbedText(
   }
 }
 
-// ── Titan v2 embedding (same call pattern as knowledge/embed.ts) ───────────────
+// ── Embedding implementation (Titan → Azure OpenAI fallback) ───────────────────
 
-async function callTitan(text: string): Promise<number[] | null> {
-  try {
-    const truncated = text.slice(0, 32_000);
-    const client = getBedrockClient();
-    const cmd = new InvokeModelCommand({
-      modelId: TITAN_MODEL,
-      contentType: 'application/json',
-      accept: 'application/json',
-      body: JSON.stringify({ inputText: truncated, dimensions: EMBED_DIMS, normalize: true }),
-    });
-    const resp = await client.send(cmd);
-    const parsed = JSON.parse(new TextDecoder().decode(resp.body)) as { embedding: number[] };
-    return parsed.embedding;
-  } catch (err) {
-    console.warn('[embed] Titan call failed', err);
-    return null;
-  }
+async function getEmbedding(text: string): Promise<{ vector: number[]; modelId: string } | null> {
+  const result = await embedWithFallback(text, EMBED_DIMS);
+  if (!result) return null;
+  return { vector: result.embedding, modelId: result.modelId };
 }
-
 function vectorToSql(v: number[]): string {
   return `[${v.join(',')}]`;
 }
@@ -107,6 +88,7 @@ async function upsertEmbedding(
   subjectId: string,
   embedText: string,
   embedding: number[],
+  modelId: string,
 ): Promise<void> {
   const vec = vectorToSql(embedding);
   // ::text::vector cast is required: Prisma passes interpolated values as typed
@@ -116,7 +98,7 @@ async function upsertEmbedding(
       (id, org_id, subject_kind, subject_id, embed_text, embedding, model_id, created_at)
     VALUES
       (gen_random_uuid(), ${orgId}, ${subjectKind}, ${subjectId}::uuid,
-       ${embedText}, ${vec}::text::vector, ${TITAN_MODEL}, NOW())
+       ${embedText}, ${vec}::text::vector, ${modelId}, NOW())
     ON CONFLICT (subject_kind, subject_id)
     DO UPDATE SET
       org_id     = EXCLUDED.org_id,
@@ -201,13 +183,13 @@ export async function embedSubjects(
         continue;
       }
 
-      const vec = await callTitan(embedText);
-      if (!vec) {
+      const embedResult = await getEmbedding(embedText);
+      if (!embedResult) {
         failed++;
         continue;
       }
 
-      await upsertEmbedding(orgId, 'object', obj.id, embedText, vec);
+      await upsertEmbedding(orgId, 'object', obj.id, embedText, embedResult.vector, embedResult.modelId);
       embedded++;
     }
   } else {
@@ -255,13 +237,13 @@ export async function embedSubjects(
         continue;
       }
 
-      const vec = await callTitan(embedText);
-      if (!vec) {
+      const embedResult = await getEmbedding(embedText);
+      if (!embedResult) {
         failed++;
         continue;
       }
 
-      await upsertEmbedding(orgId, 'column', col.id, embedText, vec);
+      await upsertEmbedding(orgId, 'column', col.id, embedText, embedResult.vector, embedResult.modelId);
       embedded++;
     }
   }
@@ -272,13 +254,13 @@ export async function embedSubjects(
 // ── embedQuery (exported for semantic search) ─────────────────────────────────
 
 /**
- * Embed a raw query string via Titan v2 for use in searchObjects.
- * Returns null on Bedrock failure — callers must fall back to text search.
+ * Embed a raw query string (Titan → Azure OpenAI fallback, 1024-dim).
+ * Returns null on failure — callers must fall back gracefully.
  */
 export async function embedQuery(text: string): Promise<number[] | null> {
-  return callTitan(text);
+  const result = await getEmbedding(text);
+  return result?.vector ?? null;
 }
-
 // ── runEmbedJob ────────────────────────────────────────────────────────────────
 
 export interface EmbedJobResult {
@@ -356,7 +338,7 @@ export async function runEmbedJob(sourceId: string, orgId: string): Promise<Embe
       columns_embedded: colResult.embedded,
       skipped: objResult.skipped + colResult.skipped,
       failed: objResult.failed + colResult.failed,
-      model_id: TITAN_MODEL,
+      model_id: CURRENT_EMBEDDING_MODEL,
     },
     errors.length > 0 ? errors.join('\n') : undefined,
   );

@@ -209,6 +209,56 @@ export async function executeInspectorTool(
     const sessionId = context?.sessionId ?? '';
 
     try {
+      // The agent already supplies a Chart DSL as the emit_chart tool input
+      // (see prompts.ts schema). Prefer validate+compile that spec — do NOT
+      // discard it and re-call Bedrock (chart-emitter), which fails when AWS
+      // keys are invalid (ops F-001) even if the main agent used another provider.
+      const hasInlineDsl =
+        typeof toolInput.kind === 'string' && Array.isArray(toolInput.encodings);
+
+      if (hasInlineDsl) {
+        const { validateAndRepair } = await import('@/lib/studio/validator');
+        const { compileSpecToOption } = await import('@/lib/studio/compiler');
+        const validation = validateAndRepair(toolInput, profileResult);
+
+        if (!validation.rejected && validation.spec) {
+          try {
+            const option = compileSpecToOption(
+              validation.spec,
+              profileResult,
+              lastQR.rows,
+              validation.spec.themeSlot ?? 'aloft-dark',
+            );
+            const repaired = validation.errors.some((e) => e.repaired);
+            emit({
+              type: 'chart_spec',
+              spec: validation.spec,
+              option,
+              repaired,
+              attempts: 1,
+              sessionId,
+            });
+            return JSON.stringify({
+              ok: true,
+              spec: validation.spec,
+              repaired,
+              attempts: 1,
+              source: 'tool_input',
+            });
+          } catch (compileErr: unknown) {
+            const reason = compileErr instanceof Error ? compileErr.message : 'Compiler error';
+            emit({ type: 'chart_error', reason, errors: validation.errors, attempts: 1 });
+            return JSON.stringify({ error: reason, attempts: 1 });
+          }
+        }
+
+        // Inline DSL rejected — fall through to pipeline (LLM repair / recommender)
+        console.warn(
+          '[emit_chart] inline DSL rejected:',
+          validation.rejectionReason ?? validation.errors.map((e) => e.message).join('; '),
+        );
+      }
+
       const { runChartPipeline } = await import('./chart-pipeline');
       const pipelineResult = await runChartPipeline({
         userIntent,
@@ -242,6 +292,94 @@ export async function executeInspectorTool(
       emit({ type: 'chart_error', reason: msg, errors: [], attempts: 0 });
       return JSON.stringify({ error: msg });
     }
+  }
+
+  // ── export_query_result ─────────────────────────────────────────────────────
+  if (toolName === 'export_query_result') {
+    const qrs = context?.queryResults ?? [];
+    let lastQR = qrs.length > 0 ? qrs[qrs.length - 1] : null;
+    const statementFromInput =
+      typeof toolInput.statement === 'string' ? toolInput.statement.trim() : '';
+    const allowCombined =
+      toolInput.allow_combined === true || toolInput.allowCombined === true;
+
+    // Prefer in-turn results; if the model calls export before execute_tool this turn,
+    // fall back to the last persisted studio_query_results SQL for this session.
+    if (!lastQR?.sql?.trim() && !statementFromInput && context?.sessionId) {
+      try {
+        const rows = await prisma.$queryRawUnsafe<Array<{ sql: string }>>(
+          `SELECT sql FROM studio_query_results
+           WHERE session_id = $1::uuid AND coalesce(row_count, 0) >= 0 AND length(trim(sql)) > 0
+           ORDER BY seq DESC LIMIT 1`,
+          context.sessionId,
+        );
+        if (rows[0]?.sql) {
+          lastQR = {
+            columns: [],
+            rows: [],
+            sql: rows[0].sql,
+            rowCount: 0,
+            truncated: false,
+          };
+        }
+      } catch {
+        /* non-fatal — resolveExportSql will error clearly */
+      }
+    }
+
+    const { resolveExportSql } = await import('@/lib/inspector/export-sql');
+    const resolved = resolveExportSql({
+      statement: statementFromInput || undefined,
+      lastSql: lastQR?.sql,
+      allowCombined,
+    });
+
+    if ('error' in resolved) {
+      const code = resolved.error.startsWith('EXPORT_COMBINE_REJECTED')
+        ? 'EXPORT_COMBINE_REJECTED'
+        : 'EXPORT_NO_SQL';
+      emit({ type: 'tool_call_error', callId, error: resolved.error, retryable: true });
+      return JSON.stringify({
+        error: code,
+        message: resolved.error,
+        note: 'Call execute_tool first with a single-table SELECT (LIMIT ok), then export_query_result with only filename (omit statement).',
+      });
+    }
+
+    const sql = resolved.sql;
+    const { EXPORT_MAX_ROWS } = await import('@/lib/databricks/export-limits');
+    const maxRowsRaw = typeof toolInput.maxRows === 'number' ? toolInput.maxRows : EXPORT_MAX_ROWS;
+    const maxRows = Math.min(Math.max(1, Math.floor(maxRowsRaw)), EXPORT_MAX_ROWS);
+    const filename =
+      typeof toolInput.filename === 'string' && toolInput.filename.trim()
+        ? toolInput.filename.trim()
+        : 'inspector-export.csv';
+    const toolSlug =
+      typeof toolInput.tool_name === 'string' && toolInput.tool_name.trim()
+        ? toolInput.tool_name.trim()
+        : 'synergy_dwh';
+
+    emit({
+      type: 'export_ready',
+      sql,
+      filename,
+      maxRows,
+      toolSlug,
+      sessionId: context?.sessionId,
+      source: resolved.source,
+    });
+
+    return JSON.stringify({
+      ok: true,
+      surfaced: true,
+      maxRows,
+      filename,
+      source: resolved.source,
+      note:
+        resolved.source === 'last'
+          ? `CSV download offered from the last successful query (up to ${maxRows} rows). Do not paste rows into chat.`
+          : `CSV download offered from your statement override (up to ${maxRows} rows). Do not paste rows into chat.`,
+    });
   }
 
   if (toolName === 'execute_tool') {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X } from 'lucide-react';
+import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X, Download } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   PieChart, Pie, Cell, ScatterChart, Scatter,
@@ -12,6 +12,8 @@ import type { RawSqlChartDsl, RawChartKind } from '@/lib/dashboards/raw-sql-char
 import { RawSqlBadge } from './RawSqlBadge';
 import { PinRawSqlDialog } from './PinRawSqlDialog';
 import { DefineMetricPanel } from './authoring/DefineMetricPanel';
+import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
+import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const GOLD   = '#FDB515';
@@ -570,10 +572,20 @@ interface DashboardPaneProps {
   latestQuestion?: string;
   /** Semantic model to graduate a raw query into via DefineMetricPanel (3.5C). */
   graduateModelId?: string | null;
+  sessionId?: string;
 }
 
-export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef, latestQuestion, graduateModelId }: DashboardPaneProps) {
+export function DashboardPane({
+  queryResults,
+  onOpenStudio,
+  expandButtonRef,
+  latestQuestion,
+  graduateModelId,
+  sessionId,
+}: DashboardPaneProps) {
   const [activeIdx, setActiveIdx] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Always show latest result by default
@@ -605,6 +617,24 @@ export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef, lat
 
   const active = queryResults[displayIdx];
 
+  const handleDownloadCsv = async () => {
+    if (!active?.sql?.trim() || exporting) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      await downloadInspectorCsv({
+        sql: active.sql,
+        filename: `inspector-result-${displayIdx + 1}.csv`,
+        maxRows: EXPORT_MAX_ROWS,
+        sessionId,
+      });
+    } catch (err: unknown) {
+      setExportError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -630,32 +660,71 @@ export function DashboardPane({ queryResults, onOpenStudio, expandButtonRef, lat
             · {queryResults.length} result{queryResults.length !== 1 ? 's' : ''}
           </span>
         )}
-        <button
-          ref={expandButtonRef}
-          onClick={onOpenStudio}
-          onMouseEnter={() => { import('@/components/studio/DataStudio'); }}
-          title="Open Data Studio"
-          style={{
-            marginLeft: 'auto',
-            border: '0.5px solid var(--builder-border-bright)',
-            background: 'transparent',
-            color: TXT2,
-            borderRadius: '4px',
-            padding: '2px 6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '11px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            cursor: 'pointer',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-          }}
-        >
-          <Maximize2 size={12} />
-          EXPAND
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {active?.sql?.trim() && (
+            <button
+              type="button"
+              onClick={() => { void handleDownloadCsv(); }}
+              disabled={exporting}
+              title={`Download up to ${EXPORT_MAX_ROWS.toLocaleString()} rows as CSV`}
+              style={{
+                border: `0.5px solid ${GOLD}`,
+                background: exporting ? 'rgba(253,181,21,0.12)' : 'transparent',
+                color: GOLD,
+                borderRadius: '4px',
+                padding: '2px 8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11px',
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                cursor: exporting ? 'wait' : 'pointer',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              <Download size={12} />
+              {exporting ? 'CSV…' : 'CSV'}
+            </button>
+          )}
+          <button
+            ref={expandButtonRef}
+            onClick={onOpenStudio}
+            onMouseEnter={() => { import('@/components/studio/DataStudio'); }}
+            title="Open Data Studio"
+            style={{
+              border: '0.5px solid var(--builder-border-bright)',
+              background: 'transparent',
+              color: TXT2,
+              borderRadius: '4px',
+              padding: '2px 6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '11px',
+              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+              cursor: 'pointer',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            <Maximize2 size={12} />
+            EXPAND
+          </button>
+        </div>
       </div>
+
+      {exportError && (
+        <div style={{
+          ...mono, fontSize: 10, color: '#f87171',
+          padding: '6px 16px',
+          borderBottom: `1px solid ${LINE}`,
+          background: 'rgba(248,113,113,0.08)',
+          flexShrink: 0,
+        }}>
+          CSV EXPORT FAILED · {exportError}
+        </div>
+      )}
 
       {/* Empty state */}
       {queryResults.length === 0 ? (

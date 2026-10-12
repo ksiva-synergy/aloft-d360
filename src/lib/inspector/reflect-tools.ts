@@ -134,6 +134,7 @@ export const WITHHELD_MUTATION_TOOLS = [
   'emit_chart',
   'execute_tool',
   'describe_schema',
+  'export_query_result',
 ] as const;
 
 export function isReflectToolAllowed(name: string): name is ReflectToolName {

@@ -1,12 +1,12 @@
 /**
  * Shared Databricks SQL execution — the single guarded chokepoint.
  *
- * ALL execution paths (the /execute HTTP route, the future workbench
- * execute_tool path, any other caller) MUST go through `executeDatabricksSQL`
- * in this module. Safety enforcement must never be duplicated into callers —
- * it lives here and only here.
+ * Interactive paths (chat `/execute`, Inspector `execute_tool`, dashboards)
+ * MUST go through `executeDatabricksSQL`. Export paths use
+ * `beginDatabricksSQLExport` — same read-only enforcement, but EXTERNAL_LINKS
+ * disposition for large CSV downloads (up to EXPORT_MAX_ROWS).
  *
- * Three hard safety layers applied in this order, before any network call:
+ * Interactive safety layers (in order, before any network call):
  *
  *   1. READ-ONLY ALLOWLIST  — strip comments AND string literals, then check
  *      the first SQL token is a permitted read-only verb AND the statement
@@ -17,7 +17,17 @@
  *
  *   3. EXTERNAL_LINKS DISPOSITION GUARD — INLINE only; if Databricks returns
  *      external_links chunks, fail with a structured error.
+ *
+ * Export path: layer 1 + row_limit capped at EXPORT_MAX_ROWS; EXTERNAL_LINKS
+ * allowed and streamed chunk-by-chunk (no 4 MB inline body requirement).
  */
+
+import { EXPORT_MAX_ROWS } from './export-limits';
+export { EXPORT_MAX_ROWS };
+
+/** Export poll budget — must stay under Next route `maxDuration` (300s). */
+export const EXPORT_POLL_TIMEOUT_MS = 4 * 60 * 1000;
+const EXPORT_FETCH_TIMEOUT_MS = 60_000;
 
 // ── Safety constants ──────────────────────────────────────────────────────────
 
@@ -278,16 +288,31 @@ export async function executeDatabricksSQL(
 
 // ── Shared response parser ────────────────────────────────────────────────────
 
+type ExternalLinkEntry = {
+  external_link?: string;
+  chunk_index?: number;
+  next_chunk_index?: number;
+  row_count?: number;
+  row_offset?: number;
+  byte_count?: number;
+  expiration?: string;
+};
+
 type RawStatementResponse = {
   statement_id: string;
   status: { state: string; error?: { message: string } };
   manifest?: {
     truncated?: boolean;
+    total_row_count?: number;
+    total_chunk_count?: number;
     schema?: { columns?: { name: string; type_name: string }[] };
+    chunks?: { chunk_index: number; row_count: number; row_offset: number }[];
   };
   result?: {
     data_array?: unknown[][];
-    external_links?: unknown[];
+    external_links?: ExternalLinkEntry[];
+    next_chunk_index?: number;
+    chunk_index?: number;
   };
 };
 
@@ -513,3 +538,302 @@ export async function executeDatabricksDDL(
 
   return { statement_id: raw.statement_id };
 }
+
+// ── CSV export path (EXTERNAL_LINKS, up to EXPORT_MAX_ROWS) ───────────────────
+
+export interface DatabricksExportInput {
+  statement: string;
+  /** Requested max rows; clamped to EXPORT_MAX_ROWS. Default EXPORT_MAX_ROWS. */
+  maxRows?: number;
+  /** Async poll budget in ms. Default EXPORT_POLL_TIMEOUT_MS (4 min). */
+  pollTimeoutMs?: number;
+}
+
+export interface DatabricksExportMeta {
+  statement_id: string;
+  columns: { name: string; type_name: string }[];
+  /** True if Databricks truncated at row_limit or we stopped at EXPORT_MAX_ROWS. */
+  truncated: boolean;
+  /** Total rows Databricks reported (may exceed what we stream if truncated). */
+  total_row_count: number;
+  row_limit: number;
+}
+
+export interface DatabricksExportHandle {
+  meta: DatabricksExportMeta;
+  /**
+   * Yields data rows as positional arrays aligned to `meta.columns`.
+   * Stops after `meta.row_limit` rows. Does not buffer the full result set.
+   */
+  rows(): AsyncGenerator<unknown[]>;
+}
+
+/**
+ * Start a read-only SQL export against Databricks using EXTERNAL_LINKS disposition.
+ * Returns metadata (available before streaming) plus an async row iterator.
+ *
+ * Interactive callers must continue to use `executeDatabricksSQL` (INLINE only).
+ *
+ * Poll budget defaults to EXPORT_POLL_TIMEOUT_MS (4 min) so we fail before the
+ * Next.js route maxDuration (300s) silently kills the request.
+ */
+export async function beginDatabricksSQLExport(
+  _connectionId: string,
+  workspaceHost: string,
+  warehouseId: string,
+  token: string,
+  input: DatabricksExportInput,
+): Promise<DatabricksExportHandle> {
+  enforceReadOnly(input.statement);
+
+  const rowLimit = Math.min(
+    Math.max(1, input.maxRows ?? EXPORT_MAX_ROWS),
+    EXPORT_MAX_ROWS,
+  );
+  const host = workspaceHost.replace(/^https?:\/\//, '');
+  const pollTimeoutMs = input.pollTimeoutMs ?? EXPORT_POLL_TIMEOUT_MS;
+
+  const succeeded = await submitAndAwaitExport(host, warehouseId, token, input.statement, rowLimit, pollTimeoutMs);
+
+  const columns: { name: string; type_name: string }[] =
+    succeeded.manifest?.schema?.columns?.map(c => ({ name: c.name, type_name: c.type_name })) ?? [];
+
+  const totalRowCount = succeeded.manifest?.total_row_count ?? 0;
+  const warehouseTruncated = succeeded.manifest?.truncated ?? false;
+
+  const meta: DatabricksExportMeta = {
+    statement_id: succeeded.statement_id,
+    columns,
+    truncated: warehouseTruncated || totalRowCount > rowLimit,
+    total_row_count: totalRowCount,
+    row_limit: rowLimit,
+  };
+
+  return {
+    meta,
+    rows: () => iterateExportRows(host, token, succeeded, rowLimit),
+  };
+}
+
+function abortableTimeout(ms: number): AbortSignal {
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms).unref?.();
+  return c.signal;
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit | undefined,
+  timeoutMs: number,
+  label: string,
+): Promise<Response> {
+  const signal = abortableTimeout(timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal });
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    throw new Error(
+      isAbort
+        ? `${label} timed out after ${Math.round(timeoutMs / 1000)}s`
+        : `${label} failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
+async function submitAndAwaitExport(
+  host: string,
+  warehouseId: string,
+  token: string,
+  statement: string,
+  rowLimit: number,
+  pollTimeoutMs: number,
+): Promise<RawStatementResponse> {
+  const url = `https://${host}/api/2.0/sql/statements`;
+
+  const submitResp = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        statement,
+        warehouse_id: warehouseId,
+        wait_timeout: `${DATABRICKS_API_MAX_WAIT_SECS}s`,
+        on_wait_timeout: 'CONTINUE',
+        format: 'JSON_ARRAY',
+        disposition: 'EXTERNAL_LINKS',
+        row_limit: rowLimit,
+      }),
+    },
+    (DATABRICKS_API_MAX_WAIT_SECS + 20) * 1000,
+    'Export statement submission',
+  );
+
+  if (!submitResp.ok) {
+    const errText = await submitResp.text().catch(() => '(no body)');
+    throw new Error(`Export statement submission returned ${submitResp.status}: ${errText}`);
+  }
+
+  const submitRaw = (await submitResp.json()) as RawStatementResponse;
+  const submitState = submitRaw.status?.state;
+
+  if (submitState === 'SUCCEEDED') return submitRaw;
+  if (submitState === 'FAILED' || submitState === 'CANCELED') {
+    throw new Error(`Export query ${submitState}: ${submitRaw.status?.error?.message ?? submitState}`);
+  }
+
+  const statementId = submitRaw.statement_id;
+  if (!statementId) {
+    throw new Error('Export submission did not return a statement_id');
+  }
+
+  console.info(
+    `[databricks-export] polling statement_id=${statementId} row_limit=${rowLimit} budget_s=${Math.round(pollTimeoutMs / 1000)}`,
+  );
+
+  const pollUrl = `https://${host}/api/2.0/sql/statements/${statementId}`;
+  const deadline = Date.now() + pollTimeoutMs;
+  let delayMs = ASYNC_POLL_INITIAL_MS;
+
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, delayMs));
+    delayMs = Math.min(delayMs * 1.5, ASYNC_POLL_MAX_MS);
+
+    const pollResp = await fetchWithTimeout(
+      pollUrl,
+      { headers: { Authorization: `Bearer ${token}` } },
+      EXPORT_FETCH_TIMEOUT_MS,
+      'Export poll',
+    );
+    if (!pollResp.ok) {
+      const errText = await pollResp.text().catch(() => '(no body)');
+      throw new Error(`Export poll returned ${pollResp.status}: ${errText}`);
+    }
+
+    const pollRaw = (await pollResp.json()) as RawStatementResponse;
+    const pollState = pollRaw.status?.state;
+
+    if (pollState === 'SUCCEEDED') return pollRaw;
+    if (pollState === 'FAILED' || pollState === 'CANCELED') {
+      throw new Error(`Export query ${pollState}: ${pollRaw.status?.error?.message ?? pollState}`);
+    }
+  }
+
+  await fetch(`${pollUrl}/cancel`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => undefined);
+
+  throw new Error(
+    `Export query timed out after ${Math.round(pollTimeoutMs / 1000)}s on Databricks ` +
+      `(statement_id=${statementId}). Try a narrower filter, drop ORDER BY, or add LIMIT.`,
+  );
+}
+
+async function* iterateExportRows(
+  host: string,
+  token: string,
+  initial: RawStatementResponse,
+  rowLimit: number,
+): AsyncGenerator<unknown[]> {
+  let yielded = 0;
+  let chunkIndex = 0;
+  let result: RawStatementResponse['result'] | undefined = initial.result;
+  const statementId = initial.statement_id;
+  const totalChunks = initial.manifest?.total_chunk_count;
+
+  while (yielded < rowLimit) {
+    if (!result) break;
+
+    const rows = await materializeChunkRows(result);
+    for (const row of rows) {
+      if (yielded >= rowLimit) return;
+      yield row;
+      yielded++;
+    }
+
+    const nextFromLink = result.external_links?.[0]?.next_chunk_index;
+    const nextFromResult = result.next_chunk_index;
+    const nextIndex =
+      typeof nextFromLink === 'number'
+        ? nextFromLink
+        : typeof nextFromResult === 'number'
+          ? nextFromResult
+          : typeof totalChunks === 'number' && chunkIndex + 1 < totalChunks
+            ? chunkIndex + 1
+            : undefined;
+
+    if (typeof nextIndex !== 'number') break;
+
+    chunkIndex = nextIndex;
+    result = await fetchExportChunk(host, token, statementId, chunkIndex);
+  }
+}
+
+async function fetchExportChunk(
+  host: string,
+  token: string,
+  statementId: string,
+  chunkIndex: number,
+): Promise<RawStatementResponse['result']> {
+  const url = `https://${host}/api/2.0/sql/statements/${statementId}/result/chunks/${chunkIndex}`;
+  const resp = await fetchWithTimeout(
+    url,
+    { headers: { Authorization: `Bearer ${token}` } },
+    EXPORT_FETCH_TIMEOUT_MS,
+    `Export chunk ${chunkIndex}`,
+  );
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '(no body)');
+    throw new Error(`Export chunk ${chunkIndex} returned ${resp.status}: ${errText}`);
+  }
+  const raw = (await resp.json()) as RawStatementResponse['result'] & {
+    external_links?: ExternalLinkEntry[];
+    data_array?: unknown[][];
+    next_chunk_index?: number;
+  };
+  // Chunk endpoint returns the nested result shape (not a full statement response).
+  return raw;
+}
+
+/**
+ * Resolve a chunk's rows: prefer INLINE data_array; otherwise fetch EXTERNAL_LINKS
+ * URLs (presigned — no Authorization header) and parse JSON_ARRAY.
+ */
+async function materializeChunkRows(
+  result: NonNullable<RawStatementResponse['result']>,
+): Promise<unknown[][]> {
+  if (result.data_array && result.data_array.length > 0) {
+    return result.data_array;
+  }
+
+  const links = result.external_links ?? [];
+  if (links.length === 0) return [];
+
+  const all: unknown[][] = [];
+  for (const link of links) {
+    if (!link.external_link) continue;
+    const resp = await fetchWithTimeout(
+      link.external_link,
+      undefined,
+      EXPORT_FETCH_TIMEOUT_MS,
+      'Export external_link fetch',
+    );
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => '(no body)');
+      throw new Error(`Export external_link fetch returned ${resp.status}: ${errText}`);
+    }
+    const parsed = (await resp.json()) as unknown;
+    if (Array.isArray(parsed)) {
+      // JSON_ARRAY format: array of row arrays
+      for (const row of parsed) {
+        if (Array.isArray(row)) all.push(row as unknown[]);
+      }
+    }
+  }
+  return all;
+}
+

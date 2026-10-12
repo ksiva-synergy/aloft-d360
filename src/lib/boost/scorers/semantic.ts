@@ -1,20 +1,5 @@
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from '@aws-sdk/client-bedrock-runtime';
 import type { BoostCase } from '@/lib/boost/suite';
-
-const SCORER_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
-
-function getClient() {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
+import { callScorerLlm } from '@/lib/boost/scorers/llm-client';
 
 export interface SemanticDimensions {
   completeness: { score: number; rationale: string };
@@ -86,19 +71,11 @@ export async function scoreSemanticQuality(params: {
   }
 
   try {
-    const client = getClient();
-
-    const prompt = buildRubricPrompt(boostCase, answerText);
-
-    const command = new ConverseCommand({
-      modelId: SCORER_MODEL_ID,
-      system: [{ text: 'You are an evaluation judge. Return only valid JSON.' }],
-      messages: [{ role: 'user', content: [{ text: prompt }] }],
-      inferenceConfig: { maxTokens: 4096, temperature: 0 },
+    const outputText = await callScorerLlm({
+      system: 'You are an evaluation judge. Return only valid JSON.',
+      user: buildRubricPrompt(boostCase, answerText),
+      maxTokens: 4096,
     });
-
-    const response = await client.send(command);
-    const outputText = response.output?.message?.content?.[0]?.text ?? '';
 
     const parsed = extractJson(outputText) as {
       dimensions?: SemanticDimensions;

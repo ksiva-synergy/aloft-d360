@@ -19,6 +19,9 @@ If a SESSION KNOWLEDGE block appears in the system prompt, every table path, ent
 ID, and heuristic listed there is already confirmed for this session. Do NOT repeat
 describe_schema search, information_schema column probes, or vessel ID lookups for
 those objects. Proceed directly to the stated next step or the user's question.
+If the user says "continue" / "download" / "export" and SESSION KNOWLEDGE lists paths
+or a "Last successful SQL" heuristic, skip Step 1 entirely — run execute_tool or
+export_query_result next.
 
 ### Step 1 — Search the harvested catalog FIRST (zero warehouse cost)
 When SESSION KNOWLEDGE and OPERATING MEMORY do not already cover the needed tables,
@@ -49,6 +52,15 @@ This is not an error — it means the data exists in the warehouse but hasn't be
 - Valid SQL: SELECT, WITH (CTEs). No SHOW, DESCRIBE, EXPLAIN, DDL, or DML.
 - Always include a LIMIT clause. Default to LIMIT 100 for sampling.
 - If a SQL query fails, fall back to describe_schema to recheck the path — never guess a table name.
+
+## CSV EXPORT RULES (export_query_result)
+- Order is mandatory: **execute_tool first** (single-table preview with LIMIT), **then** export_query_result. Never call export_query_result before a successful execute_tool in the session.
+- When calling export_query_result, **omit \`statement\`** and pass only \`filename\` so the last successful execute_tool SQL is reused (LIMIT is stripped server-side).
+- Do **not** invent JOINs, UNION/UNION ALL, or multi-table "complete report" SQL for export. If you found the rows in one table, export that table.
+- If the last query was only a summary (GROUP BY / COUNT), first run a simple single-table detail preview (\`SELECT * FROM <same_table> WHERE <same filters> LIMIT 100\`), then export_query_result with no statement.
+- Only pass \`statement\` to refine filters on **one** table. Pass \`allow_combined:true\` only when the user explicitly asked to combine sources (e.g. "include legacy and download log").
+- Never narrate a long rewrite for download — export what already worked.
+- If export returns EXPORT_NO_SQL, run execute_tool immediately, then call export_query_result again (filename only).
 
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.
@@ -84,6 +96,14 @@ IDs as confirmed — do not re-run discovery SQL for those objects.
 2. Drill down: catalog → schema → table → columns.
 3. Sample before aggregating — check a few rows to understand the data shape.
 4. If a query fails, verify the path with SHOW TABLES before retrying.
+
+## CSV EXPORT RULES (export_query_result)
+- Order: execute_tool first, then export_query_result (filename only — omit statement).
+- When the user asks to download / export / CSV, call export_query_result and **omit \`statement\`** so the last successful execute_tool SQL is reused.
+- Do **not** invent JOINs or UNION dumps for export. Export the single table that already answered the question.
+- If the last query was aggregated, preview a simple single-table \`SELECT * … WHERE …\` first, then export without a statement override.
+- Pass \`allow_combined:true\` only when the user explicitly asked to combine multiple sources.
+- If export returns EXPORT_NO_SQL, run execute_tool then export again.
 
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.
@@ -155,14 +175,14 @@ columnId values MUST be exact column names from the query result — copy them v
   {
     toolSpec: {
       name: 'export_query_result',
-      description: `Offer a CSV download of warehouse rows (up to 100000). Use when the user asks to download, export, or get all records as CSV/Excel (Excel not supported — offer CSV). Prefer the last successful execute_tool SQL; optionally pass statement to override. Does NOT dump rows into chat — surfaces a download button. Preview first with execute_tool (LIMIT), then call this for the full extract.`,
+      description: `Offer a CSV download (up to 100000 rows). ALWAYS call execute_tool first this session, THEN export_query_result. DEFAULT: omit statement — pass only filename; reuses last successful execute_tool SQL (LIMIT stripped). Do NOT invent JOIN/UNION SQL. If last query was GROUP BY, execute_tool a simple SELECT * first, then export. allow_combined:true ONLY when user asked to combine sources.`,
       inputSchema: {
         json: {
           type: 'object',
           properties: {
             statement: {
               type: 'string',
-              description: 'Optional SQL to export. If omitted, uses the last successful query in this session.',
+              description: 'Optional. Prefer omitting. If set, must be a single-table query unless allow_combined is true.',
             },
             filename: {
               type: 'string',
@@ -171,6 +191,10 @@ columnId values MUST be exact column names from the query result — copy them v
             maxRows: {
               type: 'number',
               description: 'Optional row cap (default 100000, hard max 100000).',
+            },
+            allow_combined: {
+              type: 'boolean',
+              description: 'Set true only when the user explicitly asked to JOIN/UNION multiple sources. Default false.',
             },
             tool_name: {
               type: 'string',

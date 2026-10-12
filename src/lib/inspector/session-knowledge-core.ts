@@ -40,7 +40,7 @@ const MAX_ENTITIES = 24;
 const MAX_HEURISTICS = 20;
 
 const QUALIFIED_TABLE_RE =
-  /(?:landing_zone|curated_db|reporting_layer|raw_db|synergy_dwh)\.[a-z0-9_]+\.[a-z0-9_]+/gi;
+  /(?:landing_zone(?:_dev)?|curated_db|reporting_layer|raw_db|synergy_dwh)\.[a-z0-9_]+\.[a-z0-9_]+/gi;
 
 const VESSEL_NAMES = ['EPIC RADIANCE', 'EMPRESS ZONDA'] as const;
 
@@ -283,7 +283,7 @@ function inferTaskUpdate(
     goal: goal.slice(0, 500),
     status,
     nextStep:
-      'Use confirmed schema paths and vessel IDs above; run the final join/recursive extract without repeating catalog or information_schema discovery.',
+      'Use confirmed schema paths and vessel filters above; run analytical SQL or export_query_result — do not repeat describe_schema search.',
   };
 }
 
@@ -421,21 +421,22 @@ export function validateNarrativeAgainstFacts(
   narrative: string,
   knowledge: InspectorSessionKnowledge,
 ): boolean {
-  const cited = narrative.match(NARRATIVE_PATH_RE) ?? [];
+  const cited = (narrative.match(NARRATIVE_PATH_RE) ?? []) as string[];
   if (cited.length === 0) return true;
   const allowed = new Set(knowledge.schemaPaths.map((p) => p.toLowerCase()));
-  return cited.every((path) => allowed.has(path.toLowerCase()));
+  return cited.every((path: string) => allowed.has(path.toLowerCase()));
 }
 
 export function summarizeTrajectoryOutline(trajectory: TrajectoryEntry[]): string {
   return trajectory
     .map((t) => {
       const input = t.input ?? {};
-      const stmt =
+      let stmt =
         (input as { args?: { statement?: string } }).args?.statement ??
         t.sqlExcerpt ??
-        (typeof input.path === 'string' ? `path=${input.path}` : '') ??
-        (typeof input.query === 'string' ? `query=${input.query.slice(0, 60)}` : '');
+        '';
+      if (!stmt && typeof input.path === 'string') stmt = `path=${input.path}`;
+      else if (!stmt && typeof input.query === 'string') stmt = `query=${input.query.slice(0, 60)}`;
       const action =
         t.tool === 'describe_schema' && typeof input.action === 'string'
           ? `${input.action}`

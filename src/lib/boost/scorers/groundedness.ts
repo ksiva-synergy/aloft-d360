@@ -1,19 +1,4 @@
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from '@aws-sdk/client-bedrock-runtime';
-
-const SCORER_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
-
-function getClient() {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
+import { callScorerLlm } from '@/lib/boost/scorers/llm-client';
 
 export type GroundednessMode = 'phantom_trace' | 'consistency_check';
 
@@ -76,23 +61,15 @@ export async function scoreGroundedness(params: {
   }
 
   try {
-    const client = getClient();
-
     const systemPrompt = mode === 'phantom_trace' ? PHANTOM_TRACE_PROMPT : CONSISTENCY_CHECK_PROMPT;
-
     const trajectoryStr = JSON.stringify(toolTrajectory, null, 1).slice(0, 40000);
-
     const userMessage = `AGENT'S ANSWER:\n${answerText}\n\nTOOL RESULTS (trajectory):\n${trajectoryStr}`;
 
-    const command = new ConverseCommand({
-      modelId: SCORER_MODEL_ID,
-      system: [{ text: systemPrompt }],
-      messages: [{ role: 'user', content: [{ text: userMessage }] }],
-      inferenceConfig: { maxTokens: 8192, temperature: 0 },
+    const outputText = await callScorerLlm({
+      system: systemPrompt,
+      user: userMessage,
+      maxTokens: 8192,
     });
-
-    const response = await client.send(command);
-    const outputText = response.output?.message?.content?.[0]?.text ?? '';
 
     const parsed = extractJson(outputText) as Record<string, unknown>;
     const score = typeof parsed.score === 'number' ? Math.max(0, Math.min(1, parsed.score)) : null;
