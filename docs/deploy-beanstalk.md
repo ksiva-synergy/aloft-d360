@@ -37,7 +37,7 @@ docker tag aloft-d360-web:latest "${ECR}:latest"
 docker push "${ECR}:latest"
 ```
 
-Test locally (optional):
+Test locally first: see **[docker-local-dev.md](./docker-local-dev.md)** (build both images, smoke-test, harvester one-shots).
 
 ```powershell
 docker run --rm -p 3000:3000 --env-file .env.local aloft-d360-web
@@ -141,7 +141,11 @@ npx prisma migrate deploy --schema=./prisma/schema.prisma
 
 ### CI (GitHub Actions)
 
-On push to **`main`**, workflow [`.github/workflows/ecr-push.yml`](../.github/workflows/ecr-push.yml) builds the web image, pushes to ECR, zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag), and runs `update-environment` on **`aloft-d360-dev`** (override via repo variables `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`).
+On push to **`main`** or **`develop`**, [`.github/workflows/ecr-push.yml`](../.github/workflows/ecr-push.yml) **always** builds and pushes **harvester** and **web** images to ECR.
+
+**Elastic Beanstalk deploy is off until you turn it on:** set repo variable **`ENABLE_EB_DEPLOY`** = `true` only after the EB application and environment exist (e.g. `aloft-d360-web` / `aloft-d360-dev`). Until then, merge to `main` is safe for ECR only—no failed deploy step.
+
+When enabled, the workflow zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
 
 Requires GitHub secret **`AWS_ROLE_ARN`** and IAM permissions for ECR + Elastic Beanstalk + the `elasticbeanstalk-ap-south-1-<account>` S3 bucket. **`develop`** only pushes ECR (no EB deploy).
 

@@ -5,7 +5,8 @@
 #
 # GitHub variables (optional overrides):
 #   EB_APPLICATION_NAME  default aloft-d360-web
-#   EB_ENVIRONMENT_NAME    default aloft-d360-dev
+#   EB_ENVIRONMENT_NAME  default aloft-d360-dev
+#   ENABLE_EB_DEPLOY     set to "true" only after EB app + environment exist (default: off)
 #
 # IAM role needs:
 #   ECR push (harvester + web repos)
@@ -107,6 +108,7 @@ jobs:
     if: |
       always() &&
       needs.build-web.result == 'success' &&
+      vars.ENABLE_EB_DEPLOY == 'true' &&
       (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         (github.event_name == 'workflow_dispatch' && inputs.deploy_beanstalk)
