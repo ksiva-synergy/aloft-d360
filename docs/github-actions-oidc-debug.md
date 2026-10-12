@@ -1,0 +1,59 @@
+# Pinpoint GitHub OIDC → AWS assume-role failures
+
+When `configure-aws-credentials` fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, use these checks in order.
+
+## 1. Run the diagnose workflow (fastest)
+
+1. Merge `.github/workflows/oidc-diagnose.yml` to `main` (included in `chore/remove-azure-workflow`).
+2. GitHub → **Actions** → **Diagnose GitHub OIDC → AWS** → **Run workflow** → branch **`main`**.
+3. Open the run summary and job results:
+
+| Result | Meaning |
+|--------|--------|
+| **Print GitHub + OIDC claims** shows `sub` | Copy `sub` exactly into IAM trust (`StringEquals` or `StringLike`). |
+| **Assume role (skip session tags)** ✅ | Trust + `AWS_ROLE_ARN` are OK when tags are skipped. |
+| **Assume role (with session tags)** ❌ but skip-tags ✅ | Add `sts:TagSession` to role trust **or** use `role-skip-session-tagging: true` in CI. |
+| **Both assume jobs** ❌ | Wrong `AWS_ROLE_ARN`, wrong account, `sub` mismatch, missing OIDC provider, or **SCP deny**. |
+
+## 2. Compare `sub` to IAM (your screenshot)
+
+Trust often has:
+
+```text
+repo:Synergy-Marine-Group/aloft-d360:ref:refs/heads/main
+```
+
+The diagnose workflow prints the **actual** `sub` GitHub sends. It must match the trust condition **character for character** (or use `StringLike` with `repo:Synergy-Marine-Group/aloft-d360:*`).
+
+## 3. Verify the secret (no paste in chat)
+
+**Settings → Secrets → `AWS_ROLE_ARN`** must be:
+
+```text
+arn:aws:iam::640012953890:role/aloftGitHubActionsDeployRole
+```
+
+(role name must match IAM → Roles.)
+
+## 4. AWS CloudTrail (definitive AWS-side reason)
+
+In account **640012953890**:
+
+1. **CloudTrail** → **Event history** (or Lake).
+2. Filter **Event name** = `AssumeRoleWithWebIdentity`.
+3. Time = failed workflow run.
+4. Open the event → **Error message** / **Response elements** (shows which condition or SCP blocked access).
+
+## 5. Enable verbose GitHub Actions logs (optional)
+
+Repo **Settings → Secrets and variables → Actions** → add variable or secret:
+
+```text
+ACTIONS_STEP_DEBUG = true
+```
+
+Re-run the failed job for more lines from `configure-aws-credentials` (still won’t show the role ARN).
+
+---
+
+Example trust policy: `infra/aws/github-oidc-trust-policy.example.json`
