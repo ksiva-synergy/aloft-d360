@@ -19,7 +19,6 @@ import { runT3Usage } from '@/lib/context/usage';
 import { embedSubjects, TITAN_MODEL } from '@/lib/context/embed';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
 import { getDefaultOrg } from '@/lib/platform/agents';
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 import type { ContextSource } from '@/lib/context/types';
 import type { PlatformContextSource, PlatformContextJob } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
@@ -30,24 +29,10 @@ import type { JobKind } from '@/lib/context/queue';
 // scripts/context/t4-handlers.ts and scripts/inspector/ from aloft-platform and
 // restore this import: import { runT4Scan, runT4EntityPropose, runT4DimPropose } from './t4-handlers';
 import { acquireOrchestratorLock } from '@/lib/memory/lock';
-
-// ── ECS constants (mirrored from launch route) ────────────────────────────────
-
-const ECS_CLUSTER = 'aloft-agents-prod';
-const TASK_DEFINITION = 'aloft-context-harvester';
-const CONTAINER_NAME = 'context-harvester';
-const SUBNETS = ['subnet-03ee2945ebdafd883', 'subnet-0a6a530408b9e906a'];
-const SECURITY_GROUPS = ['sg-04f5d2b63c1efd690'];
-const REGION = 'ap-south-1';
-
-const BASE_COMMAND = [
-  'npx', 'tsx',
-  '--require', './scripts/context/noserver.cjs',
-  'scripts/context/orchestrator.ts',
-];
+import { launchHarvesterTask } from '@/lib/context/launch-harvester';
 
 /**
- * Enqueue the next kind in a sequential chain and launch a Fargate task for it.
+ * Enqueue the next kind in a sequential chain and launch a worker for it.
  * Copies excludeSchemas, includePatterns and the remaining chain tail from the
  * parent job's scope so the new container continues with the same settings.
  */
@@ -74,23 +59,8 @@ async function advanceChain(
   await enqueue(nextKind, sourceId, scopeOrNull, 'on_demand', orgId);
   console.log(`[orchestrator] chain: enqueued ${nextKind} (remaining: ${remaining.join(', ') || 'none'})`);
 
-  const ecs = new ECSClient({ region: REGION });
-  const result = await ecs.send(new RunTaskCommand({
-    cluster: ECS_CLUSTER,
-    taskDefinition: TASK_DEFINITION,
-    launchType: 'FARGATE',
-    count: 1,
-    networkConfiguration: {
-      awsvpcConfiguration: { subnets: SUBNETS, securityGroups: SECURITY_GROUPS, assignPublicIp: 'ENABLED' },
-    },
-    overrides: {
-      containerOverrides: [{ name: CONTAINER_NAME, command: [...BASE_COMMAND, '--kind', nextKind] }],
-    },
-  }));
-
-  const taskArn = result.tasks?.[0]?.taskArn ?? null;
-  const taskId = taskArn ? taskArn.split('/').pop() : null;
-  console.log(`[orchestrator] chain: launched Fargate ${nextKind} task=${taskId ?? 'none'}`);
+  const { taskId, error } = await launchHarvesterTask(['--kind', nextKind]);
+  console.log(`[orchestrator] chain: launched ${nextKind} task=${taskId ?? 'none'}${error ? ` error=${error}` : ''}`);
 
   if (taskId) {
     await prisma.platformContextJob.updateMany({
@@ -349,29 +319,19 @@ async function dispatchSingleJob(
         }, 'on_demand', orgId);
         console.log(`[t3_usage] continuation job enqueued id=${contJob.id} since=${t3Result.windowStart} until=${t3Result.nextCursor}`);
 
-        // Launch a dedicated Fargate task for the continuation job
+        // Launch a dedicated worker for the continuation job
         try {
-          const ecs = new ECSClient({ region: REGION });
-          const taskResult = await ecs.send(new RunTaskCommand({
-            cluster: ECS_CLUSTER,
-            taskDefinition: TASK_DEFINITION,
-            launchType: 'FARGATE',
-            count: 1,
-            networkConfiguration: {
-              awsvpcConfiguration: { subnets: SUBNETS, securityGroups: SECURITY_GROUPS, assignPublicIp: 'ENABLED' },
-            },
-            overrides: {
-              containerOverrides: [{ name: CONTAINER_NAME, command: [...BASE_COMMAND, '--kind', 't3_usage'] }],
-            },
-          }));
-          const contTaskId = taskResult.tasks?.[0]?.taskArn?.split('/').pop() ?? null;
+          const { taskId: contTaskId, error: launchErr } = await launchHarvesterTask([
+            '--kind',
+            't3_usage',
+          ]);
           if (contTaskId) {
             await prisma.platformContextJob.update({
               where: { id: contJob.id },
               data: { scope: { since: t3Result.windowStart, until: t3Result.nextCursor, fargate_task_id: contTaskId } as unknown as Prisma.InputJsonValue },
             });
           }
-          console.log(`[t3_usage] continuation Fargate task launched id=${contJob.id} taskId=${contTaskId ?? 'none'}`);
+          console.log(`[t3_usage] continuation task launched id=${contJob.id} taskId=${contTaskId ?? 'none'}${launchErr ? ` error=${launchErr}` : ''}`);
         } catch (launchErr) {
           // Non-fatal — the queued row remains and can be launched manually
           console.error(`[t3_usage] continuation task launch failed (job=${contJob.id}): ${launchErr instanceof Error ? launchErr.message : String(launchErr)}`);

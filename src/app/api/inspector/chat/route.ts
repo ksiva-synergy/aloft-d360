@@ -9,6 +9,10 @@ import { evaluateTrajectoryReflection } from '@/lib/marcus/inspectorReflect';
 import { evaluateInspectorFirstTurn } from '@/lib/marcus/reflect';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
 import { buildSystemPrompt, buildToolConfig, buildInsightsContext } from '@/lib/inspector/prompts';
+import {
+  buildSessionKnowledgeContext,
+  persistSessionKnowledgeAfterTurn,
+} from '@/lib/inspector/session-knowledge';
 import { runAgentLoop } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { BOOST_MODELS } from '@/lib/boost/models';
@@ -25,6 +29,8 @@ import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
+import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import type { BoostModel } from '@/lib/boost/models';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getUserByEmail } from '@/lib/dashboards/permissions';
@@ -60,6 +66,8 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   'grok-4-3':         { bedrockId: '', foundryDeployment: 'grok-4.3-PBC',  supportsTools: true,  supportsThinking: false },
   'kimi-k2-6':        { bedrockId: '', foundryDeployment: 'kimi-k2-6-PBC', supportsTools: true,  supportsThinking: false },
   'deepseek-v4':      { bedrockId: '', foundryDeployment: 'DeepSeek-V4-Pro', supportsTools: true, supportsThinking: true  },
+  // ── Direct xAI Grok (uses XAI_API_KEY + XAI_MODEL) ─────────────────────────
+  'grok-xai':         { bedrockId: '', foundryDeployment: process.env.XAI_MODEL || 'grok-4.7', supportsTools: true, supportsThinking: false },
   // ── Legacy keys (backward compat with old client code) ─────────────────────
   'claude-opus':      { bedrockId: 'us.anthropic.claude-opus-4-6-v1',             supportsTools: true,  supportsThinking: true  },
   'claude-sonnet':    { bedrockId: 'us.anthropic.claude-sonnet-4-6',               supportsTools: true,  supportsThinking: true  },
@@ -67,17 +75,38 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   'mistral-large-3':  { bedrockId: 'mistral.mistral-large-3-675b-instruct',         supportsTools: true,  supportsThinking: false },
 };
 
-const DEFAULT_MODEL_KEY = 'sonnet-4-6';
+const hasAwsCreds = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+const hasXaiCreds = !!process.env.XAI_API_KEY;
 
-function resolveModel(key?: string) {
-  return key && MODELS_MAP[key] ? MODELS_MAP[key] : MODELS_MAP[DEFAULT_MODEL_KEY];
+function resolveInspectorDefaultModelKey(): string {
+  const explicit = process.env.INSPECTOR_DEFAULT_MODEL?.trim();
+  if (explicit && MODELS_MAP[explicit]) return explicit;
+  if (hasXaiCreds) return DEFAULT_INSPECTOR_MODEL_KEY;
+  return 'sonnet-4-6';
 }
 
-function inferProvider(modelId: string): string {
+const DEFAULT_MODEL_KEY = resolveInspectorDefaultModelKey();
+
+function resolveGrokBoostModel(): BoostModel {
+  let grok = BOOST_MODELS.find(m => m.key === 'grok-xai')!;
+  const modelId = process.env.XAI_MODEL || 'grok-4.7';
+  return { ...grok, modelId };
+}
+
+function resolveModel(key?: string) {
+  if (key && MODELS_MAP[key]) return MODELS_MAP[key];
+  if (!key && hasXaiCreds) return MODELS_MAP[DEFAULT_INSPECTOR_MODEL_KEY];
+  return MODELS_MAP[DEFAULT_MODEL_KEY];
+}
+
+function inferProvider(modelKey: string | undefined, modelId: string): string {
   if (modelId.startsWith('us.anthropic') || modelId.startsWith('us.amazon') ||
       modelId.startsWith('us.meta') || modelId.startsWith('us.deepseek') ||
       modelId.startsWith('mistral') || modelId.startsWith('qwen')) {
     return 'bedrock';
+  }
+  if (modelKey === 'grok-xai' || (modelId?.includes('grok') && process.env.XAI_API_KEY)) {
+    return 'xai';
   }
   if (modelId === '') return 'azure'; // Foundry models resolved via foundryDeployment
   return 'azure';
@@ -128,7 +157,8 @@ export async function POST(request: NextRequest) {
   const authBlock = await guardInspectorChat(request, body.sessionId);
   if (authBlock) return authBlock;
 
-  if (!isBedrockConfigured()) {
+  if (!isBedrockConfigured() && !hasXaiCreds) {
+    // Allow if at least one LLM provider is configured (Bedrock or direct xAI)
     return cannedResponse(request);
   }
 
@@ -137,7 +167,7 @@ export async function POST(request: NextRequest) {
   const modelConfig = resolveModel(body.model);
   const isFoundryModel = !!modelConfig.foundryDeployment;
   const modelId = modelConfig.bedrockId;
-  const effectiveModelId = modelConfig.foundryDeployment || modelConfig.bedrockId;
+  let effectiveModelId = modelConfig.foundryDeployment || modelConfig.bedrockId || (body.model === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '');
 
   const filteredMessages: Message[] = (body.messages || [])
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
@@ -178,7 +208,14 @@ export async function POST(request: NextRequest) {
 
   const toolConfig = buildToolConfig(contextMode, !!(semanticCtx && semanticCtx.entities.length > 0));
   const basePrompt = buildSystemPrompt(contextMode, semanticCtx);
-  const insightsContext = contextMode === 'harvested' ? await buildInsightsContext(body.sessionId) : '';  const systemPrompt = insightsContext ? `${basePrompt}\n\n${insightsContext}` : basePrompt;
+  const insightsContext = contextMode === 'harvested' ? await buildInsightsContext(body.sessionId) : '';
+  const sessionKnowledgeContext =
+    body.sessionId && isUUID(body.sessionId) ? await buildSessionKnowledgeContext(body.sessionId) : '';
+  const systemPrompt = [basePrompt, insightsContext, sessionKnowledgeContext].filter(Boolean).join('\n\n');
+
+  const firstUserMessageText = ((body.messages ?? []).find((m) => m.role === 'user' && m.content?.trim())?.content ?? '')
+    .trim()
+    .slice(0, 500);
 
   // ── AM2.1: Operating Memory injection (feature-flagged) ─────────────────────
   // Mirrors the workbench injection block. Inspector class = 'inspector'.
@@ -327,18 +364,27 @@ export async function POST(request: NextRequest) {
         emit({ type: 'stream_start', model: effectiveModelId, modelKey: body.model || DEFAULT_MODEL_KEY, supportsThinking: modelConfig.supportsThinking, maxLoops: 8, contextMode });
 
         // Resolve BoostModel for Foundry dispatch
-        const boostModel = isFoundryModel
+        let boostModel = isFoundryModel
           ? BOOST_MODELS.find(m => m.modelId === modelConfig.foundryDeployment)
           : undefined;
 
+        // Special handling for direct xAI (grok-xai) — match by key if not found by modelId
+        if (!boostModel && body.model === 'grok-xai') {
+          boostModel = BOOST_MODELS.find(m => m.key === 'grok-xai');
+        }
+        // Ensure we use the live XAI_MODEL value
+        if (boostModel && body.model === 'grok-xai' && process.env.XAI_MODEL) {
+          boostModel = { ...boostModel, modelId: process.env.XAI_MODEL };
+        }
+
         const loopParams = {
-          modelId: isFoundryModel ? (modelConfig.foundryDeployment!) : modelId,
+          modelId: isFoundryModel ? (modelConfig.foundryDeployment || (body.model === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '')) : modelId,
           systemPrompt: finalSystemPrompt,
           messages: userMessages,
           tools: toolConfig,
           executeTool: (toolName: string, toolInput: Record<string, unknown>, callId: string) => executeInspectorTool(toolName, toolInput, callId, emitWithTracking, {
             queryResults: sessionQueryResults,
-            model: modelId || modelConfig.bedrockId,
+            model: effectiveModelId || modelId || modelConfig.bedrockId,
             lastUserMessage: lastUserMessageText,
             sessionId: body.sessionId ?? '',
             connectionId: resolvedConnectionId,
@@ -436,9 +482,36 @@ export async function POST(request: NextRequest) {
           },
         };
 
-        const result = isFoundryModel && boostModel
+        let result = isFoundryModel && boostModel
           ? await dispatchAgentLoop(boostModel, loopParams)
           : await runAgentLoop(loopParams);
+
+        if (
+          !isFoundryModel &&
+          result.outcome === 'errored' &&
+          hasXaiCreds
+        ) {
+          console.warn(
+            '[inspector/chat] Bedrock model failed; falling back to Grok',
+            result.errorDetail,
+          );
+          if (!closed.value) {
+            emit({ type: 'text', delta: 'Primary model unavailable — retrying with Grok 4.7…\n\n' });
+          }
+          const grokBoost = resolveGrokBoostModel();
+          const grokCfg = MODELS_MAP['grok-xai'];
+          effectiveModelId = grokBoost.modelId;
+          toolCallSuccessCount = 0;
+          toolCallErrorCount = 0;
+          hasControlBoundaryViolation = false;
+          hasRetryableErrors = false;
+          result = await dispatchAgentLoop(grokBoost, {
+            ...loopParams,
+            modelId: grokBoost.modelId,
+            supportsTools: grokCfg.supportsTools,
+            supportsThinking: grokCfg.supportsThinking,
+          });
+        }
 
         // Accumulate bandit counters from trajectory
         for (const entry of result.toolCalls) {
@@ -485,7 +558,7 @@ export async function POST(request: NextRequest) {
               source: 'inspector',
               sourceRunId: body.sessionId,
               modelId: effectiveModelId,
-              provider: inferProvider(effectiveModelId),
+              provider: inferProvider(body.model, effectiveModelId),
               sheetType: 'inspector_chat',
               answerFull: result.finalText ?? null,
               toolTrajectory: result.toolCalls,
@@ -550,7 +623,7 @@ export async function POST(request: NextRequest) {
               source: 'inspector',
               sourceRunId: `${body.sessionId}_trunc`,
               modelId: effectiveModelId,
-              provider: inferProvider(effectiveModelId),
+              provider: inferProvider(body.model, effectiveModelId),
               sheetType: 'inspector_chat',
               answerFull: result.finalText ?? null,
               toolTrajectory: result.toolCalls,
@@ -589,6 +662,20 @@ export async function POST(request: NextRequest) {
         // AM0.3 — persist pending correction anchor for the next turn
         if (lastToolInvocationWasError && lastToolResultNodeId && isUUID(sessionId)) {
           pendingCorrectionNodeBySession.set(sessionId, lastToolResultNodeId);
+        }
+
+        // Session working memory — structured facts for continue / next turn
+        if (isUUID(sessionId) && result.toolCalls.length > 0) {
+          persistSessionKnowledgeAfterTurn(sessionId, result.toolCalls, {
+            userMessage: lastUserMessageText,
+            taskGoal: firstUserMessageText,
+            assistantExcerpt: result.finalText ?? undefined,
+          }).catch((e) => {
+            console.warn(
+              '[inspector/chat] session knowledge persist failed (non-fatal):',
+              e instanceof Error ? e.message : String(e),
+            );
+          });
         }
 
         // Marcus first-turn reflection — fires only on the first question (one user message)

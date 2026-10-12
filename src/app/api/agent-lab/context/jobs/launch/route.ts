@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
@@ -11,25 +10,15 @@ import {
   launchChildTask,
   MAX_CONCURRENT_TASKS,
   MAX_CONCURRENT_BY_KIND,
+  REGION,
   type JobKind,
 } from '@/lib/context/queue';
+import {
+  isLocalHarvestRuntime,
+  launchHarvesterTask,
+} from '@/lib/context/launch-harvester';
 
 export const dynamic = 'force-dynamic';
-
-const ECS_CLUSTER = 'aloft-agents-prod';
-const TASK_DEFINITION = 'aloft-context-harvester';
-const CONTAINER_NAME = 'context-harvester';
-const SUBNETS = ['subnet-03ee2945ebdafd883', 'subnet-0a6a530408b9e906a'];
-const SECURITY_GROUPS = ['sg-04f5d2b63c1efd690'];
-const REGION = 'ap-south-1';
-
-const BASE_COMMAND = [
-  'npx',
-  'tsx',
-  '--require',
-  './scripts/context/noserver.cjs',
-  'scripts/context/orchestrator.ts',
-];
 
 const VALID_KINDS: JobKind[] = [
   'change_detect',
@@ -50,8 +39,8 @@ const VALID_KINDS: JobKind[] = [
 const SPLITTABLE_KINDS = new Set<JobKind>(['t0_structural', 't1_profile', 't2_semantic']);
 
 /**
- * Launch a Fargate task for a single job kind (non-split path).
- * Enqueues one job row per source, then starts one container.
+ * Launch a worker for a single job kind (non-split path).
+ * Enqueues one job row per source, then starts one container / local process.
  */
 async function launchKind(
   kind: JobKind,
@@ -82,28 +71,7 @@ async function launchKind(
     jobsEnqueued++;
   }
 
-  const ecs = new ECSClient({ region: REGION });
-  const result = await ecs.send(
-    new RunTaskCommand({
-      cluster: ECS_CLUSTER,
-      taskDefinition: TASK_DEFINITION,
-      launchType: 'FARGATE',
-      count: 1,
-      networkConfiguration: {
-        awsvpcConfiguration: {
-          subnets: SUBNETS,
-          securityGroups: SECURITY_GROUPS,
-          assignPublicIp: 'ENABLED',
-        },
-      },
-      overrides: {
-        containerOverrides: [{ name: CONTAINER_NAME, command: [...BASE_COMMAND, '--kind', kind] }],
-      },
-    }),
-  );
-
-  const taskArn = result.tasks?.[0]?.taskArn ?? null;
-  const taskId = taskArn ? taskArn.split('/').pop() : null;
+  const { taskId, taskArn, error } = await launchHarvesterTask(['--kind', kind]);
 
   if (taskId) {
     // Merge fargate_task_id into the existing scope using JSONB || so we don't
@@ -134,7 +102,7 @@ async function launchKind(
   return {
     jobsEnqueued,
     taskArn,
-    failures: (result.failures ?? []).map(f => ({ arn: f.arn, reason: f.reason })),
+    failures: error ? [{ reason: error }] : [],
   };
 }
 
@@ -175,8 +143,10 @@ async function launchSplitKind(
     'on_demand',
   );
 
-  // Launch up to MAX_CONCURRENT Fargate tasks immediately
-  const maxConcurrent = (MAX_CONCURRENT_BY_KIND as Record<string, number>)[kind] ?? MAX_CONCURRENT_TASKS;
+  // Launch up to MAX_CONCURRENT workers immediately (1 when HARVEST_RUNTIME=local)
+  const maxConcurrent = isLocalHarvestRuntime()
+    ? 1
+    : ((MAX_CONCURRENT_BY_KIND as Record<string, number>)[kind] ?? MAX_CONCURRENT_TASKS);
   const toLaunch = childJobIds.slice(0, maxConcurrent);
 
   const taskArns: (string | null)[] = [];
@@ -186,7 +156,13 @@ async function launchSplitKind(
     toLaunch.map(async (childId) => {
       try {
         const taskId = await launchChildTask(childId, kind, orgId);
-        taskArns.push(taskId ? `arn:aws:ecs:${REGION}:454073573537:task/${TASK_DEFINITION}/${taskId}` : null);
+        taskArns.push(
+          taskId
+            ? (taskId.startsWith('local-')
+              ? `local://${taskId.slice('local-'.length)}`
+              : `arn:aws:ecs:${REGION}:${process.env.AWS_ACCOUNT_ID ?? '640012953890'}:task/${taskId}`)
+            : null,
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         failures.push({ reason: msg });

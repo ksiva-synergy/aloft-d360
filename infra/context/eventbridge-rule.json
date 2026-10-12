@@ -1,5 +1,5 @@
 {
-  "_comment": "Three rules. Daily change-detect runs with --sweep. Weekly full profile adds --kind t1_profile. Weekly estate inventory runs --kind estate_inventory. All use tsx entry point (not compiled dist) and AssignPublicIp=ENABLED (subnets have no NAT gateway).",
+  "_comment": "Account 640012953890 / cluster aloft-agents-dev. Replace subnet-XXXXXXXX, subnet-YYYYYYYY, sg-ZZZZZZZZZ with C4/C5 before apply. Set TaskDefinitionArn revision (e.g. :1) to match ECS C10. RoleArn = aloftEventBridgeEcsRole. Do not enable rules until RunTask test passes.",
 
   "change_detect_daily": {
     "Name": "aloft-context-harvester-daily",
@@ -8,19 +8,19 @@
     "State": "ENABLED",
     "Target": {
       "Id": "context-harvester-daily",
-      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
-      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
       "EcsParameters": {
-        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1",
         "TaskCount": 1,
         "LaunchType": "FARGATE",
         "NetworkConfiguration": {
           "awsvpcConfiguration": {
             "Subnets": [
-              "subnet-03ee2945ebdafd883",
-              "subnet-0a6a530408b9e906a"
+               "subnet-078e1b5479d75ad6e",
+              "subnet-0179f6c831adafa9a"
             ],
-            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "SecurityGroups": ["sg-0f463f6c43d56bb11"],
             "AssignPublicIp": "ENABLED"
           }
         }
@@ -36,19 +36,19 @@
     "State": "ENABLED",
     "Target": {
       "Id": "context-harvester-weekly",
-      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
-      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
       "EcsParameters": {
-        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1",
         "TaskCount": 1,
         "LaunchType": "FARGATE",
         "NetworkConfiguration": {
           "awsvpcConfiguration": {
             "Subnets": [
-              "subnet-03ee2945ebdafd883",
-              "subnet-0a6a530408b9e906a"
+              "subnet-078e1b5479d75ad6e",
+              "subnet-0179f6c831adafa9a"
             ],
-            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "SecurityGroups": ["sg-0f463f6c43d56bb11"],
             "AssignPublicIp": "ENABLED"
           }
         }
@@ -64,19 +64,19 @@
     "State": "ENABLED",
     "Target": {
       "Id": "estate-inventory-weekly",
-      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
-      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
       "EcsParameters": {
-        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1",
         "TaskCount": 1,
         "LaunchType": "FARGATE",
         "NetworkConfiguration": {
           "awsvpcConfiguration": {
             "Subnets": [
-              "subnet-03ee2945ebdafd883",
-              "subnet-0a6a530408b9e906a"
+               "subnet-078e1b5479d75ad6e",
+              "subnet-0179f6c831adafa9a"
             ],
-            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "SecurityGroups": ["sg-0f463f6c43d56bb11"],
             "AssignPublicIp": "ENABLED"
           }
         }
@@ -93,19 +93,19 @@
     "State": "ENABLED",
     "Target": {
       "Id": "t4-semantic-weekly",
-      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
-      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
       "EcsParameters": {
-        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1",
         "TaskCount": 1,
         "LaunchType": "FARGATE",
         "NetworkConfiguration": {
           "awsvpcConfiguration": {
             "Subnets": [
-              "subnet-03ee2945ebdafd883",
-              "subnet-0a6a530408b9e906a"
+              "subnet-078e1b5479d75ad6e",
+              "subnet-0179f6c831adafa9a"
             ],
-            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "SecurityGroups": ["sg-0f463f6c43d56bb11"],
             "AssignPublicIp": "ENABLED"
           }
         }
@@ -115,26 +115,26 @@
   },
 
   "t3_usage_weekly": {
-    "_deploy_note": "Register with: aws events put-rule --name aloft-t3-usage-weekly --schedule-expression 'cron(0 5 ? * 7 *)' --state ENABLED --region ap-south-1 && aws events put-targets --rule aloft-t3-usage-weekly --region ap-south-1 --targets '[{\"Id\":\"t3-usage-weekly\",\"Arn\":\"arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod\",\"RoleArn\":\"arn:aws:iam::454073573537:role/ecsTaskExecutionRole\",\"EcsParameters\":{\"TaskDefinitionArn\":\"arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester\",\"TaskCount\":1,\"LaunchType\":\"FARGATE\",\"NetworkConfiguration\":{\"awsvpcConfiguration\":{\"Subnets\":[\"subnet-03ee2945ebdafd883\",\"subnet-0a6a530408b9e906a\"],\"SecurityGroups\":[\"sg-04f5d2b63c1efd690\"],\"AssignPublicIp\":\"ENABLED\"}}},\"Input\":\"{\\\"containerOverrides\\\":[{\\\"name\\\":\\\"context-harvester\\\",\\\"command\\\":[\\\"npx\\\",\\\"tsx\\\",\\\"--require\\\",\\\"./scripts/context/noserver.cjs\\\",\\\"scripts/context/orchestrator.ts\\\",\\\"--kind\\\",\\\"t3_usage\\\"]}]}\"}]'",
+    "_deploy_note": "Register with: aws events put-rule --name aloft-t3-usage-weekly --schedule-expression 'cron(0 5 ? * 7 *)' --state ENABLED --region ap-south-1 && aws events put-targets --rule aloft-t3-usage-weekly --region ap-south-1 --targets '[{\"Id\":\"t3-usage-weekly\",\"Arn\":\"arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev\",\"RoleArn\":\"arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole\",\"EcsParameters\":{\"TaskDefinitionArn\":\"arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1\",\"TaskCount\":1,\"LaunchType\":\"FARGATE\",\"NetworkConfiguration\":{\"awsvpcConfiguration\":{\"Subnets\":[\"subnet-XXXXXXXX\",\"subnet-YYYYYYYY\"],\"SecurityGroups\":[\"sg-ZZZZZZZZZ\"],\"AssignPublicIp\":\"ENABLED\"}}},\"Input\":\"{\\\"containerOverrides\\\":[{\\\"name\\\":\\\"context-harvester\\\",\\\"command\\\":[\\\"npx\\\",\\\"tsx\\\",\\\"--require\\\",\\\"./scripts/context/noserver.cjs\\\",\\\"scripts/context/orchestrator.ts\\\",\\\"--kind\\\",\\\"t3_usage\\\"]}]}\"}]'",
     "Name": "aloft-t3-usage-weekly",
     "Description": "Weekly T3 usage harvest (query history + lineage scan)",
     "ScheduleExpression": "cron(0 5 ? * 7 *)",
     "State": "ENABLED",
     "Target": {
       "Id": "t3-usage-weekly",
-      "Arn": "arn:aws:ecs:ap-south-1:454073573537:cluster/aloft-agents-prod",
-      "RoleArn": "arn:aws:iam::454073573537:role/ecsTaskExecutionRole",
+      "Arn": "arn:aws:ecs:ap-south-1:640012953890:cluster/aloft-agents-dev",
+      "RoleArn": "arn:aws:iam::640012953890:role/aloftEventBridgeEcsRole",
       "EcsParameters": {
-        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:454073573537:task-definition/aloft-context-harvester",
+        "TaskDefinitionArn": "arn:aws:ecs:ap-south-1:640012953890:task-definition/aloft-context-harvester:1",
         "TaskCount": 1,
         "LaunchType": "FARGATE",
         "NetworkConfiguration": {
           "awsvpcConfiguration": {
             "Subnets": [
-              "subnet-03ee2945ebdafd883",
-              "subnet-0a6a530408b9e906a"
+               "subnet-078e1b5479d75ad6e",
+              "subnet-0179f6c831adafa9a"
             ],
-            "SecurityGroups": ["sg-04f5d2b63c1efd690"],
+            "SecurityGroups": ["sg-0f463f6c43d56bb11"],
             "AssignPublicIp": "ENABLED"
           }
         }
