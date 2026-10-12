@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+function isUniqueSessionSeqError(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    err.code === 'P2002'
+  );
+}
+
+async function nextResultSeq(sessionId: string): Promise<number> {
+  const agg = await prisma.studio_query_results.aggregate({
+    where: { session_id: sessionId },
+    _max: { seq: true },
+  });
+  return (agg._max.seq ?? -1) + 1;
+}
 
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('sessionId');
@@ -39,25 +55,37 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, seq, sql, columns, rows, rowCount, truncated } = body;
+    const { sessionId, sql, columns, rows, rowCount, truncated } = body;
 
-    if (!sessionId || seq === undefined || !sql) {
+    if (!sessionId || !sql) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const result = await prisma.studio_query_results.create({
-      data: {
-        session_id: sessionId,
-        seq,
-        sql,
-        columns,
-        rows,
-        row_count: rowCount ?? 0,
-        truncated: truncated ?? false,
-      },
-    });
+    let seq = await nextResultSeq(sessionId);
+    let result;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        result = await prisma.studio_query_results.create({
+          data: {
+            session_id: sessionId,
+            seq,
+            sql,
+            columns,
+            rows,
+            row_count: rowCount ?? 0,
+            truncated: truncated ?? false,
+          },
+        });
+        break;
+      } catch (err) {
+        if (!isUniqueSessionSeqError(err) || attempt === 2) {
+          throw err;
+        }
+        seq = await nextResultSeq(sessionId);
+      }
+    }
 
-    return NextResponse.json({ id: result.id });
+    return NextResponse.json({ id: result!.id, seq: result!.seq });
   } catch (err) {
     console.error('[studio/results POST] error', err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });
