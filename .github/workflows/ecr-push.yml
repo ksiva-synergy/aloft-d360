@@ -1,0 +1,166 @@
+# Build/push ECR images; deploy web to Elastic Beanstalk on main.
+#
+# GitHub secrets:
+#   AWS_ROLE_ARN — IAM role for OIDC (see trust policy below)
+#
+# GitHub variables (optional overrides):
+#   EB_APPLICATION_NAME  default aloft-d360-web
+#   EB_ENVIRONMENT_NAME    default aloft-d360-dev
+#
+# IAM role needs:
+#   ECR push (harvester + web repos)
+#   elasticbeanstalk:CreateApplicationVersion, UpdateEnvironment, Describe*
+#   s3:PutObject, s3:GetObject on elasticbeanstalk-ap-south-1-ACCOUNT_ID (or your EB artifacts bucket)
+#
+# OIDC trust (repo Synergy-Marine-Group/aloft-d360):
+#   token.actions.githubusercontent.com:sub = repo:Synergy-Marine-Group/aloft-d360:ref:refs/heads/main
+#   (add :ref:refs/heads/develop for develop pushes)
+
+name: Build, push ECR, deploy Beanstalk
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      deploy_beanstalk:
+        description: Deploy web to Elastic Beanstalk after ECR push
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_HARVESTER: aloft-context-harvester
+  ECR_WEB: aloft-d360-web
+  EB_APPLICATION_NAME: ${{ vars.EB_APPLICATION_NAME || 'aloft-d360-web' }}
+  EB_ENVIRONMENT_NAME: ${{ vars.EB_ENVIRONMENT_NAME || 'aloft-d360-dev' }}
+
+jobs:
+  build-harvester:
+    name: Harvester → ECR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.harvester
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_HARVESTER }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_HARVESTER }}:${{ github.sha }}
+
+  build-web:
+    name: Web → ECR
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Image URI
+        id: meta
+        run: echo "image_uri=${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:latest
+            ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ github.sha }}
+
+  deploy-beanstalk:
+    name: Elastic Beanstalk deploy
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      needs.build-web.result == 'success' &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && inputs.deploy_beanstalk)
+      )
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Package Beanstalk source bundle
+        id: bundle
+        env:
+          IMAGE_URI: ${{ needs.build-web.outputs.image_uri }}
+        run: |
+          set -euo pipefail
+          VERSION_LABEL="gh-${{ github.run_number }}-${{ github.sha }}"
+          VERSION_LABEL="${VERSION_LABEL:0:100}"
+          STAGING="${RUNNER_TEMP}/eb-bundle"
+          rm -rf "$STAGING"
+          mkdir -p "$STAGING"
+          cp -r infra/beanstalk/.platform "$STAGING/"
+          cp -r infra/beanstalk/.ebextensions "$STAGING/"
+          jq -n --arg img "$IMAGE_URI" \
+            '{AWSEBDockerrunVersion:"1",Image:{Name:$img,Update:"true"},Ports:[{ContainerPort:"3000"}],Logging:"/var/log/aloft-web"}' \
+            > "$STAGING/Dockerrun.aws.json"
+          (cd "$STAGING" && zip -r "$RUNNER_TEMP/eb-bundle.zip" .)
+          echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
+          echo "zip_path=${RUNNER_TEMP}/eb-bundle.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bundle and deploy
+        env:
+          VERSION_LABEL: ${{ steps.bundle.outputs.version_label }}
+          ZIP_PATH: ${{ steps.bundle.outputs.zip_path }}
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          BUCKET="elasticbeanstalk-${AWS_REGION}-${ACCOUNT_ID}"
+          S3_KEY="${EB_APPLICATION_NAME}/${VERSION_LABEL}.zip"
+
+          aws s3 cp "$ZIP_PATH" "s3://${BUCKET}/${S3_KEY}" --region "$AWS_REGION"
+
+          aws elasticbeanstalk create-application-version \
+            --application-name "$EB_APPLICATION_NAME" \
+            --version-label "$VERSION_LABEL" \
+            --source-bundle "S3Bucket=${BUCKET},S3Key=${S3_KEY}" \
+            --region "$AWS_REGION"
+
+          aws elasticbeanstalk update-environment \
+            --environment-name "$EB_ENVIRONMENT_NAME" \
+            --version-label "$VERSION_LABEL" \
+            --region "$AWS_REGION"
+
+          echo "Deployed ${VERSION_LABEL} to ${EB_ENVIRONMENT_NAME} (image in Dockerrun.aws.json)"

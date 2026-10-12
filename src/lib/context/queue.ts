@@ -1,7 +1,12 @@
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import type { PlatformContextJob } from '@prisma/client';
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { ecsRuntimeConfig } from '@/lib/aws/ecs-runtime-config';
+import {
+  HARVEST_ORCHESTRATOR_COMMAND,
+  isLocalHarvestRuntime,
+  launchHarvesterTask,
+} from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
 
 export type JobKind =
@@ -84,19 +89,15 @@ export const MAX_CONCURRENT_BY_KIND: Record<string, number> = {
   t4_dim_propose: 5,     // reduced from 10 — limits ec2:DescribeSecurityGroups burst per advance call
 };
 
-// ── ECS constants (mirrored from launch route and orchestrator) ───────────────
-// Exported so executor.ts (MX4a) can reuse without duplication.
-export const ECS_CLUSTER = 'aloft-agents-prod';
-export const TASK_DEFINITION = 'aloft-context-harvester';
-export const CONTAINER_NAME = 'context-harvester';
-export const SUBNETS = ['subnet-03ee2945ebdafd883', 'subnet-0a6a530408b9e906a'];
-export const SECURITY_GROUPS = ['sg-04f5d2b63c1efd690'];
-export const REGION = 'ap-south-1';
-export const BASE_COMMAND = [
-  'npx', 'tsx',
-  '--require', './scripts/context/noserver.cjs',
-  'scripts/context/orchestrator.ts',
-];
+// ── ECS settings (from env; see docs/aws-recreate-and-configuration.md) ─────
+export const ECS_CLUSTER = ecsRuntimeConfig.cluster;
+export const TASK_DEFINITION = ecsRuntimeConfig.taskDefinition;
+export const CONTAINER_NAME = ecsRuntimeConfig.containerName;
+export const SUBNETS = ecsRuntimeConfig.subnets;
+export const SECURITY_GROUPS = ecsRuntimeConfig.securityGroups;
+export const REGION = ecsRuntimeConfig.region;
+/** @deprecated Prefer HARVEST_ORCHESTRATOR_COMMAND from launch-harvester */
+export const BASE_COMMAND = [...HARVEST_ORCHESTRATOR_COMMAND];
 
 // ── Core queue operations ─────────────────────────────────────────────────────
 
@@ -542,11 +543,13 @@ export async function advanceChildren(
   orgId: string,
   kind: JobKind,
 ): Promise<{ launched: number; parentFinalized: boolean }> {
-  const ecs = new ECSClient({ region: REGION });
-  const maxConcurrent = MAX_CONCURRENT_BY_KIND[kind] ?? MAX_CONCURRENT_TASKS;
+  // Local runtime: serialize workers so a laptop is not flooded with orchestrator processes.
+  const maxConcurrent = isLocalHarvestRuntime()
+    ? 1
+    : (MAX_CONCURRENT_BY_KIND[kind] ?? MAX_CONCURRENT_TASKS);
   // Stagger RunTask calls to avoid bursting ec2:DescribeSecurityGroups (rate-limited per-account).
   // 600ms between launches keeps a 5-task batch spread over 3s instead of instant.
-  const LAUNCH_STAGGER_MS = 600;
+  const LAUNCH_STAGGER_MS = isLocalHarvestRuntime() ? 0 : 600;
 
   // Reap stale child jobs for this parent before counting slots.
   // failStale() previously only reaped top-level jobs (parent_job_id IS NULL),
@@ -632,30 +635,20 @@ export async function advanceChildren(
       },
     });
 
-    // Launch a Fargate task for this child.
-    // If RunTask fails after the atomic claim-to-running above, roll back the
+    // Launch a worker for this child (ECS Fargate, or local process when HARVEST_RUNTIME=local).
+    // If launch fails after the atomic claim-to-running above, roll back the
     // row to 'queued' so it can be picked up by the next advanceChildren call
     // rather than becoming a zombie 'running' row with no associated task.
-    let taskId: string | null = null;
-    try {
-      const result = await ecs.send(new RunTaskCommand({
-        cluster: ECS_CLUSTER,
-        taskDefinition: TASK_DEFINITION,
-        launchType: 'FARGATE',
-        count: 1,
-        networkConfiguration: {
-          awsvpcConfiguration: { subnets: SUBNETS, securityGroups: SECURITY_GROUPS, assignPublicIp: 'ENABLED' },
-        },
-        overrides: {
-          containerOverrides: [{
-            name: CONTAINER_NAME,
-            command: [...BASE_COMMAND, '--kind', kind, '--child-job', child.id],
-          }],
-        },
-      }));
-      taskId = result.tasks?.[0]?.taskArn?.split('/').pop() ?? null;
-    } catch (launchErr) {
-      console.error(`[advanceChildren] RunTask failed for job=${child.id} (attempt ${launchAttempts + 1}/${MAX_LAUNCH_ATTEMPTS}): ${launchErr instanceof Error ? launchErr.message : String(launchErr)}`);
+    const { taskId, error: launchErr } = await launchHarvesterTask([
+      '--kind',
+      kind,
+      '--child-job',
+      child.id,
+    ]);
+    if (!taskId) {
+      console.error(
+        `[advanceChildren] launch failed for job=${child.id} (attempt ${launchAttempts + 1}/${MAX_LAUNCH_ATTEMPTS}): ${launchErr ?? 'unknown'}`,
+      );
       // Roll back to queued so next advanceChildren invocation can retry.
       // Keep the incremented launch_attempts in scope so the cap is respected.
       await prisma.platformContextJob.update({
@@ -756,31 +749,18 @@ export async function finalizeParent(parentJobId: string): Promise<void> {
 
 // ── Helpers for the launch route ──────────────────────────────────────────────
 
-/** Launch a Fargate task for a queued child job. */
+/** Launch a worker (ECS or local) for a queued child job. */
 export async function launchChildTask(
   childJobId: string,
   kind: JobKind,
-  orgId: string,
+  _orgId: string,
 ): Promise<string | null> {
-  const ecs = new ECSClient({ region: REGION });
-  const result = await ecs.send(new RunTaskCommand({
-    cluster: ECS_CLUSTER,
-    taskDefinition: TASK_DEFINITION,
-    launchType: 'FARGATE',
-    count: 1,
-    networkConfiguration: {
-      awsvpcConfiguration: { subnets: SUBNETS, securityGroups: SECURITY_GROUPS, assignPublicIp: 'ENABLED' },
-    },
-    overrides: {
-      containerOverrides: [{
-        name: CONTAINER_NAME,
-        command: [...BASE_COMMAND, '--kind', kind, '--child-job', childJobId],
-      }],
-    },
-  }));
-
-  const taskArn = result.tasks?.[0]?.taskArn ?? null;
-  const taskId = taskArn ? taskArn.split('/').pop() : null;
+  const { taskId } = await launchHarvesterTask([
+    '--kind',
+    kind,
+    '--child-job',
+    childJobId,
+  ]);
 
   if (taskId) {
     const child = await prisma.platformContextJob.findUnique({ where: { id: childJobId } });

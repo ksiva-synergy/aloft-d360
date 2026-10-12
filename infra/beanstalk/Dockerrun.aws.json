@@ -1,0 +1,9 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "640012953890.dkr.ecr.ap-south-1.amazonaws.com/aloft-d360-web:latest",
+    "Update": "true"
+  },
+  "Ports": [{ "ContainerPort": "3000" }],
+  "Logging": "/var/log/aloft-web"
+}

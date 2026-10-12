@@ -1,13 +1,15 @@
 # Context Harvester — AWS Deploy Notes
 
+If AWS resources were deleted, start with **[aws-recreate-and-configuration.md](../docs/aws-recreate-and-configuration.md)** and **`infra/aws/env.template`**.
+
 Run these commands yourself. No AWS commands are executed by this repo.
 
 ## Prerequisites
 
 ```
 export AWS_REGION=ap-south-1
-export ACCOUNT_ID=454073573537
-export CLUSTER=aloft-agents-prod
+export ACCOUNT_ID=640012953890
+export CLUSTER=aloft-agents-dev
 ```
 
 ## 1. Create log group

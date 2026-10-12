@@ -3,68 +3,27 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { enqueue } from '@/lib/context/queue';
+import { launchHarvesterTask } from '@/lib/context/launch-harvester';
 import prisma from '@/lib/db';
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// ── ECS constants (mirror of launch/route.ts) ──────────────────────────────
-const ECS_CLUSTER = 'aloft-agents-prod';
-const TASK_DEFINITION = 'aloft-context-harvester';
-const CONTAINER_NAME = 'context-harvester';
-const SUBNETS = ['subnet-03ee2945ebdafd883', 'subnet-0a6a530408b9e906a'];
-const SECURITY_GROUPS = ['sg-04f5d2b63c1efd690'];
-const REGION = 'ap-south-1';
-const BASE_COMMAND = [
-  'npx', 'tsx',
-  '--require', './scripts/context/noserver.cjs',
-  'scripts/context/orchestrator.ts',
-];
-
-async function launchFargateForKind(kind: string): Promise<{ taskArn: string | null; error?: string }> {
-  try {
-    const ecs = new ECSClient({ region: REGION });
-    const result = await ecs.send(
-      new RunTaskCommand({
-        cluster: ECS_CLUSTER,
-        taskDefinition: TASK_DEFINITION,
-        launchType: 'FARGATE',
-        count: 1,
-        networkConfiguration: {
-          awsvpcConfiguration: {
-            subnets: SUBNETS,
-            securityGroups: SECURITY_GROUPS,
-            assignPublicIp: 'ENABLED',
-          },
-        },
-        overrides: {
-          containerOverrides: [{ name: CONTAINER_NAME, command: [...BASE_COMMAND, '--kind', kind] }],
-        },
-      }),
-    );
-
-    const failure = result.failures?.[0];
-    if (failure) {
-      return { taskArn: null, error: failure.reason ?? 'ECS RunTask failure' };
-    }
-
-    const taskArn = result.tasks?.[0]?.taskArn ?? null;
-    return { taskArn };
-  } catch (err) {
-    return { taskArn: null, error: err instanceof Error ? err.message : String(err) };
-  }
+async function launchWorkerForKind(kind: string): Promise<{ taskId: string | null; taskArn: string | null; error?: string }> {
+  return launchHarvesterTask(['--kind', kind]);
 }
 
 /**
  * POST /api/agent-lab/context/objects/[id]/reharvest-all
  *
- * Enqueues AND launches Fargate tasks for T0 → T1 → T2 → T4 for a single object.
+ * Enqueues AND launches workers for T0 → T1 → T2 → T4 for a single object.
  * T3 (usage) is always source-wide/meta and is intentionally excluded.
  *
+ * With HARVEST_RUNTIME=local, workers spawn on this machine; otherwise ECS Fargate.
+ *
  * Each tier is debounce-checked independently. If a job for that kind is already
- * queued or running, the existing job ID is returned and no new Fargate task is launched.
+ * queued or running, the existing job ID is returned and no new worker is launched.
  * A tier failing to launch does NOT abort the remaining tiers.
  */
 export async function POST(_req: NextRequest, { params }: RouteParams) {
@@ -97,9 +56,9 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
 
     /**
      * Enqueue-or-kick helper.
-     * - If a job is already RUNNING → debounce (Fargate already executing, do nothing).
-     * - If a job is QUEUED (stuck, no Fargate picked it up) → kick it by launching a new container.
-     * - If no active job → enqueue a new row and launch a fresh container.
+     * - If a job is already RUNNING → debounce (worker already executing, do nothing).
+     * - If a job is QUEUED (stuck, no worker picked it up) → kick it by launching a new worker.
+     * - If no active job → enqueue a new row and launch a fresh worker.
      */
     async function enqueueOrKick(
       kind: 't0_structural' | 't1_profile' | 't2_semantic' | 't4_scan',
@@ -110,7 +69,6 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
         select: { id: true },
       });
       if (running) {
-        // A Fargate container is actively processing this — do not interfere.
         return { jobId: running.id, queued: false, launched: false, reason: 'running' };
       }
 
@@ -121,29 +79,27 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       });
 
       if (stuck) {
-        // Job exists but no container has claimed it — launch one to kick it.
-        const { taskArn, error } = await launchFargateForKind(kind);
-        if (taskArn) {
+        const { taskId, taskArn, error } = await launchWorkerForKind(kind);
+        if (taskId) {
           await prisma.$executeRaw`
             UPDATE platform_context_jobs
-            SET scope = COALESCE(scope, '{}'::jsonb) || jsonb_build_object('fargate_task_id', ${taskArn.split('/').pop()!}::text)
+            SET scope = COALESCE(scope, '{}'::jsonb) || jsonb_build_object('fargate_task_id', ${taskId}::text)
             WHERE id = ${stuck.id}::uuid
           `;
         }
-        return { jobId: stuck.id, queued: false, launched: !!taskArn, taskArn, reason: error ?? 'kicked' };
+        return { jobId: stuck.id, queued: false, launched: !!taskId, taskArn, reason: error ?? 'kicked' };
       }
 
-      // No active job — enqueue a fresh one and launch.
       const job = await enqueue(kind, resolvedObject.source_id, jobScope, 'on_demand', orgId);
-      const { taskArn, error } = await launchFargateForKind(kind);
-      if (taskArn) {
+      const { taskId, taskArn, error } = await launchWorkerForKind(kind);
+      if (taskId) {
         await prisma.$executeRaw`
           UPDATE platform_context_jobs
-          SET scope = COALESCE(scope, '{}'::jsonb) || jsonb_build_object('fargate_task_id', ${taskArn.split('/').pop()!}::text)
+          SET scope = COALESCE(scope, '{}'::jsonb) || jsonb_build_object('fargate_task_id', ${taskId}::text)
           WHERE id = ${job.id}::uuid
         `;
       }
-      return { jobId: job.id, queued: true, launched: !!taskArn, taskArn, reason: error };
+      return { jobId: job.id, queued: true, launched: !!taskId, taskArn, reason: error };
     }
 
     // ── T0: Structural ────────────────────────────────────────────────────────
