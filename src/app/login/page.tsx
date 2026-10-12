@@ -45,6 +45,10 @@ export default function LoginPage() {
       setError('An account with this email already exists and must be linked by an administrator.');
     } else if (err === 'ACCOUNT_SUSPENDED') {
       setError('Your account has been suspended. Please contact your administrator.');
+    } else if (err === 'OAuthCallback' || err === 'Callback') {
+      setError(
+        'Microsoft sign-in failed (often an expired Azure app secret). Use Admin Login below, or ask your admin to rotate AZURE_AD_CLIENT_SECRET.',
+      );
     }
   }, []);
 
@@ -71,16 +75,19 @@ export default function LoginPage() {
       redirect: false,
     });
 
-    if (result?.error) {
-      if (result.error === 'ACCOUNT_SUSPENDED') {
+    if (!result?.ok) {
+      if (result?.error === 'ACCOUNT_SUSPENDED') {
         setError('Your account has been suspended. Please contact your administrator.');
       } else {
         setError('Invalid email or password');
       }
       setLoading(false);
-    } else {
-      router.push('/dashboard');
+      return;
     }
+
+    // App Router: refresh server session cache, then hard-navigate so the cookie is applied
+    router.refresh();
+    window.location.assign('/dashboard');
   }
 
   return (

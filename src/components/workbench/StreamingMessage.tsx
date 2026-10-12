@@ -348,55 +348,234 @@ function renderInline(text: string): React.ReactNode[] {
   return parts;
 }
 
-function MarkdownLine({ line }: { line: string }) {
+type ColAlign = 'left' | 'center' | 'right';
+
+function splitTableRow(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map((c) => c.trim());
+}
+
+function isTableSeparator(line: string): boolean {
+  const cells = splitTableRow(line);
+  if (cells.length < 2) return false;
+  return cells.every((c) => /^:?-{3,}:?$/.test(c.replace(/\s/g, '')));
+}
+
+function isTableRow(line: string): boolean {
+  const t = line.trim();
+  if (!t.includes('|')) return false;
+  if (isTableSeparator(t)) return false;
+  return splitTableRow(t).length >= 2;
+}
+
+function parseAligns(sepLine: string, colCount: number): ColAlign[] {
+  return splitTableRow(sepLine).slice(0, colCount).map((c) => {
+    const cell = c.replace(/\s/g, '');
+    const left = cell.startsWith(':');
+    const right = cell.endsWith(':');
+    if (left && right) return 'center';
+    if (right) return 'right';
+    return 'left';
+  });
+}
+
+function MarkdownTable({
+  headers,
+  aligns,
+  rows,
+}: {
+  headers: string[];
+  aligns: ColAlign[];
+  rows: string[][];
+}) {
+  const cellPad: React.CSSProperties = {
+    padding: '8px 12px',
+    borderBottom: `1px solid ${BORDER_SUBTLE}`,
+    whiteSpace: 'nowrap',
+  };
+
+  return (
+    <div
+      style={{
+        margin: '12px 0 16px',
+        borderRadius: 8,
+        border: `1px solid ${BORDER_SUBTLE}`,
+        overflow: 'hidden',
+        background: SURFACE2,
+      }}
+    >
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            ...sans,
+            fontSize: 12.5,
+            lineHeight: 1.45,
+          }}
+        >
+          <thead>
+            <tr style={{ background: 'rgba(253,181,21,0.08)' }}>
+              {headers.map((h, i) => (
+                <th
+                  key={i}
+                  style={{
+                    ...cellPad,
+                    ...mono,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    color: MUTED,
+                    textAlign: aligns[i] ?? 'left',
+                    borderBottom: `1px solid ${BORDER_GOLD}`,
+                  }}
+                >
+                  {renderInline(h)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr
+                key={ri}
+                style={{
+                  background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                }}
+              >
+                {headers.map((_, ci) => {
+                  const align = aligns[ci] ?? 'left';
+                  const raw = row[ci] ?? '';
+                  const numeric = align === 'right' || /^-?\d[\d,]*(\.\d+)?%?$/.test(raw.replace(/,/g, ''));
+                  return (
+                    <td
+                      key={ci}
+                      style={{
+                        ...cellPad,
+                        textAlign: align,
+                        color: INK,
+                        fontVariantNumeric: numeric ? 'tabular-nums' : undefined,
+                        ...(numeric ? mono : {}),
+                        ...(numeric ? { fontSize: 12 } : {}),
+                        fontWeight: ci === 0 ? 500 : 400,
+                      }}
+                    >
+                      {renderInline(raw)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length > 0 && (
+        <div
+          style={{
+            ...mono,
+            fontSize: 9,
+            color: MUTED,
+            letterSpacing: '0.06em',
+            padding: '5px 12px',
+            borderTop: `1px solid ${BORDER_SUBTLE}`,
+          }}
+        >
+          {rows.length} row{rows.length === 1 ? '' : 's'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Soft section title: short line, no terminal punctuation, not a list/table. */
+function looksLikeSectionTitle(line: string, nextNonEmpty: string | undefined): boolean {
+  const t = line.trim();
+  if (!t || t.length > 56) return false;
+  if (/^#{1,4}\s/.test(t)) return false;
+  if (/^[-*▸•]\s/.test(t) || /^\d+\.\s/.test(t) || /^>\s/.test(t)) return false;
+  if (t.includes('|')) return false;
+  if (/[.!?;:]$/.test(t)) return false;
+  if (/https?:\/\//i.test(t)) return false;
+  // Prefer titles that introduce a table or a short lead-in paragraph
+  if (nextNonEmpty && (isTableRow(nextNonEmpty) || nextNonEmpty.length < 160)) return true;
+  return /^by\s+/i.test(t) || /^(extra|summary|overview|context|notes|key|top)\b/i.test(t);
+}
+
+function MarkdownLine({
+  line,
+  asSectionTitle,
+}: {
+  line: string;
+  asSectionTitle?: boolean;
+}) {
   const isH1 = /^#\s+/.test(line);
   const isH2 = /^##\s+/.test(line);
   const isH3 = /^###\s+/.test(line);
   const isH4 = /^####\s+/.test(line);
-  const isBullet = /^[-*]\s+/.test(line);
+  const isBullet = /^[-*•]\s+/.test(line) || /^▸\s+/.test(line);
   const isNumbered = /^\d+\.\s+/.test(line);
   const isHr = /^---+$/.test(line.trim());
   const isBlockquote = /^>\s+/.test(line);
 
-  if (isHr) return <hr style={{ border: 'none', borderTop: `1px solid ${BORDER_SUBTLE}`, margin: '12px 0' }} />;
+  if (isHr) return <hr style={{ border: 'none', borderTop: `1px solid ${BORDER_SUBTLE}`, margin: '14px 0' }} />;
 
   const raw = isH1 ? line.replace(/^#\s+/, '')
     : isH2 ? line.replace(/^##\s+/, '')
     : isH3 ? line.replace(/^###\s+/, '')
     : isH4 ? line.replace(/^####\s+/, '')
-    : isBullet ? line.replace(/^[-*]\s+/, '')
+    : isBullet ? line.replace(/^([-*•]|▸)\s+/, '')
     : isNumbered ? line.replace(/^\d+\.\s+/, '')
     : isBlockquote ? line.replace(/^>\s+/, '')
     : line;
 
   const inline = renderInline(raw);
 
-  if (isH1) return <div style={{ ...serif, fontSize: 17, fontWeight: 700, color: INK, marginTop: 14, marginBottom: 4 }}>{inline}</div>;
-  if (isH2) return <div style={{ ...serif, fontSize: 15, fontWeight: 600, color: INK, marginTop: 12, marginBottom: 3 }}>{inline}</div>;
-  if (isH3) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: INK_DIM, marginTop: 10, marginBottom: 2 }}>{inline}</div>;
-  if (isH4) return <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: MUTED, marginTop: 8, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{inline}</div>;
+  if (isH1) return <div style={{ ...serif, fontSize: 18, fontWeight: 700, color: INK, marginTop: 18, marginBottom: 6, letterSpacing: '-0.01em' }}>{inline}</div>;
+  if (isH2 || asSectionTitle) {
+    return (
+      <div
+        style={{
+          ...serif,
+          fontSize: 15,
+          fontWeight: 600,
+          color: INK,
+          marginTop: 18,
+          marginBottom: 6,
+          paddingBottom: 4,
+          borderBottom: `1px solid ${BORDER_SUBTLE}`,
+        }}
+      >
+        {inline}
+      </div>
+    );
+  }
+  if (isH3) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
+  if (isH4) return <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: MUTED, marginTop: 10, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{inline}</div>;
   if (isBullet) return (
-    <div style={{ display: 'flex', gap: 8, marginLeft: 6, marginTop: 2, marginBottom: 2 }}>
-      <span style={{ color: GOLD, fontSize: 10, flexShrink: 0, marginTop: 4 }}>▸</span>
-      <span>{inline}</span>
+    <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, lineHeight: 1.55 }}>
+      <span style={{ color: GOLD, fontSize: 10, flexShrink: 0, marginTop: 5 }}>▸</span>
+      <span style={{ flex: 1 }}>{inline}</span>
     </div>
   );
   if (isNumbered) {
     const num = /^(\d+)\./.exec(line)?.[1] ?? '1';
     return (
-      <div style={{ display: 'flex', gap: 8, marginLeft: 6, marginTop: 2, marginBottom: 2 }}>
-        <span style={{ ...mono, color: GOLD, fontSize: 10, flexShrink: 0, minWidth: 16, textAlign: 'right' }}>{num}.</span>
-        <span>{inline}</span>
+      <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, lineHeight: 1.55 }}>
+        <span style={{ ...mono, color: GOLD, fontSize: 10, flexShrink: 0, minWidth: 16, textAlign: 'right', marginTop: 2 }}>{num}.</span>
+        <span style={{ flex: 1 }}>{inline}</span>
       </div>
     );
   }
   if (isBlockquote) return (
-    <div style={{ borderLeft: `3px solid ${BORDER_GOLD}`, paddingLeft: 12, color: MUTED, fontStyle: 'italic', margin: '4px 0' }}>
+    <div style={{ borderLeft: `3px solid ${BORDER_GOLD}`, paddingLeft: 12, color: MUTED, fontStyle: 'italic', margin: '6px 0', lineHeight: 1.55 }}>
       {inline}
     </div>
   );
-  if (line === '') return <div style={{ height: 8 }} />;
-  return <div>{inline}</div>;
+  if (line === '') return <div style={{ height: 10 }} />;
+  return <div style={{ marginBottom: 2, lineHeight: 1.65 }}>{inline}</div>;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -432,25 +611,78 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] {
+  const lines = prose.split('\n');
+  const out: React.ReactNode[] = [];
+  let i = 0;
+  let blockKey = 0;
+
+  const nextNonEmpty = (from: number): string | undefined => {
+    for (let j = from; j < lines.length; j++) {
+      if (lines[j].trim()) return lines[j];
+    }
+    return undefined;
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // GFM pipe table: header + separator + rows
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const headers = splitTableRow(line);
+      const aligns = parseAligns(lines[i + 1], headers.length);
+      const rows: string[][] = [];
+      i += 2;
+      while (i < lines.length && isTableRow(lines[i])) {
+        const cells = splitTableRow(lines[i]);
+        rows.push(headers.map((_, ci) => cells[ci] ?? ''));
+        i += 1;
+      }
+      out.push(
+        <MarkdownTable
+          key={`${keyPrefix}-tbl-${blockKey++}`}
+          headers={headers}
+          aligns={aligns.length === headers.length ? aligns : headers.map(() => 'left' as ColAlign)}
+          rows={rows}
+        />,
+      );
+      continue;
+    }
+
+    const section = looksLikeSectionTitle(line, nextNonEmpty(i + 1));
+    out.push(
+      <MarkdownLine
+        key={`${keyPrefix}-ln-${blockKey++}`}
+        line={line}
+        asSectionTitle={section}
+      />,
+    );
+    i += 1;
+  }
+
+  return out;
+}
+
 function AssistantContent({ content }: { content: string }) {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  const proseStyle: React.CSSProperties = { ...serif, fontSize: 14, lineHeight: 1.65, color: INK };
 
   while ((match = codeBlockRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       const prose = content.slice(lastIndex, match.index);
       parts.push(
-        <div key={`p-${lastIndex}`} style={{ ...serif, fontSize: 14, lineHeight: 1.7, color: INK }}>
-          {prose.split('\n').map((ln, i) => <MarkdownLine key={i} line={ln} />)}
+        <div key={`p-${lastIndex}`} style={proseStyle}>
+          {renderProseBlocks(prose, `p${lastIndex}`)}
         </div>,
       );
     }
     const lang = match[1] || 'text';
     const code = match[2];
     parts.push(
-      <div key={`c-${match.index}`} style={{ margin: '10px 0', borderRadius: 6, overflow: 'hidden', border: `1px solid ${BORDER_GOLD}` }}>
+      <div key={`c-${match.index}`} style={{ margin: '12px 0', borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER_GOLD}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', background: SURFACE2 }}>
           <span style={{ ...mono, fontSize: 10, color: MUTED }}>{lang}</span>
           <CopyButton text={code} />
@@ -463,16 +695,18 @@ function AssistantContent({ content }: { content: string }) {
     lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < content.length) {
-    const remaining = content.slice(lastIndex);
-    parts.push(
-      <div key={`p-${lastIndex}`} style={{ ...serif, fontSize: 14, lineHeight: 1.7, color: INK }}>
-        {remaining.split('\n').map((ln, i) => <MarkdownLine key={i} line={ln} />)}
-      </div>,
-    );
+  if (lastIndex < content.length || parts.length === 0) {
+    const remaining = lastIndex < content.length ? content.slice(lastIndex) : content;
+    if (remaining.length > 0 || parts.length === 0) {
+      parts.push(
+        <div key={`p-${lastIndex}`} style={proseStyle}>
+          {renderProseBlocks(remaining, `p${lastIndex}`)}
+        </div>,
+      );
+    }
   }
 
-  return <>{parts.length > 0 ? parts : <div style={{ ...serif, fontSize: 14, lineHeight: 1.7, color: INK }}>{content.split('\n').map((ln, i) => <MarkdownLine key={i} line={ln} />)}</div>}</>;
+  return <>{parts}</>;
 }
 
 // ── Streaming pulse indicator ─────────────────────────────────────────────────

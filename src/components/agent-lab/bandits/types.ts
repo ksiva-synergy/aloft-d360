@@ -123,6 +123,7 @@ export interface BanditsData {
 export const MODEL_COLORS: Record<string, string> = {
   // Azure AI Foundry
   'gpt-5.4-PBC':        '#7c3aed',
+  'gpt-6-luna':         '#6d28d9',
   'o3-pro-PBC':         '#2563eb',
   'grok-4.3-PBC':       '#b91c1c',
   'kimi-k2-6-PBC':      '#0e7490',
@@ -138,6 +139,7 @@ export const MODEL_COLORS: Record<string, string> = {
 export const MODEL_SHORT_NAMES: Record<string, string> = {
   // Azure AI Foundry
   'gpt-5.4-PBC':        'GPT-5.4',
+  'gpt-6-luna':         'GPT-6 Luna',
   'o3-pro-PBC':         'o3-pro',
   'grok-4.3-PBC':       'Grok 4.3',
   'kimi-k2-6-PBC':      'Kimi K2.6',

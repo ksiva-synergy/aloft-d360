@@ -63,7 +63,8 @@ export async function PATCH(
     const fields = [
       'title', 'messages', 'attached_tools', 'attached_schemas', 'attached_agents',
       'draft', 'saved_agent_id', 'artifact_type', 'artifact_draft', 'pinned',
-      'progress', 'parent_session_id', 'branch_point_message_idx',
+      // progress handled below — must merge with DB so inspectorKnowledge is not wiped
+      'parent_session_id', 'branch_point_message_idx',
       'construction_state', 'context_mode',
     ];
     for (const f of fields) {
@@ -84,10 +85,34 @@ export async function PATCH(
       updates.readiness = parsed.data.readiness ?? null;
     }
 
-    // Merge last_model into the progress JSON without overwriting other progress fields
+    // Merge last_model into the progress JSON without overwriting other progress fields.
+    // CRITICAL: always load progress from DB — client PATCH often sends only last_model
+    // and must not wipe keys like inspectorKnowledge written by the chat route.
     if (typeof body.last_model === 'string' && body.last_model) {
-      const existing = (updates.progress ?? body.progress) as Record<string, unknown> | null ?? {};
-      updates.progress = { ...(typeof existing === 'object' && existing !== null ? existing : {}), last_model: body.last_model };
+      const row = await prisma.workbench_sessions.findUnique({
+        where: { id },
+        select: { progress: true },
+      });
+      const fromDb =
+        row?.progress && typeof row.progress === 'object' && !Array.isArray(row.progress)
+          ? (row.progress as Record<string, unknown>)
+          : {};
+      const fromBody =
+        body.progress && typeof body.progress === 'object' && !Array.isArray(body.progress)
+          ? (body.progress as Record<string, unknown>)
+          : {};
+      updates.progress = { ...fromDb, ...fromBody, last_model: body.last_model };
+    } else if (body.progress !== undefined && typeof body.progress === 'object' && body.progress !== null) {
+      // Full progress replace from client — still merge over DB so server-only keys survive
+      const row = await prisma.workbench_sessions.findUnique({
+        where: { id },
+        select: { progress: true },
+      });
+      const fromDb =
+        row?.progress && typeof row.progress === 'object' && !Array.isArray(row.progress)
+          ? (row.progress as Record<string, unknown>)
+          : {};
+      updates.progress = { ...fromDb, ...(body.progress as Record<string, unknown>) };
     }
 
     // Compute preview fields whenever messages are updated
