@@ -13,10 +13,7 @@
 #   elasticbeanstalk:CreateApplicationVersion, UpdateEnvironment, Describe*
 #   s3:PutObject, s3:GetObject on elasticbeanstalk-ap-south-1-ACCOUNT_ID (or your EB artifacts bucket)
 #
-# OIDC trust — see infra/aws/github-oidc-trust-policy.example.json
-#   aud = sts.amazonaws.com
-#   sub = repo:Synergy-Marine-Group/aloft-d360:*
-#   Actions: sts:AssumeRoleWithWebIdentity (+ sts:TagSession unless role-skip-session-tagging)
+# OIDC trust — paste infra/aws/github-oidc-trust-policy.example.json on aloftGitHubActionsDeployRole (640012953890)
 
 name: Build, push ECR, deploy Beanstalk
 

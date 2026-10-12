@@ -56,4 +56,14 @@ Re-run the failed job for more lines from `configure-aws-credentials` (still won
 
 ---
 
-Example trust policy: `infra/aws/github-oidc-trust-policy.example.json`
+## 6. Apply trust policy (Copilot template, account filled)
+
+IAM → **Roles** → `aloftGitHubActionsDeployRole` → **Trust relationships** → **Edit trust policy** → paste JSON from:
+
+`infra/aws/github-oidc-trust-policy.example.json`
+
+(`640012953890`, `main`, `develop`, `workflow_dispatch` subjects as suggested by Copilot.)
+
+Ensure GitHub secret `AWS_ROLE_ARN` = `arn:aws:iam::640012953890:role/aloftGitHubActionsDeployRole`.
+
+CI uses `role-skip-session-tagging: true` so trust only needs `sts:AssumeRoleWithWebIdentity` (no `sts:TagSession` required).
