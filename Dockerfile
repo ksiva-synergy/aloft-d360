@@ -7,7 +7,8 @@ RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json ./
 COPY packages ./packages
 COPY prisma ./prisma
-RUN npm ci
+# GHA sets NODE_ENV=production; @aloft/shared build needs devDependencies (tsup).
+RUN npm ci --include=dev
 
 FROM node:20-alpine AS builder
 WORKDIR /app
