@@ -15,8 +15,6 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# tsup is nested under the workspace package, not hoisted to root node_modules.
-COPY --from=deps /app/packages/aloft-shared/node_modules ./packages/aloft-shared/node_modules
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace=@aloft/shared
 RUN npm run build
