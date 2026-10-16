@@ -15,6 +15,199 @@ Region assumed: **ap-south-1**. Replace `ACCOUNT_ID` and hostnames with yours.
 - Aurora + IAM role for EC2 (Bedrock, `ecs:RunTask`, Secrets Manager, S3, logs)
 - Entra redirect URI: `https://<host>/api/auth/callback/azure-ad`
 
+**Account defaults (Synergy target):** `640012953890`, app `aloft-d360-web`, env `aloft-d360-dev`, EB artifacts bucket `elasticbeanstalk-ap-south-1-640012953890`.
+
+---
+
+## Step-by-step: first deploy (read this first)
+
+The **zip does not contain your app**. It only points Beanstalk at a **Docker image in ECR** plus nginx/ALB settings. Every release needs a **new image in ECR** and a **new Beanstalk deploy** (new application version).
+
+### Phase A — Prerequisites (you + cloud)
+
+| Step | Action | Who |
+|------|--------|-----|
+| A1 | ECR repo **`aloft-d360-web`** exists | Cloud / CI |
+| A2 | GitHub Actions **ECR** job green on `main`, or image pushed manually (Phase B) | You |
+| A3 | VPC, subnets, **EC2 instance profile** (ECR pull, Bedrock, ECS RunTask, Secrets, S3, logs) | Cloud |
+| A4 | Aurora reachable; SG allows **5432** from **Beanstalk instance SG** | Cloud |
+| A5 | AWS CLI works: `aws sts get-caller-identity` → `640012953890` | You |
+
+### Phase B — Docker image in ECR
+
+**Option B1 — CI (preferred):** merge to `main` → Actions → **build-web** succeeds → image tags `latest` and `<git-sha>` in ECR.
+
+**Option B2 — Laptop:**
+
+```powershell
+cd c:\ALOFT\aloft-d360
+$ACCOUNT = "640012953890"
+$REGION = "ap-south-1"
+$ECR = "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/aloft-d360-web"
+
+aws ecr get-login-password --region $REGION |
+  docker login --username AWS --password-stdin "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com"
+
+docker build -f Dockerfile -t aloft-d360-web .
+docker tag aloft-d360-web:latest "${ECR}:latest"
+docker push "${ECR}:latest"
+```
+
+Verify:
+
+```powershell
+aws ecr describe-images --repository-name aloft-d360-web --region ap-south-1 --output table
+```
+
+### Phase C — Build the Beanstalk zip
+
+1. Open `infra/beanstalk/Dockerrun.aws.json`. Image should match ECR, e.g.  
+   `640012953890.dkr.ecr.ap-south-1.amazonaws.com/aloft-d360-web:latest`  
+   (or pin `:git-sha` for a specific build).
+
+2. Create zip with **files at the root** of the archive (not a parent `beanstalk` folder):
+
+```powershell
+cd c:\ALOFT\aloft-d360\infra\beanstalk
+$zip = "c:\ALOFT\aloft-d360\eb-deploy.zip"
+if (Test-Path $zip) { Remove-Item $zip }
+Compress-Archive -Path Dockerrun.aws.json, .ebextensions, .platform -DestinationPath $zip -Force
+```
+
+Contents must include: `Dockerrun.aws.json`, `.ebextensions/*.config`, `.platform/nginx/conf.d/timeouts.conf`.
+
+### Phase D — Deploy (pick one path)
+
+#### Path D1 — AWS Console (first environment)
+
+1. Region **ap-south-1** → **Elastic Beanstalk** → **Create environment**.
+2. **Standard** (not Cluster). Application **`aloft-d360-web`**. Environment name **`aloft-d360-dev`** (or your chosen name).
+3. Platform: **Docker**, **Amazon Linux 2023**, recommended version.
+4. **Application code:** **Upload a file** → choose `eb-deploy.zip`. **Do not** use Sample application.
+5. Version label: e.g. `v1-2026-03-12`.
+6. Complete **Service access** (instance profile), **Networking** (VPC/subnets from cloud), **Instance** `t3.medium`, capacity **1**.
+7. **Create environment** → wait until **Health: Ok** (10–20 min).
+
+**Alternative on same screen:** **Upload from S3** after Phase E upload; URI  
+`s3://elasticbeanstalk-ap-south-1-640012953890/aloft-d360-web/v1.zip`.
+
+#### Path D2 — CLI (cloud team or if IAM allows)
+
+**E1 — Upload zip to the Elastic Beanstalk account bucket:**
+
+```bash
+REGION=ap-south-1
+APP=aloft-d360-web
+VERSION=v1
+BUCKET=elasticbeanstalk-ap-south-1-640012953890
+KEY="${APP}/${VERSION}.zip"
+
+aws s3 cp eb-deploy.zip "s3://${BUCKET}/${KEY}" --region "$REGION"
+```
+
+**E2 — Create application (once only):**
+
+```bash
+aws elasticbeanstalk create-application \
+  --application-name aloft-d360-web \
+  --region ap-south-1 \
+  --tags Key=map-migrated,Value=migM7E421L79Y
+```
+
+If the app already exists, ignore `Application ... already exists`.
+
+**E3 — Register application version:**
+
+```bash
+aws elasticbeanstalk create-application-version \
+  --application-name aloft-d360-web \
+  --version-label v1 \
+  --source-bundle S3Bucket=elasticbeanstalk-ap-south-1-640012953890,S3Key=aloft-d360-web/v1.zip \
+  --region ap-south-1 \
+  --tags Key=map-migrated,Value=migM7E421L79Y
+```
+
+Replace `S3Key` with the exact key from E1 (`aloft-d360-web/v1.zip`).
+
+**E4 — Create environment (first time only):**
+
+Either finish in the **console** (easier for VPC/subnets/ALB), or CLI with a solution stack from:
+
+```bash
+aws elasticbeanstalk list-available-solution-stacks --region ap-south-1 \
+  --query "SolutionStacks[?contains(@, 'Amazon Linux 2023') && contains(@, 'Docker')]" \
+  --output table
+```
+
+Then (example — stack name must match list output):
+
+```bash
+aws elasticbeanstalk create-environment \
+  --application-name aloft-d360-web \
+  --environment-name aloft-d360-dev \
+  --version-label v1 \
+  --solution-stack-name "64bit Amazon Linux 2023 v4.7.0 running Docker" \
+  --region ap-south-1 \
+  --tags Key=map-migrated,Value=migM7E421L79Y
+```
+
+Steps E2–E3 alone **do not start servers**; E4 (or console create) is required.
+
+### Phase F — Configure the running environment
+
+1. EB → **Configuration** → **Updates, monitoring, and logging** → **Environment properties** → **Edit**.
+2. Set variables from `infra/aws/env.template` and your secure `.env` (never commit secrets). Minimum:
+   - `DATABASE_URL`, `DIRECT_URL`
+   - `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
+   - `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID`
+   - `NODE_ENV=production`, `HARVEST_RUNTIME=ecs`
+   - `AWS_REGION=ap-south-1`, `ECS_*`, `BEDROCK_REGION`, etc.
+3. **Apply** (environment updates again).
+
+### Phase G — Database migrations
+
+From a machine that can reach Aurora:
+
+```powershell
+cd c:\ALOFT\aloft-d360
+npx prisma migrate deploy --schema=./prisma/schema.prisma
+```
+
+### Phase H — Verify
+
+1. EB environment **Health: Ok**.
+2. Browser: `https://<environment-url>/api/health` → `{"ok":true}`.
+3. **Entra:** redirect URI `https://<host>/api/auth/callback/azure-ad` matches `NEXTAUTH_URL`.
+4. Smoke test: `/login` and a short Inspector chat (validates long timeouts).
+
+### Phase I — Every later release (no new application)
+
+1. New image in ECR (CI or `docker push`).
+2. New zip (optional if only image tag changes in `Dockerrun.aws.json`).
+3. Upload to S3 → `create-application-version` with new label (`v2`, …).
+4. `update-environment`:
+
+```bash
+aws elasticbeanstalk update-environment \
+  --environment-name aloft-d360-dev \
+  --version-label v2 \
+  --region ap-south-1
+```
+
+Or console: **Upload and deploy** with a new zip.
+
+**You do not** need a new zip when only **environment properties** change (edit in console). **You do** need a new deploy when the **image** or **`.ebextensions` / `.platform`** change.
+
+### Phase J — Automate from GitHub (optional)
+
+After application + environment exist:
+
+1. Repo **Variables (optional):** `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`. Set `ENABLE_EB_DEPLOY=false` only if you need ECR-only runs on `main`.
+2. Secret **`AWS_ROLE_ARN`** with ECR + EB + `elasticbeanstalk-ap-south-1-*` S3 permissions.
+3. Push to **`main`** → workflow builds image, zips bundle, uploads S3, `create-application-version`, `update-environment`.
+
+See [§7 Deploy a new version](#7-deploy-a-new-version) below.
+
 ---
 
 ## 1. Build and push the Docker image
@@ -47,7 +240,7 @@ docker run --rm -p 3000:3000 --env-file .env.local aloft-d360-web
 
 ## 2. Prepare the Beanstalk bundle
 
-Edit `infra/beanstalk/Dockerrun.aws.json` — replace `REPLACE_ACCOUNT_ID` with your account id.
+Edit `infra/beanstalk/Dockerrun.aws.json` if the account or image tag differs (default ECR URL uses `640012953890`).
 
 Deploy zip contents = everything under `infra/beanstalk/`:
 
@@ -143,9 +336,9 @@ npx prisma migrate deploy --schema=./prisma/schema.prisma
 
 On push to **`main`** or **`develop`**, [`.github/workflows/ecr-push.yml`](../.github/workflows/ecr-push.yml) **always** builds and pushes **harvester** and **web** images to ECR.
 
-**Elastic Beanstalk deploy is off until you turn it on:** set repo variable **`ENABLE_EB_DEPLOY`** = `true` only after the EB application and environment exist (e.g. `aloft-d360-web` / `aloft-d360-dev`). Until then, merge to `main` is safe for ECR only—no failed deploy step.
+On **`main`**, the workflow **always deploys to Elastic Beanstalk** after a successful web image push (unless repo variable **`ENABLE_EB_DEPLOY`** = `false`). A follow-up job fails the workflow if that deploy step was skipped or failed, so `main` cannot silently ship ECR-only.
 
-When enabled, the workflow zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
+The deploy job zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
 
 Requires GitHub secret **`AWS_ROLE_ARN`** and IAM permissions for ECR + Elastic Beanstalk + the `elasticbeanstalk-ap-south-1-<account>` S3 bucket. **`develop`** only pushes ECR (no EB deploy).
 

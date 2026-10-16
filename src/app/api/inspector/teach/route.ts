@@ -23,6 +23,7 @@ import { getUserByEmail } from '@/lib/dashboards/permissions';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
 import { runAgentLoop } from '@/lib/inspector/agent-loop';
+import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import { MARCUS_REFLECT_SYSTEM_PROMPT } from '@/lib/inspector/reflect-prompt';
 import {
   buildReflectToolConfig,
@@ -126,8 +127,10 @@ export async function POST(request: NextRequest) {
         }
       };
 
+      const maxInspectorLoops = getInspectorMaxLoops();
+
       try {
-        emit({ type: 'stream_start', mode: 'reflect', model: modelConfig.bedrockId, maxLoops: 8 });
+        emit({ type: 'stream_start', mode: 'reflect', model: modelConfig.bedrockId, maxLoops: maxInspectorLoops });
 
         const result = await runAgentLoop({
           modelId: modelConfig.bedrockId,
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
           tools: buildReflectToolConfig(),
           executeTool: (toolName, toolInput, callId) =>
             executeReflectTool(toolName, toolInput, callId, emit, toolContext),
-          maxLoops: 8,
+          maxLoops: maxInspectorLoops,
           supportsTools: true,
           supportsThinking: modelConfig.supportsThinking,
           abortSignal: closed,

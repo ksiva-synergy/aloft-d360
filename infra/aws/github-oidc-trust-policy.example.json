@@ -7,7 +7,10 @@
       "Principal": {
         "Federated": "arn:aws:iam::640012953890:oidc-provider/token.actions.githubusercontent.com"
       },
-      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Action": [
+        "sts:AssumeRoleWithWebIdentity",
+        "sts:TagSession"
+      ],
       "Condition": {
         "StringEquals": {
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
@@ -16,7 +19,8 @@
           "token.actions.githubusercontent.com:sub": [
             "repo:Synergy-Marine-Group/aloft-d360:ref:refs/heads/main",
             "repo:Synergy-Marine-Group/aloft-d360:ref:refs/heads/develop",
-            "repo:Synergy-Marine-Group/aloft-d360:workflow_dispatch"
+            "repo:Synergy-Marine-Group@63709644/aloft-d360@1363498124:ref:refs/heads/main",
+            "repo:Synergy-Marine-Group@63709644/aloft-d360@1363498124:ref:refs/heads/develop"
           ]
         }
       }

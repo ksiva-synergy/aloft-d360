@@ -6,7 +6,7 @@
 # GitHub variables (optional overrides):
 #   EB_APPLICATION_NAME  default aloft-d360-web
 #   EB_ENVIRONMENT_NAME  default aloft-d360-dev
-#   ENABLE_EB_DEPLOY     set to "true" only after EB app + environment exist (default: off)
+#   ENABLE_EB_DEPLOY     set to "false" to skip EB deploy (default: deploy on main after ECR push)
 #
 # IAM role needs:
 #   ECR push (harvester + web repos)
@@ -108,7 +108,7 @@ jobs:
     if: |
       always() &&
       needs.build-web.result == 'success' &&
-      vars.ENABLE_EB_DEPLOY == 'true' &&
+      vars.ENABLE_EB_DEPLOY != 'false' &&
       (
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
         (github.event_name == 'workflow_dispatch' && inputs.deploy_beanstalk)
@@ -167,3 +167,27 @@ jobs:
             --region "$AWS_REGION"
 
           echo "Deployed ${VERSION_LABEL} to ${EB_ENVIRONMENT_NAME} (image in Dockerrun.aws.json)"
+
+  require-eb-deploy:
+    name: Require Beanstalk deploy (main)
+    needs: [build-web, deploy-beanstalk]
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.build-web.result == 'success'
+    steps:
+      - name: Fail workflow if Beanstalk deploy was skipped or failed
+        run: |
+          set -euo pipefail
+          if [ "${{ vars.ENABLE_EB_DEPLOY }}" = "false" ]; then
+            echo "ENABLE_EB_DEPLOY=false — Beanstalk deploy intentionally disabled."
+            exit 0
+          fi
+          RESULT="${{ needs.deploy-beanstalk.result }}"
+          if [ "$RESULT" != "success" ]; then
+            echo "::error::Elastic Beanstalk deploy did not succeed (result=$RESULT). Fix deploy-beanstalk or set repo variable ENABLE_EB_DEPLOY=false only if EB should stay off."
+            exit 1
+          fi
+          echo "Beanstalk deploy succeeded."

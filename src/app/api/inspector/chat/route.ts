@@ -30,6 +30,7 @@ import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import type { BoostModel } from '@/lib/boost/models';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -360,9 +361,10 @@ export async function POST(request: NextRequest) {
       const describeSchemaPathByCallId = new Map<string, string>();
       let lastToolResultNodeId: string | null = null;
       let lastToolInvocationWasError = false;
+      const maxInspectorLoops = getInspectorMaxLoops();
 
       try {
-        emit({ type: 'stream_start', model: effectiveModelId, modelKey: body.model || DEFAULT_MODEL_KEY, supportsThinking: modelConfig.supportsThinking, maxLoops: 8, contextMode });
+        emit({ type: 'stream_start', model: effectiveModelId, modelKey: body.model || DEFAULT_MODEL_KEY, supportsThinking: modelConfig.supportsThinking, maxLoops: maxInspectorLoops, contextMode });
 
         // Resolve BoostModel for Foundry dispatch
         let boostModel = isFoundryModel
@@ -390,7 +392,7 @@ export async function POST(request: NextRequest) {
             sessionId: body.sessionId ?? '',
             connectionId: resolvedConnectionId,
           }),
-          maxLoops: 8,
+          maxLoops: maxInspectorLoops,
           supportsTools: modelConfig.supportsTools,
           supportsThinking: modelConfig.supportsThinking,
           abortSignal: closed,
@@ -544,7 +546,7 @@ export async function POST(request: NextRequest) {
             hasControlBoundaryViolation,
             hasRetryableErrors,
             loopsUsed: result.loops,
-            maxLoops: 8,
+            maxLoops: maxInspectorLoops,
             totalTokens: result.usage.inputTokens + result.usage.outputTokens,
           });
 
@@ -594,9 +596,9 @@ export async function POST(request: NextRequest) {
           if (!closed.value) {
             emit({
               type: 'text',
-              delta: '\n\n---\n**Tool-call limit reached.** I used all 8 available query slots for this turn. You can continue the conversation to explore further — previous results remain visible in the dashboard and I can reference them in follow-up turns.',
+              delta: `\n\n---\n**Tool-call limit reached.** I used all ${maxInspectorLoops} available query slots for this turn. You can continue the conversation to explore further — previous results remain visible in the dashboard and I can reference them in follow-up turns.`,
             });
-            emit({ type: 'loop_limit_reached', loops: result.loops, maxLoops: 8 });
+            emit({ type: 'loop_limit_reached', loops: result.loops, maxLoops: maxInspectorLoops });
             emit({
               type: 'suggestions',
               items: ['Continue from where you left off', 'Summarize what we found so far', 'Start a new exploration'],
@@ -610,7 +612,7 @@ export async function POST(request: NextRequest) {
             hasControlBoundaryViolation,
             hasRetryableErrors,
             loopsUsed: result.loops,
-            maxLoops: 8,
+            maxLoops: maxInspectorLoops,
             totalTokens: result.usage.inputTokens + result.usage.outputTokens,
           });
 
