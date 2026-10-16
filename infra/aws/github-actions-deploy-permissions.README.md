@@ -42,7 +42,11 @@ Elastic Beanstalk → **Aloft-d360-web-env** → **Configuration** → **Securit
 
 ### Fix
 
-Attach AWS managed **`AWSElasticBeanstalkService`** (if not already), **or** add [`elasticbeanstalk-service-role-s3.policy.json`](./elasticbeanstalk-service-role-s3.policy.json) to that service role.
+Attach AWS managed **`AWSElasticBeanstalkService`** (required for EC2/Auto Scaling/launch templates during deploy). Also add [`elasticbeanstalk-service-role-s3.policy.json`](./elasticbeanstalk-service-role-s3.policy.json) if S3 `GetObjectAcl` fails.
+
+Typical EB event if the service role is too narrow:
+
+- `You are not authorized to use launch template: lt-...` (Auto Scaling **403**) → service role cannot create/replace instances during update.
 
 Then in EB → **Actions** → **Restart app server(s)** or redeploy the same application version.
 
