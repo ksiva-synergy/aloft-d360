@@ -202,7 +202,7 @@ Or console: **Upload and deploy** with a new zip.
 
 After application + environment exist:
 
-1. Repo **Variables:** `ENABLE_EB_DEPLOY=true`, optional `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
+1. Repo **Variables (optional):** `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`. Set `ENABLE_EB_DEPLOY=false` only if you need ECR-only runs on `main`.
 2. Secret **`AWS_ROLE_ARN`** with ECR + EB + `elasticbeanstalk-ap-south-1-*` S3 permissions.
 3. Push to **`main`** → workflow builds image, zips bundle, uploads S3, `create-application-version`, `update-environment`.
 
@@ -336,9 +336,9 @@ npx prisma migrate deploy --schema=./prisma/schema.prisma
 
 On push to **`main`** or **`develop`**, [`.github/workflows/ecr-push.yml`](../.github/workflows/ecr-push.yml) **always** builds and pushes **harvester** and **web** images to ECR.
 
-**Elastic Beanstalk deploy is off until you turn it on:** set repo variable **`ENABLE_EB_DEPLOY`** = `true` only after the EB application and environment exist (e.g. `aloft-d360-web` / `aloft-d360-dev`). Until then, merge to `main` is safe for ECR only—no failed deploy step.
+On **`main`**, the workflow **always deploys to Elastic Beanstalk** after a successful web image push (unless repo variable **`ENABLE_EB_DEPLOY`** = `false`). A follow-up job fails the workflow if that deploy step was skipped or failed, so `main` cannot silently ship ECR-only.
 
-When enabled, the workflow zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
+The deploy job zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
 
 Requires GitHub secret **`AWS_ROLE_ARN`** and IAM permissions for ECR + Elastic Beanstalk + the `elasticbeanstalk-ap-south-1-<account>` S3 bucket. **`develop`** only pushes ECR (no EB deploy).
 
