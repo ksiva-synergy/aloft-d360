@@ -15,7 +15,7 @@ Region assumed: **ap-south-1**. Replace `ACCOUNT_ID` and hostnames with yours.
 - Aurora + IAM role for EC2 (Bedrock, `ecs:RunTask`, Secrets Manager, S3, logs)
 - Entra redirect URI: `https://<host>/api/auth/callback/azure-ad`
 
-**Account defaults (Synergy target):** `640012953890`, app `aloft-d360-web`, env `aloft-d360-dev`, EB artifacts bucket `elasticbeanstalk-ap-south-1-640012953890`.
+**Account defaults (Synergy target):** `640012953890`, app `aloft-d360-web`, env `Aloft-d360-web-env`, EB artifacts bucket `elasticbeanstalk-ap-south-1-640012953890`.
 
 ---
 
@@ -81,7 +81,7 @@ Contents must include: `Dockerrun.aws.json`, `.ebextensions/*.config`, `.platfor
 #### Path D1 — AWS Console (first environment)
 
 1. Region **ap-south-1** → **Elastic Beanstalk** → **Create environment**.
-2. **Standard** (not Cluster). Application **`aloft-d360-web`**. Environment name **`aloft-d360-dev`** (or your chosen name).
+2. **Standard** (not Cluster). Application **`aloft-d360-web`**. Environment name **`Aloft-d360-web-env`** (or your chosen name).
 3. Platform: **Docker**, **Amazon Linux 2023**, recommended version.
 4. **Application code:** **Upload a file** → choose `eb-deploy.zip`. **Do not** use Sample application.
 5. Version label: e.g. `v1-2026-03-12`.
@@ -144,7 +144,7 @@ Then (example — stack name must match list output):
 ```bash
 aws elasticbeanstalk create-environment \
   --application-name aloft-d360-web \
-  --environment-name aloft-d360-dev \
+  --environment-name Aloft-d360-web-env \
   --version-label v1 \
   --solution-stack-name "64bit Amazon Linux 2023 v4.7.0 running Docker" \
   --region ap-south-1 \
@@ -189,7 +189,7 @@ npx prisma migrate deploy --schema=./prisma/schema.prisma
 
 ```bash
 aws elasticbeanstalk update-environment \
-  --environment-name aloft-d360-dev \
+  --environment-name Aloft-d360-web-env \
   --version-label v2 \
   --region ap-south-1
 ```
@@ -260,7 +260,7 @@ cd c:\ALOFT\aloft-d360\infra\beanstalk
 eb init -p docker aloft-d360-web --region ap-south-1
 
 # Cloud dev (HTTPS + SSO): load-balanced, 1 instance
-eb create aloft-d360-dev `
+eb create Aloft-d360-web-env `
   --elb-type application `
   --instance-types t3.medium `
   --scale 1 `
@@ -350,7 +350,7 @@ After pushing a new image to ECR:
 
 ```powershell
 cd c:\ALOFT\aloft-d360\infra\beanstalk
-eb deploy aloft-d360-dev
+eb deploy Aloft-d360-web-env
 ```
 
 Or bump image tag in `Dockerrun.aws.json` and deploy.

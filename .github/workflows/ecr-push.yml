@@ -5,7 +5,7 @@
 #
 # GitHub variables (optional overrides):
 #   EB_APPLICATION_NAME  default aloft-d360-web
-#   EB_ENVIRONMENT_NAME  default aloft-d360-dev
+#   EB_ENVIRONMENT_NAME  default Aloft-d360-web-env
 #   ENABLE_EB_DEPLOY     set to "false" to skip EB deploy (default: deploy on main after ECR push)
 #
 # IAM role needs:
@@ -38,7 +38,7 @@ env:
   ECR_HARVESTER: aloft-context-harvester
   ECR_WEB: aloft-d360-web
   EB_APPLICATION_NAME: ${{ vars.EB_APPLICATION_NAME || 'aloft-d360-web' }}
-  EB_ENVIRONMENT_NAME: ${{ vars.EB_ENVIRONMENT_NAME || 'aloft-d360-dev' }}
+  EB_ENVIRONMENT_NAME: ${{ vars.EB_ENVIRONMENT_NAME || 'Aloft-d360-web-env' }}
 
 jobs:
   build-harvester:
