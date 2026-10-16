@@ -27,13 +27,13 @@ The diagnose workflow prints the **actual** `sub` GitHub sends. It must match th
 
 ## 3. Verify the secret (no paste in chat)
 
-**Settings → Secrets → `AWS_ROLE_ARN`** must be:
+**Settings → Secrets → `AWS_ROLE_ARN`** must match IAM → Roles **exactly** (case-sensitive), e.g.:
 
 ```text
-arn:aws:iam::640012953890:role/aloftGitHubActionsDeployRole
+arn:aws:iam::640012953890:role/aloftGithubActionsDeploy
 ```
 
-(role name must match IAM → Roles.)
+Verify in CloudShell: `aws iam get-role --role-name <RoleName>` must not return `NoSuchEntity`. Trust policy must be on **that** role, not a similarly named role.
 
 ## 4. AWS CloudTrail (definitive AWS-side reason)
 

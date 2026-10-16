@@ -18,7 +18,7 @@ export interface RunScoreInput {
   hasRetryableErrors: boolean;
   /** How many agentic loops were consumed this turn. */
   loopsUsed: number;
-  /** Maximum allowed loops (usually 8). */
+  /** Maximum allowed loops for this turn (see getInspectorMaxLoops). */
   maxLoops: number;
   /** Total tokens used this turn (input + output combined). */
   totalTokens: number;

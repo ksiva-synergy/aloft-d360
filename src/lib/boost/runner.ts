@@ -11,6 +11,7 @@ import { buildCtxInjectionBlock, resolveInjectionTableOrder } from '@/lib/boost/
 import { writeBanditObservation } from '@/lib/lifecycle/write-bandit-observation';
 import { scoreSingleObservation } from '@/lib/lifecycle/judge-batch';
 import { selectMemory, formatForInjection } from '@/lib/memory/retrieve';
+import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 
 export type BenchmarkRunParams = {
   caseId: string;
@@ -153,7 +154,7 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
       messages: [{ role: 'user', content: [{ text: boostCase.prompt }] }],
       tools: toolConfig,
       executeTool: (toolName, toolInput, callId) => wrappedExecuteTool(toolName, toolInput, callId),
-      maxLoops: 8,
+      maxLoops: getInspectorMaxLoops(),
       supportsTools: true,
       supportsThinking: boostModel.modelId.includes('anthropic'),
     });
