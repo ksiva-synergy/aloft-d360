@@ -203,8 +203,8 @@ Or console: **Upload and deploy** with a new zip.
 After application + environment exist:
 
 1. Repo **Variables (optional):** `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`. Set `ENABLE_EB_DEPLOY=false` only if you need ECR-only runs on `main`.
-2. Secret **`AWS_ROLE_ARN`** with ECR + EB + `elasticbeanstalk-ap-south-1-*` S3 permissions.
-3. Push to **`main`** → workflow builds image, zips bundle, uploads S3, `create-application-version`, `update-environment`.
+2. Secret **`AWS_ROLE_ARN`** → role **`aloftGithubActionsDeploy`** (or your deploy role). Attach permissions from [`infra/aws/github-actions-deploy-permissions.policy.json`](../infra/aws/github-actions-deploy-permissions.policy.json). **Important:** `update-environment` can fail with `s3:CreateBucket` on `elasticbeanstalk-ap-south-1-<account>` even when that bucket already exists — the role still needs `s3:CreateBucket` on that bucket ARN (not only `PutObject`).
+3. Push to **`main`** → workflow builds image, zips bundle, uploads S3, `create-application-version`, wait for version processed, `update-environment` on the **existing** environment (no new app/env).
 
 See [§7 Deploy a new version](#7-deploy-a-new-version) below.
 

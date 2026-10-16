@@ -1,0 +1,49 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrPushForCi",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ElasticBeanstalkDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "elasticbeanstalk:CreateApplicationVersion",
+        "elasticbeanstalk:UpdateEnvironment",
+        "elasticbeanstalk:DescribeApplications",
+        "elasticbeanstalk:DescribeApplicationVersions",
+        "elasticbeanstalk:DescribeEnvironments",
+        "elasticbeanstalk:DescribeEvents"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ElasticBeanstalkRegionalArtifactsBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::elasticbeanstalk-ap-south-1-640012953890",
+        "arn:aws:s3:::elasticbeanstalk-ap-south-1-640012953890/*"
+      ]
+    }
+  ]
+}
