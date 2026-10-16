@@ -162,11 +162,6 @@ jobs:
             --source-bundle "S3Bucket=${BUCKET},S3Key=${S3_KEY}" \
             --region "$AWS_REGION"
 
-          aws elasticbeanstalk wait application-version-processed \
-            --application-name "$EB_APPLICATION_NAME" \
-            --version-label "$VERSION_LABEL" \
-            --region "$AWS_REGION"
-
           aws elasticbeanstalk update-environment \
             --environment-name "$EB_ENVIRONMENT_NAME" \
             --version-label "$VERSION_LABEL" \
