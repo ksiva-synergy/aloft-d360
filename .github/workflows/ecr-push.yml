@@ -11,7 +11,8 @@
 # IAM role needs:
 #   ECR push (harvester + web repos)
 #   elasticbeanstalk:CreateApplicationVersion, UpdateEnvironment, Describe*
-#   s3:PutObject, s3:GetObject on elasticbeanstalk-ap-south-1-ACCOUNT_ID (or your EB artifacts bucket)
+#   S3 on elasticbeanstalk-ap-south-1-ACCOUNT_ID — include s3:CreateBucket (EB checks bucket on update-environment)
+#   See infra/aws/github-actions-deploy-permissions.policy.json
 #
 # OIDC trust — paste infra/aws/github-oidc-trust-policy.example.json on aloftGitHubActionsDeployRole (640012953890)
 
@@ -159,6 +160,11 @@ jobs:
             --application-name "$EB_APPLICATION_NAME" \
             --version-label "$VERSION_LABEL" \
             --source-bundle "S3Bucket=${BUCKET},S3Key=${S3_KEY}" \
+            --region "$AWS_REGION"
+
+          aws elasticbeanstalk wait application-version-processed \
+            --application-name "$EB_APPLICATION_NAME" \
+            --version-label "$VERSION_LABEL" \
             --region "$AWS_REGION"
 
           aws elasticbeanstalk update-environment \
