@@ -22,10 +22,48 @@
       "Action": [
         "elasticbeanstalk:CreateApplicationVersion",
         "elasticbeanstalk:UpdateEnvironment",
+        "elasticbeanstalk:CreateStorageLocation",
         "elasticbeanstalk:DescribeApplications",
         "elasticbeanstalk:DescribeApplicationVersions",
         "elasticbeanstalk:DescribeEnvironments",
-        "elasticbeanstalk:DescribeEvents"
+        "elasticbeanstalk:DescribeEnvironmentResources",
+        "elasticbeanstalk:DescribeEvents",
+        "elasticbeanstalk:DescribeConfigurationSettings",
+        "elasticbeanstalk:ValidateConfigurationSettings",
+        "elasticbeanstalk:RequestEnvironmentInfo",
+        "elasticbeanstalk:RetrieveEnvironmentInfo"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudFormationElasticBeanstalkStacks",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:DescribeStackResource",
+        "cloudformation:DescribeStackResources",
+        "cloudformation:GetTemplate",
+        "cloudformation:ListStackResources",
+        "cloudformation:ValidateTemplate",
+        "cloudformation:CancelUpdateStack",
+        "cloudformation:ContinueUpdateRollback"
+      ],
+      "Resource": [
+        "arn:aws:cloudformation:ap-south-1:640012953890:stack/awseb-*/*",
+        "arn:aws:cloudformation:ap-south-1:640012953890:stack/eb-*/*"
+      ]
+    },
+    {
+      "Sid": "CloudFormationDescribeForElasticBeanstalk",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStacks"
       ],
       "Resource": "*"
     },
@@ -44,6 +82,22 @@
         "arn:aws:s3:::elasticbeanstalk-ap-south-1-640012953890",
         "arn:aws:s3:::elasticbeanstalk-ap-south-1-640012953890/*"
       ]
+    },
+    {
+      "Sid": "ElasticBeanstalkDeployDescribeSupportingServices",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "autoscaling:Describe*",
+        "elasticloadbalancing:Describe*",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "sns:ListTopics",
+        "sns:GetTopicAttributes",
+        "sqs:GetQueueAttributes",
+        "sqs:ListQueues"
+      ],
+      "Resource": "*"
     }
   ]
 }
