@@ -340,7 +340,9 @@ On **`main`**, the workflow **always deploys to Elastic Beanstalk** after a succ
 
 The deploy job zips `infra/beanstalk` (with `Dockerrun.aws.json` pointing at the commit SHA tag) and runs `update-environment`. Override names with `EB_APPLICATION_NAME`, `EB_ENVIRONMENT_NAME`.
 
-Requires GitHub secret **`AWS_ROLE_ARN`** and IAM permissions for ECR + Elastic Beanstalk + the `elasticbeanstalk-ap-south-1-<account>` S3 bucket. **`develop`** only pushes ECR (no EB deploy).
+Requires GitHub secret **`AWS_ROLE_ARN`** on role **`aloftGithubActionsDeploy`** — see [infra/aws/github-actions-deploy-permissions.README.md](../infra/aws/github-actions-deploy-permissions.README.md). **`develop`** only pushes ECR (no EB deploy).
+
+**Two-role checklist:** (1) GitHub role — CloudFormation `GetTemplate` on `awseb-*` when CI calls `update-environment`. (2) EB **service role** on the environment — S3 `GetObject` / `GetObjectAcl` on `elasticbeanstalk-ap-south-1-<account>` when EB events say *Failed to deploy application* (CI can be green while the env stays on an old version).
 
 Manual run: **Actions** → **Build, push ECR, deploy Beanstalk** → enable **Deploy web to Elastic Beanstalk**.
 
