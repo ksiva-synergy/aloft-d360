@@ -1,7 +1,7 @@
 import { withAuth } from 'next-auth/middleware';
 
 export default withAuth(
-  function middleware(_req) {
+  function proxy(_req) {
     // Future: inject userId/role from token for API request logging
   },
   {

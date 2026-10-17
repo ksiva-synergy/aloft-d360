@@ -44,7 +44,9 @@ export async function launchHarvesterTask(
 function launchLocal(extraArgs: string[]): LaunchHarvesterResult {
   const args = [...HARVEST_ORCHESTRATOR_COMMAND.slice(1), ...extraArgs];
   try {
-    const child = spawn(HARVEST_ORCHESTRATOR_COMMAND[0], args, {
+    // Local-dev only (production launches via ECS), so keep the build from tracing
+    // the whole project into the standalone output because of this cwd-relative spawn.
+    const child = spawn(/*turbopackIgnore: true*/ HARVEST_ORCHESTRATOR_COMMAND[0], args, {
       cwd: process.cwd(),
       detached: true,
       stdio: 'ignore',

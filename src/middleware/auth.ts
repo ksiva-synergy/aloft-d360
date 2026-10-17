@@ -10,7 +10,7 @@
  *      access token. `authenticateBearer()` verifies it against Entra's JWKS.
  *
  * NOTE: this module is NOT the Next.js edge middleware (that stays in
- * src/middleware.ts). It is a server-only helper imported by route handlers.
+ * src/proxy.ts). It is a server-only helper imported by route handlers.
  */
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { getServerSession } from 'next-auth';

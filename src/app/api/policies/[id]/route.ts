@@ -5,8 +5,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   try {
     const data = await prisma.policy_entry.findUnique({ where: { id: params.id } });
     if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -19,8 +20,9 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   try {
     const body = await request.json();
     const mutable = ['name', 'type', 'scope', 'scope_id', 'config', 'enforcement', 'status'];
@@ -39,8 +41,9 @@ export async function PATCH(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  const params = await paramsPromise;
   try {
     const data = await prisma.policy_entry.update({
       where: { id: params.id },
