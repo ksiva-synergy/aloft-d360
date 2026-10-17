@@ -17,17 +17,17 @@ import {
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const serif: React.CSSProperties = { fontFamily: "'Source Serif 4', Georgia, serif" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const serif: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
+const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
-const GOLD = '#FDB515';
+const GOLD = '#5B3DF5';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
 const INK_DIM = 'var(--wb-ink-dim)';
 const SURFACE = 'var(--wb-surface)';
 const SURFACE2 = 'var(--wb-surface2)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
-const BORDER_GOLD = 'rgba(253,181,21,0.30)';
+const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const VIOLET = '#8b5cf6';
 const VIOLET_BG = 'rgba(139,92,246,0.06)';
 const VIOLET_BORDER = 'rgba(139,92,246,0.22)';
@@ -47,7 +47,7 @@ function ReadinessBadge({ value }: { value: 'interview' | 'plan' | 'build' }) {
   return (
     <span style={{
       ...mono,
-      fontSize: 9,
+      fontSize: 13,
       fontWeight: 700,
       letterSpacing: '0.14em',
       color: meta.color,
@@ -105,11 +105,11 @@ function ThinkingAccordion({
         ) : (
           <ChevronRight size={13} style={{ color: VIOLET, flexShrink: 0 }} />
         )}
-        <span style={{ ...mono, fontSize: 11, color: VIOLET, fontWeight: 500 }}>
+        <span style={{ ...mono, fontSize: 13, color: VIOLET, fontWeight: 500 }}>
           {isStreaming ? 'Reasoning…' : 'Thought process'}
         </span>
         {!isStreaming && (
-          <span style={{ ...mono, fontSize: 10, color: MUTED, marginLeft: 'auto' }}>
+          <span style={{ ...mono, fontSize: 13, color: MUTED, marginLeft: 'auto' }}>
             {wordCount} words · {lineCount} lines
           </span>
         )}
@@ -133,7 +133,7 @@ function ThinkingAccordion({
             }}>
               <pre style={{
                 ...mono,
-                fontSize: 11,
+                fontSize: 13,
                 color: MUTED,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
@@ -165,7 +165,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
     : <Terminal size={12} style={{ color: MUTED, flexShrink: 0 }} />;
 
   const borderColor = tc.status === 'running'
-    ? 'rgba(253,181,21,0.25)'
+    ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)'
     : tc.status === 'success'
     ? 'rgba(34,197,94,0.2)'
     : tc.status === 'error'
@@ -201,11 +201,11 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
         }}
       >
         {statusIcon}
-        <span style={{ ...mono, fontSize: 11, color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ ...mono, fontSize: 13, color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {tc.toolName || tc.toolId}
         </span>
         {tc.durationMs != null && tc.status === 'success' && (
-          <span style={{ ...mono, fontSize: 10, color: MUTED, flexShrink: 0 }}>
+          <span style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0 }}>
             {tc.durationMs < 1000 ? `${tc.durationMs}ms` : `${(tc.durationMs / 1000).toFixed(1)}s`}
           </span>
         )}
@@ -227,22 +227,22 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             <div style={{ borderTop: `1px solid ${BORDER_SUBTLE}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {tc.input !== undefined && (
                 <div>
-                  <div style={{ ...mono, fontSize: 9, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Input</div>
-                  <pre style={{ ...mono, fontSize: 11, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
+                  <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Input</div>
+                  <pre style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
                     {typeof tc.input === 'object' ? JSON.stringify(tc.input, null, 2) : String(tc.input)}
                   </pre>
                 </div>
               )}
               {tc.output !== undefined && (
                 <div>
-                  <div style={{ ...mono, fontSize: 9, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Output</div>
-                  <pre style={{ ...mono, fontSize: 11, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
+                  <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Output</div>
+                  <pre style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
                     {formatOutput(tc.output)}
                   </pre>
                 </div>
               )}
               {tc.error && (
-                <div style={{ ...mono, fontSize: 11, color: RED, background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 4 }}>
+                <div style={{ ...mono, fontSize: 13, color: RED, background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 4 }}>
                   {tc.error}
                 </div>
               )}
@@ -285,18 +285,18 @@ function ToolCallsSection({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; i
           : errorCount > 0
           ? <XCircle size={12} style={{ color: RED, flexShrink: 0 }} />
           : <CheckCircle size={12} style={{ color: GREEN, flexShrink: 0 }} />}
-        <span style={{ ...sans, fontSize: 11, color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ ...sans, fontSize: 13, color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {isStreaming && runningCount > 0
             ? `Using ${names}…`
             : `${toolCalls.length} tool call${toolCalls.length !== 1 ? 's' : ''} — ${names}`}
         </span>
         {!isStreaming && totalDuration > 0 && (
-          <span style={{ ...mono, fontSize: 10, color: MUTED, flexShrink: 0 }}>
+          <span style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0 }}>
             {totalDuration < 1000 ? `${totalDuration}ms` : `${(totalDuration / 1000).toFixed(1)}s`}
           </span>
         )}
         {errorCount > 0 && (
-          <span style={{ ...mono, fontSize: 9, color: RED, background: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>
+          <span style={{ ...mono, fontSize: 13, color: RED, background: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>
             {errorCount} failed
           </span>
         )}
@@ -338,7 +338,7 @@ function renderInline(text: string): React.ReactNode[] {
     if (m[2] != null) parts.push(<strong key={m.index} style={{ fontWeight: 600, color: INK }}>{m[2]}</strong>);
     else if (m[3] != null) parts.push(<em key={m.index}>{m[3]}</em>);
     else if (m[4] != null) parts.push(
-      <code key={m.index} style={{ ...mono, fontSize: 12, background: 'rgba(253,181,21,0.10)', color: GOLD, padding: '1px 5px', borderRadius: 3 }}>
+      <code key={m.index} style={{ ...mono, fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: GOLD, padding: '1px 5px', borderRadius: 3 }}>
         {m[4]}
       </code>,
     );
@@ -412,19 +412,19 @@ function MarkdownTable({
             width: '100%',
             borderCollapse: 'collapse',
             ...sans,
-            fontSize: 12.5,
+            fontSize: 13,
             lineHeight: 1.45,
           }}
         >
           <thead>
-            <tr style={{ background: 'rgba(253,181,21,0.08)' }}>
+            <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
               {headers.map((h, i) => (
                 <th
                   key={i}
                   style={{
                     ...cellPad,
                     ...mono,
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
                     textTransform: 'uppercase',
@@ -459,7 +459,7 @@ function MarkdownTable({
                         color: INK,
                         fontVariantNumeric: numeric ? 'tabular-nums' : undefined,
                         ...(numeric ? mono : {}),
-                        ...(numeric ? { fontSize: 12 } : {}),
+                        ...(numeric ? { fontSize: 13 } : {}),
                         fontWeight: ci === 0 ? 500 : 400,
                       }}
                     >
@@ -476,7 +476,7 @@ function MarkdownTable({
         <div
           style={{
             ...mono,
-            fontSize: 9,
+            fontSize: 13,
             color: MUTED,
             letterSpacing: '0.06em',
             padding: '5px 12px',
@@ -553,10 +553,10 @@ function MarkdownLine({
     );
   }
   if (isH3) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
-  if (isH4) return <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: MUTED, marginTop: 10, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{inline}</div>;
+  if (isH4) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: MUTED, marginTop: 10, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{inline}</div>;
   if (isBullet) return (
     <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, lineHeight: 1.55 }}>
-      <span style={{ color: GOLD, fontSize: 10, flexShrink: 0, marginTop: 5 }}>▸</span>
+      <span style={{ color: GOLD, fontSize: 13, flexShrink: 0, marginTop: 5 }}>▸</span>
       <span style={{ flex: 1 }}>{inline}</span>
     </div>
   );
@@ -564,7 +564,7 @@ function MarkdownLine({
     const num = /^(\d+)\./.exec(line)?.[1] ?? '1';
     return (
       <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, lineHeight: 1.55 }}>
-        <span style={{ ...mono, color: GOLD, fontSize: 10, flexShrink: 0, minWidth: 16, textAlign: 'right', marginTop: 2 }}>{num}.</span>
+        <span style={{ ...mono, color: GOLD, fontSize: 13, flexShrink: 0, minWidth: 16, textAlign: 'right', marginTop: 2 }}>{num}.</span>
         <span style={{ flex: 1 }}>{inline}</span>
       </div>
     );
@@ -598,7 +598,7 @@ function CopyButton({ text }: { text: string }) {
         border: 'none',
         cursor: 'pointer',
         ...mono,
-        fontSize: 10,
+        fontSize: 13,
         color: copied ? GREEN : MUTED,
         padding: '2px 6px',
         borderRadius: 4,
@@ -684,10 +684,10 @@ function AssistantContent({ content }: { content: string }) {
     parts.push(
       <div key={`c-${match.index}`} style={{ margin: '12px 0', borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER_GOLD}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', background: SURFACE2 }}>
-          <span style={{ ...mono, fontSize: 10, color: MUTED }}>{lang}</span>
+          <span style={{ ...mono, fontSize: 13, color: MUTED }}>{lang}</span>
           <CopyButton text={code} />
         </div>
-        <pre style={{ margin: 0, padding: '12px 14px', ...mono, fontSize: 12.5, background: SURFACE2, color: INK, overflowX: 'auto', lineHeight: 1.6 }}>
+        <pre style={{ margin: 0, padding: '12px 14px', ...mono, fontSize: 13, background: SURFACE2, color: INK, overflowX: 'auto', lineHeight: 1.6 }}>
           {code}
         </pre>
       </div>,
@@ -825,7 +825,7 @@ export function StreamingMessage({
           ) : isThinkingOnly ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <StreamPulse />
-              <span style={{ ...mono, fontSize: 11, color: MUTED }}>reasoning…</span>
+              <span style={{ ...mono, fontSize: 13, color: MUTED }}>reasoning…</span>
             </div>
           ) : isStreaming ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -850,24 +850,24 @@ export function StreamingMessage({
               {readiness && <ReadinessBadge value={readiness} />}
               {interrupted && !isStreaming && (
                 <span style={{
-                  ...mono, fontSize: 9, color: 'rgba(239,68,68,0.8)',
+                  ...mono, fontSize: 13, color: 'rgba(239,68,68,0.8)',
                   background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)',
                   borderRadius: 4, padding: '2px 7px', letterSpacing: '0.06em',
                 }}>STOPPED</span>
               )}
-              {ts && <span style={{ ...mono, fontSize: 10, color: MUTED }}>{ts}</span>}
+              {ts && <span style={{ ...mono, fontSize: 13, color: MUTED }}>{ts}</span>}
               {!isStreaming && durationMs != null && (
-                <span style={{ ...mono, fontSize: 10, color: MUTED }}>
+                <span style={{ ...mono, fontSize: 13, color: MUTED }}>
                   {durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}
                 </span>
               )}
               {!isStreaming && tokenCount != null && tokenCount > 0 && (
-                <span style={{ ...mono, fontSize: 10, color: MUTED }}>
+                <span style={{ ...mono, fontSize: 13, color: MUTED }}>
                   {tokenCount.toLocaleString()} tok
                 </span>
               )}
               {!isStreaming && shortModel && (
-                <span style={{ ...mono, fontSize: 10, color: 'rgba(74,96,128,0.8)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ ...mono, fontSize: 13, color: 'rgba(74,96,128,0.8)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {shortModel}
                 </span>
               )}
@@ -879,7 +879,7 @@ export function StreamingMessage({
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 4,
                   background: 'transparent', border: 'none', cursor: 'pointer',
-                  ...mono, fontSize: 10, color: copied ? GREEN : MUTED,
+                  ...mono, fontSize: 13, color: copied ? GREEN : MUTED,
                   padding: '2px 0', transition: 'color 0.2s',
                 }}
               >

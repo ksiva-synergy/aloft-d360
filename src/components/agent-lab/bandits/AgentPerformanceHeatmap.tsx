@@ -51,12 +51,12 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
 
   return (
     <div className="bandit-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-[#2d333b] flex items-center gap-2">
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-[var(--line-1)] flex items-center gap-2">
         <Grid3X3 className="h-4 w-4 text-indigo-500" />
         <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
           Agent Performance Heatmap
         </h2>
-        <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
+        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500 ml-1">
           {agents.length} agents
         </span>
       </div>
@@ -68,7 +68,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             <div className="px-2 py-1.5" />
             {METRICS.map(m => (
               <div key={m.key} className="px-2 py-1.5 text-center">
-                <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-500">
+                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-3)] dark:text-slate-500">
                   {m.label}
                 </span>
               </div>
@@ -115,19 +115,19 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
       </div>
 
       {/* Legend */}
-      <div className="px-5 py-2 border-t border-slate-100 dark:border-[#2d333b] flex items-center gap-4">
-        <span className="text-[10px] text-slate-400 dark:text-slate-500">Performance:</span>
+      <div className="px-5 py-2 border-t border-slate-100 dark:border-[var(--line-1)] flex items-center gap-4">
+        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500">Performance:</span>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-red-100 dark:bg-red-950/30" />
-          <span className="text-[10px] text-slate-400">Low</span>
+          <span className="text-xs text-[var(--ink-3)]">Low</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-amber-50 dark:bg-amber-950/20" />
-          <span className="text-[10px] text-slate-400">Mid</span>
+          <span className="text-xs text-[var(--ink-3)]">Mid</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-950/40" />
-          <span className="text-[10px] text-slate-400">High</span>
+          <span className="text-xs text-[var(--ink-3)]">High</span>
         </div>
       </div>
     </div>

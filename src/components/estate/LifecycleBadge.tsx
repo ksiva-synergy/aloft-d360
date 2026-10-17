@@ -126,9 +126,9 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
     },
     published: {
       label: 'Published',
-      color: '#FDB515',
-      borderColor: 'rgba(253, 181, 21, 0.45)',
-      bg: 'rgba(253, 181, 21, 0.08)',
+      color: 'var(--brand-a-ink)',
+      borderColor: 'color-mix(in srgb, var(--brand-a) 45%, transparent)',
+      bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
       dotStyle: 'solid',
     },
     stale: {
@@ -144,7 +144,7 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 font-mono text-[9.5px] tracking-wider uppercase leading-none whitespace-nowrap"
+      className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase leading-none whitespace-nowrap"
       style={{
         color: c.color,
         border: `1px ${state === 'discovered' ? 'dashed' : 'solid'} ${c.borderColor}`,

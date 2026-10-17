@@ -96,15 +96,15 @@ export default function SourceCard({
       style={{
         backgroundColor: cardBg,
         borderColor: borderColor,
-        borderTopColor: '#FDB515',
+        borderTopColor: 'var(--brand-a-ink)',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--estate-btn-border)';
-        e.currentTarget.style.borderTopColor = '#FDB515';
+        e.currentTarget.style.borderTopColor = 'var(--brand-a)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = 'var(--estate-border-gold)';
-        e.currentTarget.style.borderTopColor = '#FDB515';
+        e.currentTarget.style.borderTopColor = 'var(--brand-a)';
       }}
     >
       {/* Header Info */}
@@ -114,7 +114,7 @@ export default function SourceCard({
             {sourceName}
           </h3>
           <span
-            className="font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded border mt-1.5 inline-block transition-colors duration-200"
+            className="font-mono text-xs tracking-wider uppercase px-2 py-0.5 rounded border mt-1.5 inline-block transition-colors duration-200"
             style={{
               backgroundColor: raisedBg,
               borderColor: borderColor,
@@ -124,7 +124,7 @@ export default function SourceCard({
             {sourceKind}
           </span>
         </div>
-        <div className="font-mono text-[10px] text-right leading-relaxed" style={{ color: mutedColor }}>
+        <div className="font-mono text-xs text-right leading-relaxed" style={{ color: mutedColor }}>
           {estateTotal} objects
           <br />
           {catalogName}
@@ -147,7 +147,7 @@ export default function SourceCard({
 
       {/* Stats Row */}
       <div
-        className="flex items-center gap-3.5 mt-5 font-mono text-[10px] flex-wrap transition-colors duration-200"
+        className="flex items-center gap-3.5 mt-5 font-mono text-xs flex-wrap transition-colors duration-200"
         style={{ color: mutedColor }}
       >
         <span title="Most recent estate inventory sweep across all catalog objects">
@@ -155,7 +155,7 @@ export default function SourceCard({
         </span>
         <span className="opacity-40">•</span>
         <span>
-          <span style={{ color: '#FDB515', fontWeight: 600 }}>{queuedJobs}</span> queued
+          <span style={{ color: 'var(--brand-a-ink)', fontWeight: 600 }}>{queuedJobs}</span> queued
         </span>
         <span className="opacity-40">•</span>
         <span title="Objects not inventoried in the last 7 days">
@@ -169,14 +169,14 @@ export default function SourceCard({
           type="button"
           onClick={handleHarvest}
           disabled={isBtnDisabled}
-          className="font-mono text-[11px] font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+          className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{
-            borderColor: '#FDB515',
-            color: '#FDB515',
+            borderColor: 'var(--brand-a-ink)',
+            color: 'var(--brand-a-ink)',
             backgroundColor: 'transparent',
           }}
           onMouseEnter={(e) => {
-            if (!isBtnDisabled) e.currentTarget.style.backgroundColor = 'rgba(253, 181, 21, 0.08)';
+            if (!isBtnDisabled) e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--brand-a) 8%, transparent)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
@@ -189,7 +189,7 @@ export default function SourceCard({
           type="button"
           onClick={handleRefresh}
           disabled={isBtnDisabled}
-          className="font-mono text-[11px] font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+          className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{
             borderColor: 'var(--estate-border-gold)',
             color: labelColor,

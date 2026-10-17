@@ -1,5 +1,5 @@
-@import '@fontsource/source-serif-4/index.css';
-@import '@fontsource/inter-tight/index.css';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/dm-sans/index.css';
 @import '@fontsource/ibm-plex-mono/index.css';
 
 @tailwind base;
@@ -15,31 +15,42 @@
 }
 
 :root {
+  /* ── Fresh brand layer (redesign) ─────────────────────────── */
+  --brand-a:#5B3DF5; --brand-a-2:#7C66FF; --brand-a-soft:#EEEBFF; --brand-a-ink:#3B1FD6;
+  --brand-b:#2A9BDB; --brand-b-soft:#E4F3FC; --brand-b-ink:#0B5A8C; --brand-c:#FF6B5B;
+  --surface-1:#FFFFFF; --surface-2:#F4F5FA; --surface-3:#E9EBF3;
+  --line-1:#E3E5EE; --line-2:#C9CDDC;
+  --ink-1:#111322; --ink-2:#3A3F55; --ink-3:#5C627A;
+  --ok:#0F7A3D; --ok-bg:#E2F6E9; --warn:#93520A; --warn-bg:#FFF1DB; --bad:#C02626; --bad-bg:#FDE7E7;
+  --rail-bg:#1A1540; --rail-bg-top:#241E52; --rail-ink:#D4D1EC; --rail-ink-strong:#FFFFFF; --rail-muted:#A9A5CC; --rail-line:rgba(255,255,255,.12); --rail-accent:#5BB8EE;
+  --radius-card:18px; --radius-ctl:12px;
+  --shadow-card:0 1px 2px rgba(17,19,34,.04),0 8px 24px -8px rgba(17,19,34,.10);
+  --shadow-pop:0 24px 60px -12px rgba(17,19,34,.35);
   /* REBRAND: Synergy Marine Group inspired theme → Spinor Labs brand system - Light Mode */
-  --background: #F5F2EB;
-  --foreground: #0f172a;
-  --primary: #003262; /* REBRAND: #1e3a8a → Berkeley navy #003262 */
+  --background: #F7F9FC;
+  --foreground: #0B1220;
+  --primary: #5B3DF5; /* REBRAND: #1e3a8a → Berkeley navy #3B1FD6 */
   --primary-foreground: #ffffff;
-  --secondary: #1e3a5f; /* Darker navy */
+  --secondary: #3B2BB8; /* Darker navy */
   --secondary-foreground: #ffffff;
-  --accent: #FDB515; /* REBRAND: #3b82f6 → Gold #FDB515 */
-  --accent-foreground: #0D1B2A;
-  --muted: #EDE9DF;
-  --muted-foreground: #8892A4; /* REBRAND: #475569 → muted #8892A4 */
-  --border: #C8C2AD;
+  --accent: #DDF7F5; /* REBRAND: #3b82f6 → Gold #5B3DF5 */
+  --accent-foreground: #0B5F5E;
+  --muted: #EEF2F7;
+  --muted-foreground: #4A5A70; /* REBRAND: #475569 → muted #4A5A70 */
+  --border: #B4C0D0;
   --input: #ffffff;
-  --ring: #003262; /* REBRAND: #1e3a8a → #003262 */
+  --ring: #5B3DF5; /* REBRAND: #1e3a8a → #3B1FD6 */
   --card: #FFFFFF;
   --card-foreground: #0f172a;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Spinor Labs brand tokens */
-  --color-primary:      #003262;
-  --color-accent:       #FDB515;
-  --color-bg-dark:      #0D1B2A;
-  --color-bg-light:     #F5F2EB;
+  --color-primary:      #5B3DF5;
+  --color-accent:       #0EA5A4;
+  --color-bg-dark:      #111322;
+  --color-bg-light:     #F7F9FC;
   --color-text-primary: #FFFFFF;
-  --color-text-muted:   #8892A4;
+  --color-text-muted:   #4A5A70;
   
   /* Additional UI component variables */
   --popover: #FFFFFF;
@@ -49,11 +60,11 @@
   --nav-bg: #f0f1f3; /* Light mode sidebar surface */
   --nav-text: #1a2332;
   --nav-hover: #e2e6ed;
-  --nav-active: #003262; /* REBRAND: gold #FDB515 used as accent text */
-  --nav-border: #d8dde6; /* REBRAND: #1e40af → #003262 */
-  --nav-section-label: #8892A4;
-  --nav-item-text: #4b5563;
-  --nav-item-text-active: #003262;
+  --nav-active: #5B3DF5; /* REBRAND: gold #5B3DF5 used as accent text */
+  --nav-border: #d8dde6; /* REBRAND: #1e40af → #3B1FD6 */
+  --nav-section-label: #4A5A70;
+  --nav-item-text: #2F3E52;
+  --nav-item-text-active: #5B3DF5;
   
   /* Chart tooltip colors */
   --tooltip-bg: rgba(255, 255, 255, 0.95);
@@ -61,15 +72,15 @@
   --tooltip-text: #374151;
 
   /* Activity-tracking analytics palette (light) */
-  --at-bg-base: #F5F2EB;
-  --at-bg-gradient: #EDE9DF;
+  --at-bg-base: #F7F9FC;
+  --at-bg-gradient: #EEF2F7;
   --at-surface: #ffffff;
   --at-surface-hover: #f1f5f9;
   --at-border-subtle: rgba(0, 0, 0, 0.06);
   --at-border-emphasis: rgba(0, 0, 0, 0.10);
   --at-text-primary: #0f172a;
-  --at-text-secondary: #475569;
-  --at-text-tertiary: #94a3b8;
+  --at-text-secondary: #2F3E52;
+  --at-text-tertiary: #566780;
   --at-accent: #7C3AED;
   --at-accent-secondary: #8B5CF6;
   --at-success: #10B981;
@@ -79,49 +90,49 @@
 
   /* Agent Builder surface stack — light mode equivalents */
   /* These mirror the .dark --builder-* tokens with warm parchment values */
-  --builder-bg:             #F5F2EB;
-  --builder-surface:        #EDE9DF;
-  --builder-surface-raised: #E4DFCF;
-  --builder-border:         #C8C2AD;
-  --builder-border-bright:  #003262;
-  --builder-gold:           #FDB515;
+  --builder-bg:             #F7F9FC;
+  --builder-surface:        #EEF2F7;
+  --builder-surface-raised: #E2E8F0;
+  --builder-border:         #B4C0D0;
+  --builder-border-bright:  #5B3DF5;
+  --builder-gold:           #5B3DF5;
   --builder-gold-dim:       #C48A00;
-  --builder-text:           #0D1B2A;
-  --builder-text-muted:     #2C3E50;
-  --builder-text-label:     #5A6A7A;
+  --builder-text:           #111322;
+  --builder-text-muted:     #3A3F55;
+  --builder-text-label:     #3F4F63;
   --builder-green-live:     #22C55E;
   --builder-amber-preview:  #F59E0B;
   --builder-red-fail:       #EF4444;
   --builder-green:          #22C55E;
   --builder-amber:          #F59E0B;
   --builder-red:            #EF4444;
-  --builder-text-secondary: #2C3E50;
+  --builder-text-secondary: #3A3F55;
 
   /* Semantic colors — light mode */
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --success: #16a34a;
   --warning: #b45309;
-  --border-subtle: #edf0f4;
+  --border-subtle: #DCE3ED;
 
   /* Text hierarchy aliases — light mode */
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #64748b;
+  --text-secondary: #2F3E52;
+  --text-tertiary: #4F5F76;
 
   /* Shell surfaces */
-  --shell-bg: #EDE9DF;
-  --main-bg: #F5F2EB;
-  --header-bg: #F5F2EB;
-  --header-border: #C8C2AD;
+  --shell-bg: #F4F5FA;
+  --main-bg: #F4F5FA;
+  --header-bg: #FFFFFF;
+  --header-border: #B4C0D0;
 
   /* Workbench canvas tokens — light mode (parchment-navy) */
-  --wb-canvas:       #EDE9DF;
-  --wb-surface:      #E4DFCF;
-  --wb-surface2:     #DDD8C6;
-  --wb-muted:        #5A6A7A;
-  --wb-ink:          #0D1B2A;
-  --wb-ink-dim:      #2C3E50;
+  --wb-canvas:       #EEF2F7;
+  --wb-surface:      #E2E8F0;
+  --wb-surface2:     #D5DEEA;
+  --wb-muted:        #3F4F63;
+  --wb-ink:          #111322;
+  --wb-ink-dim:      #3A3F55;
   --wb-border-subtle:rgba(13,27,42,0.10);
 
   /* Guided blueprint palette — light mode (darkened for parchment legibility) */
@@ -150,100 +161,108 @@
 
   /* Inspector-viz surfaces (guided Blueprint gallery + Refine canvas) — light.
      Mirrored as literals in src/lib/dashboards/inspector-viz-tokens.ts. */
-  --iv-canvas:        #F5F2EB;
+  --iv-canvas:        #F7F9FC;
   --iv-card:          #FFFFFF;
-  --iv-card-elevated: #FAFAF7;
-  --iv-border:        #C8C2AD;
-  --iv-border-subtle: #E4DFCF;
+  --iv-card-elevated: #FBFCFE;
+  --iv-border:        #B4C0D0;
+  --iv-border-subtle: #E2E8F0;
   --iv-ink:           #0f172a;
-  --iv-ink-muted:     #5A6A7A;
-  --iv-ink-dim:       #8892A4;
+  --iv-ink-muted:     #3F4F63;
+  --iv-ink-dim:       #4A5A70;
 
   /* Data Estate palette — light mode */
-  --estate-bg:          #F5F2EB;
+  --estate-bg:          #F7F9FC;
   --estate-surface:     #FFFFFF;
   --estate-raised:      #FFFFFF;
-  --estate-ink:         #0D1B2A;
-  --estate-text-secondary: #5A6A7A;
-  --estate-text-muted:  #8892A4;
-  --estate-text-dim:    #aab3bb;
-  --estate-border:      rgba(0, 50, 98, 0.12);
-  --estate-border-gold: rgba(0, 50, 98, 0.12);
-  --estate-role-badge-text: #003262; /* navy on gold tint — light mode */
-  --estate-hover:       rgba(0, 50, 98, 0.02);
+  --estate-ink:         #111322;
+  --estate-text-secondary: #3A3F55;
+  --estate-text-muted:  #4A5A70;
+  --estate-text-dim:    #5C627A;
+  --estate-border:      rgba(17, 19, 34, 0.14);
+  --estate-border-gold: rgba(17, 19, 34, 0.14);
+  --estate-role-badge-text: #3B1FD6; /* navy on gold tint — light mode */
+  --estate-hover:       rgba(17, 19, 34, 0.02);
   /* Per-role badge text (UserMenu) — light mode */
   --role-badge-platform-admin: #92400e;
   --role-badge-admin:          #1e40af;
   --role-badge-member:         #6b7280;
   --role-badge-readonly:       #9ca3af;
-  --estate-active-bg:   rgba(0, 50, 98, 0.04);
+  --estate-active-bg:   rgba(17, 19, 34, 0.04);
   --estate-btn-border:  #d0d6dc;
-  --estate-th-bg:       #FAFAF7;
+  --estate-th-bg:       #FBFCFE;
   --estate-row-even:    #FFFFFF;
   --estate-row-odd:     #F7F7F5;
 
   /* Status chip palette */
   --estate-status-success-bg:      rgba(22, 163, 74, 0.08);
   --estate-status-success-border:  rgba(22, 163, 74, 0.15);
-  --estate-status-success-text:    #16A34A;
+  --estate-status-success-text:    #0F7A3D;
   --estate-status-error-bg:        rgba(220, 38, 38, 0.08);
   --estate-status-error-border:    rgba(220, 38, 38, 0.15);
   --estate-status-error-text:      #DC2626;
   --estate-status-warning-bg:      rgba(217, 119, 6, 0.08);
   --estate-status-warning-border:  rgba(217, 119, 6, 0.15);
-  --estate-status-warning-text:    #D97706;
+  --estate-status-warning-text:    #93520A;
   --estate-status-default-bg:      rgba(0, 0, 0, 0.04);
   --estate-status-default-border:  rgba(0, 0, 0, 0.1);
-  --estate-status-default-text:    #5A6A7A;
+  --estate-status-default-text:    #3A3F55;
 
   /* Trust chip */
-  --estate-trust-confirmed-bg:     rgba(0, 50, 98, 0.08);
-  --estate-trust-confirmed-border: rgba(0, 50, 98, 0.15);
-  --estate-trust-confirmed-text:   #003262;
+  --estate-trust-confirmed-bg:     rgba(91, 61, 245, 0.08);
+  --estate-trust-confirmed-border: rgba(91, 61, 245, 0.15);
+  --estate-trust-confirmed-text:   #3B1FD6;
 
   /* Kind badge bg (subtle tint) */
   --estate-kind-bg:    rgba(96, 165, 250, 0.05);
 
   /* Performance Lab palette — light mode (parchment + navy ink) */
-  --pl-bg:      #F5F2EB;
+  --pl-bg:      #F7F9FC;
   --pl-surf:    #FFFFFF;
-  --pl-surf2:   #FAFAF7;
-  --pl-border:  rgba(0, 50, 98, 0.14);
-  --pl-border2: rgba(0, 50, 98, 0.22);
-  --pl-txt:     #0D1B2A;
-  --pl-txt2:    #5A6A7A;
-  --pl-hair:    rgba(0, 50, 98, 0.12);
-  --pl-hair2:   rgba(0, 50, 98, 0.06);
-  --pl-stripe:  rgba(0, 50, 98, 0.03);
-  --pl-grad:    linear-gradient(135deg, rgba(253, 181, 21, 0.12), rgba(255, 255, 255, 1));
+  --pl-surf2:   #FBFCFE;
+  --pl-border:  rgba(17, 19, 34, 0.14);
+  --pl-border2: rgba(17, 19, 34, 0.22);
+  --pl-txt:     #111322;
+  --pl-txt2:    #3A3F55;
+  --pl-hair:    rgba(17, 19, 34, 0.14);
+  --pl-hair2:   rgba(17, 19, 34, 0.06);
+  --pl-stripe:  rgba(17, 19, 34, 0.03);
+  --pl-grad:    linear-gradient(135deg, rgba(91, 61, 245, 0.12), rgba(255, 255, 255, 1));
 
   /* BORN / Bandits palette — light mode (parchment + navy ink) */
-  --born-bg:        #F5F2EB;
+  --born-bg:        #F7F9FC;
   --born-surface:   #FFFFFF;
-  --born-border:    rgba(0, 50, 98, 0.14);
-  --born-text-pri:  #0D1B2A;
+  --born-border:    rgba(17, 19, 34, 0.14);
+  --born-text-pri:  #111322;
   --born-text-sec:  #445566;
   --born-text-mut:  #7A8896;
-  --born-hover:     rgba(0, 50, 98, 0.05);
-  --born-overlay:   rgba(0, 50, 98, 0.04);
-  --born-overlay-2: rgba(0, 50, 98, 0.07);
+  --born-hover:     rgba(17, 19, 34, 0.05);
+  --born-overlay:   rgba(17, 19, 34, 0.04);
+  --born-overlay-2: rgba(17, 19, 34, 0.07);
 }
 
 .dark {
+  --brand-a:#8B7BFF; --brand-a-2:#A596FF; --brand-a-soft:rgba(139,123,255,.16); --brand-a-ink:#C9C0FF;
+  --brand-b:#5BB8EE; --brand-b-soft:rgba(91,184,238,.14); --brand-b-ink:#A9DBF7; --brand-c:#FF8A7C;
+  --surface-1:#171A2B; --surface-2:#0E1020; --surface-3:#222640;
+  --line-1:#2A2E4A; --line-2:#3A3F63;
+  --ink-1:#F2F3FA; --ink-2:#C4C8DD; --ink-3:#9298B5;
+  --ok:#4ADE80; --ok-bg:rgba(74,222,128,.14); --warn:#FBBF24; --warn-bg:rgba(251,191,36,.14); --bad:#F87171; --bad-bg:rgba(248,113,113,.14);
+  --rail-bg:#110D2C; --rail-bg-top:#1A1540; --rail-line:rgba(255,255,255,.10);
+  --shadow-card:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
   --background: #0f1419;        /* Deep neutral black */
   --foreground: #e6edf3;        /* High contrast white-blue */
-  --primary: #539bf5;           /* Primary blue */
+  --primary: #8B7BFF;           /* Primary blue */
   --primary-foreground: #ffffff;
   --secondary: #1e40af;         /* Darker blue */
   --secondary-foreground: #ffffff;
-  --accent: #6cb6ff;            /* Lighter accent */
+  --accent: #2DD4BF;            /* Lighter accent */
   --accent-foreground: #ffffff;
   --muted: #2d333b;             /* Muted backgrounds */
   --muted-foreground: #adbac7;  /* Muted text */
   --border: #444c56;            /* Visible borders */
   --border-subtle: #373e47;     /* Subtle borders */
   --input: #2d333b;             /* Input backgrounds */
-  --ring: #539bf5;
+  --ring: #8B7BFF;
   --card: #1c2128;              /* Elevated surface */
   --card-elevated: #22272e;     /* Higher elevation */
   --card-foreground: #e6edf3;
@@ -251,7 +270,7 @@
   /* Text hierarchy */
   --text-primary: #e6edf3;      /* Primary text */
   --text-secondary: #adbac7;     /* Secondary text */
-  --text-tertiary: #768390;     /* Tertiary text */
+  --text-tertiary: #9AA6B8;     /* Tertiary text */
   
   /* Semantic colors */
   --destructive: #f85149;       /* Error/danger */
@@ -270,11 +289,11 @@
   --nav-bg: #0D1B2A;
   --nav-text: #e6edf3;
   --nav-hover: #0F2236;
-  --nav-active: #FDB515;
+  --nav-active: #A596FF;
   --nav-border: #1E3A5F;
   --nav-section-label: #4a5068;
   --nav-item-text: #8892A4;
-  --nav-item-text-active: #FDB515;
+  --nav-item-text-active: #A596FF;
   
   /* Chart tooltip colors */
   --tooltip-bg: rgba(28, 33, 40, 0.95);
@@ -287,7 +306,7 @@
   --builder-surface-raised: #162D44;
   --builder-border:         #1E3A52;
   --builder-border-bright:  #2A5070;
-  --builder-gold:           #FDB515;
+  --builder-gold:           #A596FF;
   --builder-gold-dim:       #C8901A;
   --builder-text:           #F0F4F8;
   --builder-text-muted:     #8BAFC8;
@@ -315,7 +334,7 @@
   --wb-muted:        #4a6080;
   --wb-ink:          #e8eef5;
   --wb-ink-dim:      #aeb9c7;
-  --wb-border-subtle:rgba(253,181,21,0.08);
+  --wb-border-subtle:rgba(165, 150, 255,0.08);
 
   /* Guided blueprint palette — dark mode (original bright accents) */
   --bp-card-bg:      rgba(0,0,0,0.15);
@@ -329,11 +348,11 @@
   --mc-kind-measure:    #56B4E9;
   --mc-kind-dimension:  #C4B5FD;
   --mc-status-governed:   #2EA043;
-  --mc-status-candidate:  #FDB515;
+  --mc-status-candidate:  #A596FF;
   --mc-status-draft:      #8892A4;
   --mc-status-archived:   #5A6A7A;
   --mc-res-matched:       #3FB950;
-  --mc-res-notgov:        #FDB515;
+  --mc-res-notgov:        #A596FF;
   --mc-res-ambiguous:     #E3C000;
   --mc-res-unrecognized:  #F85149;
 
@@ -346,7 +365,7 @@
   --iv-border-subtle: #1a2029;
   --iv-ink:           #e6edf3;
   --iv-ink-muted:     #8892A4;
-  --iv-ink-dim:       #768390;
+  --iv-ink-dim:       #9AA6B8;
 
   /* Activity-tracking analytics palette (dark) */
   --at-bg-base: #0A0E27;
@@ -370,19 +389,19 @@
   --estate-surface:     #121922;
   --estate-raised:      #111D2E;
   --estate-ink:         #E8E6E1;
-  --estate-text-secondary: #8B9BB5;
-  --estate-text-muted:  #5A6A85;
-  --estate-text-dim:    #4a5765;
+  --estate-text-secondary: #B4BFD8;
+  --estate-text-muted:  #96A2BE;
+  --estate-text-dim:    #8390AC;
   --estate-border:      #1e2935;
-  --estate-border-gold: rgba(253, 181, 21, 0.12);
-  --estate-role-badge-text: #FDB515; /* gold on gold tint — dark mode */
+  --estate-border-gold: rgba(165, 150, 255, 0.12);
+  --estate-role-badge-text: #A596FF; /* gold on gold tint — dark mode */
   --estate-hover:       #0e131a;
   /* Per-role badge text (UserMenu) — dark mode (brightened for contrast) */
   --role-badge-platform-admin: #FBBF24;
   --role-badge-admin:          #93C5FD;
   --role-badge-member:         #B6BECD;
   --role-badge-readonly:       #9CA6B5;
-  --estate-active-bg:   rgba(253, 181, 21, 0.08);
+  --estate-active-bg:   rgba(165, 150, 255, 0.08);
   --estate-btn-border:  #2a3a4a;
   --estate-th-bg:       #0F2236;
   --estate-row-even:    #111D2E;
@@ -414,14 +433,14 @@
   --pl-bg:      #070b11;
   --pl-surf:    #0d1520;
   --pl-surf2:   #111a27;
-  --pl-border:  rgba(253, 181, 21, 0.12);
-  --pl-border2: rgba(253, 181, 21, 0.22);
+  --pl-border:  rgba(165, 150, 255, 0.12);
+  --pl-border2: rgba(165, 150, 255, 0.22);
   --pl-txt:     #e6ecf4;
   --pl-txt2:    #8892A4;
   --pl-hair:    rgba(28, 44, 63, 1);
   --pl-hair2:   rgba(255, 255, 255, 0.04);
   --pl-stripe:  rgba(255, 255, 255, 0.015);
-  --pl-grad:    linear-gradient(135deg, rgba(0, 50, 98, 0.4), rgba(15, 26, 40, 1));
+  --pl-grad:    linear-gradient(135deg, rgba(91, 61, 245, 0.28), rgba(15, 26, 40, 1));
 
   /* BORN / Bandits palette — dark mode (original near-black + navy) */
   --born-bg:        #05090f;
@@ -439,7 +458,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   /* REBRAND: Inter Tight (UI), Source Serif 4 (display), IBM Plex Mono (code) */
-  font-family: 'Inter Tight', var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: 'DM Sans Variable', 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Agent Lab theme scrollbar */
@@ -697,7 +721,7 @@ body {
 
 .maritime-chain-link {
   display: block;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -807,7 +831,7 @@ body {
   align-items: center;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   background: rgba(0, 0, 0, 0.07);
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -1070,25 +1094,25 @@ body {
    ═══════════════════════════════════════════════════════════ */
 .light .workbench-frame {
   /* Surfaces */
-  --bg-base:        #F5F2EB;
-  --bg-surface:     #EDE9DF;
-  --bg-elevated:    #E4DFCF;
-  --bg-sunken:      #DDD8C6;
+  --bg-base:        #F7F9FC;
+  --bg-surface:     #EEF2F7;
+  --bg-elevated:    #E2E8F0;
+  --bg-sunken:      #D5DEEA;
 
   /* Borders */
-  --border-default: #C8C2AD;
+  --border-default: #B4C0D0;
   --border-subtle:  #DAD5C5;
-  --border-strong:  #003262;
+  --border-strong:  #3B1FD6;
 
   /* Ink */
-  --text-primary:   #0D1B2A;
+  --text-primary:   #111322;
   --text-secondary: #2C3E50;
-  --text-tertiary:  #5A6A7A;
+  --text-tertiary:  #4F5F76;
   --text-muted:     #8A9BAD;
 
   /* Brand */
-  --accent-gold:    #FDB515;
-  --accent-navy:    #003262;
+  --accent-gold:    #5B3DF5;
+  --accent-navy:    #3B1FD6;
   --accent-gold-dim:#C48A00;
 
   /* Status */
@@ -1122,7 +1146,7 @@ body {
   --overlay-shadow: var(--shadow-elevated);
   --spinner-track:  rgba(13, 27, 42, 0.22);
   --spinner-head:   var(--accent-navy);
-  --display:        'Source Serif 4', Georgia, serif;
+  --display:        'Inter Variable', 'Inter', system-ui, sans-serif;
   --mono:           'IBM Plex Mono', monospace;
   --sans:           'Inter Tight', sans-serif;
 
@@ -1146,17 +1170,17 @@ body {
 
 /* Agent Lab shell — parchment sidebar in light mode */
 .light {
-  --nav-bg: #F5F2EB;
-  --nav-border: #C8C2AD;
-  --nav-hover: #E4DFCF;
-  --nav-text: #0D1B2A;
+  --nav-bg: #F7F9FC;
+  --nav-border: #B4C0D0;
+  --nav-hover: #E2E8F0;
+  --nav-text: #111322;
   --nav-section-label: #8A9BAD;
   --nav-item-text: #2C3E50;
-  --nav-item-text-active: #003262;
-  --main-bg: #F5F2EB;
-  --shell-bg: #EDE9DF;
-  --header-bg: #F5F2EB;
-  --header-border: #C8C2AD;
+  --nav-item-text-active: #5B3DF5;
+  --main-bg: #F7F9FC;
+  --shell-bg: #EEF2F7;
+  --header-bg: #F7F9FC;
+  --header-border: #B4C0D0;
 }
 
 .dark .workbench-frame {
@@ -1167,7 +1191,7 @@ body {
   --overlay-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
   --border:       #1E3A52;
   --border-bright:#2A5070;
-  --gold:         #FDB515;
+  --gold:         #A596FF;
   --gold-dim:     #C8901A;
   --gold-contrast:#0D1B2A;
   --text:         #F0F4F8;
@@ -1211,7 +1235,7 @@ body {
 }
 
 .light .workbench-frame .wb-terminal-headline {
-  font-family: 'Source Serif 4', Georgia, serif !important;
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif !important;
   color: var(--text-primary) !important;
   font-weight: 600 !important;
 }
@@ -1242,13 +1266,13 @@ body {
 }
 
 .light .workbench-frame .wb-config-label {
-  font-size: 10px !important;
-  letter-spacing: 0.2em !important;
+  font-size: 12px !important;
+  letter-spacing: 0.08em !important;
   color: var(--text-tertiary) !important;
 }
 
 .light .workbench-frame .wb-config-value {
-  font-family: 'Inter Tight', sans-serif !important;
+  font-family: 'Inter Variable', 'Inter', system-ui, sans-serif !important;
   color: var(--text-primary) !important;
 }
 
@@ -1333,14 +1357,14 @@ body {
 }
 
 .light aside .agent-nav-link--active .agent-nav-accent {
-  background: var(--accent-gold, #FDB515) !important;
+  background: var(--accent-gold, #5B3DF5) !important;
 }
 
 .light aside .agent-nav-section {
   color: var(--nav-section-label) !important;
   font-family: 'IBM Plex Mono', monospace !important;
-  font-size: 9px !important;
-  letter-spacing: 0.12em !important;
+  font-size: 12px !important;
+  letter-spacing: 0.06em !important;
 }
 
 /* ── Workbench keyframes ──────────────────────────────── */
@@ -1415,11 +1439,11 @@ body {
    Agent Graph Design System — Light (default)
    ═══════════════════════════════════════════════════════════ */
 .agent-graph {
-  --ag-canvas-bg: #EDE9DF;
+  --ag-canvas-bg: #EEF2F7;
   --ag-surface-1: #ffffff;
   --ag-surface-2: #ffffff;
   --ag-surface-3: #ffffff;
-  --ag-page-bg: #F5F2EB;
+  --ag-page-bg: #F7F9FC;
   --ag-accent: #6d48f5;
   --ag-accent-secondary: #5b3fd4;
   --ag-border: rgba(0,0,0,0.08);
@@ -1585,3 +1609,120 @@ body {
 @keyframes tm-pulse   { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 @keyframes tm-up      { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 @keyframes tm-ring    { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent); } 100% { box-shadow:0 0 0 7px color-mix(in srgb, var(--primary) 0%, transparent); } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Theme v2 — "Sage Studio" (light, terracotta) + "Data 360 Night" (dark, sapphire).
+   Kept as the last block so it overrides the older palettes above. The accent
+   and sidebar variables (--brand-a*, --rail-bg*, --rail-accent) are the ones
+   users can change; the values below are the per-mode defaults and match
+   buildAppearanceVars() in src/lib/theme/appearance.ts.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root,
+.light {
+  /* Accent (light default: Sage Studio terracotta) */
+  --brand-a:#A8481F; --brand-a-2:#C2653A; --brand-a-soft:#F8E6DC; --brand-a-ink:#843817;
+  /* Sidebar: light sage in light mode */
+  --rail-bg:#E3E9DE; --rail-bg-top:#EBF0E6; --rail-accent:#843817;
+  --rail-ink:#34413A; --rail-ink-strong:#1A231C; --rail-muted:#5A6A5E; --rail-line:rgba(26,35,28,.12);
+  --rail-hover:rgba(26,35,28,.06); --rail-active:rgba(255,255,255,.8); --rail-shadow:rgba(26,35,28,.35); --rail-glow:0;
+
+  /* Sage Studio neutrals */
+  --surface-1:#FFFFFF; --surface-2:#F3F5EF; --surface-3:#E7ECE1;
+  --line-1:#E1E6DA; --line-2:#C9D1BF;
+  --ink-1:#1A231C; --ink-2:#3A463C; --ink-3:#5D6A5F;
+  --ok:#0F7A3D; --ok-bg:#E2F1E7; --warn:#8A4B07; --warn-bg:#FBEBD3; --bad:#B42323; --bad-bg:#FBE4E1;
+  --shadow-card:0 1px 2px rgba(26,35,28,.05),0 8px 24px -10px rgba(26,35,28,.12);
+  --shadow-pop:0 24px 60px -12px rgba(26,35,28,.35);
+
+  --background:#F4F6F1; --foreground:#1A231C;
+  --card:#FFFFFF; --card-foreground:#1A231C; --popover:#FFFFFF; --popover-foreground:#1A231C;
+  --muted:#EEF1EA; --muted-foreground:#4F5C52; --border:#C9D1BF; --input:#FFFFFF;
+  --shell-bg:#ECEFE6; --main-bg:#F4F6F1; --header-bg:#FFFFFF; --header-border:#E1E6DA;
+  --nav-bg:#F4F6F1; --nav-hover:#E7ECE1; --nav-border:#D6DCCB; --nav-text:#1A231C;
+  --nav-item-text:#3A463C; --nav-section-label:#6B776D;
+
+  /* Everything that used to be "the purple" now follows the accent */
+  --primary:var(--brand-a); --primary-foreground:#FFFFFF; --ring:var(--brand-a);
+  --color-primary:var(--brand-a); --at-accent:var(--brand-a);
+  --nav-active:var(--brand-a-ink); --nav-item-text-active:var(--brand-a-ink);
+  --builder-gold:var(--brand-a-ink); --builder-border-bright:var(--brand-a);
+}
+
+.dark {
+  --brand-a:#1F5FD6; --brand-a-2:#447CE4; --brand-a-soft:rgba(31,95,214,.20); --brand-a-ink:#82A8ED;
+  --rail-bg:#0B1426; --rail-bg-top:#111E3A; --rail-accent:#7CA3EC;
+  --rail-ink:#C3CDE0; --rail-ink-strong:#FFFFFF; --rail-muted:#8D9AB4; --rail-line:rgba(255,255,255,.10);
+  --rail-hover:rgba(255,255,255,.06); --rail-active:rgba(255,255,255,.12); --rail-shadow:rgba(8,12,24,.85); --rail-glow:1;
+
+  /* Data 360 Night neutrals */
+  --surface-1:#1A1B1D; --surface-2:#212225; --surface-3:#28292D;
+  --line-1:#2B2D30; --line-2:#3A3C40;
+  --ink-1:#E4E6E8; --ink-2:#B9BCC1; --ink-3:#8B8F96;
+  --ok:#6CCB8F; --ok-bg:rgba(108,203,143,.12); --warn:#E3B95F; --warn-bg:rgba(227,185,95,.12); --bad:#EB8A80; --bad-bg:rgba(235,138,128,.12);
+  --shadow-card:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
+
+  --background:#121314; --foreground:#E4E6E8;
+  --card:#1A1B1D; --card-elevated:#212225; --card-foreground:#E4E6E8; --popover:#1A1B1D; --popover-foreground:#E4E6E8;
+  --muted:#212225; --muted-foreground:#B9BCC1; --border:#3A3C40; --border-subtle:#2B2D30; --input:#212225;
+  --text-primary:#E4E6E8; --text-secondary:#B9BCC1; --text-tertiary:#8B8F96;
+  --shell-bg:#0C0D0E; --main-bg:#121314; --header-bg:#151617; --header-border:#2B2D30;
+  --nav-bg:#0C0D0E; --nav-hover:#17181A; --nav-border:#1F2022; --nav-text:#E4E6E8;
+  --nav-item-text:#A9ADB4; --nav-section-label:#7F848B;
+  --table-header-dark:#212225; --table-row-hover-dark:#25262A;
+  --tooltip-bg:rgba(26,27,29,.95); --tooltip-border:#3A3C40; --tooltip-text:#E4E6E8;
+
+  --primary:var(--brand-a); --primary-foreground:#FFFFFF; --ring:var(--brand-a-ink);
+  --color-primary:var(--brand-a); --at-accent:var(--brand-a-ink);
+  --nav-active:var(--brand-a-ink); --nav-item-text-active:var(--brand-a-ink);
+  --builder-gold:var(--brand-a-ink); --builder-border-bright:var(--brand-a);
+}
+
+/* ── Theme v2: legacy palettes (Builder, Activity, Workbench, Performance Lab, Bandits)
+      aliased onto the shared tokens so every page follows the same theme + accent. ── */
+:root,
+.light {
+  --builder-bg:var(--background); --builder-surface:var(--surface-2); --builder-surface-raised:var(--surface-3);
+  --builder-border:var(--line-2); --builder-text:var(--ink-1); --builder-text-muted:var(--ink-2); --builder-text-label:var(--ink-3);
+  --builder-text-secondary:var(--ink-2); --builder-gold-dim:var(--brand-a-ink);
+  --at-bg-base:var(--background); --at-bg-gradient:var(--surface-2); --at-surface:var(--surface-1); --at-surface-hover:var(--surface-2);
+  --at-border-subtle:var(--line-1); --at-border-emphasis:var(--line-2);
+  --at-text-primary:var(--ink-1); --at-text-secondary:var(--ink-2); --at-text-tertiary:var(--ink-3); --at-accent-secondary:var(--brand-a-2);
+  --wb-canvas:var(--surface-2); --wb-surface:var(--surface-3); --wb-surface2:var(--line-1); --wb-muted:var(--ink-2);
+  --wb-ink:var(--ink-1); --wb-ink-dim:var(--ink-2);
+  --pl-bg:var(--background); --pl-surf:var(--surface-1); --pl-surf2:var(--surface-2); --pl-txt:var(--ink-1); --pl-txt2:var(--ink-2);
+  --pl-grad:linear-gradient(135deg, color-mix(in srgb, var(--brand-a) 12%, transparent), var(--surface-1));
+  --born-bg:var(--background); --born-surface:var(--surface-1); --born-text-pri:var(--ink-1); --born-text-sec:var(--ink-2); --born-text-mut:var(--ink-3);
+}
+.dark {
+  --builder-bg:var(--background); --builder-surface:var(--surface-1); --builder-surface-raised:var(--surface-2);
+  --builder-border:var(--line-1); --builder-border-bright:var(--line-2); --builder-text:var(--ink-1); --builder-text-muted:var(--ink-2);
+  --builder-text-label:var(--ink-3); --builder-text-secondary:var(--ink-2);
+  --at-bg-base:var(--background); --at-bg-gradient:var(--surface-1); --at-surface:var(--surface-1); --at-surface-hover:var(--surface-2);
+  --at-border-subtle:var(--line-1); --at-border-emphasis:var(--line-2);
+  --at-text-primary:var(--ink-1); --at-text-secondary:var(--ink-2); --at-text-tertiary:var(--ink-3); --at-accent-secondary:var(--brand-a-2);
+  --wb-canvas:var(--background); --wb-surface:var(--surface-1); --wb-surface2:var(--surface-2); --wb-muted:var(--ink-3);
+  --wb-ink:var(--ink-1); --wb-ink-dim:var(--ink-2); --wb-border-subtle:var(--line-1);
+  --pl-bg:var(--background); --pl-surf:var(--surface-1); --pl-surf2:var(--surface-2); --pl-border:var(--line-1); --pl-border2:var(--line-2);
+  --pl-txt:var(--ink-1); --pl-txt2:var(--ink-2); --pl-hair:var(--line-1);
+  --pl-grad:linear-gradient(135deg, color-mix(in srgb, var(--brand-a) 28%, transparent), var(--surface-1));
+  --born-bg:var(--background); --born-surface:var(--surface-1); --born-border:var(--line-1);
+  --born-text-pri:var(--ink-1); --born-text-sec:var(--ink-2); --born-text-mut:var(--ink-3); --born-hover:var(--surface-2);
+}
+
+/* ── Theme v2: shell integration ─────────────────────────────────────────────
+   Text/border aliases that older components still read, so they follow the
+   Sage Studio / Night palettes instead of the previous navy ones. */
+:root,
+.light {
+  --text-primary:var(--ink-1); --text-secondary:var(--ink-2); --text-tertiary:var(--ink-3);
+  --border-default:var(--line-2); --border-subtle:var(--line-1);
+  --header-bg:color-mix(in srgb, var(--main-bg) 82%, transparent); --header-border:var(--line-1);
+}
+.dark {
+  --border-default:var(--line-2);
+  --header-bg:color-mix(in srgb, var(--main-bg) 82%, transparent); --header-border:var(--line-1);
+}
+/* One consistent, accent-colored focus ring and selection across the app */
+:focus-visible { outline-color: var(--brand-a); }
+::selection { background: color-mix(in srgb, var(--brand-a) 28%, transparent); }
+main { scroll-behavior: smooth; }

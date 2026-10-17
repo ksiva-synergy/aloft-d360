@@ -30,10 +30,10 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 
 // Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
 const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
-  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
+  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
+  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
 };
 
 const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
@@ -43,7 +43,7 @@ function RoleBadge({ role, label }: { role: string; label?: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-1.5 py-px',
-        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
         ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
       )}
     >
@@ -135,13 +135,13 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
           <div className="flex items-center gap-2.5 mb-1">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: '#003262' }}
+              style={{ background: 'var(--brand-a-ink)' }}
             >
               <UserPlus className="h-4 w-4 text-white" />
             </div>
-            <DialogTitle className="text-[15px]">Invite User</DialogTitle>
+            <DialogTitle className="text-sm">Invite User</DialogTitle>
           </div>
-          <DialogDescription className="text-[12.5px]">
+          <DialogDescription className="text-xs">
             Create a new platform account. The user can sign in with their email and password.
           </DialogDescription>
         </DialogHeader>
@@ -149,7 +149,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
         <form onSubmit={handleSubmit} className="space-y-4 mt-1">
           {/* Email */}
           <div>
-            <label className="block text-[11.5px] font-medium text-[var(--foreground)] mb-1.5">
+            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
               Email address <span className="text-red-500">*</span>
             </label>
             <input
@@ -159,9 +159,9 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@company.com"
               className={cn(
-                'w-full px-3 py-2 text-[12.5px] rounded-md border',
+                'w-full px-3 py-2 text-xs rounded-md border',
                 'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                'focus:outline-none focus:ring-1 focus:ring-[#FDB515] dark:focus:ring-[#FDB515]',
+                'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] dark:focus:ring-[var(--brand-a)]',
                 'placeholder:text-muted-foreground',
               )}
             />
@@ -169,7 +169,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
 
           {/* Display name */}
           <div>
-            <label className="block text-[11.5px] font-medium text-[var(--foreground)] mb-1.5">
+            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
               Display name <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <input
@@ -178,9 +178,9 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               onChange={(e) => setName(e.target.value)}
               placeholder="Jane Smith"
               className={cn(
-                'w-full px-3 py-2 text-[12.5px] rounded-md border',
+                'w-full px-3 py-2 text-xs rounded-md border',
                 'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
+                'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)]',
                 'placeholder:text-muted-foreground',
               )}
             />
@@ -188,7 +188,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
 
           {/* Password */}
           <div>
-            <label className="block text-[11.5px] font-medium text-[var(--foreground)] mb-1.5">
+            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
               Password <span className="text-muted-foreground font-normal">(optional — omit for SSO-only)</span>
             </label>
             <div className="relative">
@@ -199,9 +199,9 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                 placeholder="Min. 8 characters"
                 minLength={password ? 8 : undefined}
                 className={cn(
-                  'w-full px-3 py-2 pr-9 text-[12.5px] rounded-md border',
+                  'w-full px-3 py-2 pr-9 text-xs rounded-md border',
                   'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                  'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
+                  'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)]',
                   'placeholder:text-muted-foreground',
                 )}
               />
@@ -217,11 +217,11 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
 
           {/* Role */}
           <div>
-            <label className="block text-[11.5px] font-medium text-[var(--foreground)] mb-1.5">
+            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
               Role <span className="text-red-500">*</span>
             </label>
             {rolesLoading ? (
-              <div className="flex items-center gap-2 py-3 text-muted-foreground text-[12.5px]">
+              <div className="flex items-center gap-2 py-3 text-muted-foreground text-xs">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 Loading roles…
               </div>
@@ -233,7 +233,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                     className={cn(
                       'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
                       selectedRole === role.name
-                        ? 'border-[#FDB515] bg-[#FDB515]/[0.07] dark:bg-[#FDB515]/10 dark:border-[#FDB515]/60'
+                        ? 'border-[var(--brand-a)] bg-[var(--brand-a)]/[0.07] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] dark:border-[color-mix(in_srgb,var(--brand-a)_60%,transparent)]'
                         : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
                     )}
                   >
@@ -249,7 +249,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                       <div className="flex items-center gap-2">
                         <RoleBadge role={role.name} />
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {ROLE_DESCRIPTIONS[role.name] ?? role.description ?? ''}
                       </p>
                     </div>
@@ -260,7 +260,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
           </div>
 
           {error && (
-            <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-400">
+            <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
               {error}
             </div>
           )}
@@ -272,7 +272,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
-              className="text-[12.5px]"
+              className="text-xs"
             >
               Cancel
             </Button>
@@ -280,7 +280,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
               type="submit"
               size="sm"
               disabled={submitting || !email.trim()}
-              className="text-[12.5px] gap-1.5"
+              className="text-xs gap-1.5"
             >
               {submitting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Creating…</> : 'Create User'}
             </Button>

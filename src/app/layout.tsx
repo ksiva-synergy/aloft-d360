@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import ThemeProvider from '@/components/providers/ThemeProvider';
 import AuthSessionProvider from '@/components/providers/SessionProvider';
+import { APPEARANCE_BOOT_SCRIPT } from '@/lib/theme/appearance';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -21,9 +22,11 @@ export default function RootLayout({
         {/* Blocking script: reads localStorage before first paint to avoid theme flash */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement,t=localStorage.getItem('theme'),isDark=t==='dark'||(t==='system'||!t)&&window.matchMedia('(prefers-color-scheme: dark)').matches;d.classList.add(isDark?'dark':'light');d.style.colorScheme=isDark?'dark':'light'}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement,t=localStorage.getItem('theme'),isDark=t==='dark'||false;d.classList.add(isDark?'dark':'light');d.style.colorScheme=isDark?'dark':'light'}catch(e){}})();`,
           }}
         />
+        {/* Applies the user's saved accent/sidebar colors before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: APPEARANCE_BOOT_SCRIPT }} />
       </head>
       <body className="h-full bg-[var(--background)] text-[var(--foreground)] antialiased">
         <ThemeProvider>

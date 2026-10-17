@@ -179,8 +179,8 @@ function ScopeSummary({ scope }: { scope: any }) {
   // Partition scope (auto-split child)
   if (scope.partition_catalog || scope.partition_schema) {
     return (
-      <span className="truncate block font-mono text-[11px]" title={JSON.stringify(scope, null, 2)}
-        style={{ color: '#FDB515' }}>
+      <span className="truncate block font-mono text-xs" title={JSON.stringify(scope, null, 2)}
+        style={{ color: '#5B3DF5' }}>
         {scope.partition_catalog}.{scope.partition_schema}
         {scope.partition_objects ? ` [${(scope.partition_objects as string[]).length} objs]` : ''}
       </span>
@@ -193,7 +193,7 @@ function ScopeSummary({ scope }: { scope: any }) {
     const until = scope.until ? fmtScopeDate(scope.until) : 'now';
     const taskId = scope.fargate_task_id as string | undefined;
     return (
-      <span className="flex flex-col gap-0.5 font-mono text-[11px]" title={JSON.stringify(scope, null, 2)}>
+      <span className="flex flex-col gap-0.5 font-mono text-xs" title={JSON.stringify(scope, null, 2)}>
         <span style={{ color: '#93C5FD' }}>{since}{" -> "}{until}</span>
         {taskId && <span style={{ color: '#8892A4' }}>{taskId.slice(0, 8)}...</span>}
       </span>
@@ -269,33 +269,33 @@ function ChildJobsPanel({ jobId, orgId }: { jobId: string; orgId: string }) {
   }
 
   const statusColor: Record<string, string> = {
-    queued: '#8892A4', running: '#FDB515', succeeded: '#2DD4A0', failed: '#EF4444', partial: '#F59E0B',
+    queued: '#8892A4', running: '#5B3DF5', succeeded: '#2DD4A0', failed: '#EF4444', partial: '#F59E0B',
   };
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-3 px-4">
-        <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }} />
-        <span className="text-[11px] font-mono" style={{ color: '#8892A4' }}>Loading child jobs...</span>
+        <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#5B3DF5', borderTopColor: 'transparent' }} />
+        <span className="text-xs font-mono" style={{ color: '#8892A4' }}>Loading child jobs...</span>
       </div>
     );
   }
 
   if (children.length === 0) {
-    return <div className="text-[11px] font-mono py-3 px-4" style={{ color: '#8892A4' }}>No child jobs found.</div>;
+    return <div className="text-xs font-mono py-3 px-4" style={{ color: '#8892A4' }}>No child jobs found.</div>;
   }
 
   const failedCount = counts?.failed ?? 0;
 
   return (
-    <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'rgba(253,181,21,0.2)' }}>
+    <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'rgba(253,181,21,0.15)', backgroundColor: 'rgba(253,181,21,0.04)' }}>
-        <div className="flex items-center gap-3 text-[11px] font-mono">
-          <span className="font-bold" style={{ color: '#FDB515' }}>{counts?.total ?? children.length} chunks</span>
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <span className="font-bold" style={{ color: '#5B3DF5' }}>{counts?.total ?? children.length} chunks</span>
           {counts && (
             <>
-              {counts.running > 0 && <span style={{ color: '#FDB515' }}>{counts.running} running</span>}
+              {counts.running > 0 && <span style={{ color: '#5B3DF5' }}>{counts.running} running</span>}
               {counts.queued > 0 && <span style={{ color: '#8892A4' }}>{counts.queued} queued</span>}
               {counts.succeeded > 0 && <span style={{ color: '#2DD4A0' }}>{counts.succeeded} done</span>}
               {counts.failed > 0 && <span style={{ color: '#EF4444' }}>{counts.failed} failed</span>}
@@ -306,7 +306,7 @@ function ChildJobsPanel({ jobId, orgId }: { jobId: string; orgId: string }) {
           <button
             onClick={retryFailed}
             disabled={retrying}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
             style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' }}
           >
             {retrying ? (
@@ -334,7 +334,7 @@ function ChildJobsPanel({ jobId, orgId }: { jobId: string; orgId: string }) {
             : null;
 
           return (
-            <div key={child.id} className="flex items-center gap-3 px-4 py-2 text-[11px] font-mono">
+            <div key={child.id} className="flex items-center gap-3 px-4 py-2 text-xs font-mono">
               <span className="shrink-0 font-semibold tabular-nums w-6 text-right" style={{ color: '#8892A4' }}>
                 {(child.child_index ?? 0) + 1}
               </span>
@@ -403,9 +403,9 @@ const KIND_META: Record<string, KindMeta> = {
   mapping: {
     label: 'Mapping',
     description: 'Cross-source column mapping proposals',
-    color: '#FDB515',
-    bg: 'rgba(253,181,21,0.08)',
-    border: 'rgba(253,181,21,0.25)',
+    color: '#5B3DF5',
+    bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+    border: 'color-mix(in srgb, var(--brand-a) 25%, transparent)',
   },
   silo_scan: {
     label: 'Silo Scan',
@@ -439,9 +439,9 @@ const KIND_META: Record<string, KindMeta> = {
   t3_usage: {
     label: 'T3 Usage Harvest',
     description: 'Query history + lineage scan - maps key columns, filter patterns, and co-object relationships.',
-    color: '#FDB515',
-    bg: 'rgba(253,181,21,0.08)',
-    border: 'rgba(253,181,21,0.25)',
+    color: '#5B3DF5',
+    bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+    border: 'color-mix(in srgb, var(--brand-a) 25%, transparent)',
     scheduleId: 't3_usage_weekly',
   },
   change_detect: {
@@ -568,7 +568,7 @@ function KindBadge({ kind, small }: { kind: string; small?: boolean }) {
   const m = getKindMeta(kind);
   return (
     <span
-      className={`inline-flex items-center rounded border font-mono font-semibold uppercase tracking-wider ${small ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'}`}
+      className={`inline-flex items-center rounded border font-mono font-semibold uppercase tracking-wider ${small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'}`}
       style={{ color: m.color, backgroundColor: m.bg, borderColor: m.border }}
     >
       {m.label}
@@ -687,7 +687,7 @@ function RunJobConfirmModal({
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
       <div
         className="relative w-full max-w-2xl mx-4 rounded-xl border shadow-2xl overflow-hidden"
-        style={{ backgroundColor: 'var(--card, #131d2a)', borderColor: 'rgba(253,181,21,0.3)' }}
+        style={{ backgroundColor: 'var(--card, #131d2a)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)' }}
       >
         {/* Header */}
         <div className="px-7 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border, rgba(255,255,255,0.06))' }}>
@@ -706,15 +706,15 @@ function RunJobConfirmModal({
           <div className="rounded-lg border p-5 space-y-4" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))', backgroundColor: 'var(--muted, rgba(0,0,0,0.2))' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-                <span className="text-[11px] font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
                   Scope{" - "}click schemas to exclude
                 </span>
               </div>
               {confirm.excludeSchemas.size > 0 && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' }}>
+                <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' }}>
                   {confirm.excludeSchemas.size} excluded
                 </span>
               )}
@@ -722,7 +722,7 @@ function RunJobConfirmModal({
 
             {confirm.loading ? (
               <div className="flex items-center gap-2.5 pt-2">
-                <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }} />
+                <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#5B3DF5', borderTopColor: 'transparent' }} />
                 <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Loading estate structure...</span>
               </div>
             ) : (
@@ -735,18 +735,18 @@ function RunJobConfirmModal({
                         <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
                       </svg>
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Source:</span>
-                      <span className="text-[13px] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.sourceName}</span>
+                      <span className="text-xs font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.sourceName}</span>
                     </div>
                   )}
                   {includedCount !== null && (
                     <div className="flex items-center gap-2">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                       </svg>
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Objects in scope:</span>
-                      <span className="text-[13px] font-mono font-bold" style={{ color: '#FDB515' }}>{includedCount.toLocaleString()}</span>
+                      <span className="text-xs font-mono font-bold" style={{ color: '#5B3DF5' }}>{includedCount.toLocaleString()}</span>
                       {confirm.excludeSchemas.size > 0 && confirm.objectCount !== null && (
-                        <span className="text-[11px] font-mono" style={{ color: '#EF4444' }}>
+                        <span className="text-xs font-mono" style={{ color: '#EF4444' }}>
                           ({"-"}{(confirm.objectCount - (includedCount ?? 0)).toLocaleString()} excluded)
                         </span>
                       )}
@@ -773,23 +773,23 @@ function RunJobConfirmModal({
                                 className={`transition-transform shrink-0 ${isExpanded ? 'rotate-90' : ''}`}>
                                 <polyline points="9 18 15 12 9 6"/>
                               </svg>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                               </svg>
-                              <span className={`text-[13px] font-mono font-semibold flex-1 truncate ${allSchemasExcluded ? 'line-through' : ''}`} style={{ color: 'var(--text-primary, #e8ecf0)' }}>
+                              <span className={`text-xs font-mono font-semibold flex-1 truncate ${allSchemasExcluded ? 'line-through' : ''}`} style={{ color: 'var(--text-primary, #e8ecf0)' }}>
                                 {cat.catalog}
                               </span>
-                              <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.1)' }}>
+                              <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ color: '#5B3DF5', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>
                                 {cat.count.toLocaleString()}
                               </span>
                               {someSchemasExcluded && !allSchemasExcluded && (
-                                <span className="text-[10px] font-mono" style={{ color: '#F59E0B' }}>partial</span>
+                                <span className="text-xs font-mono" style={{ color: '#F59E0B' }}>partial</span>
                               )}
                             </button>
                             <button
                               onClick={() => toggleAllSchemas(cat)}
                               title={allSchemasExcluded ? 'Include all schemas' : 'Exclude all schemas'}
-                              className="px-2 py-1.5 rounded text-[10px] font-mono font-semibold transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
+                              className="px-2 py-1.5 rounded text-xs font-mono font-semibold transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.05]"
                               style={{ color: allSchemasExcluded ? '#2DD4A0' : '#EF4444' }}
                             >
                               {allSchemasExcluded ? 'include all' : 'exclude all'}
@@ -859,7 +859,7 @@ function RunJobConfirmModal({
           )}
 
           {confirm.excludeSchemas.size > 0 && (
-            <div className="text-[11px] font-mono px-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+            <div className="text-xs font-mono px-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
               Excluded schemas are passed as job scope{" - "}the harvester filters them at runtime.
             </div>
           )}
@@ -867,12 +867,12 @@ function RunJobConfirmModal({
           {/* Auto-split preview — replaces the old "Scope too large" blockers */}
           {(splitPlansLoading || activePlan) && (
             <div className="rounded-lg border p-4 space-y-3"
-              style={{ borderColor: activePlan?.needsSplit ? 'rgba(253,181,21,0.4)' : 'rgba(45,212,160,0.3)', backgroundColor: activePlan?.needsSplit ? 'rgba(253,181,21,0.04)' : 'rgba(45,212,160,0.04)' }}>
+              style={{ borderColor: activePlan?.needsSplit ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'rgba(45,212,160,0.3)', backgroundColor: activePlan?.needsSplit ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'rgba(45,212,160,0.04)' }}>
               <div className="flex items-center gap-2.5">
                 {splitPlansLoading ? (
-                  <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }} />
+                  <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: '#5B3DF5', borderTopColor: 'transparent' }} />
                 ) : activePlan?.needsSplit ? (
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
                   </svg>
                 ) : (
@@ -880,7 +880,7 @@ function RunJobConfirmModal({
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 )}
-                <span className="text-[11px] font-mono font-bold uppercase tracking-widest" style={{ color: splitPlansLoading ? '#FDB515' : activePlan?.needsSplit ? '#FDB515' : '#2DD4A0' }}>
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: splitPlansLoading ? '#5B3DF5' : activePlan?.needsSplit ? '#5B3DF5' : '#2DD4A0' }}>
                   {splitPlansLoading ? 'Calculating split plan...' : activePlan?.needsSplit ? 'Auto-split enabled' : 'Fits in a single job'}
                 </span>
               </div>
@@ -888,28 +888,28 @@ function RunJobConfirmModal({
               {!splitPlansLoading && activePlan?.needsSplit && (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 pl-1 pt-1">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-mono font-bold" style={{ color: '#FDB515' }}>{activePlan.chunks}</span>
-                    <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>chunks ({activePlan.maxObjectsPerChunk} obj each)</span>
+                    <span className="text-lg font-mono font-bold" style={{ color: '#5B3DF5' }}>{activePlan.chunks}</span>
+                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>chunks ({activePlan.maxObjectsPerChunk} obj each)</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-bold" style={{ color: '#e8ecf0' }}>{activePlan.timeBudgetMinutes} min</span>
-                    <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>budget per chunk</span>
+                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>budget per chunk</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-bold" style={{ color: '#93C5FD' }}>~{activePlan.estimatedWallClockMinutes} min</span>
-                    <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>wall-clock ({activePlan.maxConcurrent} concurrent)</span>
+                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>wall-clock ({activePlan.maxConcurrent} concurrent)</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-bold" style={{ color: activePlan.estimatedCostUsd > 0 ? '#F59E0B' : '#2DD4A0' }}>
                       {activePlan.estimatedCostUsd > 0 ? `~$${activePlan.estimatedCostUsd.toFixed(2)}` : '$0'}
                     </span>
-                    <span className="text-[11px] font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>est. LLM cost</span>
+                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>est. LLM cost</span>
                   </div>
                 </div>
               )}
 
               {!splitPlansLoading && activePlan?.needsSplit && (
-                <div className="text-[10px] font-mono pt-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                <div className="text-xs font-mono pt-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   {activePlan.chunks} Fargate tasks will be queued{" | "}{activePlan.maxConcurrent}{" run simultaneously | "}remainder queued and launched as tasks complete
                 </div>
               )}
@@ -919,10 +919,10 @@ function RunJobConfirmModal({
           {/* Focus / include patterns */}
           <div className="rounded-lg border p-4 space-y-2" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))', backgroundColor: 'var(--muted, rgba(0,0,0,0.15))' }}>
             <div className="flex items-center gap-2">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
               </svg>
-              <span className="text-[11px] font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
                 Focus{" - "}limit to specific tables (optional)
               </span>
             </div>
@@ -937,10 +937,10 @@ function RunJobConfirmModal({
                 borderColor: 'rgba(255,255,255,0.1)',
                 color: 'var(--text-primary, #e8ecf0)',
                 // @ts-ignore
-                '--tw-ring-color': '#FDB515',
+                '--tw-ring-color': '#5B3DF5',
               }}
             />
-            <p className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+            <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
               One pattern per line or comma-separated. Supports <code className="opacity-70">*</code> wildcards. Leave empty to use full source scope.
             </p>
           </div>
@@ -948,12 +948,12 @@ function RunJobConfirmModal({
           {/* Sequential toggle — shown when multiple kinds selected */}
           {confirm.kinds.length > 1 && (
             <div className="flex items-center justify-between rounded-lg border px-4 py-3"
-              style={{ borderColor: confirm.sequential ? 'rgba(253,181,21,0.4)' : 'var(--border, rgba(255,255,255,0.08))', backgroundColor: confirm.sequential ? 'rgba(253,181,21,0.05)' : 'var(--muted, rgba(0,0,0,0.15))' }}>
+              style={{ borderColor: confirm.sequential ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--border, rgba(255,255,255,0.08))', backgroundColor: confirm.sequential ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)' : 'var(--muted, rgba(0,0,0,0.15))' }}>
               <div>
-                <div className="text-xs font-mono font-semibold" style={{ color: confirm.sequential ? '#FDB515' : 'var(--text-primary, #e8ecf0)' }}>
+                <div className="text-xs font-mono font-semibold" style={{ color: confirm.sequential ? '#5B3DF5' : 'var(--text-primary, #e8ecf0)' }}>
                   Run sequentially (T0{" -> "}T1{" -> "}T2)
                 </div>
-                <div className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   {confirm.sequential
                     ? 'Each stage waits for the previous to complete before launching'
                     : 'All job types launch simultaneously as independent containers'}
@@ -962,7 +962,7 @@ function RunJobConfirmModal({
               <button
                 onClick={onToggleSequential}
                 className="relative shrink-0 w-10 h-5 rounded-full transition-colors duration-200"
-                style={{ backgroundColor: confirm.sequential ? '#FDB515' : 'rgba(255,255,255,0.15)' }}
+                style={{ backgroundColor: confirm.sequential ? '#5B3DF5' : 'rgba(255,255,255,0.15)' }}
               >
                 <span
                   className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
@@ -982,12 +982,12 @@ function RunJobConfirmModal({
                 ? `${confirm.excludeSchemas.size} schema${confirm.excludeSchemas.size !== 1 ? 's' : ''} excluded`
                 : 'Full source scope'}
             {confirm.kinds.length > 1 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" style={{ backgroundColor: confirm.sequential ? 'rgba(253,181,21,0.15)' : 'rgba(255,255,255,0.08)', color: confirm.sequential ? '#FDB515' : 'var(--text-tertiary, #8892A4)' }}>
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-bold uppercase" style={{ backgroundColor: confirm.sequential ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'rgba(255,255,255,0.08)', color: confirm.sequential ? '#5B3DF5' : 'var(--text-tertiary, #8892A4)' }}>
                 {confirm.sequential ? 'sequential' : 'parallel'}
               </span>
             )}
             {activePlan?.needsSplit && (
-              <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase" style={{ backgroundColor: 'rgba(253,181,21,0.15)', color: '#FDB515' }}>
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-bold uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', color: '#5B3DF5' }}>
                 {activePlan.chunks} chunks
               </span>
             )}
@@ -1000,10 +1000,10 @@ function RunJobConfirmModal({
             </button>
             <button onClick={onConfirm} disabled={submitting || confirm.loading}
               className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-sm font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#FDB515', color: '#0D1B2A', borderColor: '#FDB515' }}>
+              style={{ backgroundColor: '#5B3DF5', color: '#FFFFFF', borderColor: '#5B3DF5' }}>
               {submitting ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#0D1B2A', borderTopColor: 'transparent' }} />
+                  <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#111322', borderTopColor: 'transparent' }} />
                   Launching...
                 </>
               ) : activePlan?.needsSplit ? (
@@ -1281,14 +1281,14 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
         <button
           onClick={() => setOpen(!open)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-          style={{ backgroundColor: '#FDB515', color: '#0D1B2A', borderColor: '#FDB515' }}
+          style={{ backgroundColor: '#5B3DF5', color: '#FFFFFF', borderColor: '#5B3DF5' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
           Run Job
           {selectedKinds.size > 0 && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: '#0D1B2A', color: '#FDB515' }}>
+            <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ backgroundColor: '#FFFFFF', color: '#5B3DF5' }}>
               {selectedKinds.size}
             </span>
           )}
@@ -1300,21 +1300,21 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
         {open && (
           <div
             className="absolute right-0 top-full mt-2 w-[440px] rounded-xl border shadow-xl z-50 overflow-hidden"
-            style={{ backgroundColor: 'var(--card, #1a2332)', borderColor: 'rgba(253,181,21,0.3)' }}
+            style={{ backgroundColor: 'var(--card, #1a2332)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)' }}
           >
             {/* Panel header */}
-            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: 'rgba(253,181,21,0.15)' }}>
-              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: '#FDB515' }}>
+            <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)' }}>
+              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: '#5B3DF5' }}>
                 Select job types to run
               </span>
               <div className="flex items-center gap-3">
                 <button onClick={() => setSelectedKinds(new Set(TRIGGERABLE_JOBS.map(j => j.kind)))}
-                  className="text-[10px] font-mono font-medium hover:underline" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                  className="text-xs font-mono font-medium hover:underline" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   all
                 </button>
                 <span style={{ color: 'var(--text-tertiary, #8892A4)' }}>|</span>
                 <button onClick={() => setSelectedKinds(new Set())}
-                  className="text-[10px] font-mono font-medium hover:underline" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                  className="text-xs font-mono font-medium hover:underline" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   none
                 </button>
               </div>
@@ -1329,17 +1329,17 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                     <div
                       className="sticky top-0 z-10 px-4 py-2 flex items-center gap-2 border-b"
                       style={{
-                        borderColor: 'rgba(253,181,21,0.12)',
+                        borderColor: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
                         backgroundColor: 'var(--card, #1a2332)',
                       }}
                     >
                       <span
-                        className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-[9px] font-mono font-bold"
-                        style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.1)' }}
+                        className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs font-mono font-bold"
+                        style={{ color: '#5B3DF5', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}
                       >
                         {group.step}
                       </span>
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary, #8892A4)' }}>
                         {group.label}
                       </span>
                     </div>
@@ -1366,7 +1366,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                               backgroundColor: checked ? meta.color : 'transparent',
                             }}>
                             {checked && (
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0D1B2A" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#111322" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"/>
                               </svg>
                             )}
@@ -1405,7 +1405,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                 disabled={selectedKinds.size === 0}
                 onClick={openConfirmation}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#FDB515', color: '#0D1B2A', borderColor: '#FDB515' }}
+                style={{ backgroundColor: '#5B3DF5', color: '#FFFFFF', borderColor: '#5B3DF5' }}
               >
                 Review {selectedKinds.size > 0 ? `${selectedKinds.size} ` : ''}job{selectedKinds.size !== 1 ? 's' : ''}
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1439,7 +1439,7 @@ function StatusChip({ status }: { status: string }) {
   const mapped = isOrchestrating ? 'orchestrating' : mapJobStatus(status);
   const styles: Record<string, { color: string; bg: string; border: string }> = {
     queued:         { color: '#8892A4', bg: 'rgba(136,146,164,0.08)', border: 'rgba(136,146,164,0.25)' },
-    running:        { color: '#FDB515', bg: 'rgba(253,181,21,0.08)',  border: 'rgba(253,181,21,0.3)'   },
+    running:        { color: '#5B3DF5', bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',  border: 'color-mix(in srgb, var(--brand-a) 30%, transparent)'   },
     done:           { color: '#2DD4A0', bg: 'rgba(45,212,160,0.08)',  border: 'rgba(45,212,160,0.25)'  },
     failed:         { color: '#EF4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.25)'   },
     orchestrating:  { color: '#93C5FD', bg: 'rgba(147,197,253,0.08)', border: 'rgba(147,197,253,0.3)'  },
@@ -1447,7 +1447,7 @@ function StatusChip({ status }: { status: string }) {
   const s = styles[mapped] ?? styles.queued;
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[11px] font-mono uppercase tracking-wider"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono uppercase tracking-wider"
       style={{ color: s.color, backgroundColor: s.bg, borderColor: s.border }}
     >
       {(mapped === 'running' || mapped === 'orchestrating') && (
@@ -1483,7 +1483,7 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
   const totalRunning = summaries.reduce((s, k) => s + k.running, 0);
   const totalQueued = summaries.reduce((s, k) => s + k.queued, 0);
   const overallRate = totalRuns > 0 ? Math.round((totalSuccess / totalRuns) * 100) : 0;
-  const rateColor = overallRate >= 90 ? '#2DD4A0' : overallRate >= 70 ? '#FDB515' : '#EF4444';
+  const rateColor = overallRate >= 90 ? '#2DD4A0' : overallRate >= 70 ? '#5B3DF5' : '#EF4444';
   const activeKinds = summaries.filter(s => s.total > 0).length;
 
   return (
@@ -1493,41 +1493,41 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
         <SuccessRing rate={overallRate} color={rateColor} />
         <div>
           <div className="text-lg font-mono font-bold" style={{ color: rateColor }}>{overallRate}%</div>
-          <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Success</div>
+          <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Success</div>
         </div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{totalRuns.toLocaleString()}</div>
-        <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
+        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'rgba(45,212,160,0.15)', backgroundColor: 'rgba(45,212,160,0.04)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: '#2DD4A0' }}>{totalSuccess.toLocaleString()}</div>
-        <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
+        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: totalFailed > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)', backgroundColor: totalFailed > 0 ? 'rgba(239,68,68,0.04)' : 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: totalFailed > 0 ? '#EF4444' : 'var(--estate-text-muted)' }}>{totalFailed}</div>
-        <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
+        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: totalRunning > 0 ? 'rgba(253,181,21,0.2)' : 'rgba(255,255,255,0.06)', backgroundColor: totalRunning > 0 ? 'rgba(253,181,21,0.04)' : 'var(--estate-raised)' }}>
+        style={{ borderColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'rgba(255,255,255,0.06)', backgroundColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'var(--estate-raised)' }}>
         <div className="flex items-center gap-2">
           {totalRunning > 0 && (
             <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FDB515] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FDB515]" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
             </span>
           )}
-          <span className="text-lg font-mono font-bold" style={{ color: totalRunning > 0 ? '#FDB515' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
+          <span className="text-lg font-mono font-bold" style={{ color: totalRunning > 0 ? '#5B3DF5' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
         </div>
-        <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Active</div>
+        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Active</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{activeKinds}/{ALL_KINDS.length}</div>
-        <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
+        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
       </div>
     </div>
   );
@@ -1537,16 +1537,16 @@ function JobKindGroupHeader({ group, isFirst }: { group: JobKindGroup; isFirst?:
   return (
     <div className={cn('col-span-full flex items-center gap-3', isFirst ? 'mb-1' : 'mt-6 mb-1')}>
       <span
-        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-mono font-bold"
-        style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.1)', border: '1px solid rgba(253,181,21,0.25)' }}
+        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-mono font-bold"
+        style={{ color: '#5B3DF5', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }}
       >
         {group.step}
       </span>
       <div className="min-w-0">
-        <div className="text-[11px] font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--estate-text-secondary)' }}>
+        <div className="text-xs font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--estate-text-secondary)' }}>
           {group.label}
         </div>
-        <div className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
+        <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
           {group.subtitle}
         </div>
       </div>
@@ -1600,17 +1600,17 @@ function JobKindCard({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isActive && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-mono font-bold uppercase"
-              style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.1)' }}>
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono font-bold uppercase"
+              style={{ color: '#5B3DF5', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FDB515] opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#FDB515]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--brand-a)]" />
               </span>
               {s!.running > 0 ? `${s!.running} running` : `${s!.queued} queued`}
             </span>
           )}
           {hasFailures && (
-            <span className="px-2 py-1 rounded-md text-[10px] font-mono font-bold"
+            <span className="px-2 py-1 rounded-md text-xs font-mono font-bold"
               style={{ color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' }}>
               {s!.failed} failed
             </span>
@@ -1625,13 +1625,13 @@ function JobKindCard({
               <div className="h-full flex">
                 <div className="h-full transition-all duration-500" style={{ width: `${(s.succeeded / s.total) * 100}%`, backgroundColor: '#2DD4A0' }} />
                 {s.failed > 0 && <div className="h-full transition-all duration-500" style={{ width: `${(s.failed / s.total) * 100}%`, backgroundColor: '#EF4444' }} />}
-                {s.running > 0 && <div className="h-full transition-all duration-500" style={{ width: `${(s.running / s.total) * 100}%`, backgroundColor: '#FDB515' }} />}
+                {s.running > 0 && <div className="h-full transition-all duration-500" style={{ width: `${(s.running / s.total) * 100}%`, backgroundColor: '#5B3DF5' }} />}
               </div>
             </div>
             <div className="flex items-center gap-4 text-xs font-mono">
               <span style={{ color: 'var(--estate-ink)' }}>{s.total} runs</span>
               {successRate !== null && (
-                <span style={{ color: successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#FDB515' : '#EF4444' }}>
+                <span style={{ color: successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#5B3DF5' : '#EF4444' }}>
                   {successRate}% ok
                 </span>
               )}
@@ -1640,7 +1640,7 @@ function JobKindCard({
           </div>
           {successRate !== null && (
             <SuccessRing rate={successRate} size={40} stroke={3.5}
-              color={successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#FDB515' : '#EF4444'} />
+              color={successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#5B3DF5' : '#EF4444'} />
           )}
         </div>
       ) : (
@@ -1651,7 +1651,7 @@ function JobKindCard({
       )}
 
       <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-        <span className="text-[11px] font-mono" style={{ color: 'var(--estate-text-muted)' }}>
+        <span className="text-xs font-mono" style={{ color: 'var(--estate-text-muted)' }}>
           {s?.last_run_at ? (
             <>
               <span style={{ color: 'var(--estate-text-secondary)' }}>Last run </span>
@@ -1663,14 +1663,14 @@ function JobKindCard({
         </span>
         {sched && (
           sched.deployment === 'manual' ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md"
+            <span className="inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded-md"
               style={{ color: 'var(--estate-text-muted)', backgroundColor: 'rgba(136,146,164,0.1)' }}
               title="Manual / on-demand — no EventBridge rule deployed">
               manual
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md"
-              style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.08)' }}>
+            <span className="inline-flex items-center gap-1 text-xs font-mono px-2 py-0.5 rounded-md"
+              style={{ color: '#5B3DF5', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
@@ -1714,13 +1714,13 @@ function L1View({
       {queuedJobs.length > 0 && (
         <div
           className="mb-5 px-4 py-3 rounded-lg border flex items-center gap-3 flex-wrap"
-          style={{ borderColor: 'rgba(253,181,21,0.3)', backgroundColor: 'rgba(253,181,21,0.04)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}
         >
           <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FDB515] opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FDB515]" />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
           </span>
-          <span className="font-mono text-xs font-bold tracking-wider uppercase text-[#FDB515]">
+          <span className="font-mono text-xs font-bold tracking-wider uppercase text-[var(--brand-a-ink)]">
             {queuedJobs.length} job{queuedJobs.length !== 1 ? 's' : ''} queued
           </span>
           <div className="flex flex-wrap gap-1.5 ml-2">
@@ -1729,7 +1729,7 @@ function L1View({
               return (
                 <span
                   key={qj.id}
-                  className="inline-flex items-center gap-1 rounded border font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 text-[10px] group"
+                  className="inline-flex items-center gap-1 rounded border font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 text-xs group"
                   style={{ color: m.color, backgroundColor: m.bg, borderColor: m.border }}
                 >
                   {m.label}
@@ -1746,7 +1746,7 @@ function L1View({
               );
             })}
             {queuedJobs.length > 8 && (
-              <span className="text-[10px] font-mono" style={{ color: mutedColor }}>+{queuedJobs.length - 8} more</span>
+              <span className="text-xs font-mono" style={{ color: mutedColor }}>+{queuedJobs.length - 8} more</span>
             )}
           </div>
         </div>
@@ -1810,10 +1810,10 @@ function L2View({
       <table className="w-full border-collapse text-xs text-left">
         <thead>
           <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-            <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Date</th>
-            <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Runs</th>
-            <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Outcome</th>
-            <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-32 text-right" style={{ color: labelColor }}>Total Duration</th>
+            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Date</th>
+            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Runs</th>
+            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Outcome</th>
+            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-32 text-right" style={{ color: labelColor }}>Total Duration</th>
             <th className="p-3 w-16" />
           </tr>
         </thead>
@@ -1842,7 +1842,7 @@ function L2View({
           ) : (
             dateGroups.map((dg, idx) => {
               const successRate = dg.total > 0 ? Math.round((dg.succeeded / dg.total) * 100) : 0;
-              const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#FDB515' : '#EF4444';
+              const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#5B3DF5' : '#EF4444';
               return (
                 <tr
                   key={dg.date}
@@ -1867,21 +1867,21 @@ function L2View({
                             style={{ width: `${successRate}%`, backgroundColor: rateColor }}
                           />
                         </div>
-                        <span className="text-[10px] font-mono w-8 shrink-0" style={{ color: rateColor }}>{successRate}%</span>
+                        <span className="text-xs font-mono w-8 shrink-0" style={{ color: rateColor }}>{successRate}%</span>
                       </div>
-                      <span className="text-[10px] font-mono" style={{ color: mutedColor }}>
+                      <span className="text-xs font-mono" style={{ color: mutedColor }}>
                         {dg.succeeded > 0 && <span style={{ color: '#2DD4A0' }}>{dg.succeeded} ok</span>}
                         {dg.failed > 0 && <span style={{ color: '#EF4444' }}> {dg.failed} fail</span>}
-                        {dg.running > 0 && <span style={{ color: '#FDB515' }}> {dg.running} running</span>}
+                        {dg.running > 0 && <span style={{ color: '#5B3DF5' }}> {dg.running} running</span>}
                         {dg.queued > 0 && <span style={{ color: '#8892A4' }}> {dg.queued} queued</span>}
                       </span>
                     </div>
                   </td>
-                  <td className="p-3 text-right font-mono text-[11px]" style={{ color: mutedColor }}>
+                  <td className="p-3 text-right font-mono text-xs" style={{ color: mutedColor }}>
                     {formatDurationS(dg.total_duration_s)}
                   </td>
                   <td className="p-3 text-right">
-                    <span className="text-[10px] font-mono" style={{ color: meta.color }}>View</span>
+                    <span className="text-xs font-mono" style={{ color: meta.color }}>View</span>
                   </td>
                 </tr>
               );
@@ -1943,12 +1943,12 @@ function L3View({
         <table className="w-full border-collapse text-xs text-left">
           <thead>
             <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Status</th>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Scope</th>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Started</th>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Duration</th>
-              <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-40" style={{ color: labelColor }}>Stats</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Status</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Scope</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Started</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Duration</th>
+              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-40" style={{ color: labelColor }}>Stats</th>
             </tr>
           </thead>
           <tbody>
@@ -1967,7 +1967,7 @@ function L3View({
               <tr>
                 <td colSpan={6} className="p-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: labelColor }}>No jobs on this date</span>
+                    <span className="font-mono text-xs tracking-widest uppercase" style={{ color: labelColor }}>No jobs on this date</span>
                     <p className="text-xs" style={{ color: mutedColor }}>No {getKindMeta(kind).label} jobs ran on {formatDate(date)}.</p>
                   </div>
                 </td>
@@ -1987,7 +1987,7 @@ function L3View({
                       onClick={() => onSelectJob(job)}
                       className="border-b hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors duration-150"
                       style={isHighlighted
-                        ? { backgroundColor: 'rgba(253,181,21,0.15)', borderLeft: '3px solid #FDB515' }
+                        ? { backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', borderLeft: '3px solid #5B3DF5' }
                         : { backgroundColor: getRowBg(idx), borderColor }
                       }
                     >
@@ -1998,8 +1998,8 @@ function L3View({
                             <button
                               onClick={e => toggleParentExpand(job.id, e)}
                               title={isExpanded ? 'Hide child jobs' : 'Show child jobs'}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-mono font-bold uppercase tracking-wider transition-colors"
-                              style={{ borderColor: 'rgba(253,181,21,0.4)', color: '#FDB515', backgroundColor: isExpanded ? 'rgba(253,181,21,0.15)' : 'rgba(253,181,21,0.06)' }}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-colors"
+                              style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)', color: '#5B3DF5', backgroundColor: isExpanded ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}
                             >
                               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                                 className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
@@ -2114,7 +2114,7 @@ function KindDropdown({
                   style={{ backgroundColor: meta.color }}
                 />
                 {meta.label}
-                {isCurrent && <span className="ml-auto text-[10px] opacity-50">current</span>}
+                {isCurrent && <span className="ml-auto text-xs opacity-50">current</span>}
               </button>
             );
           })}
@@ -2167,7 +2167,7 @@ function DateDropdown({
           {dateGroups.map(dg => {
             const isCurrent = dg.date === urlDate;
             const successRate = dg.total > 0 ? Math.round((dg.succeeded / dg.total) * 100) : 0;
-            const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#FDB515' : '#EF4444';
+            const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? '#5B3DF5' : '#EF4444';
             return (
               <button
                 key={dg.date}
@@ -2176,10 +2176,10 @@ function DateDropdown({
                 aria-selected={isCurrent}
                 onClick={() => { setOpen(false); if (!isCurrent) onSelectDate(dg.date); }}
                 className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-xs font-mono text-left transition-colors hover:bg-white/[0.06]"
-                style={{ color: isCurrent ? '#FDB515' : 'var(--estate-ink)' }}
+                style={{ color: isCurrent ? '#5B3DF5' : 'var(--estate-ink)' }}
               >
                 <span>{formatDate(dg.date)}</span>
-                <span className="shrink-0 text-[10px]" style={{ color: rateColor }}>
+                <span className="shrink-0 text-xs" style={{ color: rateColor }}>
                   {dg.total} run{dg.total !== 1 ? 's' : ''}
                 </span>
               </button>
@@ -2247,14 +2247,14 @@ function JobsDrilldownNav({
       {schedForKind && (
         schedForKind.deployment === 'manual' ? (
           <span
-            className="shrink-0 px-2 py-0.5 rounded border text-[11px] font-mono font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
+            className="shrink-0 px-2 py-0.5 rounded border text-xs font-mono font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
             title="Manual / on-demand — no EventBridge rule deployed"
           >
             Manual — not scheduled
           </span>
         ) : (
           <span
-            className="shrink-0 px-2 py-0.5 rounded border text-[11px] font-mono font-medium"
+            className="shrink-0 px-2 py-0.5 rounded border text-xs font-mono font-medium"
             style={{
               color: 'var(--estate-status-warning-text)',
               backgroundColor: 'var(--estate-status-warning-bg)',
@@ -2449,10 +2449,10 @@ function EstateJobsPageContent() {
         <div className="px-6 py-3 border-b flex items-center justify-between shrink-0 bg-[var(--nav-hover)] border-[var(--nav-border)]">
           <div className="flex items-center gap-5 flex-wrap">
             <div className="flex items-center gap-2 shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FDB515" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B3DF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span className="font-mono text-[11px] font-bold tracking-wider uppercase text-[var(--text-secondary)]">
+              <span className="font-mono text-xs font-bold tracking-wider uppercase text-[var(--text-secondary)]">
                 Schedules
               </span>
             </div>
@@ -2468,24 +2468,24 @@ function EstateJobsPageContent() {
                     title={isManual
                       ? `${sched.description}\nManual / on-demand — no EventBridge rule deployed`
                       : `${sched.description}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[11px] font-mono transition-all"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono transition-all"
                     style={{
-                      backgroundColor: isImminent ? 'rgba(253,181,21,0.06)' : 'var(--card)',
-                      borderColor: isImminent ? 'rgba(253,181,21,0.3)' : 'var(--nav-border)',
+                      backgroundColor: isImminent ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'var(--card)',
+                      borderColor: isImminent ? 'color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'var(--nav-border)',
                       opacity: isManual ? 0.75 : 1,
                     }}
                   >
                     <span className="font-semibold text-[var(--foreground)]">{sched.label}</span>
                     <span className="text-[var(--text-tertiary)]">|</span>
                     {isManual ? (
-                      <span className="font-bold uppercase tracking-wider text-[10px] text-[var(--text-tertiary)]">
+                      <span className="font-bold uppercase tracking-wider text-xs text-[var(--text-tertiary)]">
                         manual · not scheduled
                       </span>
                     ) : (
                       <>
-                        <span className="text-[10px] text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
+                        <span className="text-xs text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
                         <span className="text-[var(--text-tertiary)]">|</span>
-                        <span className={`font-bold ${isImminent ? 'text-[#FDB515]' : 'text-[var(--text-secondary)]'}`}>
+                        <span className={`font-bold ${isImminent ? 'text-[var(--brand-a-ink)]' : 'text-[var(--text-secondary)]'}`}>
                           {relative}
                         </span>
                       </>
@@ -2498,7 +2498,7 @@ function EstateJobsPageContent() {
           <div className="flex items-center gap-4 shrink-0">
             <div className="hidden xl:flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-[11px] text-[var(--text-tertiary)] font-mono">
+              <span className="text-xs text-[var(--text-tertiary)] font-mono">
                 Infrastructure active
               </span>
             </div>
@@ -2533,15 +2533,15 @@ function EstateJobsPageContent() {
                   key={tab}
                   onClick={() => pushParams({ tab: tab === 'jobs' ? null : tab })}
                   className={cn(
-                    'relative px-5 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest transition-colors duration-150 rounded-t cursor-pointer border-none',
+                    'relative px-5 py-2.5 text-xs font-mono font-bold uppercase tracking-widest transition-colors duration-150 rounded-t cursor-pointer border-none',
                     isActive
-                      ? 'text-[#FDB515] bg-[rgba(253,181,21,0.06)]'
+                      ? 'text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]'
                       : 'text-[var(--nav-item-text)] bg-transparent hover:text-[var(--nav-text)] hover:bg-white/[0.02]',
                   )}
                 >
                   {tab === 'jobs' ? 'Job Types' : 'Scanned Objects'}
                   {isActive && (
-                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t bg-[#FDB515]" />
+                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t bg-[var(--brand-a)]" />
                   )}
                 </button>
               );

@@ -16,16 +16,16 @@ import {
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
 const INK_DIM = 'var(--wb-ink-dim)';
 const SURFACE = 'var(--wb-surface)';
 const SURFACE2 = 'var(--wb-surface2)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
-const BORDER_GOLD = 'rgba(253,181,21,0.30)';
+const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const CANVAS = 'var(--wb-canvas)';
 const GREEN = '#22c55e';
 
@@ -81,11 +81,11 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
             alignItems: 'center',
             gap: 4,
             ...mono,
-            fontSize: 11,
+            fontSize: 13,
             fontWeight: 500,
             color: GOLD,
-            background: 'rgba(253,181,21,0.08)',
-            border: `1px solid rgba(253,181,21,0.30)`,
+            background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+            border: `1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)`,
             borderRadius: 5,
             padding: '3px 8px 3px 6px',
             whiteSpace: 'nowrap',
@@ -125,7 +125,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
             alignItems: 'center',
             gap: 4,
             ...mono,
-            fontSize: 11,
+            fontSize: 13,
             color: open ? GOLD : MUTED,
             background: 'transparent',
             border: `1px solid ${open ? BORDER_GOLD : 'rgba(74,96,128,0.35)'}`,
@@ -162,7 +162,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
               }}
             >
               <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-                <span style={{ ...mono, fontSize: 10, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
                   Attach tool
                 </span>
               </div>
@@ -183,21 +183,21 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
                       textAlign: 'left',
                       transition: 'background 0.1s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(253,181,21,0.05)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                   >
                     <Database size={13} style={{ color: GOLD, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...sans, fontSize: 12, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ ...sans, fontSize: 13, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {displayName(tool.name)}
                       </div>
-                      <div style={{ ...mono, fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ ...mono, fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {tool.slug}
                       </div>
                     </div>
                     <span style={{
                       ...mono,
-                      fontSize: 9,
+                      fontSize: 13,
                       fontWeight: 700,
                       padding: '2px 6px',
                       borderRadius: 4,
@@ -272,11 +272,11 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
           opacity: disabled ? 0.5 : 1,
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(253,181,21,0.05)'; }}
+        onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         <Zap size={11} style={{ color: providerColor, flexShrink: 0 }} />
-        <span style={{ ...mono, fontSize: 11, color: INK_DIM, whiteSpace: 'nowrap' }}>
+        <span style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'nowrap' }}>
           {current.label}
         </span>
         <ChevronDown size={10} style={{ color: MUTED, flexShrink: 0 }} />
@@ -303,12 +303,12 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
             }}
           >
             <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-              <span style={{ ...mono, fontSize: 10, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Model</span>
+              <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Model</span>
             </div>
             <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
               {Object.entries(grouped).map(([provider, models]) => (
                 <div key={provider}>
-                  <div style={{ padding: '6px 12px 3px', ...mono, fontSize: 9, color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <div style={{ padding: '6px 12px 3px', ...mono, fontSize: 13, color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
                     {provider}
                   </div>
                   {models.map(m => {
@@ -323,26 +323,26 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
                           alignItems: 'flex-start',
                           gap: 10,
                           padding: '7px 12px',
-                          background: isActive ? 'rgba(253,181,21,0.06)' : 'transparent',
+                          background: isActive ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'transparent',
                           border: 'none',
                           cursor: 'pointer',
                           textAlign: 'left',
                           transition: 'background 0.1s',
                         }}
-                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(253,181,21,0.04)'; }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 4%, transparent)'; }}
                         onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
                       >
                         <div style={{ width: 14, paddingTop: 2, flexShrink: 0 }}>
                           {isActive && <CheckCircle2 size={12} style={{ color: GOLD }} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ ...sans, fontSize: 12, color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
+                          <div style={{ ...sans, fontSize: 13, color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
                             {m.label}
                             {m.supportsThinking && (
-                              <span style={{ ...mono, fontSize: 9, color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.06em' }}>thinking</span>
+                              <span style={{ ...mono, fontSize: 13, color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.06em' }}>thinking</span>
                             )}
                           </div>
-                          <div style={{ ...mono, fontSize: 10, color: MUTED, marginTop: 1 }}>{m.description}</div>
+                          <div style={{ ...mono, fontSize: 13, color: MUTED, marginTop: 1 }}>{m.description}</div>
                         </div>
                       </button>
                     );
@@ -423,7 +423,7 @@ export function InputComposer({
   };
 
   const borderColor = focused
-    ? 'rgba(253,181,21,0.45)'
+    ? 'color-mix(in srgb, var(--brand-a) 45%, transparent)'
     : BORDER_SUBTLE;
 
   return (
@@ -479,7 +479,7 @@ export function InputComposer({
           <div style={{
             padding: '2px 16px 10px',
             ...mono,
-            fontSize: 11,
+            fontSize: 13,
             color: GOLD,
             display: 'flex',
             alignItems: 'center',
@@ -512,7 +512,7 @@ export function InputComposer({
         {/* Right: hint + send/stop */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {!busy && (
-            <span style={{ ...mono, fontSize: 10, color: MUTED, whiteSpace: 'nowrap', opacity: focused ? 1 : 0.5, transition: 'opacity 0.2s' }}>
+            <span style={{ ...mono, fontSize: 13, color: MUTED, whiteSpace: 'nowrap', opacity: focused ? 1 : 0.5, transition: 'opacity 0.2s' }}>
               ↵ send · ⇧↵ newline
             </span>
           )}
@@ -554,8 +554,8 @@ export function InputComposer({
                   width: 36,
                   height: 36,
                   borderRadius: 8,
-                  background: canSend ? 'rgba(253,181,21,0.12)' : 'rgba(253,181,21,0.05)',
-                  border: `1px solid ${canSend ? 'rgba(253,181,21,0.3)' : 'rgba(253,181,21,0.1)'}`,
+                  background: canSend ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'color-mix(in srgb, var(--brand-a) 5%, transparent)',
+                  border: `1px solid ${canSend ? 'color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'color-mix(in srgb, var(--brand-a) 10%, transparent)'}`,
                   cursor: canSend ? 'pointer' : 'not-allowed',
                   color: canSend ? GOLD : MUTED,
                   transition: 'background 0.15s, transform 0.1s',
@@ -571,19 +571,23 @@ export function InputComposer({
                 <button
                   onClick={onCommission}
                   disabled={!canCommission}
-                  title={!canCommission ? 'Complete required fields first' : 'Commission agent (runs the Observer pipeline)'}
+                  title={
+                    !canCommission
+                      ? 'Need agent name, class, and instructions (40+ chars) saved in the draft — check the right panel'
+                      : 'Commission agent (runs the Observer pipeline)'
+                  }
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 5,
                     height: 36,
                     borderRadius: 8,
-                    background: canCommission ? GOLD : 'rgba(253,181,21,0.12)',
+                    background: canCommission ? GOLD : 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
                     border: 'none',
                     cursor: canCommission ? 'pointer' : 'not-allowed',
                     color: canCommission ? '#001f3f' : MUTED,
                     ...mono,
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 600,
                     letterSpacing: '0.1em',
                     padding: '0 14px',

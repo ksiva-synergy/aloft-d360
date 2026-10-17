@@ -45,17 +45,17 @@ interface UserTableProps {
 // Role chips sourced from the Spinor Labs brand palette (gold / navy / slate)
 // so they read consistently in both themes — see globals.css --estate-* tokens.
 const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
-  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
+  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
+  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
 };
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string }> = {
   ACTIVE:      { dot: 'bg-emerald-500',  text: 'text-emerald-600 dark:text-emerald-400', label: 'Active' },
   SUSPENDED:   { dot: 'bg-red-500',      text: 'text-red-600 dark:text-red-400',         label: 'Blocked' },
   INVITED:     { dot: 'bg-blue-400',     text: 'text-blue-600 dark:text-blue-400',        label: 'Invited' },
-  DEACTIVATED: { dot: 'bg-slate-400',    text: 'text-slate-500 dark:text-slate-400',      label: 'Deactivated' },
+  DEACTIVATED: { dot: 'bg-slate-400',    text: 'text-[var(--ink-3)] dark:text-slate-400',      label: 'Deactivated' },
 };
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -85,7 +85,7 @@ function RoleBadge({ role, label }: { role: string; label: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
         style,
       )}
     >
@@ -99,10 +99,10 @@ function PairStat({ d30, d7, label, title }: { d30: number; d7: number; label: s
   return (
     <div className="flex flex-col items-start leading-none" title={title}>
       <span className="tabular-nums">
-        <span className={cn('text-[12.5px] font-semibold', d30 > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{d30}</span>
-        <span className="text-[11px] text-muted-foreground/70"> / {d7}</span>
+        <span className={cn('text-xs font-semibold', d30 > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{d30}</span>
+        <span className="text-xs text-muted-foreground/70"> / {d7}</span>
       </span>
-      <span className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.08em] text-muted-foreground">
+      <span className="mt-1 font-mono text-xs uppercase tracking-[0.08em] text-muted-foreground">
         {label} <span className="opacity-60">30d/7d</span>
       </span>
     </div>
@@ -114,7 +114,7 @@ function IconStat({ icon: Icon, value, title }: { icon: React.ElementType; value
   return (
     <div className="flex items-center gap-1" title={title}>
       <Icon className="h-3 w-3 shrink-0 text-muted-foreground opacity-60" />
-      <span className={cn('text-[12px] tabular-nums font-medium', value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{value}</span>
+      <span className={cn('text-xs tabular-nums font-medium', value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50')}>{value}</span>
     </div>
   );
 }
@@ -187,7 +187,7 @@ function ActionsMenu({
           {canUpdateUsers && (
             <button
               onClick={() => { setOpen(false); onEditUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
               Edit Profile
@@ -196,7 +196,7 @@ function ActionsMenu({
           {canAssignRoles && (
             <button
               onClick={() => { setOpen(false); onChangeRole?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Shield className="h-3.5 w-3.5 text-muted-foreground" />
               Change Role
@@ -206,7 +206,7 @@ function ActionsMenu({
             <button
               onClick={() => { setOpen(false); onToggleStatus?.(user); }}
               className={cn(
-                'flex items-center gap-2 w-full px-3 py-2 text-[12px] transition-colors',
+                'flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors',
                 user.status === 'SUSPENDED'
                   ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
                   : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10',
@@ -221,7 +221,7 @@ function ActionsMenu({
           {canDeleteUsers && !isSelf && (
             <button
               onClick={() => { setOpen(false); onDeleteUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-slate-600 dark:text-slate-400 hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
+              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-600 dark:text-slate-400 hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove User
@@ -275,13 +275,13 @@ export function UserTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">User</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Role</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Status</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Provider</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Last Login</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Joined</th>
-              <th className="text-left px-4 py-2.5 font-mono text-[9.5px] uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Activity</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">User</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Role</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Status</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Provider</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Last Login</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Joined</th>
+              <th className="text-left px-4 py-2.5 font-mono text-xs uppercase tracking-[0.14em] font-medium text-[var(--estate-text-dim)]">Activity</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
@@ -310,13 +310,13 @@ export function UserTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">User</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Role</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Provider</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Last Login</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Joined</th>
-            <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Activity</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">User</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Role</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Status</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Provider</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Last Login</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Joined</th>
+            <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Activity</th>
             <th className="px-4 py-2.5" />
           </tr>
         </thead>
@@ -339,19 +339,19 @@ export function UserTable({
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2.5">
                     <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 select-none"
-                      style={{ background: '#003262', color: '#FDB515' }}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 select-none"
+                      style={{ background: 'var(--brand-a-ink)', color: 'var(--brand-a-ink)' }}
                     >
                       {initials}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[12.5px] font-medium text-[var(--foreground)] truncate max-w-[180px]">
+                      <div className="text-xs font-medium text-[var(--foreground)] truncate max-w-[180px]">
                         {user.name || <span className="italic text-muted-foreground">No name</span>}
                         {isSelf && (
-                          <span className="ml-1.5 text-[9px] font-mono font-semibold uppercase tracking-wider text-[#FDB515] opacity-80">you</span>
+                          <span className="ml-1.5 text-xs font-mono font-semibold uppercase tracking-wider text-[var(--brand-a-ink)] opacity-80">you</span>
                         )}
                       </div>
-                      <div className="text-[11px] text-muted-foreground truncate max-w-[180px] font-mono">{user.email}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-[180px] font-mono">{user.email}</div>
                     </div>
                   </div>
                 </td>
@@ -363,7 +363,7 @@ export function UserTable({
 
                 {/* Status column */}
                 <td className="px-4 py-3">
-                  <span className={cn('inline-flex items-center gap-1.5 text-[11.5px]', status.text)}>
+                  <span className={cn('inline-flex items-center gap-1.5 text-xs', status.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.dot)} />
                     {status.label}
                   </span>
@@ -371,21 +371,21 @@ export function UserTable({
 
                 {/* Provider column */}
                 <td className="px-4 py-3">
-                  <span className="text-[11px] font-mono text-muted-foreground">
+                  <span className="text-xs font-mono text-muted-foreground">
                     {user.authProvider === 'aad' ? 'Entra ID' : user.authProvider === 'credentials' ? 'Password' : user.authProvider}
                   </span>
                 </td>
 
                 {/* Last Login column */}
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3 shrink-0 opacity-60" />
                     {formatDate(user.lastLoginAt)}
                   </span>
                 </td>
 
                 {/* Joined column */}
-                <td className="px-4 py-3 text-[11.5px] text-muted-foreground">
+                <td className="px-4 py-3 text-xs text-muted-foreground">
                   {formatDate(user.createdAt)}
                 </td>
 

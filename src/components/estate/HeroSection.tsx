@@ -9,7 +9,7 @@
 //   - FreshnessDot: inline freshness summary
 //
 // Design tokens from approved source (Estate Object Detail.dc.html):
-//   Hero card:  background var(--estate-raised), border-top 3px solid #FDB515, border-radius 8px
+//   Hero card:  background var(--estate-raised), border-top 3px solid var(--brand-a), border-radius 8px
 //   Hero grid:  two columns (identity 55% / readiness 45%)
 //   Object title: Source Serif 4, 28–33px, font-weight 600
 //   native_comment: border-left 3px solid #e0b23c, border-radius 0 6px 6px 0
@@ -70,7 +70,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
       style={{
         background: 'var(--estate-raised)',
         border: '1px solid var(--estate-border-gold)',
-        borderTop: '3px solid #FDB515',
+        borderTop: '3px solid var(--brand-a)',
         borderRadius: 8,
       }}
     >
@@ -107,7 +107,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
           <div>
             <h1
               style={{
-                fontFamily: '"Source Serif 4", Georgia, serif',
+                fontFamily: '"Inter Variable", "Inter", system-ui, sans-serif',
                 fontSize: 28,
                 fontWeight: 600,
                 color: inkColor,
@@ -122,7 +122,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 11,
+                  fontSize: 13,
                   color: mutedColor,
                   marginTop: 4,
                 }}
@@ -140,7 +140,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               alignItems: 'center',
               gap: '4px 12px',
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 12,
+              fontSize: 13,
               color: labelColor,
             }}
           >
@@ -150,7 +150,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
             <span style={{ opacity: 0.3 }}>|</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <FreshnessDot stale={freshness.stale} size={7} />
-              <span style={{ textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.08em' }}>
+              <span style={{ textTransform: 'uppercase', fontSize: 13, letterSpacing: '0.08em' }}>
                 {freshness.stale ? 'Stale' : 'Current'}
               </span>
             </div>
@@ -169,7 +169,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontSize: 13,
                   fontWeight: 600,
                   letterSpacing: '0.1em',
                   textTransform: 'uppercase',
@@ -181,8 +181,8 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               </div>
               <p
                 style={{
-                  fontFamily: '"Inter Tight", sans-serif',
-                  fontSize: 12,
+                  fontFamily: '"Inter Variable", sans-serif',
+                  fontSize: 13,
                   color: 'var(--estate-text-secondary)',
                   margin: 0,
                   lineHeight: 1.5,
@@ -220,7 +220,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
           <div
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: 700,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',

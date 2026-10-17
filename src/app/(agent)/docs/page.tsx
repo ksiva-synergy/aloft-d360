@@ -104,29 +104,29 @@ export default function DocsHubPage() {
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-8">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--ink-3)]" />
           <input
             type="text"
             placeholder="Search tools and agents..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-[#2d333b] bg-white dark:bg-[#0d1117] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
+            className="w-full pl-10 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--background)] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500"
           />
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--ink-3)]" />
             <select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
-              className="pl-8 pr-8 py-2.5 text-xs rounded-lg border border-slate-200 dark:border-[#2d333b] bg-white dark:bg-[#0d1117] text-slate-700 dark:text-slate-300 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="pl-8 pr-8 py-2.5 text-xs rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--background)] text-slate-700 dark:text-slate-300 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             >
               {TOOL_TYPE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
           </div>
-          <div className="flex rounded-lg border border-slate-200 dark:border-[#2d333b] overflow-hidden">
+          <div className="flex rounded-lg border border-slate-200 dark:border-[var(--line-1)] overflow-hidden">
             {(['all', 'tools', 'agents'] as const).map(section => (
               <button
                 key={section}
@@ -134,7 +134,7 @@ export default function DocsHubPage() {
                 className={`px-3 py-2 text-xs font-medium capitalize transition-colors ${
                   activeSection === section
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-white dark:bg-[#0d1117] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    : 'bg-white dark:bg-[var(--background)] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {section}
@@ -147,7 +147,7 @@ export default function DocsHubPage() {
       {loading ? (
         <div className="text-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto" />
-          <p className="text-sm text-slate-400 mt-3">Loading catalog...</p>
+          <p className="text-sm text-[var(--ink-3)] mt-3">Loading catalog...</p>
         </div>
       ) : (
         <>
@@ -160,7 +160,7 @@ export default function DocsHubPage() {
                   <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Tools
                   </h2>
-                  <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  <span className="text-xs text-[var(--ink-3)] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                     {filteredTools.length}
                   </span>
                 </div>
@@ -176,28 +176,28 @@ export default function DocsHubPage() {
                   <Link
                     key={tool.id}
                     href={`/docs/tools/${tool.slug}`}
-                    className="group p-4 rounded-lg border border-slate-200 dark:border-[#2d333b] hover:border-indigo-300 dark:hover:border-indigo-700 bg-white dark:bg-[#161b22] transition-all hover:shadow-md"
+                    className="group p-4 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 bg-white dark:bg-[var(--surface-1)] transition-all hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 truncate">
                         {tool.name}
                       </h3>
-                      <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom} shrink-0 ml-2`}>
+                      <span className={`text-xs font-semibold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom} shrink-0 ml-2`}>
                         {tool.type}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">
+                    <p className="text-xs text-[var(--ink-3)] dark:text-slate-400 line-clamp-2 mb-3">
                       {tool.description || 'No description'}
                     </p>
                     {tool.tags && tool.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {tool.tags.slice(0, 3).map(tag => (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--ink-3)] dark:text-slate-400">
                             {tag}
                           </span>
                         ))}
                         {tool.tags.length > 3 && (
-                          <span className="text-[9px] text-slate-400">+{tool.tags.length - 3}</span>
+                          <span className="text-xs text-[var(--ink-3)]">+{tool.tags.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -205,7 +205,7 @@ export default function DocsHubPage() {
                 ))}
               </div>
               {filteredTools.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-8">No tools match your search criteria.</p>
+                <p className="text-sm text-[var(--ink-3)] text-center py-8">No tools match your search criteria.</p>
               )}
             </section>
           )}
@@ -219,7 +219,7 @@ export default function DocsHubPage() {
                   <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Agents
                   </h2>
-                  <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                  <span className="text-xs text-[var(--ink-3)] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
                     {filteredAgents.length}
                   </span>
                 </div>
@@ -235,28 +235,28 @@ export default function DocsHubPage() {
                   <Link
                     key={agent.id}
                     href={`/docs/agents/${agent.slug}`}
-                    className="group p-4 rounded-lg border border-slate-200 dark:border-[#2d333b] hover:border-violet-300 dark:hover:border-violet-700 bg-white dark:bg-[#161b22] transition-all hover:shadow-md"
+                    className="group p-4 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-violet-300 dark:hover:border-violet-700 bg-white dark:bg-[var(--surface-1)] transition-all hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 group-hover:text-violet-600 dark:group-hover:text-violet-400 truncate">
                         {agent.name}
                       </h3>
-                      <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[agent.type] || 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300'} shrink-0 ml-2`}>
+                      <span className={`text-xs font-semibold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[agent.type] || 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300'} shrink-0 ml-2`}>
                         {agent.type}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mb-3">
+                    <p className="text-xs text-[var(--ink-3)] dark:text-slate-400 line-clamp-2 mb-3">
                       {agent.description || 'No description'}
                     </p>
                     {agent.tags && agent.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {agent.tags.slice(0, 3).map(tag => (
-                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[var(--ink-3)] dark:text-slate-400">
                             {tag}
                           </span>
                         ))}
                         {agent.tags.length > 3 && (
-                          <span className="text-[9px] text-slate-400">+{agent.tags.length - 3}</span>
+                          <span className="text-xs text-[var(--ink-3)]">+{agent.tags.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -264,7 +264,7 @@ export default function DocsHubPage() {
                 ))}
               </div>
               {filteredAgents.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-8">No agents match your search criteria.</p>
+                <p className="text-sm text-[var(--ink-3)] text-center py-8">No agents match your search criteria.</p>
               )}
             </section>
           )}

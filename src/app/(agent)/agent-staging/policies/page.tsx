@@ -66,7 +66,7 @@ export default function PoliciesPage() {
       </div>
 
       {(creating || editing) ? (
-        <div className="border rounded-lg dark:border-[#2d333b] bg-white dark:bg-[#0f131a] p-4">
+        <div className="border rounded-lg dark:border-[var(--line-1)] bg-white dark:bg-[var(--background)] p-4">
           <PolicyEditor
             initial={editing || undefined}
             onSave={handleSave}

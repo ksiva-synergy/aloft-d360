@@ -119,7 +119,7 @@ export default function TrustActionBar({
       <span
         style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 600,
           letterSpacing: '0.08em',
           padding: '3px 8px',
@@ -137,8 +137,8 @@ export default function TrustActionBar({
           <span
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
-              color: 'var(--estate-text-muted, #8892A4)',
+              fontSize: 13,
+              color: 'var(--estate-text-muted, var(--ink-3))',
             }}
           >
             →
@@ -149,15 +149,15 @@ export default function TrustActionBar({
             onClick={handleAdvance}
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: 600,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               padding: '3px 10px',
               borderRadius: 3,
-              border: '1px solid rgba(253,181,21,0.35)',
+              border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
               background: 'transparent',
-              color: loading ? 'rgba(253,181,21,0.4)' : '#FDB515',
+              color: loading ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.12s ease',
             }}
@@ -172,7 +172,7 @@ export default function TrustActionBar({
         <span
           style={{
             fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 9,
+            fontSize: 13,
             color: 'rgba(59,122,75,0.7)',
             letterSpacing: '0.08em',
           }}

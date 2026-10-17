@@ -4,9 +4,9 @@ import React, { useState, useCallback } from 'react';
 import { Plus, X, Tag } from 'lucide-react';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
-const NAVY = '#003262';
-const MUTED = '#8892A4';
+const GOLD = 'var(--brand-a)';
+const NAVY = 'var(--brand-a-ink)';
+const MUTED = 'var(--ink-3)';
 const BLUE = '#93C5FD';
 
 export interface SynonymEditorProps {
@@ -98,7 +98,7 @@ export function SynonymEditor({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: compact ? 4 : 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Tag size={compact ? 10 : 11} color={MUTED} />
-        <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.08em', color: MUTED, textTransform: 'uppercase' }}>
+        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', color: MUTED, textTransform: 'uppercase' }}>
           Also called
         </span>
       </div>
@@ -108,7 +108,7 @@ export function SynonymEditor({
             key={syn}
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
@@ -140,7 +140,7 @@ export function SynonymEditor({
           </span>
         ))}
         {list.length === 0 && (
-          <span style={{ ...MONO, fontSize: 10, color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
+          <span style={{ ...MONO, fontSize: 13, color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
         )}
       </div>
       <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -155,7 +155,7 @@ export function SynonymEditor({
           disabled={saving}
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 13,
             flex: 1,
             minWidth: 0,
             background: 'rgba(0,0,0,0.2)',
@@ -172,7 +172,7 @@ export function SynonymEditor({
           title="Add alias"
           style={{
             ...MONO,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.04em',
             display: 'inline-flex',
             alignItems: 'center',
@@ -190,7 +190,7 @@ export function SynonymEditor({
         </button>
       </div>
       {error && (
-        <span style={{ ...MONO, fontSize: 9, color: '#f43f5e', lineHeight: 1.4 }}>{error}</span>
+        <span style={{ ...MONO, fontSize: 13, color: '#f43f5e', lineHeight: 1.4 }}>{error}</span>
       )}
     </div>
   );

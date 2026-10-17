@@ -51,13 +51,13 @@ interface LeaderboardResponse {
 
 // ── Design tokens (shared with DashboardView) ──────────────────────────────────
 
-const SERIF = "'Source Serif 4', Georgia, serif";
-const SANS = "'Inter Tight', sans-serif";
+const SERIF = "'Inter Variable', 'Inter', system-ui, sans-serif";
+const SANS = "'Inter Variable', sans-serif";
 const MONO = "'IBM Plex Mono', monospace";
 
 const ACCENT = '#A78BFA'; // memory purple — ties this card to the Memory module
 const TEAL = '#2DD4A0'; // promotion / climbing
-const GOLD = '#FDB515'; // elite cred
+const GOLD = 'var(--brand-a)'; // elite cred
 const RUST = '#D9774B'; // demotion / dropping
 const MUTED = 'var(--estate-text-muted)';
 
@@ -98,10 +98,10 @@ function Meter({ cred, provisional, width = 96 }: { cred: number; provisional: b
 }
 
 function Movement({ m }: { m: number | null }) {
-  if (m == null) return <span style={{ fontFamily: MONO, fontSize: 10.5, color: MUTED }}>new</span>;
-  if (m > 0) return <span style={{ fontFamily: MONO, fontSize: 11, color: TEAL }}>▲{m}</span>;
-  if (m < 0) return <span style={{ fontFamily: MONO, fontSize: 11, color: RUST }}>▼{Math.abs(m)}</span>;
-  return <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>—</span>;
+  if (m == null) return <span style={{ fontFamily: MONO, fontSize: 13, color: MUTED }}>new</span>;
+  if (m > 0) return <span style={{ fontFamily: MONO, fontSize: 13, color: TEAL }}>▲{m}</span>;
+  if (m < 0) return <span style={{ fontFamily: MONO, fontSize: 13, color: RUST }}>▼{Math.abs(m)}</span>;
+  return <span style={{ fontFamily: MONO, fontSize: 13, color: MUTED }}>—</span>;
 }
 
 function Avatar({ name, color, size = 26 }: { name: string; color: string; size?: number }) {
@@ -125,7 +125,7 @@ function YouTag() {
   return (
     <span
       style={{
-        fontFamily: MONO, fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase',
+        fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
         color: TEAL, border: `1px solid color-mix(in srgb, ${TEAL} 55%, transparent)`,
         borderRadius: 4, padding: '1px 4px', marginLeft: 6,
       }}
@@ -148,7 +148,7 @@ function BoardRow({ e }: { e: Entry }) {
         background: e.isYou ? `color-mix(in srgb, ${TEAL} 8%, transparent)` : 'transparent',
       }}
     >
-      <span style={{ fontFamily: MONO, fontSize: 12, color: MUTED, textAlign: 'right' }}>
+      <span style={{ fontFamily: MONO, fontSize: 13, color: MUTED, textAlign: 'right' }}>
         {e.seasonXp > 0 ? e.rank : '–'}
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
@@ -162,11 +162,11 @@ function BoardRow({ e }: { e: Entry }) {
       </span>
       <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Meter cred={e.cred} provisional={e.provisional} width={84} />
-        <span style={{ fontFamily: MONO, fontSize: 12, minWidth: 62, color: e.provisional ? MUTED : credColor(e.cred, false) }}>
+        <span style={{ fontFamily: MONO, fontSize: 13, minWidth: 62, color: e.provisional ? MUTED : credColor(e.cred, false) }}>
           {e.provisional ? 'provisional' : e.cred}
         </span>
-        <span className="mcred-hide-sm" style={{ fontFamily: MONO, fontSize: 12, color: 'var(--estate-ink)', width: 44, textAlign: 'right' }}>
-          {e.seasonXp}<span style={{ color: MUTED, fontSize: 10 }}>xp</span>
+        <span className="mcred-hide-sm" style={{ fontFamily: MONO, fontSize: 13, color: 'var(--estate-ink)', width: 44, textAlign: 'right' }}>
+          {e.seasonXp}<span style={{ color: MUTED, fontSize: 13 }}>xp</span>
         </span>
         <span className="mcred-hide-sm" style={{ width: 34, textAlign: 'right' }}><Movement m={e.movement} /></span>
       </span>
@@ -186,12 +186,12 @@ function RankedState({ view }: { view: View }) {
             border: '1px solid var(--estate-border)',
           }}
         >
-          <span style={{ fontFamily: SANS, fontSize: 12.5, color: 'var(--estate-text-secondary)' }}>
+          <span style={{ fontFamily: SANS, fontSize: 13, color: 'var(--estate-text-secondary)' }}>
             Your standing
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: 'var(--estate-ink)' }}>
-              #{view.you.rank} <span style={{ color: MUTED, fontWeight: 400, fontSize: 11 }}>of {view.leagueSize}</span>
+              #{view.you.rank} <span style={{ color: MUTED, fontWeight: 400, fontSize: 13 }}>of {view.leagueSize}</span>
             </span>
             <Movement m={view.you.movement} />
             <span style={{ fontFamily: MONO, fontSize: 14, color: credColor(view.you.cred, view.you.provisional) }}>
@@ -216,7 +216,7 @@ function RankedState({ view }: { view: View }) {
 
 function Legend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 10.5, color: MUTED }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 13, color: MUTED }}>
       <span
         style={{
           width: 9, height: 9, borderRadius: 2,
@@ -249,14 +249,14 @@ function NascentState({ view }: { view: View }) {
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar name={e.displayName} color={MUTED} size={30} />
               <span style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                <span style={{ fontFamily: SANS, fontSize: 12.5, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontFamily: SANS, fontSize: 13, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {e.displayName}
                 </span>
                 {e.isYou && <YouTag />}
               </span>
             </span>
             <Meter cred={e.cred} provisional width="100%" />
-            <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>
+            <span style={{ fontFamily: MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>
               provisional
             </span>
           </div>
@@ -273,11 +273,11 @@ function NascentState({ view }: { view: View }) {
 
 function HowRow({ sym, text }: { sym: string; text: string }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: SANS, fontSize: 12.5, color: MUTED }}>
+    <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: SANS, fontSize: 13, color: MUTED }}>
       <span
         style={{
           display: 'inline-flex', width: 20, height: 20, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
-          border: '1px solid var(--estate-border)', borderRadius: 5, fontFamily: MONO, color: 'var(--estate-ink)', fontSize: 12,
+          border: '1px solid var(--estate-border)', borderRadius: 5, fontFamily: MONO, color: 'var(--estate-ink)', fontSize: 13,
         }}
       >
         {sym}
@@ -369,7 +369,7 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
             <h2 style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: 'var(--estate-ink)', margin: 0, lineHeight: 1.2 }}>
               Memory Cred
             </h2>
-            <p style={{ fontFamily: SANS, fontSize: 12, color: 'var(--estate-text-muted)', margin: '2px 0 0' }}>
+            <p style={{ fontFamily: SANS, fontSize: 13, color: 'var(--estate-text-muted)', margin: '2px 0 0' }}>
               Trust earned per agent class
               {view ? ` · ${view.leagueSize} contributor${view.leagueSize === 1 ? '' : 's'}` : ''}
               {showLeague ? ` · league ${view!.league + 1}` : ''}
@@ -390,7 +390,7 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
                   className="mcred-tab"
                   onClick={() => selectDomain(d)}
                   style={{
-                    fontFamily: MONO, fontSize: 11, cursor: 'pointer', borderRadius: 7, padding: '4px 10px',
+                    fontFamily: MONO, fontSize: 13, cursor: 'pointer', borderRadius: 7, padding: '4px 10px',
                     border: `1px solid ${on ? `color-mix(in srgb, ${ACCENT} 45%, transparent)` : 'var(--estate-border)'}`,
                     background: on ? `color-mix(in srgb, ${ACCENT} 14%, transparent)` : 'transparent',
                     color: on ? 'var(--estate-ink)' : 'var(--estate-text-muted)',
@@ -420,7 +420,7 @@ function Note({ text, dashed }: { text: string; dashed?: boolean }) {
     <div
       style={{
         border: `1px ${dashed ? 'dashed' : 'solid'} var(--estate-border-gold)`, borderRadius: 8, padding: '20px 16px',
-        textAlign: 'center', fontFamily: MONO, fontSize: 12, color: 'var(--estate-text-muted)',
+        textAlign: 'center', fontFamily: MONO, fontSize: 13, color: 'var(--estate-text-muted)',
       }}
     >
       {text}

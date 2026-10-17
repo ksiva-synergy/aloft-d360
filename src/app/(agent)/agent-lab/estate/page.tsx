@@ -156,7 +156,7 @@ export default function EstateOverviewPage() {
             </h1>
             <p
               className="text-sm mt-1.5"
-              style={{ color: mutedColor, fontFamily: "'Inter Tight', sans-serif" }}
+              style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
             >
               Mendeleev context harness — what ALOFT knows about your data
             </p>
@@ -166,8 +166,8 @@ export default function EstateOverviewPage() {
               type="button"
               onClick={handleScanCoverage}
               disabled={scanLoading}
-              className="font-mono text-[11px] font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
-              style={{ borderColor: '#FDB515', color: '#FDB515', backgroundColor: 'transparent' }}
+              className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+              style={{ borderColor: 'var(--brand-a-ink)', color: 'var(--brand-a-ink)', backgroundColor: 'transparent' }}
             >
               {scanLoading ? <RefreshCw size={12} className="animate-spin" /> : <ScanSearch size={12} />}
               {scanLoading ? 'Scanning...' : 'Scan Coverage'}
@@ -220,8 +220,8 @@ export default function EstateOverviewPage() {
             >
               {/* Diamond Icon */}
               <span className="w-12 h-12 relative block" style={{ opacity: 0.7 }}>
-                <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: '#FDB515' }} />
-                <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: '#FDB515' }} />
+                <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
+                <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
               </span>
 
               {/* Title */}
@@ -235,7 +235,7 @@ export default function EstateOverviewPage() {
               {/* Description */}
               <p
                 className="text-xs leading-relaxed"
-                style={{ color: mutedColor, fontFamily: "'Inter Tight', sans-serif" }}
+                style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
               >
                 Connect a data source to begin cataloging your data estate.
               </p>
@@ -243,7 +243,7 @@ export default function EstateOverviewPage() {
               {/* Action Link */}
               <Link
                 href="/databricks"
-                className="font-mono text-xs text-[#FDB515] hover:underline"
+                className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline"
               >
                 Go to Connections &rarr;
               </Link>
@@ -275,7 +275,7 @@ export default function EstateOverviewPage() {
                 {
                   label: 'Embedded',
                   count: coverage.embedded,
-                  color: '#FDB515',
+                  color: 'var(--brand-a-ink)',
                   denominator: coverage.objects_total, // of what's been harvested
                 },
                 {

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import type { AssumptionLedgerEntry } from '@/lib/construction/assumptionHelpers';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const GOLD    = '#FDB515';
+const GOLD    = 'var(--brand-a)';
 const NAVY2   = '#0a3a6b';
 const SURFACE2 = '#121b27';
 const TXT     = '#e6ecf4';
@@ -85,7 +85,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
       transition: 'border-color 0.2s',
     }}>
       {/* Label */}
-      <span style={{ ...mono, fontSize: 12.5, color: TXT2, flex: 1, lineHeight: 1.4 }}>
+      <span style={{ ...mono, fontSize: 13, color: TXT2, flex: 1, lineHeight: 1.4 }}>
         {isConfirmed ? (
           <>assumed <span style={{ color: TXT, fontWeight: 500 }}>{valStr}</span> for {label}</>
         ) : editing ? null : (
@@ -102,7 +102,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               if (e.key === 'Escape') { setEditing(false); setEditValue(String(entry.value ?? '')); }
             }}
             style={{
-              ...mono, fontSize: 11, color: TXT,
+              ...mono, fontSize: 13, color: TXT,
               background: 'transparent',
               border: 'none',
               borderBottom: `1px solid ${GOLD}`,
@@ -116,7 +116,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
 
       {/* Confirmed badge — replaces ::after pseudo from spec */}
       {isConfirmed && (
-        <span style={{ ...mono, fontSize: 9, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0, paddingRight: 6 }}>
+        <span style={{ ...mono, fontSize: 13, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0, paddingRight: 6 }}>
           confirmed
         </span>
       )}
@@ -131,13 +131,13 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              ...mono, fontSize: 11, color: GOLD,
+              ...mono, fontSize: 13, color: GOLD,
               padding: '0 4px',
               borderRadius: 3,
               lineHeight: 1,
               transition: 'background 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,.18)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 18%, transparent)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             ✓
@@ -149,7 +149,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              ...mono, fontSize: 11, color: TXT3,
+              ...mono, fontSize: 13, color: TXT3,
               padding: '0 4px',
               transition: 'color 0.15s',
             }}

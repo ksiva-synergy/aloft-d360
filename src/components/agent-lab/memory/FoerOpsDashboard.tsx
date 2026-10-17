@@ -147,10 +147,10 @@ const DARK_THEME = {
   '--foer-text-pri':    '#e8eef5',
   '--foer-text-sec':    '#8a9bb5',
   '--foer-text-mut':    '#5e7790',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#FDB515',
-  '--foer-pill-bg':     'rgba(253,181,21,0.10)',
-  '--foer-pill-active': 'rgba(253,181,21,0.20)',
+  '--foer-gold':        '#5B3DF5',
+  '--foer-wordmark':    '#5B3DF5',
+  '--foer-pill-bg':     'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+  '--foer-pill-active': 'color-mix(in srgb, var(--brand-a) 20%, transparent)',
   '--foer-card-bg':     '#0a1320',
   '--foer-green':       '#22c55e',
   '--foer-amber-bg':    'rgba(217,119,75,0.08)',
@@ -165,8 +165,8 @@ const LIGHT_THEME = {
   '--foer-text-pri':    '#1B2532',
   '--foer-text-sec':    '#5A6B82',
   '--foer-text-mut':    '#7A8696',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#003262',
+  '--foer-gold':        '#5B3DF5',
+  '--foer-wordmark':    '#3B1FD6',
   '--foer-pill-bg':     'rgba(0,50,98,0.08)',
   '--foer-pill-active': 'rgba(0,50,98,0.18)',
   '--foer-card-bg':     '#FFFFFF',
@@ -496,7 +496,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           border-radius: 6px;
           padding: 3px 7px;
           font-family: ${MONO};
-          font-size: 8.5px;
+          font-size: 13px;
           letter-spacing: 0.04em;
         }
         .foer-dot {
@@ -514,13 +514,13 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '40px', lineHeight: 1, letterSpacing: '-0.01em', color: 'var(--foer-wordmark)' }}>FOER</span>
-              <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.18em', color: 'var(--foer-gold)', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '5px 9px' }}>OPERATIONS</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.18em', color: 'var(--foer-gold)', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '5px 9px' }}>OPERATIONS</span>
             </div>
-            <div style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)' }}>ALOFT · AGENT WORK-MEMORY · OBSERVABILITY</div>
+            <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)' }}>ALOFT · AGENT WORK-MEMORY · OBSERVABILITY</div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
               <span className="foer-dot" style={{ background: 'var(--foer-green)' }}></span>
               updated <span style={{ color: 'var(--foer-text-sec)' }}>{secondsAgo}s</span> ago
             </span>
@@ -548,19 +548,19 @@ function FoerOpsInner({ topicMap }: InnerProps) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '14px' }}>
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--foer-text-pri)' }}>{stats.tracedSessions.toLocaleString()}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>TRACED SESSIONS</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>TRACED SESSIONS</span>
           </div>
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--foer-text-pri)' }}>{stats.activeBullets.toLocaleString()}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>ACTIVE BULLETS</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>ACTIVE BULLETS</span>
           </div>
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--foer-text-pri)', fontFamily: MONO }}>{formatLastRun(stats.lastSynthesisAt)}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>LAST RUN</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>LAST RUN</span>
           </div>
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <span style={{ fontSize: '24px', fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--foer-gold)' }}>{stats.phantomsBlocked7d.toLocaleString()}</span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>PHANTOMS BLOCKED · 7D</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>PHANTOMS BLOCKED · 7D</span>
           </div>
           <div style={{ background: 'var(--foer-surface)', border: `1px solid ${stats.unprocessedSessions > 0 ? 'var(--foer-gold)' : 'var(--foer-border)'}`, borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -580,7 +580,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     borderRadius: '4px',
                     padding: '4px 9px',
                     fontFamily: MONO,
-                    fontSize: '9px',
+                    fontSize: '13px',
                     fontWeight: 600,
                     letterSpacing: '0.06em',
                     cursor: synthesizing ? 'wait' : 'pointer',
@@ -592,9 +592,9 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 </button>
               )}
             </div>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>UNPROCESSED SESSIONS</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.13em', color: 'var(--foer-text-mut)' }}>UNPROCESSED SESSIONS</span>
             {synthError && (
-              <span style={{ fontFamily: MONO, fontSize: '8.5px', color: RULE_TYPE_COLORS.FAILURE_MODE, marginTop: '2px' }}>{synthError}</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: RULE_TYPE_COLORS.FAILURE_MODE, marginTop: '2px' }}>{synthError}</span>
             )}
           </div>
         </div>
@@ -607,8 +607,8 @@ function FoerOpsInner({ topicMap }: InnerProps) {
               return (
                 <div key={j.jobKey} style={{ display: 'flex', alignItems: 'center', gap: '7px', background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '8px 12px' }}>
                   <span className="foer-dot" style={{ background: dotColor }}></span>
-                  <span style={{ fontFamily: MONO, fontSize: '10px', letterSpacing: '0.06em', color: 'var(--foer-text-sec)' }}>{j.jobKey}</span>
-                  <span style={{ fontFamily: MONO, fontSize: '9.5px', color: 'var(--foer-text-mut)' }}>
+                  <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.06em', color: 'var(--foer-text-sec)' }}>{j.jobKey}</span>
+                  <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>
                     {j.ageHours !== null ? `${j.ageHours < 1 ? '<1' : Math.round(j.ageHours)}h ago` : 'never'}
                   </span>
                 </div>
@@ -621,12 +621,12 @@ function FoerOpsInner({ topicMap }: InnerProps) {
         {canaryData && (
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: 'var(--foer-text-mut)' }}>MEMORY CANARY · FULLPOOL + λ STATUS</span>
-              <span style={{ fontFamily: MONO, fontSize: '8.5px', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b', background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.06em' }}>
+              <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.14em', color: 'var(--foer-text-mut)' }}>MEMORY CANARY · FULLPOOL + λ STATUS</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b', background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.06em' }}>
                 FULLPOOL {canaryData.fullPoolEnabled ? 'ON' : 'OFF'}
               </span>
               {canaryData.fullPoolOrgs.length > 0 && (
-                <span style={{ fontFamily: MONO, fontSize: '8px', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
+                <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
                   canary orgs: {canaryData.fullPoolOrgs.map((o) => o.slice(0, 8)).join(', ')}
                 </span>
               )}
@@ -638,7 +638,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 <span style={{ fontFamily: MONO, fontSize: '18px', fontWeight: 600, color: 'var(--foer-gold)', letterSpacing: '-0.01em' }}>
                   λ={canaryData.mmrLambda.toFixed(1)}
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>
+                <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>
                   MMR LAMBDA · {canaryData.mmrEnabled ? 'MMR ON' : 'MMR OFF'}
                 </span>
               </div>
@@ -648,7 +648,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 <span style={{ fontFamily: MONO, fontSize: '18px', fontWeight: 600, color: canaryData.totalHarmfulCount === 0 ? 'var(--foer-text-pri)' : canaryData.totalHelpfulCount > canaryData.totalHarmfulCount ? 'var(--foer-green)' : '#ef4444', letterSpacing: '-0.01em' }}>
                   {canaryData.totalHelpfulCount}/{canaryData.totalHarmfulCount}
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>HELPFUL / HARMFUL · ALL ACTIVE</span>
+                <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>HELPFUL / HARMFUL · ALL ACTIVE</span>
               </div>
 
               {/* Attributed runs + volume gate */}
@@ -656,14 +656,14 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 <span style={{ fontFamily: MONO, fontSize: '18px', fontWeight: 600, color: canaryData.volumeSufficient ? 'var(--foer-green)' : '#d9774b', letterSpacing: '-0.01em' }}>
                   {canaryData.attributedRuns}
                 </span>
-                <span style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>
+                <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>
                   ATTRIBUTED RUNS · {canaryData.volumeSufficient ? 'λ TUNING READY' : 'NEED ≥30 FOR λ TUNE'}
                 </span>
               </div>
             </div>
 
             {!canaryData.volumeSufficient && (
-              <div style={{ fontFamily: MONO, fontSize: '9px', color: '#d9774b', letterSpacing: '0.04em' }}>
+              <div style={{ fontFamily: MONO, fontSize: '13px', color: '#d9774b', letterSpacing: '0.04em' }}>
                 Run <span style={{ color: 'var(--foer-text-sec)' }}>scripts/memory/calibrate-lambda.ts</span> once attributed runs ≥ 30 to get a λ recommendation.
               </div>
             )}
@@ -674,7 +674,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '16px', color: 'var(--foer-text-pri)' }}>The Loop</span>
-            <span style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.14em', color: 'var(--foer-text-mut)' }}>SENSE → DISTIL → SHELVE → MOUNT → SENSE</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.14em', color: 'var(--foer-text-mut)' }}>SENSE → DISTIL → SHELVE → MOUNT → SENSE</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0 }}>
@@ -682,9 +682,9 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '18px', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Sense</div>
-                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Trace capture</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Trace capture</div>
               </div>
-              <div style={{ fontFamily: MONO, fontSize: '11px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
+              <div style={{ fontFamily: MONO, fontSize: '13px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                 <span style={{ color: 'var(--foer-text-pri)' }}>{stats.tracedSessions.toLocaleString()}</span> sessions · <span style={{ color: 'var(--foer-text-pri)' }}>{stats.totalTraceNodes.toLocaleString()}</span> nodes
                 <br />
                 last session <span style={{ color: 'var(--foer-text-pri)' }}>{formatRelativeHours(stats.lastTraceAt)}</span>
@@ -708,7 +708,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '9px' }}>
                   {nodeSegs.map((seg) => (
-                    <div key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontFamily: MONO, fontSize: '9.5px' }}>
+                    <div key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontFamily: MONO, fontSize: '13px' }}>
                       <span className="foer-dot" style={{ background: seg.c, width: '8px', height: '8px', borderRadius: '2px' }}></span>
                       <span style={{ flex: 1, color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>{seg.label}</span>
                       <span style={{ color: 'var(--foer-text-sec)' }}>{seg.count.toLocaleString()}</span>
@@ -720,7 +720,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
             {/* CONNECTOR 1 */}
             <div style={{ flex: 'none', width: '66px', alignSelf: 'flex-start', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '8px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>nightly<br />04:30 UTC</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>nightly<br />04:30 UTC</span>
               <svg width="66" height="13" viewBox="0 0 66 13" style={{ overflow: 'visible' }}>
                 <line x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-border)" strokeWidth="1"></line>
                 <line className="foer-flow-line" x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.6"></line>
@@ -732,11 +732,11 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '18px', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Distil</div>
-                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Captain Track Sparrow</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Captain Track Sparrow</div>
               </div>
               {stats.lastRun ? (
                 <>
-                  <div style={{ fontFamily: MONO, fontSize: '11px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
+                  <div style={{ fontFamily: MONO, fontSize: '13px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                     ran <span style={{ color: 'var(--foer-text-pri)' }}>{formatTimeOnly(stats.lastRun.completedAt)}</span>
                     <br />
                     scanned <span style={{ color: 'var(--foer-text-pri)' }}>{stats.lastRun.sessionsScanned}</span> · reflected <span style={{ color: 'var(--foer-text-pri)' }}>{stats.lastRun.sessionsReflected}</span> · skipped <span style={{ color: 'var(--foer-text-pri)' }}>{stats.lastRun.sessionsSkipped}</span>
@@ -744,13 +744,13 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     <span style={{ color: 'var(--foer-text-mut)' }}>{stats.lastRun.reflectorVersion ?? '—'}</span>
                   </div>
                   {stats.lastRun.phantomsBlocked > 0 && (
-                    <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.06em', color: 'var(--foer-gold)' }}>
+                    <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: '13px', letterSpacing: '0.06em', color: 'var(--foer-gold)' }}>
                       <span className="foer-dot" style={{ background: 'var(--foer-gold)', width: '5px', height: '5px' }}></span> phantoms blocked: {stats.lastRun.phantomsBlocked}
                     </div>
                   )}
                 </>
               ) : (
-                <div style={{ fontFamily: MONO, fontSize: '11px', color: 'var(--foer-text-mut)' }}>No synthesis runs recorded yet.</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>No synthesis runs recorded yet.</div>
               )}
               {sparklineRuns.length > 0 && (
                 <div>
@@ -784,14 +784,14 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       );
                     })}
                   </svg>
-                  <div style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', marginTop: '6px' }}>reflected ÷ scanned · last 7 runs</div>
+                  <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', marginTop: '6px' }}>reflected ÷ scanned · last 7 runs</div>
                 </div>
               )}
             </div>
 
             {/* CONNECTOR 2 */}
             <div style={{ flex: 'none', width: '66px', alignSelf: 'flex-start', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '8px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>delta-only<br />merge</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>delta-only<br />merge</span>
               <svg width="66" height="13" viewBox="0 0 66 13" style={{ overflow: 'visible' }}>
                 <line x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-border)" strokeWidth="1"></line>
                 <line className="foer-flow-line" x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.6" style={{ animationDelay: '-1s' }}></line>
@@ -803,9 +803,9 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '18px', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Shelve</div>
-                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Curator · Rama-gated · delta-only</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Curator · Rama-gated · delta-only</div>
               </div>
-              <div style={{ fontFamily: MONO, fontSize: '11px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
+              <div style={{ fontFamily: MONO, fontSize: '13px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                 {stats.lastRun ? (
                   <>
                     inserted <span style={{ color: 'var(--foer-text-pri)' }}>{stats.lastRun.bulletsInserted}</span> / deduped <span style={{ color: 'var(--foer-text-pri)' }}>{stats.lastRun.bulletsDeduped}</span>
@@ -833,12 +833,12 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: '9.5px', color: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)' }}>
+                <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: '13px', color: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)' }}>
                   <span className="foer-dot" style={{ background: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)', width: '6px', height: '6px' }}></span>
                   store health: {stats.activeBullets > 200 ? 'dense store' : 'healthy'}
                 </div>
                 {missingRuleTypes.length > 0 && (
-                  <div style={{ fontSize: '8.5px', fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+                  <div style={{ fontSize: '13px', fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                     missing: {missingRuleTypes.join(', ')}
                   </div>
                 )}
@@ -847,7 +847,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
             {/* CONNECTOR 3 */}
             <div style={{ flex: 'none', width: '66px', alignSelf: 'flex-start', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '8px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>two-tier<br />retrieval</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.05em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>two-tier<br />retrieval</span>
               <svg width="66" height="13" viewBox="0 0 66 13" style={{ overflow: 'visible' }}>
                 <line x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-border)" strokeWidth="1"></line>
                 <line className="foer-flow-line" x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.6" style={{ animationDelay: '-2s' }}></line>
@@ -859,13 +859,13 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '18px', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Mount</div>
-                <div style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Injection at task start · two-tier</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Injection at task start · two-tier</div>
               </div>
-              <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', fontFamily: MONO, fontSize: '9.5px', color: 'var(--foer-text-sec)' }}>
+              <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-sec)' }}>
                 <span className="foer-dot" style={{ background: stats.flagStatus.enabled ? 'var(--foer-green)' : RULE_TYPE_COLORS.FAILURE_MODE, width: '6px', height: '6px' }}></span>
                 {stats.flagStatus.enabled ? 'ENABLED' : 'DISABLED'}
               </div>
-              <div style={{ fontFamily: MONO, fontSize: '10px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
+              <div style={{ fontFamily: MONO, fontSize: '13px', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                 budget <span style={{ color: 'var(--foer-text-pri)' }}>400</span> tokens
                 <br />
                 Tier-1 = <span style={{ color: 'var(--foer-text-pri)' }}>HARD_RULE + SCHEMA_MAP</span>
@@ -875,7 +875,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 injected last 24h: <span style={{ color: 'var(--foer-text-pri)' }}>{stats.flagStatus.enabled ? (stats.injectedLast24h ?? 0) : '— (injection disabled)'}</span>
               </div>
               <div>
-                <div style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', marginBottom: '6px' }}>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', marginBottom: '6px' }}>
                   TOPIC COVERAGE · {stats.flagStatus.topicCoverage}/{stats.topicCount} topics with ACTIVE bullets
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -892,7 +892,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                           borderRadius: '6px',
                           padding: '2px 6px',
                           fontFamily: MONO,
-                          fontSize: '8px',
+                          fontSize: '13px',
                           letterSpacing: '0.03em',
                           color: 'var(--foer-text-sec)',
                         }}
@@ -916,7 +916,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
               </div>
 
               <div>
-                <div style={{ fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', marginBottom: '7px' }}>TOP 5 MOST-USED BULLETS</div>
+                <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.06em', color: 'var(--foer-text-mut)', marginBottom: '7px' }}>TOP 5 MOST-USED BULLETS</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                   {topBullets.map((b) => (
                     <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
@@ -927,17 +927,17 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                           borderRadius: '4px',
                           padding: '1px 5px',
                           fontFamily: MONO,
-                          fontSize: '7.5px',
+                          fontSize: '13px',
                           letterSpacing: '0.03em',
                           color: ruleTypeColor(b.ruleType),
                         }}
                       >
                         {b.ruleType === 'HARD_RULE' ? 'HARD_RULE' : b.ruleType}
                       </span>
-                      <span style={{ flex: '1', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '10.5px', color: 'var(--foer-text-sec)' }}>
+                      <span style={{ flex: '1', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', color: 'var(--foer-text-sec)' }}>
                         {b.ruleText}
                       </span>
-                      <span style={{ flex: 'none', fontFamily: MONO, fontSize: '10px', color: 'var(--foer-text-pri)' }}>
+                      <span style={{ flex: 'none', fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-pri)' }}>
                         {b.helpfulCount}
                       </span>
                     </div>
@@ -954,7 +954,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
               <path className="foer-flow-line" d="M 88 0 L 88 22 Q 88 32 80 32 L 20 32 Q 12 32 12 22 L 12 9" fill="none" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.55" vectorEffect="non-scaling-stroke"></path>
             </svg>
             <div style={{ position: 'absolute', left: '12%', top: 0, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '7px solid var(--foer-gold)', opacity: 0.8 }}></div>
-            <div style={{ position: 'absolute', left: '50%', top: '18px', transform: 'translateX(-50%)', fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', background: 'var(--foer-bg)', padding: '0 10px' }}>
+            <div style={{ position: 'absolute', left: '50%', top: '18px', transform: 'translateX(-50%)', fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', background: 'var(--foer-bg)', padding: '0 10px' }}>
               MOUNT → SENSE · traces from injected sessions
             </div>
           </div>
@@ -968,18 +968,18 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             style={{ width: '100%', display: 'flex', alignItems: 'center', justifySelf: 'stretch', justifyContent: 'space-between', gap: '12px', background: 'transparent', border: 'none', padding: '16px 18px', cursor: 'pointer', textAlign: 'left', outline: 'none' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '11px', color: 'var(--foer-text-mut)' }}>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>
                 {historyOpen ? '▾' : '▸'}
               </span>
               <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '17px', color: 'var(--foer-text-pri)' }}>Synthesis run history</span>
             </span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>LAST 14 NIGHTLY RUNS · NEWEST FIRST</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>LAST 14 NIGHTLY RUNS · NEWEST FIRST</span>
           </button>
 
           {historyOpen && (
             <div>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '24px minmax(80px, 1.2fr) 70px 80px 120px 70px 50px 130px 80px', gap: '8px', padding: '8px 18px', borderTop: '1px solid var(--foer-border)', borderBottom: '1px solid var(--foer-border)', fontFamily: MONO, fontSize: '8.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '24px minmax(80px, 1.2fr) 70px 80px 120px 70px 50px 130px 80px', gap: '8px', padding: '8px 18px', borderTop: '1px solid var(--foer-border)', borderBottom: '1px solid var(--foer-border)', fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)' }}>
                 <span></span>
                 <span>DATE</span>
                 <span style={{ textAlign: 'right' }}>SCANNED</span>
@@ -1018,9 +1018,9 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     <button
                       type="button"
                       onClick={() => toggleRow(r.id)}
-                      style={{ width: '100%', display: 'grid', gridTemplateColumns: '24px minmax(80px, 1.2fr) 70px 80px 120px 70px 50px 130px 80px', gap: '8px', alignItems: 'center', padding: '9px 18px', background: rowBg, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: '11px', color: 'var(--foer-text-sec)', outline: 'none' }}
+                      style={{ width: '100%', display: 'grid', gridTemplateColumns: '24px minmax(80px, 1.2fr) 70px 80px 120px 70px 50px 130px 80px', gap: '8px', alignItems: 'center', padding: '9px 18px', background: rowBg, border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-sec)', outline: 'none' }}
                     >
-                      <span style={{ color: 'var(--foer-text-mut)', fontSize: '10px' }}>{isExpanded ? '▾' : '▸'}</span>
+                      <span style={{ color: 'var(--foer-text-mut)', fontSize: '13px' }}>{isExpanded ? '▾' : '▸'}</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--foer-text-pri)' }}>
                         {runDate}
                       </span>
@@ -1030,7 +1030,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       <span style={{ textAlign: 'right', color: hasPhantom ? 'var(--foer-gold)' : 'var(--foer-text-mut)', display: 'inline-flex', justifyContent: 'flex-end', alignItems: 'center', gap: '5px' }}>
                         {r.phantomsBlocked}
                         {hasPhantom && (
-                          <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '1px 5px', fontSize: '7.5px', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>phantom</span>
+                          <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '1px 5px', fontSize: '13px', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>phantom</span>
                         )}
                       </span>
                       <span style={{ textAlign: 'right', color: r.errors > 0 ? 'var(--foer-gold)' : 'var(--foer-text-mut)' }}>{r.errors}</span>
@@ -1042,14 +1042,14 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     {isExpanded && (
                       <div style={{ padding: '4px 18px 14px 50px', background: 'var(--foer-surface2)' }}>
                         {loadingDetails[r.id] && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 0', fontSize: '10px', color: 'var(--foer-text-mut)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 0', fontSize: '13px', color: 'var(--foer-text-mut)' }}>
                             <Loader2 size={12} className="animate-spin" /> Loading run details…
                           </div>
                         )}
 
                         {!loadingDetails[r.id] && runDetails[r.id] && (
                           <div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '100px 140px 80px 120px 100px 1fr', gap: '10px', padding: '7px 0', fontFamily: MONO, fontSize: '8px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', borderBottom: '1px solid var(--foer-border)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 140px 80px 120px 100px 1fr', gap: '10px', padding: '7px 0', fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', borderBottom: '1px solid var(--foer-border)' }}>
                               <span>SESSION</span>
                               <span>topic (derived)</span>
                               <span style={{ textAlign: 'right' }}>CANDIDATES</span>
@@ -1059,7 +1059,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                             </div>
 
                             {runDetails[r.id].length === 0 ? (
-                              <div style={{ padding: '10px 0', fontSize: '10px', color: 'var(--foer-text-mut)' }}>No session details recorded for this run.</div>
+                              <div style={{ padding: '10px 0', fontSize: '13px', color: 'var(--foer-text-mut)' }}>No session details recorded for this run.</div>
                             ) : (
                               runDetails[r.id].map((detail) => {
                                 const topicInfo = detail.taskSignature ? topicMap[detail.taskSignature] : null;
@@ -1068,7 +1068,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                                 const hasDetailPhantom = detail.phantomsBlocked > 0;
 
                                 return (
-                                  <div key={detail.id} style={{ display: 'grid', gridTemplateColumns: '100px 140px 80px 120px 100px 1fr', gap: '10px', padding: '6px 0', fontFamily: MONO, fontSize: '10px', color: 'var(--foer-text-sec)', borderBottom: '1px solid var(--foer-border)' }}>
+                                  <div key={detail.id} style={{ display: 'grid', gridTemplateColumns: '100px 140px 80px 120px 100px 1fr', gap: '10px', padding: '6px 0', fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-sec)', borderBottom: '1px solid var(--foer-border)' }}>
                                     <button
                                       type="button"
                                       onClick={() => setDrawerSession({
@@ -1083,7 +1083,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                                         background: 'transparent',
                                         border: 'none',
                                         fontFamily: MONO,
-                                        fontSize: '10px',
+                                        fontSize: '13px',
                                         color: GOLD,
                                         cursor: 'pointer',
                                         padding: 0,
@@ -1102,7 +1102,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                                     <span style={{ textAlign: 'right', color: hasDetailPhantom ? 'var(--foer-gold)' : 'var(--foer-text-mut)' }}>
                                       {detail.phantomsBlocked}
                                       {hasDetailPhantom && (
-                                        <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '0 4px', fontSize: '7.5px', marginLeft: '5px', color: 'var(--foer-gold)' }}>phantom</span>
+                                        <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '0 4px', fontSize: '13px', marginLeft: '5px', color: 'var(--foer-gold)' }}>phantom</span>
                                       )}
                                     </span>
                                     <span style={{ color: 'var(--foer-text-mut)' }}>{detail.skippedReason || '—'}</span>
@@ -1130,19 +1130,19 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', background: 'transparent', border: 'none', padding: '16px 18px', cursor: 'pointer', textAlign: 'left', outline: 'none' }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontFamily: MONO, fontSize: '11px', color: 'var(--foer-text-mut)' }}>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>
                 {injOpen ? '▾' : '▸'}
               </span>
               <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '17px', color: 'var(--foer-text-pri)' }}>Operating Memory — Injection Preview</span>
             </span>
-            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>MOUNT · TWO-TIER</span>
+            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)' }}>MOUNT · TWO-TIER</span>
           </button>
 
           {injOpen && (
             <div style={{ borderTop: '1px solid var(--foer-border)', display: 'flex', flexDirection: 'column', gap: '0' }}>
               {/* Task signature selector row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 18px', borderBottom: '1px solid var(--foer-border-dim)' }}>
-                <label htmlFor="ops-sig-select" style={{ fontFamily: MONO, fontSize: '9.5px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', flexShrink: 0 }}>
+                <label htmlFor="ops-sig-select" style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', flexShrink: 0 }}>
                   Task Signature
                 </label>
                 <select
@@ -1168,7 +1168,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     </option>
                   ))}
                 </select>
-                <span style={{ fontFamily: MONO, fontSize: '9.5px', color: 'var(--foer-text-mut)' }}>
+                <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>
                   {rankedForInj.length} rule{rankedForInj.length !== 1 ? 's' : ''} · {rankedForInj.filter(b => !b.overBudget).length} within budget (2000t total)
                 </span>
               </div>
@@ -1186,7 +1186,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       <React.Fragment key={b.id}>
                         {(idx === 0 || showDivider) && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 18px', borderBottom: '1px solid var(--foer-border)', borderTop: idx > 0 ? '1px solid var(--foer-border)' : 'none', background: 'var(--foer-surface2)', position: 'sticky', top: 0, zIndex: 1 }}>
-                            <span style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.1em', color: phaseColor, textTransform: 'uppercase' }}>
+                            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: phaseColor, textTransform: 'uppercase' }}>
                               {phaseLabel}
                             </span>
                             <div style={{ flex: 1, height: '1px', background: `${phaseColor}30` }} />
@@ -1210,9 +1210,9 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                             {b.ruleText}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                            <span style={{ fontFamily: MONO, fontSize: '9px', color: 'var(--foer-text-mut)' }}>{b.tokens}t</span>
+                            <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>{b.tokens}t</span>
                             {b.overBudget && (
-                              <span style={{ fontFamily: MONO, fontSize: '8px', color: RULE_TYPE_COLORS.FAILURE_MODE, background: `${RULE_TYPE_COLORS.FAILURE_MODE}18`, border: `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}40`, borderRadius: 3, padding: '1px 4px' }}>
+                              <span style={{ fontFamily: MONO, fontSize: '13px', color: RULE_TYPE_COLORS.FAILURE_MODE, background: `${RULE_TYPE_COLORS.FAILURE_MODE}18`, border: `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}40`, borderRadius: 3, padding: '1px 4px' }}>
                                 over budget
                               </span>
                             )}
@@ -1227,7 +1227,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           )}
         </section>
 
-        <div style={{ fontFamily: MONO, fontSize: '9px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)', textAlign: 'center', opacity: 0.7 }}>
+        <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: 'var(--foer-text-mut)', textAlign: 'center', opacity: 0.7 }}>
           READ-ONLY OBSERVABILITY · FOER · ALOFT WORK-MEMORY
         </div>
       </div>

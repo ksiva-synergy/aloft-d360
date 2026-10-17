@@ -3,6 +3,8 @@
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Sparkles, Database, Wand2, ShieldCheck, Loader2 } from 'lucide-react';
+import { BrandMark } from '@/components/shell/BrandMark';
 
 const KONAMI = [
   'ArrowUp','ArrowUp','ArrowDown','ArrowDown',
@@ -90,276 +92,191 @@ export default function LoginPage() {
     window.location.assign('/dashboard');
   }
 
+
+  const field =
+    'h-12 w-full rounded-xl border-[1.5px] border-[var(--line-2)] bg-[var(--surface-1)] px-4 text-[15px] font-medium text-[var(--ink-1)] outline-none transition-colors placeholder:text-[var(--ink-3)] focus:border-[var(--brand-a)] focus:ring-4 focus:ring-[var(--brand-a-soft)]';
+
+  const highlights = [
+    { Icon: Database, title: 'Inspect your data', text: 'Ask questions of governed metrics and see the SQL behind every answer.' },
+    { Icon: Wand2, title: 'Teach once, reuse often', text: 'Show an agent a workflow and let it learn the pattern.' },
+    { Icon: ShieldCheck, title: 'Govern with confidence', text: 'Roles, policies and a full audit trail built in.' },
+  ];
+
   return (
     <main
       title="Powered by ALOFT v0.4 · data360.synergymarinegroup.com"
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #4B55C1 0%, #3B6FCA 50%, #5B7FE8 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: "'Inter Tight', sans-serif",
-        padding: '24px',
-        position: 'relative',
-      }}
+      className="relative grid min-h-screen bg-[var(--surface-2)] text-[var(--ink-1)] lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]"
     >
-      {/* Login card */}
-      <div
-        style={{
-          background: '#FFFFFF',
-          borderRadius: '16px',
-          boxShadow: '0 8px 40px rgba(0,0,0,0.18)',
-          padding: '48px 40px 36px',
-          width: '100%',
-          maxWidth: '420px',
-        }}
+      {/* Brand panel */}
+      <section
+        className="relative hidden overflow-hidden p-12 text-white lg:flex lg:flex-col"
+        style={{ background: 'linear-gradient(150deg, #1A1540 0%, #2A2251 38%, var(--brand-a-ink) 75%, #2A9BDB 130%)' }}
       >
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/synergy-group-logo.jpg"
-              alt="Synergy Group"
-              width={100}
-              height={100}
-              style={{ objectFit: 'contain' }}
-            />
+        <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full border-[56px] border-white/10" />
+        <span aria-hidden className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+
+        <div className="relative flex items-center gap-3">
+          <BrandMark size={48} />
+          <span className="leading-tight"><span className="block text-lg font-semibold tracking-tight">Synergy Group</span><span className="block text-sm text-white/75">Data 360 · Agent Lab</span></span>
+        </div>
+
+        <div className="relative my-auto max-w-xl">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/20 px-3.5 py-1.5 text-sm font-semibold backdrop-blur">
+            <Sparkles className="h-4 w-4" /> Powered by ALOFT
+          </span>
+          <h2 className="mt-6 text-5xl font-bold leading-[1.1] tracking-[-0.02em]">
+            Design, stage and operate AI agent pipelines.
+          </h2>
+          <ul className="mt-10 space-y-5">
+            {highlights.map(({ Icon, title, text }) => (
+              <li key={title} className="flex gap-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span>
+                  <span className="block text-base font-bold">{title}</span>
+                  <span className="block text-[15px] leading-relaxed text-white/85">{text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-sm text-white/80">&copy; 2026 &ndash; Synergy Maritime Pvt. Ltd.</p>
+      </section>
+
+      {/* Form panel */}
+      <section className="flex items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-[440px]">
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <BrandMark size={44} />
+            <span className="leading-tight"><span className="block text-lg font-semibold tracking-tight">Synergy Group</span><span className="block text-sm text-[var(--ink-3)]">Data 360 · Agent Lab</span></span>
+
           </div>
-          <h1
-            style={{
-              fontFamily: "'Source Serif 4', Georgia, serif",
-              fontSize: '26px',
-              fontWeight: 700,
-              fontStyle: 'italic',
-              color: '#1a1a2a',
-              margin: '0 0 6px',
-            }}
-          >
-            Login
-          </h1>
-          <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
-            Welcome back! Please login to continue
-          </p>
-        </div>
 
-        {/* SSO Button */}
-        <button
-          type="button"
-          onClick={handleSSOLogin}
-          disabled={ssoLoading || loading}
-          style={{
-            width: '100%',
-            padding: '12px',
-            background: ssoLoading ? '#5a6abf' : '#0078d4',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: 600,
-            fontSize: '15px',
-            cursor: ssoLoading ? 'not-allowed' : 'pointer',
-            transition: 'background 0.15s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-          }}
-          onMouseEnter={e => { if (!ssoLoading) (e.currentTarget.style.background = '#106ebe'); }}
-          onMouseLeave={e => { if (!ssoLoading) (e.currentTarget.style.background = '#0078d4'); }}
-        >
-          {/* Microsoft logo SVG */}
-          <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
-            <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-            <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-            <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-          </svg>
-          {ssoLoading ? 'Redirecting to Microsoft...' : 'Sign in with Microsoft'}
-        </button>
+          <div className="rounded-[28px] border border-[var(--line-1)] bg-[var(--surface-1)] p-8 shadow-card sm:p-10">
+            <div className="mb-7 flex items-center gap-4">
+              <BrandMark size={64} variant="full" />
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-          <button
-            type="button"
-            onClick={() => setShowCredentials(!showCredentials)}
-            style={{
-              fontSize: '12px',
-              color: '#9ca3af',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '2px 4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {showCredentials ? 'Hide' : 'Admin Login'}
-          </button>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-        </div>
-
-        {/* Credentials form (collapsible) */}
-        {showCredentials && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="login-email"
-                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-              >
-                Username
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                placeholder="Enter username"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#1a1a2a',
-                  background: '#fff',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.15s',
-                }}
-                onFocus={e => (e.target.style.borderColor = '#4B55C1')}
-                onBlur={e => (e.target.style.borderColor = '#d1d5db')}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="login-password"
-                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-              >
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 42px 10px 14px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: '#1a1a2a',
-                    background: '#fff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = '#4B55C1')}
-                  onBlur={e => (e.target.style.borderColor = '#d1d5db')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#9ca3af',
-                    fontSize: '13px',
-                    padding: '2px',
-                  }}
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
+              <div>
+                <h1 className="text-[28px] font-bold tracking-[-0.02em]">Welcome back</h1>
+                <p className="text-[15px] text-[var(--ink-3)]">Sign in to continue to Agent Lab</p>
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: '#4B55C1' }}
+            {/* SSO */}
+            <button
+              type="button"
+              onClick={handleSSOLogin}
+              disabled={ssoLoading || loading}
+              className="flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-[var(--brand-a)] text-[15px] font-bold text-white shadow-[0_10px_24px_-10px_var(--brand-a)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {ssoLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <span className="grid h-5 w-5 grid-cols-2 gap-px" aria-hidden>
+                  <i className="bg-[#f25022]" /><i className="bg-[#7fba00]" /><i className="bg-[#00a4ef]" /><i className="bg-[#ffb900]" />
+                </span>
+              )}
+              {ssoLoading ? 'Redirecting to Microsoft…' : 'Sign in with Microsoft'}
+            </button>
+
+            {/* Divider */}
+            <div className="my-6 flex items-center gap-3">
+              <span className="h-px flex-1 bg-[var(--line-1)]" />
+              <button
+                type="button"
+                onClick={() => setShowCredentials(!showCredentials)}
+                aria-expanded={showCredentials}
+                className="rounded-full border border-[var(--line-2)] px-4 py-1.5 text-sm font-semibold text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-2)]"
               >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={e => setRememberMe(e.target.checked)}
-                  style={{ accentColor: '#4B55C1', width: '14px', height: '14px' }}
-                />
-                Remember Me
-              </label>
+                {showCredentials ? 'Hide admin login' : 'Admin login'}
+              </button>
+              <span className="h-px flex-1 bg-[var(--line-1)]" />
             </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: loading ? '#7B82D1' : '#4B55C1',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '15px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'background 0.15s',
-                marginTop: '4px',
-              }}
-              onMouseEnter={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#3B46B0'; }}
-              onMouseLeave={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#4B55C1'; }}
-            >
-              {loading ? 'Signing in...' : 'Login'}
-            </button>
-          </form>
-        )}
+            {/* Credentials form (collapsible) */}
+            {showCredentials && (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-5 animate-slide-in-from-top-2">
+                <div>
+                  <label htmlFor="login-email" className="mb-1.5 block text-sm font-semibold">
+                    Username
+                  </label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="Enter username"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
+                    autoComplete="username"
+                    className={field}
+                  />
+                </div>
 
-        {/* Error */}
-        {error && (
-          <p style={{ color: '#dc2626', fontSize: '13px', margin: '16px 0 0', textAlign: 'center' }}>
-            {error}
+                <div>
+                  <label htmlFor="login-password" className="mb-1.5 block text-sm font-semibold">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      autoComplete="current-password"
+                      className={`${field} pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--ink-3)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+                    >
+                      {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                    </button>
+                  </div>
+                </div>
+
+                <label className="flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-[var(--ink-2)]">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    className="h-[18px] w-[18px] rounded-md accent-[var(--brand-a)]"
+                  />
+                  Remember me
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--ink-1)] text-[15px] font-bold text-[var(--surface-1)] transition hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? 'Signing in…' : 'Sign in'}
+                </button>
+              </form>
+            )}
+
+            {/* Error */}
+            {error && (
+              <p
+                role="alert"
+                className="mt-5 rounded-xl border border-[var(--bad)]/30 bg-[var(--bad-bg)] px-4 py-3 text-sm font-semibold text-[var(--bad)]"
+              >
+                {error}
+              </p>
+            )}
+          </div>
+
+          <p className="mt-6 text-center text-sm text-[var(--ink-3)] lg:hidden">
+            &copy; 2026 &ndash; Synergy Maritime Pvt. Ltd.
           </p>
-        )}
-      </div>
-
-      {/* Footer */}
-      <p
-        style={{
-          textAlign: 'center',
-          color: 'rgba(255,255,255,0.65)',
-          fontSize: '12px',
-          marginTop: '32px',
-          fontFamily: "'IBM Plex Mono', monospace",
-        }}
-      >
-        &copy; 2026 &ndash; Synergy Maritime Pvt. Ltd.
-      </p>
+        </div>
+      </section>
 
       {/* Easter egg: invisible in DOM, findable in source */}
       <span style={{ opacity: 0, position: 'absolute', fontSize: 0, pointerEvents: 'none' }} aria-hidden="true">
@@ -369,21 +286,8 @@ export default function LoginPage() {
       {/* Konami code toast */}
       {easterEgg && (
         <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#0D1B2A',
-            color: '#FDB515',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontFamily: "'IBM Plex Mono', monospace",
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            zIndex: 9999,
-            animation: 'fade-in 0.3s ease-out',
-          }}
+          role="status"
+          className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 animate-fade-in rounded-full bg-[var(--ink-1)] px-6 py-3 text-sm font-semibold text-[var(--surface-1)] shadow-pop"
         >
           Built on Data 360 ALOFT v0.4
         </div>

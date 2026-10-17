@@ -76,7 +76,7 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 600,
         color,
         width: 20,
@@ -90,7 +90,7 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
       </div>
       <span style={{
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontSize: 13,
         color,
         width: 32,
         textAlign: 'right',
@@ -187,7 +187,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             x={cx} y={cy + 16}
             textAnchor="middle"
             dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 11, fill: 'var(--estate-text-muted, #8892A4)' }}
+            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, fill: 'var(--estate-text-muted, var(--ink-3))' }}
           >
             {Math.round(dataScore.composite * 100)}%
           </text>
@@ -210,11 +210,11 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
       <div style={{ paddingTop: 4, minWidth: 0, flex: 1 }}>
         <div style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
-          color: 'var(--estate-text-secondary, #8892A4)',
+          color: 'var(--estate-text-secondary, var(--ink-3))',
           marginBottom: 8,
         }}>
           DATA Readiness
@@ -233,7 +233,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
         }}>
           <span style={{
             fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 10,
+            fontSize: 13,
             fontWeight: 700,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
@@ -246,7 +246,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
         {/* Gating statement */}
         <div style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 12,
+          fontSize: 13,
           color: gatingDimColor,
           marginBottom: 8,
           lineHeight: 1.5,
@@ -262,8 +262,8 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
           {gatingReasons.slice(0, 5).map((reason, i) => (
             <div key={i} style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              color: 'var(--estate-text-muted, #8892A4)',
+              fontSize: 13,
+              color: 'var(--estate-text-muted, var(--ink-3))',
               lineHeight: 1.5,
               paddingLeft: 14,
               position: 'relative',
@@ -283,8 +283,8 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
         <div style={{
           marginTop: 10,
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
-          color: 'var(--estate-text-muted, #8892A4)',
+          fontSize: 13,
+          color: 'var(--estate-text-muted, var(--ink-3))',
           letterSpacing: '0.04em',
         }}>
           {LEVEL_LABELS[dataScore.level]}

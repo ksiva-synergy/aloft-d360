@@ -22,19 +22,19 @@ export default function EstateNav() {
               className={cn(
                 'relative flex items-center h-full px-4 text-xs font-mono tracking-wider uppercase font-semibold transition-colors duration-200 rounded-t',
                 isActive
-                  ? 'text-[var(--nav-item-text-active)] bg-black/[0.04] dark:bg-[rgba(253,181,21,0.1)]'
+                  ? 'text-[var(--nav-item-text-active)] bg-black/[0.04] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)]'
                   : 'text-[var(--nav-item-text)] bg-transparent hover:text-[var(--nav-text)]',
               )}
             >
               {tab.label}
               {isActive && (
-                <span className="absolute bottom-0 left-2 right-2 h-[3px] rounded-t bg-[#FDB515]" />
+                <span className="absolute bottom-0 left-2 right-2 h-[3px] rounded-t bg-[var(--brand-a)]" />
               )}
             </Link>
           );
         })}
       </div>
-      <div className="text-[11px] font-mono tracking-wider text-right uppercase text-[var(--nav-item-text)]">
+      <div className="text-xs font-mono tracking-wider text-right uppercase text-[var(--nav-item-text)]">
         Data Estate System
       </div>
     </div>

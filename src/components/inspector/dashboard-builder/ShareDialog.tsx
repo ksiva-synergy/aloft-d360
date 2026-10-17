@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Share2, Lock, Building2, Users, UserPlus, Trash2, ChevronDown, Check, Link2 } from 'lucide-react';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const SERIF: React.CSSProperties = { fontFamily: "'Source Serif 4', Georgia, serif" };
-const SANS: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
-const GOLD = '#FDB515';
+const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
+const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const GOLD = 'var(--brand-a)';
 
 type Visibility = 'private' | 'org' | 'shared';
 type CollabRole = 'editor' | 'viewer';
@@ -137,13 +137,13 @@ export function ShareDialog({
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div style={{ background: 'var(--bg-surface, #0D1B2A)', border: '1px solid var(--border-default)', borderRadius: 6, width: 480, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+      <div style={{ background: 'var(--bg-surface, #111322)', border: '1px solid var(--border-default)', borderRadius: 6, width: 480, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
           <Share2 size={15} style={{ color: GOLD }} />
           <div style={{ flex: 1 }}>
             <p style={{ ...SERIF, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Share Dashboard</p>
-            <p style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{dashboardName}</p>
+            <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{dashboardName}</p>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
             <X size={16} />
@@ -153,7 +153,7 @@ export function ShareDialog({
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Visibility */}
           <section>
-            <p style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+            <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
               ACCESS LEVEL {savingVisibility && <span style={{ color: GOLD, marginLeft: 8 }}>SAVING…</span>}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -164,8 +164,8 @@ export function ShareDialog({
                   disabled={!canShare}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 4,
-                    background: visibility === opt.value ? 'rgba(253,181,21,0.08)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${visibility === opt.value ? 'rgba(253,181,21,0.4)' : 'var(--border-default)'}`,
+                    background: visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--border-default)'}`,
                     cursor: canShare ? 'pointer' : 'default', textAlign: 'left', transition: 'all 0.12s',
                     opacity: !canShare ? 0.6 : 1,
                   }}
@@ -173,7 +173,7 @@ export function ShareDialog({
                   <span style={{ color: visibility === opt.value ? GOLD : 'var(--text-muted)', flexShrink: 0 }}>{opt.icon}</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ ...SANS, fontSize: 13, fontWeight: 500, color: visibility === opt.value ? GOLD : 'var(--text-primary)', margin: 0 }}>{opt.label}</p>
-                    <p style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.02em' }}>{opt.desc}</p>
+                    <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.02em' }}>{opt.desc}</p>
                   </div>
                   {visibility === opt.value && <Check size={13} style={{ color: GOLD, flexShrink: 0 }} />}
                 </button>
@@ -184,39 +184,39 @@ export function ShareDialog({
           {/* Invite people */}
           {canShare && (
             <section>
-              <p style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>INVITE PEOPLE</p>
+              <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>INVITE PEOPLE</p>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <input
                   value={inviteEmail}
                   onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="Email address…"
-                  style={{ ...SANS, flex: 1, fontSize: 12, background: 'rgba(255,255,255,0.04)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
+                  style={{ ...SANS, flex: 1, fontSize: 13, background: 'rgba(255,255,255,0.04)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
                 />
                 <RoleSelect value={inviteRole} onChange={setInviteRole} />
                 <button
                   onClick={handleInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  style={{ ...MONO, fontSize: 10, display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: '#0D1B2A', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
+                  style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: '#111322', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
                 >
                   <UserPlus size={12} />{inviting ? '…' : 'Invite'}
                 </button>
               </div>
               {inviteError && (
-                <p style={{ ...MONO, fontSize: 10, color: '#F87171', margin: '6px 0 0' }}>{inviteError}</p>
+                <p style={{ ...MONO, fontSize: 13, color: '#F87171', margin: '6px 0 0' }}>{inviteError}</p>
               )}
             </section>
           )}
 
           {/* Collaborators list */}
           <section>
-            <p style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+            <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
               WHO HAS ACCESS {!loading && `· ${collaborators.length} PEOPLE`}
             </p>
             {loading ? (
-              <p style={{ ...MONO, fontSize: 10, color: 'var(--text-muted)' }}>LOADING…</p>
+              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)' }}>LOADING…</p>
             ) : collaborators.length === 0 ? (
-              <p style={{ ...MONO, fontSize: 10, color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
+              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {collaborators.map((c) => {
@@ -226,24 +226,24 @@ export function ShareDialog({
                   return (
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       {/* Avatar */}
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(253,181,21,0.15)', border: '1px solid rgba(253,181,21,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ ...MONO, fontSize: 10, fontWeight: 700, color: GOLD }}>{displayName[0]?.toUpperCase()}</span>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ ...MONO, fontSize: 13, fontWeight: 700, color: GOLD }}>{displayName[0]?.toUpperCase()}</span>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ ...SANS, fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
-                        {email && <p style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
+                        <p style={{ ...SANS, fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
+                        {email && <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
                       </div>
                       {isOwner ? (
-                        <span style={{ ...MONO, fontSize: 9, color: GOLD, background: 'rgba(253,181,21,0.1)', border: '1px solid rgba(253,181,21,0.25)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.05em', flexShrink: 0 }}>OWNER</span>
+                        <span style={{ ...MONO, fontSize: 13, color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.05em', flexShrink: 0 }}>OWNER</span>
                       ) : canShare ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <RoleSelect value={c.role as CollabRole} onChange={(r) => handleRoleChange(c.user_id, r, email)} small />
-                          <button onClick={() => handleRemove(c.user_id)} style={{ background: 'transparent', border: 'none', color: '#8892A4', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', borderRadius: 3 }} title="Remove">
+                          <button onClick={() => handleRemove(c.user_id)} style={{ background: 'transparent', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', borderRadius: 3 }} title="Remove">
                             <Trash2 size={12} />
                           </button>
                         </div>
                       ) : (
-                        <span style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>{c.role}</span>
+                        <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>{c.role}</span>
                       )}
                     </div>
                   );
@@ -257,13 +257,13 @@ export function ShareDialog({
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-default)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={handleCopyLink}
-            style={{ ...MONO, fontSize: 10, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             <Link2 size={12} />{copied ? 'COPIED!' : 'COPY LINK'}
           </button>
           <button
             onClick={onClose}
-            style={{ ...MONO, fontSize: 10, padding: '7px 16px', background: GOLD, color: '#0D1B2A', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 13, padding: '7px 16px', background: GOLD, color: '#111322', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             DONE
           </button>
@@ -292,12 +292,12 @@ function RoleSelect({ value, onChange, small }: { value: CollabRole; onChange: (
         {selected?.label}<ChevronDown size={10} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-surface, #0D1B2A)', border: '1px solid var(--border-default)', borderRadius: 4, minWidth: 100, zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-surface, #111322)', border: '1px solid var(--border-default)', borderRadius: 4, minWidth: 100, zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
           {ROLES.map((r) => (
             <button
               key={r.value}
               onClick={() => { onChange(r.value); setOpen(false); }}
-              style={{ ...MONO, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '7px 10px', background: value === r.value ? 'rgba(253,181,21,0.08)' : 'transparent', border: 'none', color: value === r.value ? GOLD : 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '7px 10px', background: value === r.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none', color: value === r.value ? GOLD : 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
             >
               {r.label}{value === r.value && <Check size={10} />}
             </button>

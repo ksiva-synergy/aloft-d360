@@ -47,7 +47,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-6">
+      <nav className="flex items-center gap-2 text-xs text-[var(--ink-3)] dark:text-slate-400 mb-6">
         <Link href="/docs" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
           Docs
         </Link>
@@ -65,7 +65,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             {tool.name}
           </h1>
-          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom}`}>
+          <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom}`}>
             {tool.type}
           </span>
         </div>
@@ -74,7 +74,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
         </p>
 
         {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[var(--ink-3)] dark:text-slate-400">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             v{tool.version}
@@ -94,11 +94,11 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
         {/* Tags */}
         {tool.tags && tool.tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 mt-3">
-            <Tag className="h-3 w-3 text-slate-400" />
+            <Tag className="h-3 w-3 text-[var(--ink-3)]" />
             {tool.tags.map(tag => (
               <span
                 key={tag}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
               >
                 {tag}
               </span>
@@ -171,14 +171,14 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
               <Link
                 key={related.id}
                 href={`/docs/tools/${related.slug}`}
-                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-[#2d333b] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[#161b22]"
+                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[var(--surface-1)]"
               >
-                <Wrench className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                <Wrench className="h-4 w-4 text-[var(--ink-3)] mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {related.name}
                   </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                  <p className="text-xs text-[var(--ink-3)] dark:text-slate-400 line-clamp-2 mt-0.5">
                     {related.description}
                   </p>
                 </div>
@@ -189,10 +189,10 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       )}
 
       {/* Back link */}
-      <div className="pt-4 border-t border-slate-200 dark:border-[#2d333b]">
+      <div className="pt-4 border-t border-slate-200 dark:border-[var(--line-1)]">
         <Link
           href="/docs/tools"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-3)] hover:text-slate-700 dark:hover:text-slate-400 dark:hover:text-slate-200 transition-colors"
         >
           <ArrowLeft className="h-3 w-3" />
           Back to all tools

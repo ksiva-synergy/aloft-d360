@@ -13,9 +13,9 @@ export default function TrustChip({ status }: TrustChipProps) {
 
   if (status === 'certified') {
     styles = {
-      backgroundColor: '#FDB515',
-      borderColor: '#FDB515',
-      color: '#0D1B2A',
+      backgroundColor: 'var(--brand-a-ink)',
+      borderColor: 'var(--brand-a-ink)',
+      color: '#111322',
       fontWeight: 600,
     };
   } else if (status === 'confirmed') {
@@ -36,7 +36,7 @@ export default function TrustChip({ status }: TrustChipProps) {
 
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider border transition-all duration-200"
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono uppercase tracking-wider border transition-all duration-200"
       style={styles}
     >
       {status}

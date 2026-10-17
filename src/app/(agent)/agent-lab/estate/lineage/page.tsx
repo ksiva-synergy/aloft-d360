@@ -24,7 +24,7 @@ type LineageResponse =
   | { status: 'ok'; model: { id: string; name: string }; focusOptions: { options: FocusOption[]; total: number; hasMore: boolean }; focus: FocusGraph | null; omissions: Omission[]; governance?: { total: number; governed: number; candidate: number; pctCandidate: number; note?: string } }
   | { error: string };
 
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 
 function StatusDot({ status }: { status: string }) {
   const gov = status === 'governed';
@@ -117,7 +117,7 @@ export default function LineagePage() {
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>Lineage</h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Tight', sans-serif" }}>
+          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
             One graph, two lenses — estate table → definition → consumers. Pick a metric (forward) or an entity (reverse).
           </p>
         </div>
@@ -140,14 +140,14 @@ export default function LineagePage() {
           <>
             {/* Focus picker (searchable — the model has thousands of nodes) */}
             <div className="border rounded-xl p-3 mb-4" style={{ backgroundColor: raised, borderColor: borderGold }}>
-              <div className="text-[9px] font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+              <div className="text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
                 Focus · metric (forward) or entity (reverse){model ? ` · ${options?.total ?? 0} focusable nodes` : ''}
               </div>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search metrics &amp; entities…"
-                className="w-full mb-2 rounded-lg px-3 py-2 text-[12px] font-mono outline-none border"
+                className="w-full mb-2 rounded-lg px-3 py-2 text-xs font-mono outline-none border"
                 style={{ background: 'rgba(0,0,0,0.02)', borderColor: softBorder, color: ink }}
               />
               <div className="flex flex-wrap gap-2 max-h-[132px] overflow-y-auto scrollbar-thin">
@@ -157,22 +157,22 @@ export default function LineagePage() {
                     <button
                       key={f.id}
                       onClick={() => { void fetchGraph(f.id, ''); }}
-                      className="inline-flex items-center gap-2 font-mono text-[10px] rounded-lg px-2.5 py-1.5 border transition-colors"
-                      style={on ? { borderColor: GOLD, background: 'rgba(253,181,21,0.1)', color: ink } : { borderColor: softBorder, background: 'transparent', color: muted }}
+                      className="inline-flex items-center gap-2 font-mono text-xs rounded-lg px-2.5 py-1.5 border transition-colors"
+                      style={on ? { borderColor: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: ink } : { borderColor: softBorder, background: 'transparent', color: muted }}
                     >
                       {nodeIcon(f)}
                       <span className="max-w-[220px] truncate">{f.label}</span>
-                      <span className="text-[8px] uppercase tracking-wide" style={{ color: muted }}>{f.kind === 'measure' ? 'metric' : 'entity'}</span>
+                      <span className="text-xs uppercase tracking-wide" style={{ color: muted }}>{f.kind === 'measure' ? 'metric' : 'entity'}</span>
                     </button>
                   );
                 })}
-                {options && options.hasMore && <span className="text-[10px] self-center" style={{ color: muted }}>+{options.total - options.options.length} more — refine search</span>}
+                {options && options.hasMore && <span className="text-xs self-center" style={{ color: muted }}>+{options.total - options.options.length} more — refine search</span>}
               </div>
             </div>
 
             {/* Estate-wide bootstrap context — attaches the WHY to a heavily-capped view */}
             {governance?.note && (
-              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-[11px] leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: "'Inter Tight', sans-serif" }}>
+              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-xs leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
                 <b style={{ color: ink }}>{governance.candidate} of {governance.total}</b> definitions are candidate ({governance.pctCandidate}%). {governance.note}
               </div>
             )}
@@ -183,9 +183,9 @@ export default function LineagePage() {
               <>
                 {/* Candidate cap banner (Pin #3 — explicit state, not a 500) */}
                 {focusNode.kind === 'measure' && (focusNode as DefNode).capped && (
-                  <div className="border rounded-lg p-3.5 mb-4 flex gap-3" style={{ background: 'rgba(253,181,21,0.1)', borderColor: GOLD }}>
+                  <div className="border rounded-lg p-3.5 mb-4 flex gap-3" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', borderColor: GOLD }}>
                     <AlertTriangle size={16} style={{ color: GOLD, flex: 'none', marginTop: 1 }} />
-                    <div className="text-[12px] leading-relaxed" style={{ color: muted, fontFamily: "'Inter Tight', sans-serif" }}>
+                    <div className="text-xs leading-relaxed" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
                       <b style={{ color: ink }}>Governance ceiling.</b> <b style={{ color: ink }}>{focusNode.label}</b> touches a <b style={{ color: GOLD }}>candidate</b> definition
                       {(focusNode as DefNode).cappedBy?.length ? <> ({(focusNode as DefNode).cappedBy!.map((id) => nodeById.get(id)?.label ?? id.replace(/^\w+:/, '')).join(', ')})</> : null}.
                       This is a governance-lens ceiling computed over per-definition status — <i>not</i> an execution block (a governed model still executes candidate defs). Honest, never a crash.
@@ -194,7 +194,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.truncated && (
-                  <div className="text-[10px] font-mono mb-3" style={{ color: GOLD }}>Neighborhood truncated — this entity has more definitions than shown.</div>
+                  <div className="text-xs font-mono mb-3" style={{ color: GOLD }}>Neighborhood truncated — this entity has more definitions than shown.</div>
                 )}
 
                 {/* 3-column graph */}
@@ -204,9 +204,9 @@ export default function LineagePage() {
                     const list: LineageNode[] = cols[colKey];
                     return (
                       <div key={colKey}>
-                        <div className="text-[8.5px] font-mono tracking-widest uppercase text-center pb-2 mb-2 border-b" style={{ color: muted, borderColor: softBorder }}>{heads[colKey]}</div>
+                        <div className="text-xs font-mono tracking-widest uppercase text-center pb-2 mb-2 border-b" style={{ color: muted, borderColor: softBorder }}>{heads[colKey]}</div>
                         <div className="flex flex-col gap-2">
-                          {list.length === 0 && <div className="text-[10px] text-center py-3" style={{ color: muted }}>—</div>}
+                          {list.length === 0 && <div className="text-xs text-center py-3" style={{ color: muted }}>—</div>}
                           {list.map((n) => {
                             const isFocus = n.id === focus.focusId;
                             const isSel = n.id === (selected ?? focus.focusId);
@@ -220,19 +220,19 @@ export default function LineagePage() {
                                 className="text-left border rounded-lg p-2.5 transition-colors"
                                 style={{
                                   background: 'rgba(0,0,0,0.02)',
-                                  borderColor: isSel ? GOLD : cand || capped ? 'rgba(253,181,21,0.55)' : softBorder,
+                                  borderColor: isSel ? GOLD : cand || capped ? 'color-mix(in srgb, var(--brand-a) 55%, transparent)' : softBorder,
                                   borderStyle: cand || capped ? 'dashed' : 'solid',
                                   boxShadow: isFocus ? `0 0 0 1px ${GOLD}` : 'none',
                                 }}
                               >
                                 <div className="flex items-center gap-2">
                                   {nodeIcon(n)}
-                                  <span className="text-[11.5px] truncate" style={{ color: ink }}>{n.label}</span>
+                                  <span className="text-xs truncate" style={{ color: ink }}>{n.label}</span>
                                   {def && <span className="ml-auto"><StatusDot status={def.status} /></span>}
                                 </div>
-                                {n.kind === 'estate' && <div className="font-mono text-[9px] mt-1 truncate" style={{ color: '#5B9DFF' }}>{(n as EstateNode).fullPath}</div>}
-                                {def && <div className="font-mono text-[9px] mt-1" style={{ color: muted }}>{def.resolvesTo.column ?? 'expression'}{capped ? ' · capped' : ''}</div>}
-                                {n.kind === 'consumer' && <div className="text-[9px] mt-1" style={{ color: muted }}>{(n as ConsumerNode).visibility}{(n as ConsumerNode).modelGoverned ? '' : ' · model not governed'}</div>}
+                                {n.kind === 'estate' && <div className="font-mono text-xs mt-1 truncate" style={{ color: '#5B9DFF' }}>{(n as EstateNode).fullPath}</div>}
+                                {def && <div className="font-mono text-xs mt-1" style={{ color: muted }}>{def.resolvesTo.column ?? 'expression'}{capped ? ' · capped' : ''}</div>}
+                                {n.kind === 'consumer' && <div className="text-xs mt-1" style={{ color: muted }}>{(n as ConsumerNode).visibility}{(n as ConsumerNode).modelGoverned ? '' : ' · model not governed'}</div>}
                               </button>
                             );
                           })}
@@ -244,7 +244,7 @@ export default function LineagePage() {
 
                 {/* Join keys (Pin #2) */}
                 {focus.edges.some((e) => e.kind === 'join') && (
-                  <div className="text-[10px] font-mono mb-4" style={{ color: muted }}>
+                  <div className="text-xs font-mono mb-4" style={{ color: muted }}>
                     {focus.edges.filter((e) => e.kind === 'join').map((e, i) => (
                       <div key={i}>join: <span style={{ color: '#5B9DFF' }}>{nodeById.get(e.from)?.label ?? e.from}</span> ↔ <span style={{ color: '#5B9DFF' }}>{nodeById.get(e.to)?.label ?? e.to}</span> on <span style={{ color: ink }}>{e.joinKeys}</span></div>
                     ))}
@@ -257,38 +257,38 @@ export default function LineagePage() {
                     <div className="flex items-center gap-2 mb-3">
                       {nodeIcon(detailNode)}
                       <span className="text-lg" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>{detailNode.label}</span>
-                      <span className="font-mono text-[9px] uppercase tracking-wide ml-1" style={{ color: muted }}>{detailNode.kind}</span>
+                      <span className="font-mono text-xs uppercase tracking-wide ml-1" style={{ color: muted }}>{detailNode.kind}</span>
                     </div>
 
                     {detailNode.kind === 'estate' && (
-                      <div className="font-mono text-[11px]" style={{ color: '#5B9DFF' }}>{(detailNode as EstateNode).fullPath}</div>
+                      <div className="font-mono text-xs" style={{ color: '#5B9DFF' }}>{(detailNode as EstateNode).fullPath}</div>
                     )}
 
                     {(detailNode.kind === 'dimension' || detailNode.kind === 'measure') && (() => {
                       const d = detailNode as DefNode;
                       return (
-                        <div className="flex flex-col gap-2 text-[12px]" style={{ color: muted, fontFamily: "'Inter Tight', sans-serif" }}>
-                          <div><span className="font-mono text-[9px] uppercase" style={{ color: muted }}>resolves to</span>{' '}
-                            <span className="font-mono text-[11px]"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: GOLD }}> · expression</span>}</span>
+                        <div className="flex flex-col gap-2 text-xs" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+                          <div><span className="font-mono text-xs uppercase" style={{ color: muted }}>resolves to</span>{' '}
+                            <span className="font-mono text-xs"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: GOLD }}> · expression</span>}</span>
                           </div>
-                          <div><span className="font-mono text-[9px] uppercase" style={{ color: muted }}>result key</span>{' '}
-                            <span className="font-mono text-[11px]" style={{ color: ink }}>{d.resolvesTo.resultAlias}</span>
-                            <span className="text-[10px]"> (rows come back keyed by this, not the label)</span>
+                          <div><span className="font-mono text-xs uppercase" style={{ color: muted }}>result key</span>{' '}
+                            <span className="font-mono text-xs" style={{ color: ink }}>{d.resolvesTo.resultAlias}</span>
+                            <span className="text-xs"> (rows come back keyed by this, not the label)</span>
                           </div>
-                          {d.resolvesTo.expression && <div className="font-mono text-[10px] p-2 rounded" style={{ background: 'rgba(0,0,0,0.03)', color: ink }}>{d.resolvesTo.expression}</div>}
+                          {d.resolvesTo.expression && <div className="font-mono text-xs p-2 rounded" style={{ background: 'rgba(0,0,0,0.03)', color: ink }}>{d.resolvesTo.expression}</div>}
                           {d.classification.synonyms.length > 0 && <div>synonyms: {d.classification.synonyms.join(', ')}</div>}
                           {d.classification.description && <div>{d.classification.description}</div>}
                           {d.capped && (
-                            <div className="text-[11px] p-2 rounded" style={{ background: 'rgba(253,181,21,0.1)', color: GOLD }}>
+                            <div className="text-xs p-2 rounded" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: GOLD }}>
                               Capped by candidate: {d.cappedBy?.map((id) => nodeById.get(id)?.label ?? id.replace(/^\w+:/, '')).join(', ')}
                             </div>
                           )}
                           {d.compiledSql && (
                             <div className="mt-1">
-                              <div className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-wide mb-1" style={{ color: muted }}>
+                              <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide mb-1" style={{ color: muted }}>
                                 <Info size={11} /> Compiled SQL — read-only trust-spine peek
                               </div>
-                              <pre className="font-mono text-[10.5px] leading-relaxed p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.04)', color: ink }}>{d.compiledSql}</pre>
+                              <pre className="font-mono text-xs leading-relaxed p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.04)', color: ink }}>{d.compiledSql}</pre>
                             </div>
                           )}
                         </div>
@@ -296,7 +296,7 @@ export default function LineagePage() {
                     })()}
 
                     {detailNode.kind === 'consumer' && (
-                      <div className="text-[12px]" style={{ color: muted }}>
+                      <div className="text-xs" style={{ color: muted }}>
                         Dashboard · {(detailNode as ConsumerNode).visibility}
                         {!(detailNode as ConsumerNode).modelGoverned && <span> · this dashboard&apos;s model is not governed</span>}
                       </div>
@@ -305,7 +305,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.omissions.length > 0 && (
-                  <div className="mt-4 text-[10px] font-mono" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
+                  <div className="mt-4 text-xs font-mono" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
                 )}
               </>
             )}

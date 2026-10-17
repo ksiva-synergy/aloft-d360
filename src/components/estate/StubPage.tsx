@@ -19,17 +19,17 @@ export default function StubPage({ title, phase }: StubPageProps) {
       >
         {/* Diamond Icon */}
         <span className="w-12 h-12 relative block" style={{ opacity: 0.7 }}>
-          <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: '#FDB515' }} />
-          <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: '#FDB515' }} />
+          <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
+          <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
         </span>
 
         {/* Phase Badge */}
         <span
-          className="font-mono text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded border transition-colors duration-200"
+          className="font-mono text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded border transition-colors duration-200"
           style={{
             backgroundColor: 'var(--estate-hover)',
             borderColor: 'var(--estate-border-gold)',
-            color: '#FDB515',
+            color: 'var(--brand-a-ink)',
           }}
         >
           {phase}
@@ -41,7 +41,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
         </h2>
 
         {/* Description */}
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: "'Inter Tight', sans-serif" }}>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: "'Inter Variable', sans-serif" }}>
           This view is scheduled for a future integration phase. The database models, schemas, and API endpoints are already live in the substrate layer.
         </p>
       </div>

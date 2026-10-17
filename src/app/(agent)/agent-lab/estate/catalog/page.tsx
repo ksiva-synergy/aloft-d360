@@ -15,7 +15,7 @@ export default function EstateCatalogPage() {
   const borderColor = 'var(--estate-border)';
   const borderStrong = 'var(--estate-btn-border)';
   const bgColor = 'var(--estate-bg)';
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const textMuted = 'var(--estate-text-muted)';
   const textDim = 'var(--estate-text-dim)';
   const activeBg = goldColor;
@@ -27,7 +27,7 @@ export default function EstateCatalogPage() {
     gap: '8px',
     padding: '8px 16px',
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '11px',
+    fontSize: '13px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: active ? activeText : textMuted,
@@ -56,20 +56,20 @@ export default function EstateCatalogPage() {
               borderRight: `1px solid ${borderColor}`,
             }}
           >
-            Discovery <span style={{ fontSize: '10.5px', opacity: 0.85 }}>●</span>
+            Discovery <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
           </button>
           <button
             type="button"
             onClick={() => setView('scanned')}
             style={segStyle(view === 'scanned')}
           >
-            Scanned &amp; Beyond <span style={{ fontSize: '10.5px', opacity: 0.85 }}>●</span>
+            Scanned &amp; Beyond <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
           </button>
         </div>
 
         <div
           className="flex items-center gap-3.5"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10.5px', color: textDim, letterSpacing: '0.06em' }}
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: textDim, letterSpacing: '0.06em' }}
         >
           {/* Test sources toggle */}
           <button
@@ -77,10 +77,10 @@ export default function EstateCatalogPage() {
             onClick={() => setShowTestSources(s => !s)}
             style={{
               fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: '10.5px',
+              fontSize: '13px',
               letterSpacing: '0.06em',
-              backgroundColor: showTestSources ? 'rgba(253,181,21,0.12)' : 'transparent',
-              border: `1px solid ${showTestSources ? 'rgba(253,181,21,0.5)' : borderStrong}`,
+              backgroundColor: showTestSources ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
+              border: `1px solid ${showTestSources ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : borderStrong}`,
               borderRadius: '6px',
               color: showTestSources ? goldColor : textMuted,
               padding: '5px 12px',

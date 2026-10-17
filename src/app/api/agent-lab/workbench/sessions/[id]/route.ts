@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { constructionStateSchema, type ConstructionState } from '@/lib/construction/constructionState';
+import type { ConstructionState } from '@/lib/construction/constructionState';
+import { constructionStateNeedsRepair, loadConstructionState } from '@/lib/construction/load-state';
+import { getDefaultOrg } from '@/lib/platform/agents';
 import { getPendingReflections } from '@/lib/marcus/dal';
 
 export const dynamic = 'force-dynamic';
@@ -14,14 +16,19 @@ export async function GET(
     const data = await prisma.workbench_sessions.findUnique({ where: { id } });
     if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-    let constructionState: ConstructionState | null = null;
-    if (data.construction_state !== null && data.construction_state !== undefined) {
-      const parsed = constructionStateSchema.safeParse(data.construction_state);
-      if (parsed.success) {
-        constructionState = parsed.data;
-      } else {
-        console.error(`[workbench/sessions/${id} GET] construction_state parse failed`, parsed.error);
-      }
+    const org = await getDefaultOrg();
+    const constructionState: ConstructionState = loadConstructionState(data.construction_state, org.id);
+
+    if (constructionStateNeedsRepair(data.construction_state)) {
+      await prisma.workbench_sessions.update({
+        where: { id },
+        data: {
+          construction_state: constructionState as object,
+          readiness: constructionState.readiness,
+          modality: constructionState.modality ?? null,
+          updated_at: new Date(),
+        },
+      });
     }
 
     const pendingReflections = process.env.MARCUS_REFLECT_ENABLED === 'true'
@@ -73,16 +80,11 @@ export async function PATCH(
 
     // Validate construction_state and derive write-through denormalizations
     if (updates.construction_state !== undefined) {
-      const parsed = constructionStateSchema.safeParse(updates.construction_state);
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: 'Invalid construction_state', details: parsed.error.flatten() },
-          { status: 400 },
-        );
-      }
-      updates.construction_state = parsed.data;
-      updates.modality = parsed.data.modality ?? null;
-      updates.readiness = parsed.data.readiness ?? null;
+      const org = await getDefaultOrg();
+      const parsed = loadConstructionState(updates.construction_state, org.id);
+      updates.construction_state = parsed;
+      updates.modality = parsed.modality ?? null;
+      updates.readiness = parsed.readiness ?? null;
     }
 
     // Merge last_model into the progress JSON without overwriting other progress fields.

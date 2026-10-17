@@ -193,7 +193,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
             <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: TEXT_PRI }}>
               Posterior Evolution
             </span>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT, letterSpacing: '0.04em' }}>
+            <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.04em' }}>
               {normalised.length} DAYS
             </span>
           </div>
@@ -216,14 +216,14 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                     onClick={() => setGranularity(opt.value)}
                     style={{
                       fontFamily: MONO,
-                      fontSize: 10,
+                      fontSize: 13,
                       letterSpacing: '0.04em',
                       padding: '3px 9px',
                       borderRadius: 3,
                       border: 'none',
                       cursor: 'pointer',
                       background: isActive ? GOLD : 'transparent',
-                      color: isActive ? '#0D1B2A' : TEXT_MUT,
+                      color: isActive ? '#111322' : TEXT_MUT,
                       fontWeight: isActive ? 600 : 400,
                       transition: 'background 0.12s, color 0.12s',
                     }}
@@ -235,7 +235,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
             </div>
           )}
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT, marginTop: 4 }}>
+        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 4 }}>
           Model allocation share over time · {granularityLabel[activeGranularity]} buckets
           {granularity === 'auto' && (
             <span style={{ opacity: 0.5 }}> (auto)</span>
@@ -246,7 +246,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
       {emptyState ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 100, fontFamily: MONO, fontSize: 12, color: TEXT_MUT, opacity: 0.5,
+          height: 100, fontFamily: MONO, fontSize: 13, color: TEXT_MUT, opacity: 0.5,
         }}>
           Insufficient data for timeline — need ≥ 2 days of observations.
         </div>
@@ -256,7 +256,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
             width: '100%',
             borderCollapse: 'collapse',
             fontFamily: MONO,
-            fontSize: 11,
+            fontSize: 13,
           }}>
             <thead>
               <tr>
@@ -265,7 +265,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                   textAlign: 'left',
                   padding: '0 16px 10px 0',
                   fontFamily: MONO,
-                  fontSize: 10,
+                  fontSize: 13,
                   fontWeight: 500,
                   color: TEXT_MUT,
                   letterSpacing: '0.06em',
@@ -280,7 +280,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                     textAlign: 'right',
                     padding: '0 0 10px 12px',
                     fontFamily: MONO,
-                    fontSize: 10,
+                    fontSize: 13,
                     fontWeight: 500,
                     color: TEXT_MUT,
                     letterSpacing: '0.04em',
@@ -290,7 +290,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                   }}>
                     <div>{col.label}</div>
                     {col.sublabel && (
-                      <div style={{ fontSize: 9, opacity: 0.5, marginTop: 1 }}>{col.sublabel}</div>
+                      <div style={{ fontSize: 13, opacity: 0.5, marginTop: 1 }}>{col.sublabel}</div>
                     )}
                   </th>
                 ))}
@@ -302,7 +302,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                 const isFav = id === favId;
                 return (
                   <tr key={id} style={{
-                    background: isFav ? 'rgba(253,181,21,0.04)' : 'transparent',
+                    background: isFav ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'transparent',
                   }}>
                     {/* Model label */}
                     <td style={{
@@ -318,13 +318,13 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                         <span style={{
                           color: isFav ? GOLD : TEXT_SEC,
                           fontWeight: isFav ? 600 : 400,
-                          fontSize: 11,
+                          fontSize: 13,
                         }}>
                           {shortName(id)}
                         </span>
                         {isFav && (
                           <span style={{
-                            fontSize: 9, color: GOLD, opacity: 0.7,
+                            fontSize: 13, color: GOLD, opacity: 0.7,
                             letterSpacing: '0.06em', marginLeft: 2,
                           }}>
                             ★
@@ -352,7 +352,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                               <span style={{
                                 color: isLeader ? (isFav ? GOLD : TEXT_PRI) : TEXT_MUT,
                                 fontWeight: isLeader ? 600 : 400,
-                                fontSize: 11,
+                                fontSize: 13,
                               }}>
                                 {pct}%
                               </span>
@@ -372,7 +372,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                               </div>
                             </div>
                           ) : (
-                            <span style={{ color: TEXT_MUT, opacity: 0.3, fontSize: 10 }}>—</span>
+                            <span style={{ color: TEXT_MUT, opacity: 0.3, fontSize: 13 }}>—</span>
                           )}
                         </td>
                       );
@@ -385,7 +385,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
               <tr>
                 <td style={{
                   padding: '10px 16px 0 0',
-                  fontFamily: MONO, fontSize: 10,
+                  fontFamily: MONO, fontSize: 13,
                   color: TEXT_MUT, letterSpacing: '0.05em',
                 }}>
                   TOTAL CALLS
@@ -394,7 +394,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                   <td key={col.key} style={{
                     padding: '10px 0 0 12px',
                     textAlign: 'right',
-                    fontFamily: MONO, fontSize: 10,
+                    fontFamily: MONO, fontSize: 13,
                     color: TEXT_MUT,
                   }}>
                     {col.total > 0 ? col.total.toLocaleString() : '—'}

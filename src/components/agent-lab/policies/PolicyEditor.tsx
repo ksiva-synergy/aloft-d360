@@ -95,7 +95,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
             Name
           </label>
           <input
@@ -103,18 +103,18 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. ParserAgent cost ceiling"
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
 
         <div>
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
             Type
           </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
@@ -123,13 +123,13 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
         </div>
 
         <div>
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
             Scope
           </label>
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             {SCOPES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -139,7 +139,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
         {scope !== 'global' && (
           <div>
-            <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
               Scope ID
             </label>
             <input
@@ -147,14 +147,14 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
               value={scopeId}
               onChange={(e) => setScopeId(e.target.value)}
               placeholder="Entry/pipeline/env ID"
-              className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
         )}
       </div>
 
       <div>
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
           Enforcement
         </label>
         <div className="flex gap-2">
@@ -166,7 +166,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
                 'px-3 py-1.5 text-xs rounded-md border transition-colors',
                 enforcement === e.value
                   ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
-                  : 'bg-white dark:bg-[#161b24] border-slate-200 dark:border-[#2d333b] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1c2128]',
+                  : 'bg-white dark:bg-[var(--surface-1)] border-slate-200 dark:border-[var(--line-1)] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[var(--surface-2)]',
               )}
             >
               <span className="font-medium">{e.label}</span>
@@ -177,7 +177,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
       </div>
 
       <div>
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
           Config (JSON)
         </label>
         <textarea
@@ -185,9 +185,9 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           onChange={(e) => setConfigJson(e.target.value)}
           rows={6}
           spellCheck={false}
-          className="w-full px-3 py-2 text-xs font-mono border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
+          className="w-full px-3 py-2 text-xs font-mono border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
         />
-        <p className="text-[10px] text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {type === 'cost_ceiling' && 'e.g. { "max_cost_per_run": 0.50, "currency": "USD" }'}
           {type === 'tool_allowlist' && 'e.g. { "tools": ["search_contracts", "parse_pdf"] }'}
           {type === 'tool_denylist' && 'e.g. { "tools": ["delete_contract"] }'}

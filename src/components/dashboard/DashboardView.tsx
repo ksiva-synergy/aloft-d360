@@ -5,9 +5,8 @@
  * modules — Data Estate, Memory (FOER), User Logins, and Inspector — rendered from
  * a server-aggregated snapshot (see src/lib/dashboard/summary.ts).
  *
- * Purely presentational: all data arrives via props. Styling follows the estate
- * design tokens (Source Serif headings, IBM Plex Mono numerals, --estate-* vars)
- * so it reads as one system in both light and dark themes.
+ * Purely presentational: all data arrives via props. Styling uses the brand layer
+ * (--brand-*, --surface-*, --ink-*) so it reads as one system in light and dark.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -15,13 +14,14 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Database, Lightbulb, Users, LayoutDashboard, ArrowRight, ArrowUpRight,
-  ShieldCheck, ShieldAlert, Sparkles, Layers, Activity, Ban, Clock,
+  ShieldCheck, ShieldAlert, Sparkles, Activity, Ban, Clock,
   MessageSquare, TrendingUp, CircleDot,
 } from 'lucide-react';
 import type {
   DashboardSummary, EstateSummary, MemorySummary, LoginsSummary, InspectorSummary,
 } from '@/lib/dashboard/summary';
 import { MemoryCredCard } from '@/components/dashboard/MemoryCredCard';
+import { cn } from '@/lib/utils';
 
 // Local role-name → label map (kept in sync with ROLE_LABELS in src/lib/rbac.ts).
 // Inlined rather than imported so this client bundle never pulls in server-only code.
@@ -60,88 +60,57 @@ function relativeTime(iso: string | null): string {
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 
-const SERIF = "'Source Serif 4', Georgia, serif";
-const SANS = "'Inter Tight', sans-serif";
-const MONO = "'IBM Plex Mono', monospace";
-
 const ACCENT = {
-  estate: '#FDB515',
-  memory: '#A78BFA',
-  logins: '#2DD4A0',
-  inspector: '#5B9DFF',
+  estate: 'var(--brand-a)',
+  memory: '#0EA5A4',
+  logins: '#F0553F',
+  inspector: '#2563EB',
 } as const;
 
 const COVERAGE_COLORS = {
-  harvested: '#2DD4A0',
-  profiled: '#5B9DFF',
-  enriched: '#A78BFA',
-  embedded: '#FDB515',
+  harvested: '#0EA5A4',
+  profiled: '#2563EB',
+  enriched: 'var(--brand-a-2)',
+  embedded: '#F59E0B',
 } as const;
 
-const cardClass =
-  'rounded-xl border shadow-card transition-shadow duration-200 hover:shadow-lg';
-const cardStyle: React.CSSProperties = {
-  background: 'var(--estate-raised)',
-  borderColor: 'var(--estate-border-gold)',
-};
+const ROLE_COLORS = ['var(--brand-a)', '#0EA5A4', '#F0553F', '#2563EB', '#F59E0B'];
+
+/** Readable ink for a bright accent, in both themes (mixes the accent toward the text colour). */
+const inkOf = (accent: string) => `color-mix(in srgb, ${accent} 68%, var(--ink-1))`;
+const softOf = (accent: string) => `color-mix(in srgb, ${accent} 14%, transparent)`;
+
+const card = 'rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] shadow-card';
 
 // ── Micro components ─────────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        fontFamily: MONO,
-        fontSize: 10,
-        letterSpacing: '0.11em',
-        textTransform: 'uppercase',
-        color: 'var(--estate-text-muted)',
-      }}
-    >
-      {children}
-    </span>
-  );
+  return <span className="text-[13px] font-semibold text-[var(--ink-3)]">{children}</span>;
 }
 
-/** A small in-card metric: big mono number + label. */
+/** A small in-card metric: big number + label. */
 function MiniStat({
-  value,
-  label,
-  color,
-  sub,
-}: {
-  value: React.ReactNode;
-  label: string;
-  color?: string;
-  sub?: string;
-}) {
+  value, label, color, sub,
+}: { value: React.ReactNode; label: string; color?: string; sub?: string }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <div className="flex flex-col gap-1">
       <span
-        style={{
-          fontFamily: MONO,
-          fontSize: 20,
-          fontWeight: 700,
-          lineHeight: 1,
-          letterSpacing: '-0.02em',
-          color: color ?? 'var(--estate-ink)',
-        }}
+        className="text-[26px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]"
+        style={color ? { color: inkOf(color) } : undefined}
       >
         {value}
       </span>
       <Label>{label}</Label>
-      {sub && (
-        <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-dim)' }}>{sub}</span>
-      )}
+      {sub && <span className="text-[13px] text-[var(--ink-3)]">{sub}</span>}
     </div>
   );
 }
 
 /** SVG area sparkline for a numeric series. */
-function Sparkline({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
+function Sparkline({ data, color, height = 52 }: { data: number[]; color: string; height?: number }) {
   const width = 220;
   if (!data || data.length < 2) {
-    return <div style={{ height, opacity: 0.4, fontFamily: MONO, fontSize: 11, color: 'var(--estate-text-dim)', display: 'flex', alignItems: 'center' }}>not enough history</div>;
+    return <div className="flex items-center text-sm text-[var(--ink-3)]" style={{ height }}>Not enough history yet</div>;
   }
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -156,7 +125,7 @@ function Sparkline({ data, color, height = 40 }: { data: number[]; color: string
   const area = `0,${height} ${line} ${width},${height}`;
   const gid = `spark-${color.replace('#', '')}`;
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="block" role="img" aria-label="Trend over time">
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.28" />
@@ -164,26 +133,25 @@ function Sparkline({ data, color, height = 40 }: { data: number[]; color: string
         </linearGradient>
       </defs>
       <polygon points={area} fill={`url(#${gid})`} />
-      <polyline points={line} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.6" fill={color} />
+      <polyline points={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="3.2" fill={color} />
     </svg>
   );
 }
 
 /** Small vertical bars (e.g. sessions/day). */
-function MiniBars({ data, color, height = 40 }: { data: number[]; color: string; height?: number }) {
+function MiniBars({ data, color, height = 52 }: { data: number[]; color: string; height?: number }) {
   const max = Math.max(...data, 1);
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height }}>
+    <div className="flex items-end gap-1.5" style={{ height }}>
       {data.map((v, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+        <div key={i} className="flex h-full flex-1 flex-col justify-end">
           <div
+            className="rounded-md transition-[height] duration-300"
             style={{
-              height: `${Math.max(6, (v / max) * 100)}%`,
-              background: v > 0 ? color : 'var(--estate-border)',
-              opacity: v > 0 ? 0.85 : 0.5,
-              borderRadius: 3,
-              transition: 'height 0.3s ease',
+              height: `${Math.max(8, (v / max) * 100)}%`,
+              background: v > 0 ? color : 'var(--line-1)',
+              opacity: v > 0 ? 0.9 : 0.6,
             }}
             title={`${v} session${v === 1 ? '' : 's'}`}
           />
@@ -197,78 +165,51 @@ function MiniBars({ data, color, height = 40 }: { data: number[]; color: string;
 function CoverageRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const p = pct(count, total);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ width: 66, fontFamily: MONO, fontSize: 11, color: 'var(--estate-text-secondary)' }}>{label}</span>
-      <div style={{ flex: 1, height: 7, borderRadius: 4, background: 'var(--estate-hover)', overflow: 'hidden', border: '1px solid var(--estate-border)' }}>
-        <div style={{ width: `${p}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+    <div className="flex items-center gap-3 text-sm">
+      <span className="w-[74px] font-semibold text-[var(--ink-2)]">{label}</span>
+      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${p}%`, background: color }} />
       </div>
-      <span style={{ width: 58, textAlign: 'right', fontFamily: MONO, fontSize: 11, color: 'var(--estate-ink)' }}>
-        {fmt(count)}
-      </span>
-      <span style={{ width: 34, textAlign: 'right', fontFamily: MONO, fontSize: 11, color }}>{p}%</span>
+      <span className="w-[54px] text-right font-semibold tabular-nums text-[var(--ink-1)]">{fmt(count)}</span>
+      <span className="w-[42px] text-right font-bold tabular-nums" style={{ color: inkOf(color) }}>{p}%</span>
     </div>
   );
 }
 
 /** Card shell: icon + title + subtitle header with a "View" link, then body. */
 function ModuleCard({
-  title,
-  subtitle,
-  icon: Icon,
-  accent,
-  href,
-  linkLabel,
-  index,
-  children,
+  title, subtitle, icon: Icon, accent, href, linkLabel, index, children,
 }: {
-  title: string;
-  subtitle: string;
-  icon: React.ElementType;
-  accent: string;
-  href: string;
-  linkLabel: string;
-  index: number;
-  children: React.ReactNode;
+  title: string; subtitle: string; icon: React.ElementType; accent: string;
+  href: string; linkLabel: string; index: number; children: React.ReactNode;
 }) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: 0.05 * index, ease: 'easeOut' }}
-      className={cardClass}
-      style={{ ...cardStyle, padding: 22, display: 'flex', flexDirection: 'column', gap: 18 }}
+      className={cn(card, 'flex flex-col gap-5 p-6')}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3.5">
           <span
-            style={{
-              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-              border: `1px solid color-mix(in srgb, ${accent} 30%, transparent)`,
-            }}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+            style={{ background: softOf(accent), color: inkOf(accent) }}
           >
-            <Icon size={18} style={{ color: accent }} />
+            <Icon size={22} />
           </span>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: 'var(--estate-ink)', margin: 0, lineHeight: 1.2 }}>
-              {title}
-            </h2>
-            <p style={{ fontFamily: SANS, fontSize: 12, color: 'var(--estate-text-muted)', margin: '2px 0 0' }}>{subtitle}</p>
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-extrabold tracking-tight text-[var(--ink-1)]">{title}</h2>
+            <p className="truncate text-sm text-[var(--ink-3)]">{subtitle}</p>
           </div>
         </div>
         <Link
           href={href}
-          className="group"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0,
-            fontFamily: MONO, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-            color: accent, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`,
-            borderRadius: 7, padding: '5px 10px', textDecoration: 'none', whiteSpace: 'nowrap',
-          }}
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold no-underline transition-colors hover:bg-[var(--surface-2)]"
+          style={{ color: inkOf(accent), borderColor: `color-mix(in srgb, ${accent} 40%, transparent)` }}
         >
           {linkLabel}
-          <ArrowRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+          <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
         </Link>
       </div>
       {children}
@@ -278,16 +219,25 @@ function ModuleCard({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div
-      style={{
-        border: '1px dashed var(--estate-border-gold)', borderRadius: 8, padding: '20px 16px',
-        textAlign: 'center', fontFamily: MONO, fontSize: 12, color: 'var(--estate-text-muted)',
-      }}
-    >
+    <div className="rounded-2xl border border-dashed border-[var(--line-2)] px-4 py-6 text-center text-[15px] text-[var(--ink-3)]">
       {text}
     </div>
   );
 }
+
+function FootStat({ icon: Icon, text, tone }: { icon: React.ElementType; text: string; tone?: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]"
+      style={tone ? { color: tone } : undefined}
+    >
+      <Icon size={16} className={tone ? undefined : 'text-[var(--ink-3)]'} />
+      {text}
+    </span>
+  );
+}
+
+const foot = 'flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--line-1)] pt-4';
 
 // ── Module bodies ────────────────────────────────────────────────────────────
 
@@ -295,21 +245,21 @@ function EstateBody({ e }: { e: EstateSummary | null }) {
   if (!e) return <EmptyState text="Estate metrics unavailable — no data source configured" />;
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div className="grid grid-cols-3 gap-4">
         <MiniStat value={fmt(e.estateTotal)} label="Objects" color={ACCENT.estate} />
         <MiniStat value={fmt(e.harvested)} label="Harvested" />
         <MiniStat value={e.sources} label={e.sources === 1 ? 'Source' : 'Sources'} />
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="flex flex-col gap-2.5">
         <CoverageRow label="Harvested" count={e.harvested} total={e.estateTotal || e.harvested} color={COVERAGE_COLORS.harvested} />
         <CoverageRow label="Profiled" count={e.profiled} total={e.harvested} color={COVERAGE_COLORS.profiled} />
         <CoverageRow label="Enriched" count={e.enriched} total={e.harvested} color={COVERAGE_COLORS.enriched} />
         <CoverageRow label="Embedded" count={e.embedded} total={e.harvested} color={COVERAGE_COLORS.embedded} />
       </div>
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
+      <div className={foot}>
         <FootStat icon={Clock} text={`Swept ${relativeTime(e.lastSweepAt)}`} />
-        <FootStat icon={Activity} text={`${fmt(e.queuedJobs)} queued`} tone={e.queuedJobs > 0 ? ACCENT.estate : undefined} />
-        <FootStat icon={CircleDot} text={`${fmt(e.staleCount)} stale`} tone={e.staleCount > 0 ? '#F97316' : undefined} />
+        <FootStat icon={Activity} text={`${fmt(e.queuedJobs)} queued`} tone={e.queuedJobs > 0 ? 'var(--brand-a-ink)' : undefined} />
+        <FootStat icon={CircleDot} text={`${fmt(e.staleCount)} stale`} tone={e.staleCount > 0 ? 'var(--warn)' : undefined} />
       </div>
     </>
   );
@@ -320,24 +270,22 @@ function MemoryBody({ m }: { m: MemorySummary | null }) {
   const ratioPct = Math.round(m.helpfulRatio * 100);
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div className="grid grid-cols-3 gap-4">
         <MiniStat value={fmt(m.activeMemories)} label="Active memories" color={ACCENT.memory} />
         <MiniStat value={fmt(m.coreMemories)} label="Core rules" />
         <MiniStat value={fmt(m.topicCount)} label="Topics" />
       </div>
 
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Label>Store growth · 30d</Label>
-          <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-dim)' }}>
-            {m.injectEnabled ? 'injection on' : 'injection off'}
-          </span>
+        <div className="mb-2 flex justify-between">
+          <Label>Store growth · 30 days</Label>
+          <span className="text-sm text-[var(--ink-3)]">{m.injectEnabled ? 'Injection on' : 'Injection off'}</span>
         </div>
         <Sparkline data={m.storeSeries} color={ACCENT.memory} />
       </div>
 
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
-        <FootStat icon={TrendingUp} text={`${ratioPct}% helpful`} tone={ratioPct >= 60 ? ACCENT.logins : ratioPct > 0 ? '#F97316' : undefined} />
+      <div className={foot}>
+        <FootStat icon={TrendingUp} text={`${ratioPct}% helpful`} tone={ratioPct >= 60 ? 'var(--ok)' : ratioPct > 0 ? 'var(--warn)' : undefined} />
         <FootStat icon={Sparkles} text={`${fmt(m.injectedLast24h)} injected 24h`} />
         <FootStat icon={Ban} text={`${fmt(m.phantomsBlocked7d)} phantoms 7d`} />
         <FootStat icon={Clock} text={`Synth ${relativeTime(m.lastSynthesisAt)}`} />
@@ -349,19 +297,24 @@ function MemoryBody({ m }: { m: MemorySummary | null }) {
 function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers: boolean }) {
   if (!l) return <EmptyState text="Login metrics unavailable" />;
   const roleTotal = l.roleDistribution.reduce((s, r) => s + r.count, 0);
+  const sevenDay = (
+    <div className={foot}>
+      <FootStat icon={Clock} text={`${fmt(l.logins7d)} sign-ins in the last 7 days`} />
+    </div>
+  );
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <MiniStat value={fmt(l.totalUsers)} label="Users" color={ACCENT.logins} />
         <MiniStat value={fmt(l.activeUsers)} label="Active" />
         <MiniStat value={fmt(l.logins24h)} label="Logins 24h" />
-        <MiniStat value={fmt(l.failed7d)} label="Failed 7d" color={l.failed7d > 0 ? '#F97316' : undefined} />
+        <MiniStat value={fmt(l.failed7d)} label="Failed 7d" color={l.failed7d > 0 ? '#D97706' : undefined} />
       </div>
 
       {roleTotal > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2.5">
           <Label>Roles</Label>
-          <div style={{ height: 8, borderRadius: 5, overflow: 'hidden', display: 'flex', border: '1px solid var(--estate-border)' }}>
+          <div className="flex h-3 overflow-hidden rounded-full bg-[var(--surface-3)]">
             {l.roleDistribution.map((r, i) => (
               <div
                 key={r.role}
@@ -370,10 +323,10 @@ function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers
               />
             ))}
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
             {l.roleDistribution.map((r, i) => (
-              <span key={r.role} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-secondary)' }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: ROLE_COLORS[i % ROLE_COLORS.length] }} />
+              <span key={r.role} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]">
+                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: ROLE_COLORS[i % ROLE_COLORS.length] }} />
                 {roleLabelFor(r.role)} · {r.count}
               </span>
             ))}
@@ -381,30 +334,22 @@ function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers
         </div>
       )}
 
-      {canReadUsers ? (
-        l.recent.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
-            <Label>Recent sign-ins</Label>
-            {l.recent.map((r, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {r.success ? <ShieldCheck size={13} style={{ color: ACCENT.logins, flexShrink: 0 }} /> : <ShieldAlert size={13} style={{ color: '#F97316', flexShrink: 0 }} />}
-                <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.name || r.email}
-                </span>
-                <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--estate-text-dim)', textTransform: 'uppercase' }}>{r.provider}</span>
-                <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-muted)', width: 62, textAlign: 'right' }}>{relativeTime(r.at)}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
-            <FootStat icon={Clock} text={`${fmt(l.logins7d)} sign-ins in the last 7 days`} />
-          </div>
-        )
-      ) : (
-        <div style={{ borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
-          <FootStat icon={Clock} text={`${fmt(l.logins7d)} sign-ins in the last 7 days`} />
+      {canReadUsers && l.recent.length > 0 ? (
+        <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
+          <Label>Recent sign-ins</Label>
+          {l.recent.map((r, i) => (
+            <div key={i} className="flex items-center gap-3 text-[15px]">
+              {r.success
+                ? <ShieldCheck size={17} className="shrink-0 text-[var(--ok)]" />
+                : <ShieldAlert size={17} className="shrink-0 text-[var(--warn)]" />}
+              <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.name || r.email}</span>
+              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-xs font-bold uppercase text-[var(--ink-2)]">{r.provider}</span>
+              <span className="w-[70px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
+            </div>
+          ))}
         </div>
+      ) : (
+        sevenDay
       )}
     </>
   );
@@ -414,54 +359,41 @@ function InspectorBody({ s, canReadUsers }: { s: InspectorSummary | null; canRea
   if (!s) return <EmptyState text="Inspector metrics unavailable" />;
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div className="grid grid-cols-3 gap-4">
         <MiniStat value={fmt(s.totalSessions)} label={canReadUsers ? 'Sessions' : 'My sessions'} color={ACCENT.inspector} />
         <MiniStat value={fmt(s.totalMessages)} label="Messages" />
-        <MiniStat value={canReadUsers ? fmt(s.activeUsers) : fmt(s.sessions7d)} label={canReadUsers ? 'Active users' : 'Last 7d'} />
+        <MiniStat value={canReadUsers ? fmt(s.activeUsers) : fmt(s.sessions7d)} label={canReadUsers ? 'Active users' : 'Last 7 days'} />
       </div>
 
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <Label>Sessions · 7d</Label>
-          <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-dim)' }}>{fmt(s.sessions7d)} total</span>
+        <div className="mb-2 flex justify-between">
+          <Label>Sessions · 7 days</Label>
+          <span className="text-sm text-[var(--ink-3)]">{fmt(s.sessions7d)} total</span>
         </div>
         <MiniBars data={s.dailyCounts} color={ACCENT.inspector} />
       </div>
 
       {s.recent.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
+        <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
           <Label>Recent sessions</Label>
           {s.recent.map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <MessageSquare size={13} style={{ color: 'var(--estate-text-muted)', flexShrink: 0 }} />
-              <span style={{ flex: 1, minWidth: 0, fontFamily: SANS, fontSize: 12.5, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {r.title}
-              </span>
+            <div key={i} className="flex items-center gap-3 text-[15px]">
+              <MessageSquare size={17} className="shrink-0 text-[var(--ink-3)]" />
+              <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.title}</span>
               {canReadUsers && r.user && (
-                <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--estate-text-dim)', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.user}</span>
+                <span className="max-w-[110px] truncate text-sm text-[var(--ink-3)]">{r.user}</span>
               )}
-              <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-muted)' }}>{r.messageCount} msg</span>
-              <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-dim)', width: 54, textAlign: 'right' }}>{relativeTime(r.at)}</span>
+              <span className="text-sm text-[var(--ink-3)]">{r.messageCount} msg</span>
+              <span className="w-[60px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ borderTop: '1px solid var(--estate-border)', paddingTop: 12 }}>
+        <div className={foot}>
           <FootStat icon={MessageSquare} text="No inspector sessions yet — start one" />
         </div>
       )}
     </>
-  );
-}
-
-const ROLE_COLORS = ['#003262', '#5B9DFF', '#2DD4A0', '#A78BFA', '#FDB515'];
-
-function FootStat({ icon: Icon, text, tone }: { icon: React.ElementType; text: string; tone?: string }) {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: MONO, fontSize: 11, color: tone ?? 'var(--estate-text-secondary)' }}>
-      <Icon size={13} style={{ color: tone ?? 'var(--estate-text-muted)' }} />
-      {text}
-    </span>
   );
 }
 
@@ -480,21 +412,27 @@ function KpiTile({
     >
       <Link
         href={href}
-        className={`group block ${cardClass}`}
-        style={{ ...cardStyle, padding: '16px 18px', textDecoration: 'none' }}
+        className={cn(card, 'group block p-5 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-pop')}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="flex items-center justify-between">
           <Label>{label}</Label>
-          <span style={{ width: 26, height: 26, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `color-mix(in srgb, ${accent} 14%, transparent)` }}>
-            <Icon size={14} style={{ color: accent }} />
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-xl"
+            style={{ background: softOf(accent), color: inkOf(accent) }}
+          >
+            <Icon size={19} />
           </span>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--estate-ink)', lineHeight: 1.1, marginTop: 8 }}>
+        <div className="mt-3 text-[34px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]">
           {value}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-          <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--estate-text-muted)' }}>{sub}</span>
-          <ArrowUpRight size={14} className="opacity-0 -translate-x-1 transition-all duration-200 group-hover:opacity-60 group-hover:translate-x-0" style={{ color: accent }} />
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="truncate text-sm text-[var(--ink-3)]">{sub}</span>
+          <ArrowUpRight
+            size={17}
+            className="shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-70"
+            style={{ color: inkOf(accent) }}
+          />
         </div>
       </Link>
     </motion.div>
@@ -528,43 +466,42 @@ export function DashboardView({
   }, []);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin" style={{ background: 'var(--background)' }}>
-      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '32px 28px 56px' }}>
+    <div className="relative h-full overflow-y-auto scrollbar-thin">
+      {/* Soft brand glow behind the page header */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-0 top-0 h-72 w-[60%] opacity-50 blur-3xl"
+        style={{
+          background:
+            'radial-gradient(closest-side at 70% 30%, var(--brand-a-soft), transparent), radial-gradient(closest-side at 20% 70%, var(--brand-b-soft), transparent)',
+        }}
+      />
+      <div className="relative mx-auto max-w-[1280px] px-5 pb-16 pt-8 sm:px-8">
         {/* ── Header ─────────────────────────────────── */}
         <motion.header
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 28 }}
+          className="mb-8 flex flex-wrap items-end justify-between gap-4"
         >
           <div>
-            <h1 style={{ fontFamily: SERIF, fontSize: 32, fontWeight: 700, letterSpacing: '-0.01em', color: 'var(--estate-ink)', margin: 0, lineHeight: 1.15 }}>
-              {greeting}, {displayName}
+            <h1 className="text-[32px] font-extrabold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">
+              {greeting}, {displayName} <span aria-hidden>👋</span>
             </h1>
-            <p style={{ fontFamily: SANS, fontSize: 14, color: 'var(--estate-text-secondary)', margin: '6px 0 0' }}>
+            <p className="mt-1.5 text-base text-[var(--ink-3)]">
               Here&rsquo;s what&rsquo;s happening across your ALOFT platform.
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span
-              style={{
-                fontFamily: MONO, fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-                color: 'var(--estate-role-badge-text)', background: 'color-mix(in srgb, #FDB515 16%, transparent)',
-                border: '1px solid color-mix(in srgb, #FDB515 40%, transparent)', borderRadius: 20, padding: '4px 12px',
-              }}
-            >
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-sm font-bold text-[var(--brand-a-ink)]">
               {roleLabel}
             </span>
-            {mounted && (
-              <span style={{ fontFamily: MONO, fontSize: 12, color: 'var(--estate-text-muted)' }}>{dateStr}</span>
-            )}
+            {mounted && <span className="text-sm font-semibold text-[var(--ink-3)]">{dateStr}</span>}
           </div>
         </motion.header>
 
         {/* ── Hero KPI strip ─────────────────────────── */}
-        <div
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14, marginBottom: 22 }}
-        >
+        <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4">
           <KpiTile index={0} label="Data Estate" icon={Database} accent={ACCENT.estate} href="/agent-lab/estate"
             value={fmt(estate?.estateTotal ?? 0)} sub={`${fmt(estate?.harvested ?? 0)} harvested · ${estate?.sources ?? 0} sources`} />
           <KpiTile index={1} label="Memory" icon={Lightbulb} accent={ACCENT.memory} href="/agent-lab/memory"
@@ -576,7 +513,7 @@ export function DashboardView({
         </div>
 
         {/* ── Module grid ────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(430px, 1fr))', gap: 18 }}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] gap-5">
           <ModuleCard index={0} title="Data Estate" subtitle="Mendeleev context coverage" icon={Database} accent={ACCENT.estate} href="/agent-lab/estate" linkLabel="Explore">
             <EstateBody e={estate} />
           </ModuleCard>
@@ -595,17 +532,14 @@ export function DashboardView({
         </div>
 
         {/* ── Memory cred leaderboard ─────────────────── */}
-        <div style={{ marginTop: 18 }}>
+        <div className="mt-5">
           <MemoryCredCard index={4} />
         </div>
 
         {/* ── Footer ─────────────────────────────────── */}
-        <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Layers size={12} style={{ color: 'var(--estate-text-dim)' }} />
-          <span style={{ fontFamily: MONO, fontSize: 10.5, color: 'var(--estate-text-dim)' }}>
-            ALOFT platform overview{mounted ? ` · refreshed ${relativeTime(summary.generatedAt)}` : ''}
-          </span>
-        </div>
+        <p className="mt-6 text-sm text-[var(--ink-3)]">
+          ALOFT platform overview{mounted ? ` · refreshed ${relativeTime(summary.generatedAt)}` : ''}
+        </p>
       </div>
     </div>
   );

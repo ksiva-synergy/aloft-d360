@@ -8,9 +8,9 @@ import {
 } from 'lucide-react';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const SERIF: React.CSSProperties = { fontFamily: "'Source Serif 4', Georgia, serif" };
-const SANS: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
-const GOLD = '#FDB515';
+const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
+const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const GOLD = '#5B3DF5';
 
 type DashboardVisibility = 'private' | 'org' | 'shared';
 type FilterTab = 'all' | 'mine' | 'shared';
@@ -119,7 +119,7 @@ export default function DashboardsListPage() {
               <h1 style={{ ...SERIF, fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
                 Dashboards
               </h1>
-              <p style={{ ...MONO, fontSize: 10, color: 'var(--text-muted)', margin: '3px 0 0', letterSpacing: '0.04em' }}>
+              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '3px 0 0', letterSpacing: '0.04em' }}>
                 INSPECTOR · SAVED DASHBOARDS
               </p>
             </div>
@@ -128,9 +128,9 @@ export default function DashboardsListPage() {
             onClick={handleNewDashboard}
             disabled={creating}
             style={{
-              ...MONO, display: 'flex', alignItems: 'center', gap: 6, fontSize: 10,
+              ...MONO, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
               letterSpacing: '0.06em', textTransform: 'uppercase', background: GOLD,
-              color: '#0D1B2A', border: 'none', borderRadius: 4, padding: '8px 16px',
+              color: '#111322', border: 'none', borderRadius: 4, padding: '8px 16px',
               cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.6 : 1, fontWeight: 600,
             }}
           >
@@ -148,7 +148,7 @@ export default function DashboardsListPage() {
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
                 style={{
-                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                   padding: '8px 14px', background: 'transparent', border: 'none',
                   borderBottom: filter === tab.id ? `2px solid ${GOLD}` : '2px solid transparent',
                   color: filter === tab.id ? GOLD : 'var(--text-muted)',
@@ -170,7 +170,7 @@ export default function DashboardsListPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search dashboards…"
               style={{
-                ...MONO, fontSize: 10, width: '100%', boxSizing: 'border-box',
+                ...MONO, fontSize: 13, width: '100%', boxSizing: 'border-box',
                 background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-default)',
                 borderRadius: 4, color: 'var(--text-primary)', padding: '6px 8px 6px 28px',
                 outline: 'none',
@@ -182,9 +182,9 @@ export default function DashboardsListPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ ...MONO, fontSize: 11, color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 4, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
+        <div style={{ ...MONO, fontSize: 13, color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 4, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
           {error}
-          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: '#F87171', cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 10 }}>dismiss</button>
+          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: '#F87171', cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 13 }}>dismiss</button>
         </div>
       )}
 
@@ -192,14 +192,14 @@ export default function DashboardsListPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-            <span style={{ ...MONO, fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>LOADING…</span>
+            <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>LOADING…</span>
           </div>
         )}
 
         {!loading && filtered.length === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 260, gap: 12 }}>
             <BarChart2 size={36} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-            <p style={{ ...MONO, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
+            <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
               {search ? 'No dashboards match your search.' : filter === 'mine' ? 'You have not created any dashboards yet.' : filter === 'shared' ? 'No dashboards have been shared with you.' : 'No dashboards yet. Create one to start building visualisations.'}
             </p>
           </div>
@@ -236,8 +236,8 @@ export default function DashboardsListPage() {
             <p style={{ ...SANS, fontSize: 14, color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>Delete dashboard?</p>
             <p style={{ ...SANS, fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>This action cannot be undone. All versions and widget configs will be removed.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 10, padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 10, padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Delete</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 13, padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 13, padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Delete</button>
             </div>
           </div>
         </div>
@@ -256,7 +256,7 @@ function VisibilityBadge({ visibility }: { visibility: DashboardVisibility }) {
   };
   const { icon, label, color } = config[visibility] ?? config.org;
   return (
-    <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${color}18`, border: `1px solid ${color}30`, borderRadius: 3, padding: '2px 5px' }}>
+    <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${color}18`, border: `1px solid ${color}30`, borderRadius: 3, padding: '2px 5px' }}>
       {icon}{label}
     </span>
   );
@@ -269,7 +269,7 @@ function RoleBadge({ role }: { role: string | null }) {
   const colors: Record<string, string> = { owner: GOLD, editor: '#A78BFA', viewer: '#8892A4' };
   const color = colors[role] ?? '#8892A4';
   return (
-    <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', color, background: `${color}18`, border: `1px solid ${color}30`, borderRadius: 3, padding: '2px 5px', textTransform: 'uppercase' }}>
+    <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color, background: `${color}18`, border: `1px solid ${color}30`, borderRadius: 3, padding: '2px 5px', textTransform: 'uppercase' }}>
       {role}
     </span>
   );
@@ -312,8 +312,8 @@ function DashboardCard({
     <div
       style={{
         position: 'relative',
-        background: hovered ? 'rgba(253,181,21,0.04)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${hovered ? GOLD : 'rgba(253,181,21,0.15)'}`,
+        background: hovered ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${hovered ? GOLD : 'color-mix(in srgb, var(--brand-a) 15%, transparent)'}`,
         borderRadius: 6,
         transition: 'all 0.15s',
         display: 'flex',
@@ -338,7 +338,7 @@ function DashboardCard({
 
         {/* Description */}
         {dashboard.description && (
-          <p style={{ ...SANS, margin: '0 0 8px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          <p style={{ ...SANS, margin: '0 0 8px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {dashboard.description}
           </p>
         )}
@@ -347,11 +347,11 @@ function DashboardCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           <VisibilityBadge visibility={dashboard.visibility} />
           <RoleBadge role={dashboard.my_role} />
-          <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: dashboard.widget_count > 0 ? GOLD : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'rgba(253,181,21,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${dashboard.widget_count > 0 ? 'rgba(253,181,21,0.2)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 3, padding: '2px 6px' }}>
+          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: dashboard.widget_count > 0 ? GOLD : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(255,255,255,0.04)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 3, padding: '2px 6px' }}>
             {dashboard.widget_count} {dashboard.widget_count === 1 ? 'WIDGET' : 'WIDGETS'}
           </span>
           {dashboard.collaborator_count > 1 && (
-            <span style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
               <Users size={9} />{dashboard.collaborator_count} PEOPLE
             </span>
           )}
@@ -359,10 +359,10 @@ function DashboardCard({
 
         {/* Meta footer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
             <User size={9} />{ownerDisplay}
           </span>
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+          <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
             <Calendar size={9} />{updatedDate}
           </span>
         </div>
@@ -379,7 +379,7 @@ function DashboardCard({
 
         {menuOpen && (
           <div
-            style={{ position: 'absolute', top: 28, right: 0, background: 'var(--bg-surface, #0D1B2A)', border: '1px solid var(--border-default)', borderRadius: 6, minWidth: 160, zIndex: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.4)', padding: '4px 0' }}
+            style={{ position: 'absolute', top: 28, right: 0, background: 'var(--bg-surface, #111322)', border: '1px solid var(--border-default)', borderRadius: 6, minWidth: 160, zIndex: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.4)', padding: '4px 0' }}
             onMouseLeave={() => setMenuOpen(false)}
           >
             <MenuItem icon={<Eye size={12} />} label="Open" onClick={onOpen} />
@@ -412,7 +412,7 @@ function MenuItem({ icon, label, onClick, danger }: { icon: React.ReactNode; lab
       onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{ ...MONO, display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', background: hov ? 'rgba(255,255,255,0.06)' : 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 10, letterSpacing: '0.04em', color: danger ? '#F87171' : 'var(--text-primary)', transition: 'background 0.1s' }}
+      style={{ ...MONO, display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', background: hov ? 'rgba(255,255,255,0.06)' : 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, letterSpacing: '0.04em', color: danger ? '#F87171' : 'var(--text-primary)', transition: 'background 0.1s' }}
     >
       {icon}{label}
     </button>

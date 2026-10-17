@@ -120,55 +120,55 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
               }}
             >
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
                 style={{ color: labelColor }}
               >
                 Object Path
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-20"
+                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3 w-20"
                 style={{ color: labelColor }}
               >
                 Kind
               </th>
               <th
-                className="text-right font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-24"
+                className="text-right font-mono text-xs font-bold tracking-widest uppercase p-3 w-24"
                 style={{ color: labelColor }}
               >
                 Rows
               </th>
               <th
-                className="text-right font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-16"
+                className="text-right font-mono text-xs font-bold tracking-widest uppercase p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Cols
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
                 style={{ color: labelColor }}
               >
                 Summary
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-28"
+                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3 w-28"
                 style={{ color: labelColor }}
               >
                 Status
               </th>
               <th
-                className="text-center font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-16"
+                className="text-center font-mono text-xs font-bold tracking-widest uppercase p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Fresh
               </th>
               <th
-                className="text-center font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-12"
+                className="text-center font-mono text-xs font-bold tracking-widest uppercase p-3 w-12"
                 style={{ color: labelColor }}
               >
                 Pii
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
                 style={{ color: labelColor }}
               >
                 Entity Tags
@@ -201,10 +201,10 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                 <td colSpan={9} className="p-12 text-center">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <span className="w-9 h-9 relative block opacity-30">
-                      <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: '#FDB515' }} />
-                      <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: '#FDB515' }} />
+                      <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
+                      <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
                     </span>
-                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: "'Inter Tight', sans-serif" }}>
+                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: "'Inter Variable', sans-serif" }}>
                       No objects match your filters
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                 >
                   {/* full_path */}
                   <td
-                    className="p-3 font-mono text-[12px] truncate max-w-[200px]"
+                    className="p-3 font-mono text-xs truncate max-w-[200px]"
                     style={{ color: inkColor }}
                     title={item.full_path}
                   >
@@ -238,15 +238,15 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                     <KindBadge kind={item.object_kind} />
                   </td>
                   {/* rows */}
-                  <td className="p-3 text-right font-mono text-[12px]" style={{ color: inkColor }}>
+                  <td className="p-3 text-right font-mono text-xs" style={{ color: inkColor }}>
                     {item.row_count_est !== null ? Number(item.row_count_est).toLocaleString() : '—'}
                   </td>
                   {/* columns (always "—") */}
-                  <td className="p-3 text-right font-mono text-[12px]" style={{ color: mutedColor }}>
+                  <td className="p-3 text-right font-mono text-xs" style={{ color: mutedColor }}>
                     —
                   </td>
                   {/* summary */}
-                  <td className="p-3 font-serif text-[12px] truncate max-w-[240px]" style={{ color: labelColor }}>
+                  <td className="p-3 font-serif text-xs truncate max-w-[240px]" style={{ color: labelColor }}>
                     {getSummary(item)}
                   </td>
                   {/* status */}
@@ -271,7 +271,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       {getTags(item.entity_tags).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="font-mono text-[9px] font-semibold tracking-wider text-slate-500 border rounded px-1.5 py-0.5"
+                          className="font-mono text-xs font-semibold tracking-wider text-[var(--ink-3)] border rounded px-1.5 py-0.5"
                           style={{ borderColor: borderColor }}
                         >
                           {tag}

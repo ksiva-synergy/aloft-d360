@@ -74,10 +74,10 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
           gap: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           NO WIDGETS YET
         </span>
-        <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', maxWidth: 260, textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', maxWidth: 260, textAlign: 'center' }}>
           Add a widget using the toolbar, then assign dimensions and measures from the picker.
         </span>
       </div>
@@ -106,13 +106,13 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
                 onClick={() => selectWidget(widget.widgetId)}
                 style={{
                   background: 'var(--builder-surface-raised)',
-                  border: `1px solid ${isSelected ? '#FDB515' : 'var(--builder-border)'}`,
+                  border: `1px solid ${isSelected ? 'var(--brand-a)' : 'var(--builder-border)'}`,
                   borderRadius: 6,
                   display: 'flex',
                   flexDirection: 'column',
                   overflow: 'hidden',
                   cursor: 'pointer',
-                  outline: isSelected ? '1px solid rgba(253,181,21,0.3)' : 'none',
+                  outline: isSelected ? '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'none',
                   outlineOffset: 2,
                 }}
               >
@@ -132,7 +132,7 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
                   <span
                     style={{
                       ...MONO,
-                      fontSize: 10,
+                      fontSize: 13,
                       letterSpacing: '0.06em',
                       textTransform: 'uppercase',
                       color: 'var(--builder-text)',
@@ -188,7 +188,7 @@ function DriftBadge({ drift }: { drift?: { status: DriftStatus; changedMeasures?
         title={tip}
         style={{
           ...MONO,
-          fontSize: 8,
+          fontSize: 13,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
           padding: '2px 5px',
@@ -217,14 +217,14 @@ function DriftBadge({ drift }: { drift?: { status: DriftStatus; changedMeasures?
       title={tip}
       style={{
         ...MONO,
-        fontSize: 8,
+        fontSize: 13,
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
         padding: '2px 5px',
         borderRadius: 2,
-        background: 'rgba(253,181,21,0.12)',
-        color: '#FDB515',
-        border: '1px solid rgba(253,181,21,0.25)',
+        background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
+        color: 'var(--brand-a-ink)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 3,

@@ -78,7 +78,7 @@ function ActionPair({
       <span
         style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 9,
+          fontSize: 13,
           fontWeight: 600,
           letterSpacing: '0.07em',
           textTransform: 'uppercase',
@@ -123,7 +123,7 @@ function ActionPair({
 
   const btnBase: React.CSSProperties = {
     fontFamily: '"IBM Plex Mono", monospace',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: 700,
     padding: '2px 8px',
     borderRadius: 3,
@@ -174,11 +174,11 @@ function Section({ label, count, children }: { label: string; count: number; chi
       <div
         style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 9,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: '#8892A4',
+          color: 'var(--ink-3)',
           padding: '8px 14px 5px',
           borderBottom: '1px solid rgba(255,255,255,0.05)',
         }}
@@ -201,11 +201,11 @@ function ConfBar({ value }: { value: number }) {
             width: `${Math.round(value * 100)}%`,
             height: '100%',
             borderRadius: 2,
-            background: value >= 0.8 ? '#2DD4A0' : '#FDB515',
+            background: value >= 0.8 ? '#2DD4A0' : 'var(--brand-a)',
           }}
         />
       </div>
-      <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 9, color: '#8892A4' }}>
+      <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: 'var(--ink-3)' }}>
         {Math.round(value * 100)}%
       </span>
     </div>
@@ -229,7 +229,7 @@ export default function RelationshipList({
   const [mappingStatuses, setMappingStatuses] = useState<Record<string, string>>({});
 
   const inkColor = '#E8E6E1';
-  const mutedColor = '#8892A4';
+  const mutedColor = 'var(--ink-3)';
 
   const rowBase: React.CSSProperties = {
     display: 'flex',
@@ -253,7 +253,7 @@ export default function RelationshipList({
         style={{
           padding: '24px 14px',
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 11,
+          fontSize: 13,
           color: mutedColor,
           textAlign: 'center',
         }}
@@ -290,7 +290,7 @@ export default function RelationshipList({
             <span
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 8,
+                fontSize: 13,
                 fontWeight: 600,
                 padding: '1px 5px',
                 borderRadius: 2,
@@ -307,7 +307,7 @@ export default function RelationshipList({
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: 600,
                   color: inkColor,
                   overflow: 'hidden',
@@ -320,7 +320,7 @@ export default function RelationshipList({
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontSize: 13,
                   color: mutedColor,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -330,7 +330,7 @@ export default function RelationshipList({
                 {sib.full_path}
               </div>
             </div>
-            <span style={{ fontSize: 10, color: '#FDB515', flexShrink: 0 }}>→</span>
+            <span style={{ fontSize: 13, color: 'var(--brand-a-ink)', flexShrink: 0 }}>→</span>
           </div>
         ))}
       </Section>
@@ -342,7 +342,7 @@ export default function RelationshipList({
             <span
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 8,
+                fontSize: 13,
                 fontWeight: 600,
                 padding: '1px 5px',
                 borderRadius: 2,
@@ -358,11 +358,11 @@ export default function RelationshipList({
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 11,
+                  fontSize: 13,
                   color: inkColor,
                 }}
               >
-                <span style={{ color: '#FDB515' }}>{fk.column}</span>
+                <span style={{ color: 'var(--brand-a-ink)' }}>{fk.column}</span>
                 <span style={{ color: mutedColor, margin: '0 5px' }}>→</span>
                 {fk.likely_target}
               </div>
@@ -386,13 +386,13 @@ export default function RelationshipList({
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 8,
+                  fontSize: 13,
                   fontWeight: 600,
                   padding: '1px 5px',
                   borderRadius: 2,
-                  background: 'rgba(253,181,21,.1)',
-                  color: '#FDB515',
-                  border: '1px solid rgba(253,181,21,.3)',
+                  background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+                  color: 'var(--brand-a-ink)',
+                  border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
                   flexShrink: 0,
                   textTransform: 'uppercase',
                 }}
@@ -411,22 +411,22 @@ export default function RelationshipList({
                 <div
                   style={{
                     fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: 600,
-                    color: '#FDB515',
+                    color: 'var(--brand-a-ink)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}
                 >
                   {targetId}
-                  <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.5 }}>→</span>
+                  <span style={{ fontSize: 13, marginLeft: 4, opacity: 0.5 }}>→</span>
                 </div>
                 {verdict && (
                   <div
                     style={{
-                      fontFamily: '"Inter Tight", sans-serif',
-                      fontSize: 11,
+                      fontFamily: '"Inter Variable", sans-serif',
+                      fontSize: 13,
                       color: mutedColor,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -469,7 +469,7 @@ export default function RelationshipList({
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 8,
+                  fontSize: 13,
                   fontWeight: 600,
                   padding: '1px 5px',
                   borderRadius: 2,
@@ -493,21 +493,21 @@ export default function RelationshipList({
                 <div
                   style={{
                     fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 11,
+                    fontSize: 13,
                     color: inkColor,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  <span style={{ color: '#FDB515' }}>{focusCol.name}</span>
+                  <span style={{ color: 'var(--brand-a-ink)' }}>{focusCol.name}</span>
                   <span style={{ color: mutedColor, margin: '0 5px' }}>↔</span>
                   {otherColObj.name}
                 </div>
                 <div
                   style={{
                     fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 9,
+                    fontSize: 13,
                     color: mutedColor,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -545,7 +545,7 @@ export default function RelationshipList({
             <span
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 8,
+                fontSize: 13,
                 fontWeight: 600,
                 padding: '1px 5px',
                 borderRadius: 2,
@@ -561,7 +561,7 @@ export default function RelationshipList({
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 11,
+                  fontSize: 13,
                   color: co.object_id ? inkColor : mutedColor,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -573,7 +573,7 @@ export default function RelationshipList({
               <div
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontSize: 13,
                   color: mutedColor,
                 }}
               >
@@ -587,7 +587,7 @@ export default function RelationshipList({
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 10,
+                  fontSize: 13,
                   color: mutedColor,
                   flexShrink: 0,
                 }}
@@ -595,7 +595,7 @@ export default function RelationshipList({
                 {co.co_count} co-queries
               </span>
             )}
-            {co.object_id && <span style={{ fontSize: 10, color: '#FDB515', flexShrink: 0 }}>→</span>}
+            {co.object_id && <span style={{ fontSize: 13, color: 'var(--brand-a-ink)', flexShrink: 0 }}>→</span>}
           </div>
         ))}
       </Section>

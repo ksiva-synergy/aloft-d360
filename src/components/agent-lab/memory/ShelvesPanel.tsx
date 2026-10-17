@@ -340,7 +340,7 @@ export function ShelvesPanel() {
         width:          300,
         background:     'rgba(10,18,30,0.97)',
         backdropFilter: 'blur(8px)',
-        border:         '1px solid rgba(253,181,21,0.18)',
+        border:         '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
         borderRadius:   6,
         padding:        '12px 14px',
         boxShadow:      '0 6px 24px rgba(0,0,0,0.55)',
@@ -350,7 +350,7 @@ export function ShelvesPanel() {
         gap:            8,
       }}
     >
-      <p style={{ fontFamily: SERIF, fontSize: '11.5px', color: '#F0F4F8', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
+      <p style={{ fontFamily: SERIF, fontSize: '13px', color: '#F0F4F8', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
         {tooltip.bullet.ruleText}
       </p>
       <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)' }} />
@@ -358,7 +358,7 @@ export function ShelvesPanel() {
         <span
           style={{
             fontFamily:    MONO,
-            fontSize:      '9px',
+            fontSize:      '13px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             color:         ruleTypeColor(tooltip.bullet.ruleType),
@@ -370,11 +370,11 @@ export function ShelvesPanel() {
         >
           {tooltip.bullet.ruleType.replace(/_/g, ' ')}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: '9px', color: '#8BAFC8' }}>
+        <span style={{ fontFamily: MONO, fontSize: '13px', color: '#8BAFC8' }}>
           v{tooltip.bullet.version} · {(tooltip.bullet.confidence * 100).toFixed(0)}% conf
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '9px', color: '#4A6080' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '13px', color: '#4A6080' }}>
         <span>
           {tooltip.bullet.helpfulCount > 0 && <span style={{ color: '#6ABF8A' }}>{tooltip.bullet.helpfulCount}↑ helpful</span>}
           {tooltip.bullet.helpfulCount > 0 && tooltip.bullet.harmfulCount > 0 && ' · '}
@@ -435,7 +435,7 @@ export function ShelvesPanel() {
             min-height: 140px;
           }
           .foer-shelf-card:hover {
-            border-color: rgba(253,181,21,0.35);
+            border-color: color-mix(in srgb, var(--brand-a) 35%, transparent);
           }
         `}</style>
 
@@ -459,13 +459,13 @@ export function ShelvesPanel() {
                       statsRes.flagStatus.coveragePercent >= 90
                         ? 'rgba(106,191,138,0.4)'
                         : statsRes.flagStatus.coveragePercent >= 75
-                        ? 'rgba(253,181,21,0.35)'
+                        ? 'color-mix(in srgb, var(--brand-a) 35%, transparent)'
                         : 'rgba(217,119,75,0.4)'
                     }`,
                     color: statsRes.flagStatus.coveragePercent >= 90
                       ? '#6ABF8A'
                       : statsRes.flagStatus.coveragePercent >= 75
-                      ? '#FDB515'
+                      ? '#5B3DF5'
                       : '#D9774B',
                     background: 'rgba(255,255,255,0.03)',
                   }}
@@ -509,9 +509,9 @@ export function ShelvesPanel() {
                 letterSpacing:   '0.05em',
                 padding:         '4px 10px',
                 borderRadius:    3,
-                border:          '1px solid rgba(253,181,21,0.4)',
-                background:      reclassifyMutation.isPending ? 'rgba(253,181,21,0.08)' : 'transparent',
-                color:           reclassifyMutation.isPending ? 'rgba(253,181,21,0.5)' : '#FDB515',
+                border:          '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
+                background:      reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
+                color:           reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : '#5B3DF5',
                 cursor:          reclassifyMutation.isPending ? 'not-allowed' : 'pointer',
                 textTransform:   'uppercase',
                 transition:      'background 0.15s ease, color 0.15s ease',
@@ -583,8 +583,8 @@ export function ShelvesPanel() {
             alignItems:  'center',
             gap:         '0.5rem',
             padding:     '8px 12px',
-            background:  'rgba(253,181,21,0.06)',
-            border:      '1px solid rgba(253,181,21,0.18)',
+            background:  'color-mix(in srgb, var(--brand-a) 6%, transparent)',
+            border:      '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
             borderRadius: 4,
           }}>
             <button
@@ -607,7 +607,7 @@ export function ShelvesPanel() {
               <span style={{ fontSize: '1rem', lineHeight: 1 }}>←</span>
               All Groups
             </button>
-            <span style={{ color: 'rgba(253,181,21,0.35)', fontFamily: MONO, fontSize: '0.7rem' }}>›</span>
+            <span style={{ color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', fontFamily: MONO, fontSize: '0.7rem' }}>›</span>
             <span style={{ fontFamily: MONO, fontSize: '0.7rem', color: 'var(--foer-text-pri)', fontWeight: 500 }}>
               {activeGroupName}
             </span>

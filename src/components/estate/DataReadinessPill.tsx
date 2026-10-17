@@ -64,7 +64,7 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         backgroundColor: 'var(--estate-bg, rgba(13,27,42,0.92))',
-        borderBottom: '1px solid var(--estate-border-gold, rgba(253,181,21,0.12))',
+        borderBottom: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
         padding: '8px 32px',
         height: 44,
         display: 'flex',
@@ -76,11 +76,11 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
       {/* Level badge — levelColor, not scoreColor */}
       <span style={{
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: 700,
         color: badgeColor,
         letterSpacing: '0.06em',
-        backgroundColor: 'rgba(253,181,21,0.1)',
+        backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
         border: `1px solid ${badgeColor}40`,
         borderRadius: 3,
         padding: '2px 8px',
@@ -91,24 +91,24 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
       {/* Composite score */}
       <span style={{
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontSize: 13,
         color: 'var(--estate-text-muted, #8892A4)',
       }}>
         {Math.round(dataScore.composite * 100)}%
       </span>
 
-      <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 12 }}>|</span>
+      <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 13 }}>|</span>
 
       {/* Gating dimension — scoreColor on its own score */}
       <span style={{
         fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontSize: 13,
         color: gatingDimColor,
         display: 'flex',
         alignItems: 'center',
         gap: 5,
       }}>
-        <span style={{ fontSize: 9 }}>◆</span>
+        <span style={{ fontSize: 13 }}>◆</span>
         {DIMENSION_LABELS[gatingDim]} gating
       </span>
     </div>

@@ -146,8 +146,8 @@ export default function EstateObjectDetailPage() {
           }}
         >
           <span className="w-12 h-12 relative block" style={{ opacity: 0.7 }}>
-            <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: '#FDB515' }} />
-            <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: '#FDB515' }} />
+            <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
+            <span className="absolute inset-3.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
           </span>
 
           <h2
@@ -159,14 +159,14 @@ export default function EstateObjectDetailPage() {
 
           <p
             className="text-xs leading-relaxed"
-            style={{ color: mutedColor, fontFamily: "'Inter Tight', sans-serif" }}
+            style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
           >
             The object you are looking for does not exist in this data source or has been removed.
           </p>
 
           <button
             onClick={() => router.push('/agent-lab/estate/catalog')}
-            className="font-mono text-xs text-[#FDB515] hover:underline cursor-pointer border-none bg-transparent"
+            className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
           >
             &larr; back to catalog
           </button>
@@ -193,7 +193,7 @@ export default function EstateObjectDetailPage() {
           </p>
           <button
             onClick={() => router.push('/agent-lab/estate/catalog')}
-            className="font-mono text-xs text-[#FDB515] hover:underline cursor-pointer border-none bg-transparent"
+            className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
           >
             &larr; back to catalog
           </button>

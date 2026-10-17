@@ -29,17 +29,17 @@ type CatalogResponse =
   | { status: 'ok'; model: { id: string; name: string }; entities: EntityEntry[]; total: number; hasMore: boolean; dimensionTypes: string[]; omissions: { field: string; reason: string }[]; note: string }
   | { error: string };
 
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 
 function StatusBadge({ status }: { status: string }) {
   const governed = status === 'governed';
   return (
     <span
-      className="inline-flex items-center gap-1.5 font-mono text-[9px] font-semibold tracking-wider uppercase rounded-full px-2 py-0.5"
+      className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase rounded-full px-2 py-0.5"
       style={
         governed
           ? { color: '#2DD4A0', background: 'rgba(45,212,160,0.12)', border: '1px solid rgba(45,212,160,0.5)' }
-          : { color: GOLD, background: 'rgba(253,181,21,0.1)', border: '1px dashed rgba(253,181,21,0.6)' }
+          : { color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px dashed color-mix(in srgb, var(--brand-a) 60%, transparent)' }
       }
     >
       <span
@@ -53,7 +53,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function FieldPill({ full, col, expr }: { full: string; col: string | null; expr: string | null }) {
   return (
-    <span className="font-mono text-[10px]" style={{ color: 'var(--estate-text-secondary)' }}>
+    <span className="font-mono text-xs" style={{ color: 'var(--estate-text-secondary)' }}>
       <span style={{ color: '#5B9DFF' }}>{full}</span>
       {col ? <span style={{ color: 'var(--estate-ink)' }}>.{col}</span> : null}
       {expr ? <span style={{ color: GOLD }}> · expression</span> : null}
@@ -110,7 +110,7 @@ export default function EntitiesPage() {
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>
             Entities
           </h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Tight', sans-serif" }}>
+          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
             Governed semantic model — entities (physical tables), their dimensions &amp; measures, and what consumes them.
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function EntitiesPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search entities by name or catalog.schema.table…"
-            className="w-full mb-4 rounded-lg px-3 py-2.5 text-[13px] font-mono outline-none border"
+            className="w-full mb-4 rounded-lg px-3 py-2.5 text-xs font-mono outline-none border"
             style={{ background: raised, borderColor: borderGold, color: ink }}
           />
         )}
@@ -160,20 +160,20 @@ export default function EntitiesPage() {
 
         {!loading && !err && meta && meta.status === 'ok' && (
           <>
-            <div className="flex items-center gap-2 mb-4 text-[11px] font-mono" style={{ color: muted }}>
+            <div className="flex items-center gap-2 mb-4 text-xs font-mono" style={{ color: muted }}>
               <Info size={13} style={{ color: GOLD }} />
               <span>Model <b style={{ color: ink }}>{meta.model?.name}</b> · showing {entities.length} of {meta.total} entities · {meta.note}</span>
             </div>
 
             {/* First-class omissions — fields with no backing in the real model, named explicitly */}
             {meta.omissions && meta.omissions.length > 0 && (
-              <div className="border border-dashed rounded-lg px-3 py-2 mb-4 text-[10px] font-mono" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', color: muted }}>
+              <div className="border border-dashed rounded-lg px-3 py-2 mb-4 text-xs font-mono" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', color: muted }}>
                 Not resolvable from stored metadata: {meta.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}
               </div>
             )}
 
             {entities.length === 0 && (
-              <div className="text-[12px] py-8 text-center" style={{ color: muted }}>No entities match “{q}”.</div>
+              <div className="text-xs py-8 text-center" style={{ color: muted }}>No entities match “{q}”.</div>
             )}
 
             <div className="flex flex-col gap-4">
@@ -183,7 +183,7 @@ export default function EntitiesPage() {
                     <Database size={18} style={{ color: GOLD }} />
                     <div className="min-w-0">
                       <div className="text-lg" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>{e.label}</div>
-                      <div className="font-mono text-[10px]" style={{ color: '#5B9DFF' }}>{e.fullPath}</div>
+                      <div className="font-mono text-xs" style={{ color: '#5B9DFF' }}>{e.fullPath}</div>
                     </div>
                     <div className="ml-auto"><StatusBadge status={e.status} /></div>
                   </div>
@@ -191,25 +191,25 @@ export default function EntitiesPage() {
                   {/* Dimensions */}
                   {e.dimensions.length > 0 && (
                     <div className="mb-3">
-                      <div className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
                         <Tag size={11} /> Dimensions
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                         {e.dimensions.map((d) => (
                           <div key={d.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-[13px]" style={{ color: ink }}>{d.label}</span>
-                              <span className="font-mono text-[8.5px] uppercase tracking-wide" style={{ color: muted }}>{d.dimensionType}</span>
+                              <span className="text-xs" style={{ color: ink }}>{d.label}</span>
+                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{d.dimensionType}</span>
                               <span className="ml-auto"><StatusBadge status={d.status} /></span>
                             </div>
                             <FieldPill full={d.resolvesTo.fullPath} col={d.resolvesTo.column} expr={null} />
                             {d.classification.synonyms.length > 0 && (
-                              <div className="mt-1.5 text-[10px]" style={{ color: muted }}>
+                              <div className="mt-1.5 text-xs" style={{ color: muted }}>
                                 syn: {d.classification.synonyms.join(', ')}
                               </div>
                             )}
                             {d.usedByMetrics.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1 text-[10px]" style={{ color: muted }}>
+                              <div className="mt-1.5 flex flex-wrap gap-1 text-xs" style={{ color: muted }}>
                                 <span>used by:</span>
                                 {d.usedByMetrics.map((m) => (
                                   <span key={m.measureId} className="font-mono px-1.5 rounded" style={{ background: 'rgba(167,139,250,0.14)', color: '#A78BFA' }}>{m.label}</span>
@@ -217,7 +217,7 @@ export default function EntitiesPage() {
                               </div>
                             )}
                             {d.consumers.length > 0 && (
-                              <div className="mt-1 text-[10px]" style={{ color: muted }}>{d.consumers.length} dashboard{d.consumers.length > 1 ? 's' : ''}</div>
+                              <div className="mt-1 text-xs" style={{ color: muted }}>{d.consumers.length} dashboard{d.consumers.length > 1 ? 's' : ''}</div>
                             )}
                           </div>
                         ))}
@@ -228,19 +228,19 @@ export default function EntitiesPage() {
                   {/* Measures */}
                   {e.measures.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
                         <Ruler size={11} /> Measures
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                         {e.measures.map((m) => (
                           <div key={m.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
                             <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-[13px]" style={{ color: ink }}>{m.label}</span>
-                              <span className="font-mono text-[8.5px] uppercase tracking-wide" style={{ color: muted }}>{m.metricType} · {m.aggregate}{m.unit ? ` · ${m.unit}` : ''}</span>
+                              <span className="text-xs" style={{ color: ink }}>{m.label}</span>
+                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{m.metricType} · {m.aggregate}{m.unit ? ` · ${m.unit}` : ''}</span>
                               <span className="ml-auto"><StatusBadge status={m.status} /></span>
                             </div>
                             <FieldPill full={m.resolvesTo.fullPath} col={m.resolvesTo.column} expr={m.resolvesTo.expression} />
-                            <div className="mt-1.5 flex items-center gap-2 text-[10px]" style={{ color: muted }}>
+                            <div className="mt-1.5 flex items-center gap-2 text-xs" style={{ color: muted }}>
                               <Link href={`/agent-lab/estate/lineage?focus=${m.nodeId}`} className="inline-flex items-center gap-1 hover:underline" style={{ color: GOLD }}>
                                 lineage <ArrowRight size={11} />
                               </Link>
@@ -253,7 +253,7 @@ export default function EntitiesPage() {
                   )}
 
                   {e.dimensions.length === 0 && e.measures.length === 0 && (
-                    <div className="text-[11px]" style={{ color: muted }}>No non-archived dimensions or measures.</div>
+                    <div className="text-xs" style={{ color: muted }}>No non-archived dimensions or measures.</div>
                   )}
                 </div>
               ))}
@@ -265,7 +265,7 @@ export default function EntitiesPage() {
                   type="button"
                   onClick={() => void load(q, entities.length)}
                   disabled={loadingMore}
-                  className="font-mono text-[11px] font-semibold tracking-wider uppercase border rounded px-4 py-2 disabled:opacity-50"
+                  className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-4 py-2 disabled:opacity-50"
                   style={{ borderColor: GOLD, color: GOLD, background: 'transparent' }}
                 >
                   {loadingMore ? 'Loading…' : `Load more (${(meta.total ?? 0) - entities.length} left)`}

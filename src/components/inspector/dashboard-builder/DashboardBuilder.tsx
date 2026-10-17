@@ -575,7 +575,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   if (initialLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           LOADING DASHBOARD…
         </span>
       </div>
@@ -612,16 +612,16 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <ArrowLeft size={16} />
         </button>
 
-        <span style={{ ...MONO, fontSize: 12, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
           {dashboardName || 'Dashboard Builder'}
         </span>
 
         {isReadOnly && (
           <span
             style={{
-              ...MONO, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4,
-              color: '#8892A4', background: 'rgba(136,146,164,0.1)',
+              color: 'var(--ink-3)', background: 'rgba(136,146,164,0.1)',
               border: '1px solid rgba(136,146,164,0.25)', borderRadius: 3, padding: '2px 7px',
             }}
           >
@@ -640,10 +640,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                 onClick={() => setMode(m)}
                 title={m === 'guided' ? 'NL-first guided authoring' : 'Manual grid builder'}
                 style={{
-                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                   display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none',
-                  background: mode === m ? '#FDB515' : 'transparent',
-                  color: mode === m ? '#0D1B2A' : 'var(--builder-text)',
+                  background: mode === m ? 'var(--brand-a)' : 'transparent',
+                  color: mode === m ? '#111322' : 'var(--builder-text)',
                   cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
                 }}
               >
@@ -658,7 +658,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={handleAddWidget}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
               borderRadius: 4, border: '1px solid var(--builder-border)',
               background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
@@ -671,11 +671,11 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         <button
           onClick={() => setRightPanel(rightPanel === 'history' ? 'config' : 'history')}
           style={{
-            ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+            ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
             display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
-            border: `1px solid ${rightPanel === 'history' ? '#FDB515' : 'var(--builder-border)'}`,
-            background: rightPanel === 'history' ? 'rgba(253,181,21,0.08)' : 'transparent',
-            color: rightPanel === 'history' ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+            border: `1px solid ${rightPanel === 'history' ? 'var(--brand-a)' : 'var(--builder-border)'}`,
+            background: rightPanel === 'history' ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
+            color: rightPanel === 'history' ? 'var(--brand-a)' : 'var(--builder-text)', cursor: 'pointer',
           }}
         >
           <History size={12} />VERSIONS
@@ -685,7 +685,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={() => setShareOpen(true)}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
@@ -701,11 +701,11 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             onClick={() => setExploreOpen((o) => !o)}
             title="Explore data in this model"
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
-              border: `1px solid ${exploreOpen ? '#FDB515' : 'var(--builder-border)'}`,
-              background: exploreOpen ? 'rgba(253,181,21,0.08)' : 'transparent',
-              color: exploreOpen ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+              border: `1px solid ${exploreOpen ? 'var(--brand-a)' : 'var(--builder-border)'}`,
+              background: exploreOpen ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
+              color: exploreOpen ? 'var(--brand-a)' : 'var(--builder-text)', cursor: 'pointer',
             }}
           >
             <MessageSquare size={12} />EXPLORE
@@ -717,10 +717,10 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             onClick={handleSave}
             disabled={saving || !dirty}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
-              border: 'none', background: dirty ? '#FDB515' : 'rgba(253,181,21,0.3)',
-              color: '#0D1B2A', cursor: dirty && !saving ? 'pointer' : 'default',
+              border: 'none', background: dirty ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
+              color: '#111322', cursor: dirty && !saving ? 'pointer' : 'default',
               opacity: saving ? 0.6 : 1, fontWeight: 500,
             }}
           >
@@ -734,11 +734,11 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         <div
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 13,
             padding: '8px 16px',
-            background: saveErrorType === 'conflict' ? 'rgba(253,181,21,0.08)' : 'rgba(239,68,68,0.08)',
-            borderBottom: `1px solid ${saveErrorType === 'conflict' ? 'rgba(253,181,21,0.2)' : 'rgba(239,68,68,0.2)'}`,
-            color: saveErrorType === 'conflict' ? '#FDB515' : '#F87171',
+            background: saveErrorType === 'conflict' ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(239,68,68,0.08)',
+            borderBottom: `1px solid ${saveErrorType === 'conflict' ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'rgba(239,68,68,0.2)'}`,
+            color: saveErrorType === 'conflict' ? 'var(--brand-a)' : '#F87171',
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
@@ -749,14 +749,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           {saveErrorType === 'conflict' && (
             <button
               onClick={() => window.location.reload()}
-              style={{ ...MONO, fontSize: 10, background: 'rgba(253,181,21,0.15)', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               RELOAD
             </button>
           )}
           <button
             onClick={() => setSaveError(null)}
-            style={{ background: 'transparent', border: 'none', color: saveErrorType === 'conflict' ? '#FDB515' : '#F87171', cursor: 'pointer', textDecoration: 'underline', ...MONO, fontSize: 10 }}
+            style={{ background: 'transparent', border: 'none', color: saveErrorType === 'conflict' ? 'var(--brand-a)' : '#F87171', cursor: 'pointer', textDecoration: 'underline', ...MONO, fontSize: 13 }}
           >
             dismiss
           </button>
@@ -767,7 +767,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {draftBanner === 'fresh' && (
         <div
           style={{
-            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)', color: '#93C5FD',
           }}
@@ -775,7 +775,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Unsaved changes restored — pick up where you left off. Save to commit them as a version.</span>
           <button
             onClick={handleDiscardDraft}
-            style={{ ...MONO, fontSize: 10, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 13, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
           >
             DISCARD
           </button>
@@ -785,9 +785,9 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {draftBanner === 'stale' && (
         <div
           style={{
-            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
             display: 'flex', flexDirection: 'column', gap: 6,
-            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)', color: '#FDB515',
+            background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)', color: 'var(--brand-a-ink)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -796,25 +796,25 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </span>
             <button
               onClick={handleKeepDraft}
-              style={{ ...MONO, fontSize: 10, background: '#FDB515', border: 'none', borderRadius: 3, color: '#0D1B2A', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
+              style={{ ...MONO, fontSize: 13, background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: '#FFFFFF', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
             >
               KEEP DRAFT
             </button>
             <button
               onClick={() => setShowDraftDiff((v) => !v)}
-              style={{ ...MONO, fontSize: 10, background: 'transparent', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 13, background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               {showDraftDiff ? 'HIDE DIFF' : 'VIEW DIFF'}
             </button>
             <button
               onClick={handleDiscardDraft}
-              style={{ ...MONO, fontSize: 10, background: 'transparent', border: '1px solid rgba(253,181,21,0.3)', borderRadius: 3, color: '#FDB515', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 13, background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               DISCARD
             </button>
           </div>
           {showDraftDiff && draftDiff && (
-            <div style={{ ...MONO, fontSize: 9, opacity: 0.85 }}>
+            <div style={{ ...MONO, fontSize: 13, opacity: 0.85 }}>
               Your draft vs. the current version — {draftDiff.added} added · {draftDiff.removed} removed · {draftDiff.modified} modified widget(s).
             </div>
           )}
@@ -828,7 +828,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {!modelId ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+                <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
               </div>
             ) : !intentCaptured ? (
               <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -840,7 +840,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               </div>
             ) : !guidedIntent ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
+                <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
               </div>
             ) : !blueprintAccepted ? (
               // Stage 2 — Blueprint. Accepting hands off to Stage 3 (no widgets built here).
@@ -879,11 +879,11 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   flexDirection: 'column',
                 }}
               >
-                <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                <div style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
                   LIBRARY
                 </div>
                 {pickerHint && (
-                  <div style={{ ...MONO, fontSize: 9, padding: '4px 12px', color: '#FDB515', background: 'rgba(253,181,21,0.06)', flexShrink: 0 }}>
+                  <div style={{ ...MONO, fontSize: 13, padding: '4px 12px', color: 'var(--brand-a-ink)', background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)', flexShrink: 0 }}>
                     {pickerHint}
                   </div>
                 )}
@@ -926,7 +926,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                 flexDirection: 'column',
               }}
             >
-              <div style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+              <div style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
                 {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
               </div>
               {rightPanel === 'config' && selectedWidget && (
@@ -940,7 +940,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               )}
               {rightPanel === 'config' && !selectedWidget && (
                 <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                  <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+                  <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
                     {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
                   </span>
                 </div>

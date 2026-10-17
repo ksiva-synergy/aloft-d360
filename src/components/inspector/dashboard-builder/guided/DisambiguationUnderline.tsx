@@ -10,10 +10,10 @@ const MONO: React.CSSProperties = {
 
 // Four visibly-distinct states — deliberately NOT one red underline.
 const GREEN = '#34D399'; // matched — resolved to one governed field
-const GOLD = '#FDB515'; // ambiguous — multiple governed candidates → chooser
+const GOLD = 'var(--brand-a)'; // ambiguous — multiple governed candidates → chooser
 const VIOLET = '#C4B5FD'; // not_governed — real field, not promoted → Teach nudge
 const RED = '#F87171'; // unrecognized — genuinely no match anywhere
-const MUTED = '#8892A4';
+const MUTED = 'var(--ink-3)';
 
 /** Underline treatment per resolution state — each state reads differently. */
 function underlineStyle(d: IntentDisambiguation): React.CSSProperties {
@@ -89,7 +89,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             minWidth: 240,
             maxWidth: 320,
             background: 'var(--builder-surface-raised, #14202E)',
-            border: `1px solid ${d.resolution === 'ambiguous' ? 'rgba(253,181,21,0.35)' : 'rgba(196,181,253,0.35)'}`,
+            border: `1px solid ${d.resolution === 'ambiguous' ? 'color-mix(in srgb, var(--brand-a) 35%, transparent)' : 'rgba(196,181,253,0.35)'}`,
             borderRadius: 6,
             boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
             padding: 10,
@@ -104,7 +104,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             ) : (
               <AlertTriangle size={11} color={VIOLET} />
             )}
-            <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
+            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
               {d.resolution === 'ambiguous' ? `Which "${d.term}"?` : `"${d.term}" isn’t governed`}
             </span>
           </div>
@@ -117,7 +117,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                 onClick={() => { onChoose(d.term, c.id); setOpen(false); }}
                 style={{
                   ...MONO,
-                  fontSize: 11,
+                  fontSize: 13,
                   textAlign: 'left',
                   display: 'flex',
                   flexDirection: 'column',
@@ -135,7 +135,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                   {c.label}
                 </span>
                 {c.description && (
-                  <span style={{ fontSize: 9, color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
+                  <span style={{ fontSize: 13, color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
                 )}
               </button>
             ))}
@@ -146,7 +146,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
               onClick={() => { onDefineInTeach(d.term); setOpen(false); }}
               style={{
                 ...MONO,
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
                 padding: '6px 8px',

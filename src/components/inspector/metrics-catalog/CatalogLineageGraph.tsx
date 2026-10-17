@@ -51,7 +51,7 @@ const kindColor = (kind: LineageNodeDTO['kind']): string =>
       ? 'var(--mc-kind-measure)'
       : kind === 'dimension'
         ? 'var(--mc-kind-dimension)'
-        : 'var(--wb-muted, #8892A4)';
+        : 'var(--wb-muted, var(--ink-3))';
 
 const kindGlyph: Record<LineageNodeDTO['kind'], string> = {
   estate: '▦',
@@ -76,10 +76,10 @@ function LineageNode({ data }: NodeProps) {
         opacity: d.candidate ? 0.85 : 1,
       }}
     >
-      <span style={{ ...MONO, fontSize: 8, color: c, letterSpacing: '0.04em' }}>
+      <span style={{ ...MONO, fontSize: 13, color: c, letterSpacing: '0.04em' }}>
         {kindGlyph[d.kind]} {d.kind.toUpperCase()}{d.candidate ? ' · CAND' : ''}
       </span>
-      <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: 11, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {d.label}
       </span>
     </div>
@@ -115,7 +115,7 @@ function layout(graph: LineageGraphDTO, focusId: string): { nodes: Node<NodeData
       source: e.from,
       target: e.to,
       animated: false,
-      style: { stroke: e.candidate ? 'var(--mc-status-candidate)' : 'var(--wb-muted,#8892A4)', strokeWidth: 1.5, strokeDasharray: e.candidate ? '5,4' : undefined },
+      style: { stroke: e.candidate ? 'var(--mc-status-candidate)' : 'var(--wb-muted,var(--ink-3))', strokeWidth: 1.5, strokeDasharray: e.candidate ? '5,4' : undefined },
       markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
     }));
 
@@ -132,7 +132,7 @@ export function CatalogLineageGraph({ graph, focusId, onRefocus }: Props) {
   const { nodes, edges } = React.useMemo(() => layout(graph, focusId), [graph, focusId]);
 
   if (!graph.nodes.length) {
-    return <div style={{ ...MONO, fontSize: 10, color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
+    return <div style={{ ...MONO, fontSize: 13, color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
   }
 
   return (

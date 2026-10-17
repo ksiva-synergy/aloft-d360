@@ -69,7 +69,7 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
             placeholder="Search policies..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[#161b24] dark:border-[#2d333b] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
         </div>
         {onCreateNew && (
@@ -91,15 +91,15 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
           <p className="text-sm">No policies found</p>
         </div>
       ) : (
-        <div className="border rounded-lg dark:border-[#2d333b] overflow-hidden">
+        <div className="border rounded-lg dark:border-[var(--line-1)] overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b dark:border-[#2d333b] bg-slate-50 dark:bg-[#0f131a]">
-                <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Name</th>
-                <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Type</th>
-                <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Scope</th>
-                <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Enforcement</th>
-                <th className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Status</th>
+              <tr className="border-b dark:border-[var(--line-1)] bg-slate-50 dark:bg-[var(--background)]">
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Name</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Type</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Scope</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Enforcement</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -107,11 +107,11 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
                 <tr
                   key={policy.id}
                   onClick={() => onSelect?.(policy)}
-                  className="border-b last:border-b-0 dark:border-[#2d333b] hover:bg-slate-50 dark:hover:bg-[#1c2128] cursor-pointer transition-colors"
+                  className="border-b last:border-b-0 dark:border-[var(--line-1)] hover:bg-slate-50 dark:hover:bg-[var(--surface-2)] cursor-pointer transition-colors"
                 >
                   <td className="px-4 py-3 font-medium">{policy.name}</td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant="outline" className="text-xs">
                       {TYPE_LABELS[policy.type] || policy.type}
                     </Badge>
                   </td>
@@ -119,14 +119,14 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
                     {SCOPE_LABELS[policy.scope] || policy.scope}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-medium', ENFORCEMENT_STYLES[policy.enforcement])}>
+                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', ENFORCEMENT_STYLES[policy.enforcement])}>
                       {policy.enforcement}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(
-                      'inline-flex items-center gap-1 text-[10px]',
-                      policy.status === 'active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                      'inline-flex items-center gap-1 text-xs',
+                      policy.status === 'active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--ink-3)]'
                     )}>
                       <span className={cn('w-1.5 h-1.5 rounded-full', policy.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400')} />
                       {policy.status}

@@ -145,7 +145,7 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
   if (!view.length) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...MONO, fontSize: 12, color: MUTED }}>No definitions match these filters.</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>No definitions match these filters.</span>
       </div>
     );
   }
@@ -175,16 +175,16 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
             <Th label="Source" col="source" sort={sort} onSort={setSort} />
             <Th label="D/M/J" col="composition" sort={sort} onSort={setSort} />
             <Th label="Updated" col="updated" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 9, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
+            <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
           </>
         ) : (
           <>
             <Th label="Name" col="label" sort={sort} onSort={setSort} />
             <Th label="Type" col="kind" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 9, color: MUTED }}>DEFINITION</span>
+            <span style={{ ...MONO, fontSize: 13, color: MUTED }}>DEFINITION</span>
             <Th label="Theme" col="theme" sort={sort} onSort={setSort} />
             <Th label="Source" col="source" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 9, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
+            <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
           </>
         )}
       </div>
@@ -233,9 +233,9 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
                   padding: isChild ? '0 16px 0 32px' : '0 16px',
                   cursor: 'pointer',
                   background: open
-                    ? 'rgba(253,181,21,0.07)'
+                    ? 'color-mix(in srgb, var(--brand-a) 7%, transparent)'
                     : selected
-                      ? 'rgba(253,181,21,0.04)'
+                      ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)'
                       : isChild
                         ? 'rgba(255,255,255,0.015)'
                         : 'transparent',
@@ -307,16 +307,16 @@ function ClusterParentRow({
         gap: 8,
         padding: '0 16px',
         cursor: 'pointer',
-        background: isExpanded ? 'rgba(253,181,21,0.05)' : 'rgba(255,255,255,0.02)',
+        background: isExpanded ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)' : 'rgba(255,255,255,0.02)',
         borderBottom: `1px solid ${BORDER}`,
-        borderLeft: `2px solid ${isExpanded ? GOLD : 'rgba(253,181,21,0.3)'}`,
+        borderLeft: `2px solid ${isExpanded ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)'}`,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(253,181,21,0.07)';
+        e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 7%, transparent)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = isExpanded
-          ? 'rgba(253,181,21,0.05)'
+          ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)'
           : 'rgba(255,255,255,0.02)';
       }}
     >
@@ -339,7 +339,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...SANS,
-                fontSize: 12,
+                fontSize: 13,
                 color: GOLD,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -352,10 +352,10 @@ function ClusterParentRow({
             <span
               style={{
                 ...MONO,
-                fontSize: 9,
+                fontSize: 13,
                 color: MUTED,
-                background: 'rgba(253,181,21,0.1)',
-                border: `1px solid rgba(253,181,21,0.2)`,
+                background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+                border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
                 borderRadius: 3,
                 padding: '1px 5px',
                 flexShrink: 0,
@@ -370,7 +370,7 @@ function ClusterParentRow({
           <span
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: r.themeOverridden ? GOLD : INK_DIM,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -383,7 +383,7 @@ function ClusterParentRow({
             title={r.fullPath}
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: MUTED,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -413,7 +413,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...SANS,
-                fontSize: 12,
+                fontSize: 13,
                 color: GOLD,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -426,10 +426,10 @@ function ClusterParentRow({
             <span
               style={{
                 ...MONO,
-                fontSize: 9,
+                fontSize: 13,
                 color: MUTED,
-                background: 'rgba(253,181,21,0.1)',
-                border: `1px solid rgba(253,181,21,0.2)`,
+                background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+                border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
                 borderRadius: 3,
                 padding: '1px 5px',
                 flexShrink: 0,
@@ -443,7 +443,7 @@ function ClusterParentRow({
           <span
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: INK_DIM,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -456,7 +456,7 @@ function ClusterParentRow({
             title={r.fullPath}
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: MUTED,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -505,7 +505,7 @@ function Th({
       <span
         style={{
           ...MONO,
-          fontSize: 9,
+          fontSize: 13,
           color: active ? GOLD : MUTED,
           letterSpacing: '0.04em',
         }}
@@ -530,7 +530,7 @@ function KindChip({ r }: { r: CatalogRow }) {
     <span
       style={{
         ...MONO,
-        fontSize: 9,
+        fontSize: 13,
         color: c,
         background: tint(c),
         border: `1px solid ${tint(c, 40)}`,
@@ -547,7 +547,7 @@ function KindChip({ r }: { r: CatalogRow }) {
 function StatusChip({ r }: { r: CatalogRow }) {
   const c = statusColorVar(r.status);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 10, color: c }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: c }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: c }} />
       {statusLabel(r.status)}
     </span>
@@ -560,7 +560,7 @@ function NameCell({ r }: { r: CatalogRow }) {
       <span
         style={{
           ...SANS,
-          fontSize: 12.5,
+          fontSize: 13,
           color: INK,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -622,7 +622,7 @@ function GovernRow({
       <span
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           color: r.themeOverridden ? GOLD : INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -635,7 +635,7 @@ function GovernRow({
         title={r.fullPath}
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           color: MUTED,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -644,10 +644,10 @@ function GovernRow({
       >
         {shortPath(r.fullPath)}
       </span>
-      <span style={{ ...MONO, fontSize: 10, color: MUTED }}>
+      <span style={{ ...MONO, fontSize: 13, color: MUTED }}>
         {r.kind === 'entity' ? `${r.dCount ?? 0}D ${r.mCount ?? 0}M ${r.jCount ?? 0}J` : '—'}
       </span>
-      <span style={{ ...MONO, fontSize: 10, color: MUTED }}>{fmtDate(r.updatedAt)}</span>
+      <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{fmtDate(r.updatedAt)}</span>
       <span
         onClick={(e) => e.stopPropagation()}
         style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}
@@ -691,7 +691,7 @@ function ExploreRow({
       <span
         style={{
           ...SANS,
-          fontSize: 11.5,
+          fontSize: 13,
           color: INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -703,7 +703,7 @@ function ExploreRow({
       <span
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           color: INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -716,7 +716,7 @@ function ExploreRow({
         title={r.fullPath}
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           color: MUTED,
           whiteSpace: 'nowrap',
           overflow: 'hidden',

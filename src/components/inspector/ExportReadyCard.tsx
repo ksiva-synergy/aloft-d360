@@ -8,8 +8,8 @@ import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
-const GOLD = '#FDB515';
-const MUTED = '#8892A4';
+const GOLD = 'var(--brand-a)';
+const MUTED = 'var(--ink-3)';
 
 interface ExportReadyCardProps {
   message: ExportReadyMessage;
@@ -53,16 +53,16 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
     <div
       style={{
         marginBottom: 10,
-        border: '1px solid rgba(253,181,21,0.28)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 28%, transparent)',
         borderRadius: 8,
-        background: 'rgba(253,181,21,0.06)',
+        background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
         padding: '12px 14px',
       }}
     >
       <div
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           letterSpacing: '0.10em',
           textTransform: 'uppercase',
           color: GOLD,
@@ -73,7 +73,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
       </div>
       <div style={{ fontSize: 13, color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
         Download up to <strong>{message.maxRows.toLocaleString()}</strong> rows
-        as <code style={{ ...MONO, fontSize: 12 }}>{message.filename}</code>.
+        as <code style={{ ...MONO, fontSize: 13 }}>{message.filename}</code>.
         This re-runs the query on the warehouse (not the preview slice).
       </div>
       <button
@@ -85,13 +85,13 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
           alignItems: 'center',
           gap: 8,
           ...MONO,
-          fontSize: 11,
+          fontSize: 13,
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           padding: '7px 12px',
           borderRadius: 6,
           border: `1px solid ${GOLD}`,
-          background: busy ? 'rgba(253,181,21,0.12)' : 'rgba(253,181,21,0.18)',
+          background: busy ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'color-mix(in srgb, var(--brand-a) 18%, transparent)',
           color: GOLD,
           cursor: busy ? 'wait' : 'pointer',
         }}
@@ -100,7 +100,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
         {busy ? 'Preparing…' : done ? 'Download again' : 'Download CSV'}
       </button>
       {error && (
-        <div style={{ ...MONO, fontSize: 11, color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
+        <div style={{ ...MONO, fontSize: 13, color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
           {error}
         </div>
       )}

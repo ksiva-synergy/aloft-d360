@@ -49,7 +49,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{ backgroundColor: 'rgba(253,181,21,0.22)', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>
+      <mark style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 22%, transparent)', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>
         {text.slice(idx, idx + query.length)}
       </mark>
       {text.slice(idx + query.length)}
@@ -59,17 +59,17 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 function RoleBadge({ role }: { role: string }) {
   const roleColors: Record<string, { bg: string; text: string; border: string }> = {
-    key:       { bg: 'rgba(253,181,21,0.10)',   text: '#FDB515', border: 'rgba(253,181,21,0.3)' },
+    key:       { bg: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',   text: 'var(--brand-a)', border: 'color-mix(in srgb, var(--brand-a) 30%, transparent)' },
     fk_ref:    { bg: 'rgba(91,157,255,0.10)',   text: '#5B9DFF', border: 'rgba(91,157,255,0.3)' },
     dimension: { bg: 'rgba(139,92,246,0.10)',   text: '#A78BFA', border: 'rgba(139,92,246,0.3)' },
     measure:   { bg: 'rgba(34,197,94,0.10)',    text: '#4ADE80', border: 'rgba(34,197,94,0.3)' },
     timestamp: { bg: 'rgba(251,146,60,0.10)',   text: '#FB923C', border: 'rgba(251,146,60,0.3)' },
-    other:     { bg: 'rgba(136,146,164,0.06)',  text: '#8892A4', border: 'rgba(136,146,164,0.2)' },
+    other:     { bg: 'rgba(136,146,164,0.06)',  text: 'var(--ink-3)', border: 'rgba(136,146,164,0.2)' },
   };
   const style = roleColors[role] || roleColors.other;
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium tracking-wide whitespace-nowrap"
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium tracking-wide whitespace-nowrap"
       style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}` }}
     >
       {role}
@@ -106,7 +106,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
   const isLongDesc = description.length > 60;
 
   const rowBg = highlighted
-    ? 'rgba(253,181,21,0.07)'
+    ? 'color-mix(in srgb, var(--brand-a) 7%, transparent)'
     : idx % 2 === 0
       ? 'var(--estate-row-even, var(--estate-raised))'
       : 'var(--estate-row-odd, var(--estate-bg))';
@@ -118,7 +118,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
         style={{
           backgroundColor: rowBg,
           borderBottom: `1px solid ${borderColor}`,
-          outline: highlighted ? '1.5px solid rgba(253,181,21,0.4)' : 'none',
+          outline: highlighted ? '1.5px solid color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'none',
           outlineOffset: '-1px',
           transition: 'background-color 0.4s ease, outline 0.4s ease',
         }}
@@ -127,11 +127,11 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
         role={isLongDesc ? 'button' : undefined}
       >
         {/* Name */}
-        <td className="px-4 py-2.5 font-mono text-[12px] font-semibold whitespace-nowrap align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 font-mono text-xs font-semibold whitespace-nowrap align-middle" style={{ color: inkColor }}>
           <div className="flex items-center gap-2">
             {isLongDesc && (
               <span
-                className="inline-flex w-4 h-4 items-center justify-center text-[10px] transition-transform duration-150 select-none opacity-50 group-hover:opacity-100"
+                className="inline-flex w-4 h-4 items-center justify-center text-xs transition-transform duration-150 select-none opacity-50 group-hover:opacity-100"
                 style={{ color: labelColor, transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
               >
                 ▶
@@ -143,25 +143,25 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
           </div>
         </td>
         {/* Type */}
-        <td className="px-4 py-2.5 font-mono text-[11px] whitespace-nowrap align-middle" style={{ color: mutedColor }}>
+        <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap align-middle" style={{ color: mutedColor }}>
           {col.data_type || '—'}
         </td>
         {/* Role */}
         <td className="px-4 py-2.5 align-middle">
-          {role !== '—' ? <RoleBadge role={role} /> : <span className="text-[11px]" style={{ color: mutedColor }}>—</span>}
+          {role !== '—' ? <RoleBadge role={role} /> : <span className="text-xs" style={{ color: mutedColor }}>—</span>}
         </td>
         {/* Null% */}
-        <td className="px-4 py-2.5 text-right font-mono text-[12px] whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
           {formatNullRate(profile.null_rate)}
         </td>
         {/* Distinct */}
-        <td className="px-4 py-2.5 text-right font-mono text-[12px] whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
           {formatDistinct(profile.distinct_est)}
         </td>
         {/* Top Values */}
         <td className="px-4 py-2.5 align-middle">
           {isPii ? (
-            <span className="text-red-500/80 dark:text-red-400/80 text-[11px] font-medium select-none inline-flex items-center gap-1">
+            <span className="text-red-500/80 dark:text-red-400/80 text-xs font-medium select-none inline-flex items-center gap-1">
               <span>⚑</span> PII
             </span>
           ) : topValues.length > 0 ? (
@@ -169,7 +169,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               {topValues.slice(0, 3).map((v, i) => (
                 <span
                   key={i}
-                  className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono truncate max-w-[90px]"
+                  className="inline-block px-1.5 py-0.5 rounded text-xs font-mono truncate max-w-[90px]"
                   style={{ backgroundColor: 'rgba(136,146,164,0.08)', color: mutedColor, border: '1px solid rgba(136,146,164,0.12)' }}
                   title={v}
                 >
@@ -177,17 +177,17 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
                 </span>
               ))}
               {topValues.length > 3 && (
-                <span className="text-[10px] font-mono" style={{ color: mutedColor }}>
+                <span className="text-xs font-mono" style={{ color: mutedColor }}>
                   +{topValues.length - 3}
                 </span>
               )}
             </div>
           ) : (
-            <span className="text-[11px]" style={{ color: mutedColor }}>—</span>
+            <span className="text-xs" style={{ color: mutedColor }}>—</span>
           )}
         </td>
         {/* Description */}
-        <td className="px-4 py-2.5 font-sans text-[12px] leading-relaxed align-middle" style={{ color: labelColor }}>
+        <td className="px-4 py-2.5 font-sans text-xs leading-relaxed align-middle" style={{ color: labelColor }}>
           {hasDescription ? (
             <span className={isLongDesc && !expanded ? 'line-clamp-2' : ''}>
               {descriptionIsNative && (
@@ -195,7 +195,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
                   title="Fallback to native column comment — no semantic description yet"
                   style={{
                     fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 8,
+                    fontSize: 13,
                     fontWeight: 600,
                     padding: '1px 4px',
                     borderRadius: 2,
@@ -213,7 +213,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               <Highlight text={description} query={searchQuery} />
             </span>
           ) : (
-            <span className="italic text-[11px]" style={{ color: mutedColor }}>No description</span>
+            <span className="italic text-xs" style={{ color: mutedColor }}>No description</span>
           )}
         </td>
         {/* Confidence */}
@@ -242,7 +242,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 10,
+                  fontSize: 13,
                   color: mutedColor,
                 }}
               >
@@ -250,7 +250,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               </span>
             </div>
           ) : (
-            <span className="text-[11px]" style={{ color: mutedColor }}>—</span>
+            <span className="text-xs" style={{ color: mutedColor }}>—</span>
           )}
         </td>
       </tr>
@@ -262,11 +262,11 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
             style={{ borderBottom: `1px solid ${borderColor}` }}
           >
             <div
-              className="ml-6 pl-4 py-3 rounded font-sans text-[12px] leading-relaxed"
+              className="ml-6 pl-4 py-3 rounded font-sans text-xs leading-relaxed"
               style={{
                 color: labelColor,
                 backgroundColor: 'rgba(136,146,164,0.04)',
-                borderLeft: '2px solid rgba(253,181,21,0.3)',
+                borderLeft: '2px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
               }}
             >
               {description}
@@ -409,12 +409,12 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
 
   const sortIndicator = (field: SortField) => {
     if (sortField !== field) return <span style={{ opacity: 0.3 }}>⇅</span>;
-    return <span style={{ color: '#FDB515' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
+    return <span style={{ color: 'var(--brand-a-ink)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
   };
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'Inter Tight', sans-serif",
-    fontSize: '12px',
+    fontFamily: "'Inter Variable', sans-serif",
+    fontSize: '13px',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '4px',
@@ -455,7 +455,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
           className="flex items-center justify-between px-4 py-3 border-b"
           style={{ backgroundColor: thBg, borderColor }}
         >
-          <span className="font-mono text-[10px] tracking-wider uppercase font-bold" style={{ color: labelColor }}>
+          <span className="font-mono text-xs tracking-wider uppercase font-bold" style={{ color: labelColor }}>
             Columns Schema
           </span>
         </div>
@@ -477,7 +477,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         style={{ backgroundColor: thBg, borderColor }}
       >
         {/* Section label */}
-        <span className="font-mono text-[10px] tracking-wider uppercase font-bold shrink-0" style={{ color: labelColor }}>
+        <span className="font-mono text-xs tracking-wider uppercase font-bold shrink-0" style={{ color: labelColor }}>
           Columns Schema
         </span>
 
@@ -488,24 +488,24 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         <div
           className="flex items-center gap-2 h-8 px-2.5 rounded border transition-colors duration-150"
           style={{ backgroundColor: raisedBg, borderColor, minWidth: '200px' }}
-          onFocusCapture={(e) => { e.currentTarget.style.borderColor = '#FDB515'; }}
+          onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--brand-a)'; }}
           onBlurCapture={(e) => { e.currentTarget.style.borderColor = borderColor; }}
         >
-          <span className="select-none text-[13px]" style={{ color: mutedColor }}>⌕</span>
+          <span className="select-none text-xs" style={{ color: mutedColor }}>⌕</span>
           <input
             ref={searchRef}
             type="text"
             placeholder={`Search ${columns.length} columns… (/)`}
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="flex-1 bg-transparent border-none outline-none text-[12px]"
-            style={{ color: inkColor, fontFamily: "'Inter Tight', sans-serif", minWidth: 0 }}
+            className="flex-1 bg-transparent border-none outline-none text-xs"
+            style={{ color: inkColor, fontFamily: "'Inter Variable', sans-serif", minWidth: 0 }}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
-              className="text-[11px] opacity-60 hover:opacity-100 transition-opacity leading-none"
+              className="text-xs opacity-60 hover:opacity-100 transition-opacity leading-none"
               style={{ color: mutedColor }}
               aria-label="Clear search"
             >
@@ -562,17 +562,17 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
             >
               {/* Sortable: Name */}
               <th
-                className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase cursor-pointer hover:text-[#FDB515] transition-colors"
+                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('name')}
               >
                 <span className="flex items-center gap-1">Name {sortIndicator('name')}</span>
               </th>
-              <th className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Type</th>
-              <th className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Role</th>
+              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Type</th>
+              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Role</th>
               {/* Sortable: Null% */}
               <th
-                className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[#FDB515] transition-colors"
+                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('null_rate')}
               >
@@ -580,15 +580,15 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               </th>
               {/* Sortable: Distinct */}
               <th
-                className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[#FDB515] transition-colors"
+                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('distinct_est')}
               >
                 <span className="flex items-center justify-end gap-1">Distinct {sortIndicator('distinct_est')}</span>
               </th>
-              <th className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Top Values</th>
-              <th className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Description</th>
-              <th className="px-4 py-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }} title="Semantic annotation confidence">Conf</th>
+              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Top Values</th>
+              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Description</th>
+              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }} title="Semantic annotation confidence">Conf</th>
             </tr>
           </thead>
           <tbody>
@@ -625,8 +625,8 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
       >
         {/* Left: count info */}
         <span
-          className="font-mono text-[11px]"
-          style={{ color: isFiltered ? '#FDB515' : labelColor }}
+          className="font-mono text-xs"
+          style={{ color: isFiltered ? 'var(--brand-a)' : labelColor }}
         >
           {footerLabel}{sortLabel}
         </span>
@@ -638,7 +638,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(1)}
               disabled={safeCurrentPage <= 1}
-              className="font-mono text-[11px] px-2 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-xs px-2 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -653,7 +653,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={safeCurrentPage <= 1}
-              className="font-mono text-[11px] px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-xs px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -677,11 +677,11 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
                 key={page}
                 type="button"
                 onClick={() => setCurrentPage(page)}
-                className="font-mono text-[11px] w-7 h-7 rounded border transition-colors"
+                className="font-mono text-xs w-7 h-7 rounded border transition-colors"
                 style={{
-                  backgroundColor: page === safeCurrentPage ? 'rgba(253,181,21,0.12)' : 'transparent',
-                  borderColor: page === safeCurrentPage ? '#FDB515' : borderColor,
-                  color: page === safeCurrentPage ? '#FDB515' : labelColor,
+                  backgroundColor: page === safeCurrentPage ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
+                  borderColor: page === safeCurrentPage ? 'var(--brand-a)' : borderColor,
+                  color: page === safeCurrentPage ? 'var(--brand-a)' : labelColor,
                   cursor: 'pointer',
                 }}
               >
@@ -693,7 +693,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-[11px] px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-xs px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -708,7 +708,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(totalPages)}
               disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-[11px] px-2 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-xs px-2 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -725,9 +725,9 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         {/* Right: page size selector + keyboard hint */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-[10px]" style={{ color: mutedColor }}>Rows:</span>
+            <span className="font-mono text-xs" style={{ color: mutedColor }}>Rows:</span>
             <select
-              style={{ ...selectStyle, fontSize: '11px', padding: '3px 22px 3px 6px' }}
+              style={{ ...selectStyle, fontSize: '13px', padding: '3px 22px 3px 6px' }}
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
             >
@@ -736,7 +736,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               ))}
             </select>
           </div>
-          <span className="font-mono text-[10px] opacity-50" style={{ color: mutedColor }}>
+          <span className="font-mono text-xs opacity-50" style={{ color: mutedColor }}>
             / to search
           </span>
         </div>

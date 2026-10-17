@@ -16,15 +16,15 @@ import { DismissedReflection } from './marcus/DismissedReflection';
 
 // ── Constants ─────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
-const GOLD = '#FDB515';
+const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
 const INK_DIM = 'var(--wb-ink-dim)';
 const CANVAS = 'var(--wb-canvas)';
 const SURFACE = 'var(--wb-surface)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
-const BORDER_GOLD = 'rgba(253,181,21,0.30)';
+const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const RED = '#ef4444';
 
 // ── Mission templates ─────────────────────────────────────────
@@ -53,8 +53,8 @@ const MISSION_TEMPLATES = [
 function AloftDiamond({ size = 72, opacity = 0.18 }: { size?: number; opacity?: number }) {
   return (
     <div style={{ width: size, height: size, position: 'relative', opacity, flexShrink: 0 }}>
-      <div style={{ position: 'absolute', inset: 0, border: '1.5px solid #FDB515', transform: 'rotate(45deg)' }} />
-      <div style={{ position: 'absolute', inset: Math.round(size * 0.27), border: '1.5px solid #FDB515', transform: 'rotate(45deg)', opacity: 0.6 }} />
+      <div style={{ position: 'absolute', inset: 0, border: '1.5px solid var(--brand-a)', transform: 'rotate(45deg)' }} />
+      <div style={{ position: 'absolute', inset: Math.round(size * 0.27), border: '1.5px solid var(--brand-a)', transform: 'rotate(45deg)', opacity: 0.6 }} />
     </div>
   );
 }
@@ -94,14 +94,14 @@ function EmptyState({ onTemplateSelect }: EmptyStateProps) {
           </div>
           <button
             onClick={() => setTemplatesOpen(o => !o)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...mono, fontSize: 10, color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...mono, fontSize: 13, color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.color = templatesOpen ? GOLD : MUTED; }}
           >
             · or start from a template
           </button>
         </div>
-        <div style={{ ...mono, fontSize: 10, color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
+        <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
         <AnimatePresence>
           {templatesOpen && (
             <motion.div
@@ -118,10 +118,10 @@ function EmptyState({ onTemplateSelect }: EmptyStateProps) {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
-                    <span style={{ ...mono, fontSize: 9, color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
-                    <span style={{ ...sans, fontSize: 12, color: INK }}>{t.name}</span>
+                    <span style={{ ...mono, fontSize: 13, color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
+                    <span style={{ ...sans, fontSize: 13, color: INK }}>{t.name}</span>
                   </div>
-                  <div style={{ ...mono, fontSize: 10, color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
+                  <div style={{ ...mono, fontSize: 13, color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
                 </button>
               ))}
             </motion.div>
@@ -151,23 +151,23 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       }}
     >
       <Octagon size={13} style={{ color: RED, flexShrink: 0 }} />
-      <span style={{ ...mono, fontSize: 11, color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
+      <span style={{ ...mono, fontSize: 13, color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
       <button
         onClick={onContinue}
         style={{
-          ...mono, fontSize: 11, color: GOLD, background: 'rgba(253,181,21,0.08)',
-          border: '1px solid rgba(253,181,21,0.25)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
+          ...mono, fontSize: 13, color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(253,181,21,0.14)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(253,181,21,0.08)'; }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 14%, transparent)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 8%, transparent)'; }}
       >
         Continue ↵
       </button>
       <button
         onClick={onReset}
         style={{
-          ...mono, fontSize: 11, color: MUTED, background: 'transparent',
+          ...mono, fontSize: 13, color: MUTED, background: 'transparent',
           border: '1px solid rgba(74,96,128,0.3)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'color 0.15s, border-color 0.15s',
         }}
@@ -196,7 +196,7 @@ function SuggestionPills({ suggestions, onSelect }: { suggestions: string[]; onS
           key={s}
           onClick={() => onSelect(s)}
           style={{
-            ...mono, fontSize: 11, color: INK_DIM,
+            ...mono, fontSize: 13, color: INK_DIM,
             background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
             borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
             transition: 'border-color 0.15s, color 0.15s',
@@ -248,7 +248,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Edit and resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 10, color: MUTED,
+                    ...mono, fontSize: 13, color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
                     borderRadius: 4, transition: 'color 0.15s',
                   }}
@@ -262,7 +262,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 10, color: MUTED,
+                    ...mono, fontSize: 13, color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
                     borderRadius: 4, transition: 'color 0.15s',
                   }}
@@ -275,7 +275,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
             )}
           </AnimatePresence>
         </div>
-        <div style={{ ...mono, fontSize: 10, color: MUTED }}>{ts}</div>
+        <div style={{ ...mono, fontSize: 13, color: MUTED }}>{ts}</div>
       </div>
     </motion.div>
   );
@@ -299,7 +299,7 @@ function ScrollToBottomPill({ onClick }: { onClick: () => void }) {
         alignItems: 'center',
         gap: 6,
         ...mono,
-        fontSize: 11,
+        fontSize: 13,
         color: INK_DIM,
         background: SURFACE,
         border: `1px solid ${BORDER_GOLD}`,
@@ -590,6 +590,8 @@ export interface PromptCanvasProps {
   promptValue: string;
   setPromptValue: (v: string) => void;
   onSubmit: () => void;
+  /** When set, template / thread actions send this text directly (avoids stale composer state). */
+  onSendMessage?: (text: string) => void;
   onCommission?: () => void;
   onStop?: () => void;
   onReset?: () => void;
@@ -622,6 +624,7 @@ export function PromptCanvas({
   promptValue,
   setPromptValue,
   onSubmit,
+  onSendMessage,
   onCommission,
   onStop,
   onReset,
@@ -647,16 +650,25 @@ export function PromptCanvas({
 
   const handleTemplateSelect = (starter: string) => {
     setPromptValue(starter);
-    setTimeout(() => {
-      if (starter.trim().length >= 10) onSubmit();
-    }, 0);
+    const text = starter.trim();
+    if (text.length < 10) return;
+    if (onSendMessage) {
+      onSendMessage(text);
+      setPromptValue('');
+      return;
+    }
+    setTimeout(() => onSubmit(), 0);
   };
 
   const handleSend = (content: string) => {
+    const text = content.trim();
+    if (!text) return;
     setPromptValue('');
-    // Send via parent's submit after setting value
-    // Use a small trick: pre-populate then trigger
-    setPromptValue(content);
+    if (onSendMessage) {
+      onSendMessage(text);
+      return;
+    }
+    setPromptValue(text);
     setTimeout(onSubmit, 0);
   };
 
@@ -730,7 +742,7 @@ export function PromptCanvas({
               borderTop: `1px solid ${BORDER_SUBTLE}`,
             }}
           >
-            <span style={{ ...mono, fontSize: 9, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
+            <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
               Next →
             </span>
             {suggestions.map(s => (
@@ -743,7 +755,7 @@ export function PromptCanvas({
                 }}
                 style={{
                   ...mono,
-                  fontSize: 11,
+                  fontSize: 13,
                   color: INK_DIM,
                   background: CANVAS,
                   border: `1px solid ${BORDER_SUBTLE}`,

@@ -13,7 +13,7 @@ import {
 import { RawSqlBadge } from './RawSqlBadge';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 const NEW_DASHBOARD = '__new__';
 
 const WIDGET_SIZE: Record<string, { w: number; h: number }> = {
@@ -187,14 +187,14 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 380, maxWidth: '92vw', background: 'var(--wb-canvas, #0D1B2A)',
-          border: '1px solid rgba(253,181,21,0.25)', borderRadius: 8,
+          width: 380, maxWidth: '92vw', background: 'var(--wb-canvas, #111322)',
+          border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 8,
           boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid rgba(253,181,21,0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <Pin size={13} style={{ color: GOLD }} />
-          <span style={{ ...MONO, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: GOLD, flex: 1 }}>
+          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: GOLD, flex: 1 }}>
             PIN RAW-SQL CHART
           </span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--wb-muted)', display: 'flex' }}>
@@ -211,9 +211,9 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
 
           <Field label="DESTINATION">
             {dashLoading ? (
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-muted)' }}>Loading dashboards…</span>
+              <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-muted)' }}>Loading dashboards…</span>
             ) : dashboards.length === 0 ? (
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-muted)' }}>
+              <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-muted)' }}>
                 No editable dashboards. Create one first, then pin here.
               </span>
             ) : (
@@ -225,15 +225,15 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
             )}
           </Field>
 
-          {error && <p style={{ ...MONO, fontSize: 10, color: '#F87171', margin: 0 }}>{error}</p>}
+          {error && <p style={{ ...MONO, fontSize: 13, color: '#F87171', margin: 0 }}>{error}</p>}
 
           <button
             onClick={handleConfirm}
             disabled={submitting || dashLoading || dashboards.length === 0}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: GOLD, color: '#0D1B2A', border: 'none', borderRadius: 4,
+              background: GOLD, color: '#111322', border: 'none', borderRadius: 4,
               padding: '8px 14px', cursor: (submitting || dashLoading || dashboards.length === 0) ? 'not-allowed' : 'pointer',
               opacity: (submitting || dashLoading || dashboards.length === 0) ? 0.6 : 1, fontWeight: 600,
             }}
@@ -248,15 +248,15 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
 }
 
 const inputStyle: React.CSSProperties = {
-  ...MONO, fontSize: 11, width: '100%', boxSizing: 'border-box',
-  background: 'var(--wb-canvas)', border: '1px solid rgba(253,181,21,0.25)',
+  ...MONO, fontSize: 13, width: '100%', boxSizing: 'border-box',
+  background: 'var(--wb-canvas)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
   borderRadius: 4, padding: '6px 8px', color: 'var(--wb-text)', outline: 'none',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--wb-muted)' }}>
+      <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--wb-muted)' }}>
         {label}
       </span>
       {children}

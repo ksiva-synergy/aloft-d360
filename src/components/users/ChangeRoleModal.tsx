@@ -20,10 +20,10 @@ const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
 
 // Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
 const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[#8a6a12] dark:text-[#FDB515] bg-[#FDB515]/10 border-[#FDB515]/30',
-  admin:          'text-[#003262] dark:text-[#5B9DFF] bg-[#003262]/[0.07] dark:bg-[#5B9DFF]/10 border-[#003262]/20 dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[#8892A4] bg-[#8892A4]/10 border-[#8892A4]/25',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[#8892A4]/25',
+  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
+  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
+  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
+  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
 };
 
 const ROLE_DETAILS: Record<string, { label: string; description: string }> = {
@@ -51,7 +51,7 @@ function RoleBadge({ role }: { role: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-[10px] font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
         ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
       )}
     >
@@ -113,13 +113,13 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
           <div className="flex items-center gap-2.5 mb-1">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: '#003262' }}
+              style={{ background: 'var(--brand-a-ink)' }}
             >
               <Shield className="h-4 w-4 text-white" />
             </div>
-            <DialogTitle className="text-[15px]">Change Role</DialogTitle>
+            <DialogTitle className="text-sm">Change Role</DialogTitle>
           </div>
-          <DialogDescription className="text-[12.5px]">
+          <DialogDescription className="text-xs">
             Updating role for{' '}
             <span className="font-medium text-[var(--foreground)]">
               {user.name || user.email}
@@ -128,7 +128,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
         </DialogHeader>
 
         {/* Current role indicator */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--estate-hover)] border border-[var(--estate-border)] text-[12px] mt-1">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--estate-hover)] border border-[var(--estate-border)] text-xs mt-1">
           <span className="text-muted-foreground">Current role:</span>
           <RoleBadge role={user.primaryRole} />
         </div>
@@ -146,7 +146,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
                 className={cn(
                   'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
                   isSelected
-                    ? 'border-[#FDB515] bg-[#FDB515]/[0.07] dark:bg-[#FDB515]/10 dark:border-[#FDB515]/60'
+                    ? 'border-[var(--brand-a)] bg-[var(--brand-a)]/[0.07] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] dark:border-[color-mix(in_srgb,var(--brand-a)_60%,transparent)]'
                     : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
                 )}
               >
@@ -162,10 +162,10 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
                   <div className="flex items-center gap-2">
                     <RoleBadge role={role} />
                     {isCurrent && (
-                      <span className="text-[9px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">current</span>
+                      <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">current</span>
                     )}
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{d.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{d.description}</p>
                 </div>
               </label>
             );
@@ -173,7 +173,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
         </div>
 
         {error && (
-          <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-[12px] text-red-600 dark:text-red-400">
+          <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
@@ -185,7 +185,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
             size="sm"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
-            className="text-[12.5px]"
+            className="text-xs"
           >
             Cancel
           </Button>
@@ -193,7 +193,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
             size="sm"
             onClick={handleConfirm}
             disabled={submitting || noChange}
-            className="text-[12.5px] gap-1.5"
+            className="text-xs gap-1.5"
           >
             {submitting
               ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Updating…</>

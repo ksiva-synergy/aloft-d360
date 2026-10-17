@@ -107,7 +107,7 @@ function trustFromStatus(status: string, linkKind: string): EdgeTreatment {
 
 const EDGE_STYLES: Record<EdgeTreatment, React.CSSProperties & { strokeDasharray?: string }> = {
   confirmed: { stroke: '#3B7A4B', strokeWidth: 2 },
-  assumed:   { stroke: '#FDB515', strokeWidth: 2 },
+  assumed:   { stroke: 'var(--brand-a)', strokeWidth: 2 },
   co_query:  { stroke: '#2F6DB0', strokeWidth: 1.5, strokeDasharray: '3,4' },
   silo:      { stroke: '#C25A2E', strokeWidth: 2,   strokeDasharray: '6,5' },
 };
@@ -291,17 +291,17 @@ function buildGraph(props: RelationshipGraphProps): {
 const SOURCE_COLORS: Record<string, string> = {
   entity_group:  '#3B7A4B',
   fk_candidate:  '#2F6DB0',
-  object_link:   '#FDB515',
-  co_object:     '#8892A4',
+  object_link:   'var(--brand-a)',
+  co_object:     'var(--ink-3)',
 };
 
 // ── Custom node component ──────────────────────────────────────────────────
 function RelationNode({ data }: { data: GraphNodeData }) {
-  const inkColor = data.isFocus ? '#FDB515' : 'var(--estate-ink, #E8E6E1)';
+  const inkColor = data.isFocus ? 'var(--brand-a)' : 'var(--estate-ink, #E8E6E1)';
   const bg = data.isFocus
-    ? 'rgba(253,181,21,0.10)'
+    ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)'
     : 'var(--estate-raised, rgba(13,27,42,0.9))';
-  const border = data.isFocus ? '2px solid #FDB515' : '1px solid rgba(255,255,255,0.10)';
+  const border = data.isFocus ? '2px solid var(--brand-a)' : '1px solid rgba(255,255,255,0.10)';
   const kindIcon = KIND_ICONS[data.kind] ?? '▦';
 
   return (
@@ -320,11 +320,11 @@ function RelationNode({ data }: { data: GraphNodeData }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ fontSize: 11, opacity: 0.55, color: inkColor }}>{kindIcon}</span>
+        <span style={{ fontSize: 13, opacity: 0.55, color: inkColor }}>{kindIcon}</span>
         <span
           style={{
-            fontFamily: '"Inter Tight", sans-serif',
-            fontSize: 12,
+            fontFamily: '"Inter Variable", sans-serif',
+            fontSize: 13,
             fontWeight: data.isFocus ? 700 : 500,
             color: inkColor,
             overflow: 'hidden',
@@ -348,7 +348,7 @@ function RelationNode({ data }: { data: GraphNodeData }) {
                 width: 5,
                 height: 5,
                 borderRadius: '50%',
-                background: SOURCE_COLORS[src] ?? '#8892A4',
+                background: SOURCE_COLORS[src] ?? 'var(--ink-3)',
                 display: 'inline-block',
                 flexShrink: 0,
               }}
@@ -366,7 +366,7 @@ const nodeTypes: NodeTypes = { relationNode: RelationNode };
 // ── Edge legend component ──────────────────────────────────────────────────
 const LEGEND_ITEMS = [
   { color: '#3B7A4B', dash: undefined,  label: 'Confirmed' },
-  { color: '#FDB515', dash: undefined,  label: 'Proposed' },
+  { color: 'var(--brand-a-ink)', dash: undefined,  label: 'Proposed' },
   { color: '#2F6DB0', dash: '3,4',     label: 'Co-query' },
   { color: '#C25A2E', dash: '6,5',     label: 'Silo (duplicate candidate)' },
 ] as const;
@@ -378,8 +378,8 @@ function EdgeLegend() {
       flexWrap: 'wrap',
       gap: '6px 16px',
       padding: '8px 12px',
-      borderTop: '1px solid rgba(253,181,21,0.08)',
-      background: 'var(--estate-bg, #0D1B2A)',
+      borderTop: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
+      background: 'var(--estate-bg, #111322)',
     }}>
       {LEGEND_ITEMS.map(({ color, dash, label }) => (
         <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -393,8 +393,8 @@ function EdgeLegend() {
           </svg>
           <span style={{
             fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 11,
-            color: 'var(--estate-text-muted, #8892A4)',
+            fontSize: 13,
+            color: 'var(--estate-text-muted, var(--ink-3))',
           }}>
             {label}
           </span>
@@ -412,7 +412,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      border: '1px solid var(--estate-border-gold, rgba(253,181,21,0.15))',
+      border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 15%, transparent))',
       borderRadius: 8,
       overflow: 'hidden',
       background: 'var(--estate-raised, rgba(13,27,42,0.5))',
@@ -420,23 +420,23 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
       {/* Header */}
       <div style={{
         padding: '10px 14px',
-        borderBottom: '1px solid rgba(253,181,21,0.08)',
-        background: 'var(--estate-bg, #0D1B2A)',
+        borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
+        background: 'var(--estate-bg, #111322)',
       }}>
         <div style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
-          color: 'var(--estate-text-secondary, #8892A4)',
+          color: 'var(--estate-text-secondary, var(--ink-3))',
         }}>
           Usage Co-objects
         </div>
         <div style={{
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
-          color: 'var(--estate-text-muted, #8892A4)',
+          fontSize: 13,
+          color: 'var(--estate-text-muted, var(--ink-3))',
           marginTop: 2,
         }}>
           T3 · {coObjects.length} table{coObjects.length !== 1 ? 's' : ''}
@@ -449,8 +449,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
           <div style={{
             padding: '16px 14px',
             fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 11,
-            color: 'var(--estate-text-muted, #8892A4)',
+            fontSize: 13,
+            color: 'var(--estate-text-muted, var(--ink-3))',
             textAlign: 'center',
           }}>
             No co-objects recorded
@@ -479,7 +479,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                       href={href}
                       style={{
                         fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 12,
+                        fontSize: 13,
                         color: 'var(--estate-ink, #E8E6E1)',
                         textDecoration: 'none',
                         overflow: 'hidden',
@@ -487,7 +487,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                         whiteSpace: 'nowrap',
                         flex: 1,
                       }}
-                      className="hover:text-[#FDB515] transition-colors"
+                      className="hover:text-[var(--brand-a-ink)] transition-colors"
                       title={co.full_path}
                     >
                       {name}
@@ -496,7 +496,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                     <span
                       style={{
                         fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 12,
+                        fontSize: 13,
                         color: 'var(--estate-ink, #E8E6E1)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -511,8 +511,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                   {n > 0 && (
                     <span style={{
                       fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 11,
-                      color: '#FDB515',
+                      fontSize: 13,
+                      color: 'var(--brand-a-ink)',
                       flexShrink: 0,
                     }}>
                       {pct}%
@@ -588,7 +588,7 @@ function GraphInner(props: RelationshipGraphProps) {
       <Controls
         style={{
           background: 'var(--estate-raised, rgba(13,27,42,0.85))',
-          border: '1px solid rgba(253,181,21,0.15)',
+          border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
           borderRadius: 6,
         }}
       />
@@ -616,11 +616,11 @@ export default function RelationshipGraph(props: RelationshipGraphProps) {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: 8,
-          border: '1px dashed rgba(253,181,21,0.2)',
+          border: '1px dashed color-mix(in srgb, var(--brand-a) 20%, transparent)',
           background: 'var(--estate-raised, rgba(13,27,42,0.4))',
           fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 12,
-          color: '#8892A4',
+          fontSize: 13,
+          color: 'var(--ink-3)',
         }}
       >
         No relationships found yet — run T3 usage or silo scan to discover connections.
@@ -635,7 +635,7 @@ export default function RelationshipGraph(props: RelationshipGraphProps) {
         {/* Graph area */}
         <div style={{
           borderRadius: 8,
-          border: '1px solid rgba(253,181,21,0.12)',
+          border: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)',
           overflow: 'hidden',
           background: 'var(--estate-raised, rgba(13,27,42,0.7))',
         }}>

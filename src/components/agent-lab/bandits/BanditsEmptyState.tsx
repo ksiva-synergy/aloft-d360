@@ -17,7 +17,7 @@ export function BanditsEmptyState() {
           {['?', '?', '?'].map((ch, i) => (
             <div
               key={i}
-              className="w-10 h-12 rounded-lg border-2 border-dashed border-slate-200 dark:border-[#2d333b] flex items-center justify-center"
+              className="w-10 h-12 rounded-lg border-2 border-dashed border-slate-200 dark:border-[var(--line-1)] flex items-center justify-center"
               style={{ animationDelay: `${i * 0.15}s` }}
             >
               <span className="text-lg font-bold text-slate-300 dark:text-slate-600 animate-lab-count-pulse">
@@ -30,7 +30,7 @@ export function BanditsEmptyState() {
         <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-2">
           No pulls yet
         </h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
+        <p className="text-sm text-[var(--ink-3)] dark:text-slate-400 leading-relaxed mb-6">
           Run your first backfill job to start collecting agent performance data.
           Once model stats accumulate, the bandit will show which arms are winning.
         </p>

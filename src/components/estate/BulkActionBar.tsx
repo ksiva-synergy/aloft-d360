@@ -13,14 +13,14 @@ interface BulkActionBarProps {
 }
 
 export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedule, onScheduleCatalog, catalogScope, onClear }: BulkActionBarProps) {
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
   const blueColor = '#60a5fa';
   const blueDim = 'rgba(96, 165, 250, 0.35)';
 
   const btnBase: React.CSSProperties = {
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '11px',
+    fontSize: '13px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     padding: '6px 14px',
@@ -34,14 +34,14 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
     <div
       className="flex items-center gap-3 mx-6 mt-2 px-4 py-2.5 rounded-md flex-wrap"
       style={{
-        background: count > 0 ? 'rgba(253, 181, 21, 0.08)' : 'rgba(96, 165, 250, 0.06)',
+        background: count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(96, 165, 250, 0.06)',
         border: `1px solid ${count > 0 ? goldDim : blueDim}`,
       }}
     >
       {count > 0 && (
         <>
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: goldColor, letterSpacing: '0.04em' }}
+            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: goldColor, letterSpacing: '0.04em' }}
           >
             {count} selected
           </span>
@@ -66,7 +66,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
 
       {catalogScope && count === 0 && onScheduleCatalog && (
         <>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
             Scope: <strong style={{ color: blueColor }}>{catalogScope}</strong>
           </span>
           <button
@@ -91,7 +91,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
         className="ml-auto cursor-pointer transition-colors"
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '10.5px',
+          fontSize: '13px',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           color: 'var(--estate-text-muted)',

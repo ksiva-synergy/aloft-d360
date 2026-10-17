@@ -51,8 +51,8 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
   return (
     <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3.5">
       <div className="text-[22px] font-bold tabular-nums text-[var(--estate-ink)]">{value}</div>
-      <div className="mt-1 font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">{label}</div>
-      {sub && <div className="text-[10.5px] text-muted-foreground mt-0.5">{sub}</div>}
+      <div className="mt-1 font-mono text-xs font-medium uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">{label}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -194,10 +194,10 @@ export default function UsersPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-lg font-semibold flex items-center gap-2 text-[var(--estate-ink)]">
-            <Users className="h-5 w-5 shrink-0 text-[#FDB515]" />
+            <Users className="h-5 w-5 shrink-0 text-[var(--brand-a-ink)]" />
             Users
           </h1>
-          <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
+          <p className="mt-1 font-mono text-xs uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
             Platform users and role assignments · Access control
           </p>
         </div>
@@ -211,7 +211,7 @@ export default function UsersPage() {
             <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           </button>
           {perms.canCreateUsers && (
-            <Button size="sm" onClick={() => setInviteOpen(true)} className="gap-1.5 text-[12.5px]">
+            <Button size="sm" onClick={() => setInviteOpen(true)} className="gap-1.5 text-xs">
               <UserPlus className="h-3.5 w-3.5" />
               Invite User
             </Button>
@@ -240,9 +240,9 @@ export default function UsersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={cn(
-              'w-full pl-8 pr-3 py-1.5 text-[12.5px] rounded-md border',
+              'w-full pl-8 pr-3 py-1.5 text-xs rounded-md border',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
+              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
               'placeholder:text-muted-foreground',
             )}
           />
@@ -254,9 +254,9 @@ export default function UsersPage() {
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             className={cn(
-              'pl-3 pr-7 py-1.5 text-[12.5px] rounded-md border appearance-none',
+              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
+              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
             )}
           >
             {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -270,9 +270,9 @@ export default function UsersPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className={cn(
-              'pl-3 pr-7 py-1.5 text-[12.5px] rounded-md border appearance-none',
+              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[#FDB515] focus:border-[#FDB515]',
+              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
             )}
           >
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -282,14 +282,14 @@ export default function UsersPage() {
 
         {/* Active filter count */}
         {(search || roleFilter || statusFilter) && (
-          <span className="text-[11.5px] text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {filtered.length} of {users.length} shown
           </span>
         )}
         {(search || roleFilter || statusFilter) && (
           <button
             onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
-            className="text-[11.5px] text-muted-foreground hover:text-foreground underline transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
           >
             Clear
           </button>
@@ -298,11 +298,11 @@ export default function UsersPage() {
 
       {/* Error state */}
       {error && (
-        <div className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-lg px-4 py-3 text-[12.5px] text-red-600 dark:text-red-400 flex items-center gap-2">
+        <div className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-lg px-4 py-3 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
           <span>{error}</span>
           <button
             onClick={loadUsers}
-            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-[12px]"
+            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-xs"
           >
             Retry
           </button>
@@ -357,7 +357,7 @@ export default function UsersPage() {
       {toast && (
         <div
           className={cn(
-            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-[12.5px] font-medium transition-all',
+            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium transition-all',
             toast.type === 'success'
               ? 'bg-emerald-600 dark:bg-emerald-700 text-white'
               : 'bg-red-600 dark:bg-red-700 text-white',

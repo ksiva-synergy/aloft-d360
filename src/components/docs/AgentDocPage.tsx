@@ -26,7 +26,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-6">
+      <nav className="flex items-center gap-2 text-xs text-[var(--ink-3)] dark:text-slate-400 mb-6">
         <Link href="/docs" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
           Docs
         </Link>
@@ -44,7 +44,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             {agent.name}
           </h1>
-          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[agent.type] || 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300'}`}>
+          <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[agent.type] || 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300'}`}>
             {agent.type}
           </span>
         </div>
@@ -53,7 +53,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
         </p>
 
         {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[var(--ink-3)] dark:text-slate-400">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             v{agent.version}
@@ -73,11 +73,11 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
         {/* Tags */}
         {agent.tags && agent.tags.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 mt-3">
-            <Tag className="h-3 w-3 text-slate-400" />
+            <Tag className="h-3 w-3 text-[var(--ink-3)]" />
             {agent.tags.map(tag => (
               <span
                 key={tag}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
               >
                 {tag}
               </span>
@@ -97,9 +97,9 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
               <Link
                 key={toolName}
                 href={`/docs/tools/${toolName}`}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#2d333b] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[#161b22]"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[var(--surface-1)]"
               >
-                <Wrench className="h-3 w-3 text-slate-400" />
+                <Wrench className="h-3 w-3 text-[var(--ink-3)]" />
                 <span className="text-slate-700 dark:text-slate-300">{toolName}</span>
               </Link>
             ))}
@@ -145,8 +145,8 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {agent.bus_subscriptions?.length > 0 && (
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2d333b] bg-white dark:bg-[#161b22]">
-                <p className="text-[10px] font-semibold uppercase text-slate-500 mb-2">Subscribes to</p>
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--surface-1)]">
+                <p className="text-xs font-semibold uppercase text-[var(--ink-3)] mb-2">Subscribes to</p>
                 <div className="space-y-1">
                   {agent.bus_subscriptions.map(sub => (
                     <p key={sub} className="text-xs font-mono text-slate-700 dark:text-slate-300">{sub}</p>
@@ -155,8 +155,8 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
               </div>
             )}
             {agent.bus_publications?.length > 0 && (
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-[#2d333b] bg-white dark:bg-[#161b22]">
-                <p className="text-[10px] font-semibold uppercase text-slate-500 mb-2">Publishes to</p>
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--surface-1)]">
+                <p className="text-xs font-semibold uppercase text-[var(--ink-3)] mb-2">Publishes to</p>
                 <div className="space-y-1">
                   {agent.bus_publications.map(pub => (
                     <p key={pub} className="text-xs font-mono text-slate-700 dark:text-slate-300">{pub}</p>
@@ -190,14 +190,14 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
               <Link
                 key={related.id}
                 href={`/docs/agents/${related.slug}`}
-                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-[#2d333b] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[#161b22]"
+                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[var(--surface-1)]"
               >
-                <Bot className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                <Bot className="h-4 w-4 text-[var(--ink-3)] mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {related.name}
                   </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                  <p className="text-xs text-[var(--ink-3)] dark:text-slate-400 line-clamp-2 mt-0.5">
                     {related.description}
                   </p>
                 </div>
@@ -208,10 +208,10 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       )}
 
       {/* Back link */}
-      <div className="pt-4 border-t border-slate-200 dark:border-[#2d333b]">
+      <div className="pt-4 border-t border-slate-200 dark:border-[var(--line-1)]">
         <Link
           href="/docs/agents"
-          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-3)] hover:text-slate-700 dark:hover:text-slate-400 dark:hover:text-slate-200 transition-colors"
         >
           <ArrowLeft className="h-3 w-3" />
           Back to all agents

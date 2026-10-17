@@ -181,14 +181,14 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
     <div
       ref={scrollRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed"
+      className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed"
       style={{ backgroundColor: '#0d1117', minHeight: 0 }}
     >
       {lines.length === 0 && !errorMsg && !isDone && (
-        <div className="flex items-center gap-2 px-4 py-3" style={{ color: '#8892A4' }}>
+        <div className="flex items-center gap-2 px-4 py-3" style={{ color: 'var(--ink-3)' }}>
           <span className="relative flex h-2 w-2 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#FDB515' }} />
-            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#FDB515' }} />
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a-ink)' }} />
+            <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a-ink)' }} />
           </span>
           Waiting for log events…
         </div>
@@ -237,7 +237,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
 
       {isDone && lines.length > 0 && (
         <div
-          className="px-4 py-2 text-[10px] font-mono border-t mt-1"
+          className="px-4 py-2 text-xs font-mono border-t mt-1"
           style={{ color: '#4a5568', borderColor: 'rgba(255,255,255,0.06)' }}
         >
           — stream ended · {lines.length} line{lines.length !== 1 ? 's' : ''} —
@@ -251,11 +251,11 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
             setAutoScroll(true);
             if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
           }}
-          className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono border shadow-lg"
+          className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border shadow-lg"
           style={{
-            backgroundColor: '#1c2128',
-            borderColor: 'rgba(253,181,21,0.3)',
-            color: '#FDB515',
+            backgroundColor: 'var(--surface-2)',
+            borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
+            color: 'var(--brand-a-ink)',
           }}
         >
           <ChevronDown size={11} /> Resume scroll
@@ -267,13 +267,13 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
   const panelHeader = (fullscreen: boolean) => (
     <div
       className="flex items-center justify-between px-4 py-2.5 border-b shrink-0"
-      style={{ backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.07)' }}
+      style={{ backgroundColor: '#161b22', borderColor: 'var(--line-1)' }}
     >
       <div className="flex items-center gap-2.5">
         <button
           onClick={() => setIsCollapsed(c => !c)}
           className="flex items-center gap-1.5 text-xs font-mono font-semibold tracking-wider uppercase"
-          style={{ color: '#8892A4' }}
+          style={{ color: 'var(--ink-3)' }}
         >
           {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
           <Terminal size={12} />
@@ -281,24 +281,24 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
         </button>
 
         {isLive && !isDone && !isCollapsed && (
-          <span className="flex items-center gap-1.5 text-[10px] font-mono" style={{ color: '#FDB515' }}>
+          <span className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--brand-a-ink)' }}>
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#FDB515' }} />
-              <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#FDB515' }} />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a-ink)' }} />
+              <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a-ink)' }} />
             </span>
             streaming
           </span>
         )}
 
         {isDone && (
-          <span className="text-[10px] font-mono" style={{ color: '#4a5568' }}>
+          <span className="text-xs font-mono" style={{ color: '#4a5568' }}>
             {lines.length} lines
           </span>
         )}
 
         {meta && !isCollapsed && (
           <span
-            className="hidden sm:block text-[9px] font-mono truncate max-w-[200px]"
+            className="hidden sm:block text-xs font-mono truncate max-w-[200px]"
             style={{ color: '#4a5568' }}
             title={`${meta.logGroup} → ${meta.logStream}`}
           >
@@ -312,7 +312,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
           <button
             onClick={() => setIsFullscreen(f => !f)}
             className="p-1 rounded hover:bg-white/10 transition-colors"
-            style={{ color: '#8892A4' }}
+            style={{ color: 'var(--ink-3)' }}
             title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
             {fullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
@@ -321,7 +321,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
             <button
               onClick={() => setIsFullscreen(false)}
               className="p-1 rounded hover:bg-white/10 transition-colors ml-1"
-              style={{ color: '#8892A4' }}
+              style={{ color: 'var(--ink-3)' }}
               title="Close"
             >
               <X size={13} />
@@ -337,7 +337,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
     return (
       <div
         className="fixed inset-4 z-[60] flex flex-col rounded-xl shadow-2xl overflow-hidden border"
-        style={{ backgroundColor: '#0d1117', borderColor: 'rgba(253,181,21,0.2)' }}
+        style={{ backgroundColor: '#0d1117', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}
       >
         {/* Backdrop */}
         <div
@@ -355,7 +355,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
   return (
     <div
       className="rounded-lg overflow-hidden border"
-      style={{ borderColor: 'rgba(255,255,255,0.07)', backgroundColor: '#0d1117' }}
+      style={{ borderColor: 'var(--line-1)', backgroundColor: '#0d1117' }}
     >
       {panelHeader(false)}
       {!isCollapsed && (

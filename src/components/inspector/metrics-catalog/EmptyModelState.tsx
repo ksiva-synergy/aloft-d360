@@ -21,7 +21,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <div style={{ maxWidth: 460, textAlign: 'center' }}>
-        <div style={{ display: 'inline-flex', padding: 14, borderRadius: '50%', background: 'rgba(253,181,21,0.1)', marginBottom: 16 }}>
+        <div style={{ display: 'inline-flex', padding: 14, borderRadius: '50%', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', marginBottom: 16 }}>
           <Sprout size={26} color={GOLD} />
         </div>
         <div style={{ ...SERIF, fontSize: 22, fontWeight: 600, color: INK, marginBottom: 8 }}>
@@ -37,7 +37,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
           disabled
           title="Schema scan bootstrap is not enabled yet."
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, ...MONO, fontSize: 12, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 8, ...MONO, fontSize: 13, fontWeight: 600,
             padding: '9px 16px', borderRadius: 5, cursor: 'not-allowed', opacity: 0.5,
             border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD,
           }}
@@ -46,10 +46,10 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
         </button>
 
         <div style={{ marginTop: 26, textAlign: 'left' }}>
-          <div style={{ ...MONO, fontSize: 9, color: MUTED, letterSpacing: '0.08em', marginBottom: 8 }}>STARTER QUESTIONS</div>
+          <div style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em', marginBottom: 8 }}>STARTER QUESTIONS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {STARTERS.map((q) => (
-              <div key={q} style={{ display: 'flex', alignItems: 'center', gap: 8, ...SANS, fontSize: 12, color: INK_DIM, border: `1px solid ${BORDER}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div key={q} style={{ display: 'flex', alignItems: 'center', gap: 8, ...SANS, fontSize: 13, color: INK_DIM, border: `1px solid ${BORDER}`, borderRadius: 4, padding: '8px 10px' }}>
                 <HelpCircle size={13} color={MUTED} style={{ flexShrink: 0 }} /> {q}
               </div>
             ))}

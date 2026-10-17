@@ -101,7 +101,7 @@ export default function EstateMapperPage() {
   const labelColor = 'var(--estate-text-secondary)';
   const raisedBg = 'var(--estate-raised)';
   const borderColor = 'var(--estate-border-gold)';
-  const activeColor = '#FDB515';
+  const activeColor = 'var(--brand-a)';
 
   // Load sources on mount
   useEffect(() => {
@@ -443,7 +443,7 @@ export default function EstateMapperPage() {
     <div className="h-full flex flex-col overflow-y-auto p-6" style={{ color: inkColor }}>
       {/* 1. Step indicator strip */}
       <div className="flex items-center gap-8 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-        <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider uppercase font-semibold">
+        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
           {step > 1 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : (
@@ -452,7 +452,7 @@ export default function EstateMapperPage() {
           <span style={{ color: step === 1 ? activeColor : labelColor }}>Pick pair</span>
         </div>
         <div style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider uppercase font-semibold">
+        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
           {step > 2 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : step === 2 ? (
@@ -463,7 +463,7 @@ export default function EstateMapperPage() {
           <span style={{ color: step === 2 ? activeColor : labelColor }}>Run</span>
         </div>
         <div style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-[11px] font-mono tracking-wider uppercase font-semibold">
+        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
           {step === 3 ? (
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeColor }} />
           ) : (
@@ -521,7 +521,7 @@ export default function EstateMapperPage() {
                 type="checkbox"
                 checked={includeRejected}
                 onChange={(e) => setIncludeRejected(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border outline-none cursor-pointer accent-[#FDB515]"
+                className="w-3.5 h-3.5 rounded border outline-none cursor-pointer accent-[var(--brand-a)]"
                 style={{ borderColor }}
               />
               <span style={{ color: labelColor }}>Include previously rejected mappings</span>
@@ -536,7 +536,7 @@ export default function EstateMapperPage() {
               className="px-6 py-2.5 rounded text-xs font-mono tracking-wider uppercase font-semibold transition-all duration-200"
               style={{
                 backgroundColor: canRun ? activeColor : raisedBg,
-                color: canRun ? '#0D1B2A' : labelColor,
+                color: canRun ? '#111322' : labelColor,
                 border: canRun ? 'none' : `1px solid ${borderColor}`,
                 cursor: canRun ? 'pointer' : 'not-allowed',
                 opacity: canRun ? 1 : 0.5,
@@ -573,7 +573,7 @@ export default function EstateMapperPage() {
                       </span>
                     </div>
                     {duration !== undefined && (
-                      <span style={{ color: labelColor }} className="text-[10px]">
+                      <span style={{ color: labelColor }} className="text-xs">
                         {(duration / 1000).toFixed(1)}s
                       </span>
                     )}
@@ -595,7 +595,7 @@ export default function EstateMapperPage() {
                   setJobError(null);
                   setJobData(null);
                 }}
-                className="px-4 py-2 border rounded self-start text-xs font-mono uppercase tracking-wider hover:border-[#FDB515] transition-colors"
+                className="px-4 py-2 border rounded self-start text-xs font-mono uppercase tracking-wider hover:border-[var(--brand-a)] transition-colors"
                 style={{ borderColor, color: inkColor }}
               >
                 ← Try again
@@ -612,7 +612,7 @@ export default function EstateMapperPage() {
             <Link
               href="/api/agent-lab/context/mappings/export?format=md"
               download
-              className="px-4 py-1.5 border rounded text-xs font-mono uppercase tracking-wider hover:border-[#FDB515] transition-all"
+              className="px-4 py-1.5 border rounded text-xs font-mono uppercase tracking-wider hover:border-[var(--brand-a)] transition-all"
               style={{ borderColor, color: inkColor }}
             >
               Export as Markdown ↓
@@ -655,7 +655,7 @@ export default function EstateMapperPage() {
                           <span className="font-mono text-xs font-bold">
                             {group.leftObjectPath} ↔ {group.rightObjectPath}
                           </span>
-                          <span className="text-[10px] font-mono" style={{ color: labelColor }}>
+                          <span className="text-xs font-mono" style={{ color: labelColor }}>
                             avg confidence: {avgConf} · {group.mappings.length} column mappings
                           </span>
                         </div>
@@ -664,7 +664,7 @@ export default function EstateMapperPage() {
                       {/* Bulk actions */}
                       <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-mono" style={{ color: labelColor }}>
+                          <span className="text-xs font-mono" style={{ color: labelColor }}>
                             Bulk confirm ≥
                           </span>
                           <input
@@ -683,7 +683,7 @@ export default function EstateMapperPage() {
                         <button
                           disabled={!!confirmingState}
                           onClick={() => handleBulkConfirm(group)}
-                          className="px-3 py-1 bg-[#FDB515] text-[#0D1B2A] rounded text-[10px] font-mono font-semibold uppercase tracking-wider hover:brightness-110 disabled:opacity-50"
+                          className="px-3 py-1 bg-[var(--brand-a)] text-[#FFFFFF] rounded text-xs font-mono font-semibold uppercase tracking-wider hover:brightness-110 disabled:opacity-50"
                         >
                           {confirmingState || 'Confirm'}
                         </button>
@@ -725,7 +725,7 @@ export default function EstateMapperPage() {
                                 {/* Signals bars */}
                                 <div className="col-span-3 flex items-center gap-3">
                                   <div className="flex flex-col gap-1 w-full">
-                                    <div className="grid grid-cols-4 gap-1 text-[8px] font-mono text-center" style={{ color: labelColor }}>
+                                    <div className="grid grid-cols-4 gap-1 text-xs font-mono text-center" style={{ color: labelColor }}>
                                       <div>EMB</div>
                                       <div>NAM</div>
                                       <div>TYP</div>
@@ -734,19 +734,19 @@ export default function EstateMapperPage() {
                                     <div className="grid grid-cols-4 gap-1.5">
                                       {/* Embed */}
                                       <div className="h-1 bg-gray-500/20 rounded overflow-hidden">
-                                        <div className="h-full bg-[#FDB515]" style={{ width: `${embedVal * 100}%` }} />
+                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${embedVal * 100}%` }} />
                                       </div>
                                       {/* Name */}
                                       <div className="h-1 bg-gray-500/20 rounded overflow-hidden">
-                                        <div className="h-full bg-[#FDB515]" style={{ width: `${nameVal * 100}%` }} />
+                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${nameVal * 100}%` }} />
                                       </div>
                                       {/* Type */}
                                       <div className="h-1 bg-gray-500/20 rounded overflow-hidden">
-                                        <div className="h-full bg-[#FDB515]" style={{ width: `${typeVal * 100}%` }} />
+                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${typeVal * 100}%` }} />
                                       </div>
                                       {/* Jaccard */}
                                       <div className="h-1 bg-gray-500/20 rounded overflow-hidden">
-                                        <div className="h-full bg-[#FDB515]" style={{ width: `${jaccardVal * 100}%` }} />
+                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${jaccardVal * 100}%` }} />
                                       </div>
                                     </div>
                                   </div>
@@ -754,7 +754,7 @@ export default function EstateMapperPage() {
 
                                 {/* Rationale */}
                                 <div
-                                  className="col-span-3 text-[11px] truncate select-none"
+                                  className="col-span-3 text-xs truncate select-none"
                                   style={{ color: labelColor }}
                                   title={rationale}
                                 >
@@ -776,13 +776,13 @@ export default function EstateMapperPage() {
                                     <>
                                       <button
                                         onClick={() => handleUpdateStatus(m.id, 'confirmed')}
-                                        className="px-2.5 py-1 rounded border border-green-500/30 text-green-500 hover:bg-green-500/10 text-[10px] font-mono uppercase font-semibold"
+                                        className="px-2.5 py-1 rounded border border-green-500/30 text-green-500 hover:bg-green-500/10 text-xs font-mono uppercase font-semibold"
                                       >
                                         Confirm
                                       </button>
                                       <button
                                         onClick={() => handleUpdateStatus(m.id, 'rejected')}
-                                        className="px-2.5 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 text-[10px] font-mono uppercase font-semibold"
+                                        className="px-2.5 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 text-xs font-mono uppercase font-semibold"
                                       >
                                         Reject
                                       </button>
@@ -797,7 +797,7 @@ export default function EstateMapperPage() {
                         {/* Collapsible Unmapped Remainder Panel */}
                         <div className="border-t p-3" style={{ borderColor }}>
                           <div
-                            className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider font-semibold cursor-pointer select-none"
+                            className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-semibold cursor-pointer select-none"
                             style={{ color: labelColor }}
                             onClick={() =>
                               setExpandedRemainder((prev) => ({ ...prev, [group.key]: !isRemainderExpanded }))
@@ -808,7 +808,7 @@ export default function EstateMapperPage() {
                           </div>
 
                           {isRemainderExpanded && (
-                            <div className="mt-2.5 flex flex-col gap-2 pl-4 text-[11px] font-mono">
+                            <div className="mt-2.5 flex flex-col gap-2 pl-4 text-xs font-mono">
                               {(() => {
                                 const leftAll = objectColumns[group.leftObjectId]?.map((c) => c.name) || [];
                                 const leftMapped = new Set(group.mappings.map((m) => m.leftColName));
@@ -869,7 +869,7 @@ function SchemaPicker({
   inkColor,
   labelColor,
 }: SchemaPickerProps) {
-  const activeColor = '#FDB515';
+  const activeColor = 'var(--brand-a)';
   const [catalogs, setCatalogs] = useState<string[]>([]);
   const [schemas, setSchemas] = useState<string[]>([]);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
@@ -882,8 +882,8 @@ function SchemaPicker({
 
   // Dropdown style
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'Inter Tight', sans-serif",
-    fontSize: '12px',
+    fontFamily: "'Inter Variable', sans-serif",
+    fontSize: '13px',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '4px',
@@ -1015,7 +1015,7 @@ function SchemaPicker({
       <div className="flex flex-col gap-3">
         {/* 1. Source selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] uppercase font-semibold font-mono" style={{ color: labelColor }}>
+          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
             Source
           </label>
           <select
@@ -1034,7 +1034,7 @@ function SchemaPicker({
 
         {/* 2. Catalog selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] uppercase font-semibold font-mono" style={{ color: labelColor }}>
+          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
             Catalog
           </label>
           <select
@@ -1056,7 +1056,7 @@ function SchemaPicker({
 
         {/* 3. Schema selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] uppercase font-semibold font-mono" style={{ color: labelColor }}>
+          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
             Schema
           </label>
           <select
@@ -1079,7 +1079,7 @@ function SchemaPicker({
 
       {/* Coverage summaries */}
       {value?.sourceId && value?.catalogName && value?.schemaName && (
-        <div className="mt-2 pt-2 border-t text-[11px] font-mono" style={{ borderColor }}>
+        <div className="mt-2 pt-2 border-t text-xs font-mono" style={{ borderColor }}>
           {loadingCoverage ? (
             <span style={{ color: labelColor }} className="animate-pulse">Loading coverage stats...</span>
           ) : (
@@ -1095,7 +1095,7 @@ function SchemaPicker({
               {totalObjects !== null && enrichedObjects !== null && enrichedObjects < totalObjects && (
                 <div className="text-amber-500 mt-1">
                   ⚠ {totalObjects - enrichedObjects} objects not enriched — mapping quality may be reduced.{' '}
-                  <Link href="/agent-lab/estate/catalog" className="underline hover:text-[#FDB515] transition-colors">
+                  <Link href="/agent-lab/estate/catalog" className="underline hover:text-[var(--brand-a-ink)] transition-colors">
                     [Enrich now →]
                   </Link>
                 </div>

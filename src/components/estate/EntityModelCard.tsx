@@ -120,11 +120,11 @@ export default function EntityModelCard({
           <span
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 9,
+              fontSize: 13,
               fontWeight: 600,
               padding: '2px 6px',
               borderRadius: 3,
-              background: 'var(--estate-ink, #003262)',
+              background: 'var(--estate-ink, var(--brand-a-ink))',
               color: '#fff',
               letterSpacing: '0.04em',
             }}
@@ -134,7 +134,7 @@ export default function EntityModelCard({
           <span
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'var(--estate-text-secondary)',
@@ -149,7 +149,7 @@ export default function EntityModelCard({
           <span
             style={{
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 9,
+              fontSize: 13,
               fontWeight: 600,
               padding: '2px 7px',
               borderRadius: 3,
@@ -169,15 +169,15 @@ export default function EntityModelCard({
               onClick={handlePromote}
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: 600,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
                 padding: '3px 10px',
                 borderRadius: 3,
-                border: '1px solid rgba(253,181,21,0.35)',
+                border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
                 background: 'transparent',
-                color: promoting ? 'rgba(253,181,21,0.4)' : '#FDB515',
+                color: promoting ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',
                 cursor: promoting ? 'not-allowed' : 'pointer',
                 transition: 'all 0.12s ease',
               }}
@@ -206,8 +206,8 @@ export default function EntityModelCard({
             <div
               style={{
                 marginTop: 4,
-                fontFamily: '"Inter Tight", sans-serif',
-                fontSize: 12,
+                fontFamily: '"Inter Variable", sans-serif',
+                fontSize: 13,
                 color: mutedColor,
                 lineHeight: 1.5,
               }}
@@ -224,7 +224,7 @@ export default function EntityModelCard({
             <div
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 color: 'var(--estate-text-secondary)',
@@ -233,17 +233,17 @@ export default function EntityModelCard({
               Dimensions ({dimensions.length})
             </div>
             {dimensions.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 11, color: mutedColor }}>None proposed.</div>
+              <div style={{ fontStyle: 'italic', fontSize: 13, color: mutedColor }}>None proposed.</div>
             ) : (
               dimensions.map((d) => {
                 const typeStyle = DIM_TYPE_STYLES[d.dimension_type] ?? DIM_TYPE_STYLES.attribute;
                 return (
-                  <div key={d.column_name} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+                  <div key={d.column_name} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
                     <span
                       style={{
                         flexShrink: 0,
                         fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 9,
+                        fontSize: 13,
                         fontWeight: 600,
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
@@ -263,7 +263,7 @@ export default function EntityModelCard({
                         ({d.column_name})
                       </span>
                       {d.description && (
-                        <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Tight", sans-serif', fontSize: 11 }}>
+                        <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Variable", sans-serif', fontSize: 13 }}>
                           {d.description}
                         </div>
                       )}
@@ -279,7 +279,7 @@ export default function EntityModelCard({
             <div
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 color: 'var(--estate-text-secondary)',
@@ -288,15 +288,15 @@ export default function EntityModelCard({
               Measures ({measures.length})
             </div>
             {measures.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 11, color: mutedColor }}>None proposed.</div>
+              <div style={{ fontStyle: 'italic', fontSize: 13, color: mutedColor }}>None proposed.</div>
             ) : (
               measures.map((m) => (
-                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12 }}>
+                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
                   <span
                     style={{
                       flexShrink: 0,
                       fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 9,
+                      fontSize: 13,
                       fontWeight: 600,
                       letterSpacing: '0.06em',
                       textTransform: 'uppercase',
@@ -324,7 +324,7 @@ export default function EntityModelCard({
                       </span>
                     )}
                     {m.description && (
-                      <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Tight", sans-serif', fontSize: 11 }}>
+                      <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Variable", sans-serif', fontSize: 13 }}>
                         {m.description}
                       </div>
                     )}

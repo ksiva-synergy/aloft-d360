@@ -8,7 +8,7 @@ import type { QueryProgress } from '@/hooks/useInspectorChat';
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 
 const STAGE_ORDER: Array<QueryProgress['stage']> = ['planning', 'executing', 'rendering'];
 
@@ -33,7 +33,7 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
     <div
       style={{
         background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(253,181,21,0.15)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12,
@@ -46,14 +46,14 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
           alignItems: 'center',
           gap: 8,
           padding: '8px 12px',
-          borderBottom: '1px solid rgba(253,181,21,0.08)',
+          borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
         }}
       >
         <Loader2 size={12} color={GOLD} className="query-progress-spin" />
         <span
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.06em',
             color: GOLD,
             textTransform: 'uppercase',
@@ -86,8 +86,8 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
 
         {/* Selected definitions */}
         {progress.definitionsSelected && progress.definitionsSelected.length > 0 && (
-          <div style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
-            <span style={{ color: 'var(--wb-muted, #8892A4)' }}>Using: </span>
+          <div style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
+            <span style={{ color: 'var(--wb-muted, var(--ink-3))' }}>Using: </span>
             {progress.definitionsSelected.join(', ')}
           </div>
         )}

@@ -126,7 +126,7 @@ export default function HarvestActionBar({
               {row.label} re-harvest queued.{' '}
               <Link
                 href={`/agent-lab/estate/jobs?highlight=${jobId}`}
-                style={{ color: '#FDB515', textDecoration: 'underline' }}
+                style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}
               >
                 View job →
               </Link>
@@ -207,7 +207,7 @@ export default function HarvestActionBar({
             )}
             {linkJobId && (
               <>
-                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: '#FDB515', textDecoration: 'underline' }}>View jobs →</Link>
+                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}>View jobs →</Link>
               </>
             )}
           </span>,
@@ -222,7 +222,7 @@ export default function HarvestActionBar({
             )}
             {linkJobId && (
               <>
-                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: '#FDB515', textDecoration: 'underline' }}>View jobs →</Link>
+                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}>View jobs →</Link>
               </>
             )}
           </span>
@@ -244,9 +244,9 @@ export default function HarvestActionBar({
     fontWeight: 600,
     padding: '4px 10px',
     borderRadius: 3,
-    border: '1px solid rgba(253,181,21,0.35)',
+    border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
     background: 'transparent',
-    color: '#FDB515',
+    color: 'var(--brand-a-ink)',
     cursor: 'pointer',
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
@@ -263,8 +263,8 @@ export default function HarvestActionBar({
         disabled={reharvestingAll || !!loadingTier}
         style={{
           ...btnBase,
-          background: reharvestingAll ? 'rgba(253,181,21,0.10)' : 'rgba(253,181,21,0.06)',
-          borderColor: reharvestingAll ? '#FDB515' : 'rgba(253,181,21,0.45)',
+          background: reharvestingAll ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
+          borderColor: reharvestingAll ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 45%, transparent)',
           opacity: loadingTier ? 0.5 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -274,7 +274,7 @@ export default function HarvestActionBar({
       >
         {reharvestingAll ? (
           <>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 11 }}>↻</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 13 }}>↻</span>
             <span>{reharvestStep ?? 'queuing…'}</span>
           </>
         ) : (
@@ -282,7 +282,7 @@ export default function HarvestActionBar({
             <span>⚡</span>
             <span>Reharvest All</span>
             <span
-              style={{ opacity: 0.5, fontSize: 9 }}
+              style={{ opacity: 0.5, fontSize: 13 }}
               title={!last_t2_at ? 'T4 will be deferred until T2 completes — re-run Reharvest All after T2 succeeds' : undefined}
             >
               {last_t2_at ? 'T0→T1→T2→T4' : 'T0→T1→T2→T4*'}
@@ -319,7 +319,7 @@ export default function HarvestActionBar({
                 zIndex: 30,
                 width: 240,
                 background: 'var(--estate-raised, #111D2E)',
-                border: '1px solid rgba(253,181,21,0.18)',
+                border: '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
                 borderRadius: 6,
                 overflow: 'hidden',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
@@ -349,11 +349,11 @@ export default function HarvestActionBar({
                     <span
                       style={{
                         fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 9,
+                        fontSize: 13,
                         fontWeight: 600,
                         padding: '2px 5px',
                         borderRadius: 3,
-                        background: 'var(--estate-ink, #003262)',
+                        background: 'var(--estate-ink, var(--brand-a-ink))',
                         color: '#fff',
                         letterSpacing: '0.04em',
                         flexShrink: 0,
@@ -364,10 +364,10 @@ export default function HarvestActionBar({
                     <div>
                       <div
                         style={{
-                          fontFamily: '"Inter Tight", sans-serif',
-                          fontSize: 12,
+                          fontFamily: '"Inter Variable", sans-serif',
+                          fontSize: 13,
                           fontWeight: 500,
-                          color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, #8892A4)',
+                          color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, var(--ink-3))',
                         }}
                       >
                         {row.label}
@@ -375,8 +375,8 @@ export default function HarvestActionBar({
                       <div
                         style={{
                           fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 9,
-                          color: 'var(--estate-text-muted, #8892A4)',
+                          fontSize: 13,
+                          color: 'var(--estate-text-muted, var(--ink-3))',
                         }}
                       >
                         {row.lastAt ? formatRelativeTime(row.lastAt) : 'Never run'}
@@ -385,14 +385,14 @@ export default function HarvestActionBar({
                   </div>
                   {row.canTrigger ? (
                     loadingTier === row.tier ? (
-                      <span style={{ fontSize: 10, color: '#FDB515', fontFamily: '"IBM Plex Mono", monospace' }}>
+                      <span style={{ fontSize: 13, color: 'var(--brand-a-ink)', fontFamily: '"IBM Plex Mono", monospace' }}>
                         queuing…
                       </span>
                     ) : (
                       <span
                         style={{
-                          fontSize: 10,
-                          color: '#FDB515',
+                          fontSize: 13,
+                          color: 'var(--brand-a-ink)',
                           fontFamily: '"IBM Plex Mono", monospace',
                           fontWeight: 600,
                         }}
@@ -405,8 +405,8 @@ export default function HarvestActionBar({
                       href="/agent-lab/estate/jobs"
                       onClick={(e) => e.stopPropagation()}
                       style={{
-                        fontSize: 9,
-                        color: 'rgba(253,181,21,0.5)',
+                        fontSize: 13,
+                        color: 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
                         fontFamily: '"IBM Plex Mono", monospace',
                         textDecoration: 'none',
                         whiteSpace: 'nowrap',

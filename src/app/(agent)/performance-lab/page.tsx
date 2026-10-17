@@ -16,8 +16,8 @@ import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
 // read on both themes). Surface/text/border tokens resolve from the `--pl-*` CSS
 // custom properties defined in globals.css (`:root` light + `.dark` override),
 // so they flip with the global light/dark toggle — no per-component theme hook.
-const GOLD   = '#FDB515';
-const NAVY   = '#003262';
+const GOLD   = 'var(--brand-a)';
+const NAVY   = 'var(--brand-a-ink)';
 const BG     = 'var(--pl-bg)';
 const SURF   = 'var(--pl-surf)';
 const SURF2  = 'var(--pl-surf2)';
@@ -39,7 +39,7 @@ const heroCardOuter: React.CSSProperties = {
   padding: '16px 18px',
 };
 const heroStat: React.CSSProperties = {
-  fontFamily: "'Source Serif 4',Georgia,serif",
+  fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
   fontSize: 26,
   fontWeight: 700,
   color: TXT,
@@ -48,7 +48,7 @@ const heroStat: React.CSSProperties = {
 };
 const heroLabel: React.CSSProperties = {
   ...mono,
-  fontSize: 9,
+  fontSize: 13,
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
   color: GOLD,
@@ -56,8 +56,8 @@ const heroLabel: React.CSSProperties = {
   fontWeight: 600,
 };
 const heroSub: React.CSSProperties = {
-  fontFamily: "'Inter Tight', sans-serif",
-  fontSize: 11.5,
+  fontFamily: "'Inter Variable', sans-serif",
+  fontSize: 13,
   color: TXT2,
   lineHeight: 1.45,
 };
@@ -66,10 +66,10 @@ function ValueSummaryHero() {
   const S = BOOST_V2_SUMMARY;
   return (
     <div>
-      <div style={{ ...mono, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 6 }}>
+      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 6 }}>
         CONTEXT HARNESS — VALUE SUMMARY
       </div>
-      <div style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
+      <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
         {S.totalRuns} runs · {S.models} models · {S.cases} cases
       </div>
 
@@ -107,8 +107,8 @@ function ValueSummaryHero() {
       </div>
 
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${GOLD}`, background: SURF }}>
-        <span style={{ ...mono, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
-        <span style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
+        <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
+        <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete
           (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier).
           The advantage is that the harness lets answers exist at all.
@@ -142,7 +142,7 @@ function fmt(n: number, decimals = 0): string {
 function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
   if (!stats.length) {
     return (
-      <div style={{ ...mono, fontSize: 12, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+      <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
         No historical data yet. Complete inspector sessions to populate this view.
       </div>
     );
@@ -150,13 +150,13 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 11 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 13 }}>
         <thead>
           <tr>
             {['Model', 'Mode', 'Sessions', 'Avg Tokens', 'Avg Latency', 'Avg Loops', 'Avg WH Calls'].map(h => (
               <th key={h} style={{
                 textAlign: 'right', padding: '5px 8px',
-                color: TXT2, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                color: TXT2, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
                 borderBottom: `1px solid ${BORDER}`,
               }}>
                 {h}
@@ -172,10 +172,10 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', color: GOLD, borderBottom: `1px solid var(--pl-hair2)` }}>{s.modelLabel}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid var(--pl-hair2)` }}>
                   <span style={{
-                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 9,
-                    background: isCtx ? 'rgba(253,181,21,0.1)' : 'rgba(58,123,213,0.12)',
+                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
+                    background: isCtx ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
-                    border: `1px solid ${isCtx ? 'rgba(253,181,21,0.25)' : 'rgba(58,123,213,0.3)'}`,
+                    border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)' : 'rgba(58,123,213,0.3)'}`,
                   }}>
                     {isCtx ? 'CTX' : 'SQL'}
                   </span>
@@ -246,13 +246,13 @@ export default function PerformanceLabPage() {
           <div style={{ ...mono, fontSize: 15, color: GOLD, fontWeight: 700, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </div>
-          <div style={{ ...mono, fontSize: 10, color: TXT2, marginTop: 2 }}>
+          <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 2 }}>
             context harness research · benchmark suite · scoring methodology
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <span style={{
-            ...mono, fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase',
+            ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
             borderRadius: 4, padding: '4px 10px', border: `1px solid ${BORDER}`,
             color: TXT2, background: 'transparent',
           }}>
@@ -287,7 +287,7 @@ export default function PerformanceLabPage() {
                 style={{
                   padding: '12px 18px', background: 'transparent', border: 'none',
                   borderBottom: `2px solid ${activeTab === t.id ? GOLD : 'transparent'}`,
-                  cursor: 'pointer', ...mono, fontSize: 10.5, letterSpacing: '0.08em',
+                  cursor: 'pointer', ...mono, fontSize: 13, letterSpacing: '0.08em',
                   color: activeTab === t.id ? GOLD : TXT2, transition: 'all 0.15s',
                   whiteSpace: 'nowrap',
                 }}
@@ -318,17 +318,17 @@ export default function PerformanceLabPage() {
           )}
           {activeTab === 'historical' && (
             <div>
-              <div style={{ ...mono, fontSize: 9.5, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>
+              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>
                 Aggregated across all inspector sessions
               </div>
-              <h2 style={{ fontFamily: "'Source Serif 4',Georgia,serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>
+              <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>
                 Historical Benchmarks
               </h2>
               <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 24px' }}>
                 Per-model, per-context-mode averages across all Inspector sessions pulled from the database.
               </p>
               {histLoading ? (
-                <div style={{ ...mono, fontSize: 12, color: TXT2, textAlign: 'center', padding: '32px' }}>
+                <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px' }}>
                   Loading historical data…
                 </div>
               ) : (
@@ -345,10 +345,10 @@ export default function PerformanceLabPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: SURF,
       }}>
-        <span style={{ ...mono, fontSize: 9, color: TXT2, letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.06em' }}>
           ALOFT PERFORMANCE LAB · v0.2 · context harness research
         </span>
-        <span style={{ ...mono, fontSize: 9, color: 'rgba(253,181,21,0.35)', letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', letterSpacing: '0.06em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

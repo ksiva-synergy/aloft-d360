@@ -122,7 +122,10 @@ export async function DELETE(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const userId = session?.user?.id ?? request.headers.get('x-user-id') ?? 'anonymous';
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    }
+    const userId = session.user.id;
     const body = await request.json();
 
     const org = await getDefaultOrg();
@@ -130,10 +133,16 @@ export async function POST(request: NextRequest) {
       memory: { buildContext: { orgId: org.id } },
     });
 
+    const surface =
+      typeof body.surface === 'string' && body.surface.trim()
+        ? body.surface.trim()
+        : 'workbench';
+
     const data = await prisma.workbench_sessions.create({
       data: {
         user_id: userId,
         title: body.title || null,
+        surface,
         messages: body.messages || [],
         attached_tools: body.attached_tools || [],
         attached_schemas: body.attached_schemas || [],

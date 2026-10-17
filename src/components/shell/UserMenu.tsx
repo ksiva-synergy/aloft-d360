@@ -4,8 +4,9 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut, Sun, Moon, Monitor, ChevronUp } from 'lucide-react';
+import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AppearanceControls } from './AppearanceControls';
 import type { Session } from 'next-auth';
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -20,69 +21,77 @@ function getInitials(name?: string | null, email?: string | null): string {
   return (email?.[0] ?? '?').toUpperCase();
 }
 
-/** Per-role badge style — color tokens are CSS variables so they respect both light and dark themes. */
-const ROLE_BADGE_STYLES: Record<string, { color: string; bg: string }> = {
-  platform_admin: { color: 'var(--role-badge-platform-admin)', bg: 'rgba(251,191,36,0.18)' }, // amber
-  admin:          { color: 'var(--role-badge-admin)', bg: 'rgba(96,165,250,0.15)' },  // blue
-  member:         { color: 'var(--role-badge-member)', bg: 'rgba(156,163,175,0.15)' }, // gray
-  readonly:       { color: 'var(--role-badge-readonly)', bg: 'rgba(209,213,219,0.12)' }, // muted
+/** Per-role pill — tinted bg + dark text so it stays readable on both themes. */
+const ROLE_STYLES: Record<string, string> = {
+  platform_admin: 'bg-[var(--warn-bg)] text-[var(--warn)]',
+  admin: 'bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]',
+  member: 'bg-[var(--surface-3)] text-[var(--ink-2)]',
+  readonly: 'bg-[var(--surface-3)] text-[var(--ink-3)]',
 };
 
 function RoleBadge({ role, label }: { role: string; label: string }) {
-  const style = ROLE_BADGE_STYLES[role] ?? ROLE_BADGE_STYLES.readonly;
   return (
     <span
-      style={{
-        display: 'inline-block',
-        padding: '1px 6px',
-        borderRadius: 4,
-        fontSize: 9,
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontWeight: 600,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
-        color: style.color,
-        background: style.bg,
-        lineHeight: '1.6',
-      }}
+      className={cn(
+        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none',
+        ROLE_STYLES[role] ?? ROLE_STYLES.readonly,
+      )}
     >
       {label}
     </span>
   );
 }
 
-function ThemeCycleButton() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+const THEMES = [
+  { id: 'light', label: 'Light', Icon: Sun },
+  { id: 'dark', label: 'Dark', Icon: Moon },
+  { id: 'system', label: 'System', Icon: Monitor },
+] as const;
+
+function ThemeSwitch() {
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => setMounted(true), []);
-
-  function cycleTheme() {
-    if (theme === 'light') setTheme('dark');
-    else if (theme === 'dark') setTheme('system');
-    else setTheme('light');
-  }
-
-  if (!mounted) {
-    return <div className="w-6 h-6" />;
-  }
-
-  const Icon = theme === 'system' ? Monitor : resolvedTheme === 'dark' ? Moon : Sun;
-  const label =
-    theme === 'system' ? 'System' : resolvedTheme === 'dark' ? 'Dark' : 'Light';
+  const current = mounted ? theme : undefined;
 
   return (
-    <button
-      onClick={cycleTheme}
-      className="flex items-center justify-center w-7 h-7 rounded-md text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
-      title={`Theme: ${label}`}
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="flex gap-1 rounded-full bg-[var(--surface-2)] p-1"
     >
-      <Icon className="h-3.5 w-3.5" />
-    </button>
+      {THEMES.map(({ id, label, Icon }) => (
+        <button
+          key={id}
+          role="radio"
+          aria-checked={current === id}
+          onClick={() => setTheme(id)}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors',
+            current === id
+              ? 'bg-[var(--surface-1)] text-[var(--ink-1)] shadow-card'
+              : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]',
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 
-export function UserMenu({ initialSession }: { initialSession?: Session | null }) {
+export function UserMenu({
+  initialSession,
+  showLabel = false,
+  placement = 'right',
+}: {
+  initialSession?: Session | null;
+  /** Show name + role beside the avatar (expanded rail). */
+  showLabel?: boolean;
+  /** Where the menu opens relative to the avatar. */
+  placement?: 'right' | 'top';
+}) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -93,13 +102,19 @@ export function UserMenu({ initialSession }: { initialSession?: Session | null }
   useEffect(() => { update(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [open]);
 
   // Use server-provided session immediately to avoid loading flash
@@ -112,80 +127,82 @@ export function UserMenu({ initialSession }: { initialSession?: Session | null }
   } | undefined;
   const initials = getInitials(user?.name, user?.email);
   const isLoading = status === 'loading' && !initialSession;
-
-  // Use roleLabel from session when available; fall back to role name as-is.
   const displayRole = user?.roleLabel ?? user?.role ?? null;
 
   return (
-    <div ref={menuRef} className="relative px-3 py-2 border-t border-[var(--header-border)]">
-      {/* User identity row — shows skeleton while loading */}
+    <div ref={menuRef} className="relative">
       <button
         onClick={() => !isLoading && setOpen(!open)}
         disabled={isLoading}
-        className="flex items-center gap-2.5 w-full rounded-md px-1.5 py-1.5 hover:bg-[var(--muted)] transition-colors text-left disabled:opacity-50 disabled:cursor-default"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Account menu"
+        className="flex items-center gap-3 rounded-full p-1 text-left outline-none transition-colors hover:bg-[var(--rail-hover)] focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] disabled:cursor-default disabled:opacity-60"
       >
-        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0" style={{ background: '#003262', color: '#FDB515' }}>
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rail-active)] text-[13px] font-semibold tracking-wide text-[var(--rail-ink-strong)] ring-1 ring-[var(--rail-line)]">
           {isLoading ? '…' : initials}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[12px] font-medium text-[var(--foreground)] truncate">
-            {isLoading ? 'Loading…' : (user?.name || user?.email || 'User')}
-          </div>
-          {displayRole && (
-            <div className="mt-0.5">
-              <RoleBadge role={user?.role ?? ''} label={displayRole} />
-            </div>
-          )}
-        </div>
-        <ChevronUp
-          className={cn(
-            'h-3 w-3 text-[var(--muted-foreground)] transition-transform shrink-0',
-            open && 'rotate-180',
-          )}
-        />
+          <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-2 border-[var(--rail-bg)] bg-emerald-400" />
+        </span>
+        {showLabel && (
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-[var(--rail-ink-strong)]">
+              {isLoading ? 'Loading…' : user?.name || user?.email || 'User'}
+            </span>
+            {displayRole && (
+              <span className="block truncate text-xs font-medium text-[var(--rail-muted)]">{displayRole}</span>
+            )}
+          </span>
+        )}
       </button>
 
-      {/* Theme toggle + footer — always visible */}
-      <div className="flex items-center justify-between mt-1 px-1">
-        <ThemeCycleButton />
-        <span
-          className="text-[10px] font-mono truncate"
-          style={{ color: 'var(--nav-section-label)', fontFamily: '"IBM Plex Mono", monospace' }}
-        >
-          Powered by ALOFT v0.4
-        </span>
-      </div>
-
       {open && user && (
-        <div className="absolute bottom-full left-2 right-2 mb-1 bg-[var(--card)] border border-[var(--header-border)] rounded-lg shadow-lg overflow-hidden z-50">
-          <div className="px-3 py-2.5 border-b border-[var(--header-border)]">
-            <div className="text-[12px] font-medium text-[var(--foreground)] truncate">
-              {user.name || 'User'}
-            </div>
-            <div className="text-[11px] text-[#8892A4] truncate">{user.email}</div>
+        <div
+          role="menu"
+          className={cn(
+            'absolute z-50 w-72 overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] text-[var(--ink-1)] shadow-pop animate-zoom-in-95',
+            placement === 'top' ? 'bottom-full left-0 mb-3' : 'bottom-0 left-full ml-3',
+          )}
+        >
+          <div className="border-b border-[var(--line-1)] p-4">
+            <div className="truncate text-base font-bold">{user.name || 'User'}</div>
+            <div className="truncate text-sm text-[var(--ink-3)]">{user.email}</div>
             {displayRole && (
-              <div className="mt-1.5">
+              <div className="mt-2">
                 <RoleBadge role={user.role ?? ''} label={displayRole} />
               </div>
             )}
           </div>
-          <button
-            onClick={() => {
-              setOpen(false);
-              router.push('/settings/profile');
-            }}
-            className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Settings
-          </button>
-          <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
-            className="flex items-center gap-2 w-full px-3 py-2 text-[12px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Sign out
-          </button>
+          <div className="space-y-1 p-3">
+            <div className="px-1 pb-1 text-xs font-bold uppercase tracking-wider text-[var(--ink-3)]">Theme</div>
+            <ThemeSwitch />
+          </div>
+          <div className="border-t border-[var(--line-1)] p-3">
+            <AppearanceControls />
+          </div>
+          <div className="border-t border-[var(--line-1)] p-2">
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/settings/profile');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <Settings className="h-4 w-4 text-[var(--ink-3)]" />
+              Settings
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+          <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] px-4 py-2 text-xs text-[var(--ink-3)]">
+            Powered by ALOFT v0.4
+          </div>
         </div>
       )}
     </div>

@@ -77,10 +77,10 @@ export function CoveragePanel() {
             />
           )}
         </span>
-        <span style={{ ...MONO, fontSize: 10, color: overallPct < 50 ? GOLD : INK_DIM }}>
+        <span style={{ ...MONO, fontSize: 13, color: overallPct < 50 ? GOLD : INK_DIM }}>
           {overallPct}% governed
         </span>
-        <span style={{ ...MONO, fontSize: 10, color: MUTED }}>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>
           {buckets.length} theme{buckets.length !== 1 ? 's' : ''}
         </span>
         {gapCount > 0 && (
@@ -90,7 +90,7 @@ export function CoveragePanel() {
               alignItems: 'center',
               gap: 4,
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: GOLD,
             }}
           >
@@ -121,7 +121,7 @@ export function CoveragePanel() {
               marginBottom: 10,
             }}
           >
-            <span style={{ ...MONO, fontSize: 9, color: MUTED, letterSpacing: '0.06em' }}>
+            <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.06em' }}>
               GOVERNED / CANDIDATE / DRAFT BY THEME
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -132,12 +132,12 @@ export function CoveragePanel() {
                   alignItems: 'center',
                   gap: 5,
                   ...MONO,
-                  fontSize: 10,
+                  fontSize: 13,
                   padding: '4px 9px',
                   borderRadius: 4,
                   cursor: 'pointer',
                   border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
-                  background: gapsOnly ? 'rgba(253,181,21,0.12)' : 'transparent',
+                  background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
                   color: gapsOnly ? GOLD : MUTED,
                 }}
               >
@@ -208,7 +208,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         alignItems: 'center',
         gap: 12,
         width: '100%',
-        background: active ? 'rgba(253,181,21,0.06)' : 'transparent',
+        background: active ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'transparent',
         border: 'none',
         borderRadius: 4,
         padding: '3px 6px',
@@ -221,7 +221,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         <span
           style={{
             ...MONO,
-            fontSize: 11,
+            fontSize: 13,
             color: active ? GOLD : INK_DIM,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -230,7 +230,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         >
           {bucket.theme}
         </span>
-        <span style={{ ...MONO, fontSize: 9, color: MUTED, flexShrink: 0 }}>{bucket.total}</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED, flexShrink: 0 }}>{bucket.total}</span>
       </span>
       <span
         style={{
@@ -245,7 +245,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         {bucket.candidate > 0 && <span style={{ width: pct(bucket.candidate), background: SEG_CAND }} />}
         {bucket.draft > 0 && <span style={{ width: pct(bucket.draft), background: SEG_DRAFT }} />}
       </span>
-      <span style={{ ...MONO, fontSize: 10, color: bucket.gap ? GOLD : MUTED, textAlign: 'right' }}>
+      <span style={{ ...MONO, fontSize: 13, color: bucket.gap ? GOLD : MUTED, textAlign: 'right' }}>
         {Math.round(bucket.govPct * 100)}% gov
       </span>
     </button>
@@ -281,10 +281,10 @@ function Treemap({ buckets, activeThemes, onPick }: { buckets: CoverageBucket[];
           >
             <span style={{ position: 'absolute', inset: 0, background: 'rgba(7,11,17,0.55)' }} />
             <span style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ ...MONO, fontSize: 11, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ ...MONO, fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {b.gap && <AlertTriangle size={10} color={GOLD} />} {b.theme}
               </span>
-              <span style={{ ...MONO, fontSize: 9, color: 'rgba(255,255,255,0.75)' }}>
+              <span style={{ ...MONO, fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>
                 {b.total} · {Math.round(b.govPct * 100)}% gov
               </span>
             </span>

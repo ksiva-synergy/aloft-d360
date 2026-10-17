@@ -6,15 +6,15 @@ import { DefineMetricPanel, type DefineMetricEdit } from './DefineMetricPanel';
 import type { AuthoringScope } from './scope';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
-const GOLD = '#FDB515';
-const NAVY = '#003262';
-const MUTED = '#8892A4';
+const GOLD = 'var(--brand-a)';
+const NAVY = 'var(--brand-a-ink)';
+const MUTED = 'var(--ink-3)';
 const RED = '#f43f5e';
-const BORDER_SUBTLE = 'rgba(253,181,21,0.15)';
+const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
 const DRAFT_BG = 'rgba(136,146,164,0.06)';
 const DRAFT_BD = 'rgba(136,146,164,0.30)';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
 interface DraftMeasure {
   id: string; column_name: string | null; measure_label: string; aggregate: string;
@@ -142,15 +142,15 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
       {/* Section header + New Metric */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ ...mono, fontSize: 10, letterSpacing: '0.10em', color: MUTED }}>MY DRAFTS</span>
-          {totalDrafts > 0 && <span style={{ ...mono, fontSize: 9, color: MUTED }}>({totalDrafts})</span>}
+          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: MUTED }}>MY DRAFTS</span>
+          {totalDrafts > 0 && <span style={{ ...mono, fontSize: 13, color: MUTED }}>({totalDrafts})</span>}
         </div>
         <button
           onClick={() => { if (authorModelId) setPanel({ mode: 'new', modelId: authorModelId }); }}
           disabled={!authorModelId}
           title={authorModelId ? 'Define a new metric' : 'No semantic model available to author against yet'}
           style={{
-            ...mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+            ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
             display: 'inline-flex', alignItems: 'center', gap: 5,
             background: authorModelId ? GOLD : 'transparent', color: authorModelId ? NAVY : MUTED,
             border: authorModelId ? 'none' : `1px solid ${DRAFT_BD}`, borderRadius: 4, padding: '5px 11px',
@@ -161,16 +161,16 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
         </button>
       </div>
 
-      <div style={{ ...mono, fontSize: 9, color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
+      <div style={{ ...mono, fontSize: 13, color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
         Drafts are private to you until you submit them for governance.
       </div>
 
-      {loading && <div style={{ ...mono, fontSize: 10, color: MUTED }}>LOADING DRAFTS…</div>}
-      {error && <div style={{ ...mono, fontSize: 10, color: RED, marginBottom: 6 }}>{error}</div>}
+      {loading && <div style={{ ...mono, fontSize: 13, color: MUTED }}>LOADING DRAFTS…</div>}
+      {error && <div style={{ ...mono, fontSize: 13, color: RED, marginBottom: 6 }}>{error}</div>}
 
       {!loading && totalDrafts === 0 && (
         <div style={{
-          ...mono, fontSize: 10, color: MUTED, textAlign: 'center', padding: '16px 8px',
+          ...mono, fontSize: 13, color: MUTED, textAlign: 'center', padding: '16px 8px',
           border: `1px dashed ${DRAFT_BD}`, borderRadius: 6, lineHeight: 1.6,
         }}>
           No drafts yet. Click <span style={{ color: GOLD }}>Define a Metric</span> to author one.
@@ -179,7 +179,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
 
       {groups.map((g) => (
         <div key={g.entityId} style={{ marginBottom: 8 }}>
-          <div style={{ ...mono, fontSize: 9, color: MUTED, marginBottom: 4 }}>
+          <div style={{ ...mono, fontSize: 13, color: MUTED, marginBottom: 4 }}>
             {g.entityLabel}
             {isOrg && <span style={{ opacity: 0.6 }}> · {g.modelName}</span>}
           </div>
@@ -238,19 +238,19 @@ function DraftRow({
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: subtitle ? 2 : 0 }}>
         <span style={{
-          ...mono, fontSize: 8, letterSpacing: '0.10em', textTransform: 'uppercase',
+          ...mono, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
           background: 'rgba(136,146,164,0.12)', color: MUTED, border: `1px solid ${DRAFT_BD}`,
           borderRadius: 3, padding: '1px 6px', flexShrink: 0,
         }}>
           DRAFT
         </span>
-        <span style={{ ...sans, fontSize: 12, fontWeight: 600, color: 'var(--wb-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {label}
         </span>
-        <span style={{ ...mono, fontSize: 9, color: MUTED, flexShrink: 0 }}>{typeTag}</span>
+        <span style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0 }}>{typeTag}</span>
       </div>
       {subtitle && (
-        <div style={{ ...sans, fontSize: 11, color: MUTED, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ ...sans, fontSize: 13, color: MUTED, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {subtitle}
         </div>
       )}
@@ -279,7 +279,7 @@ function RowBtn({
       disabled={disabled}
       title={label}
       style={{
-        ...mono, fontSize: 8, letterSpacing: '0.06em', textTransform: 'uppercase',
+        ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
         display: 'inline-flex', alignItems: 'center', gap: 4,
         background: bg, color, border: `1px solid ${border}`, borderRadius: 3,
         padding: '3px 8px', cursor: disabled ? 'default' : 'pointer', fontWeight: accent ? 600 : 400,

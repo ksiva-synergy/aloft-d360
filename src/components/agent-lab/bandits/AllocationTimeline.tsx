@@ -24,12 +24,12 @@ export function AllocationTimeline({ series, models }: Props) {
 
   return (
     <div className="bandit-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-[#2d333b] flex items-center gap-2">
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-[var(--line-1)] flex items-center gap-2">
         <GitBranch className="h-4 w-4 text-cyan-500" />
         <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
           Selection History
         </h2>
-        <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
+        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500 ml-1">
           Model allocation over time
         </span>
       </div>
@@ -37,7 +37,7 @@ export function AllocationTimeline({ series, models }: Props) {
       <div className="p-4">
         <div className="flex flex-wrap gap-3 mb-3">
           {models.map(m => (
-            <div key={m} className="flex items-center gap-1.5 text-[11px]">
+            <div key={m} className="flex items-center gap-1.5 text-xs">
               <div
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: getModelColor(m) }}
@@ -52,7 +52,7 @@ export function AllocationTimeline({ series, models }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 13, fill: '#94a3b8' }}
               axisLine={{ stroke: '#334155', strokeWidth: 0.5 }}
               tickLine={false}
               tickFormatter={v => {
@@ -61,7 +61,7 @@ export function AllocationTimeline({ series, models }: Props) {
               }}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#94a3b8' }}
+              tick={{ fontSize: 13, fill: '#94a3b8' }}
               axisLine={false}
               tickLine={false}
               width={30}
@@ -72,7 +72,7 @@ export function AllocationTimeline({ series, models }: Props) {
                 backgroundColor: 'rgba(15, 20, 25, 0.95)',
                 border: '1px solid rgba(68, 76, 86, 0.5)',
                 borderRadius: 8,
-                fontSize: 11,
+                fontSize: 13,
                 color: '#e2e8f0',
               }}
               formatter={(value: number, name: string) => [

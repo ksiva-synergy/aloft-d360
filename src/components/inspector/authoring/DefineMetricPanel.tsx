@@ -15,17 +15,17 @@ import { compileSafety } from '@/lib/semantic/compiler';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
-const GOLD = '#FDB515';
-const NAVY = '#003262';
-const MUTED = '#8892A4';
+const GOLD = 'var(--brand-a)';
+const NAVY = 'var(--brand-a-ink)';
+const MUTED = 'var(--ink-3)';
 const GREEN = '#22c55e';
 const RED = '#f43f5e';
-const BORDER_SUBTLE = 'rgba(253,181,21,0.15)';
-const BORDER_MID = 'rgba(253,181,21,0.25)';
-const BORDER_STRONG = 'rgba(253,181,21,0.55)';
+const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
+const BORDER_MID = 'color-mix(in srgb, var(--brand-a) 25%, transparent)';
+const BORDER_STRONG = 'color-mix(in srgb, var(--brand-a) 55%, transparent)';
 const SURFACE = 'rgba(255,255,255,0.03)';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
 // ── authoring-meta shape ──────────────────────────────────────────────────────
 interface MetaMeasure { id: string; column_name: string | null; measure_label: string; aggregate: string; metric_type: string; status: string; }
@@ -425,7 +425,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        background: 'var(--wb-canvas, #0D1B2A)',
+        background: 'var(--wb-canvas, #111322)',
         border: `1px solid ${BORDER_MID}`, borderRadius: 10,
         width: 'min(920px, 96vw)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
@@ -437,7 +437,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
             <div style={{ ...sans, fontSize: 14, fontWeight: 600, color: 'var(--wb-ink)' }}>
               {isEdit ? 'Edit draft' : 'Define a metric'}
             </div>
-            <div style={{ ...mono, fontSize: 9, color: MUTED, letterSpacing: '0.06em' }}>
+            <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.06em' }}>
               PERSONAL DRAFT · NOT GOVERNED UNTIL SUBMITTED
             </div>
           </div>
@@ -447,8 +447,8 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           {/* ── Left: the guided form ── */}
           <div style={{ flex: '0 0 46%', overflowY: 'auto', padding: 16, borderRight: `1px solid ${BORDER_SUBTLE}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {metaLoading && <div style={{ ...mono, fontSize: 10, color: MUTED }}>LOADING MODEL…</div>}
-            {metaError && <div style={{ ...mono, fontSize: 10, color: RED }}>{metaError}</div>}
+            {metaLoading && <div style={{ ...mono, fontSize: 13, color: MUTED }}>LOADING MODEL…</div>}
+            {metaError && <div style={{ ...mono, fontSize: 13, color: RED }}>{metaError}</div>}
 
             {/* Kind toggle (locked in edit mode) */}
             <Field label="DEFINITION TYPE">
@@ -459,7 +459,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                     disabled={isEdit}
                     onClick={() => { setTableKind(k); markDirty(); }}
                     style={{
-                      ...mono, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                      ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                       flex: 1, padding: '6px 0', borderRadius: 4, cursor: isEdit ? 'default' : 'pointer',
                       background: tableKind === k ? GOLD : 'transparent',
                       color: tableKind === k ? NAVY : MUTED,
@@ -527,7 +527,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                       style={{ ...inputStyle, resize: 'vertical', ...mono }}
                     />
                     {exprUnsafe && (
-                      <div style={{ ...mono, fontSize: 9, color: RED, display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                      <div style={{ ...mono, fontSize: 13, color: RED, display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
                         <AlertTriangle size={10} /> {exprUnsafe}
                       </div>
                     )}
@@ -613,7 +613,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 onClick={handlePreview}
                 disabled={!canSave || previewing || (!!exprUnsafe)}
                 style={{
-                  ...mono, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   padding: '7px 0', borderRadius: 4, border: 'none',
                   background: (!canSave || previewing) ? SURFACE : GOLD, color: (!canSave || previewing) ? MUTED : NAVY,
@@ -622,7 +622,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
               >
                 <Play size={12} /> {previewing ? 'RUNNING…' : 'PREVIEW'}
               </button>
-              {previewError && <div style={{ ...mono, fontSize: 10, color: RED }}>{previewError}</div>}
+              {previewError && <div style={{ ...mono, fontSize: 13, color: RED }}>{previewError}</div>}
             </div>
 
             {/* Preview render */}
@@ -632,8 +632,8 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                   <WidgetPreview widget={previewWidget.widget} definitions={previewWidget.defs} rows={preview!.rows} />
                   {preview!.isDraft && (
                     <span style={{
-                      position: 'absolute', top: 8, right: 8, ...mono, fontSize: 9, letterSpacing: '0.08em',
-                      textTransform: 'uppercase', background: 'rgba(253,181,21,0.14)', color: GOLD,
+                      position: 'absolute', top: 8, right: 8, ...mono, fontSize: 13, letterSpacing: '0.08em',
+                      textTransform: 'uppercase', background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: GOLD,
                       border: `1px solid ${BORDER_STRONG}`, borderRadius: 4, padding: '3px 8px',
                     }}>
                       Draft — not governed
@@ -652,7 +652,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 flex: 1, minHeight: 160, border: `1px dashed ${BORDER_SUBTLE}`, borderRadius: 6,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 20,
               }}>
-                <span style={{ ...mono, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
+                <span style={{ ...mono, fontSize: 13, color: MUTED, lineHeight: 1.6 }}>
                   Fill the form, then <span style={{ color: GOLD }}>PREVIEW</span> to see your draft<br />compute live against the warehouse.
                 </span>
               </div>
@@ -663,18 +663,18 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
         {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderTop: `1px solid ${BORDER_SUBTLE}` }}>
           {saved && (
-            <span style={{ ...mono, fontSize: 10, color: GREEN, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ ...mono, fontSize: 13, color: GREEN, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Check size={12} /> SAVED AS DRAFT
             </span>
           )}
-          {saveError && <span style={{ ...mono, fontSize: 10, color: RED }}>{saveError}</span>}
+          {saveError && <span style={{ ...mono, fontSize: 13, color: RED }}>{saveError}</span>}
           <div style={{ flex: 1 }} />
           <button onClick={onClose} style={ghostBtn}>CLOSE</button>
           <button
             onClick={() => handleSave()}
             disabled={!canSave || saving}
             style={{
-              ...mono, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               padding: '7px 16px', borderRadius: 4, border: 'none', fontWeight: 600,
               background: (!canSave || saving) ? SURFACE : GOLD, color: (!canSave || saving) ? MUTED : NAVY,
               cursor: (!canSave || saving) ? 'default' : 'pointer',
@@ -692,23 +692,23 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
 function Field({ label, children, style }: { label: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4, ...style }}>
-      <span style={{ ...mono, fontSize: 9, letterSpacing: '0.10em', color: MUTED }}>{label}</span>
+      <span style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: MUTED }}>{label}</span>
       {children}
     </label>
   );
 }
 
 function Hint({ text }: { text: string }) {
-  return <span style={{ ...mono, fontSize: 9, color: MUTED, fontStyle: 'italic', marginTop: 2 }}>{text}</span>;
+  return <span style={{ ...mono, fontSize: 13, color: MUTED, fontStyle: 'italic', marginTop: 2 }}>{text}</span>;
 }
 
 const inputStyle: React.CSSProperties = {
-  ...sans, fontSize: 12, background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
+  ...sans, fontSize: 13, background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
   borderRadius: 4, color: 'var(--wb-ink)', padding: '6px 8px', width: '100%', boxSizing: 'border-box', outline: 'none',
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
 const iconBtn: React.CSSProperties = { background: 'transparent', border: 'none', color: MUTED, cursor: 'pointer', display: 'flex', alignItems: 'center' };
 const ghostBtn: React.CSSProperties = {
-  ...mono, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+  ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
   padding: '7px 14px', borderRadius: 4, background: 'transparent', color: MUTED, border: `1px solid ${BORDER_SUBTLE}`, cursor: 'pointer',
 };
