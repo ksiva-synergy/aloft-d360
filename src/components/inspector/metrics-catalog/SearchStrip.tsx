@@ -90,27 +90,27 @@ export function SearchStrip({ onDefine }: Props) {
           <button
             onClick={() => void resolve()}
             disabled={!raw.trim() || resolving}
-            style={{ ...MONO, fontSize: 11, fontWeight: 600, padding: '8px 14px', borderRadius: 4, cursor: raw.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${GOLD}`, background: raw.trim() && !resolving ? GOLD : 'transparent', color: raw.trim() && !resolving ? '#1A1206' : MUTED }}
+            style={{ ...MONO, fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 4, cursor: raw.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${GOLD}`, background: raw.trim() && !resolving ? GOLD : 'transparent', color: raw.trim() && !resolving ? '#1A1206' : MUTED }}
           >
             {resolving ? 'Resolving…' : 'Resolve'}
           </button>
         ) : (
-          <span style={{ ...MONO, fontSize: 10, color: MUTED, maxWidth: 260, lineHeight: 1.4 }}>
+          <span style={{ ...MONO, fontSize: 13, color: MUTED, maxWidth: 260, lineHeight: 1.4 }}>
             Term resolution unlocks on a governed model.
           </span>
         )}
         {!raw && activeModelGoverned && (
-          <button onClick={() => setSearchRaw(DEMO)} style={{ ...MONO, fontSize: 10, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}>try demo</button>
+          <button onClick={() => setSearchRaw(DEMO)} style={{ ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}>try demo</button>
         )}
       </div>
 
       {resolveError && (
-        <div style={{ ...MONO, fontSize: 10, color: 'var(--mc-res-unrecognized)', marginTop: 8 }}>Resolution error: {resolveError}</div>
+        <div style={{ ...MONO, fontSize: 13, color: 'var(--mc-res-unrecognized)', marginTop: 8 }}>Resolution error: {resolveError}</div>
       )}
 
       {resolvedTerms.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'center' }}>
-          <span style={{ ...MONO, fontSize: 9, color: MUTED, letterSpacing: '0.08em' }}>RESOLVED</span>
+          <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>RESOLVED</span>
           {resolvedTerms.map((t, i) => (
             <TermChip key={`${t.term}-${i}`} term={t} onApply={applyDef} onChoose={chooseAmbiguous} onDefine={onDefine} />
           ))}
@@ -145,7 +145,7 @@ function TermChip({ term, onApply, onChoose, onDefine }: {
   if (term.resolution === 'ambiguous') {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <span style={{ ...MONO, fontSize: 10, color: 'var(--mc-res-ambiguous)' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--mc-res-ambiguous)' }}>
           <HelpCircle size={11} style={{ verticalAlign: '-2px', marginRight: 3 }} />
           &ldquo;{term.term}&rdquo; is ambiguous — did you mean:
         </span>
@@ -160,12 +160,12 @@ function TermChip({ term, onApply, onChoose, onDefine }: {
   // unrecognized — refuse rather than guess
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      <span style={{ ...SANS, fontSize: 11, color: 'var(--mc-res-unrecognized)' }}>
+      <span style={{ ...SANS, fontSize: 13, color: 'var(--mc-res-unrecognized)' }}>
         &ldquo;{term.term}&rdquo; isn&apos;t defined in this model. I won&apos;t fabricate a result.
       </span>
       <Chip color="var(--mc-res-unrecognized)" outline icon={<PlusCircle size={11} />} onClick={() => onDefine(term.term)}>Define it →</Chip>
       {term.cappedByTopK && (
-        <span style={{ ...MONO, fontSize: 9, color: MUTED }}>(search may be truncated — a match could exist past the cap)</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>(search may be truncated — a match could exist past the cap)</span>
       )}
     </span>
   );
@@ -179,7 +179,7 @@ function Chip({ color, icon, children, onClick, outline, title }: {
       onClick={onClick}
       title={title}
       style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 10, fontWeight: 600,
+        display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, fontWeight: 600,
         padding: '3px 9px', borderRadius: 12, cursor: onClick ? 'pointer' : 'default',
         border: `1px solid ${outline ? color : `color-mix(in srgb, ${color} 45%, transparent)`}`,
         background: outline ? 'transparent' : `color-mix(in srgb, ${color} 16%, transparent)`,

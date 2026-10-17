@@ -120,7 +120,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 10,
+                  fontSize: 13,
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                   color: dotColor,
@@ -131,7 +131,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontSize: 13,
                   color: textColor,
                   opacity: 0.7,
                 }}
@@ -144,7 +144,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
             <div
               style={{
                 fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10,
+                fontSize: 13,
                 color: textColor,
               }}
             >
@@ -156,7 +156,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
               <span
                 style={{
                   fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   color: COLOR_FAILED,

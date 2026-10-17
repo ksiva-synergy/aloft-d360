@@ -13,7 +13,7 @@ import type { ChartSpec } from '@/lib/studio/types';
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
-const GOLD = '#FDB515';
+const GOLD = '#5B3DF5';
 
 interface SemanticChartCardProps {
   message: SemanticChartMessage;
@@ -134,7 +134,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
     <div
       style={{
         background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${saved ? 'rgba(134,239,172,0.3)' : 'rgba(253,181,21,0.15)'}`,
+        border: `1px solid ${saved ? 'rgba(134,239,172,0.3)' : 'rgba(91, 61, 245,0.15)'}`,
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12,
@@ -147,14 +147,14 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 12px',
-          borderBottom: '1px solid rgba(253,181,21,0.08)',
+          borderBottom: '1px solid rgba(91, 61, 245,0.08)',
           gap: 8,
         }}
       >
         <span
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.06em',
             color: GOLD,
             textTransform: 'uppercase',
@@ -169,7 +169,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
         <span
           style={{
             ...MONO,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             color: 'var(--wb-muted)',
@@ -190,7 +190,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             alignItems: 'center',
             gap: 5,
             ...MONO,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             cursor: 'pointer',
@@ -198,7 +198,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             borderRadius: 3,
             padding: '3px 8px',
             background: GOLD,
-            color: '#0D1B2A',
+            color: '#111322',
             fontWeight: 600,
             flexShrink: 0,
           }}
@@ -215,11 +215,11 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             alignItems: 'center',
             gap: 5,
             ...MONO,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            border: `1px solid rgba(253,181,21,0.35)`,
+            border: `1px solid rgba(91, 61, 245,0.35)`,
             borderRadius: 3,
             padding: '3px 8px',
             background: 'transparent',
@@ -227,7 +227,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             flexShrink: 0,
             transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,0.10)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <Sparkles size={11} />
@@ -237,7 +237,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
           <span
             style={{
               ...MONO,
-              fontSize: 9,
+              fontSize: 13,
               color: '#86EFAC',
               display: 'flex',
               alignItems: 'center',
@@ -257,11 +257,11 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               alignItems: 'center',
               gap: 5,
               ...MONO,
-              fontSize: 9,
+              fontSize: 13,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               cursor: 'pointer',
-              border: `1px solid rgba(253,181,21,0.35)`,
+              border: `1px solid rgba(91, 61, 245,0.35)`,
               borderRadius: 3,
               padding: '3px 8px',
               background: 'transparent',
@@ -269,7 +269,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               flexShrink: 0,
               transition: 'all 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,0.10)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             <BookmarkPlus size={11} />
@@ -288,7 +288,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             alignItems: 'center',
             gap: 5,
             padding: '4px 12px 0',
-            fontSize: 9,
+            fontSize: 13,
             color: 'var(--wb-muted)',
           }}
         >
@@ -328,10 +328,10 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               placeholder='Refine this chart — e.g. "break out by region"'
               style={{
                 ...MONO,
-                fontSize: 11,
+                fontSize: 13,
                 flex: 1,
                 background: 'var(--wb-canvas)',
-                border: '1px solid rgba(253,181,21,0.2)',
+                border: '1px solid rgba(91, 61, 245,0.2)',
                 borderRadius: 4,
                 padding: '6px 8px',
                 color: 'var(--wb-text)',
@@ -345,14 +345,14 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               title="Refine chart"
               style={{
                 ...MONO,
-                fontSize: 9,
+                fontSize: 13,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                border: `1px solid rgba(253,181,21,0.35)`,
+                border: `1px solid rgba(91, 61, 245,0.35)`,
                 borderRadius: 3,
                 padding: '5px 10px',
                 background: refineText.trim() ? GOLD : 'transparent',
-                color: refineText.trim() ? '#0D1B2A' : GOLD,
+                color: refineText.trim() ? '#111322' : GOLD,
                 fontWeight: 600,
                 cursor: refineText.trim() ? 'pointer' : 'default',
                 opacity: refineText.trim() ? 1 : 0.6,
@@ -370,17 +370,17 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
                 onClick={() => setShowDraft((s) => !s)}
                 style={{
                   ...MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
                   alignSelf: 'flex-start',
-                  border: `1px solid rgba(253,181,21,0.25)`,
+                  border: `1px solid rgba(91, 61, 245,0.25)`,
                   borderRadius: 3,
                   padding: '4px 9px',
-                  background: showDraft ? 'rgba(253,181,21,0.1)' : 'transparent',
+                  background: showDraft ? 'rgba(91, 61, 245,0.1)' : 'transparent',
                   color: GOLD,
                   cursor: 'pointer',
                 }}
@@ -408,7 +408,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
         <div
           style={{
             padding: '12px',
-            borderTop: '1px solid rgba(253,181,21,0.15)',
+            borderTop: '1px solid rgba(91, 61, 245,0.15)',
             background: 'rgba(0,0,0,0.15)',
           }}
         >
@@ -420,7 +420,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               marginBottom: 8,
             }}
           >
-            <span style={{ ...MONO, fontSize: 10, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>
+            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>
               SAVE CHART
             </span>
             <button
@@ -437,10 +437,10 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             placeholder="Chart name"
             style={{
               ...MONO,
-              fontSize: 11,
+              fontSize: 13,
               width: '100%',
               background: 'var(--wb-canvas)',
-              border: '1px solid rgba(253,181,21,0.25)',
+              border: '1px solid rgba(91, 61, 245,0.25)',
               borderRadius: 4,
               padding: '6px 8px',
               color: 'var(--wb-text)',
@@ -456,10 +456,10 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             placeholder="Description (optional)"
             style={{
               ...MONO,
-              fontSize: 11,
+              fontSize: 13,
               width: '100%',
               background: 'var(--wb-canvas)',
-              border: '1px solid rgba(253,181,21,0.15)',
+              border: '1px solid rgba(91, 61, 245,0.15)',
               borderRadius: 4,
               padding: '6px 8px',
               color: 'var(--wb-text)',
@@ -469,18 +469,18 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             }}
           />
           {saveError && (
-            <p style={{ ...MONO, fontSize: 10, color: '#F87171', marginBottom: 6 }}>{saveError}</p>
+            <p style={{ ...MONO, fontSize: 13, color: '#F87171', marginBottom: 6 }}>{saveError}</p>
           )}
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               background: GOLD,
-              color: '#0D1B2A',
+              color: '#111322',
               border: 'none',
               borderRadius: 4,
               padding: '6px 14px',

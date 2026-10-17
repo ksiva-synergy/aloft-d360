@@ -339,7 +339,7 @@ export function KeeperChoicePanel() {
       {/* Section kicker */}
       <div style={{
         fontFamily:    MONO,
-        fontSize:      '10.5px',
+        fontSize:      '13px',
         letterSpacing: '0.22em',
         color:         'var(--foer-text-mut)',
         textTransform: 'uppercase',

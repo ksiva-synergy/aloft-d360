@@ -47,7 +47,7 @@ function SparklineCanvas({ columns, rows }: { columns: QueryResult['columns']; r
     const range = max - min || 1;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = '#FDB515';
+    ctx.strokeStyle = '#5B3DF5';
     ctx.lineWidth = 1.5;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -67,7 +67,7 @@ function SparklineCanvas({ columns, rows }: { columns: QueryResult['columns']; r
       <span
         style={{
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontSize: 13,
           color: 'var(--builder-text-label)',
         }}
       >
@@ -109,7 +109,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
           padding: '8px 16px',
           borderBottom: '1px solid var(--builder-border)',
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontSize: 13,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
           color: 'var(--builder-text-label)',
@@ -147,7 +147,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 outline: 'none',
               }}
               onFocus={e => {
-                e.currentTarget.style.outline = '1px solid rgba(253,181,21,0.5)';
+                e.currentTarget.style.outline = '1px solid rgba(91, 61, 245,0.5)';
                 e.currentTarget.style.outlineOffset = '-2px';
               }}
               onBlur={e => {
@@ -164,7 +164,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               {isSelected && (
                 <span
                   className="absolute left-0 top-[7px] bottom-[7px] w-[2.5px] rounded-full"
-                  style={{ background: '#FDB515' }}
+                  style={{ background: '#5B3DF5' }}
                 />
               )}
 
@@ -173,7 +173,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 <span
                   style={{
                     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontSize: 13,
                     padding: '1px 5px',
                     borderRadius: 2,
                     border: isSelected ? '1px solid var(--builder-gold)' : '1px solid var(--builder-border)',
@@ -187,7 +187,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                   <span
                     style={{
                       fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 10,
+                      fontSize: 13,
                       padding: '1px 4px',
                       borderRadius: 2,
                       border: '1px solid rgba(248,113,113,0.4)',
@@ -204,7 +204,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               <p
                 style={{
                   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                  fontSize: 11,
+                  fontSize: 13,
                   color: 'var(--builder-text-muted)',
                   margin: '0 0 4px',
                   overflow: 'hidden',
@@ -227,7 +227,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 <span
                   style={{
                     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--builder-text-label)',
                   }}
                 >
@@ -236,7 +236,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 <span
                   style={{
                     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--builder-text-label)',
                   }}
                 >

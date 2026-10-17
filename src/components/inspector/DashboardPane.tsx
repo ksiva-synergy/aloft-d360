@@ -16,15 +16,15 @@ import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
-const GOLD   = '#FDB515';
-const NAVY   = '#003262';
+const GOLD   = '#5B3DF5';
+const NAVY   = '#3B1FD6';
 const BG     = 'var(--wb-canvas)';
 const SURF   = 'var(--wb-surface)';
 const TXT    = 'var(--wb-ink)';
 const TXT2   = 'var(--wb-muted)';
 const LINE   = 'var(--wb-border-subtle)';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties  = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const sans: React.CSSProperties  = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
 // Brand-derived multi-series palette
 const CHART_PALETTE = [GOLD, '#3A7BD5', '#22c55e', '#a78bfa', '#f97316', '#06b6d4', '#f43f5e'];
@@ -86,7 +86,7 @@ function DataTable({ columns, rows, rowCount, truncated }: DataTableProps) {
             <tr>
               {columns.map(col => (
                 <th key={col.name} style={{
-                  ...mono, fontSize: 9, fontWeight: 700,
+                  ...mono, fontSize: 13, fontWeight: 700,
                   letterSpacing: '0.10em', textTransform: 'uppercase',
                   color: GOLD, padding: '6px 10px',
                   borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap',
@@ -103,7 +103,7 @@ function DataTable({ columns, rows, rowCount, truncated }: DataTableProps) {
               <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
                 {columns.map(col => (
                   <td key={col.name} style={{
-                    ...sans, fontSize: 11, color: TXT,
+                    ...sans, fontSize: 13, color: TXT,
                     padding: '4px 10px',
                     borderBottom: `1px solid ${LINE}`,
                     whiteSpace: 'nowrap', maxWidth: 200,
@@ -124,11 +124,11 @@ function DataTable({ columns, rows, rowCount, truncated }: DataTableProps) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span style={{ ...mono, fontSize: 9, color: TXT2 }}>
+        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>
           {rows.length} row{rows.length !== 1 ? 's' : ''} shown
           {truncated && <span style={{ color: GOLD, marginLeft: 6 }}>· truncated at 1000</span>}
         </span>
-        <span style={{ ...mono, fontSize: 9, color: TXT2 }}>{rowCount} total</span>
+        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>{rowCount} total</span>
       </div>
     </div>
   );
@@ -141,9 +141,9 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
     <div style={{
       background: SURF, border: `1px solid ${LINE}`,
       borderRadius: 6, padding: '8px 12px',
-      ...mono, fontSize: 11, color: TXT,
+      ...mono, fontSize: 13, color: TXT,
     }}>
-      {label && <div style={{ color: TXT2, marginBottom: 4, fontSize: 10 }}>{label}</div>}
+      {label && <div style={{ color: TXT2, marginBottom: 4, fontSize: 13 }}>{label}</div>}
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.fill || p.stroke || GOLD }}>
           {p.name}: <strong>{String(p.value)}</strong>
@@ -248,7 +248,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
     });
   }, [rows, xCol, yCol, y2Col]);
 
-  const axisStyle = { fontSize: 10, fill: TXT2 } as const;
+  const axisStyle = { fontSize: 13, fill: TXT2 } as const;
   const gridProps = { stroke: LINE, strokeDasharray: '3 3' };
   const tooltipContent = <ChartTooltip />;
 
@@ -314,7 +314,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
             {pieData.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
           </Pie>
           <Tooltip content={tooltipContent} />
-          <Legend wrapperStyle={{ ...mono, fontSize: 10 }} />
+          <Legend wrapperStyle={{ ...mono, fontSize: 13 }} />
         </PieChart>
       );
     }
@@ -337,7 +337,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
   const selectStyle: React.CSSProperties = {
     background: SURF, border: `1px solid ${LINE}`,
     color: TXT, borderRadius: 4, padding: '3px 6px',
-    ...mono, fontSize: 10, outline: 'none', cursor: 'pointer',
+    ...mono, fontSize: 13, outline: 'none', cursor: 'pointer',
     flex: 1, minWidth: 0,
   };
 
@@ -349,12 +349,12 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {CHART_TYPES.map(ct => (
           <button key={ct} onClick={() => setChartType(ct)} style={{
-            ...mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+            ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
             padding: '3px 8px', borderRadius: 3, border: 'none',
             background: chartType === ct ? NAVY : 'transparent',
             color: chartType === ct ? '#ffffff' : TXT2,
             cursor: 'pointer', outline: 'none', transition: 'all 0.12s',
-            boxShadow: chartType === ct ? `inset 0 0 0 1px rgba(253,181,21,0.35)` : 'none',
+            boxShadow: chartType === ct ? `inset 0 0 0 1px rgba(91, 61, 245,0.35)` : 'none',
           }}>
             {ct}
           </button>
@@ -365,13 +365,13 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       {chartType !== 'table' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ ...mono, fontSize: 9, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>X</span>
+            <span style={{ ...mono, fontSize: 13, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>X</span>
             <select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
               {colNames.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ ...mono, fontSize: 9, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Y</span>
+            <span style={{ ...mono, fontSize: 13, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Y</span>
             <select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
               <option value="">— select —</option>
               {numericCols.map(c => <option key={c} value={c}>{c}</option>)}
@@ -379,7 +379,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
           </div>
           {chartType !== 'area' && chartType !== 'pie' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ ...mono, fontSize: 9, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.6 }}>Y2</span>
+              <span style={{ ...mono, fontSize: 13, color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.6 }}>Y2</span>
               <select value={y2Col} onChange={e => setY2Col(e.target.value)} style={{ ...selectStyle, opacity: 0.75 }}>
                 <option value="">— none —</option>
                 {numericCols.filter(c => c !== yCol).map(c => <option key={c} value={c}>{c}</option>)}
@@ -399,7 +399,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       )}
 
       {chartType !== 'table' && !yCol && (
-        <div style={{ ...mono, fontSize: 10, color: TXT2, textAlign: 'center', padding: '12px 0', opacity: 0.7 }}>
+        <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '12px 0', opacity: 0.7 }}>
           Select a numeric Y column to render the chart
         </div>
       )}
@@ -411,7 +411,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
             <RawSqlBadge size="xs" />
             <div style={{ flex: 1 }} />
             {savedRow ? (
-              <span style={{ ...mono, fontSize: 9, color: '#86EFAC', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ ...mono, fontSize: 13, color: '#86EFAC', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Check size={11} /> SAVED
               </span>
             ) : (
@@ -441,14 +441,14 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
           {showSaveDialog && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 4, background: SURF }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ ...mono, fontSize: 9, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>SAVE RAW-SQL CHART</span>
+                <span style={{ ...mono, fontSize: 13, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>SAVE RAW-SQL CHART</span>
                 <button onClick={() => { setShowSaveDialog(false); setSaveError(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TXT2, display: 'flex' }}>
                   <X size={12} />
                 </button>
               </div>
               <input value={chartName} onChange={(e) => setChartName(e.target.value)} placeholder="Chart name" style={rawInput} />
               <input value={nlIntent} onChange={(e) => setNlIntent(e.target.value)} placeholder="What question does this answer?" style={rawInput} />
-              {saveError && <span style={{ ...mono, fontSize: 9, color: '#F87171' }}>{saveError}</span>}
+              {saveError && <span style={{ ...mono, fontSize: 13, color: '#F87171' }}>{saveError}</span>}
               <button onClick={handleSaveRaw} disabled={saving} style={{ ...rawActionBtn(true), justifyContent: 'center', opacity: saving ? 0.6 : 1 }}>
                 {saving ? 'SAVING…' : 'SAVE'}
               </button>
@@ -488,18 +488,18 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
 /** Raw-SQL action button style. `primary` = gold fill, else outlined gold. */
 function rawActionBtn(primary: boolean): React.CSSProperties {
   return {
-    ...mono, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+    ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
     display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-    border: `1px solid ${primary ? GOLD : 'rgba(253,181,21,0.35)'}`,
+    border: `1px solid ${primary ? GOLD : 'rgba(91, 61, 245,0.35)'}`,
     borderRadius: 3, padding: '3px 8px',
     background: primary ? GOLD : 'transparent',
-    color: primary ? '#0D1B2A' : GOLD,
+    color: primary ? '#111322' : GOLD,
     fontWeight: primary ? 600 : 400,
   };
 }
 
 const rawInput: React.CSSProperties = {
-  ...mono, fontSize: 10, width: '100%', boxSizing: 'border-box',
+  ...mono, fontSize: 13, width: '100%', boxSizing: 'border-box',
   background: BG, border: `1px solid ${LINE}`, borderRadius: 3,
   padding: '5px 7px', color: TXT, outline: 'none',
 };
@@ -514,15 +514,15 @@ function SqlBadge({ sql }: { sql: string }) {
         background: 'transparent', border: 'none', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 5, width: '100%',
       }}>
-        <span style={{ ...mono, fontSize: 9, color: GOLD, letterSpacing: '0.06em', textTransform: 'uppercase' }}>SQL</span>
-        <span style={{ ...mono, fontSize: 9, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
+        <span style={{ ...mono, fontSize: 13, color: GOLD, letterSpacing: '0.06em', textTransform: 'uppercase' }}>SQL</span>
+        <span style={{ ...mono, fontSize: 13, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
           {preview}{sql.length > 60 ? '…' : ''}
         </span>
-        <span style={{ ...mono, fontSize: 9, color: TXT2 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <pre style={{
-          ...mono, fontSize: 10, color: TXT, background: BG,
+          ...mono, fontSize: 13, color: TXT, background: BG,
           border: `1px solid ${LINE}`, borderRadius: 4,
           padding: '8px 10px', margin: '4px 0 2px',
           overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
@@ -550,11 +550,11 @@ function ResultStrip({ results, activeIdx, onSelect }: ResultStripProps) {
     }}>
       {results.map((r, i) => (
         <button key={i} onClick={() => onSelect(i)} style={{
-          ...mono, fontSize: 9, padding: '2px 7px', borderRadius: 3, border: 'none',
+          ...mono, fontSize: 13, padding: '2px 7px', borderRadius: 3, border: 'none',
           background: i === activeIdx ? NAVY : 'transparent',
           color: i === activeIdx ? '#ffffff' : TXT2,
           cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-          boxShadow: i === activeIdx ? `inset 0 0 0 1px rgba(253,181,21,0.4)` : 'none',
+          boxShadow: i === activeIdx ? `inset 0 0 0 1px rgba(91, 61, 245,0.4)` : 'none',
         }}>
           Q{i + 1} · {r.rowCount}r
         </button>
@@ -650,13 +650,13 @@ export function DashboardPane({
         padding: '10px 16px',
         borderBottom: `1px solid ${LINE}`,
         flexShrink: 0,
-        ...mono, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+        ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
         color: GOLD,
       }}>
         <DataDiamond size={12} />
         DATA
         {queryResults.length > 0 && (
-          <span style={{ color: TXT2, fontWeight: 400, marginLeft: 4, fontSize: 9 }}>
+          <span style={{ color: TXT2, fontWeight: 400, marginLeft: 4, fontSize: 13 }}>
             · {queryResults.length} result{queryResults.length !== 1 ? 's' : ''}
           </span>
         )}
@@ -669,14 +669,14 @@ export function DashboardPane({
               title={`Download up to ${EXPORT_MAX_ROWS.toLocaleString()} rows as CSV`}
               style={{
                 border: `0.5px solid ${GOLD}`,
-                background: exporting ? 'rgba(253,181,21,0.12)' : 'transparent',
+                background: exporting ? 'rgba(91, 61, 245,0.12)' : 'transparent',
                 color: GOLD,
                 borderRadius: '4px',
                 padding: '2px 8px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                fontSize: '11px',
+                fontSize: '13px',
                 fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                 cursor: exporting ? 'wait' : 'pointer',
                 textTransform: 'uppercase',
@@ -701,7 +701,7 @@ export function DashboardPane({
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '11px',
+              fontSize: '13px',
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
               cursor: 'pointer',
               textTransform: 'uppercase',
@@ -716,7 +716,7 @@ export function DashboardPane({
 
       {exportError && (
         <div style={{
-          ...mono, fontSize: 10, color: '#f87171',
+          ...mono, fontSize: 13, color: '#f87171',
           padding: '6px 16px',
           borderBottom: `1px solid ${LINE}`,
           background: 'rgba(248,113,113,0.08)',
@@ -735,10 +735,10 @@ export function DashboardPane({
           color: TXT2, textAlign: 'center',
         }}>
           <DataDiamond size={40} opacity={0.15} />
-          <span style={{ ...mono, fontSize: 11, letterSpacing: '0.04em', lineHeight: 1.6 }}>
+          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.04em', lineHeight: 1.6 }}>
             Run a query to visualize results
           </span>
-          <span style={{ ...sans, fontSize: 11, color: TXT2, opacity: 0.6, maxWidth: 220 }}>
+          <span style={{ ...sans, fontSize: 13, color: TXT2, opacity: 0.6, maxWidth: 220 }}>
             Ask about data in the chat to get started — e.g. &ldquo;show me tables&rdquo;
           </span>
         </div>

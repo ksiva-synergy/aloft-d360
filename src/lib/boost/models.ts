@@ -14,7 +14,14 @@ export type BoostModel = {
 };
 
 export const BOOST_MODELS: BoostModel[] = [
-  // ── Bedrock Converse (5 proven models) ──────────────────────
+  // ── Bedrock Converse — Claude 5.5 (recommended) ─────────────
+  { key: 'opus-5-5',    label: 'Claude Opus 5.5',   provider: 'bedrock',
+    apiType: 'converse', modelId: 'us.anthropic.claude-opus-5-5',
+    tier: 'frontier' },
+  { key: 'sonnet-5-5',  label: 'Claude Sonnet 5.5', provider: 'bedrock',
+    apiType: 'converse', modelId: 'us.anthropic.claude-sonnet-5-5',
+    tier: 'production' },
+  // ── Bedrock Converse — Claude 4.x (legacy) ──────────────────
   { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'bedrock',
     apiType: 'converse', modelId: 'us.anthropic.claude-opus-4-6-v1',
     tier: 'frontier' },
@@ -37,11 +44,12 @@ export const BOOST_MODELS: BoostModel[] = [
     resource: 'resource1', tokenParam: 'max_completion_tokens',
     tier: 'frontier' },
 
-  // ── Azure Foundry Resource 2 (pb-az-openai) ──────────────────
+  // ── Bedrock Mantle (OpenAI-compatible) — GPT-6 Luna in us-east-1 ─
   { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'foundry',
-    apiType: 'foundry',  modelId: 'gpt-6-luna',
-    resource: 'resource2', tokenParam: 'max_completion_tokens',
+    apiType: 'foundry',  modelId: 'openai.gpt-6-luna',
+    resource: 'bedrock-mantle', tokenParam: 'max_completion_tokens',
     tier: 'production' },
+  // ── Azure Foundry Resource 2 (pb-az-openai) ──────────────────
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'foundry',
     apiType: 'foundry',  modelId: 'grok-4.3-PBC',
     resource: 'resource2', tokenParam: 'max_tokens',

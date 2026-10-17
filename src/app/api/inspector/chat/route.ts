@@ -31,6 +31,11 @@ import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/conte
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
+import {
+  hasStaticAwsCredentials,
+  hasXaiCredentials,
+  inspectorLlmConfigured,
+} from '@/lib/inspector/llm-configured';
 import type { BoostModel } from '@/lib/boost/models';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -49,6 +54,8 @@ const pendingCorrectionNodeBySession = new Map<string, string>();
 
 const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string; supportsTools: boolean; supportsThinking: boolean }> = {
   // ── Bedrock (keys match AVAILABLE_MODELS in workbench/types.ts) ─────────────
+  'opus-5-5':         { bedrockId: 'us.anthropic.claude-opus-5-5',                 supportsTools: true,  supportsThinking: true  },
+  'sonnet-5-5':       { bedrockId: 'us.anthropic.claude-sonnet-5-5',               supportsTools: true,  supportsThinking: true  },
   'opus-4-6':         { bedrockId: 'us.anthropic.claude-opus-4-6-v1',             supportsTools: true,  supportsThinking: true  },
   'sonnet-4-6':       { bedrockId: 'us.anthropic.claude-sonnet-4-6',               supportsTools: true,  supportsThinking: true  },
   'haiku-4-5':        { bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',  supportsTools: true,  supportsThinking: false },
@@ -64,27 +71,27 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   'qwen3-32b':        { bedrockId: 'qwen.qwen3-32b-v1:0',                           supportsTools: true,  supportsThinking: false },
   // ── Azure AI Foundry ────────────────────────────────────────────────────────
   'gpt-5-4':          { bedrockId: '', foundryDeployment: 'gpt-5.4-PBC',   supportsTools: true,  supportsThinking: false },
-  'gpt-6-luna':       { bedrockId: '', foundryDeployment: 'gpt-6-luna',    supportsTools: true,  supportsThinking: false },
+  'gpt-6-luna':       { bedrockId: '', foundryDeployment: 'openai.gpt-6-luna', supportsTools: true,  supportsThinking: false },
   'grok-4-3':         { bedrockId: '', foundryDeployment: 'grok-4.3-PBC',  supportsTools: true,  supportsThinking: false },
   'kimi-k2-6':        { bedrockId: '', foundryDeployment: 'kimi-k2-6-PBC', supportsTools: true,  supportsThinking: false },
   'deepseek-v4':      { bedrockId: '', foundryDeployment: 'DeepSeek-V4-Pro', supportsTools: true, supportsThinking: true  },
   // ── Direct xAI Grok (uses XAI_API_KEY + XAI_MODEL) ─────────────────────────
   'grok-xai':         { bedrockId: '', foundryDeployment: process.env.XAI_MODEL || 'grok-4.7', supportsTools: true, supportsThinking: false },
   // ── Legacy keys (backward compat with old client code) ─────────────────────
-  'claude-opus':      { bedrockId: 'us.anthropic.claude-opus-4-6-v1',             supportsTools: true,  supportsThinking: true  },
-  'claude-sonnet':    { bedrockId: 'us.anthropic.claude-sonnet-4-6',               supportsTools: true,  supportsThinking: true  },
+  'claude-opus':      { bedrockId: 'us.anthropic.claude-opus-5-5',                 supportsTools: true,  supportsThinking: true  },
+  'claude-sonnet':    { bedrockId: 'us.anthropic.claude-sonnet-5-5',               supportsTools: true,  supportsThinking: true  },
   'claude-haiku':     { bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',  supportsTools: true,  supportsThinking: false },
   'mistral-large-3':  { bedrockId: 'mistral.mistral-large-3-675b-instruct',         supportsTools: true,  supportsThinking: false },
 };
 
-const hasAwsCreds = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-const hasXaiCreds = !!process.env.XAI_API_KEY;
+const hasAwsCreds = hasStaticAwsCredentials();
+const hasXaiCreds = hasXaiCredentials();
 
 function resolveInspectorDefaultModelKey(): string {
   const explicit = process.env.INSPECTOR_DEFAULT_MODEL?.trim();
   if (explicit && MODELS_MAP[explicit]) return explicit;
   if (hasXaiCreds) return DEFAULT_INSPECTOR_MODEL_KEY;
-  return 'sonnet-4-6';
+  return 'sonnet-5-5';
 }
 
 const DEFAULT_MODEL_KEY = resolveInspectorDefaultModelKey();
@@ -115,7 +122,7 @@ function inferProvider(modelKey: string | undefined, modelId: string): string {
 }
 
 function isBedrockConfigured(): boolean {
-  return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  return hasStaticAwsCredentials() || process.env.INSPECTOR_USE_INSTANCE_PROFILE === 'true' || process.env.AWS_EXECUTION_ENV === 'AWS_ElasticBeanstalk';
 }
 
 function extractSuggestionsFromText(text: string): string[] {
@@ -159,8 +166,8 @@ export async function POST(request: NextRequest) {
   const authBlock = await guardInspectorChat(request, body.sessionId);
   if (authBlock) return authBlock;
 
-  if (!isBedrockConfigured() && !hasXaiCreds) {
-    // Allow if at least one LLM provider is configured (Bedrock or direct xAI)
+  if (!inspectorLlmConfigured()) {
+    // Demo stream when no LLM provider is reachable (see llm-configured.ts)
     return cannedResponse(request);
   }
 

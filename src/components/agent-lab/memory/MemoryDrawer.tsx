@@ -231,11 +231,11 @@ export function MemoryDrawer() {
         </button>
 
         {isFallbackLoading && !bullet ? (
-          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 11, color: 'var(--foer-text-sec)' }}>
+          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 13, color: 'var(--foer-text-sec)' }}>
             Loading memory details...
           </div>
         ) : !bullet ? (
-          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 11, color: 'var(--foer-text-sec)' }}>
+          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 13, color: 'var(--foer-text-sec)' }}>
             Memory not found.
           </div>
         ) : (
@@ -258,7 +258,7 @@ export function MemoryDrawer() {
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 9,
+                    fontSize: 13,
                     letterSpacing: '0.04em',
                     padding: '2px 6px',
                     borderRadius: 4,
@@ -273,7 +273,7 @@ export function MemoryDrawer() {
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 9,
+                    fontSize: 13,
                     letterSpacing: '0.04em',
                     padding: '2px 6px',
                     borderRadius: 4,
@@ -292,7 +292,7 @@ export function MemoryDrawer() {
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--foer-text-sec)',
                   }}
                 >
@@ -301,7 +301,7 @@ export function MemoryDrawer() {
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 9,
+                    fontSize: 13,
                     background: 'var(--foer-border-dim)',
                     borderRadius: 3,
                     padding: '1px 5px',
@@ -318,7 +318,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   color: 'var(--foer-text-mut)',
@@ -357,7 +357,7 @@ export function MemoryDrawer() {
               </div>
 
               {/* Counts Legend */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 10, color: 'var(--foer-text-sec)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 13, color: 'var(--foer-text-sec)' }}>
                 <span>{bullet.helpfulCount} helpful</span>
                 <span>{bullet.harmfulCount} harmful</span>
               </div>
@@ -375,7 +375,7 @@ export function MemoryDrawer() {
                 <div
                   style={{
                     fontFamily: MONO,
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--foer-text-sec)',
                     marginBottom: 4,
                   }}
@@ -385,7 +385,7 @@ export function MemoryDrawer() {
                 <div
                   style={{
                     fontFamily: MONO,
-                    fontSize: 11,
+                    fontSize: 13,
                     color: 'var(--foer-gold)',
                     wordBreak: 'break-all',
                   }}
@@ -400,7 +400,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   color: 'var(--foer-text-mut)',
@@ -408,7 +408,7 @@ export function MemoryDrawer() {
               >
                 Provenance
               </div>
-              <div style={{ fontFamily: BODY, fontSize: 12, color: 'var(--foer-text-sec)' }}>
+              <div style={{ fontFamily: BODY, fontSize: 13, color: 'var(--foer-text-sec)' }}>
                 Born from {bullet.sourceSessionIds?.length ?? 0} sessions:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -418,7 +418,7 @@ export function MemoryDrawer() {
                     onClick={() => handleSessionJump(sid)}
                     style={{
                       fontFamily: MONO,
-                      fontSize: 10,
+                      fontSize: 13,
                       background: 'var(--foer-surface2)',
                       border: '1px solid var(--foer-border-dim)',
                       borderRadius: 4,
@@ -449,7 +449,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   color: 'var(--foer-text-mut)',
@@ -457,7 +457,7 @@ export function MemoryDrawer() {
               >
                 Bi-temporal Invariants
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: MONO, fontSize: 10, color: 'var(--foer-text-sec)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontFamily: MONO, fontSize: 13, color: 'var(--foer-text-sec)' }}>
                 <div>
                   <span style={{ color: 'var(--foer-text-mut)' }}>validFrom:</span> {formatDate(bullet.validFrom)}
                 </div>
@@ -469,7 +469,7 @@ export function MemoryDrawer() {
                 <div
                   style={{
                     fontFamily: MONO,
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--foer-gold)',
                     background: 'var(--foer-surface2)',
                     border: '1px solid var(--foer-border-dim)',
@@ -488,7 +488,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   color: 'var(--foer-text-mut)',
@@ -499,7 +499,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize: 10.5,
+                  fontSize: 13,
                   color: 'var(--foer-text-sec)',
                   background: 'var(--foer-surface2)',
                   border: '1px solid var(--foer-border-dim)',
@@ -520,7 +520,7 @@ export function MemoryDrawer() {
                     background: 'transparent',
                     border: 'none',
                     fontFamily: MONO,
-                    fontSize: 10,
+                    fontSize: 13,
                     color: 'var(--foer-gold)',
                     cursor: 'pointer',
                     padding: 0,

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         },
         { role: 'user', content: userText.slice(0, 2000) },
       ],
-      max_tokens: 32,
+      max_completion_tokens: 32,
       temperature: 0.3,
     });
     const raw = completion.choices[0]?.message?.content?.trim() ?? '';

@@ -137,11 +137,11 @@ function MarcusBubble({ m, streaming }: { m: TeachMessage; streaming: boolean })
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
             Captain Track Sparrow
           </span>
           {m.subTag && (
-            <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
               · {m.subTag}
             </span>
           )}
@@ -233,7 +233,7 @@ function Composer({
         <span
           style={{
             fontFamily: FONT_MONO,
-            fontSize: 8.5,
+            fontSize: 13,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             color: 'var(--text-tertiary)',
@@ -282,7 +282,7 @@ const avatarUser: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   fontFamily: FONT_MONO,
-  fontSize: 11,
+  fontSize: 13,
   fontWeight: 700,
   color: 'var(--muted-foreground)',
   flexShrink: 0,

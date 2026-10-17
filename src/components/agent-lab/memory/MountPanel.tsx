@@ -446,7 +446,7 @@ export function MountPanel() {
     <section id="foer-section-mounted" style={{ padding: '56px 0', borderTop: '1px solid var(--foer-border)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
       {/* Section kicker */}
-      <div style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ color: GOLD }}>06</span> · MOUNT · INJECTION
       </div>
 
@@ -462,7 +462,7 @@ export function MountPanel() {
           {/* Story pipeline */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0', flexWrap: 'nowrap' }}>
             {([
-              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: '#FDB515' },
+              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: '#5B3DF5' },
               { step: '1a', label: 'Schema map', desc: 'Domain knowledge',    color: '#5E7E96' },
               { step: '1b', label: 'Task recall', desc: 'Pattern memory',     color: '#5FA9AE' },
             ] as const).map((item, i) => (
@@ -491,7 +491,7 @@ export function MountPanel() {
             This signature
           </div>
           {([
-            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: '#FDB515' },
+            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: '#5B3DF5' },
             { label: 'P1a · schema',    count: p1aActive.length, over: p1aOver, color: '#5E7E96' },
             { label: 'P1b · recall',    count: p1bActive.length, over: p1bOver, color: '#5FA9AE' },
           ] as const).map((row, i) => (
@@ -544,13 +544,13 @@ export function MountPanel() {
           <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
         </div>
         <div style={{ height: '6px', borderRadius: '3px', background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>
-          <div style={{ width: p0W + '%',  background: '#FDB515', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
+          <div style={{ width: p0W + '%',  background: '#5B3DF5', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
           <div style={{ width: p1aW + '%', background: '#5E7E96', transition: 'width 0.4s ease' }} title={'Phase 1a: ' + p1aUsed + 't'} />
           <div style={{ width: p1bW + '%', background: '#5FA9AE', transition: 'width 0.4s ease' }} title={'Phase 1b: ' + p1bUsed + 't'} />
         </div>
         <div style={{ display: 'flex', gap: '1.25rem' }}>
           {([
-            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: '#FDB515' },
+            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: '#5B3DF5' },
             { label: 'P1a', used: p1aUsed, budget: P1A_BUDGET, color: '#5E7E96' },
             { label: 'P1b', used: p1bUsed, budget: P1B_BUDGET, color: '#5FA9AE' },
           ] as const).map((seg) => (
@@ -574,7 +574,7 @@ export function MountPanel() {
             <PhaseBlurb
               phaseLabel="0 · Guardrails"
               phaseTag="phase:init"
-              accentColor="#FDB515"
+              accentColor="#5B3DF5"
               budget={P0_BUDGET}
               slots={phases.p0}
               previewText={p0Text}
@@ -586,7 +586,7 @@ export function MountPanel() {
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
             <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid var(--foer-border)' }} />
-              <span style={{ fontFamily: MONO, fontSize: '8px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
             </div>
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
           </div>
@@ -608,7 +608,7 @@ export function MountPanel() {
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
             <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid var(--foer-border)' }} />
-              <span style={{ fontFamily: MONO, fontSize: '8px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
+              <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
             </div>
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
           </div>

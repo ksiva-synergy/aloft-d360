@@ -215,14 +215,14 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <ArrowLeft size={16} />
         </button>
 
-        <span style={{ ...MONO, fontSize: 12, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
           {meta.name || 'Dashboard'}
         </span>
 
         <div style={{ flex: 1 }} />
 
         {fetchedAt && (
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', letterSpacing: '0.04em' }}>
+          <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', letterSpacing: '0.04em' }}>
             LAST UPDATED {formatTime(fetchedAt)}
           </span>
         )}
@@ -240,7 +240,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={() => router.push(`/inspector/dashboards/${dashboardId}/builder`)}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
@@ -256,11 +256,11 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             onClick={() => setExploreOpen((o) => !o)}
             title="Explore data in this model"
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
-              border: `1px solid ${exploreOpen ? '#FDB515' : 'var(--builder-border)'}`,
-              background: exploreOpen ? 'rgba(253,181,21,0.08)' : 'transparent',
-              color: exploreOpen ? '#FDB515' : 'var(--builder-text)', cursor: 'pointer',
+              border: `1px solid ${exploreOpen ? '#5B3DF5' : 'var(--builder-border)'}`,
+              background: exploreOpen ? 'rgba(91, 61, 245,0.08)' : 'transparent',
+              color: exploreOpen ? '#5B3DF5' : 'var(--builder-text)', cursor: 'pointer',
             }}
           >
             <MessageSquare size={12} />EXPLORE
@@ -272,9 +272,9 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
       {anyCandidate && (
         <div
           style={{
-            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
-            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)',
-            color: '#FDB515', display: 'flex', alignItems: 'center', gap: 8,
+            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
+            background: 'rgba(91, 61, 245,0.08)', borderBottom: '1px solid rgba(91, 61, 245,0.2)',
+            color: '#5B3DF5', display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
           <AlertCircle size={12} />
@@ -286,7 +286,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
       {error && (
         <div
           style={{
-            ...MONO, fontSize: 10, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
             background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)',
             color: '#F87171', display: 'flex', alignItems: 'center', gap: 8,
           }}
@@ -294,7 +294,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Failed to load widget data: {error}</span>
           <button
             onClick={() => refetch()}
-            style={{ ...MONO, fontSize: 10, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 13, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '3px 8px' }}
           >
             RETRY
           </button>
@@ -341,7 +341,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderBottom: '1px solid var(--builder-border)', flexShrink: 0 }}>
                       <span
                         style={{
-                          ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                          ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                           color: 'var(--builder-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}
                       >
@@ -351,7 +351,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                       {result?.status === 'ok' && (
                         <span
                           title={`Last updated ${formatTime(result.executedAt)}`}
-                          style={{ ...MONO, fontSize: 8, letterSpacing: '0.04em', color: result.cached ? '#FDB515' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: result.cached ? '#5B3DF5' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
                           {result.cached ? 'CACHED · ' : ''}{formatTime(result.executedAt)}
                         </span>
@@ -369,14 +369,14 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                           <button
                             onClick={() => router.push(`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id!)}`)}
                             title="Open source chart in Inspector"
-                            style={{ background: 'transparent', border: 'none', color: '#FDB515', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                            style={{ background: 'transparent', border: 'none', color: '#5B3DF5', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
                           >
                             <ExternalLink size={11} />
                           </button>
                         ) : (
                           <span
                             title="Source chart unavailable"
-                            style={{ ...MONO, fontSize: 8, letterSpacing: '0.04em', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                            style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
                           >
                             SOURCE N/A
                           </span>
@@ -436,12 +436,12 @@ function WidgetBody({
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12 }}>
         <AlertCircle size={16} color="#F87171" />
-        <span style={{ ...MONO, fontSize: 9, color: '#F87171', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ ...MONO, fontSize: 13, color: '#F87171', textAlign: 'center', maxWidth: 220 }}>
           {result.message}
         </span>
         <button
           onClick={onRetry}
-          style={{ ...MONO, fontSize: 9, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '2px 8px' }}
+          style={{ ...MONO, fontSize: 13, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '2px 8px' }}
         >
           RETRY
         </button>
@@ -452,7 +452,7 @@ function WidgetBody({
   if (result.status === 'model_not_governed') {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-        <span style={{ ...MONO, fontSize: 9, color: '#FDB515', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ ...MONO, fontSize: 13, color: '#5B3DF5', textAlign: 'center', maxWidth: 220 }}>
           Model not yet published
         </span>
       </div>
@@ -493,7 +493,7 @@ function WidgetSkeleton() {
 function CenterMessage({ text }: { text: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-      <span style={{ ...MONO, fontSize: 11, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center' }}>
+      <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center' }}>
         {text}
       </span>
     </div>

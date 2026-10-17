@@ -45,7 +45,7 @@ export function LearningCard({
     >
       {/* Header: type tag + state badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9 }}>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
           {TYPE_LABEL[learning.type]}
         </span>
         <StateBadge state={learning.state} color={color} />
@@ -65,7 +65,7 @@ export function LearningCard({
             borderRadius: 9,
             background: mix('var(--warning)', 9),
             boxShadow: `inset 0 0 0 1px ${mix('var(--warning)', 26)}`,
-            fontSize: 12,
+            fontSize: 13,
             color: 'var(--foreground)',
             lineHeight: 1.45,
           }}
@@ -127,7 +127,7 @@ function StateBadge({ state, color }: { state: LearningState; color: string }) {
         background: mix(color, 14),
         color,
         fontFamily: FONT_MONO,
-        fontSize: 8,
+        fontSize: 13,
         fontWeight: 600,
         letterSpacing: '0.1em',
         textTransform: 'uppercase',
@@ -187,7 +187,7 @@ const ghostBtn: React.CSSProperties = {
   boxShadow: 'inset 0 0 0 1px var(--border)',
   color: 'var(--muted-foreground)',
   fontFamily: FONT_MONO,
-  fontSize: 8.5,
+  fontSize: 13,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
 };
@@ -203,7 +203,7 @@ const amberBtn: React.CSSProperties = {
   background: 'var(--warning)',
   color: 'var(--primary-foreground)',
   fontFamily: FONT_MONO,
-  fontSize: 8.5,
+  fontSize: 13,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
 };

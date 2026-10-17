@@ -105,8 +105,12 @@ module.exports = {
         // evals-v2 brand aliases — authoritative flat tokens for eval surfaces
         'brand': {
           navy: '#003262',
-          gold:  '#FDB515',
+          gold:  '#FDB515', a: 'var(--brand-a)', 'a-2': 'var(--brand-a-2)', 'a-soft': 'var(--brand-a-soft)', 'a-ink': 'var(--brand-a-ink)', b: 'var(--brand-b)', 'b-soft': 'var(--brand-b-soft)', 'b-ink': 'var(--brand-b-ink)', c: 'var(--brand-c)',
         },
+        'surface': { 1: 'var(--surface-1)', 2: 'var(--surface-2)', 3: 'var(--surface-3)' },
+        'line': { 1: 'var(--line-1)', 2: 'var(--line-2)' },
+        'ink': { 1: 'var(--ink-1)', 2: 'var(--ink-2)', 3: 'var(--ink-3)' },
+        'rail': { bg: 'var(--rail-bg)', ink: 'var(--rail-ink)', strong: 'var(--rail-ink-strong)', muted: 'var(--rail-muted)', line: 'var(--rail-line)' },
         'terminal': {
           bg:      '#0d1117',
           surface: '#161b22',
@@ -129,21 +133,29 @@ module.exports = {
           'red-fail':      'var(--builder-red-fail)',
         },
       },
+      fontSize: {
+        xs:   ['0.8125rem', { lineHeight: '1.25rem' }],
+        sm:   ['0.9375rem', { lineHeight: '1.4rem' }],
+        base: ['1rem',      { lineHeight: '1.6rem' }],
+        lg:   ['1.1875rem', { lineHeight: '1.75rem' }],
+        xl:   ['1.375rem',  { lineHeight: '1.9rem' }],
+        '2xl':['1.625rem',  { lineHeight: '2.1rem' }],
+      },
       fontFamily: {
         // REBRAND: Inter → Inter Tight | JetBrains Mono → IBM Plex Mono
-        sans: ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
+        sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'monospace'],
         // evals-v2 semantic font aliases
-        display: ['"Source Serif 4"', 'Georgia', 'serif'],   // --fd: headings, agent names
-        body:    ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'], // --fu: labels, body
+        display: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],   // --fd: headings, agent names
+        body:    ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'], // --fu: labels, body
       },
       borderRadius: {
         // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)
         // Use rounded-sm (4px) for interactive elements, rounded-card (6px) for surfaces
-        'sm':    '4px',
-        'card':  '6px',
-        'brand': '6px',  // evals-v2 max border-radius — do not exceed
+        'sm':    '6px',
+        'card':  '16px',
+        'brand': '16px',
         // Intentionally NOT overriding 'md'/'lg'/'xl' — their presence in JSX is a violation;
         // removing the override here surfaces the violation rather than silencing it.
       },
@@ -152,6 +164,8 @@ module.exports = {
       },
       boxShadow: {
         'nav': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'card': 'var(--shadow-card)',
+        'pop': 'var(--shadow-pop)',
       },
       keyframes: {
         'fade-in': {

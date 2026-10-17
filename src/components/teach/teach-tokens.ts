@@ -8,8 +8,8 @@
  */
 import type { LearningState, LearningType } from '@/lib/inspector/reflect-tools';
 
-export const FONT_DISPLAY = "'Source Serif 4', Georgia, serif";
-export const FONT_BODY = "'Inter Tight', Inter, system-ui, sans-serif";
+export const FONT_DISPLAY = "'Inter Variable', 'Inter', system-ui, sans-serif";
+export const FONT_BODY = "'Inter Variable', Inter, system-ui, sans-serif";
 export const FONT_MONO = "'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace";
 
 /**
@@ -48,7 +48,7 @@ export const mix = (colorVar: string, pct: number) =>
 /** Uppercase mono micro-label — the recurring caption style. */
 export const microLabel: React.CSSProperties = {
   fontFamily: FONT_MONO,
-  fontSize: 9,
+  fontSize: 13,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
   color: 'var(--text-tertiary)',
@@ -66,7 +66,7 @@ export function statePill(colorVar: string): React.CSSProperties {
     boxShadow: `inset 0 0 0 1px ${mix(colorVar, 32)}`,
     color: colorVar,
     fontFamily: FONT_MONO,
-    fontSize: 8,
+    fontSize: 13,
     fontWeight: 600,
     letterSpacing: '0.1em',
     textTransform: 'uppercase',

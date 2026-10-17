@@ -14,11 +14,16 @@ export default async function AgentGroupLayout({ children }: { children: React.R
     >
       <UnifiedAgentSidebar initialSession={session} />
       <div
-        className="flex-1 flex flex-col overflow-hidden"
+        className="flex min-w-0 flex-1 flex-col overflow-hidden"
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}
       >
         <StagingHeader />
-        <main className="flex-1 overflow-y-auto bg-[var(--main-bg)]" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>{children}</main>
+        <main
+          className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--main-bg)]"
+          style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

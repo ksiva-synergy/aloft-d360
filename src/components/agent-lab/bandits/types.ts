@@ -124,13 +124,16 @@ export const MODEL_COLORS: Record<string, string> = {
   // Azure AI Foundry
   'gpt-5.4-PBC':        '#7c3aed',
   'gpt-6-luna':         '#6d28d9',
+  'openai.gpt-6-luna':  '#6d28d9',
   'o3-pro-PBC':         '#2563eb',
   'grok-4.3-PBC':       '#b91c1c',
   'kimi-k2-6-PBC':      '#0e7490',
   'DeepSeek-V4-Pro':    '#15803d',
   // Bedrock
-  'us.anthropic.claude-sonnet-4-6': '#059669',
-  'us.anthropic.claude-opus-4-6-v1': '#d97706',
+  'us.anthropic.claude-sonnet-5-5': '#059669',
+  'us.anthropic.claude-opus-5-5': '#d97706',
+  'us.anthropic.claude-sonnet-4-6': '#10b981',
+  'us.anthropic.claude-opus-4-6-v1': '#f59e0b',
 };
 
 /** @deprecated Use MODEL_SHORT_NAMES from '@/lib/bandits/born-tokens' instead.
@@ -140,11 +143,14 @@ export const MODEL_SHORT_NAMES: Record<string, string> = {
   // Azure AI Foundry
   'gpt-5.4-PBC':        'GPT-5.4',
   'gpt-6-luna':         'GPT-6 Luna',
+  'openai.gpt-6-luna':  'GPT-6 Luna',
   'o3-pro-PBC':         'o3-pro',
   'grok-4.3-PBC':       'Grok 4.3',
   'kimi-k2-6-PBC':      'Kimi K2.6',
   'DeepSeek-V4-Pro':    'DeepSeek V4',
   // Bedrock
+  'us.anthropic.claude-sonnet-5-5': 'Sonnet 5.5',
+  'us.anthropic.claude-opus-5-5': 'Opus 5.5',
   'us.anthropic.claude-sonnet-4-6': 'Sonnet 4.6',
   'us.anthropic.claude-opus-4-6-v1': 'Opus 4.6',
 };

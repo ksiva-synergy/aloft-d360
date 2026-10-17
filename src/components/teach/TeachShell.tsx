@@ -59,7 +59,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--warning) 26%, transparent)',
               color: 'var(--warning)',
               fontFamily: FONT_MONO,
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: '0.04em',
             }}
           >
@@ -78,7 +78,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--destructive) 26%, transparent)',
               color: 'var(--destructive)',
               fontFamily: FONT_MONO,
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: '0.04em',
             }}
           >
@@ -145,7 +145,7 @@ const controlBtn: React.CSSProperties = {
   boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 10px 30px rgba(0,0,0,.05)',
   color: 'var(--muted-foreground)',
   fontFamily: FONT_MONO,
-  fontSize: 8.5,
+  fontSize: 13,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
   cursor: 'pointer',

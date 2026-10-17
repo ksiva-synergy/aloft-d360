@@ -9,7 +9,7 @@ import type { ChartKindGuess } from '@/lib/dashboards/guided-types';
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const MUTED = '#8892A4';
 const INK = 'var(--wb-ink, #E6ECF5)';
-const AMBER = '#FDB515';
+const AMBER = '#5B3DF5';
 const GREEN = '#34D399';
 const VIOLET = '#C4B5FD';
 const RED = '#F87171';
@@ -71,23 +71,23 @@ export function NotWiredChart({
           // Diagonal hatch = "scaffold, not a surface". Reads as unfinished on
           // sight, distinct from the solid fill a real chart/empty card uses.
           background:
-            'repeating-linear-gradient(45deg, rgba(253,181,21,0.04) 0, rgba(253,181,21,0.04) 10px, transparent 10px, transparent 20px)',
+            'repeating-linear-gradient(45deg, rgba(91, 61, 245,0.04) 0, rgba(91, 61, 245,0.04) 10px, transparent 10px, transparent 20px)',
         }}
       >
         <PlugZap size={22} color={AMBER} />
         <span
           style={{
-            ...MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
+            ...MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
             color: AMBER, border: `1px solid ${AMBER}66`, borderRadius: 4, padding: '2px 7px',
           }}
         >
           Not wired
         </span>
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 340 }}>
-          <span style={{ ...MONO, fontSize: 12, color: INK, fontWeight: 600 }}>
+          <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>
             Awaiting data{chartKindGuess ? ` — will render as a ${chartKindGuess}` : ''}
           </span>
-          <span style={{ ...MONO, fontSize: 10.5, color: MUTED, lineHeight: 1.5 }}>
+          <span style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
             Add this chart to the dashboard and its live preview loads here. No query has run yet,
             so nothing here is real data.
           </span>
@@ -109,7 +109,7 @@ export function NotWiredChart({
           padding: 24, borderRadius: 10, border: '1px solid rgba(136,146,164,0.2)', background: 'rgba(0,0,0,0.12)',
         }}
       >
-        <span style={{ ...MONO, fontSize: 11, color: MUTED }}>Running the query…</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Running the query…</span>
       </div>
     );
   }
@@ -129,8 +129,8 @@ export function NotWiredChart({
         }}
       >
         <Inbox size={20} color={MUTED} />
-        <span style={{ ...MONO, fontSize: 11.5, color: INK, fontWeight: 600 }}>No rows for this query</span>
-        <span style={{ ...MONO, fontSize: 10, color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+        <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>No rows for this query</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
           The query ran and returned zero rows — this is a real empty result, not a chart that failed to load.
           Try loosening a filter.
         </span>
@@ -149,8 +149,8 @@ export function NotWiredChart({
         }}
       >
         <AlertTriangle size={20} color={AMBER} />
-        <span style={{ ...MONO, fontSize: 11.5, color: INK, fontWeight: 600 }}>Publish to see live data</span>
-        <span style={{ ...MONO, fontSize: 10, color: MUTED, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
+        <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>Publish to see live data</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
           {state.message || "This dashboard's model is still a candidate — publish it to see live data."}
         </span>
       </div>
@@ -169,8 +169,8 @@ export function NotWiredChart({
       }}
     >
       <AlertTriangle size={20} color={RED} />
-      <span style={{ ...MONO, fontSize: 11.5, color: INK, fontWeight: 600 }}>Could not load data</span>
-      <span style={{ ...MONO, fontSize: 10, color: RED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5, wordBreak: 'break-word' }}>
+      <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>Could not load data</span>
+      <span style={{ ...MONO, fontSize: 13, color: RED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5, wordBreak: 'break-word' }}>
         {state.message || 'The query failed to run.'}
       </span>
     </div>
@@ -209,7 +209,7 @@ function LiveChart({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span
           style={{
-            ...MONO, fontSize: 8.5, letterSpacing: '0.10em', textTransform: 'uppercase',
+            ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
             color: GREEN, border: `1px solid ${GREEN}55`, borderRadius: 4, padding: '2px 6px',
           }}
         >
@@ -220,7 +220,7 @@ function LiveChart({
             data-testid="draft-badge"
             title="These rows came from an owner-scoped preview of a not-yet-governed definition"
             style={{
-              ...MONO, fontSize: 8.5, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               color: VIOLET, border: `1px solid ${VIOLET}66`, borderRadius: 4, padding: '2px 6px',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
@@ -229,7 +229,7 @@ function LiveChart({
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <span style={{ ...MONO, fontSize: 9, color: MUTED }}>{rowCount} row{rowCount === 1 ? '' : 's'}</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{rowCount} row{rowCount === 1 ? '' : 's'}</span>
       </div>
 
       {isKpi ? (
@@ -244,7 +244,7 @@ function LiveChart({
       {chart.series.length > 0 && !isKpi && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
           {chart.series.map((s, i) => (
-            <span key={s.measureId} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 9, color: MUTED }}>
+            <span key={s.measureId} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: MUTED }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: SERIES_COLORS[i % SERIES_COLORS.length] }} />
               {s.name}{s.unit ? ` (${s.unit})` : ''}
             </span>
@@ -264,7 +264,7 @@ function KpiReadout({ chart }: { chart: RowsToOptionResult }) {
           <span style={{ ...MONO, fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: SERIES_COLORS[i % SERIES_COLORS.length] }}>
             {formatValue(s.data[0])}
           </span>
-          <span style={{ ...MONO, fontSize: 9.5, color: MUTED }}>{s.name}{s.unit ? ` (${s.unit})` : ''}</span>
+          <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{s.name}{s.unit ? ` (${s.unit})` : ''}</span>
         </div>
       ))}
     </div>

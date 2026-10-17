@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT D360 — Self-Improving Memory Database Tables</title>
+  <style>
+    :root {
+      --navy: #003262;
+      --purple: #6d28d9;
+      --purple-bg: #f3e8ff;
+      --gold: #fdb515;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --green: #087443;
+      --blue: #1d4ed8;
+      --orange: #9a3412;
+      --radius: 12px;
+      --mono: Consolas, 'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      width: 290px;
+      height: 100vh;
+      flex-shrink: 0;
+      overflow-y: auto;
+      padding: 1rem 0;
+      color: #fff;
+      background: var(--navy);
+    }
+    .sidebar a {
+      display: block;
+      padding: .42rem 1.2rem;
+      color: rgba(255,255,255,.86);
+      text-decoration: none;
+      font-size: .86rem;
+      border-left: 3px solid transparent;
+    }
+    .sidebar a:hover { color: #fff; background: rgba(255,255,255,.08); border-left-color: var(--gold); }
+    .sidebar .back { color: var(--gold); font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.18); margin-bottom: .55rem; }
+    .sidebar h2 {
+      margin: 1rem 1.2rem .35rem;
+      color: rgba(255,255,255,.58);
+      font-size: .7rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    main { width: min(1100px, 100%); padding: 2rem 2.5rem 4rem; }
+    .hero {
+      margin: -2rem -2.5rem 2rem;
+      padding: 2.2rem 2.5rem;
+      color: #fff;
+      background: linear-gradient(135deg, #4c1d95, var(--navy));
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .hero h1 { margin: .2rem 0 .5rem; font-size: 1.8rem; }
+    .hero p { max-width: 780px; margin: 0; color: rgba(255,255,255,.9); }
+    .badge, .pill {
+      display: inline-block;
+      padding: .16rem .5rem;
+      border-radius: 999px;
+      font-size: .7rem;
+      font-weight: 700;
+    }
+    .badge { color: var(--navy); background: var(--gold); }
+    .pill.vector { color: #5b21b6; background: #ede9fe; }
+    .pill.relational { color: var(--blue); background: #dbeafe; }
+    .pill.json { color: var(--orange); background: #ffedd5; }
+    section { margin-bottom: 2.2rem; scroll-margin-top: 1rem; }
+    h2 { color: var(--navy); font-size: 1.35rem; border-bottom: 2px solid var(--gold); padding-bottom: .3rem; }
+    h3 { color: var(--navy); font-size: 1.05rem; }
+    p { color: var(--muted); }
+    .card {
+      margin: 1rem 0;
+      padding: 1.15rem 1.35rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 12px rgba(0,50,98,.05);
+    }
+    .callout {
+      padding: 1rem 1.2rem;
+      color: #5b21b6;
+      background: var(--purple-bg);
+      border: 1px solid #c4b5fd;
+      border-radius: var(--radius);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .75rem;
+      margin: 1rem 0;
+    }
+    .metric {
+      padding: 1rem;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .metric strong { display: block; color: var(--purple); font-size: 1.7rem; }
+    .metric span { color: var(--muted); font-size: .78rem; }
+    table { width: 100%; margin: .7rem 0; border-collapse: collapse; font-size: .84rem; }
+    th, td { padding: .48rem .6rem; text-align: left; vertical-align: top; border: 1px solid var(--border); }
+    th { background: #f0ebe3; }
+    code, pre { font-family: var(--mono); font-size: .78rem; }
+    code { color: #1e40af; }
+    pre {
+      overflow-x: auto;
+      padding: .9rem 1rem;
+      color: #e8e4dc;
+      background: #1a2332;
+      border-radius: 8px;
+    }
+    details {
+      margin: .8rem 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    details[open] { border-color: #a78bfa; box-shadow: 0 2px 14px rgba(109,40,217,.08); }
+    summary {
+      cursor: pointer;
+      padding: 1rem 1.2rem;
+      color: var(--navy);
+      font-weight: 700;
+      list-style-position: inside;
+    }
+    summary:hover { background: #faf7ff; }
+    .table-body { padding: 0 1.2rem 1.2rem; }
+    .table-title { display: inline-block; margin-right: .65rem; font-family: var(--mono); }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .45rem;
+      margin: 1rem 0;
+    }
+    .flow span {
+      padding: .45rem .7rem;
+      color: var(--navy);
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      font-size: .8rem;
+      font-weight: 600;
+    }
+    .flow b { color: var(--purple); }
+    .sample-label { margin: 1rem 0 .3rem; color: var(--purple); font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+    .note { color: var(--muted); font-size: .82rem; }
+    @media (max-width: 900px) {
+      .layout { display: block; }
+      .sidebar { position: relative; width: 100%; height: auto; }
+      main { padding: 1rem; }
+      .hero { margin: -1rem -1rem 1.5rem; padding: 1.6rem 1rem; }
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Table of contents">
+      <a class="back" href="self-improving-memory-guide.html">← Self-improving memory guide</a>
+      <h2>Overview</h2>
+      <a href="#scope">Scope and count</a>
+      <a href="#storage-types">Storage types</a>
+      <a href="#relationships">Relationships</a>
+      <h2>Memory tables</h2>
+      <a href="#memory-catalog">Table catalog</a>
+      <a href="#trace-tables">Trace tables</a>
+      <a href="#memory-tables">Memory and learning</a>
+      <a href="#operations-tables">Operations and topics</a>
+      <h2>Reference</h2>
+      <a href="#vector-search">Vector search</a>
+      <a href="#sample-flow">End-to-end sample</a>
+      <a href="#schema-source">Schema source</a>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <span class="badge">DATABASE DATA DICTIONARY</span>
+        <h1>Self-Improving Memory Database Tables</h1>
+        <p>
+          The 12 database tables that support ALOFT D360’s self-improving memory system:
+          session traces, memory bullets, vector retrieval, attribution, synthesis, topics, Teach Mode, and job operations.
+        </p>
+      </header>
+
+      <section id="scope">
+        <h2>1. Scope and table count</h2>
+        <div class="summary-grid">
+          <div class="metric"><strong>12</strong><span>memory-subsystem tables</span></div>
+          <div class="metric"><strong>1</strong><span>vector-enabled table</span></div>
+          <div class="metric"><strong>11</strong><span>regular relational tables</span></div>
+          <div class="metric"><strong>0</strong><span>separate vector DB services</span></div>
+        </div>
+        <div class="callout">
+          <strong>Scope note:</strong> This count covers the self-improving memory subsystem only. The Prisma schema also contains unrelated context, semantic, estate, analytics, and agent tables.
+        </div>
+        <p>
+          All 12 tables are stored in PostgreSQL. <code>platform_agent_memory</code> is vector-enabled because it has an
+          <code>embedding vector</code> column. The other tables are relational support, audit, trace, or operational tables.
+        </p>
+      </section>
+
+      <section id="storage-types">
+        <h2>2. Storage types used</h2>
+        <table>
+          <thead><tr><th>Type</th><th>Used for</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill vector">Vector-enabled</span></td><td>Semantic similarity search</td><td><code>embedding vector</code> in <code>platform_agent_memory</code></td></tr>
+            <tr><td><span class="pill relational">Relational</span></td><td>IDs, status, counters, relationships, timestamps</td><td><code>String</code>, <code>Int</code>, <code>Float</code>, <code>Boolean</code>, <code>DateTime</code></td></tr>
+            <tr><td><span class="pill json">JSON / JSONB</span></td><td>Variable event payloads and structured metadata</td><td>trace payloads, verification, caveat context</td></tr>
+            <tr><td><span class="pill relational">Array</span></td><td>Multiple source sessions or injected bullet IDs</td><td><code>String[]</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="relationships">
+        <h2>3. How the tables connect</h2>
+        <div class="flow">
+          <span>platform_trace_nodes</span><b>→</b>
+          <span>platform_memory_synthesis_runs</span><b>→</b>
+          <span>platform_agent_memory</span><b>→</b>
+          <span>platform_memory_injections</span><b>→</b>
+          <span>helpful / harmful attribution</span>
+        </div>
+        <div class="flow">
+          <span>platform_trace_edges</span><b>→</b>
+          <span>trace graph reconstruction</span><b>→</b>
+          <span>reflectSession</span><b>→</b>
+          <span>curate</span>
+        </div>
+        <div class="flow">
+          <span>platform_agent_memory.task_signature</span><b>→</b>
+          <span>platform_memory_topics</span><b>→</b>
+          <span>topic-scoped retrieval</span>
+        </div>
+      </section>
+
+      <section id="memory-catalog" aria-label="Memory table catalog">
+        <h2>4. Browse memory tables</h2>
+        <p class="note">In the architecture guide, this section becomes a searchable master–detail catalog (list + column detail).</p>
+        <div id="memory-tables-host"></div>
+      </section>
+
+      <section id="trace-tables">
+        <h2>5. Trace tables</h2>
+
+        <details id="platform-trace-nodes" open>
+          <summary><span class="table-title">platform_trace_nodes</span><span class="pill relational">Relational + JSON</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Stores individual events in an Inspector session. These events become the evidence from which new memory rules are extracted.</p>
+            <table><thead><tr><th>Column</th><th>Prisma / DB type</th><th>Nullable / default</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>String / text</td><td>Primary key</td><td><code>node_01hxyz</code></td></tr>
+              <tr><td>org_id</td><td>String / text</td><td>Required</td><td><code>org_aloft</code></td></tr>
+              <tr><td>session_id</td><td>String / text</td><td>Required</td><td><code>session_20260930_001</code></td></tr>
+              <tr><td>agent_class</td><td>String / text</td><td>Nullable</td><td><code>inspector</code></td></tr>
+              <tr><td>node_type</td><td>String / text</td><td>Required</td><td><code>ACTION</code>, <code>OUTCOME</code>, <code>DEAD_END</code></td></tr>
+              <tr><td>payload</td><td>Json / jsonb</td><td>Required</td><td><code>{"toolName":"describe_schema","toolParams":{"query":"crew certificates"}}</code></td></tr>
+              <tr><td>tokens_in / tokens_out</td><td>Int / integer</td><td>Nullable</td><td><code>1800 / 420</code></td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td>Now default</td><td><code>2026-09-30T10:00:04Z</code></td></tr>
+            </tbody></table>
+            <div class="sample-label">Sample row</div>
+            <pre>{
+  "id": "node_01hxyz",
+  "session_id": "session_20260930_001",
+  "node_type": "OUTCOME",
+  "payload": {
+    "toolName": "describe_schema",
+    "responseSummary": "ops.crew_certificates has expiry_date DATE and status STRING"
+  }
+}</pre>
+          </div>
+        </details>
+
+        <details id="platform-trace-edges">
+          <summary><span class="table-title">platform_trace_edges</span><span class="pill relational">Relational graph edges</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Connects trace nodes so the system can reconstruct the order and meaning of actions, results, corrections, and failures.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>String / text, primary key</td><td><code>edge_01hxyz</code></td></tr>
+              <tr><td>org_id</td><td>String / text</td><td><code>org_aloft</code></td></tr>
+              <tr><td>session_id</td><td>String / text</td><td><code>session_20260930_001</code></td></tr>
+              <tr><td>from_node_id / to_node_id</td><td>String / text</td><td><code>node_action → node_outcome</code></td></tr>
+              <tr><td>edge_type</td><td>String / text</td><td><code>LED_TO</code> or <code>CORRECTED_BY</code></td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T10:00:05Z</code></td></tr>
+            </tbody></table>
+            <div class="sample-label">Sample row</div>
+            <pre>{
+  "from_node_id": "node_action_01",
+  "to_node_id": "node_outcome_01",
+  "edge_type": "LED_TO"
+}</pre>
+          </div>
+        </details>
+      </section>
+
+      <section id="memory-tables">
+        <h2>5. Memory and learning tables</h2>
+
+        <details id="platform-agent-memory" open>
+          <summary><span class="table-title">platform_agent_memory</span><span class="pill vector">Vector-enabled</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Main operating-memory store. It holds the reusable rules injected into future LLM prompts.</p>
+            <div class="callout"><strong>Vector behavior:</strong> The <code>embedding</code> column is PostgreSQL <code>vector</code>. The question embedding is compared with this column using cosine distance via pgvector.</div>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>String / text, primary key</td><td><code>mem_01hxyz</code></td></tr>
+              <tr><td>org_id / agent_class</td><td>String / text</td><td><code>org_aloft / inspector</code></td></tr>
+              <tr><td>task_signature</td><td>String / text, nullable</td><td><code>a1b2c3d4e5f60708</code></td></tr>
+              <tr><td>rule_text</td><td>String / text</td><td><code>Use ops.crew_certificates for crew certificates.</code></td></tr>
+              <tr><td>rule_type</td><td>String / text</td><td><code>SCHEMA_MAP</code></td></tr>
+              <tr><td>helpful_count / harmful_count</td><td>Int / integer</td><td><code>8 / 0</code></td></tr>
+              <tr><td>confidence</td><td>Float / real</td><td><code>0.94</code></td></tr>
+              <tr><td>embed_text</td><td>String / text, nullable</td><td><code>Use ops.crew_certificates...</code></td></tr>
+              <tr><td>embedding</td><td>Unsupported(<code>vector</code>)</td><td><code>[0.021, -0.348, 0.771, ...]</code></td></tr>
+              <tr><td>source_session_ids</td><td>String[] / text[]</td><td><code>["session_001","session_008"]</code></td></tr>
+              <tr><td>version</td><td>Int / integer</td><td><code>2</code></td></tr>
+              <tr><td>status</td><td>String / text</td><td><code>ACTIVE</code>, <code>SUPERSEDED</code>, <code>QUARANTINED</code></td></tr>
+              <tr><td>valid_from / valid_until</td><td>DateTime / timestamptz</td><td><code>2026-09-01 / null</code></td></tr>
+              <tr><td>created_at / updated_at</td><td>DateTime / timestamptz</td><td><code>2026-09-01T04:31:00Z</code></td></tr>
+              <tr><td>last_used_at</td><td>DateTime / timestamptz, nullable</td><td><code>2026-09-30T10:00:00Z</code></td></tr>
+              <tr><td>short_label / blurb</td><td>String / text, nullable</td><td><code>inspector · Crew · Certificates</code></td></tr>
+              <tr><td>caveat_context</td><td>Json / jsonb, nullable</td><td><code>{"tier":"HIGH","paths":["raw.crew"]}</code></td></tr>
+              <tr><td>contributor_rep</td><td>Float / real</td><td><code>1.0</code></td></tr>
+              <tr><td>created_by</td><td>String / text, nullable</td><td><code>user_123</code> for Teach Mode</td></tr>
+              <tr><td>visibility</td><td>String / text</td><td><code>org</code> or <code>personal</code></td></tr>
+            </tbody></table>
+            <div class="sample-label">Sample row</div>
+            <pre>{
+  "id": "mem_01hxyz",
+  "rule_text": "Use ops.crew_certificates; expiry_date is DATE.",
+  "rule_type": "SCHEMA_MAP",
+  "confidence": 0.94,
+  "embedding": [0.021, -0.348, 0.771, "..."],
+  "helpful_count": 8,
+  "harmful_count": 0,
+  "status": "ACTIVE",
+  "visibility": "org"
+}</pre>
+          </div>
+        </details>
+
+        <details id="platform-teach-candidate">
+          <summary><span class="table-title">platform_teach_candidate</span><span class="pill json">Relational + JSON</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Stores the review envelope for a user-taught memory rule. It is separate from the actual rule so Teach Mode can track verification, conflict, and resolution.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>String / text, primary key</td><td><code>teach_01</code></td></tr>
+              <tr><td>org_id / author_user_id</td><td>String / text</td><td><code>org_aloft / user_123</code></td></tr>
+              <tr><td>session_id</td><td>String / text, nullable</td><td><code>session_001</code></td></tr>
+              <tr><td>memory_id</td><td>String / text</td><td><code>mem_personal_01</code></td></tr>
+              <tr><td>learning_type / state</td><td>String / text</td><td><code>SEMANTIC_PREFERENCE / PENDING_REVIEW</code></td></tr>
+              <tr><td>verification / conflict / resolution</td><td>Json / jsonb, nullable</td><td><code>{"matchedExisting":false}</code></td></tr>
+              <tr><td>captured_at / updated_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T10:10:00Z</code></td></tr>
+            </tbody></table>
+            <div class="sample-label">Sample row</div>
+            <pre>{
+  "author_user_id": "user_123",
+  "memory_id": "mem_personal_01",
+  "learning_type": "SEMANTIC_PREFERENCE",
+  "state": "PENDING_REVIEW",
+  "verification": {"source": "user_correction"}
+}</pre>
+          </div>
+        </details>
+
+        <details id="platform-memory-injections" open>
+          <summary><span class="table-title">platform_memory_injections</span><span class="pill relational">Relational audit</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Records which memory bullets were actually injected into each AI run. This table is <strong>not vector-enabled</strong>; it links runs to bullets for outcome attribution.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>String / text, generated ID</td><td><code>inj_01</code></td></tr>
+              <tr><td>org_id / run_id / bullet_id</td><td>String / text</td><td><code>org_aloft / session_001 / mem_01hxyz</code></td></tr>
+              <tr><td>phase</td><td>String / text</td><td><code>INIT</code>, <code>SCHEMA_GLOBAL</code>, <code>TASK_SCOPED</code></td></tr>
+              <tr><td>attributed_at</td><td>DateTime / timestamptz, nullable</td><td><code>null</code> before outcome processing</td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T10:00:01Z</code></td></tr>
+              <tr><td>contributor_user_id</td><td>String / text, nullable</td><td><code>user_123</code></td></tr>
+            </tbody></table>
+            <div class="sample-label">Sample row</div>
+            <pre>{
+  "run_id": "session_001",
+  "bullet_id": "mem_01hxyz",
+  "phase": "TASK_SCOPED",
+  "attributed_at": "2026-09-30T10:02:00Z"
+}</pre>
+          </div>
+        </details>
+
+        <details id="platform-memory-contributions">
+          <summary><span class="table-title">platform_memory_contributions</span><span class="pill relational">Relational reputation</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Records who contributed to a memory bullet and how: original insertion, reinforcement, or supersession.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>UUID</td><td><code>550e8400-e29b-41d4-a716-446655440000</code></td></tr>
+              <tr><td>org_id / memory_id / user_id</td><td>String / UUID-like text</td><td><code>org_aloft / mem_01 / user_123</code></td></tr>
+              <tr><td>domain</td><td>String / text</td><td><code>inspector</code></td></tr>
+              <tr><td>contribution_type</td><td>String / text</td><td><code>INSERT_AUTHOR</code> or <code>DEDUP_REINFORCE</code></td></tr>
+              <tr><td>source_session_id</td><td>String / text, nullable</td><td><code>session_001</code></td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T04:31:00Z</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+
+        <details id="platform-user-reputation">
+          <summary><span class="table-title">platform_user_reputation</span><span class="pill relational">Relational scoring</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Tracks contributor reputation by organization and domain for the seasonal leaderboard.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id</td><td>UUID</td><td><code>550e8400-e29b-41d4-a716-446655440001</code></td></tr>
+              <tr><td>org_id / user_id / domain</td><td>String / text</td><td><code>org_aloft / user_123 / inspector</code></td></tr>
+              <tr><td>role</td><td>String / text</td><td><code>member</code></td></tr>
+              <tr><td>pos / neg</td><td>Float / real</td><td><code>12.5 / 1.0</code></td></tr>
+              <tr><td>last_decay_at / cap_day</td><td>DateTime / date</td><td><code>2026-09-29 / 2026-09-30</code></td></tr>
+              <tr><td>cap_pos_today</td><td>Float / real</td><td><code>2.0</code></td></tr>
+              <tr><td>season_id / season_xp / last_rank</td><td>String / real / Int</td><td><code>S12 / 38.5 / 4</code></td></tr>
+              <tr><td>updated_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T05:30:00Z</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+
+        <details id="platform-marcus-reflections">
+          <summary><span class="table-title">platform_marcus_reflections</span><span class="pill json">Relational + JSON</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Stores optional post-session reflections from Marcus. These are input to synthesis, not memory bullets themselves.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id / org_id / session_id</td><td>String / text</td><td><code>reflection_01 / org_aloft / session_001</code></td></tr>
+              <tr><td>subject_kind / trigger_type / technique</td><td>String / text, nullable</td><td><code>inspector / DEAD_END / catalog-first</code></td></tr>
+              <tr><td>turn_index</td><td>Int, nullable</td><td><code>2</code></td></tr>
+              <tr><td>headline / body</td><td>String, nullable</td><td><code>Catalog search prevented a wrong table</code></td></tr>
+              <tr><td>suggested_action / state_snapshot</td><td>Json / jsonb, nullable</td><td><code>{"action":"search schema first"}</code></td></tr>
+              <tr><td>severity / status</td><td>String</td><td><code>low / delivered</code></td></tr>
+              <tr><td>prompt_version</td><td>String, nullable</td><td><code>marcus_reflect_v3</code></td></tr>
+              <tr><td>delivered_at / resolved_at / created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T10:03:00Z</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+      </section>
+
+      <section id="operations-tables">
+        <h2>6. Synthesis, topic, and operations tables</h2>
+
+        <details id="platform-memory-synthesis-runs" open>
+          <summary><span class="table-title">platform_memory_synthesis_runs</span><span class="pill relational">Relational run log</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> One audit record for each synthesis sweep.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id / org_id</td><td>String / text</td><td><code>synth_run_001 / org_aloft</code></td></tr>
+              <tr><td>started_at / completed_at / created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T04:30:00Z / 04:32:11Z</code></td></tr>
+              <tr><td>sessions_scanned / reflected / skipped</td><td>Int</td><td><code>12 / 10 / 2</code></td></tr>
+              <tr><td>bullets_inserted / deduped / superseded</td><td>Int</td><td><code>7 / 11 / 1</code></td></tr>
+              <tr><td>phantoms_blocked / quarantined</td><td>Int</td><td><code>3 / 1</code></td></tr>
+              <tr><td>errors / first_error</td><td>Int / String nullable</td><td><code>0 / null</code></td></tr>
+              <tr><td>reflector_version</td><td>String</td><td><code>marcus_reflect_v3</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+
+        <details id="platform-memory-synthesis-details">
+          <summary><span class="table-title">platform_memory_synthesis_details</span><span class="pill relational">Relational per-session log</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> One detail record for each session considered by a synthesis run.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id / org_id / run_id / session_id</td><td>String / text</td><td><code>detail_001 / org_aloft / synth_run_001 / session_001</code></td></tr>
+              <tr><td>agent_class / task_signature</td><td>String, nullable</td><td><code>inspector / a1b2c3d4e5f60708</code></td></tr>
+              <tr><td>candidates_produced</td><td>Int</td><td><code>4</code></td></tr>
+              <tr><td>bullets_inserted / deduped / superseded</td><td>Int</td><td><code>2 / 2 / 0</code></td></tr>
+              <tr><td>phantoms_blocked / quarantined</td><td>Int</td><td><code>0 / 0</code></td></tr>
+              <tr><td>skipped_reason / error</td><td>String, nullable</td><td><code>null / null</code></td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T04:31:04Z</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+
+        <details id="platform-memory-topics">
+          <summary><span class="table-title">platform_memory_topics</span><span class="pill relational">Relational classification</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Maps task signatures to human-readable FOER topics so schema memory can be scoped to the right domain.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id / org_id / period</td><td>String / text</td><td><code>topic_001 / org_aloft / 2026-W40</code></td></tr>
+              <tr><td>topic_key / topic_name</td><td>String / text</td><td><code>crew_personnel / Crew &amp; Personnel</code></td></tr>
+              <tr><td>topic_rank / member_count</td><td>Int</td><td><code>1 / 14</code></td></tr>
+              <tr><td>task_signature</td><td>String / text</td><td><code>a1b2c3d4e5f60708</code></td></tr>
+              <tr><td>prompt_version</td><td>String / text</td><td><code>llm_classify_v1</code></td></tr>
+              <tr><td>created_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T04:32:00Z</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+
+        <details id="platform-job-runs">
+          <summary><span class="table-title">platform_job_runs</span><span class="pill relational">Relational operations log</span></summary>
+          <div class="table-body">
+            <p><strong>Purpose:</strong> Records each DAG job execution, including nightly synthesis, weekly refine, and FOER reclassification.</p>
+            <table><thead><tr><th>Column</th><th>Type</th><th>Sample</th></tr></thead><tbody>
+              <tr><td>id / org_id / run_group_id</td><td>String / text</td><td><code>job_001 / org_aloft / group_001</code></td></tr>
+              <tr><td>job_key</td><td>String / text</td><td><code>synthesize</code>, <code>grow_refine</code>, <code>reclassify</code></td></tr>
+              <tr><td>status</td><td>String / text</td><td><code>running</code>, <code>ok</code>, <code>error</code></td></tr>
+              <tr><td>started_at / finished_at</td><td>DateTime / timestamptz</td><td><code>2026-09-30T04:30:00Z / 04:32:11Z</code></td></tr>
+              <tr><td>items_processed</td><td>Int, nullable</td><td><code>12</code></td></tr>
+              <tr><td>error_text</td><td>String, nullable</td><td><code>null</code></td></tr>
+            </tbody></table>
+          </div>
+        </details>
+      </section>
+
+      <section id="vector-search">
+        <h2>7. Vector search: exactly where it happens</h2>
+        <div class="card">
+          <p>Only <code>platform_agent_memory.embedding</code> participates in vector similarity search.</p>
+          <pre>Question:
+  "How many active crew certificates expire this month?"
+
+1. embedQuery(question)
+   → [0.11, -0.28, 0.74, ...]
+
+2. PostgreSQL / pgvector:
+   ORDER BY embedding &lt;=&gt; question_vector
+
+3. Retrieve nearest ACTIVE rules:
+   "expiry_date is a DATE column"
+   "Filter status = 'ACTIVE'"
+
+4. Write usage record:
+   platform_memory_injections(bullet_id, run_id, phase)
+
+5. Attribute the result:
+   platform_agent_memory.helpful_count += 1</pre>
+        </div>
+        <div class="callout">
+          <strong>Important:</strong> The injection table does not contain embeddings. It only stores IDs and run metadata. The actual vector data is in <code>platform_agent_memory</code>.
+        </div>
+      </section>
+
+      <section id="sample-flow">
+        <h2>8. Complete sample data flow</h2>
+        <ol>
+          <li><strong>Trace:</strong> <code>platform_trace_nodes</code> records a successful <code>describe_schema</code> result showing <code>ops.crew_certificates.expiry_date</code>.</li>
+          <li><strong>Synthesis:</strong> <code>reflectSession</code> proposes a rule; <code>curate</code> validates and embeds it.</li>
+          <li><strong>Memory:</strong> The rule is inserted into <code>platform_agent_memory</code> with an ACTIVE status and vector.</li>
+          <li><strong>Retrieval:</strong> A future question is embedded and matched against the memory vector.</li>
+          <li><strong>Injection:</strong> The selected bullet is recorded in <code>platform_memory_injections</code>.</li>
+          <li><strong>Outcome:</strong> Successful execution increments helpful counters; a harmful rule can later be superseded.</li>
+          <li><strong>Audit:</strong> Run and session results are available in synthesis run/detail and job-run tables.</li>
+        </ol>
+      </section>
+
+      <section id="schema-source">
+        <h2>9. Source of truth</h2>
+        <div class="card">
+          <p>The table definitions documented here were verified against:</p>
+          <ul>
+            <li><code>prisma/schema.prisma</code>, models <code>PlatformMarcusReflection</code> through <code>PlatformJobRun</code></li>
+            <li><code>src/lib/memory/</code> retrieval, attribution, trace, synthesis, and reputation modules</li>
+            <li><code>docs/AI-AGENT-MEMORY.md</code> and <code>docs/self-improving-memory-guide.html</code></li>
+          </ul>
+          <p class="note">All sample values in this page are illustrative documentation examples, not production records.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

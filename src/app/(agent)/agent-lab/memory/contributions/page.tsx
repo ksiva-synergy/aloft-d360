@@ -13,7 +13,7 @@ export default function MemoryContributionsPage() {
         <div className="mb-6">
           <h1
             className="text-[1.4rem] font-semibold tracking-tight"
-            style={{ fontFamily: '"Inter Tight", Inter, sans-serif' }}
+            style={{ fontFamily: '"Inter Variable", Inter, sans-serif' }}
           >
             Memory Contributions
           </h1>

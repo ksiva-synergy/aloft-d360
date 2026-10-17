@@ -19,12 +19,12 @@ const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 // Theme-aware: dark navy surface in dark mode, light surface in light mode.
 const TOOLTIP_STYLE_DARK = {
   backgroundColor: '#0F2236',
-  borderColor: '#FDB515',
+  borderColor: '#5B3DF5',
   borderWidth: 1,
   textStyle: {
     color: '#F0F4F8',
     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-    fontSize: 11,
+    fontSize: 13,
   },
 };
 const TOOLTIP_STYLE_LIGHT = {
@@ -34,7 +34,7 @@ const TOOLTIP_STYLE_LIGHT = {
   textStyle: {
     color: '#374151',
     fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-    fontSize: 11,
+    fontSize: 13,
   },
 };
 
@@ -94,7 +94,7 @@ export default function StudioChart({
     feature: {
       saveAsImage: {
         show: true,
-        backgroundColor: isDark ? '#0D1B2A' : '#ffffff',
+        backgroundColor: isDark ? '#111322' : '#ffffff',
         title: 'Save',
         iconStyle: { borderColor: isDark ? '#8BAFC8' : '#5A6A7A' },
       },

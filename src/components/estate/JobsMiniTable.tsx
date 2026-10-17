@@ -67,11 +67,11 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                 borderColor: borderColor,
               }}
             >
-              <th className="p-2.5 font-mono text-[9px] font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Kind</th>
-              <th className="p-2.5 font-mono text-[9px] font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
-              <th className="p-2.5 font-mono text-[9px] font-bold tracking-widest uppercase w-24" style={{ color: labelColor }}>Status</th>
-              <th className="p-2.5 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Started</th>
-              <th className="p-2.5 font-mono text-[9px] font-bold tracking-widest uppercase text-right w-20" style={{ color: labelColor }}>Duration</th>
+              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Kind</th>
+              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
+              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-24" style={{ color: labelColor }}>Status</th>
+              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Started</th>
+              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right w-20" style={{ color: labelColor }}>Duration</th>
             </tr>
           </thead>
           <tbody>
@@ -82,7 +82,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                 className="transition-colors duration-150 font-sans"
               >
                 {/* Kind — links to job detail */}
-                <td className="p-2.5 font-mono text-[11px] font-semibold" style={{ color: inkColor }}>
+                <td className="p-2.5 font-mono text-xs font-semibold" style={{ color: inkColor }}>
                   <Link
                     href={`/agent-lab/estate/jobs/${job.id}`}
                     className="px-1.5 py-0.5 rounded border bg-black/5 dark:bg-white/5 hover:underline"

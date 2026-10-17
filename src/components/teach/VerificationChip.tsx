@@ -67,7 +67,7 @@ export function VerificationChip({ v, compact = false }: { v: VerificationResult
           style={{
             display: 'block',
             fontFamily: FONT_MONO,
-            fontSize: 8.5,
+            fontSize: 13,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             color,
@@ -75,7 +75,7 @@ export function VerificationChip({ v, compact = false }: { v: VerificationResult
         >
           {caption}
         </span>
-        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
+        <span style={{ display: 'block', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
           {detail}
         </span>
       </span>

@@ -44,7 +44,7 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
 
   const selectStyle: React.CSSProperties = {
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '12px',
+    fontSize: '13px',
     letterSpacing: '0.04em',
     backgroundColor: surfaceBg,
     border: `1px solid ${borderColor}`,
@@ -86,7 +86,7 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
           className="flex-1 bg-transparent border-none outline-none"
           style={{
             color: inkColor,
-            fontFamily: "'Inter Tight', sans-serif",
+            fontFamily: "'Inter Variable', sans-serif",
             fontSize: '13px',
           }}
         />

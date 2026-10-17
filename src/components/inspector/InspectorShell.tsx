@@ -20,7 +20,7 @@ import { useInspectorChat } from '@/hooks/useInspectorChat';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
+const GOLD = '#5B3DF5';
 
 // ── Inspector status bar ──────────────────────────────────────────────────────
 interface InspectorStatusBarProps {
@@ -52,7 +52,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
         background: 'var(--wb-canvas)',
         borderBottom: '1px solid var(--wb-border-subtle)',
         ...mono,
-        fontSize: 11,
+        fontSize: 13,
         letterSpacing: '0.04em',
         overflow: 'hidden',
       }}
@@ -60,11 +60,11 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
       {/* LEFT — breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)', whiteSpace: 'nowrap', minWidth: 0 }}>
         <AloftSigil size={14} />
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10 }}>DATA 360</span>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 13 }}>DATA 360</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 10, color: GOLD }}>INSPECTOR</span>
+        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 13, color: GOLD }}>INSPECTOR</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
-        <span style={{ color: 'var(--wb-ink-dim)', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+        <span style={{ color: 'var(--wb-ink-dim)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
           {sessionTitle || 'New Session'}
         </span>
       </div>
@@ -87,12 +87,12 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             alignItems: 'center',
             gap: 5,
             ...mono,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             color: dbConnected ? GOLD : 'var(--wb-muted)',
-            background: dbConnected ? 'rgba(253,181,21,0.08)' : 'rgba(74,96,128,0.12)',
-            border: dbConnected ? '1px solid rgba(253,181,21,0.25)' : '1px solid rgba(74,96,128,0.25)',
+            background: dbConnected ? 'rgba(91, 61, 245,0.08)' : 'rgba(74,96,128,0.12)',
+            border: dbConnected ? '1px solid rgba(91, 61, 245,0.25)' : '1px solid rgba(74,96,128,0.25)',
             borderRadius: 4,
             padding: '3px 8px',
             pointerEvents: 'none',
@@ -113,7 +113,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
         </span>
 
         {/* Divider */}
-        <span style={{ width: 1, height: 12, background: 'rgba(253,181,21,0.15)', flexShrink: 0 }} />
+        <span style={{ width: 1, height: 12, background: 'rgba(91, 61, 245,0.15)', flexShrink: 0 }} />
 
         {/* Context mode toggle */}
         <button
@@ -126,22 +126,22 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             alignItems: 'center',
             gap: 6,
             ...mono,
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            border: `1px solid ${isHarvested ? 'rgba(253,181,21,0.35)' : 'rgba(147,197,253,0.35)'}`,
+            border: `1px solid ${isHarvested ? 'rgba(91, 61, 245,0.35)' : 'rgba(147,197,253,0.35)'}`,
             borderRadius: 4,
             padding: '3px 8px',
-            background: isHarvested ? 'rgba(253,181,21,0.06)' : 'rgba(147,197,253,0.06)',
+            background: isHarvested ? 'rgba(91, 61, 245,0.06)' : 'rgba(147,197,253,0.06)',
             color: isHarvested ? GOLD : '#93C5FD',
             transition: 'all 0.15s',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.background = isHarvested ? 'rgba(253,181,21,0.14)' : 'rgba(147,197,253,0.14)';
+            e.currentTarget.style.background = isHarvested ? 'rgba(91, 61, 245,0.14)' : 'rgba(147,197,253,0.14)';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = isHarvested ? 'rgba(253,181,21,0.06)' : 'rgba(147,197,253,0.06)';
+            e.currentTarget.style.background = isHarvested ? 'rgba(91, 61, 245,0.06)' : 'rgba(147,197,253,0.06)';
           }}
         >
           {/* Toggle pill */}
@@ -151,7 +151,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             width: 24,
             height: 12,
             borderRadius: 6,
-            background: isHarvested ? 'rgba(253,181,21,0.25)' : 'rgba(147,197,253,0.15)',
+            background: isHarvested ? 'rgba(91, 61, 245,0.25)' : 'rgba(147,197,253,0.15)',
             position: 'relative',
             flexShrink: 0,
             transition: 'background 0.15s',
@@ -180,12 +180,12 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             gap: 5,
             height: 28, borderRadius: 6,
             padding: '0 10px',
-            background: 'transparent', border: `1px solid rgba(253,181,21,0.30)`,
+            background: 'transparent', border: `1px solid rgba(91, 61, 245,0.30)`,
             color: GOLD, cursor: 'pointer', transition: 'all 0.15s',
-            ...mono, fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase',
+            ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
             flexShrink: 0,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(253,181,21,0.10)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
         >
           <SquarePen size={11} />
@@ -197,12 +197,12 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid rgba(253,181,21,0.15)',
+            background: 'transparent', border: '1px solid rgba(91, 61, 245,0.15)',
             color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
             flexShrink: 0,
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = 'rgba(253,181,21,0.06)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(253,181,21,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = 'rgba(91, 61, 245,0.06)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(91, 61, 245,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; e.currentTarget.style.background = 'transparent'; }}
         >
           <FlaskConical size={13} />
         </button>
@@ -212,20 +212,20 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid rgba(253,181,21,0.15)',
+            background: 'transparent', border: '1px solid rgba(91, 61, 245,0.15)',
             color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
             flexShrink: 0,
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(253,181,21,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(91, 61, 245,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; }}
         >
           <History size={13} />
         </button>
-        <span style={{ fontSize: 10 }}>
+        <span style={{ fontSize: 13 }}>
           SESSION <span style={{ color: 'var(--wb-ink-dim)' }}>{shortId}</span>
         </span>
-        <span style={{ width: 1, height: 14, background: 'rgba(253,181,21,0.15)', flexShrink: 0 }} />
-        <span style={{ fontSize: 9, letterSpacing: '0.08em' }}>POWERED BY ALOFT · v0.4</span>
+        <span style={{ width: 1, height: 14, background: 'rgba(91, 61, 245,0.15)', flexShrink: 0 }} />
+        <span style={{ fontSize: 13, letterSpacing: '0.08em' }}>POWERED BY ALOFT · v0.4</span>
       </div>
 
       <style>{`
@@ -414,9 +414,9 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       {sourceChartNotice && (
         <div
           style={{
-            ...mono, fontSize: 10, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
+            ...mono, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
             padding: '6px 24px', flexShrink: 0, color: GOLD,
-            background: 'rgba(253,181,21,0.08)', borderBottom: '1px solid rgba(253,181,21,0.2)',
+            background: 'rgba(91, 61, 245,0.08)', borderBottom: '1px solid rgba(91, 61, 245,0.2)',
           }}
         >
           <span style={{ flex: 1 }}>{sourceChartNotice}</span>

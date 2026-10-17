@@ -14,13 +14,13 @@ const VH = 420;
 
 // ── Brand colors (matching reference HTML / foer-tokens) ───────────────────────
 const C_SESSION  = '#5FA9AE';
-const C_KEPT_NEW = '#FDB515';
+const C_KEPT_NEW = '#5B3DF5';
 const C_KEPT_DED = '#C9A04E';
 const C_DISCARD  = '#4A6080';
 const C_PHANTOM  = '#D9774B';
 
 const RULE_TYPE_COLORS: Record<string, string> = {
-  HARD_RULE:    '#FDB515', // gold
+  HARD_RULE:    '#5B3DF5', // gold
   FAILURE_MODE: '#D9774B', // rust
   HEURISTIC:    '#5FA9AE', // teal
   SOURCE_PREF:  '#6F9DC4', // steel
@@ -514,7 +514,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       }}>
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '10.5px',
+          fontSize:      '13px',
           letterSpacing: '0.22em',
           color:         'var(--foer-text-mut)',
           textTransform: 'uppercase',
@@ -532,7 +532,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           title="Trigger a synthesis sweep — reflects new sessions into memory bullets"
           style={{
             fontFamily:    MONO,
-            fontSize:      '10px',
+            fontSize:      '13px',
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             borderRadius:  '6px',
@@ -565,7 +565,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           }}
         >
           {sweepState === 'running' && (
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '11px' }}>⟳</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '13px' }}>⟳</span>
           )}
           {sweepState === 'running'
             ? 'Distilling…'
@@ -617,7 +617,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               disabled={!run}
               style={{
                 fontFamily:    MONO,
-                fontSize:      '11px',
+                fontSize:      '13px',
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 borderRadius:  '6px',
@@ -637,7 +637,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           {isPlaying && (
             <button onClick={handlePause} style={{
               fontFamily:    MONO,
-              fontSize:      '11px',
+              fontSize:      '13px',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               background:    'transparent',
@@ -654,7 +654,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           {(isPlaying || isPaused || isDone) && (
             <button onClick={handleReset} disabled={isIdle} style={{
               fontFamily:    MONO,
-              fontSize:      '11px',
+              fontSize:      '13px',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               background:    'transparent',
@@ -670,7 +670,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           )}
           <span style={{
             fontFamily:    MONO,
-            fontSize:      '11px',
+            fontSize:      '13px',
             letterSpacing: '0.14em',
             color:         'var(--foer-text-mut)',
             textTransform: 'uppercase',
@@ -686,7 +686,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           justifyContent: 'space-between',
           margin:         '4px 4px 0',
           fontFamily:     MONO,
-          fontSize:       '10px',
+          fontSize:       '13px',
           letterSpacing:  '0.16em',
           textTransform:  'uppercase',
           color:          'var(--foer-text-mut)',
@@ -708,14 +708,14 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           <defs>
             <linearGradient id="keeperBeam" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="#FDE7A0" stopOpacity={0.95} />
-              <stop offset="0.5" stopColor="#FDB515" stopOpacity={0.5} />
-              <stop offset="1" stopColor="#FDB515" stopOpacity={0} />
+              <stop offset="0.5" stopColor="#5B3DF5" stopOpacity={0.5} />
+              <stop offset="1" stopColor="#5B3DF5" stopOpacity={0} />
             </linearGradient>
 
             {/* Scene floor gradient — warm glow under the keeper */}
             <radialGradient id="floorGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0"   stopColor="#FDB515" stopOpacity={isLight ? 0.18 : 0.28} />
-              <stop offset="1"   stopColor="#FDB515" stopOpacity={0} />
+              <stop offset="0"   stopColor="#5B3DF5" stopOpacity={isLight ? 0.18 : 0.28} />
+              <stop offset="1"   stopColor="#5B3DF5" stopOpacity={0} />
             </radialGradient>
           </defs>
 
@@ -1023,7 +1023,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
         {/* ── Recon counters (inline text) ─────────────────────────────────── */}
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '12px',
+          fontSize:      '13px',
           letterSpacing: '0.04em',
           color:         'var(--foer-text-sec)',
           marginTop:     '14px',
