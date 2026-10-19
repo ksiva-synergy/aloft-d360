@@ -4,15 +4,13 @@
 
 import 'server-only';
 import { z } from 'zod';
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { callContextHarvesterLlm } from './harvester-llm';
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { finalize } from './queue';
 
 // ── Models & constants ────────────────────────────────────────────────────────
-
-const ADJUDICATE_MODEL = 'us.anthropic.claude-sonnet-4-6';
 
 const ADJUDICATION_SYSTEM = `You are a data catalog mapping engine for a maritime crew-management platform.
 Your job is to adjudicate candidate object links across databases/schemas and decide whether they represent a data silo, duplicate tables, related tables, or completely unrelated tables.
@@ -46,18 +44,6 @@ const ObjectLinkVerdictSchema = z.object({
 
 const AdjudicationBatchSchema = z.array(ObjectLinkVerdictSchema);
 type ObjectLinkVerdict = z.infer<typeof ObjectLinkVerdictSchema>;
-
-// ── Bedrock client helper ──────────────────────────────────────────────────────
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
 
 // ── Helpers for extracting labels and metadata ───────────────────────────────
 
@@ -355,28 +341,17 @@ export async function runSiloScan(
         `Each element: { pair_index, verdict, reasoning, confidence }\n` +
         `First character must be [. No markdown. No preamble.`;
 
-      type Msg = { role: 'user' | 'assistant'; content: { type: 'text'; text: string }[] };
-      const messages: Msg[] = [{ role: 'user', content: [{ type: 'text', text: userMessage }] }];
-
-      const client = getBedrockClient();
+      type Msg = { role: 'user' | 'assistant'; content: string };
+      const messages: Msg[] = [{ role: 'user', content: userMessage }];
 
       const invoke = async (msgs: Msg[]) => {
-        const cmd = new ConverseCommand({
-          modelId: ADJUDICATE_MODEL,
-          system: [{ text: ADJUDICATION_SYSTEM }],
+        const resp = await callContextHarvesterLlm({
+          system: ADJUDICATION_SYSTEM,
           messages: msgs,
-          inferenceConfig: { temperature: 0.2, maxTokens: 8192 },
+          maxTokens: 8192,
+          temperature: 0.2,
         });
-        const resp = await client.send(cmd);
-        const text =
-          resp.output?.message?.content
-            ?.map((b) => ('text' in b ? (b as { text: string }).text : ''))
-            .join('') ?? '';
-        return {
-          text,
-          input: resp.usage?.inputTokens ?? 0,
-          output: resp.usage?.outputTokens ?? 0,
-        };
+        return { text: resp.text, input: resp.inputTokens, output: resp.outputTokens };
       };
 
       const tryParseAndValidate = (text: string): ObjectLinkVerdict[] | null => {
@@ -397,7 +372,7 @@ export async function runSiloScan(
       try {
         llmCallResult = await invoke(messages);
       } catch (err) {
-        console.warn('[silo] Bedrock call failed', err);
+        console.warn('[silo] harvest LLM call failed', err);
       }
 
       if (llmCallResult) {
@@ -409,10 +384,11 @@ export async function runSiloScan(
           // Retry once
           const retryMsgs: Msg[] = [
             ...messages,
-            { role: 'assistant', content: [{ type: 'text', text: llmCallResult.text }] },
+            { role: 'assistant', content: llmCallResult.text },
             {
               role: 'user',
-              content: [{ type: 'text', text: 'Your previous response was not valid JSON array. Return ONLY the array starting with [. No other text.' }],
+              content:
+                'Your previous response was not valid JSON array. Return ONLY the array starting with [. No other text.',
             },
           ];
           try {
@@ -421,7 +397,7 @@ export async function runSiloScan(
             totalOutput += retryResult.output;
             parsed = tryParseAndValidate(retryResult.text);
           } catch (err) {
-            console.warn('[silo] Bedrock retry failed', err);
+            console.warn('[silo] harvest LLM retry failed', err);
           }
         }
 

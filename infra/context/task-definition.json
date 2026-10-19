@@ -10,6 +10,8 @@
     {
       "name": "context-harvester",
       "image": "640012953890.dkr.ecr.ap-south-1.amazonaws.com/aloft-context-harvester:latest",
+      "cpu": 0,
+      "portMappings": [],
       "essential": true,
       "command": [
         "npx",
@@ -19,46 +21,62 @@
         "scripts/context/orchestrator.ts"
       ],
       "environment": [
-        { "name": "NODE_ENV",          "value": "production" },
-        { "name": "HARVESTER_VERSION", "value": "ch4" },
-        { "name": "BEDROCK_REGION",    "value": "ap-south-1" },
-        { "name": "DEFAULT_ORG_SLUG",  "value": "spinor-demo" },
-        { "name": "DEFAULT_ORG_ID",    "value": "cmpm82n5x0000dj0cn3fo9pug" }
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "HARVESTER_VERSION", "value": "ch5-grok-foundry-embed" },
+        { "name": "DEFAULT_ORG_SLUG", "value": "spinor-demo" },
+        { "name": "DEFAULT_ORG_ID", "value": "cmpm82n5x0000dj0cn3fo9pug" },
+        { "name": "XAI_MODEL", "value": "grok-4.7" },
+        { "name": "CONTEXT_HARVEST_MODEL", "value": "grok-4.7" },
+        { "name": "FOUNDRY_ENDPOINT", "value": "https://aif-synde-eastus2.services.ai.azure.com" },
+        { "name": "FOUNDRY_EMBEDDING_DEPLOYMENT", "value": "text-embedding-3-large" },
+        { "name": "FOUNDRY_EMBEDDING_ENDPOINT", "value": "https://aif-synde-eastus2.services.ai.azure.com" },
+        { "name": "AZURE_OPENAI_API_VERSION", "value": "2024-12-01-preview" }
       ],
+      "mountPoints": [],
+      "volumesFrom": [],
       "secrets": [
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/aurora:DATABASE_URL::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABASE_URL::"
         },
         {
           "name": "DIRECT_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/aurora:DIRECT_URL::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DIRECT_URL::"
         },
         {
           "name": "DATABRICKS_CLIENT_ID",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_CLIENT_ID::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_CLIENT_ID::"
         },
         {
           "name": "DATABRICKS_CLIENT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_CLIENT_SECRET::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_CLIENT_SECRET::"
         },
         {
           "name": "DATABRICKS_HOST",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_HOST::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_HOST::"
         },
         {
           "name": "DATABRICKS_HTTP_PATH",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_HTTP_PATH::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_HTTP_PATH::"
+        },
+        {
+          "name": "XAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:XAI_API_KEY::"
+        },
+        {
+          "name": "FOUNDRY_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_API_KEY::"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group":         "/ecs/aloft-context-harvester",
-          "awslogs-region":        "ap-south-1",
+          "awslogs-group": "/ecs/aloft-context-harvester",
+          "awslogs-region": "ap-south-1",
           "awslogs-stream-prefix": "harvester"
         }
-      }
+      },
+      "systemControls": []
     }
   ]
 }

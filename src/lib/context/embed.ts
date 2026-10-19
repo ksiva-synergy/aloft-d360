@@ -69,7 +69,7 @@ export function composeEmbedText(
   }
 }
 
-// ── Embedding implementation (Titan → Azure OpenAI fallback) ───────────────────
+// ── Embedding implementation (Azure OpenAI / Foundry only) ─────────────────────
 
 async function getEmbedding(text: string): Promise<{ vector: number[]; modelId: string } | null> {
   const result = await embedWithFallback(text, EMBED_DIMS);
@@ -254,7 +254,7 @@ export async function embedSubjects(
 // ── embedQuery (exported for semantic search) ─────────────────────────────────
 
 /**
- * Embed a raw query string (Titan → Azure OpenAI fallback, 1024-dim).
+ * Embed a raw query string (Azure OpenAI / Foundry, 1024-dim).
  * Returns null on failure — callers must fall back gracefully.
  */
 export async function embedQuery(text: string): Promise<number[] | null> {

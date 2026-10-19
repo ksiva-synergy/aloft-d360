@@ -632,7 +632,7 @@ type EmbedRow = { subject_id: string; similarity: number };
  * Routing order (stops at the first layer that produces confident results):
  *  1. Keyword routing — GIN array overlap on domain_keywords (<5ms, no Bedrock).
  *     Fires when ≥2 query tokens appear in a stored keyword set.
- *  2. Bedrock embedding — pgvector cosine similarity via Titan v2 (~300ms).
+ *  2. Azure OpenAI embedding — pgvector cosine similarity (~300ms).
  *     Used when keyword routing is insufficient or returns zero matches.
  *  3. ILIKE name match — always run as an additive blend.
  *
