@@ -634,6 +634,7 @@ export interface PromptCanvasProps {
   onEditAssumption?: (field: string, newValue: string) => void;
   onApplyClass?: (updatedClass: unknown, updatedMemory: unknown) => void;
   onDismissClassSuggestion?: () => void;
+  modelOptions?: import('@/components/agent-lab/workbench/types').ModelOption[];
 }
 
 export function PromptCanvas({
@@ -668,6 +669,7 @@ export function PromptCanvas({
   onEditAssumption,
   onApplyClass,
   onDismissClassSuggestion,
+  modelOptions,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
 
@@ -818,6 +820,7 @@ export function PromptCanvas({
         onAttachTool={onAttachTool}
         onDetachTool={onDetachTool}
         canCommission={canCommission}
+        modelOptions={modelOptions}
         placeholder={SURFACE_COPY[surface].placeholder}
         minLength={10}
       />

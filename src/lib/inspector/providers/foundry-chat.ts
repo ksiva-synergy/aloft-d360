@@ -26,8 +26,20 @@ const RESOURCE_CONFIG = {
   },
   'bedrock-mantle': {
     getBaseURL: (_: string) =>
-      `https://bedrock-mantle.${process.env.BEDROCK_MANTLE_REGION ?? 'us-east-2'}.api.aws/openai/v1`,
+      `https://bedrock-mantle.${process.env.BEDROCK_MANTLE_REGION ?? 'us-east-1'}.api.aws/openai/v1`,
     getApiKey: () => process.env.BEDROCK_MANTLE_API_KEY!,
+    getDefaultQuery: (): Record<string, string> => ({}),
+  },
+  llmlite: {
+    getBaseURL: (_: string) => {
+      const base =
+        process.env.LLMLITE_BASE_URL?.trim() ||
+        process.env.llmlite_base_url?.trim() ||
+        '';
+      return `${base.replace(/\/$/, '')}/v1`;
+    },
+    getApiKey: () =>
+      (process.env.LLMLITE_API_KEY || process.env.llmlite_api_key || '').trim(),
     getDefaultQuery: (): Record<string, string> => ({}),
   },
   xai: {
@@ -44,7 +56,8 @@ function getFoundryClient(model: BoostModel): OpenAI {
   const apiKey = cfg.getApiKey();
 
   // xAI and Bedrock Mantle use standard OpenAI Bearer auth (no special api-key header)
-  const usesStandardAuth = resource === 'bedrock-mantle' || resource === 'xai';
+  const usesStandardAuth =
+    resource === 'bedrock-mantle' || resource === 'llmlite' || resource === 'xai';
   const defaultHeaders = usesStandardAuth ? {} : { 'api-key': apiKey };
 
   return new OpenAI({

@@ -18,13 +18,22 @@ export function hasBedrockMantleCredentials(): boolean {
   return !!process.env.BEDROCK_MANTLE_API_KEY?.trim();
 }
 
+export function hasLlmLiteCredentials(): boolean {
+  const base =
+    process.env.LLMLITE_BASE_URL?.trim() || process.env.llmlite_base_url?.trim();
+  const key =
+    process.env.LLMLITE_API_KEY?.trim() || process.env.llmlite_api_key?.trim();
+  return !!(base && key);
+}
+
 /** True when any supported provider can be invoked (not the demo canned stream). */
 export function inspectorLlmConfigured(): boolean {
   if (
     hasStaticAwsCredentials() ||
     hasXaiCredentials() ||
     hasFoundryCredentials() ||
-    hasBedrockMantleCredentials()
+    hasBedrockMantleCredentials() ||
+    hasLlmLiteCredentials()
   ) {
     return true;
   }

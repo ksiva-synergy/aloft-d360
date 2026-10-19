@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import OpenAI from 'openai';
 import { authOptions } from '@/lib/auth';
+import {
+  getLunaOpenAIChatClient,
+  resolveOpenAIChatModelId,
+} from '@/lib/bedrock/mantle-openai';
+import { BOOST_MODELS } from '@/lib/boost/models';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,18 +22,6 @@ function fallbackTitle(messages: TitleMessage[]): string | null {
   const t = first.content.trim().replace(/\s+/g, ' ');
   if (t.length <= 60) return t;
   return `${t.slice(0, 57)}...`;
-}
-
-function getFoundryClient(): OpenAI | null {
-  const endpoint = process.env.FOUNDRY_ENDPOINT;
-  const apiKey = process.env.FOUNDRY_API_KEY;
-  if (!endpoint || !apiKey) return null;
-  const base = endpoint.replace(/\/$/, '');
-  return new OpenAI({
-    apiKey,
-    baseURL: `${base}/openai/v1`,
-    defaultHeaders: { 'api-key': apiKey },
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -56,14 +48,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ title: null });
   }
 
-  const client = getFoundryClient();
+  const client = getLunaOpenAIChatClient();
   if (!client) {
     return NextResponse.json({ title: fallbackTitle(messages) });
   }
 
+  const modelId = resolveOpenAIChatModelId(TITLE_MODEL);
+  const registered = BOOST_MODELS.find(
+    (m) => m.modelId === modelId || m.key === TITLE_MODEL || m.modelId === TITLE_MODEL,
+  );
+  const tokenParam = registered?.tokenParam ?? 'max_completion_tokens';
+  const tokenConfig =
+    tokenParam === 'max_tokens' ? { max_tokens: 32 } : { max_completion_tokens: 32 };
+
   try {
     const completion = await client.chat.completions.create({
-      model: TITLE_MODEL,
+      model: modelId,
       messages: [
         {
           role: 'system',
@@ -72,8 +72,7 @@ export async function POST(request: NextRequest) {
         },
         { role: 'user', content: userText.slice(0, 2000) },
       ],
-      max_completion_tokens: 32,
-      temperature: 0.3,
+      ...tokenConfig,
     });
     const raw = completion.choices[0]?.message?.content?.trim() ?? '';
     const title =

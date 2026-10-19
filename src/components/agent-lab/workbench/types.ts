@@ -165,7 +165,7 @@ export interface WorkbenchChatRequest {
 export interface ModelOption {
   key: string;
   label: string;
-  provider: 'anthropic' | 'mistral' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'qwen';
+  provider: 'anthropic' | 'mistral' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'qwen' | 'llmlite';
   bedrockId: string;
   supportsTools: boolean;
   supportsThinking: boolean;

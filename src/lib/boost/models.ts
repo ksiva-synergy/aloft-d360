@@ -1,6 +1,6 @@
 export type ModelTier = 'frontier' | 'production' | 'value' | 'cheap' | 'reasoning';
 export type TokenParam = 'max_tokens' | 'max_completion_tokens';
-export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle' | 'xai';
+export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle' | 'llmlite' | 'xai';
 
 export type BoostModel = {
   key: string;

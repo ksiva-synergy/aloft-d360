@@ -32,6 +32,11 @@ import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { fromLlmLiteModelKey } from '@/lib/llmlite/keys';
+import {
+  boostModelFromLlmLiteKey,
+  llmLiteInspectorRuntimeConfig,
+} from '@/lib/llmlite/inspector-models';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import {
   hasStaticAwsCredentials,
@@ -105,7 +110,11 @@ function resolveGrokBoostModel(): BoostModel {
 }
 
 function resolveModel(key?: string) {
-  if (key && MODELS_MAP[key]) return MODELS_MAP[key];
+  if (key) {
+    const gatewayId = fromLlmLiteModelKey(key);
+    if (gatewayId) return llmLiteInspectorRuntimeConfig(gatewayId);
+    if (MODELS_MAP[key]) return MODELS_MAP[key];
+  }
   if (!key && hasXaiCreds) return MODELS_MAP[DEFAULT_INSPECTOR_MODEL_KEY];
   return MODELS_MAP[DEFAULT_MODEL_KEY];
 }
@@ -169,7 +178,6 @@ export async function POST(request: NextRequest) {
   if (authBlock) return authBlock;
 
   if (!inspectorLlmConfigured()) {
-    // Demo stream when no LLM provider is reachable (see llm-configured.ts)
     return cannedResponse(request);
   }
 
@@ -390,6 +398,11 @@ export async function POST(request: NextRequest) {
         let boostModel = isFoundryModel
           ? BOOST_MODELS.find(m => m.modelId === modelConfig.foundryDeployment)
           : undefined;
+
+        const llmLiteGatewayId = body.model ? fromLlmLiteModelKey(body.model) : null;
+        if (!boostModel && llmLiteGatewayId && body.model) {
+          boostModel = boostModelFromLlmLiteKey(body.model, llmLiteGatewayId);
+        }
 
         // Special handling for direct xAI (grok-xai) — match by key if not found by modelId
         if (!boostModel && body.model === 'grok-xai') {
