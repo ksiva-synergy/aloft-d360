@@ -2,13 +2,18 @@ import 'server-only';
 
 import OpenAI from 'openai';
 import { BOOST_MODELS } from '@/lib/boost/models';
+import {
+  getBedrockMantleOpenAIClient,
+  getLunaOpenAIChatClient,
+  resolveOpenAIChatModelId,
+} from '@/lib/bedrock/mantle-openai';
 
-/** Prefer Foundry (same path as embeddings / session summary); avoids broken Bedrock IAM (F-001). */
+/** Default Luna on Bedrock Mantle when configured; else Foundry deployment name. */
 const DEFAULT_SCORER_MODEL =
   process.env.BOOST_SCORER_MODEL ?? process.env.INSPECTOR_SESSION_SUMMARY_MODEL ?? 'gpt-6-luna';
 
 export function getScorerModelId(): string {
-  return DEFAULT_SCORER_MODEL;
+  return resolveOpenAIChatModelId(DEFAULT_SCORER_MODEL);
 }
 
 function resolveTokenParam(modelId: string): 'max_tokens' | 'max_completion_tokens' {
@@ -17,6 +22,17 @@ function resolveTokenParam(modelId: string): 'max_tokens' | 'max_completion_toke
 }
 
 export function getScorerClient(): OpenAI | null {
+  const model = getScorerModelId();
+  const mantle = getBedrockMantleOpenAIClient();
+  if (mantle && model.startsWith('openai.')) {
+    return mantle;
+  }
+
+  const lunaClient = getLunaOpenAIChatClient();
+  if (lunaClient && (model === 'gpt-6-luna' || model.startsWith('openai.gpt-6-luna'))) {
+    return lunaClient;
+  }
+
   const foundryEndpoint = process.env.FOUNDRY_ENDPOINT;
   const foundryKey = process.env.FOUNDRY_API_KEY;
   if (foundryEndpoint && foundryKey) {
@@ -59,7 +75,7 @@ export async function callScorerLlm(params: {
   const client = getScorerClient();
   if (!client) {
     throw new Error(
-      'Boost scorers require FOUNDRY_ENDPOINT + FOUNDRY_API_KEY (or AZURE_OPENAI_*)',
+      'Boost scorers require BEDROCK_MANTLE_API_KEY, FOUNDRY_ENDPOINT + FOUNDRY_API_KEY, or AZURE_OPENAI_*',
     );
   }
 

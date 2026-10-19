@@ -3,6 +3,10 @@ import 'server-only';
 import OpenAI from 'openai';
 import type { TrajectoryEntry } from '@/lib/inspector/agent-loop';
 import {
+  getLunaOpenAIChatClient,
+  resolveOpenAIChatModelId,
+} from '@/lib/bedrock/mantle-openai';
+import {
   buildTemplateSessionSummary,
   summarizeTrajectoryOutline,
   validateNarrativeAgainstFacts,
@@ -19,21 +23,14 @@ function isLlmSummaryEnabled(): boolean {
   const flag = process.env.INSPECTOR_SESSION_SUMMARY_LLM;
   if (flag === 'false' || flag === '0') return false;
   return !!(
+    process.env.BEDROCK_MANTLE_API_KEY ||
     (process.env.FOUNDRY_ENDPOINT && process.env.FOUNDRY_API_KEY) ||
     (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
   );
 }
 
-function getFoundrySummaryClient(): OpenAI | null {
-  const endpoint = process.env.FOUNDRY_ENDPOINT;
-  const apiKey = process.env.FOUNDRY_API_KEY;
-  if (!endpoint || !apiKey) return null;
-  const base = endpoint.replace(/\/$/, '');
-  return new OpenAI({
-    apiKey,
-    baseURL: `${base}/openai/v1`,
-    defaultHeaders: { 'api-key': apiKey },
-  });
+function getSummaryChatClient(): OpenAI | null {
+  return getLunaOpenAIChatClient();
 }
 
 function factsPayload(k: InspectorSessionKnowledge): string {
@@ -81,14 +78,18 @@ Session recap:`;
 }
 
 async function callFoundrySummary(prompt: string): Promise<string | null> {
-  const client = getFoundrySummaryClient();
+  const client = getSummaryChatClient();
   if (!client) return null;
+
+  const modelId = resolveOpenAIChatModelId(DEFAULT_SUMMARY_MODEL);
 
   // Prefer registry tokenParam; newer Foundry chat models reject `max_tokens`.
   let tokenParam: 'max_tokens' | 'max_completion_tokens' = 'max_completion_tokens';
   try {
     const { BOOST_MODELS } = await import('@/lib/boost/models');
-    const registered = BOOST_MODELS.find((m) => m.modelId === DEFAULT_SUMMARY_MODEL || m.key === DEFAULT_SUMMARY_MODEL);
+    const registered = BOOST_MODELS.find(
+      (m) => m.modelId === modelId || m.key === DEFAULT_SUMMARY_MODEL || m.modelId === DEFAULT_SUMMARY_MODEL,
+    );
     if (registered?.tokenParam) tokenParam = registered.tokenParam;
   } catch {
     /* keep default */
@@ -96,11 +97,10 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
 
   const tokenConfig = { [tokenParam]: 220 } as Record<string, number>;
 
-  // Omit temperature: gpt-6-luna / GPT-5-family Foundry models only allow default (1).
-  // Matching runFoundryAgentLoop, which also leaves temperature unset.
+  // Omit temperature: gpt-6-luna / GPT-5-family models only allow default (1).
   try {
     const response = await client.chat.completions.create({
-      model: DEFAULT_SUMMARY_MODEL,
+      model: modelId,
       messages: [
         {
           role: 'system',
@@ -118,7 +118,7 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
       const alt: 'max_tokens' | 'max_completion_tokens' =
         tokenParam === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens';
       const response = await client.chat.completions.create({
-        model: DEFAULT_SUMMARY_MODEL,
+        model: modelId,
         messages: [
           {
             role: 'system',
@@ -164,7 +164,7 @@ export async function generateNarrativeSessionSummary(
 
   try {
     let text: string | null = null;
-    if (getFoundrySummaryClient()) {
+    if (getSummaryChatClient()) {
       text = await callFoundrySummary(prompt);
     } else {
       text = await callBedrockSummary(prompt);

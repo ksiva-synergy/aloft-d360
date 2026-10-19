@@ -76,14 +76,25 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws
 
 ## Secrets Manager layout expected by the task
 
-| Secret ARN suffix               | Key                    |
-|---------------------------------|------------------------|
-| `aloft/aurora`                  | `DATABASE_URL`         |
-| `aloft/aurora`                  | `DIRECT_URL`           |
-| `aloft/databricks`              | `DATABRICKS_CLIENT_ID` |
-| `aloft/databricks`              | `DATABRICKS_CLIENT_SECRET` |
+All keys are read from the **`ALOFT`** secret (ARN suffix `ALOFT-scBxmq` in `task-definition.json`).
 
-Create or update these secrets before running the task.
+| JSON key in `ALOFT` secret | Used for |
+|----------------------------|----------|
+| `DATABASE_URL`, `DIRECT_URL` | Postgres / Prisma |
+| `DATABRICKS_*` | Warehouse harvest |
+| `XAI_API_KEY` | Estate harvest LLM (Grok 4.7) |
+| `FOUNDRY_API_KEY` | `text-embedding-3-large` embeddings |
+
+Add `XAI_API_KEY` and `FOUNDRY_API_KEY` to the existing secret JSON if they are not there yet, then re-register the task definition (step 3).
+
+### Estate harvest LLM / embeddings (task env)
+
+| Source | Variables |
+|--------|-----------|
+| Plain env in `task-definition.json` | `XAI_MODEL`, `CONTEXT_HARVEST_MODEL` (default `grok-4.7`), `FOUNDRY_ENDPOINT`, `FOUNDRY_EMBEDDING_*`, `AZURE_OPENAI_API_VERSION` |
+| `aloft/estate-llm` | `XAI_API_KEY` (enrich / T3 / silo / mapping chat), `FOUNDRY_API_KEY` (Azure `text-embedding-3-large` via `embed-client`) |
+
+Bedrock is no longer required for the context harvester pipeline. After changing secrets or env, run **step 3** (register task definition) and ensure EventBridge targets use the new revision.
 
 ## Required Env Vars — Org Resolution
 

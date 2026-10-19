@@ -148,7 +148,7 @@ export interface WorkbenchChatRequest {
 export interface ModelOption {
   key: string;
   label: string;
-  provider: 'anthropic' | 'mistral' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'qwen';
+  provider: 'anthropic' | 'mistral' | 'openai' | 'xai' | 'moonshot' | 'deepseek' | 'qwen' | 'llmlite';
   bedrockId: string;
   supportsTools: boolean;
   supportsThinking: boolean;
@@ -157,14 +157,16 @@ export interface ModelOption {
 
 export const AVAILABLE_MODELS: ModelOption[] = [
   // Anthropic (Bedrock)
-  { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'anthropic', bedrockId: 'us.anthropic.claude-opus-4-6-v1',                 supportsTools: true,  supportsThinking: true,  description: 'Frontier — most capable' },
-  { key: 'sonnet-4-6',  label: 'Claude Sonnet 4.6', provider: 'anthropic', bedrockId: 'us.anthropic.claude-sonnet-4-6',                   supportsTools: true,  supportsThinking: true,  description: 'Production default' },
+  { key: 'opus-5-5',    label: 'Claude Opus 5.5',   provider: 'anthropic', bedrockId: 'us.anthropic.claude-opus-5-5',                     supportsTools: true,  supportsThinking: true,  description: 'Frontier — agentic coding & long tasks' },
+  { key: 'sonnet-5-5',  label: 'Claude Sonnet 5.5', provider: 'anthropic', bedrockId: 'us.anthropic.claude-sonnet-5-5',                   supportsTools: true,  supportsThinking: true,  description: 'Production default (Bedrock)' },
+  { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'anthropic', bedrockId: 'us.anthropic.claude-opus-4-6-v1',                 supportsTools: true,  supportsThinking: true,  description: 'Legacy frontier' },
+  { key: 'sonnet-4-6',  label: 'Claude Sonnet 4.6', provider: 'anthropic', bedrockId: 'us.anthropic.claude-sonnet-4-6',                   supportsTools: true,  supportsThinking: true,  description: 'Legacy production' },
   { key: 'mistral-l3',  label: 'Mistral Large 3',   provider: 'mistral',   bedrockId: 'mistral.mistral-large-3-675b-instruct',            supportsTools: true,  supportsThinking: false, description: '128K context, multilingual' },
   { key: 'haiku-4-5',   label: 'Claude Haiku 4.5',  provider: 'anthropic', bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',      supportsTools: true,  supportsThinking: false, description: 'Fastest Anthropic, cheapest' },
   { key: 'qwen3-32b',   label: 'Qwen3 32B',         provider: 'qwen',      bedrockId: 'qwen.qwen3-32b-v1:0',                             supportsTools: true,  supportsThinking: false, description: 'Alibaba Qwen3, 131K context' },
   // Azure Foundry
   { key: 'gpt-5-4',     label: 'GPT-5.4',           provider: 'openai',    bedrockId: 'gpt-5.4-PBC',                                     supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-5.4 via Foundry' },
-  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'gpt-6-luna',                                      supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-6 Luna via Foundry' },
+  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'openai.gpt-6-luna',                               supportsTools: true,  supportsThinking: false, description: 'GPT-6 Luna via Bedrock Mantle (direct)' },
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'xai',       bedrockId: 'grok-4.3-PBC',                                    supportsTools: true,  supportsThinking: false, description: 'xAI Grok 4.3 via Foundry' },
   // Direct xAI (when XAI_API_KEY is set in backend)
   { key: 'grok-xai',    label: 'Grok 4.7 (xAI direct)', provider: 'xai',       bedrockId: 'grok-4.7',                                        supportsTools: true,  supportsThinking: false, description: 'Native xAI via XAI_API_KEY + XAI_MODEL (grok-4.7)' },

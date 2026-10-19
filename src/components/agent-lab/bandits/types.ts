@@ -129,6 +129,8 @@ export const MODEL_COLORS: Record<string, string> = {
   'kimi-k2-6-PBC':      '#0e7490',
   'DeepSeek-V4-Pro':    '#15803d',
   // Bedrock
+  'us.anthropic.claude-sonnet-5-5': '#2563eb',
+  'us.anthropic.claude-opus-5-5': '#7c3aed',
   'us.anthropic.claude-sonnet-4-6': '#059669',
   'us.anthropic.claude-opus-4-6-v1': '#d97706',
 };
@@ -145,6 +147,8 @@ export const MODEL_SHORT_NAMES: Record<string, string> = {
   'kimi-k2-6-PBC':      'Kimi K2.6',
   'DeepSeek-V4-Pro':    'DeepSeek V4',
   // Bedrock
+  'us.anthropic.claude-sonnet-5-5': 'Sonnet 5.5',
+  'us.anthropic.claude-opus-5-5': 'Opus 5.5',
   'us.anthropic.claude-sonnet-4-6': 'Sonnet 4.6',
   'us.anthropic.claude-opus-4-6-v1': 'Opus 4.6',
 };

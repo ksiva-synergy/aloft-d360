@@ -16,6 +16,7 @@ export default withAuth(
           path.startsWith('/login') ||
           path.startsWith('/_next/') ||
           path.startsWith('/api/auth') ||
+          path === '/api/health' ||
           path === '/favicon.ico'
         ) {
           return true;

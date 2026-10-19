@@ -223,6 +223,7 @@ interface ModelSelectorProps {
   selectedModel: string;
   onModelChange: (key: string) => void;
   disabled?: boolean;
+  models?: ModelOption[];
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -233,12 +234,14 @@ const PROVIDER_COLORS: Record<string, string> = {
   moonshot:  '#60a5fa',
   deepseek:  '#38bdf8',
   qwen:      '#fb923c',
+  llmlite:   '#2dd4bf',
 };
 
-export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelSelectorProps) {
+export function ModelSelector({ selectedModel, onModelChange, disabled, models }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const current = AVAILABLE_MODELS.find(m => m.key === selectedModel) ?? AVAILABLE_MODELS[1];
+  const options = models ?? AVAILABLE_MODELS;
+  const current = options.find(m => m.key === selectedModel) ?? options[1] ?? options[0];
   const providerColor = PROVIDER_COLORS[current.provider] ?? MUTED;
 
   useEffect(() => {
@@ -250,7 +253,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const grouped = AVAILABLE_MODELS.reduce<Record<string, ModelOption[]>>((acc, m) => {
+  const grouped = options.reduce<Record<string, ModelOption[]>>((acc, m) => {
     acc[m.provider] = acc[m.provider] ? [...acc[m.provider], m] : [m];
     return acc;
   }, {});
@@ -309,7 +312,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled }: ModelS
               {Object.entries(grouped).map(([provider, models]) => (
                 <div key={provider}>
                   <div style={{ padding: '6px 12px 3px', ...mono, fontSize: 9, color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
-                    {provider}
+                    {provider === 'llmlite' ? 'LLM Lite' : provider}
                   </div>
                   {models.map(m => {
                     const isActive = m.key === selectedModel;
@@ -375,6 +378,7 @@ export interface InputComposerProps {
   minLength?: number;
   /** When false, the COMMISSION button is greyed out and disabled. Defaults to true. */
   canCommission?: boolean;
+  modelOptions?: ModelOption[];
 }
 
 export function InputComposer({
@@ -393,6 +397,7 @@ export function InputComposer({
   placeholder = 'Describe your agent mission…',
   minLength = 10,
   canCommission = true,
+  modelOptions,
 }: InputComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const busy = isStreaming || isCommissioning;
@@ -506,6 +511,7 @@ export function InputComposer({
             selectedModel={selectedModel}
             onModelChange={onModelChange}
             disabled={busy}
+            models={modelOptions}
           />
         </div>
 

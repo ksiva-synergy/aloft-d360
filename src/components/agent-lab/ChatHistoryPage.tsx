@@ -120,6 +120,8 @@ const GROUP_HEIGHT = 34;
 
 const MODEL_LABELS: Record<string, { short: string; color: string }> = {
   // Keys matching AVAILABLE_MODELS (workbench/types.ts) — these are stored in progress.last_model
+  'opus-5-5':          { short: 'Opus 5.5',    color: '#a78bfa' },
+  'sonnet-5-5':        { short: 'Sonnet 5.5',  color: '#60a5fa' },
   'opus-4-6':          { short: 'Opus 4.6',    color: '#c4b5fd' },
   'sonnet-4-6':        { short: 'Sonnet 4.6',  color: '#93C5FD' },
   'haiku-4-5':         { short: 'Haiku 4.5',   color: '#6ee7b7' },

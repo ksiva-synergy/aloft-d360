@@ -4,7 +4,7 @@
 
 import 'server-only';
 import { z } from 'zod';
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { callContextHarvesterLlm, getContextHarvesterTokenPricing } from './harvester-llm';
 import prisma from '@/lib/db';
 import { finalize } from './queue';
 
@@ -459,10 +459,7 @@ export interface MappingJobResult {
 // SECTION C — Stage 3: LLM adjudication, Stage 4: persistence, entity tagging
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ADJUDICATE_MODEL = 'us.anthropic.claude-sonnet-4-6';
 const BATCH_SIZE = 10;
-const PRICE_INPUT_PER_M = 3;   // Sonnet: $3/$15 per 1M in/out tokens
-const PRICE_OUTPUT_PER_M = 15;
 
 // ── Zod schemas (adjudicate_mapping_v1) ──────────────────────────────────────
 
@@ -538,18 +535,6 @@ Rule 7: Domain context:
 - CDC: Continuous Discharge Certificate (seafarer identity document)
 - Fivetran columns (_fivetran_deleted, _fivetran_synced): pipeline ingest metadata, not business attributes
 - signed/approved/void: common contract lifecycle statuses`;
-
-// ── Bedrock client ────────────────────────────────────────────────────────────
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
-  });
-}
 
 // ── Column card type for adjudication payload ─────────────────────────────────
 
@@ -646,28 +631,17 @@ async function callOneBatch(
     `Each element: { pair_index, verdict, mapping_kind, rationale, caveats, transform_hint, confidence }\n` +
     `First character must be [. No markdown. No preamble.`;
 
-  type Msg = { role: 'user' | 'assistant'; content: { type: 'text'; text: string }[] };
-  const messages: Msg[] = [{ role: 'user', content: [{ type: 'text', text: userMessage }] }];
-
-  const client = getBedrockClient();
+  type Msg = { role: 'user' | 'assistant'; content: string };
+  const messages: Msg[] = [{ role: 'user', content: userMessage }];
 
   async function invoke(msgs: Msg[]): Promise<{ text: string; input: number; output: number }> {
-    const cmd = new ConverseCommand({
-      modelId: ADJUDICATE_MODEL,
-      system: [{ text: ADJUDICATION_SYSTEM }],
+    const resp = await callContextHarvesterLlm({
+      system: ADJUDICATION_SYSTEM,
       messages: msgs,
-      inferenceConfig: { temperature: 0.2, maxTokens: 8192 },
+      maxTokens: 8192,
+      temperature: 0.2,
     });
-    const resp = await client.send(cmd);
-    const text =
-      resp.output?.message?.content
-        ?.map((b) => ('text' in b ? (b as { text: string }).text : ''))
-        .join('') ?? '';
-    return {
-      text,
-      input: resp.usage?.inputTokens ?? 0,
-      output: resp.usage?.outputTokens ?? 0,
-    };
+    return { text: resp.text, input: resp.inputTokens, output: resp.outputTokens };
   }
 
   let { text, input, output } = await invoke(messages);
@@ -677,10 +651,11 @@ async function callOneBatch(
     // Retry once — array-first correction (NOT "starting with {" — D-10)
     const retryMsgs: Msg[] = [
       ...messages,
-      { role: 'assistant', content: [{ type: 'text', text }] },
+      { role: 'assistant', content: text },
       {
         role: 'user',
-        content: [{ type: 'text', text: 'Your previous response was not valid JSON array. Return ONLY the array starting with [. No other text.' }],
+        content:
+          'Your previous response was not valid JSON array. Return ONLY the array starting with [. No other text.',
       },
     ];
     const retry = await invoke(retryMsgs);
@@ -1205,7 +1180,9 @@ export async function runMappingJob(
     await computeEntityTags(orgId);
 
     const costUsd =
-      (inputTokens * PRICE_INPUT_PER_M + outputTokens * PRICE_OUTPUT_PER_M) / 1_000_000;
+      (inputTokens * getContextHarvesterTokenPricing().inputPerM +
+        outputTokens * getContextHarvesterTokenPricing().outputPerM) /
+      1_000_000;
 
     const result: MappingJobResult = {
       jobId,

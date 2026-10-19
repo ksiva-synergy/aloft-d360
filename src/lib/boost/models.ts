@@ -1,6 +1,6 @@
 export type ModelTier = 'frontier' | 'production' | 'value' | 'cheap' | 'reasoning';
 export type TokenParam = 'max_tokens' | 'max_completion_tokens';
-export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle' | 'xai';
+export type FoundryResource = 'resource1' | 'resource2' | 'bedrock-mantle' | 'llmlite' | 'xai';
 
 export type BoostModel = {
   key: string;
@@ -14,7 +14,13 @@ export type BoostModel = {
 };
 
 export const BOOST_MODELS: BoostModel[] = [
-  // ── Bedrock Converse (5 proven models) ──────────────────────
+  // ── Bedrock Converse ─────────────────────────────────────────
+  { key: 'opus-5-5',    label: 'Claude Opus 5.5',   provider: 'bedrock',
+    apiType: 'converse', modelId: 'us.anthropic.claude-opus-5-5',
+    tier: 'frontier' },
+  { key: 'sonnet-5-5',  label: 'Claude Sonnet 5.5', provider: 'bedrock',
+    apiType: 'converse', modelId: 'us.anthropic.claude-sonnet-5-5',
+    tier: 'production' },
   { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'bedrock',
     apiType: 'converse', modelId: 'us.anthropic.claude-opus-4-6-v1',
     tier: 'frontier' },
@@ -39,8 +45,8 @@ export const BOOST_MODELS: BoostModel[] = [
 
   // ── Azure Foundry Resource 2 (pb-az-openai) ──────────────────
   { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'foundry',
-    apiType: 'foundry',  modelId: 'gpt-6-luna',
-    resource: 'resource2', tokenParam: 'max_completion_tokens',
+    apiType: 'foundry',  modelId: 'openai.gpt-6-luna',
+    resource: 'bedrock-mantle', tokenParam: 'max_completion_tokens',
     tier: 'production' },
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'foundry',
     apiType: 'foundry',  modelId: 'grok-4.3-PBC',
