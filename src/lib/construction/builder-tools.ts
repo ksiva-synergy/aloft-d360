@@ -2,6 +2,18 @@ import type { ConstructionState } from './constructionState';
 import { applyAssumption, applyConstructionPatch } from './apply-patch';
 import { coerceConstructionState } from './load-state';
 import { deriveReadiness } from './readiness';
+import { userLockFor } from './user-edits';
+
+/** Tool result telling the model a field is user-owned; it must ask before changing it. */
+function lockedResult(field: string, lock: string): string {
+  return JSON.stringify({
+    ok: false,
+    error: 'USER_LOCKED',
+    field,
+    lockedBy: lock,
+    note: 'The user edited this field directly in the Config panel. Do not change it on your own. If the user explicitly asks you to change it in chat, call update_agent_draft again with source "user".',
+  });
+}
 
 export type BuilderEmit = (event: Record<string, unknown>) => void;
 
@@ -25,6 +37,8 @@ export async function executeBuilderTool(
     const field = String(input.field ?? '');
     if (!field) return JSON.stringify({ ok: false, error: 'field required' });
     const source = (input.source as 'ai' | 'user' | 'template') ?? 'ai';
+    const lock = source === 'user' ? null : userLockFor(state, field);
+    if (lock) return lockedResult(field, lock);
     let next = coerceConstructionState(applyConstructionPatch(state, field, input.value, source));
     next = { ...next, readiness: deriveReadiness(next) };
     ctx.setState(next);
@@ -54,6 +68,8 @@ export async function executeBuilderTool(
   }
 
   if (toolName === 'add_datasource') {
+    const lock = userLockFor(state, 'tools.datasources');
+    if (lock) return lockedResult('tools.datasources', lock);
     const kind = input.kind as ConstructionState['tools']['datasources'][number]['kind'];
     const ref = String(input.ref ?? '');
     const scope = input.scope != null ? String(input.scope) : null;

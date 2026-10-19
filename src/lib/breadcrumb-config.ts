@@ -97,6 +97,10 @@ export const routeLabels: Record<string, string> = {
   'payroll-submit': 'Payroll Submit',
   'connectivity-tests': 'Connectivity Tests',
 
+  // Settings
+  settings: 'Settings',
+  profile: 'Profile',
+
   // Misc
   'bow-testing': 'BOW Testing',
   'bow-migration': 'BOW Migration',

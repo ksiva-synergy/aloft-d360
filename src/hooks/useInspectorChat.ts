@@ -332,7 +332,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               setLocalMessages(prev => {
                 const updated = [...prev];
                 const idx = updated.findIndex(m => m.id === assistantMsgId);
-                if (idx >= 0) updated[idx] = { ...updated[idx], content: sanitize(rawContent) };
+                if (idx >= 0) updated[idx] = { ...updated[idx], content: sanitize(rawContent), activity: 'writing' };
                 return updated;
               });
               break;
@@ -342,13 +342,20 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               setLocalMessages(prev => {
                 const updated = [...prev];
                 const idx = updated.findIndex(m => m.id === assistantMsgId);
-                if (idx >= 0) updated[idx] = { ...updated[idx], content: sanitize(rawContent) };
+                if (idx >= 0) updated[idx] = { ...updated[idx], content: sanitize(rawContent), activity: 'writing' };
                 return updated;
               });
               break;
 
             case 'loop_start':
               loopCount = (event.loop as number) ?? loopCount + 1;
+              setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? { ...message, activity: 'thinking' } : message));
+              break;
+
+            case 'thinking':
+              setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? {
+                ...message, activity: 'thinking', thinking: (message.thinking ?? '') + String(event.delta ?? ''),
+              } : message));
               break;
 
             case 'tool_call_suggested':

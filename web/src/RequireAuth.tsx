@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate, Outlet } from 'react-router';
 import { useSession } from 'next-auth/react';
+import { firstNameOf, rememberFirstName } from '@/lib/login-greeting';
 
 /**
  * Replaces the server-side `getServerSession` + `redirect('/login')` in `(agent)/layout.tsx`.
@@ -13,9 +14,15 @@ import { useSession } from 'next-auth/react';
  * such flip would remount `UserMenu`, which calls `update()` again, forever (an infinite fetch loop).
  */
 export function RequireAuth() {
-  const { status } = useSession();
+  const { status, data } = useSession();
   const hasBeenAuthenticated = useRef(false);
   if (status === 'authenticated') hasBeenAuthenticated.current = true;
+
+  // Remember just the first name so the login page can say "Welcome back" next time (see login-greeting.ts).
+  const user = data?.user;
+  useEffect(() => {
+    if (status === 'authenticated') rememberFirstName(firstNameOf(user?.name, user?.email));
+  }, [status, user?.name, user?.email]);
 
   if (status === 'loading' && !hasBeenAuthenticated.current) return <FullPageMessage text="Loading…" />;
   if (status === 'unauthenticated') return <Navigate to="/login" replace />;

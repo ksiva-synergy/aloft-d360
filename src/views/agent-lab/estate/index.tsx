@@ -242,7 +242,7 @@ export default function EstateOverviewPage() {
 
               {/* Action Link */}
               <Link
-                href="/databricks"
+                href="/agent-lab/estate/catalog"
                 className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline"
               >
                 Go to Connections &rarr;

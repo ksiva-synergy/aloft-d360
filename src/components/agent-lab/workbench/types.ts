@@ -25,6 +25,8 @@ export interface WorkbenchMessage {
   /** Server/client turn metrics for Agent Ops cockpit. */
   turnOps?: TurnOpsSnapshot;
   thinking?: string;
+  /** Latest server activity; only used while this response is streaming. */
+  activity?: 'thinking' | 'writing';
   draftPatches?: JsonPatch[];
   suggestions?: CatalogSuggestion[];
   followUpSuggestions?: string[];

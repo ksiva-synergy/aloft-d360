@@ -56,6 +56,19 @@ const memorySchema = z.object({
   }).nullable().default(null),
 });
 
+const testRunSchema = z.object({
+  question: z.string(),
+  at: z.string(),                    // ISO timestamp
+  outcome: z.enum(['completed', 'truncated', 'errored']),
+  toolCalls: z.number().default(0),
+  toolErrors: z.number().default(0),
+  answerPreview: z.string().default(''),
+});
+
+const validationSchema = z.object({
+  lastTestRun: testRunSchema.nullable().default(null),
+}).default({});
+
 // ─── Root schema ─────────────────────────────────────────────────────────────
 
 export const constructionStateSchema = z.object({
@@ -66,6 +79,7 @@ export const constructionStateSchema = z.object({
   tools: toolsSchema,
   memory: memorySchema,
   readiness: z.enum(['interview', 'plan', 'build', 'validate', 'commission']).default('interview'),
+  validation: validationSchema,
   assumptionLedger: z.array(z.object({
     field: z.string(),
     value: z.any(),

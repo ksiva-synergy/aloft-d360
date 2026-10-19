@@ -58,6 +58,12 @@ export function NotFoundPage() {
 
 export const RedirectTo = ({ to }: { to: string }) => <Navigate to={to} replace />;
 
+/** Legacy estate URLs used `objects` (plural); the canonical route is `object/:id`. */
+export function EstateObjectLegacyRedirect() {
+  const { id = '' } = useParams();
+  return <Navigate to={`/agent-lab/estate/object/${encodeURIComponent(id)}`} replace />;
+}
+
 /* ── `await params` pages ─────────────────────────────────────────────────────────── */
 
 export function RunSessionRoute() {

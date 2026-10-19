@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { History, SquarePen } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
@@ -13,6 +13,7 @@ import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { canCommissionAgent } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
+import { takeWorkbenchSeed } from '@/lib/construction/handoff';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = '#FDB515';
@@ -51,6 +52,18 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
   const handleSubmit = useCallback(() => {
     sendMessage(composer);
   }, [composer, sendMessage]);
+
+  // Inspector handoff: the new session arrives with a seeded first message. Send it once,
+  // after the (empty) session has loaded so the load can't overwrite the streaming turn.
+  const seedSentRef = useRef(false);
+  useEffect(() => {
+    if (seedSentRef.current || !initialSessionId) return;
+    if (wb.hydratedSessionId !== initialSessionId || wb.messages.length > 0) return;
+    const seed = takeWorkbenchSeed(initialSessionId);
+    if (!seed) return;
+    seedSentRef.current = true;
+    sendMessage(seed);
+  }, [initialSessionId, wb.hydratedSessionId, wb.messages.length, sendMessage]);
 
   const readinessUi =
     wb.readiness === 'validate' || wb.readiness === 'commission'
@@ -156,6 +169,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
         <div style={{ width: '58%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', minHeight: 0 }}>
           <PromptCanvas
+            chatError={wb.error}
             messages={wb.messages}
             isStreaming={wb.isStreaming}
             readiness={readinessUi}
@@ -233,6 +247,13 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
               readiness={wb.readiness}
               commissionResult={wb.commissionResult}
               sessionId={wb.sessionId}
+              isStreaming={wb.isStreaming}
+              isCommissioning={wb.isCommissioning}
+              canCommission={canCommission && !wb.commissionResult}
+              selectedModel={wb.selectedModel}
+              onEditField={wb.editField}
+              onCommission={() => wb.commission()}
+              onTestRunRecorded={wb.recordTestRun}
             />
           )}
         </div>

@@ -35,6 +35,10 @@ export async function GET(
       ? await getPendingReflections(id)
       : [];
 
+    const savedAgent = data.saved_agent_id
+      ? await prisma.agent_catalog.findUnique({ where: { id: data.saved_agent_id }, select: { id: true, slug: true } })
+      : null;
+
     return NextResponse.json({
       session: {
         ...data,
@@ -48,6 +52,9 @@ export async function GET(
         createdAt: data.created_at,
         updatedAt: data.updated_at,
         constructionState,
+        commission: savedAgent
+          ? { catalogId: savedAgent.id, catalogSlug: savedAgent.slug, catalogUrl: `/docs/agents/${savedAgent.slug}` }
+          : null,
       },
       pendingReflections,
     });

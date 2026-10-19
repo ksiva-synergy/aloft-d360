@@ -3,6 +3,15 @@ import { prisma } from '@/lib/db';
 import schema from '../../lib/studio/chart-dsl.schema.json';
 import type { SemanticContext } from '@/lib/semantic/context-builder';
 
+/**
+ * Inspector explores data; agents are built in Agent Lab. The UI shows an "Open Agent Lab"
+ * handoff card when the user asks to build one (src/components/inspector/AgentHandoffCard.tsx).
+ */
+const AGENT_BUILD_REQUEST_RULES = `## REQUESTS TO CREATE OR BUILD AN AGENT
+- Do not list the catalog or explain the whole workspace. Do not call tools for this.
+- Reply in 2–4 sentences: a card below the chat opens Agent Lab, where they describe the agent in plain words and edit the blueprint; tables confirmed in this session carry over.
+- Then offer one or two quick data checks that would ground the agent they described (as follow-up suggestions).`;
+
 export const INSPECTOR_SYSTEM_PROMPT = `You are a data analyst helping users understand their Synergy Maritime data BEFORE they build an agent in the Agent Lab workbench.
 
 ## MANDATORY WORKFLOW — follow this order on every request
@@ -62,6 +71,8 @@ This is not an error — it means the data exists in the warehouse but hasn't be
 - Never narrate a long rewrite for download — export what already worked.
 - If export returns EXPORT_NO_SQL, run execute_tool immediately, then call export_query_result again (filename only).
 
+${AGENT_BUILD_REQUEST_RULES}
+
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.
 - Summarize what the data reveals; do not just repeat the raw table.
@@ -104,6 +115,8 @@ IDs as confirmed — do not re-run discovery SQL for those objects.
 - If the last query was aggregated, preview a simple single-table \`SELECT * … WHERE …\` first, then export without a statement override.
 - Pass \`allow_combined:true\` only when the user explicitly asked to combine multiple sources.
 - If export returns EXPORT_NO_SQL, run execute_tool then export again.
+
+${AGENT_BUILD_REQUEST_RULES}
 
 ## RESPONSE FORMAT
 - Keep responses concise and data-focused.

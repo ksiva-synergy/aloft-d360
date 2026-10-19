@@ -6,8 +6,7 @@ import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import { inspectorLlmConfigured, hasXaiCredentials } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
-import { BOOST_MODELS, type BoostModel } from '@/lib/boost/models';
-import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { resolveBoostModel, resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import {
   buildWorkbenchSystemPrompt,
   buildWorkbenchToolConfig,
@@ -15,35 +14,13 @@ import {
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { loadConstructionState, coerceConstructionState } from '@/lib/construction/load-state';
 import { executeBuilderTool, inferAgentClass, type BuilderToolContext } from '@/lib/construction/builder-tools';
+import { mergeUserEdits } from '@/lib/construction/user-edits';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { getDefaultOrg } from '@/lib/platform/agents';
-import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
-
-const DEFAULT_MODEL = hasXaiCredentials() ? DEFAULT_INSPECTOR_MODEL_KEY : 'sonnet-5-5';
-
-const FOUNDRY_MODEL_KEYS = new Set(
-  BOOST_MODELS.filter((m) => m.apiType === 'foundry').map((m) => m.key),
-);
-
-function resolveBoostModel(modelKey: string): BoostModel | null {
-  let boost = BOOST_MODELS.find((m) => m.key === modelKey);
-  if (!boost) return null;
-  if (boost.key === 'grok-xai' && process.env.XAI_MODEL) {
-    boost = { ...boost, modelId: process.env.XAI_MODEL };
-  }
-  return boost;
-}
-
-function resolveBedrockModelId(modelKey: string): string {
-  const m = AVAILABLE_MODELS.find((x) => x.key === modelKey);
-  if (m?.bedrockId && !FOUNDRY_MODEL_KEYS.has(modelKey)) return m.bedrockId;
-  const fallback = AVAILABLE_MODELS.find((x) => x.key === 'sonnet-5-5');
-  return fallback?.bedrockId ?? 'us.anthropic.claude-sonnet-5-5';
-}
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
@@ -63,15 +40,11 @@ export async function POST(request: NextRequest) {
     return new Response('Workbench chat requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
   }
 
-  const modelKey = body.model ?? DEFAULT_MODEL;
-  const option = AVAILABLE_MODELS.find((m) => m.key === modelKey)
-    ?? AVAILABLE_MODELS.find((m) => m.key === DEFAULT_MODEL);
-  if (!option) {
+  const resolved = resolveWorkbenchModel(body.model);
+  if (!resolved) {
     return new Response('Model not available for workbench', { status: 400 });
   }
-  const boostModel = FOUNDRY_MODEL_KEYS.has(modelKey) ? resolveBoostModel(modelKey) : null;
-  const bedrockModelId = resolveBedrockModelId(modelKey);
-  const effectiveModelId = boostModel?.modelId ?? bedrockModelId;
+  const { modelKey, option, boostModel, effectiveModelId } = resolved;
 
   const row = await prisma.workbench_sessions.findUnique({ where: { id: body.sessionId } });
   if (!row) return new Response('Session not found', { status: 404 });
@@ -236,6 +209,12 @@ export async function POST(request: NextRequest) {
         });
 
         stateRef = coerceConstructionState(stateRef);
+        // Keep Config-panel edits (and test runs) made while this turn was streaming.
+        const latest = await prisma.workbench_sessions.findUnique({
+          where: { id: body.sessionId },
+          select: { construction_state: true },
+        });
+        if (latest) stateRef = mergeUserEdits(stateRef, loadConstructionState(latest.construction_state, org.id));
         await prisma.workbench_sessions.update({
           where: { id: body.sessionId },
           data: {

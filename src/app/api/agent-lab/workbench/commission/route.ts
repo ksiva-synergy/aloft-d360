@@ -22,6 +22,23 @@ export async function POST(request: NextRequest) {
   const row = await prisma.workbench_sessions.findUnique({ where: { id: body.sessionId } });
   if (!row) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
+  // Idempotent: a second press (double click, retry after a dropped response) returns the same agent.
+  if (row.saved_agent_id) {
+    const existing = await prisma.agent_catalog.findUnique({
+      where: { id: row.saved_agent_id },
+      select: { id: true, slug: true },
+    });
+    if (existing) {
+      return NextResponse.json({
+        ok: true,
+        alreadyCommissioned: true,
+        catalogId: existing.id,
+        catalogSlug: existing.slug,
+        catalogUrl: `/docs/agents/${existing.slug}`,
+      });
+    }
+  }
+
   const parsed = constructionStateSchema.safeParse(row.construction_state);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid construction state' }, { status: 400 });
@@ -41,20 +58,29 @@ export async function POST(request: NextRequest) {
   const name = state.name!.trim();
   const agentClass = state.class!.id!;
   const slug = `${slugify(name)}-${Date.now().toString(36)}`;
+  const firstSentence = state.prompt.instructions.trim().split(/(?<=[.!?])\s/)[0]?.slice(0, 280);
 
   const catalog = await prisma.agent_catalog.create({
     data: {
       name,
       slug,
       type: 'worker',
-      description: state.prompt.persona ?? `Commissioned from workbench session ${body.sessionId}`,
+      description: state.prompt.persona ?? firstSentence ?? `Commissioned from workbench session ${body.sessionId}`,
       version: '1.0.0',
       status: 'draft',
       tags: [agentClass, 'workbench'],
       config: {
         systemPrompt: state.prompt.instructions,
+        persona: state.prompt.persona,
         agent_class: agentClass,
         datasources: state.tools.datasources,
+        output: state.tools.output,
+        validation: state.validation.lastTestRun,
+        provenance: state.provenance,
+        source: {
+          workbenchSessionId: body.sessionId,
+          inspectorSessionId: row.parent_session_id ?? null,
+        },
       },
       tools: state.tools.actions.map((a) => a.toolId),
       author: commissionedBy,

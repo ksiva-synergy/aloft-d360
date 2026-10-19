@@ -72,6 +72,11 @@ const ROUTES = [
   ['/inspector/dashboards/dash-1'],
   ['/inspector/dashboards/dash-1/builder'],
   ['/performance-lab'],
+  ['/settings/profile'],
+  ['/settings', '/settings/profile'],
+  ['/backfill', '/agent-lab/estate/jobs'],
+  ['/databricks', '/agent-lab/estate/catalog'],
+  ['/agent-lab/estate/objects/obj-1', '/agent-lab/estate/object/obj-1'],
   ['/', '/dashboard'],
 ];
 

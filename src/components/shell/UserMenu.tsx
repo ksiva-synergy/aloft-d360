@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from './AppearanceControls';
+import { forgetFirstName } from '@/lib/login-greeting';
 import type { Session } from 'next-auth';
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -193,7 +194,10 @@ export function UserMenu({
             </button>
             <button
               role="menuitem"
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => {
+                forgetFirstName(); // signing out also forgets the login page's "Welcome back" name
+                signOut({ callbackUrl: '/login' });
+              }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
             >
               <LogOut className="h-4 w-4" />

@@ -22,7 +22,12 @@ const EXPECTED_PAGES = [
   '/agent-staging', '/agent-staging/audit', '/agent-staging/policies', '/agent-staging/try', '/agent-staging/users',
   '/docs', '/docs/agents', '/docs/agents/:slug', '/docs/tools', '/docs/tools/:slug',
   '/inspector', '/inspector/:sessionId', '/inspector/dashboards', '/inspector/dashboards/:dashboardId',
-  '/inspector/dashboards/:dashboardId/builder', '/performance-lab',
+  '/inspector/dashboards/:dashboardId/builder',   '/performance-lab',
+  '/settings',
+  '/settings/profile',
+  '/backfill',
+  '/databricks',
+  '/agent-lab/estate/objects/:id',
 ];
 
 /** Page/layout files that would make Next serve HTML again. There must be none under src/app. */
@@ -54,9 +59,9 @@ const normalise = (p: string) => p.replace(/:[A-Za-z]+/g, ':p');
 describe('route table', () => {
   const urls = EXPECTED_PAGES;
 
-  it('covers the 43 pages the app shipped with', () => {
-    expect(urls.length).toBe(43);
-    expect(new Set(urls).size).toBe(43);
+  it('covers the expected page and legacy redirect URLs', () => {
+    expect(urls.length).toBe(48);
+    expect(new Set(urls).size).toBe(48);
   });
 
   it('Next.js serves no pages: src/app holds route handlers only (the UI is the Vite app)', () => {

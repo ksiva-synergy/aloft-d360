@@ -11,10 +11,11 @@ import {
   Terminal,
   Copy,
   Check,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
+import { CaptainStatus } from '@/components/companion/CaptainStatus';
+import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
@@ -664,7 +665,7 @@ function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] 
   return out;
 }
 
-function AssistantContent({ content }: { content: string }) {
+export function AssistantContent({ content }: { content: string }) {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -710,32 +711,14 @@ function AssistantContent({ content }: { content: string }) {
   return <>{parts}</>;
 }
 
-// ── Streaming pulse indicator ─────────────────────────────────────────────────
-function StreamPulse() {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-    }}>
-      {[0, 1, 2].map(i => (
-        <span
-          key={i}
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            background: 'var(--brand-a)',
-            animation: `sm-dot-pulse 1.4s ease-in-out ${i * 0.22}s infinite`,
-          }}
-        />
-      ))}
-    </span>
-  );
-}
 
 // ── Main StreamingMessage component ───────────────────────────────────────────
 export interface StreamingMessageProps {
+  activity?: 'thinking' | 'writing';
+  /** Only the most recent response animates or announces activity. */
+  companionActive?: boolean;
+  error?: string | null;
+  outcome?: TurnOpsSnapshot['outcome'];
   content: string;
   thinking?: string;
   toolCalls?: ToolCall[];
@@ -753,6 +736,10 @@ export interface StreamingMessageProps {
 }
 
 export function StreamingMessage({
+  activity,
+  companionActive = true,
+  error,
+  outcome,
   content,
   thinking,
   toolCalls,
@@ -773,7 +760,6 @@ export function StreamingMessage({
     }).catch(() => {});
   };
 
-  const isThinkingOnly = !content && thinking && isStreaming;
   const ts = timestamp
     ? new Date(timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : null;
@@ -811,30 +797,11 @@ export function StreamingMessage({
           position: 'relative',
         }}
       >
-        {/* Streaming top bar */}
-        {isStreaming && (
-          <div style={{
-            height: 2,
-            background: `linear-gradient(90deg, transparent, ${'var(--brand-a)'}, transparent)`,
-            animation: 'sm-progress-slide 1.6s ease-in-out infinite',
-          }} />
-        )}
-
-        <div style={{ padding: '16px 20px' }}>
-          {content ? (
-            <AssistantContent content={content} />
-          ) : isThinkingOnly ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <StreamPulse />
-              <span style={{ ...mono, fontSize: 13, color: MUTED }}>reasoning…</span>
-            </div>
-          ) : isStreaming ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={13} style={{ color: GOLD }} />
-              <StreamPulse />
-            </div>
-          ) : null}
-        </div>
+        <CaptainStatus active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
+          toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
+          needsClarification={readiness === 'interview'} />
+        {content && <div style={{ padding: '0 20px 16px' }}><AssistantContent content={content} /></div>}
+        {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-sm text-[var(--ink-2)]">{error}</p>}
 
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}
         {(!isStreaming || readiness || ts) && (content || interrupted) && (
@@ -894,14 +861,6 @@ export function StreamingMessage({
 
       {/* Keyframes */}
       <style>{`
-        @keyframes sm-dot-pulse {
-          0%, 80%, 100% { opacity: 0.2; transform: scale(0.85); }
-          40%            { opacity: 1;   transform: scale(1.1);  }
-        }
-        @keyframes sm-progress-slide {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
         @keyframes spin {
           to { transform: rotate(360deg); }
         }

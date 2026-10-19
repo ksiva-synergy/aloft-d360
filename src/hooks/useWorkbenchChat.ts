@@ -11,6 +11,7 @@ import { applyConstructionPatch } from '@/lib/construction/apply-patch';
 import { coerceConstructionState } from '@/lib/construction/load-state';
 import { deriveReadiness } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
+import { isEditableField, type EditableField } from '@/lib/construction/user-edits';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 
 const DEFAULT_MODEL = DEFAULT_INSPECTOR_MODEL_KEY;
@@ -42,6 +43,8 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
   const [attachedToolIds, setAttachedToolIds] = useState<string[]>([]);
   const [isCommissioning, setIsCommissioning] = useState(false);
   const [commissionResult, setCommissionResult] = useState<{ catalogUrl: string } | null>(null);
+  /** Id of the session whose messages + draft have loaded from the API (gates the handoff seed send). */
+  const [hydratedSessionId, setHydratedSessionId] = useState<string | null>(null);
 
   const sessionIdRef = useRef<string | null>(sessionId);
   const modelRef = useRef(previewModel);
@@ -76,6 +79,7 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
           readiness?: string | null;
           attachedTools?: string[];
           progress?: { last_model?: string };
+          commission?: { catalogUrl?: string } | null;
         };
       }) => {
         if (!data?.session) {
@@ -86,6 +90,7 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
         setLocalMessages(s.messages || []);
         setConstructionState(s.constructionState ?? emptyConstructionDraft());
         if (s.readiness) setReadiness(s.readiness as typeof readiness);
+        setCommissionResult(s.commission?.catalogUrl ? { catalogUrl: s.commission.catalogUrl } : null);
         constructionHydratedRef.current = s.id;
         setAttachedToolIds(s.attachedTools ?? []);
         if (s.progress?.last_model && AVAILABLE_MODELS.some((m) => m.key === s.progress!.last_model)) {
@@ -93,12 +98,16 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
         }
         setCurrentSessionId(s.id);
         setSessionLoadError(null);
+        setHydratedSessionId(s.id);
       })
       .catch((err: unknown) => {
         setSessionLoadError(err instanceof Error ? err.message : 'Failed to load session');
       });
   }, [sessionId]);
 
+  // construction_state is NOT autosaved from here: the server owns it (chat turns, Config-panel
+  // edits, test runs, commission each write it). A stale full-state copy from the client would
+  // overwrite those writes — e.g. undo a commission.
   useEffect(() => {
     if (!currentSessionId) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
@@ -110,14 +119,13 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
           messages: localMessages,
           last_model: modelRef.current,
           attached_tools: attachedToolIds,
-          ...(constructionState ? { construction_state: constructionState } : {}),
         }),
       }).catch(() => {});
     }, 2000);
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [currentSessionId, localMessages, constructionState, attachedToolIds]);
+  }, [currentSessionId, localMessages, attachedToolIds]);
 
   const syncSessionConstruction = useCallback((sid: string) => {
     fetch(`/api/agent-lab/workbench/sessions/${sid}`)
@@ -227,12 +235,20 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
           }
 
           switch (event.type) {
+            case 'loop_start':
+            case 'thinking':
+              setLocalMessages(prev => prev.map(message => message.id === assistantMsgId ? {
+                ...message,
+                activity: 'thinking',
+                ...(event.type === 'thinking' ? { thinking: (message.thinking ?? '') + String(event.delta ?? '') } : {}),
+              } : message));
+              break;
             case 'text':
               rawContent += event.delta as string;
               setLocalMessages((prev) => {
                 const updated = [...prev];
                 const idx = updated.findIndex((m) => m.id === assistantMsgId);
-                if (idx >= 0) updated[idx] = { ...updated[idx], content: rawContent };
+                if (idx >= 0) updated[idx] = { ...updated[idx], content: rawContent, activity: 'writing' };
                 return updated;
               });
               break;
@@ -464,6 +480,7 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
     setClassSuggestion(null);
     setCommissionResult(null);
     setCurrentSessionId(null);
+    setHydratedSessionId(null);
     sessionIdRef.current = null;
     setError(null);
     setSuggestions([]);
@@ -501,29 +518,74 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
       }
       if (data.catalogUrl) setCommissionResult({ catalogUrl: data.catalogUrl });
       setReadiness('commission');
+      syncSessionConstruction(sid);
     } catch {
       setError('Commission request failed');
     } finally {
       setIsCommissioning(false);
     }
-  }, [isCommissioning]);
+  }, [isCommissioning, syncSessionConstruction]);
+
+  /**
+   * Config-panel edit of one field. The server records provenance `user`, so the
+   * builder model will not overwrite it. Resolves with an error message on failure.
+   */
+  const editField = useCallback(
+    async (field: EditableField, value: unknown, opts: { confirm?: boolean } = {}): Promise<string | null> => {
+      const sid = sessionIdRef.current;
+      if (!sid) return 'No session yet — send a first message to start the draft.';
+      try {
+        const res = await fetch('/api/agent-lab/construction', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sid, field, value, confirm: opts.confirm }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { state?: unknown; error?: string };
+        if (!res.ok) return data.error ?? `Save failed (${res.status})`;
+        const parsed = constructionStateSchema.safeParse(data.state);
+        if (parsed.success) {
+          setConstructionState(parsed.data);
+          setReadiness(parsed.data.readiness);
+        }
+        return null;
+      } catch {
+        return 'Save failed — check your connection.';
+      }
+    },
+    [],
+  );
+
+  const recordTestRun = useCallback((testRun: ConstructionState['validation']['lastTestRun']) => {
+    setConstructionState((prev) => (prev ? { ...prev, validation: { lastTestRun: testRun } } : prev));
+  }, []);
 
   const assumptionLedger: AssumptionLedgerEntry[] = constructionState?.assumptionLedger ?? [];
 
+  // Assumptions about panel-editable fields go through editField so the value is actually
+  // applied to the draft (not only to the ledger) and the field becomes user-owned.
   const onConfirmAssumption = useCallback(
     (field: string) => {
       if (!constructionState) return;
+      const entry = constructionState.assumptionLedger.find((e) => e.field === field);
+      if (entry && isEditableField(field)) {
+        void editField(field, entry.value, { confirm: true }).then((err) => err && setError(err));
+        return;
+      }
       persistConstruction(confirmAssumption(constructionState, field));
     },
-    [constructionState, persistConstruction],
+    [constructionState, persistConstruction, editField],
   );
 
   const onEditAssumption = useCallback(
     (field: string, newValue: string) => {
       if (!constructionState) return;
+      if (isEditableField(field) && !field.startsWith('tools.')) {
+        void editField(field, newValue).then((err) => err && setError(err));
+        return;
+      }
       persistConstruction(correctAssumption(constructionState, field, newValue));
     },
-    [constructionState, persistConstruction],
+    [constructionState, persistConstruction, editField],
   );
 
   const onApplyClass = useCallback(
@@ -566,5 +628,8 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
     onConfirmAssumption,
     onEditAssumption,
     onApplyClass,
+    editField,
+    recordTestRun,
+    hydratedSessionId,
   };
 }

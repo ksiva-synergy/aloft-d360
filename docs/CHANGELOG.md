@@ -17,6 +17,130 @@ Kept separate on purpose:
 
 ---
 
+## 2026-10-19 — Agent Lab: Inspector handoff, editable blueprint, flow strip, test run, commission fixes
+
+Asking Inspector to "create an agent" used to produce a wall of catalog text under an input box that said
+"Describe your agent mission…". Agent building now has one path: Inspector hands off to Agent Lab, where the user
+describes the agent in plain words and edits a live blueprint.
+
+1. **Placeholder + handoff.** `PromptCanvas` takes `surface` (`workbench` | `inspector`) for its empty-state and
+   composer copy (Inspector now says "Ask about your data…" and hides mission templates) and a `banner` slot.
+   `InspectorShell` shows `src/components/inspector/AgentHandoffCard.tsx` when the latest user message asks to build an
+   agent (`detectAgentBuildIntent` in `src/lib/construction/handoff.ts`, tolerant of typos like "creat agent").
+   "Open Agent Lab" calls the new `POST /api/agent-lab/workbench/handoff`, which creates a workbench session linked by
+   `parent_session_id`, seeds `tools.datasources` with up to 8 table paths that Inspector's session knowledge
+   confirmed (provenance `template`), and returns a first message that includes the mission plus that context.
+   `WorkbenchShell` sends the seed once, after the session loads (sessionStorage, read-and-delete). Inspector's
+   prompts gained a short "requests to create an agent" rule (`src/lib/inspector/prompts.ts`).
+2. **Editable Config panel.** `ConfigPanel` is now an "Agent blueprint": inline-editable name, purpose, class picker,
+   instructions (with a 40-char counter), data sources (search harvested tables via `/api/agent-lab/context/objects`,
+   or type a full path), and tools (from `/api/agent-lab/workbench/tools`). Each field shows where it came from
+   (You / AI / AI guess · n% / From Inspector). Editors live in `src/components/workbench/config/FieldEditors.tsx`.
+   Edits go through the new field-level `PATCH /api/agent-lab/construction` (allowlist + zod validation in
+   `src/lib/construction/user-edits.ts`), which records provenance `user` and marks a matching assumption corrected.
+   **The builder now respects user-owned fields:** `update_agent_draft` / `add_datasource` return `USER_LOCKED`
+   unless the model passes `source: "user"` because the user asked in chat (`builder-tools.ts`, prompt updated).
+   The chat route merges edits made during a streaming turn instead of overwriting them (`mergeUserEdits`).
+   Editing is disabled while the builder streams and after commission.
+3. **Flow strip.** `config/FlowStrip.tsx`: Question → Data → Reasoning → Tools → Answer, derived from the draft;
+   each node shows status and scrolls to its section.
+4. **Test run + commissioning.** New `POST /api/agent-lab/workbench/test-run` streams one sample question through the
+   draft's instructions (`buildTestRunSystemPrompt`) with only the read-only `describe_schema` + `execute_tool` tools,
+   max 8 loops, and records `validation.lastTestRun` (new field on `constructionStateSchema`, defaults so old rows
+   parse). UI: `config/TestRunSection.tsx` (tool steps, SQL, result preview, markdown answer; `AssistantContent` is now
+   exported from `StreamingMessage.tsx`). Commission: idempotent (a second call returns the existing catalog entry),
+   stores persona, output, test run, provenance and source session ids in `agent_catalog.config`, description falls
+   back to the first sentence of the instructions; session GET returns `commission` so "Commissioned" survives a
+   reload; the panel has its own Commission button and a "Try it" link (`/agent-staging/try`).
+   Model resolution moved to `src/lib/construction/workbench-model.ts` (shared by chat + test run).
+
+**Behaviour change:** `useWorkbenchChat` no longer autosaves `construction_state` every 2s. The server owns it, and
+a stale client copy could overwrite server writes (it could undo a commission). Messages, model and tools still autosave.
+
+**Verified:** `tsc` (root + `web/`) clean; `vitest run` 64 files / 512 tests pass, including the new
+`src/lib/construction/__tests__/user-edits.test.ts` (23 tests: locks, merge, validation, intent detection, flow
+nodes); `web:test` 8 files / 48 tests pass; every changed UI module compiles in the running Vite dev server; new
+API routes sit behind the auth middleware (unauthenticated requests redirect to `/login`).
+**Not verified:** no click-through in a signed-in browser, and no live test run against Databricks or an LLM.
+ESLint could not run: the repo's ESLint config crashes on load ("Converting circular structure to JSON" in
+`@eslint/eslintrc`), unrelated to these files.
+**Not done:** a dedicated "chat as this agent" runtime (Try it still goes through `/agent-staging/try`); commission
+does not yet require a passing test run (it's recommended in the UI); the handoff card is keyword-triggered, not
+model-triggered.
+
+---
+
+## 2026-10-19 — Login: "Captain" companion with particle aura and a welcome-back greeting
+
+Continues the redesign below. `DotBot` is replaced by `DotCompanion` in `src/components/login/AgentScene.tsx`
+(`DotField` is unchanged), wired into `src/views/login.tsx`. The companion is named **Captain**: it
+introduces itself that way and is announced to screen readers that way.
+
+- **Welcome back (first name only)**: new `src/lib/login-greeting.ts`. After any successful sign-in (SSO or
+  admin), `web/src/RequireAuth.tsx` saves just the first name (the first word of `session.user.name`, else the
+  email's local part; letters only, max 20) to `localStorage` key `login-greeting`, with a timestamp. On the next
+  visit in that browser, the login title reads "Welcome back, <Name>", the visor scrolls "HI <NAME>", and a
+  "Not <Name>?" link forgets it. It expires after 30 days and is cleared on sign-out (`UserMenu`).
+  It is greeting only: never sent to the server, never pre-fills a field, never affects auth. No new API
+  (a server "last user" lookup was rejected because it would leak names to anyone).
+- A JARVIS-style holographic HUD (rotating dials, radar sweep, orbit line, status readouts, success ping) and its
+  "HUD on/off" toggle were built and then removed at the user's request. The companion area is a fixed 210px.
+- **Light and dark themes**: the login page follows the app theme (`useIsDark()`; the app default is light), where it
+  used to be dark only. `login.tsx` defines its colours as CSS variables per theme (`THEME_VARS`; `--ink` is an
+  "r g b" triple used at different opacities). Light is an off-white page with dark ink, white fields and a dark
+  navy Microsoft button. `DotCompanion` and `DotField` take a `theme` prop. Dark draws the effects with additive
+  light; light can't add light to a white page, so it draws deeper teal and indigo normally (`PALETTE` in
+  `AgentScene.tsx`: particles, trails, glints, voice ring, keystroke sparks, z's, thinking dots, sweat drop and
+  sparkles), with darker background dots and a soft drop shadow under the white helmet. The visor and LED
+  eyes are the same in both themes. Verified with a headless screenshot of the light theme. Dark is unchanged.
+- **Speech on the visor (no text beside Captain, no audio)**: Captain talks through its LED eyes. Short messages
+  scroll across both eyes in a 5×7 LED font at 17 columns/s ("HI!" on load and on waking up, "HI <NAME>" once the
+  username reveals a first name). Pictograms show in both eyes for other moments: a lock while typing the password,
+  "?" on an error, and a check on success. A message on the visor is never cut off (repeats are ignored until it
+  ends), and the eyes return to their expression afterwards. The voice ring pulses as
+  letters pass. Screen readers get the full sentence ("Good evening! I'm Captain…", "I won't look. Promise.", …)
+  through a polite live region. Under reduced motion, text doesn't scroll and pictograms still show.
+  Tried and removed at the user's request: a comms panel, a HUD callout with a leader line and "CAPTAIN" label,
+  speech synthesis, a Chakra Petch font, a glyph-decode reveal and a streamed text line. Previews of the options were
+  shown as artifacts (message styles A–E, speech styles A–E).
+- **Reaction glyphs** (front canvas, `drawGlyphs`), one small glowing touch per moment, all skipped under reduced motion:
+  z's drift up from Captain's head while it sleeps (instead of "Zzz…" text, every ~1s); three thinking dots
+  bubble up left to right while signing in; a sweat drop slides down the side of the helmet on an error; six
+  sparkles pop around the head on success; one cyan sparkle pops above the head when Captain is clicked (at most
+  every 0.45s) while its eyes go ^ ^. A pink heart (floating, and as a visor pictogram) was tried for the click and
+  removed as too consumer-like for an enterprise tool.
+- **Particles**: "Particles: on action / always" toggle in the header (`login.tsx`, saved to `localStorage` key
+  `login-particles`; default is on action). On action hides them at rest and fades them in for a click on Captain
+  (2.5s), signing in, success and errors. Keystroke sparks always show. The motes float freely (no orbit rings),
+  the cloud turns slowly so they pass behind and in front of Captain, they emerge from Captain after it pops in,
+  trails are short and faint (max 7px), and they dim by 45% while Captain speaks.
+  The voice ring shows only while Captain speaks, and particle bursts only on actions.
+- **Background** (`DotField`): calmer. The dots are fainter and smaller, the light sweep is slower and about half
+  as bright, the cursor glow is softer, and the dots fade almost out behind the centre column (Captain, title, form).
+- The pop-in is timed on the clock, not per frame, so it lands on time when frames are sparse.
+
+- Dot stays a flat 2D SVG on purpose: a true 3D (three.js) version was tried in a preview and rejected because
+  lighting and perspective distorted the flat icon look. Depth comes from a small CSS tilt toward the cursor,
+  eye/visor parallax and a pop-in on load.
+- Particle aura: two canvases, one behind and one in front of Dot, so particles pass behind and in front of it.
+  It has occasional four-point glints, smaller and dimmer far-side particles, and particles fade over Dot's face.
+  The cursor parts it. It tints violet while signing in, bursts on success, flickers pink on errors, and dims and
+  sinks when Dot sleeps. (An earlier ring-orbit layout was replaced by free-floating motes; see above.)
+- Companion behaviour: a typed speech bubble (greeting by time of day, "Hi <name>!" from the username,
+  "I won't look" on the password), sparks from the form into Dot on each keystroke, eyes that follow along
+  the username, a doze after 15 s idle with a wake-up line, and a boop on click. Screen readers get each line
+  through a polite live region.
+- `login.tsx`: added `success` and `keystrokes` state. The first name comes from the email's local part.
+  Mode priority is now loading → success → field focus → error → hover → idle, so Dot looks away for the
+  password even while an old error is showing.
+- Verification: `tsc --noEmit` passes with no errors in these files. A 2D build of the same aura was screenshotted
+  in a headless browser and looked right. Not checked: the real page in a browser, and the
+  production build.
+- Not done: the page still uses fixed dark colours (no light theme). Under `prefers-reduced-motion`, motion is
+  disabled but the aura is still drawn.
+
+---
+
 ## 2026-10-19 — Login page redesign with animated agent orb
 
 - `src/views/login.tsx`: replaced the two-panel layout (gradient brand panel + card) with one centred

@@ -15,13 +15,43 @@ Rules:
 - After learning something material, call update_agent_draft to persist it.
 - Use add_assumption for inferred facts the user has not confirmed yet.
 - Do not run SQL or query warehouses — the user explores data in Inspector first.
-- When name, instructions (≥40 chars), and class are set, tell the user they can press COMMISSION.`;
+- The user can also edit the draft directly in the Config panel. Fields whose provenance is "user" belong to the user:
+  never overwrite them on your own (the tool returns USER_LOCKED). Only change a user-owned field when the user asks
+  you to in chat, and then pass source "user".
+- Datasources with provenance "template" were carried over from the user's Inspector session; treat them as confirmed
+  context the agent should use, and name them when you summarise the draft.
+- When name, instructions (≥40 chars), and class are set, suggest a Test run in the Config panel (it runs one sample
+  question against live data using the draft instructions), then tell the user they can press COMMISSION.`;
 
 export function buildWorkbenchSystemPrompt(state: ConstructionState): string {
   return `${WORKBENCH_SYSTEM_PROMPT}
 
 CURRENT CONSTRUCTION STATE (JSON):
 ${JSON.stringify(state, null, 2)}`;
+}
+
+/**
+ * System prompt for a workbench Test run: the draft agent's own instructions plus
+ * the read-only data rules every Inspector-backed agent follows.
+ */
+export function buildTestRunSystemPrompt(state: ConstructionState): string {
+  const name = state.name?.trim() || 'Untitled agent';
+  const sources = state.tools.datasources
+    .map((d) => `- ${d.kind}: ${d.ref}${d.scope ? ` (${d.scope})` : ''}`)
+    .join('\n');
+  return `You are "${name}", an agent being test-run before it is commissioned.
+${state.prompt.persona ? `\nPurpose: ${state.prompt.persona}\n` : ''}
+## YOUR INSTRUCTIONS
+${state.prompt.instructions.trim() || '(No instructions written yet.)'}
+
+## DATA SOURCES
+${sources || '- None declared. Find the right tables with describe_schema.'}
+
+## DATA RULES
+- Prefer the declared data sources. If a table path is not declared, confirm it with describe_schema (action:'search', then 'describe') before querying.
+- execute_tool runs read-only SQL against synergy_dwh. SELECT / WITH only, always fully qualified table names, always LIMIT (100 or less).
+- Never guess a table or column name. If a query fails, recheck the path with describe_schema.
+- Keep the final answer concise, in markdown, with key numbers in bold. Do not narrate tool steps.`;
 }
 
 export function buildWorkbenchToolConfig(): ToolConfiguration {

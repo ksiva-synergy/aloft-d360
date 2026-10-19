@@ -11,6 +11,7 @@ import {
   DashboardViewerRoute,
   InspectorSessionRoute,
   JobDetailRoute,
+  EstateObjectLegacyRedirect,
   MemoryOpsRoute,
   NotFoundPage,
   RedirectTo,
@@ -20,7 +21,7 @@ import {
 } from './routes/adapters';
 
 /**
- * Route table = the Next.js `src/app/**` tree, one entry per `page.tsx` (43 pages).
+ * Route table = the Next.js `src/app/**` tree, one entry per `page.tsx` (44 pages).
  *
  * Pages are imported from `src/app` in place (code-split per route). A page that was an async server component
  * is replaced by an adapter in ./routes/adapters. `export const metadata` titles are carried as `handle.title`.
@@ -40,6 +41,7 @@ const estateRoutes: RouteObject[] = [
   { path: 'jobs/:id', Component: JobDetailRoute },
   { path: 'lineage', lazy: page(() => import('@/views/agent-lab/estate/lineage')) },
   { path: 'mapper', lazy: page(() => import('@/views/agent-lab/estate/mapper')) },
+  { path: 'objects/:id', Component: EstateObjectLegacyRedirect },
   { path: 'object/:id', lazy: page(() => import('@/views/agent-lab/estate/object')) },
   { path: 'silo', lazy: page(() => import('@/views/agent-lab/estate/silo')) },
 ];
@@ -128,6 +130,14 @@ export const routes: RouteObject[] = [
               { path: 'inspector/:sessionId', Component: InspectorSessionRoute },
 
               { path: 'performance-lab', lazy: page(() => import('@/views/performance-lab')) },
+              { path: 'backfill', element: <RedirectTo to="/agent-lab/estate/jobs" /> },
+              { path: 'databricks', element: <RedirectTo to="/agent-lab/estate/catalog" /> },
+              { path: 'settings', element: <RedirectTo to="/settings/profile" /> },
+              {
+                path: 'settings/profile',
+                lazy: page(() => import('@/views/settings/profile')),
+                handle: title('Profile · ALOFT'),
+              },
               { path: '*', Component: NotFoundPage },
                 ],
               },

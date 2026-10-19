@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Check, CheckCircle2, Circle, Database, ExternalLink, Lightbulb, Sparkles } from 'lucide-react';
+import React from 'react';
+import { Check, CheckCircle2, Circle, ExternalLink, Lightbulb, Loader2, Lock, Rocket, Sparkles } from 'lucide-react';
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { canCommissionAgent } from '@/lib/construction/readiness';
+import type { EditableField } from '@/lib/construction/user-edits';
 import { cn } from '@/lib/utils';
+import { ClassPicker, DatasourceEditor, InlineText, ProvenanceBadge, ToolEditor, type SaveFn } from './config/FieldEditors';
+import { FlowStrip } from './config/FlowStrip';
+import { TestRunSection } from './config/TestRunSection';
 
 interface ConfigPanelProps {
   state: ConstructionState | null;
@@ -12,12 +16,33 @@ interface ConfigPanelProps {
   commissionResult: { catalogUrl: string } | null;
   /** When set, show the draft panel (empty rows) instead of the pre-session placeholder. */
   sessionId?: string | null;
+  /** While the builder is streaming, fields are read-only (its end-of-turn write would race the edit). */
+  isStreaming?: boolean;
+  isCommissioning?: boolean;
+  canCommission?: boolean;
+  selectedModel?: string;
+  /** Omit to render the panel read-only. */
+  onEditField?: (field: EditableField, value: unknown) => Promise<string | null>;
+  onCommission?: () => void;
+  onTestRunRecorded?: (run: ConstructionState['validation']['lastTestRun']) => void;
 }
 
 const STAGES = ['interview', 'plan', 'build', 'validate', 'commission'] as const;
 const MIN_INSTRUCTIONS = 40;
 
-export function ConfigPanel({ state, readiness, commissionResult, sessionId }: ConfigPanelProps) {
+export function ConfigPanel({
+  state,
+  readiness,
+  commissionResult,
+  sessionId,
+  isStreaming = false,
+  isCommissioning = false,
+  canCommission,
+  selectedModel,
+  onEditField,
+  onCommission,
+  onTestRunRecorded,
+}: ConfigPanelProps) {
   if (!state && !sessionId) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
@@ -26,7 +51,7 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
         </span>
         <p className="text-[14px] font-semibold text-[var(--ink-1)]">No draft yet</p>
         <p className="max-w-[260px] text-[13px] leading-relaxed text-[var(--ink-3)]">
-          Describe your agent in the chat. Name, class, instructions and datasources appear here as the builder saves them.
+          Describe your agent in the chat. Its name, class, instructions and data appear here, and you can edit any of them.
         </p>
       </div>
     );
@@ -34,10 +59,23 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
 
   if (!state) return null;
 
-  const ready = canCommissionAgent(state);
+  const commissioned = !!commissionResult || state.readiness === 'commission';
+  const ready = canCommission ?? canCommissionAgent(state);
   const stage = (readiness ?? state.readiness ?? 'interview') as (typeof STAGES)[number];
   const stageIndex = Math.max(0, STAGES.indexOf(stage));
   const instructions = state.prompt.instructions?.trim() ?? '';
+  const lastRun = state.validation.lastTestRun;
+  const testPassed = !!lastRun && lastRun.outcome === 'completed' && lastRun.toolErrors === 0;
+
+  const readOnly = !onEditField || commissioned || isStreaming || !sessionId;
+  const lockNote = commissioned
+    ? 'Commissioned. This draft is now read-only.'
+    : isStreaming
+      ? 'The builder is updating the draft. Editing unlocks when it finishes.'
+      : null;
+
+  const saver = (field: EditableField): SaveFn => (value) =>
+    onEditField ? onEditField(field, value) : Promise.resolve('Editing is not available here.');
 
   const checks = [
     { label: 'Name', done: !!state.name?.trim() },
@@ -45,39 +83,52 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
     { label: `Instructions (${MIN_INSTRUCTIONS}+ characters)`, done: instructions.length >= MIN_INSTRUCTIONS },
   ];
 
+  const catalogSlug = commissionResult?.catalogUrl.split('/').pop();
+
   return (
     <div className="wb-draft flex-1 overflow-y-auto px-5 py-5 font-sans text-[var(--ink-1)]">
       {/* ── Header ─────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Agent draft</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">Agent blueprint</p>
         <span
           className={cn(
             'rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold capitalize',
-            commissionResult || ready ? 'bg-[var(--ok-bg)] text-[var(--ok)]' : 'bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]',
+            commissioned || ready ? 'bg-[var(--ok-bg)] text-[var(--ok)]' : 'bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]',
           )}
         >
-          {commissionResult ? 'Commissioned' : stage}
+          {commissioned ? 'Commissioned' : stage}
         </span>
       </div>
 
-      <h2 className="mt-2 text-[19px] font-semibold leading-snug">
-        {state.name?.trim() || <span className="font-normal italic text-[var(--ink-3)]">Untitled agent</span>}
-      </h2>
-      {state.class?.id && (
-        <span className="mt-2 inline-flex items-center rounded-md border border-[var(--line-1)] bg-[var(--surface-2)] px-2 py-0.5 text-[12px] font-medium text-[var(--ink-2)]">
-          Class · {state.class.id}
-        </span>
+      <div className="mt-2 flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <InlineText
+            label="agent name"
+            value={state.name?.trim() ?? ''}
+            placeholder="Untitled agent"
+            onSave={saver('name')}
+            disabled={readOnly}
+            displayClassName="text-[19px] font-semibold leading-snug"
+          />
+        </div>
+        <span className="mt-2"><ProvenanceBadge state={state} field="name" /></span>
+      </div>
+
+      {lockNote && (
+        <p className="mt-2 flex items-center gap-1.5 rounded-md bg-[var(--surface-2)] px-2.5 py-1.5 text-[12px] text-[var(--ink-2)]">
+          <Lock className="h-3.5 w-3.5 shrink-0" /> {lockNote}
+        </p>
       )}
 
       {/* ── Progress ───────────────────────────────────── */}
-      <div className="mt-5" aria-label={`Stage ${stageIndex + 1} of ${STAGES.length}: ${stage}`}>
+      <div className="mt-4" aria-label={`Stage ${stageIndex + 1} of ${STAGES.length}: ${stage}`}>
         <div className="flex gap-1">
           {STAGES.map((s, i) => (
             <span
               key={s}
               className={cn(
                 'h-1.5 flex-1 rounded-full transition-colors',
-                i <= stageIndex || commissionResult ? 'bg-[var(--brand-a)]' : 'bg-[var(--line-1)]',
+                i <= stageIndex || commissioned ? 'bg-[var(--brand-a)]' : 'bg-[var(--line-1)]',
               )}
             />
           ))}
@@ -89,29 +140,56 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
         </div>
       </div>
 
+      {/* ── Flow ───────────────────────────────────────── */}
+      <FlowStrip state={state} />
+
       {/* ── Status ─────────────────────────────────────── */}
-      {commissionResult ? (
+      {commissioned ? (
         <div className="mt-5 flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[var(--ok-bg)] p-3.5">
           <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[var(--ok)]" />
           <div className="min-w-0">
             <p className="text-[13.5px] font-semibold text-[var(--ok)]">Agent commissioned</p>
-            <a
-              href={commissionResult.catalogUrl}
-              className="mt-1 inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline"
-            >
-              View in catalog <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-[var(--ink-2)]">
+              Saved to the catalog as a draft for review.
+            </p>
+            {commissionResult && (
+              <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
+                <a href={commissionResult.catalogUrl} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
+                  View in catalog <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                {catalogSlug && (
+                  <a href={`/agent-staging/try?agent=${encodeURIComponent(catalogSlug)}`} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
+                    Try it <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : ready ? (
-        <div className="mt-5 flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[var(--ok-bg)] p-3.5">
-          <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[var(--ok)]" />
-          <div>
-            <p className="text-[13.5px] font-semibold text-[var(--ok)]">Ready to commission</p>
-            <p className="mt-0.5 text-[12.5px] leading-relaxed text-[var(--ink-2)]">
-              Press <strong className="font-semibold">Commission</strong> in the composer to publish this agent.
-            </p>
+        <div className="mt-5 rounded-xl border border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[var(--ok-bg)] p-3.5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[var(--ok)]" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-semibold text-[var(--ok)]">Ready to commission</p>
+              <p className="mt-0.5 text-[12.5px] leading-relaxed text-[var(--ink-2)]">
+                {testPassed
+                  ? 'The last test run passed. Commission to save it to the catalog for review.'
+                  : 'Run a test below first so you know it answers from real data.'}
+              </p>
+            </div>
           </div>
+          {onCommission && (
+            <button
+              type="button"
+              onClick={onCommission}
+              disabled={isCommissioning || isStreaming}
+              className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--ok)] px-3 text-[12.5px] font-semibold text-white disabled:opacity-60"
+            >
+              {isCommissioning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
+              {isCommissioning ? 'Commissioning…' : testPassed ? 'Commission' : 'Commission without testing'}
+            </button>
+          )}
         </div>
       ) : (
         <ul className="mt-5 space-y-2 rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] p-3.5">
@@ -127,34 +205,76 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
               <span className={c.done ? 'text-[var(--ink-2)]' : 'text-[var(--ink-1)]'}>{c.label}</span>
             </li>
           ))}
+          <li className="flex items-center gap-2.5 text-[13px]">
+            {testPassed ? (
+              <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[var(--ok)] text-white">
+                <Check className="h-3 w-3" strokeWidth={3} />
+              </span>
+            ) : (
+              <Circle className="h-[18px] w-[18px] text-[var(--line-2)]" />
+            )}
+            <span className="text-[var(--ink-2)]">Test run <span className="text-[var(--ink-3)]">(recommended)</span></span>
+          </li>
         </ul>
       )}
 
-      {/* ── Instructions ───────────────────────────────── */}
-      <Section title="Instructions">
-        {instructions ? <Instructions text={instructions} /> : <Empty>Not written yet</Empty>}
+      {/* ── Purpose ────────────────────────────────────── */}
+      <Section id="wb-sec-purpose" title="Purpose" badge={<ProvenanceBadge state={state} field="prompt.persona" />}>
+        <InlineText
+          label="purpose"
+          value={state.prompt.persona ?? ''}
+          placeholder="One line: who this agent helps and with what"
+          onSave={saver('prompt.persona')}
+          disabled={readOnly}
+          displayClassName="text-[13px] leading-relaxed text-[var(--ink-2)]"
+        />
       </Section>
 
-      {/* ── Datasources ────────────────────────────────── */}
-      <Section title="Datasources" count={state.tools.datasources.length}>
-        {state.tools.datasources.length === 0 ? (
-          <Empty>None connected</Empty>
-        ) : (
-          <ul className="space-y-1.5">
-            {state.tools.datasources.map((d, i) => (
-              <li key={`${d.kind}-${d.ref}-${i}`} className="flex items-center gap-2.5 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2">
-                <Database className="h-4 w-4 shrink-0 text-[var(--ink-3)]" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium">{d.ref}</p>
-                  {d.scope && <p className="truncate text-[11.5px] text-[var(--ink-3)]">{d.scope}</p>}
-                </div>
-                <span className="shrink-0 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--ink-2)]">
-                  {d.kind}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ── Class ──────────────────────────────────────── */}
+      <Section id="wb-sec-class" title="Class" badge={<ProvenanceBadge state={state} field="class.id" />}>
+        <ClassPicker value={state.class?.id ?? null} onSave={saver('class.id')} disabled={readOnly} />
+      </Section>
+
+      {/* ── Instructions ───────────────────────────────── */}
+      <Section id="wb-sec-instructions" title="Instructions" badge={<ProvenanceBadge state={state} field="prompt.instructions" />}>
+        <div className="rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3.5 py-2.5">
+          <InlineText
+            label="instructions"
+            value={instructions}
+            placeholder="Not written yet. Describe how the agent should work, step by step."
+            onSave={saver('prompt.instructions')}
+            disabled={readOnly}
+            multiline
+            minLength={MIN_INSTRUCTIONS}
+            displayClassName="line-clamp-[12] whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--ink-2)]"
+          />
+        </div>
+      </Section>
+
+      {/* ── Data ───────────────────────────────────────── */}
+      <Section
+        id="wb-sec-data"
+        title="Data sources"
+        count={state.tools.datasources.length}
+        badge={<ProvenanceBadge state={state} field="tools.datasources" />}
+      >
+        <DatasourceEditor items={state.tools.datasources} onSave={saver('tools.datasources')} disabled={readOnly} />
+      </Section>
+
+      {/* ── Tools ──────────────────────────────────────── */}
+      <Section id="wb-sec-tools" title="Tools" count={state.tools.actions.length} badge={<ProvenanceBadge state={state} field="tools.actions" />}>
+        <ToolEditor items={state.tools.actions} onSave={saver('tools.actions')} disabled={readOnly} />
+      </Section>
+
+      {/* ── Test run ───────────────────────────────────── */}
+      <Section id="wb-sec-test" title="Test run">
+        <TestRunSection
+          sessionId={sessionId ?? null}
+          state={state}
+          model={selectedModel}
+          disabled={isStreaming || !onEditField}
+          onRecorded={onTestRunRecorded}
+        />
       </Section>
 
       {/* ── Assumptions ────────────────────────────────── */}
@@ -186,32 +306,30 @@ export function ConfigPanel({ state, readiness, commissionResult, sessionId }: C
   );
 }
 
-function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  count,
+  badge,
+  children,
+}: {
+  id?: string;
+  title: string;
+  count?: number;
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="mt-6">
+    <section id={id} className="mt-6 scroll-mt-4">
       <div className="mb-2 flex items-center gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-3)]">{title}</h3>
         {count !== undefined && (
           <span className="rounded-full bg-[var(--surface-3)] px-1.5 text-[10.5px] font-semibold tabular-nums text-[var(--ink-2)]">{count}</span>
         )}
+        <span className="ml-auto">{badge}</span>
       </div>
       {children}
     </section>
-  );
-}
-
-function Instructions({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
-  const long = text.length > 220;
-  return (
-    <div className="rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3.5 py-3">
-      <p className={cn('whitespace-pre-wrap text-[13px] leading-relaxed text-[var(--ink-2)]', !open && long && 'line-clamp-4')}>{text}</p>
-      {long && (
-        <button onClick={() => setOpen((o) => !o)} className="mt-1.5 text-[12px] font-medium text-[var(--brand-a-ink)] hover:underline">
-          {open ? 'Show less' : 'Show all'}
-        </button>
-      )}
-    </div>
   );
 }
 

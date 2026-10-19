@@ -16,7 +16,7 @@
 //   PATCH /api/agent-lab/context/mappings/[id]     → { status: 'confirmed' | 'rejected' }
 //   Both require current status === 'proposed'. On 409 INVALID_TRANSITION, surface the error.
 //
-// Row click-through: resolvable object IDs navigate to /agent-lab/estate/objects/[id].
+// Row click-through: resolvable object IDs navigate to /agent-lab/estate/object/[id].
 // Unresolved targets (no object_id, only path) render the path but skip navigation.
 
 import React, { useState } from 'react';
@@ -283,7 +283,7 @@ export default function RelationshipList({
               ...rowBase,
               cursor: 'pointer',
             }}
-            onClick={() => router.push(`/agent-lab/estate/objects/${sib.id}`)}
+            onClick={() => router.push(`/agent-lab/estate/object/${sib.id}`)}
             title={sib.full_path}
           >
             {/* Source chip */}
@@ -405,7 +405,7 @@ export default function RelationshipList({
                   overflow: 'hidden',
                   cursor: 'pointer',
                 }}
-                onClick={() => router.push(`/agent-lab/estate/objects/${targetId}`)}
+                onClick={() => router.push(`/agent-lab/estate/object/${targetId}`)}
                 title={`Navigate to object ${targetId}`}
               >
                 <div
@@ -487,7 +487,7 @@ export default function RelationshipList({
                   overflow: 'hidden',
                   cursor: 'pointer',
                 }}
-                onClick={() => router.push(`/agent-lab/estate/objects/${otherColObj.object_id}`)}
+                onClick={() => router.push(`/agent-lab/estate/object/${otherColObj.object_id}`)}
                 title={`Navigate to object ${otherColObj.object_id}`}
               >
                 <div
@@ -538,7 +538,7 @@ export default function RelationshipList({
               cursor: co.object_id ? 'pointer' : 'default',
             }}
             onClick={() => {
-              if (co.object_id) router.push(`/agent-lab/estate/objects/${co.object_id}`);
+              if (co.object_id) router.push(`/agent-lab/estate/object/${co.object_id}`);
             }}
             title={co.object_id ? co.full_path : undefined}
           >

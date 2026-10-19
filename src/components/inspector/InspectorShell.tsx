@@ -21,6 +21,8 @@ import type { QueryResult } from '@/hooks/useInspectorChat';
 import { useSession } from 'next-auth/react';
 import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
+import { AgentHandoffCard } from './AgentHandoffCard';
+import { detectAgentBuildIntent } from '@/lib/construction/handoff';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = 'var(--brand-a-ink)';
@@ -270,6 +272,17 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
 
+  // ── Agent-build intent → Agent Lab handoff card ─────────────────────────────
+  // Inspector explores data; agents are built in Agent Lab. When the latest user
+  // message asks to create an agent, offer the handoff instead of leaving the user here.
+  const [dismissedHandoffId, setDismissedHandoffId] = useState<string | null>(null);
+  const lastUserMessage = [...insp.messages].reverse().find((m) => m.role === 'user') ?? null;
+  const showAgentHandoff =
+    !!lastUserMessage &&
+    !insp.isStreaming &&
+    dismissedHandoffId !== lastUserMessage.id &&
+    detectAgentBuildIntent(lastUserMessage.content);
+
   // ── "View source" landing (Phase 2 provenance) ──────────────────────────────
   // A widget's source link opens /inspector?sourceChart=<id>. Resolve the chart
   // and pre-load the composer so the user can refine it in a fresh session; if
@@ -441,6 +454,15 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         {/* LEFT — 60% conversation */}
         <div style={{ width: '60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', overflow: 'hidden', minHeight: 0 }}>
           <PromptCanvas
+            chatError={insp.error}
+            surface="inspector"
+            banner={showAgentHandoff && lastUserMessage ? (
+              <AgentHandoffCard
+                inspectorSessionId={insp.sessionId}
+                mission={lastUserMessage.content}
+                onDismiss={() => setDismissedHandoffId(lastUserMessage.id)}
+              />
+            ) : null}
             messages={insp.messages}
             isStreaming={insp.isStreaming}
             readiness={null}

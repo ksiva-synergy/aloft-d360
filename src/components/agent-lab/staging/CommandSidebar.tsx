@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon } from '@phosphor-icons/react';
+import { GearSixIcon, MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon } from '@phosphor-icons/react';
 import type { Session } from 'next-auth';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
@@ -19,6 +19,7 @@ const EXPANDED_W = 264;
 /** Every page, flattened for the jump-to search. */
 const ALL_ITEMS: (NavItem & { group: string })[] = [
   { ...HOME_ITEM, group: 'Home' },
+  { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
   ...NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
 ];
 
