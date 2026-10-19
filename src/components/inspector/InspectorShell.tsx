@@ -447,6 +447,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             isCommissioning={false}
             selectedModel={insp.selectedModel}
             onModelChange={insp.setSelectedModel}
+            modelOptions={insp.availableModels}
             canCommission={false}
             onReset={handleReset}
             assumptionLedger={[]}

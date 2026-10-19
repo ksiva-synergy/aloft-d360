@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
 import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
@@ -142,18 +143,29 @@ interface UseInspectorChatReturn {
   abort: () => void;
   reset: () => void;
   editMessage: (messageId: string) => { content: string } | null;
+  availableModels: typeof AVAILABLE_MODELS;
 }
 
 export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseInspectorChatOptions): UseInspectorChatReturn {
+  const { models: availableModels } = useInspectorChatModels();
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [semanticChartMessages, setSemanticChartMessages] = useState<SemanticChartMessage[]>([]);
   const [disambiguations, setDisambiguations] = useState<DisambiguationMessage[]>([]);
   const [exportOffers, setExportOffers] = useState<ExportReadyMessage[]>([]);
   const [queryProgress, setQueryProgress] = useState<QueryProgress | null>(null);
-  const defaultModelKey = AVAILABLE_MODELS.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
-    ? DEFAULT_INSPECTOR_MODEL_KEY
-    : AVAILABLE_MODELS[1].key;
-  const [previewModel, setPreviewModel] = useState(defaultModelKey);
+  const resolveDefaultModelKey = (list: typeof AVAILABLE_MODELS) =>
+    list.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
+      ? DEFAULT_INSPECTOR_MODEL_KEY
+      : (list[1]?.key ?? list[0]?.key ?? 'sonnet-4-6');
+
+  const [previewModel, setPreviewModel] = useState(() => resolveDefaultModelKey(AVAILABLE_MODELS));
+
+  useEffect(() => {
+    if (availableModels.length === 0) return;
+    setPreviewModel((current) =>
+      availableModels.some(m => m.key === current) ? current : resolveDefaultModelKey(availableModels),
+    );
+  }, [availableModels]);
 
   // Inspector owns its session id locally (see currentSessionId below). This ref
   // mirrors it for use inside async stream callbacks. Init matches the prop, which
@@ -162,6 +174,9 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
 
   const modelRef = useRef<string>(previewModel);
   useEffect(() => { modelRef.current = previewModel; }, [previewModel]);
+
+  const modelsRef = useRef(availableModels);
+  useEffect(() => { modelsRef.current = availableModels; }, [availableModels]);
 
   const contextModeRef = useRef<'harvested' | 'warehouse_only'>(contextMode);
   useEffect(() => { contextModeRef.current = contextMode; }, [contextMode]);
@@ -202,7 +217,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
         if (!data?.session) { setSessionLoadError(`Session not found (id: ${sessionId})`); return; }
         const s = data.session;
         setLocalMessages(s.messages || []);
-        if (s.progress?.last_model && AVAILABLE_MODELS.some(m => m.key === s.progress!.last_model)) {
+        if (s.progress?.last_model && availableModels.some(m => m.key === s.progress!.last_model)) {
           setPreviewModel(s.progress.last_model as string);
         }
         setCurrentSessionId(s.id);
@@ -464,7 +479,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               const totalTokens = inputTokens + outputTokens;
               const finalLoopCount = (event.loops as number) ?? loopCount;
               const modelKey = model;
-              const modelLabel = AVAILABLE_MODELS.find(m => m.key === modelKey)?.label ?? modelKey;
+              const modelLabel = modelsRef.current.find(m => m.key === modelKey)?.label ?? modelKey;
               // Prefer server-confirmed contextMode over local ref (server is source of truth)
               const confirmedCtxMode = (event.contextMode as 'harvested' | 'warehouse_only') ?? ctxMode;
 
@@ -703,6 +718,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     abort,
     reset,
     editMessage,
+    availableModels,
   };
 }
 
