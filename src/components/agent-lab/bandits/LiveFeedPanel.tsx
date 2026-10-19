@@ -10,6 +10,7 @@ import {
 import { shortName } from '@/lib/bandits/born-tokens';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 function stripPrefix(s: string): string {
   if (!s) return s;
   if (s === 'inspector_chat') return 'inspector';
@@ -178,8 +179,6 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
         style={{
           maxHeight: 440,
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--born-border) transparent',
         }}
       >
         {recentRuns.length === 0 ? (
@@ -262,7 +261,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                       flexShrink: 0,
                       background: srcConfig.bg,
                       color: srcConfig.color,
-                      border: `1px solid ${srcConfig.color}20`,
+                      border: `1px solid ${withAlpha(srcConfig.color, '20')}`,
                     }}>
                       {srcConfig.label}
                     </span>

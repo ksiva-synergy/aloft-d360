@@ -8,11 +8,11 @@ const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, 
 const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 const GOLD = 'var(--brand-a)';
 const GREEN = '#22c55e';
-const NAVY = 'var(--brand-a-ink)';
+const NAVY = 'var(--on-brand)';
 const MUTED = 'var(--ink-3)';
 const BLUE = '#93C5FD';
 const BORDER = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
-const SURFACE = 'rgba(255,255,255,0.03)';
+const SURFACE = 'color-mix(in srgb, var(--ink-1) 3%, transparent)';
 
 interface ContribDefinition { id: string; kind: 'measure' | 'dimension'; label: string; status: string; nlIntent: string | null; }
 interface ContribSynonym { defId: string; tableName: string; added: string[]; at: string; }

@@ -103,7 +103,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. ParserAgent cost ceiling"
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           />
         </div>
 
@@ -114,7 +114,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           >
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
@@ -129,7 +129,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           >
             {SCOPES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -147,7 +147,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
               value={scopeId}
               onChange={(e) => setScopeId(e.target.value)}
               placeholder="Entry/pipeline/env ID"
-              className="w-full px-3 py-1.5 text-sm border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
             />
           </div>
         )}
@@ -165,8 +165,8 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
               className={cn(
                 'px-3 py-1.5 text-xs rounded-md border transition-colors',
                 enforcement === e.value
-                  ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
-                  : 'bg-white dark:bg-[var(--surface-1)] border-slate-200 dark:border-[var(--line-1)] text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-[var(--surface-2)]',
+                  ? 'bg-[color:var(--brand-a-soft)] dark:bg-[color:color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:border-[color:color-mix(in_srgb,var(--brand-a)_30%,transparent)] text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]'
+                  : 'bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] border-[color:var(--line-1)] dark:border-[var(--line-1)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[color:var(--surface-2)] dark:hover:bg-[var(--surface-2)]',
               )}
             >
               <span className="font-medium">{e.label}</span>
@@ -185,7 +185,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           onChange={(e) => setConfigJson(e.target.value)}
           rows={6}
           spellCheck={false}
-          className="w-full px-3 py-2 text-xs font-mono border rounded-md bg-white dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
+          className="w-full px-3 py-2 text-xs font-mono border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)] resize-y"
         />
         <p className="text-xs text-muted-foreground mt-1">
           {type === 'cost_ceiling' && 'e.g. { "max_cost_per_run": 0.50, "currency": "USD" }'}

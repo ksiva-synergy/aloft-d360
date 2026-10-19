@@ -13,7 +13,7 @@ import type { ChartSpec } from '@/lib/studio/types';
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
 };
-const GOLD = '#5B3DF5';
+const GOLD = 'var(--brand-a-ink)';
 
 interface SemanticChartCardProps {
   message: SemanticChartMessage;
@@ -133,8 +133,8 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: `1px solid ${saved ? 'rgba(134,239,172,0.3)' : 'rgba(91, 61, 245,0.15)'}`,
+        background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
+        border: `1px solid ${saved ? 'rgba(134,239,172,0.3)' : 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)'}`,
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12,
@@ -147,7 +147,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '8px 12px',
-          borderBottom: '1px solid rgba(91, 61, 245,0.08)',
+          borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 11%, transparent)',
           gap: 8,
         }}
       >
@@ -197,9 +197,10 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             border: 'none',
             borderRadius: 3,
             padding: '3px 8px',
-            background: GOLD,
-            color: '#111322',
+            background: 'var(--brand-a)',
+            color: 'var(--on-brand)',
             fontWeight: 600,
+            boxShadow: '0 4px 14px -4px color-mix(in srgb, var(--brand-a) 80%, transparent)',
             flexShrink: 0,
           }}
         >
@@ -219,7 +220,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            border: `1px solid rgba(91, 61, 245,0.35)`,
+            border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
             borderRadius: 3,
             padding: '3px 8px',
             background: 'transparent',
@@ -227,7 +228,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             flexShrink: 0,
             transition: 'all 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <Sparkles size={11} />
@@ -261,7 +262,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
               cursor: 'pointer',
-              border: `1px solid rgba(91, 61, 245,0.35)`,
+              border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
               borderRadius: 3,
               padding: '3px 8px',
               background: 'transparent',
@@ -269,7 +270,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               flexShrink: 0,
               transition: 'all 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             <BookmarkPlus size={11} />
@@ -331,7 +332,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
                 fontSize: 13,
                 flex: 1,
                 background: 'var(--wb-canvas)',
-                border: '1px solid rgba(91, 61, 245,0.2)',
+                border: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
                 borderRadius: 4,
                 padding: '6px 8px',
                 color: 'var(--wb-text)',
@@ -348,11 +349,11 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
                 fontSize: 13,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                border: `1px solid rgba(91, 61, 245,0.35)`,
+                border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
                 borderRadius: 3,
                 padding: '5px 10px',
-                background: refineText.trim() ? GOLD : 'transparent',
-                color: refineText.trim() ? '#111322' : GOLD,
+                background: refineText.trim() ? 'var(--brand-a)' : 'transparent',
+                color: refineText.trim() ? 'var(--on-brand)' : GOLD,
                 fontWeight: 600,
                 cursor: refineText.trim() ? 'pointer' : 'default',
                 opacity: refineText.trim() ? 1 : 0.6,
@@ -377,10 +378,10 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
                   alignItems: 'center',
                   gap: 5,
                   alignSelf: 'flex-start',
-                  border: `1px solid rgba(91, 61, 245,0.25)`,
+                  border: `1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)`,
                   borderRadius: 3,
                   padding: '4px 9px',
-                  background: showDraft ? 'rgba(91, 61, 245,0.1)' : 'transparent',
+                  background: showDraft ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'transparent',
                   color: GOLD,
                   cursor: 'pointer',
                 }}
@@ -408,7 +409,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
         <div
           style={{
             padding: '12px',
-            borderTop: '1px solid rgba(91, 61, 245,0.15)',
+            borderTop: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
             background: 'rgba(0,0,0,0.15)',
           }}
         >
@@ -440,7 +441,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               fontSize: 13,
               width: '100%',
               background: 'var(--wb-canvas)',
-              border: '1px solid rgba(91, 61, 245,0.25)',
+              border: '1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)',
               borderRadius: 4,
               padding: '6px 8px',
               color: 'var(--wb-text)',
@@ -459,7 +460,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               fontSize: 13,
               width: '100%',
               background: 'var(--wb-canvas)',
-              border: '1px solid rgba(91, 61, 245,0.15)',
+              border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
               borderRadius: 4,
               padding: '6px 8px',
               color: 'var(--wb-text)',
@@ -479,8 +480,8 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               fontSize: 13,
               letterSpacing: '0.06em',
               textTransform: 'uppercase',
-              background: GOLD,
-              color: '#111322',
+              background: 'var(--brand-a)',
+              color: 'var(--on-brand)',
               border: 'none',
               borderRadius: 4,
               padding: '6px 14px',

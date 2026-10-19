@@ -7,6 +7,17 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
+    const slug = sp.get('slug');
+    if (slug) {
+      const item = await prisma.agent_catalog.findFirst({
+        where: { slug },
+      });
+      if (!item) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      return NextResponse.json({ item });
+    }
+
     const status = sp.get('status');
     const type = sp.get('type');
     const search = sp.get('search');

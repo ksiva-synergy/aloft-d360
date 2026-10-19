@@ -263,7 +263,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           style={{
             ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
             display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6,
-            border: 'none', background: topic.trim() ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: '#111322',
+            border: 'none', background: topic.trim() ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--on-brand)',
             cursor: topic.trim() && !resolving ? 'pointer' : 'default', fontWeight: 500,
           }}
         >
@@ -342,7 +342,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
               style={{
                 ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 6,
-                border: 'none', background: canProceed ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: '#111322',
+                border: 'none', background: canProceed ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--on-brand)',
                 cursor: canProceed ? 'pointer' : 'default', fontWeight: 500,
               }}
             >

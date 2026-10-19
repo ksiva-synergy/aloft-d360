@@ -182,7 +182,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
       ref={scrollRef}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto font-mono text-xs leading-relaxed"
-      style={{ backgroundColor: '#0d1117', minHeight: 0 }}
+      style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0 }}
     >
       {lines.length === 0 && !errorMsg && !isDone && (
         <div className="flex items-center gap-2 px-4 py-3" style={{ color: 'var(--ink-3)' }}>
@@ -206,7 +206,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
         return (
           <div
             key={i}
-            className="flex gap-3 px-4 py-0.5 hover:bg-white/5 group"
+            className="flex gap-3 px-4 py-0.5 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] group"
             style={{
               backgroundColor: isErr
                 ? 'rgba(239,68,68,0.08)'
@@ -226,7 +226,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
             <span
               className="flex-1 break-all whitespace-pre-wrap"
               style={{
-                color: isErr ? '#fca5a5' : isWarn ? '#fde047' : '#c9d1d9',
+                color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'var(--ink-1)',
               }}
             >
               {line.message.replace(/\n$/, '')}
@@ -238,7 +238,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
       {isDone && lines.length > 0 && (
         <div
           className="px-4 py-2 text-xs font-mono border-t mt-1"
-          style={{ color: '#4a5568', borderColor: 'rgba(255,255,255,0.06)' }}
+          style={{ color: '#4a5568', borderColor: 'var(--line-1)' }}
         >
           — stream ended · {lines.length} line{lines.length !== 1 ? 's' : ''} —
         </div>
@@ -267,7 +267,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
   const panelHeader = (fullscreen: boolean) => (
     <div
       className="flex items-center justify-between px-4 py-2.5 border-b shrink-0"
-      style={{ backgroundColor: '#161b22', borderColor: 'var(--line-1)' }}
+      style={{ backgroundColor: 'var(--surface-3)', borderColor: 'var(--line-1)' }}
     >
       <div className="flex items-center gap-2.5">
         <button
@@ -311,7 +311,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsFullscreen(f => !f)}
-            className="p-1 rounded hover:bg-white/10 transition-colors"
+            className="p-1 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors"
             style={{ color: 'var(--ink-3)' }}
             title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
@@ -320,7 +320,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
           {fullscreen && (
             <button
               onClick={() => setIsFullscreen(false)}
-              className="p-1 rounded hover:bg-white/10 transition-colors ml-1"
+              className="p-1 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors ml-1"
               style={{ color: 'var(--ink-3)' }}
               title="Close"
             >
@@ -337,7 +337,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
     return (
       <div
         className="fixed inset-4 z-[60] flex flex-col rounded-xl shadow-2xl overflow-hidden border"
-        style={{ backgroundColor: '#0d1117', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}
+        style={{ backgroundColor: 'var(--terminal-bg)', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}
       >
         {/* Backdrop */}
         <div
@@ -355,7 +355,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
   return (
     <div
       className="rounded-lg overflow-hidden border"
-      style={{ borderColor: 'var(--line-1)', backgroundColor: '#0d1117' }}
+      style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--terminal-bg)' }}
     >
       {panelHeader(false)}
       {!isCollapsed && (

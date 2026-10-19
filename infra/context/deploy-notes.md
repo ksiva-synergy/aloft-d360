@@ -78,8 +78,7 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws
 
 | Secret ARN suffix               | Key                    |
 |---------------------------------|------------------------|
-| `aloft/aurora`                  | `DATABASE_URL`         |
-| `aloft/aurora`                  | `DIRECT_URL`           |
+| `ALOFT` (JSON keys, e.g. `ALOFT-scBxmq` in ARN) | `DATABASE_URL`, `DIRECT_URL`, `DATABRICKS_*`, `XAI_*`, `FOUNDRY_*` (embed), optional `AZURE_OPENAI_*` (embed fallback) |
 | `aloft/databricks`              | `DATABRICKS_CLIENT_ID` |
 | `aloft/databricks`              | `DATABRICKS_CLIENT_SECRET` |
 

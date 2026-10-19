@@ -9,13 +9,13 @@ import type { AuthoringScope } from './authoring/scope';
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = 'var(--brand-a)';
 const GREEN  = '#22c55e';
-const NAVY   = 'var(--brand-a-ink)';
+const NAVY = 'var(--on-brand)';
 const MUTED  = 'var(--ink-3)';
 const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
 const BORDER_MID    = 'color-mix(in srgb, var(--brand-a) 25%, transparent)';
 const BORDER_STRONG = 'color-mix(in srgb, var(--brand-a) 55%, transparent)';
-const SURFACE       = 'rgba(255,255,255,0.03)';
-const SURFACE_HOVER = 'rgba(255,255,255,0.06)';
+const SURFACE       = 'color-mix(in srgb, var(--ink-1) 3%, transparent)';
+const SURFACE_HOVER = 'color-mix(in srgb, var(--ink-1) 6%, transparent)';
 const GREEN_BG  = 'rgba(34,197,94,0.08)';
 const GREEN_BD  = 'rgba(34,197,94,0.30)';
 const ARCH_BG   = 'rgba(136,146,164,0.08)';
@@ -659,17 +659,20 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
 
 // ── RightPaneTabBar ───────────────────────────────────────────────────────────
 
-export type RightPaneTab = 'results' | 'semantic';
+export type RightPaneTab = 'results' | 'semantic' | 'developer';
 
 interface RightPaneTabBarProps {
   activeTab: RightPaneTab;
   onChange: (tab: RightPaneTab) => void;
+  showSemantic?: boolean;
+  showDeveloper?: boolean;
 }
 
-export function RightPaneTabBar({ activeTab, onChange }: RightPaneTabBarProps) {
+export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false }: RightPaneTabBarProps) {
   const tabs: { id: RightPaneTab; label: string }[] = [
     { id: 'results', label: 'RESULTS' },
-    { id: 'semantic', label: 'SEMANTIC' },
+    ...(showSemantic ? [{ id: 'semantic' as const, label: 'SEMANTIC' }] : []),
+    ...(showDeveloper ? [{ id: 'developer' as const, label: 'DEVELOPER' }] : []),
   ];
 
   return (

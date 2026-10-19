@@ -14,7 +14,8 @@ import {
   topicColor,
   GOLD,
 } from '@/lib/foer/foer-tokens';
-import { ALL_KNOWLEDGE_KEY as _ALL_KNOWLEDGE_KEY } from '@/lib/foer/topics'; // kept for future sidebar integration
+import { withAlpha } from '@/lib/theme/with-alpha';
+import { ALL_KNOWLEDGE_KEY as _ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants'; // kept for future sidebar integration
 
 function humanizeRuleType(ruleType: string): string {
   const labels: Record<string, string> = {
@@ -338,22 +339,22 @@ export function ShelvesPanel() {
         top:            tooltip.y + 14,
         zIndex:         9999,
         width:          300,
-        background:     'rgba(10,18,30,0.97)',
+        background:     'var(--surface-1)',
         backdropFilter: 'blur(8px)',
-        border:         '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
+        border:         '1px solid var(--line-2)',
         borderRadius:   6,
         padding:        '12px 14px',
-        boxShadow:      '0 6px 24px rgba(0,0,0,0.55)',
+        boxShadow:      'var(--shadow-pop)',
         pointerEvents:  'none',
         display:        'flex',
         flexDirection:  'column',
         gap:            8,
       }}
     >
-      <p style={{ fontFamily: SERIF, fontSize: '13px', color: '#F0F4F8', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
+      <p style={{ fontFamily: SERIF, fontSize: '13px', color: 'var(--ink-1)', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
         {tooltip.bullet.ruleText}
       </p>
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+      <div style={{ height: '1px', background: 'var(--line-1)' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span
           style={{
@@ -370,13 +371,13 @@ export function ShelvesPanel() {
         >
           {tooltip.bullet.ruleType.replace(/_/g, ' ')}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: '13px', color: '#8BAFC8' }}>
+        <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--ink-2)' }}>
           v{tooltip.bullet.version} · {(tooltip.bullet.confidence * 100).toFixed(0)}% conf
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '13px', color: '#4A6080' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '13px', color: 'var(--ink-3)' }}>
         <span>
-          {tooltip.bullet.helpfulCount > 0 && <span style={{ color: '#6ABF8A' }}>{tooltip.bullet.helpfulCount}↑ helpful</span>}
+          {tooltip.bullet.helpfulCount > 0 && <span style={{ color: 'var(--ok)' }}>{tooltip.bullet.helpfulCount}↑ helpful</span>}
           {tooltip.bullet.helpfulCount > 0 && tooltip.bullet.harmfulCount > 0 && ' · '}
           {tooltip.bullet.harmfulCount > 0 && <span style={{ color: '#D9774B' }}>{tooltip.bullet.harmfulCount}↓ harmful</span>}
           {tooltip.bullet.helpfulCount === 0 && tooltip.bullet.harmfulCount === 0 && 'no feedback yet'}
@@ -427,7 +428,7 @@ export function ShelvesPanel() {
           .foer-shelf-card {
             display: flex;
             flex-direction: column;
-            background: rgba(255,255,255,0.03);
+            background: color-mix(in srgb, var(--ink-1) 3%, transparent);
             border: 1px solid var(--foer-border-dim);
             border-radius: 6px;
             padding: 14px 16px 16px;
@@ -457,17 +458,17 @@ export function ShelvesPanel() {
                     borderRadius:  3,
                     border:        `1px solid ${
                       statsRes.flagStatus.coveragePercent >= 90
-                        ? 'rgba(106,191,138,0.4)'
+                        ? 'color-mix(in srgb, var(--ok) 40%, transparent)'
                         : statsRes.flagStatus.coveragePercent >= 75
                         ? 'color-mix(in srgb, var(--brand-a) 35%, transparent)'
                         : 'rgba(217,119,75,0.4)'
                     }`,
                     color: statsRes.flagStatus.coveragePercent >= 90
-                      ? '#6ABF8A'
+                      ? 'var(--ok)'
                       : statsRes.flagStatus.coveragePercent >= 75
-                      ? '#5B3DF5'
+                      ? 'var(--brand-a-ink)'
                       : '#D9774B',
-                    background: 'rgba(255,255,255,0.03)',
+                    background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
                   }}
                   title={`${statsRes.flagStatus.coveragePercent}% of signatures classified into topics`}
                 >
@@ -511,7 +512,7 @@ export function ShelvesPanel() {
                 borderRadius:    3,
                 border:          '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
                 background:      reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
-                color:           reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : '#5B3DF5',
+                color:           reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'var(--brand-a-ink)',
                 cursor:          reclassifyMutation.isPending ? 'not-allowed' : 'pointer',
                 textTransform:   'uppercase',
                 transition:      'background 0.15s ease, color 0.15s ease',
@@ -550,9 +551,9 @@ export function ShelvesPanel() {
           <div style={{
             fontFamily:  MONO,
             fontSize:    '0.65rem',
-            color:       '#6ABF8A',
-            background:  'rgba(106,191,138,0.08)',
-            border:      '1px solid rgba(106,191,138,0.2)',
+            color:       'var(--ok)',
+            background:  'var(--ok-bg)',
+            border:      '1px solid color-mix(in srgb, var(--ok) 25%, transparent)',
             borderRadius: 3,
             padding:     '6px 12px',
           }}>
@@ -675,7 +676,7 @@ export function ShelvesPanel() {
                     style={{
                       textAlign:   'left',
                       cursor:      'pointer',
-                      background:  'rgba(255,255,255,0.03)',
+                      background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
                       border:      '1px solid var(--foer-border-dim)',
                       borderRadius: 6,
                       padding:     '14px 16px 16px',
@@ -710,7 +711,7 @@ export function ShelvesPanel() {
                         let border = 'none';
                         if (bullet.status === 'ACTIVE') {
                           opacity = 1.0;
-                          boxShadow = `0 0 ${r * 0.7}px ${typeColor}60`;
+                          boxShadow = `0 0 ${r * 0.7}px ${withAlpha(typeColor, '60')}`;
                         } else if (bullet.status === 'SUPERSEDED') {
                           opacity = 0.4;
                           border = `1.5px solid ${typeColor}`;
@@ -795,7 +796,7 @@ export function ShelvesPanel() {
                       let border = 'none';
                       if (bullet.status === 'ACTIVE') {
                         opacity = 1.0;
-                        boxShadow = `0 0 ${r * 0.7}px ${typeColor}60`;
+                        boxShadow = `0 0 ${r * 0.7}px ${withAlpha(typeColor, '60')}`;
                       } else if (bullet.status === 'SUPERSEDED') {
                         opacity = 0.4;
                         border = `1.5px solid ${typeColor}`;

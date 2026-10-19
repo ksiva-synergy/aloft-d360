@@ -468,7 +468,7 @@ function FacetDropdown({
                   ...MONO,
                   fontSize: 13,
                   color: INK,
-                  background: 'rgba(255,255,255,0.06)',
+                  background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
                   border: `1px solid ${BORDER}`,
                   borderRadius: 3,
                   padding: '5px 8px',
@@ -504,7 +504,7 @@ function FacetDropdown({
                     borderBottom: `1px solid ${BORDER}`,
                   }}
                   onMouseEnter={(e) => {
-                    if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    if (!checked) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink-1) 3%, transparent)';
                   }}
                   onMouseLeave={(e) => {
                     if (!checked) e.currentTarget.style.background = 'transparent';

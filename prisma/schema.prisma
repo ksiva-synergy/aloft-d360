@@ -3041,3 +3041,56 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+/// One row per agent turn (one user message → final answer), written server-side.
+model agent_turn_log {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turn_id            String   @unique
+  session_id         String
+  surface            String
+  model              String?
+  started_at         DateTime @db.Timestamptz(6)
+  duration_ms        Int
+  first_token_ms     Int?
+  llm_ms             Int      @default(0)
+  tool_ms            Int      @default(0)
+  loops              Int      @default(0)
+  tool_calls         Int      @default(0)
+  tool_errors        Int      @default(0)
+  input_tokens       Int      @default(0)
+  output_tokens      Int      @default(0)
+  cache_read_tokens  Int      @default(0)
+  cache_write_tokens Int      @default(0)
+  peak_context_chars Int      @default(0)
+  outcome            String
+  error              String?
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id, started_at], map: "idx_agent_turn_log_session")
+  @@map("agent_turn_log")
+}
+
+/// One row per LLM call inside a turn: model time vs tool time, cache hits, context growth.
+model agent_loop_log {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  turn_id            String
+  session_id         String
+  loop               Int
+  model              String?
+  started_at         DateTime @db.Timestamptz(6)
+  llm_ms             Int
+  first_token_ms     Int?
+  tool_ms            Int      @default(0)
+  input_tokens       Int      @default(0)
+  output_tokens      Int      @default(0)
+  cache_read_tokens  Int      @default(0)
+  cache_write_tokens Int      @default(0)
+  context_messages   Int      @default(0)
+  context_chars      Int      @default(0)
+  tool_calls         Int      @default(0)
+  stop_reason        String?
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([session_id, turn_id, loop], map: "idx_agent_loop_log_session")
+  @@map("agent_loop_log")
+}

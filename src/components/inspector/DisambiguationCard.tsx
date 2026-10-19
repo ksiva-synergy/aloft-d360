@@ -164,7 +164,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
         border: '1px solid rgba(147,197,253,0.25)',
         borderRadius: 6,
         overflow: 'hidden',

@@ -5,11 +5,12 @@ import { BOOST_MODELS, type BoostModel, type ModelTier } from '@/lib/boost/model
 import { BOOST_SUITE_V1, BOOST_SUITE_V2, type BoostCase } from '@/lib/boost/suite';
 import type { ToolKind } from '@/lib/boost/classify';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // Accent colors stay literal (concatenated with hex-opacity suffixes; readable on
 // both themes). Surface/text/border tokens resolve from the `--pl-*` CSS custom
 // properties defined in globals.css (`:root` light + `.dark` override), so the
 // Performance Lab flips with the global light/dark toggle.
-const GOLD = '#5B3DF5';
+const GOLD = 'var(--brand-a-ink)';
 const SURF = 'var(--pl-surf)';
 const SURF2 = 'var(--pl-surf2)';
 const BORDER = 'var(--pl-border)';
@@ -357,7 +358,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
           <div style={{ ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: TXT2, marginBottom: 5 }}>Task · {caseLabel}</div>
           <div style={{ ...mono, fontSize: 13, color: TXT }}>Case: {activeCase}</div>
         </div>
-        {model && <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 4, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
+        {model && <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 4, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: 'var(--brand-a)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -384,7 +385,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
         </div>
       </div>
 
-      <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 14, padding: '10px 13px', borderLeft: `2px solid ${GOLD}`, background: SURF }}>
+      <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 14, padding: '10px 13px', borderLeft: `2px solid ${'var(--brand-a)'}`, background: SURF }}>
         🟡 <strong style={{ color: GOLD }}>Why outcome must gate efficiency:</strong> a truncated run may show fewer tokens — it spent its budget on schema discovery and never answered. We only compare tokens, latency, and loops <strong style={{ color: TXT }}>among completed runs</strong>. A truncated run scores zero on efficiency regardless of how few tokens it burned.
       </div>
     </div>
@@ -452,7 +453,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
                 <span style={{
                   ...mono, fontSize: 13, letterSpacing: '0.12em', fontWeight: 700,
                   color: tier.color, padding: '3px 10px', borderRadius: 4,
-                  border: `1px solid ${tier.color}55`, background: `${tier.color}11`,
+                  border: `1px solid ${withAlpha(tier.color, '55')}`, background: `${withAlpha(tier.color, '11')}`,
                 }}>
                   {tier.label}
                 </span>

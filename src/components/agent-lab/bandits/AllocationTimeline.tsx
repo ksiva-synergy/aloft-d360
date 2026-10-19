@@ -24,12 +24,12 @@ export function AllocationTimeline({ series, models }: Props) {
 
   return (
     <div className="bandit-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-[var(--line-1)] flex items-center gap-2">
+      <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <GitBranch className="h-4 w-4 text-cyan-500" />
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Selection History
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500 ml-1">
+        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           Model allocation over time
         </span>
       </div>
@@ -42,7 +42,7 @@ export function AllocationTimeline({ series, models }: Props) {
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: getModelColor(m) }}
               />
-              <span className="text-slate-600 dark:text-slate-400">{getModelShortName(m)}</span>
+              <span className="text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)]">{getModelShortName(m)}</span>
             </div>
           ))}
         </div>
@@ -69,11 +69,11 @@ export function AllocationTimeline({ series, models }: Props) {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'rgba(15, 20, 25, 0.95)',
-                border: '1px solid rgba(68, 76, 86, 0.5)',
+                backgroundColor: 'var(--surface-1)',
+                border: '1px solid var(--line-2)',
                 borderRadius: 8,
                 fontSize: 13,
-                color: '#e2e8f0',
+                color: 'var(--ink-1)',
               }}
               formatter={(value: number, name: string) => [
                 `${value.toFixed(1)}%`,

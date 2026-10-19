@@ -246,7 +246,7 @@ function SourceBreakdownPanel({ breakdown }: { breakdown: SourceBreakdown }) {
               }}>
                 {key}
               </span>
-              <div style={{ width: 80, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{ width: 80, height: 4, borderRadius: 2, background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)', overflow: 'hidden' }}>
                 <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 2 }} />
               </div>
               <span style={{
@@ -326,7 +326,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                   cursor: 'pointer',
                   borderRadius: 4,
                 }}
-                className="hover:bg-white/[0.02] transition-colors"
+                className="hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)] transition-colors"
               >
                 <span style={{
                   fontFamily: '"IBM Plex Mono", monospace',
@@ -343,7 +343,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                 </span>
 
                 {/* Segmented bar */}
-                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.05)', overflow: 'hidden', display: 'flex' }}>
+                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', overflow: 'hidden', display: 'flex' }}>
                   {segTotal > 0 ? (
                     <>
                       {f > 0 && <div style={{ width: `${(f / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.filtered }} />}
@@ -480,7 +480,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
                 fontFamily: '"IBM Plex Mono", monospace',
                 fontSize: 13,
                 color: 'var(--estate-text-muted)',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
                 padding: '1px 4px',
                 borderRadius: 2,
                 flexShrink: 0,

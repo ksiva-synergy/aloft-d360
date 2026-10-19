@@ -289,7 +289,7 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
             style={{
               fontFamily: UI_FONT, fontSize: 13, letterSpacing: '0.02em',
               display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 22px', borderRadius: 8, border: 'none',
-              background: governedCount > 0 ? GOLD : tint(GOLD, 30), color: '#111322',
+              background: governedCount > 0 ? GOLD : tint(GOLD, 30), color: 'var(--on-brand)',
               cursor: governedCount > 0 ? 'pointer' : 'default', fontWeight: 600,
             }}
           >
@@ -397,7 +397,7 @@ function BlueprintCard({
       >
         <span
           style={{
-            fontFamily: UI_FONT, fontSize: 13, fontWeight: 600, color: '#e6edf3',
+            fontFamily: UI_FONT, fontSize: 13, fontWeight: 600, color: 'var(--ink-1)',
             flex: 1, lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.8)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}

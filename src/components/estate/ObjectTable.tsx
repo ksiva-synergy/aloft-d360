@@ -184,15 +184,15 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                   className="animate-pulse border-b"
                   style={{ borderColor: borderColor }}
                 >
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-4/5"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-12"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16 ml-auto"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-8 ml-auto"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/10 rounded w-5/6"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16"></div></td>
-                  <td className="p-3 text-center"><div className="h-2.5 w-2.5 bg-slate-400/20 rounded-full inline-block"></div></td>
-                  <td className="p-3 text-center"><div className="h-3 bg-slate-400/20 rounded w-3 inline-block"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-20"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-4/5"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 ml-auto"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-8 ml-auto"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-5/6"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16"></div></td>
+                  <td className="p-3 text-center"><div className="h-2.5 w-2.5 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded-full inline-block"></div></td>
+                  <td className="p-3 text-center"><div className="h-3 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-3 inline-block"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20"></div></td>
                 </tr>
               ))
             ) : displayedItems.length === 0 ? (

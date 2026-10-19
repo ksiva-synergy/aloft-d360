@@ -16,11 +16,12 @@ import {
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const serif: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
 const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
-const GOLD = '#5B3DF5';
+const GOLD = 'var(--brand-a-ink)';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
 const INK_DIM = 'var(--wb-ink-dim)';
@@ -36,9 +37,9 @@ const RED = '#ef4444';
 
 // ── Readiness badge ────────────────────────────────────────────────────────────
 const READINESS_META: Record<string, { label: string; color: string; bg: string }> = {
-  interview: { label: 'INTERVIEW', color: '#93C5FD', bg: 'rgba(30,58,95,0.7)' },
-  plan:      { label: 'PLAN',      color: GOLD,      bg: 'rgba(63,42,0,0.7)' },
-  build:     { label: 'BUILD',     color: '#86EFAC', bg: 'rgba(22,101,52,0.7)' },
+  interview: { label: 'INTERVIEW', color: 'var(--brand-b)', bg: 'color-mix(in srgb, var(--brand-b) 14%, transparent)' },
+  plan:      { label: 'PLAN',      color: GOLD,      bg: 'color-mix(in srgb, var(--brand-a) 12%, transparent)' },
+  build:     { label: 'BUILD',     color: 'var(--ok)', bg: 'var(--ok-bg)' },
 };
 
 function ReadinessBadge({ value }: { value: 'interview' | 'plan' | 'build' }) {
@@ -52,7 +53,7 @@ function ReadinessBadge({ value }: { value: 'interview' | 'plan' | 'build' }) {
       letterSpacing: '0.14em',
       color: meta.color,
       background: meta.bg,
-      border: `1px solid ${meta.color}30`,
+      border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
       borderRadius: 4,
       padding: '2px 7px',
     }}>
@@ -128,7 +129,7 @@ function ThinkingAccordion({
             <div style={{
               borderTop: `1px solid ${VIOLET_BORDER}`,
               padding: '12px 14px 14px',
-              borderLeft: `3px solid ${VIOLET}40`,
+              borderLeft: `3px solid ${withAlpha(VIOLET, '40')}`,
               marginLeft: 14,
             }}>
               <pre style={{
@@ -338,7 +339,7 @@ function renderInline(text: string): React.ReactNode[] {
     if (m[2] != null) parts.push(<strong key={m.index} style={{ fontWeight: 600, color: INK }}>{m[2]}</strong>);
     else if (m[3] != null) parts.push(<em key={m.index}>{m[3]}</em>);
     else if (m[4] != null) parts.push(
-      <code key={m.index} style={{ ...mono, fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: GOLD, padding: '1px 5px', borderRadius: 3 }}>
+      <code key={m.index} style={{ ...mono, fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: 'var(--brand-a)', padding: '1px 5px', borderRadius: 3 }}>
         {m[4]}
       </code>,
     );
@@ -443,7 +444,7 @@ function MarkdownTable({
               <tr
                 key={ri}
                 style={{
-                  background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                  background: ri % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--ink-1) 2%, transparent)',
                 }}
               >
                 {headers.map((_, ci) => {
@@ -724,7 +725,7 @@ function StreamPulse() {
             width: 5,
             height: 5,
             borderRadius: '50%',
-            background: GOLD,
+            background: 'var(--brand-a)',
             animation: `sm-dot-pulse 1.4s ease-in-out ${i * 0.22}s infinite`,
           }}
         />
@@ -814,7 +815,7 @@ export function StreamingMessage({
         {isStreaming && (
           <div style={{
             height: 2,
-            background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${'var(--brand-a)'}, transparent)`,
             animation: 'sm-progress-slide 1.6s ease-in-out infinite',
           }} />
         )}

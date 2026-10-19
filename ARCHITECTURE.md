@@ -1,5 +1,10 @@
 # ALOFT D360 — End-to-End Architecture Reference
 
+> **UI update (2026-10-19):** the browser UI is now a Vite + React Router v7 single-page app (`web/`, pages in `src/views`). Next.js is the API and
+> auth server only (`src/app/api/**`, next-auth, Prisma) and serves the built UI from `public/spa`. Sections below that describe Next.js pages, layouts
+> or server components describe the previous structure. See [web/README.md](web/README.md) and [docs/vite-migration/PROGRESS.md](docs/vite-migration/PROGRESS.md).
+
+
 > **Product:** Agent Lab — *Design, stage, and operate AI agent pipelines. Powered by ALOFT.*  
 > **Brand:** Spinor Labs  
 > **Repository:** `aloft-d360` (npm workspaces monorepo)  

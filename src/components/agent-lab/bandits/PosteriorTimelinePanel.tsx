@@ -223,7 +223,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                       border: 'none',
                       cursor: 'pointer',
                       background: isActive ? GOLD : 'transparent',
-                      color: isActive ? '#111322' : TEXT_MUT,
+                      color: isActive ? 'var(--on-brand)' : TEXT_MUT,
                       fontWeight: isActive ? 600 : 400,
                       transition: 'background 0.12s, color 0.12s',
                     }}

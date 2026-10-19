@@ -142,10 +142,10 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               {[...Array(8)].map((_, i) => (
                 <div key={`skel-${i}`} className="px-5 py-3 border-b animate-pulse" style={{ borderColor }}>
                   <div className="flex justify-between">
-                    <div className="h-4 bg-slate-400/15 rounded w-28" />
-                    <div className="h-3.5 bg-slate-400/15 rounded w-14" />
+                    <div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-28" />
+                    <div className="h-3.5 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14" />
                   </div>
-                  <div className="h-3 bg-slate-400/10 rounded w-16 mt-2" />
+                  <div className="h-3 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-16 mt-2" />
                 </div>
               ))}
             </div>

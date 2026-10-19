@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2, ChevronDown, ChevronRight, ArrowLeft, Play } from 'lucide-react';
 import type { StatsResponse, LastRunInfo } from '@/lib/foer/types';
 import {
@@ -24,9 +25,10 @@ import {
   ruleTypeColor,
   TOPIC_ALL_KNOWLEDGE_ACCENT,
 } from '@/lib/foer/foer-tokens';
-import { ALL_KNOWLEDGE_KEY } from '@/lib/foer/topics';
+import { ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants';
 import { SessionDetailDrawer } from './SessionDetailDrawer';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 interface BrowseBullet {
   id: string;
   agentClass?: string;
@@ -138,42 +140,6 @@ function makeQueryClient() {
 
 
 // ── CSS variable themes ───────────────────────────────────────────────────────
-const DARK_THEME = {
-  '--foer-bg':          '#05090f',
-  '--foer-surface':     '#0a1320',
-  '--foer-surface2':    '#0c1828',
-  '--foer-border':      '#16273d',
-  '--foer-border-dim':  'rgba(255,255,255,0.07)',
-  '--foer-text-pri':    '#e8eef5',
-  '--foer-text-sec':    '#8a9bb5',
-  '--foer-text-mut':    '#5e7790',
-  '--foer-gold':        '#5B3DF5',
-  '--foer-wordmark':    '#5B3DF5',
-  '--foer-pill-bg':     'color-mix(in srgb, var(--brand-a) 10%, transparent)',
-  '--foer-pill-active': 'color-mix(in srgb, var(--brand-a) 20%, transparent)',
-  '--foer-card-bg':     '#0a1320',
-  '--foer-green':       '#22c55e',
-  '--foer-amber-bg':    'rgba(217,119,75,0.08)',
-} as const;
-
-const LIGHT_THEME = {
-  '--foer-bg':          '#F6F3EC',
-  '--foer-surface':     '#FFFFFF',
-  '--foer-surface2':    '#FBF9F3',
-  '--foer-border':      '#E4DDCE',
-  '--foer-border-dim':  'rgba(0,50,98,0.08)',
-  '--foer-text-pri':    '#1B2532',
-  '--foer-text-sec':    '#5A6B82',
-  '--foer-text-mut':    '#7A8696',
-  '--foer-gold':        '#5B3DF5',
-  '--foer-wordmark':    '#3B1FD6',
-  '--foer-pill-bg':     'rgba(0,50,98,0.08)',
-  '--foer-pill-active': 'rgba(0,50,98,0.18)',
-  '--foer-card-bg':     '#FFFFFF',
-  '--foer-green':       '#15803d',
-  '--foer-amber-bg':    'rgba(217,119,75,0.08)',
-} as const;
-
 function formatLastRun(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -207,9 +173,9 @@ interface InnerProps {
 function FoerOpsInner({ topicMap }: InnerProps) {
   // ── Theme state — synced with global sidebar toggle via next-themes ──────────
   const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme !== 'light';
+  const dark = resolvedTheme === 'dark';
 
-  const theme = dark ? DARK_THEME : LIGHT_THEME;
+  const theme = FOER_THEME;
 
   // ── React Query ───────────────────────────────────────────────────────────
   const { data: stats, isLoading: statsLoading, dataUpdatedAt } = useQuery<StatsResponse>({
@@ -432,8 +398,8 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           alignItems: 'center',
           justifyContent: 'center',
           height: '100vh',
-          background: dark ? DARK_THEME['--foer-bg'] : LIGHT_THEME['--foer-bg'],
-          color: dark ? DARK_THEME['--foer-text-sec'] : LIGHT_THEME['--foer-text-sec'],
+          background: 'var(--background)',
+          color: 'var(--ink-2)',
           fontFamily: MONO,
           fontSize: '0.8rem',
           gap: '0.75rem',
@@ -1175,7 +1141,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
               {/* Ranked bullets — capped at 75vh, scrollable */}
               {rankedForInj.length > 0 && (
-                <div style={{ maxHeight: '75vh', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'var(--foer-border) transparent' }}>
+                <div style={{ maxHeight: '75vh', overflowY: 'auto' }}>
                   {rankedForInj.map((b, idx) => {
                     const prevPhase  = idx > 0 ? rankedForInj[idx - 1].phase : null;
                     const showDivider = prevPhase !== null && b.phase !== prevPhase;
@@ -1189,7 +1155,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                             <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: phaseColor, textTransform: 'uppercase' }}>
                               {phaseLabel}
                             </span>
-                            <div style={{ flex: 1, height: '1px', background: `${phaseColor}30` }} />
+                            <div style={{ flex: 1, height: '1px', background: `${withAlpha(phaseColor, '30')}` }} />
                           </div>
                         )}
                         <div
@@ -1203,7 +1169,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                             background:   b.overBudget ? 'var(--foer-surface2)' : 'transparent',
                           }}
                         >
-                          <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: accent, background: `${accent}14`, border: `1px solid ${accent}35`, borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
+                          <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: accent, background: `${withAlpha(accent, '14')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
                             {b.ruleType.replace('_', ' ')}
                           </span>
                           <span style={{ flex: 1, fontFamily: MONO, fontSize: '0.72rem', color: b.overBudget ? 'var(--foer-text-mut)' : 'var(--foer-text-pri)', lineHeight: 1.5 }}>
@@ -1212,7 +1178,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--foer-text-mut)' }}>{b.tokens}t</span>
                             {b.overBudget && (
-                              <span style={{ fontFamily: MONO, fontSize: '13px', color: RULE_TYPE_COLORS.FAILURE_MODE, background: `${RULE_TYPE_COLORS.FAILURE_MODE}18`, border: `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}40`, borderRadius: 3, padding: '1px 4px' }}>
+                              <span style={{ fontFamily: MONO, fontSize: '13px', color: RULE_TYPE_COLORS.FAILURE_MODE, background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '18')}`, border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '40')}`, borderRadius: 3, padding: '1px 4px' }}>
                                 over budget
                               </span>
                             )}

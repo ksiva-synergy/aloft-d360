@@ -56,6 +56,7 @@ import {
   UI_FONT, GOVERNED, CANDIDATE, ACCENT_AMBER, INK_MUTED,
 } from '@/lib/dashboards/inspector-viz-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 export type { PreviewChartKind };
 
 /** Kind-aware thumb height: avoids a cramped 132px for all chart types. */
@@ -176,13 +177,13 @@ function SamplePreviewChartImpl({
           width: '100%', height: '100%',
           overflow: 'hidden',
           border: `1px solid ${governanceRing(governance, isDark)}`,
-          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${withAlpha(GOVERNED, '22')}` : undefined,
         }
       : {
           position: 'relative', display: 'flex', flexDirection: 'column',
           borderRadius: 10, overflow: 'hidden', minHeight: height,
           border: `1px solid ${governanceRing(governance, isDark)}`,
-          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${withAlpha(GOVERNED, '22')}` : undefined,
         };
 
   return (
@@ -277,7 +278,7 @@ function Chip({ color, label, icon, testId }: { color: string; label: string; ic
       data-testid={testId}
       style={{
         fontFamily: UI_FONT, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
-        color, border: `1px solid ${color}66`, background: `${color}14`, borderRadius: 4,
+        color, border: `1px solid ${withAlpha(color, '66')}`, background: `${withAlpha(color, '14')}`, borderRadius: 4,
         padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600,
       }}
     >

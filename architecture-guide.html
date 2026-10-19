@@ -11860,6 +11860,7 @@ body, .font-sans { font-family: 'Segoe UI', system-ui, -apple-system, 'Inter Tig
       <div class="nav-group-title">Cross-Cutting</div>
       <a href="#" data-nav-page="semantic" class="nav-link"><i class="fas fa-brain mr-2"></i> Semantic Layer</a>
       <a href="#" data-nav-page="studio" class="nav-link"><i class="fas fa-chart-bar mr-2"></i> Data Studio</a>
+      <a href="#" data-nav-page="visualization-inventory" class="nav-link"><i class="fas fa-layer-group mr-2"></i> Visualization inventory</a>
       <a href="#" data-nav-page="auth" class="nav-link"><i class="fas fa-key mr-2"></i> Auth &amp; RBAC</a>
       <a href="#" data-nav-page="marcus" class="nav-link"><i class="fas fa-robot mr-2"></i> Marcus &amp; Workbench</a>
       <a href="#" data-nav-page="harvester-pipeline" class="nav-link"><i class="fas fa-industry mr-2"></i> Harvester Pipeline</a>
@@ -12512,6 +12513,27 @@ flowchart LR
               </div>
             </details>
 
+            <details class="clean-accordion" id="inspector-results-vs-charts">
+              <summary>Results pane vs tables vs charts vs dashboards <span class="text-xs text-[#5a6578] ml-2">developer + user mental model</span></summary>
+              <div class="acc-body text-sm space-y-3">
+                <p><strong>You are not missing a feature.</strong> For debugging “what happened,” <strong>tables + SQL</strong> are the source of truth. Charts and the Data Studio <strong>DASHBOARD</strong> tab serve different jobs: pattern spotting, promotion into governed artifacts, and shared delivery — not step-through forensics.</p>
+                <table class="w-full text-xs border-collapse">
+                  <thead><tr class="text-left border-b"><th class="py-1 pr-2">Layer</th><th class="py-1 pr-2">Where</th><th class="py-1 pr-2">Persists?</th><th class="py-1">Purpose</th></tr></thead>
+                  <tbody>
+                    <tr class="border-b border-[#e2e8f0]"><td class="py-1 pr-2 font-medium">A. Query table</td><td class="py-1 pr-2">DATA pane, Studio TABLE</td><td class="py-1 pr-2">Session (<code>query_result</code>)</td><td class="py-1">Exact warehouse output — debug joins, nulls, counts, CSV</td></tr>
+                    <tr class="border-b border-[#e2e8f0]"><td class="py-1 pr-2 font-medium">B. Ad-hoc charts</td><td class="py-1 pr-2"><span class="file-ref">DashboardPane</span>, Studio DASHBOARD (<code>recommendCharts</code>)</td><td class="py-1 pr-2">Optional cache on result row</td><td class="py-1">Exploration — auto-suggested bar/heatmap/KPIs; disposable until saved</td></tr>
+                    <tr class="border-b border-[#e2e8f0]"><td class="py-1 pr-2 font-medium">C. Saved charts</td><td class="py-1 pr-2"><code>platform_charts</code> — Save / Pin</td><td class="py-1 pr-2">Yes</td><td class="py-1">Reusable viz + semantic query or raw SQL; assign to widgets</td></tr>
+                    <tr><td class="py-1 pr-2 font-medium">D. Dashboard Builder</td><td class="py-1 pr-2"><code>/inspector/dashboards/…/builder</code></td><td class="py-1 pr-2">Versioned</td><td class="py-1">Team-facing boards — not the same as Studio’s chart grid</td></tr>
+                  </tbody>
+                </table>
+                <p><strong>Why the right pane is always open:</strong> <span class="file-ref">InspectorShell.tsx</span> uses a fixed ~60/40 split. There is no collapse mode — the column reserves space for results (or empty-state prompts) even before SQL runs. <strong>EXPAND</strong> opens full Data Studio overlay; it does not hide the pane.</p>
+                <p><strong>Why charts often feel wrong:</strong> (1) Chat markdown tables ≠ <code>query_result</code> — pane may be empty while chat shows a table. (2) <span class="file-ref">ChartBuilder</span> auto-picks axes (first numeric column may be <code>RANK</code>, not <code>VESSELS</code>). (3) Scatter needs Y2. (4) Three paths: raw Recharts in pane, <code>emit_semantic_chart</code> (ECharts), Studio recommender — they are not auto-synced.</p>
+                <p><strong>Why Studio looks like “a new dashboard every query”:</strong> Each SQL run appends a rail entry (Q14, Q15…). Opening Studio defaults to <strong>DASHBOARD</strong> mode and runs <code>recommendCharts()</code> per selected result — multi-card suggestions, not <code>platform_dashboards</code> creation.</p>
+                <p class="text-xs text-[#5a6578] mb-0">Code map: <span class="file-ref">InspectorShell.tsx</span> · <span class="file-ref">DashboardPane.tsx</span> · <span class="file-ref">DataStudio.tsx</span> · <span class="file-ref">lib/studio/recommender.ts</span> · narrative: <span class="file-ref">docs/inspector-guided/inspector-dashboard-builder.md</span></p>
+                <p class="text-xs mt-2 mb-0"><strong>Chart generation:</strong> three paths (rule-based Studio, <code>emit_semantic_chart</code>, <code>emit_chart</code>) — full detail on Inspector dedicated page: <strong>Three chart generation paths</strong> (<code>#inspector-three-chart-paths</code>).</p>
+              </div>
+            </details>
+
             <details class="clean-accordion">
               <summary>What Inspector teaches the system</summary>
               <div class="acc-body">
@@ -12530,6 +12552,8 @@ flowchart LR
                 <div>• If no good semantic models or embeddings exist, answers become vague.</div>
                 <div>• Tool errors in the middle don’t stop the whole run — you may see partial results.</div>
                 <div>• 300 second Vercel timeout is a hard limit on long agent runs.</div>
+                <div>• Chat tables without <code>query_result</code> leave the DATA pane empty; charts in chat ≠ pane charts.</div>
+                <div>• Data Studio “DASHBOARD” tab auto-suggests many charts per query — not the same as Dashboard Builder.</div>
               </div>
             </details>
           </div>
@@ -12714,6 +12738,18 @@ flowchart LR
           </div>
           <p class="text-xs text-[#5a6578] mt-2 mb-3">APIs: <code>/api/studio/results</code>, <code>/api/agent-lab/studio/insights</code>. Storage: <code>studio_query_results</code>, <code>studio_insights</code>.</p>
           <button type="button" onclick="showDedicatedPage('studio')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FDB515] text-[#003262] font-semibold border-0 cursor-pointer"><i class="fas fa-layer-group"></i> Open full Data Studio module</button>
+          <button type="button" onclick="showDedicatedPage('visualization-inventory')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border font-semibold text-[#003262] cursor-pointer mt-2"><i class="fas fa-sitemap"></i> Visualization inventory (ECharts vs Recharts, 3 paths)</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="visualization-inventory" class="section">
+      <div class="module-card">
+        <div class="module-header"><div class="module-title"><i class="fas fa-sitemap"></i> Visualization inventory</div></div>
+        <div class="p-4 text-sm">
+          <p><strong>Purpose:</strong> Single reference for how Inspector turns SQL rows into tables and charts — libraries, three generation paths, persistence, SSE events, and known gaps (e.g. <code>chart_spec</code> not wired on the client).</p>
+          <p class="text-xs text-[#5a6578] mt-2 mb-3">Complements Inspector <em>Four layers</em> and <em>Three chart paths</em>; includes file map and decision matrix for engineers.</p>
+          <button type="button" onclick="showDedicatedPage('visualization-inventory')" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FDB515] text-[#003262] font-semibold border-0 cursor-pointer"><i class="fas fa-book-open"></i> Open full Visualization inventory</button>
         </div>
       </div>
     </section>
@@ -13783,6 +13819,14 @@ flowchart LR
       'studio': [
         { file: 'ARCHITECTURE-FULL.md', note: 'Data Studio — compiler, profiler, recommender' }
       ],
+      'visualization-inventory': [
+        { file: 'src/lib/studio/profiler.ts', note: 'Column profiling' },
+        { file: 'src/lib/studio/recommender.ts', note: 'Rule-based chart specs' },
+        { file: 'src/lib/studio/compiler.ts', note: 'DSL → ECharts options' },
+        { file: 'src/lib/inspector/chart-pipeline.ts', note: 'Semantic + LLM chart pipelines' },
+        { file: 'src/components/inspector/DashboardPane.tsx', note: 'Recharts ChartBuilder' },
+        { file: 'docs/inspector-guided/inspector-dashboard-builder.md', note: 'Inspector vs Dashboard Builder' }
+      ],
       'auth': [
         { file: 'ARCHITECTURE-FULL.md', note: '§0 Entry & Auth + permissions overlay' },
         { file: 'ARCHITECTURE.md', note: '§9 Auth, middleware, JIT provisioning' }
@@ -14128,10 +14172,120 @@ flowchart TB
             <h3><i class="fas fa-desktop"></i> What’s on the screen</h3>
             <div class="dedicated-grid text-sm">
               <div class="dedicated-card"><strong>Top bar</strong><br>Context mode, session id, history, start new chat.</div>
-              <div class="dedicated-card"><strong>Chat</strong><br>Your messages, AI replies, and “what I’m doing now” cards. Sometimes a <em>pick which metric you mean</em> card.</div>
-              <div class="dedicated-card"><strong>Results area</strong><br>Table + chart for the latest answer.</div>
-              <div class="dedicated-card"><strong>Side panels</strong><br>Metric governance, dashboard pins, links to lab tools.</div>
+              <div class="dedicated-card"><strong>Chat (~60%)</strong><br>Your messages, AI replies, tool progress, optional <span class="file-ref">SemanticChartCard</span> (governed charts from <code>emit_semantic_chart</code>).</div>
+              <div class="dedicated-card"><strong>Results pane (~40%)</strong><br>Always visible: <span class="file-ref">DashboardPane</span> for <code>query_result</code> tables + optional raw Recharts; semantic cards above when emitted. Not a second chat.</div>
+              <div class="dedicated-card"><strong>Tabs (when enabled)</strong><br>Results · Semantic governance · Developer (ops trace). Data Studio opens via EXPAND — full-screen overlay.</div>
             </div>
+          </div>
+
+          <div class="dedicated-section" id="inspector-four-layers">
+            <h3><i class="fas fa-layer-group"></i> Four layers — tables vs charts vs dashboards</h3>
+            <p class="text-sm text-[#5a6578] mb-3">Developers debug with <strong>layer A</strong>. Product delivery uses <strong>C → D</strong>. Layers B and Studio’s <strong>DASHBOARD</strong> tab are exploration suggestions — confusing when labeled like production dashboards.</p>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Layer</th><th>UI / storage</th><th>When to use</th></tr></thead>
+              <tbody>
+                <tr><td><strong>A — Query table</strong></td><td>DATA header, Studio TABLE, <code>query_result</code> SSE</td><td>Verify SQL output, types, truncation, CSV export</td></tr>
+                <tr><td><strong>B — Ad-hoc charts</strong></td><td><span class="file-ref">ChartBuilder</span>, Studio DASHBOARD + <code>recommendCharts</code></td><td>Quick shape check; pick X/Y manually when auto-detect fails</td></tr>
+                <tr><td><strong>C — Saved chart</strong></td><td>POST <code>/api/inspector/charts</code> → <code>platform_charts</code></td><td>Reuse answer; pin to builder; graduate to metric</td></tr>
+                <tr><td><strong>D — Dashboard Builder</strong></td><td><code>/inspector/dashboards/[id]/builder</code></td><td>Published, shareable, versioned layout for teams</td></tr>
+              </tbody>
+            </table>
+            <div class="mt-3 dedicated-grid text-sm">
+              <div class="dedicated-card"><strong>Ephemeral vs persistent</strong><br>Inspector session results are ephemeral until persisted (<code>studio_query_results</code>) or promoted (charts/dashboards). Chat markdown alone is not the DATA pane.</div>
+              <div class="dedicated-card"><strong>Workbench contrast</strong><br>Agent Lab Workbench uses the same split but the right pane is <span class="file-ref">ConfigPanel</span> (agent draft), not SQL results. Workbench does not run warehouse SQL.</div>
+              <div class="dedicated-card"><strong>Common chart pitfalls</strong><br>No Y column → empty chart; scatter needs Y2; first numeric column used as Y; axis state may not reset when switching Qn in the rail.</div>
+              <div class="dedicated-card"><strong>UX direction (optional)</strong><br>Default Studio to TABLE; lazy <code>recommendCharts</code>; collapse results pane until first <code>query_result</code>; rename Studio tab to CHARTS/SUGGESTIONS.</div>
+            </div>
+            <p class="text-xs text-[#5a6578] mt-2 mb-0">See also: <button type="button" class="underline" onclick="showDedicatedPage('visualization-inventory')">Visualization inventory</button> · <button type="button" class="underline" onclick="showDedicatedPage('studio')">Data Studio</button> · <button type="button" class="underline" onclick="showDedicatedPage('dashboards')">Dashboards</button></p>
+          </div>
+
+          <div class="dedicated-section" id="inspector-three-chart-paths">
+            <h3><i class="fas fa-chart-line"></i> Three chart generation paths (how charts are built)</h3>
+            <p class="text-sm text-[#5a6578] mb-3">All charts ultimately need <strong>tabular rows</strong>. Tables arrive via <code>execute_tool</code> → <code>query_result</code> SSE (or semantic SQL inside path 2). <strong>Markdown tables in chat do not feed these pipelines.</strong> The three paths differ by <em>who picks the chart</em> (rules vs governed semantic vs LLM on raw SQL) and <em>where it renders</em> (ECharts vs Recharts strip).</p>
+
+            <div class="bg-white border rounded-2xl p-4 diagram-container arch-diagram-simple mb-4">
+              <div class="mermaid">
+flowchart TB
+  SQL["execute_tool → Databricks SQL"]
+  QR["query_result + studio_query_results"]
+  SQL --> QR
+  QR --> TBL["TABLE UI only"]
+  QR --> P1["Path 1: profiler → recommendCharts → compiler"]
+  P1 --> E1["ECharts: DataStudio / StudioChart"]
+  QR --> P3["Path 3: emit_chart → runChartPipeline"]
+  P3 --> E1
+  SQ["Path 2: emit_semantic_chart"]
+  SQ --> EX["executeSemanticQuery"]
+  EX --> P3IN["runChartPipeline inside chart-pipeline"]
+  P3IN --> E2["semantic_chart_result → SemanticChartCard"]
+  QR --> RC["DATA pane ChartBuilder"]
+  RC --> RV["Recharts — manual X/Y, no DSL"]
+              </div>
+            </div>
+
+            <table class="inspector-conn-table text-sm mb-4">
+              <thead><tr><th>Path</th><th>Trigger</th><th>Goal</th><th>Use when</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><strong>1 — Rule-based Studio</strong></td>
+                  <td>User opens Data Studio (EXPAND) or dashboard widget refresh; no agent tool required</td>
+                  <td>Fast, consistent, <strong>zero extra LLM cost</strong> — suggest chart types from column statistics</td>
+                  <td>Exploring a known <code>query_result</code>; comparing Q14 vs Q15 in the rail; same visuals on published dashboards via shared compiler</td>
+                </tr>
+                <tr>
+                  <td><strong>2 — Semantic governed</strong></td>
+                  <td>Agent calls <code>emit_semantic_chart</code> with <code>SemanticQuery</code> (measure/dimension IDs)</td>
+                  <td><strong>Official definitions</strong> — SQL compiled from semantic layer; trust panel, drift, promotion to metrics</td>
+                  <td>User asks about a <strong>governed</strong> metric; disambiguation resolved; production-style analytics in chat</td>
+                </tr>
+                <tr>
+                  <td><strong>3 — LLM chart on raw SQL</strong></td>
+                  <td>Agent calls <code>emit_chart</code> after a <code>query_result</code> exists (or path 2 internally after semantic SQL)</td>
+                  <td>Model chooses <strong>Chart DSL</strong> for ad-hoc SQL shapes; validate/repair + compile to ECharts</td>
+                  <td>Ad-hoc warehouse SQL (not yet a metric); “chart this result”; fallback when inline DSL fails → <code>recommendCharts</code></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <details class="clean-accordion">
+              <summary>Path 1 — Rule-based Studio (profiler → recommender → compiler) <span class="file-ref">lib/studio/*</span></summary>
+              <div class="acc-body text-sm space-y-2">
+                <p><strong>Purpose:</strong> One shared visualization engine for Inspector EXPAND, cached session replay, and Dashboard viewer widgets.</p>
+                <p><strong>Steps:</strong> (1) <code>profileResultSet(columns, rows)</code> — kinds, cardinality, numeric stats on a sample. (2) <code>recommendCharts(profile, rows)</code> — deterministic rules (KPIs, bar, line, heatmap, scatter, histogram…). (3) <code>compileSpecToOption(dsl, profile, rows)</code> — aggregations in TS → ECharts option. (4) <span class="file-ref">StudioChart.tsx</span> / <span class="file-ref">DashboardGrid.tsx</span> render.</p>
+                <p><strong>Persist:</strong> <code>POST /api/studio/results</code> stores rows; <code>PATCH</code> can cache <code>profiles</code> + <code>specs</code> + chart overrides so reopening does not re-profile.</p>
+                <p><strong>When <em>not</em> used:</strong> Chat prose tables; Workbench (no SQL). Default Studio tab is “dashboard” (chart grid) — that is path 1, not Dashboard Builder.</p>
+                <p class="mb-0"><strong>Lightweight variant:</strong> <span class="file-ref">DashboardPane.tsx</span> <code>ChartBuilder</code> uses <strong>Recharts</strong> in the browser (user picks X/Y; auto-detect first numeric column). Same rows, no DSL/compiler — good for quick peek, weak for governance.</p>
+              </div>
+            </details>
+
+            <details class="clean-accordion">
+              <summary>Path 2 — Semantic chart (<code>emit_semantic_chart</code>) <span class="file-ref">chart-pipeline.ts</span></summary>
+              <div class="acc-body text-sm space-y-2">
+                <p><strong>Purpose:</strong> Tie the visible chart to <strong>governed</strong> <code>platform_sem_*</code> IDs so “Revenue” means one approved definition.</p>
+                <p><strong>Steps:</strong> <code>runSemanticChartPipeline</code> → validate query against governed model → <code>executeSemanticQuery</code> (Databricks) → profile rows → <code>runChartPipeline</code> → SSE <code>semantic_chart_result</code> (spec, echartsOption, SQL, definitionsUsed, recommendation).</p>
+                <p><strong>UI:</strong> <span class="file-ref">SemanticChartCard</span> in the right pane stack; Save to Charts → <code>platform_charts</code>; optional Define metric / Pin.</p>
+                <p><strong>Stream:</strong> <code>semantic_plan</code>, <code>semantic_sql</code>, <code>semantic_progress</code> while executing.</p>
+                <p class="mb-0"><strong>Use when:</strong> Prompt grounding lists governed measures; user question maps to semantic IDs. <strong>Do not use</strong> for pure catalog discovery SQL — use <code>execute_tool</code> + table (path 1 table) first.</p>
+              </div>
+            </details>
+
+            <details class="clean-accordion">
+              <summary>Path 3 — LLM chart on last SQL (<code>emit_chart</code> / <code>runChartPipeline</code>)</summary>
+              <div class="acc-body text-sm space-y-2">
+                <p><strong>Purpose:</strong> Let the model propose a <strong>Chart DSL</strong> for the <em>latest</em> raw SQL result when semantic IDs are not in play.</p>
+                <p><strong>Steps:</strong> If tool input already has <code>kind</code> + <code>encodings</code> → <code>validateAndRepair</code> + <code>compileSpecToOption</code> (no second Bedrock call). Else <code>emitChartSpec</code> (Bedrock) → validate → optional one repair turn → compile. On Bedrock failure → <code>tryRecommenderFallback</code> (path 1 rules).</p>
+                <p><strong>SSE:</strong> <code>chart_spec</code> / <code>chart_error</code> (distinct from <code>semantic_chart_result</code>).</p>
+                <p class="mb-0"><strong>Use when:</strong> Agent already ran <code>execute_tool</code> and user wants a chart of that grid. <strong>Requires</strong> <code>query_result</code> in session context — not chat markdown alone.</p>
+              </div>
+            </details>
+
+            <div class="dedicated-grid text-sm mt-3">
+              <div class="dedicated-card"><strong>Prerequisite event</strong><br><code>query_result</code> from <span class="file-ref">tools.ts</span> (rows capped 1000). Client: <span class="file-ref">useInspectorChat.ts</span> appends + persists.</div>
+              <div class="dedicated-card"><strong>Pick path as engineer</strong><br>Debug → TABLE only. Product metric → path 2. Ad-hoc SQL exploration → path 1 grid or path 3 if agent emits chart.</div>
+              <div class="dedicated-card"><strong>Common confusion</strong><br>Three paths are not auto-synced; Studio can show many charts per query while chat shows a different markdown table.</div>
+              <div class="dedicated-card"><strong>Entry points</strong><br><span class="file-ref">DataStudio.tsx</span> · <span class="file-ref">DashboardPane.tsx</span> · <span class="file-ref">SemanticChartCard.tsx</span> · <span class="file-ref">lib/inspector/tools.ts</span></div>
+            </div>
+            <p class="text-xs text-[#5a6578] mt-3 mb-0">Full file map, SSE matrix, limits, and gaps: <button type="button" class="underline" onclick="showDedicatedPage('visualization-inventory')">Visualization inventory</button>.</p>
           </div>
 
           <div class="dedicated-section">
@@ -19276,6 +19430,23 @@ Parent linkage:
                 <tr><td>Insight rail (Agent Lab)</td><td><code>/api/agent-lab/studio/insights</code></td><td>LLM narrative on profiled result</td></tr>
               </tbody>
             </table>
+            <h2 class="!text-base !mt-4"><i class="fas fa-exclamation-circle text-[#FDB515]"></i> DASHBOARD tab ≠ Dashboard Builder</h2>
+            <p class="text-sm leading-relaxed mb-2">In <span class="file-ref">DataStudio.tsx</span>, <code>canvasMode</code> defaults to <strong>dashboard</strong> (chart grid). Each Inspector SQL run adds a row in the left rail; selecting Qn runs <code>profileResultSet</code> + <code>recommendCharts()</code> for <em>that</em> result only. This produces KPI tiles and multiple ECharts cards — <strong>not</strong> a new <code>platform_dashboards</code> record. Production dashboards are authored under <code>/inspector/dashboards/…/builder</code> from saved charts and governed definitions.</p>
+            <p class="text-sm leading-relaxed mb-2">For debugging, prefer <strong>TABLE</strong> (warehouse truth). Use the chart grid to explore shape or before Save/Pin; see Inspector <strong>Four layers</strong> and <strong>Three chart generation paths</strong>.</p>
+
+            <h2 class="!text-base !mt-4"><i class="fas fa-code-branch text-[#FDB515]"></i> Three chart generation paths (this module’s role)</h2>
+            <p class="text-sm leading-relaxed mb-2">Data Studio implements <strong>Path 1</strong> end-to-end. Paths 2 and 3 call the same <code>compileSpecToOption</code> after different upstream steps.</p>
+            <table class="inspector-conn-table text-sm mb-3">
+              <thead><tr><th>Path</th><th>Who decides the chart?</th><th>Studio involvement</th><th>Typical trigger</th></tr></thead>
+              <tbody>
+                <tr><td><strong>1 — Rule-based</strong></td><td><code>recommendCharts()</code> rules on column profile</td><td><strong>Primary owner</strong> — <span class="file-ref">DataStudio.tsx</span> <code>useMemo</code> on selected <code>query_result</code></td><td>EXPAND, switch Qn in rail, dashboard widget live render</td></tr>
+                <tr><td><strong>2 — Semantic</strong></td><td>Governed <code>SemanticQuery</code> + <code>runChartPipeline</code> after semantic SQL</td><td>Compiler + themes; chart shown in <span class="file-ref">SemanticChartCard</span>, not auto-run on every open</td><td>Agent <code>emit_semantic_chart</code></td></tr>
+                <tr><td><strong>3 — LLM on raw SQL</strong></td><td>Bedrock <code>emit_chart</code> DSL (+ repair); fallback to path 1</td><td>Same compiler; optional SSE <code>chart_spec</code> in chat thread</td><td>Agent <code>emit_chart</code> after <code>execute_tool</code></td></tr>
+              </tbody>
+            </table>
+            <p class="text-sm leading-relaxed mb-2"><strong>Path 1 pipeline:</strong> <code>profileResultSet</code> → <code>recommendCharts</code> → <code>compileSpecToOption</code> → <span class="file-ref">StudioChart.tsx</span>. <strong>Not path 1:</strong> <span class="file-ref">DashboardPane</span> Recharts strip.</p>
+            <p class="text-sm leading-relaxed mb-0">Complete inventory (libraries, SSE, limits, <code>chart_spec</code> gap): <button type="button" class="underline" onclick="showDedicatedPage('visualization-inventory')">Visualization inventory</button>.</p>
+
             <h2 class="!text-base !mt-4"><i class="fas fa-plug text-[#FDB515]"></i> Connections</h2>
             <div class="inspector-related-links">
               <button type="button" onclick="showDedicatedPage('inspector')">Inspector</button>
@@ -19406,6 +19577,176 @@ flowchart LR
               <div class="dedicated-card"><strong>Usage</strong><br>Called from Inspector after tool results and from DashboardViewer on render.</div>
               <div class="dedicated-card"><strong>Extending</strong><br>Add new chart types by extending recommender rules and compiler. Add new data shapes by improving profiler.</div>
             </div>
+          </div>
+        </div>
+      `,
+
+      'visualization-inventory': `
+        <div class="dedicated-page arch-module-rich" id="viz-inventory-page">
+          <div class="mb-4 flex gap-2 flex-wrap">
+            <span class="px-3 py-1 text-xs bg-[#FDB515] text-[#003262] rounded-full font-semibold">ENGINEERING REFERENCE</span>
+            <span class="px-3 py-1 text-xs bg-[#dbeafe] text-[#1e40af] rounded-full font-semibold">Inspector · Studio · Dashboards</span>
+          </div>
+          <h1 class="text-3xl font-bold mb-2">Visualization inventory</h1>
+          <p class="text-lg text-[#5a6578] max-w-3xl">How tabular SQL results become tables and charts: two React chart libraries, three server/client generation paths, persistence, and delivery via Dashboard Builder. Use this when debugging “why is my chart wrong / missing / not a real dashboard?”</p>
+
+          <div class="inspector-related-links mt-4 mb-6">
+            <button type="button" onclick="showDedicatedPage('inspector')">Inspector</button>
+            <button type="button" onclick="showDedicatedPage('studio')">Data Studio</button>
+            <button type="button" onclick="showDedicatedPage('dashboards')">Dashboards</button>
+            <button type="button" onclick="showDedicatedPage('semantic')">Semantic layer</button>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-box"></i> Dependencies (package.json)</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Package</th><th>Version</th><th>Role</th></tr></thead>
+              <tbody>
+                <tr><td><code>echarts</code></td><td>6.1.0</td><td>Chart engine — options JSON</td></tr>
+                <tr><td><code>echarts-for-react</code></td><td>3.0.6</td><td>React wrapper (<span class="file-ref">StudioChart.tsx</span>, dynamic <code>ssr: false</code>)</td></tr>
+                <tr><td><code>recharts</code></td><td>2.15.4</td><td>React chart components — Inspector pane strip + Performance Lab + bandits</td></tr>
+              </tbody>
+            </table>
+            <p class="text-xs text-[#5a6578] mt-2 mb-0"><span class="file-ref">next.config.ts</span> — both <code>echarts</code> and <code>recharts</code> under <code>optimizePackageImports</code>.</p>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-code-branch"></i> Two render stacks</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Stack</th><th>Primary files</th><th>Where it appears</th></tr></thead>
+              <tbody>
+                <tr><td><strong>ECharts (primary)</strong></td><td><span class="file-ref">lib/studio/compiler.ts</span>, <span class="file-ref">StudioChart.tsx</span>, themes under <span class="file-ref">lib/studio/</span></td><td>Data Studio grid, SemanticChartCard, dashboard WidgetPreview, guided builder previews, ForgettingPanel</td></tr>
+                <tr><td><strong>Recharts (secondary)</strong></td><td><span class="file-ref">DashboardPane.tsx</span> ChartBuilder; <span class="file-ref">ModelPerformanceLab.tsx</span>; bandits viz</td><td>Inspector DATA pane mini charts — manual X/Y, no Chart DSL</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-database"></i> Data prerequisite (all paths)</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Step</th><th>Detail</th></tr></thead>
+              <tbody>
+                <tr><td>SQL execution</td><td><code>execute_tool</code> in <span class="file-ref">lib/inspector/tools.ts</span> → Databricks; rows capped <strong>1000</strong> for SSE</td></tr>
+                <tr><td>SSE event</td><td><code>query_result</code> — columns, rows, sql, rowCount, truncated</td></tr>
+                <tr><td>Client</td><td><span class="file-ref">useInspectorChat.ts</span> appends to <code>queryResults</code>; POST <code>/api/studio/results</code></td></tr>
+                <tr><td>DB</td><td><code>studio_query_results</code> — per-session <code>seq</code> (Q1, Q2, … in Data Studio rail)</td></tr>
+                <tr><td>Not a source</td><td>Markdown tables in chat — no <code>query_result</code> → DATA pane / Studio charts stay empty</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dedicated-section" id="viz-three-paths-detail">
+            <h3><i class="fas fa-route"></i> Three chart generation paths</h3>
+            <table class="inspector-conn-table text-sm mb-4">
+              <thead><tr><th>Path</th><th>Trigger</th><th>Purpose / goal</th><th>Use when</th></tr></thead>
+              <tbody>
+                <tr><td><strong>1 — Rule-based Studio</strong></td><td>Open Data Studio, select Qn; dashboard widget refresh</td><td>Zero extra LLM — profile + heuristic chart specs</td><td>Explore result shape; replay session; consistent viz with published dashboards</td></tr>
+                <tr><td><strong>2 — Semantic</strong></td><td><code>emit_semantic_chart</code></td><td>Governed <code>SemanticQuery</code> → compiled SQL → chart + trust metadata</td><td>Official metrics; after disambiguation; Save/Pin/Define metric</td></tr>
+                <tr><td><strong>3 — LLM on raw SQL</strong></td><td><code>emit_chart</code> (also inside path 2 after semantic SQL)</td><td>Bedrock Chart DSL + validate/repair + compile; fallback to path 1</td><td>Ad-hoc SQL result needs a model-chosen chart</td></tr>
+              </tbody>
+            </table>
+            <details class="clean-accordion"><summary>Path 1 — pipeline detail</summary>
+              <div class="acc-body text-sm space-y-1">
+                <p><code>profileResultSet</code> — max <strong>50</strong> columns profiled; stats sample up to <strong>5000</strong> rows (step-sampled).</p>
+                <p><code>recommendCharts</code> ranks: KPI (row count, sum, mean); line (time×numeric); bar (+ donut if share column); scatter (2 numerics); heatmap (2 cats×numeric); histogram (lone numeric).</p>
+                <p><code>compileSpecToOption</code> → <code>ChartSpec.echartsOption</code> → <span class="file-ref">DashboardGrid</span> / <span class="file-ref">StudioChart</span>.</p>
+                <p>Cache: PATCH profiles, specs, chart_overrides, active_result_index on result id.</p>
+                <p class="mb-0">UI: <span class="file-ref">DataStudio.tsx</span> defaults <code>canvasMode</code> to <strong>dashboard</strong> (chart grid).</p>
+              </div>
+            </details>
+            <details class="clean-accordion"><summary>Path 2 — semantic pipeline detail</summary>
+              <div class="acc-body text-sm space-y-1">
+                <p><span class="file-ref">runSemanticChartPipeline</span> — governed model only; <code>validateSemanticQuery</code> before warehouse.</p>
+                <p><code>executeSemanticQuery</code> → profile → <code>runChartPipeline</code>.</p>
+                <p>SSE: <code>semantic_plan</code>, <code>semantic_sql</code>, <code>semantic_progress</code>, <code>semantic_chart_result</code>.</p>
+                <p class="mb-0">UI: <span class="file-ref">SemanticChartCard</span> + <span class="file-ref">TrustPanel</span>; POST <code>/api/inspector/charts</code> → <code>platform_charts</code>.</p>
+              </div>
+            </details>
+            <details class="clean-accordion"><summary>Path 3 — LLM pipeline detail</summary>
+              <div class="acc-body text-sm space-y-1">
+                <p>Inline tool DSL: validate + compile without second Bedrock call when <code>kind</code> + <code>encodings</code> present.</p>
+                <p>Else <span class="file-ref">chart-emitter.ts</span> + <span class="file-ref">runChartPipeline</span> (max 2 attempts).</p>
+                <p>Server emits <code>chart_spec</code> / <code>chart_error</code>.</p>
+                <p class="mb-0"><strong>Gap:</strong> <span class="file-ref">useInspectorChat.ts</span> has no <code>case 'chart_spec'</code> — path 3 may not render in UI unless user opens Studio on <code>query_result</code> or gets a semantic card.</p>
+              </div>
+            </details>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-sliders-h"></i> Recharts ChartBuilder (<span class="file-ref">DashboardPane.tsx</span>)</h3>
+            <ul class="text-sm space-y-1 list-disc pl-5">
+              <li>Types: table, bar, line, area, pie, scatter — default state <strong>bar</strong></li>
+              <li>Numeric detection: first <strong>20</strong> rows; Y dropdown = numeric columns only</li>
+              <li>Draw cap: <strong>200</strong> points; <code>Number(row[y]) || 0</code> coercion</li>
+              <li>Scatter requires <strong>Y2</strong> or chart area is empty</li>
+              <li>Axis state may not reset when switching between Qn in multi-result sessions</li>
+              <li>Also: CSV export, raw-SQL SAVE/PIN/DEFINE (3.5C)</li>
+            </ul>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-broadcast-tower"></i> Inspector SSE events (client handling)</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Event</th><th>Handled in useInspectorChat?</th><th>UI effect</th></tr></thead>
+              <tbody>
+                <tr><td><code>query_result</code></td><td>Yes</td><td>DATA pane table + Studio rail</td></tr>
+                <tr><td><code>semantic_chart_result</code></td><td>Yes</td><td>SemanticChartCard (ECharts)</td></tr>
+                <tr><td><code>semantic_chart_error</code></td><td>Yes</td><td>Error message</td></tr>
+                <tr><td><code>semantic_plan</code> / <code>semantic_sql</code> / <code>semantic_progress</code></td><td>Yes</td><td>QueryProgressCard</td></tr>
+                <tr><td><code>chart_spec</code> / <code>chart_error</code></td><td><strong>No</strong></td><td>Emitted server-side only (path 3)</td></tr>
+                <tr><td><code>export_ready</code></td><td>Yes</td><td>ExportReadyCard</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-folder-open"></i> Key file map</h3>
+            <div class="dedicated-grid text-sm">
+              <div class="dedicated-card"><strong>Studio core</strong><br><span class="file-ref">profiler.ts</span>, <span class="file-ref">recommender.ts</span>, <span class="file-ref">compiler.ts</span>, <span class="file-ref">validator.ts</span>, <span class="file-ref">chart-dsl.ts</span></div>
+              <div class="dedicated-card"><strong>Inspector UI</strong><br><span class="file-ref">InspectorShell.tsx</span>, <span class="file-ref">DashboardPane.tsx</span>, <span class="file-ref">SemanticChartCard.tsx</span>, <span class="file-ref">DataStudio.tsx</span></div>
+              <div class="dedicated-card"><strong>Server tools</strong><br><span class="file-ref">tools.ts</span>, <span class="file-ref">chart-pipeline.ts</span>, <span class="file-ref">chart-emitter.ts</span>, <span class="file-ref">prompts.ts</span></div>
+              <div class="dedicated-card"><strong>Delivery</strong><br><span class="file-ref">DashboardBuilder.tsx</span>, <span class="file-ref">WidgetPreview.tsx</span>, <span class="file-ref">widget-option.ts</span></div>
+              <div class="dedicated-card"><strong>APIs</strong><br><code>/api/studio/results</code>, <code>/api/inspector/charts</code>, <code>/api/inspector/chat</code></div>
+              <div class="dedicated-card"><strong>Tests</strong><br><span class="file-ref">lib/studio/__tests__/recommender.test.ts</span>, <span class="file-ref">profiler.test.ts</span></div>
+            </div>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-layer-group"></i> Four layers vs three paths (quick map)</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>Layer (product)</th><th>Typical path / stack</th></tr></thead>
+              <tbody>
+                <tr><td>A — Query table</td><td><code>query_result</code> only (no chart lib)</td></tr>
+                <tr><td>B — Ad-hoc charts</td><td>Path 1 (ECharts) or Recharts ChartBuilder</td></tr>
+                <tr><td>C — Saved chart</td><td><code>platform_charts</code> from Save/Pin</td></tr>
+                <tr><td>D — Dashboard Builder</td><td>Widgets + Studio render at view time — not Studio “DASHBOARD” tab</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-compass"></i> Decision matrix</h3>
+            <table class="inspector-conn-table text-sm">
+              <thead><tr><th>You need…</th><th>Use</th></tr></thead>
+              <tbody>
+                <tr><td>Debug SQL output</td><td>TABLE + SQL badge + Developer trace</td></tr>
+                <tr><td>Quick pane chart</td><td>Recharts ChartBuilder — pick Y (not RANK by mistake)</td></tr>
+                <tr><td>Multi-chart exploration</td><td>Data Studio — prefer TABLE first; grid = path 1</td></tr>
+                <tr><td>Governed answer</td><td>Wait for SemanticChartCard (path 2)</td></tr>
+                <tr><td>Ship to team</td><td>Save/Pin → Dashboard Builder (layers C → D)</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dedicated-section">
+            <h3><i class="fas fa-exclamation-triangle text-[#FDB515]"></i> Known pitfalls</h3>
+            <ul class="text-sm space-y-1 list-disc pl-5">
+              <li>Inspector right pane fixed ~40% — no collapse until implemented</li>
+              <li>Studio auto-advances to newest query when <code>results.length</code> increases</li>
+              <li>Three paths not auto-synced with chat markdown</li>
+              <li>Workbench right pane is agent draft — no warehouse charts</li>
+              <li>Docs mentioning <code>chart_spec</code> UI may overshoot current client wiring</li>
+            </ul>
           </div>
         </div>
       `,

@@ -5,12 +5,12 @@ import type { AssumptionLedgerEntry } from '@/lib/construction/assumptionHelpers
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD    = 'var(--brand-a)';
-const NAVY2   = '#0a3a6b';
-const SURFACE2 = '#121b27';
-const TXT     = '#e6ecf4';
-const TXT2    = '#9aa8ba';
-const TXT3    = '#5d6b7d';
-const LINE2   = '#27384c';
+const NAVY2   = 'color-mix(in srgb, var(--brand-a) 45%, transparent)';
+const SURFACE2 = 'var(--surface-2)';
+const TXT     = 'var(--ink-1)';
+const TXT2    = 'var(--ink-2)';
+const TXT3    = 'var(--ink-3)';
+const LINE2   = 'var(--line-2)';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 

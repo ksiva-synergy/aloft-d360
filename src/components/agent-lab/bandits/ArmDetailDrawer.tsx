@@ -382,8 +382,6 @@ export function ArmDetailDrawer({
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: `${BORDER} transparent`,
         }}
       >
         {/* Close button */}

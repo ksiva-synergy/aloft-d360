@@ -9,6 +9,9 @@ export type BuilderToolContext = {
   getState: () => ConstructionState;
   setState: (next: ConstructionState) => void;
   emit: BuilderEmit;
+  sessionId?: string | null;
+  agentLoop?: number;
+  model?: string;
 };
 
 export async function executeBuilderTool(

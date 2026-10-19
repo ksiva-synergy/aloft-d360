@@ -643,7 +643,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                   display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none',
                   background: mode === m ? 'var(--brand-a)' : 'transparent',
-                  color: mode === m ? '#111322' : 'var(--builder-text)',
+                  color: mode === m ? 'var(--on-brand)' : 'var(--builder-text)',
                   cursor: 'pointer', fontWeight: mode === m ? 600 : 400,
                 }}
               >
@@ -720,7 +720,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: 'none', background: dirty ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
-              color: '#111322', cursor: dirty && !saving ? 'pointer' : 'default',
+              color: 'var(--on-brand)', cursor: dirty && !saving ? 'pointer' : 'default',
               opacity: saving ? 0.6 : 1, fontWeight: 500,
             }}
           >

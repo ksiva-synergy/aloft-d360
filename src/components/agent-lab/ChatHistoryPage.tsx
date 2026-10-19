@@ -2,14 +2,17 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useIsDark } from '@/hooks/useIsDark';
+import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import {
   Search, Pin, PinOff, Trash2, MessageSquare,
   Loader2, AlertCircle, Plus, CheckSquare, Square, X,
-  ChevronRight, Pencil, Check, ArrowUp, Layers, Database, RefreshCw, User,
+  ChevronRight, Pencil, Check, ArrowUp, Layers, Database, RefreshCw, User, Activity,
 } from 'lucide-react';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 interface Session {
   id: string;
   title: string | null;
@@ -35,7 +38,7 @@ type TypeFilter = 'all' | 'agent' | 'tool' | 'schema' | 'prompt' | 'drafts';
 type SurfaceFilter = 'all' | 'workbench' | 'inspector';
 
 const TYPE_META: Record<string, { label: string; color: string; bg: string }> = {
-  agent:  { label: 'AGENT',  color: '#5B3DF5', bg: 'color-mix(in srgb, var(--brand-a) 12%, transparent)' },
+  agent:  { label: 'AGENT',  color: 'var(--brand-a-ink)', bg: 'color-mix(in srgb, var(--brand-a) 12%, transparent)' },
   tool:   { label: 'TOOL',   color: '#93C5FD', bg: 'rgba(147,197,253,0.12)' },
   schema: { label: 'SCHEMA', color: '#86EFAC', bg: 'rgba(134,239,172,0.12)' },
   prompt: { label: 'PROMPT', color: '#c4b5fd', bg: 'rgba(196,181,253,0.12)' },
@@ -109,8 +112,8 @@ function dateGroup(iso: string): DateGroup {
 
 const DATE_GROUP_ORDER: DateGroup[] = ['Today', 'Yesterday', 'This Week', 'This Month', 'Older'];
 
-const GOLD = '#5B3DF5';
-const NAV = '#111322';
+const GOLD = 'var(--brand-a-ink)';
+const NAV = 'var(--on-brand)';
 
 /** Shared column widths — keep header and rows in sync */
 const COL = { type: 72, model: 80, ctx: 48, msgs: 48, user: 130, created: 72, lastUsed: 120 } as const;
@@ -148,7 +151,7 @@ const MODEL_LABELS: Record<string, { short: string; color: string }> = {
 
 function modelLabel(key: string | undefined): { short: string; color: string } | null {
   if (!key) return null;
-  return MODEL_LABELS[key] ?? { short: key, color: '#8892A4' };
+  return MODEL_LABELS[key] ?? { short: key, color: 'var(--ink-3)' };
 }
 
 type VirtualItem =
@@ -157,6 +160,8 @@ type VirtualItem =
 
 export default function ChatHistoryPage() {
   const router = useRouter();
+  const { data: authSession } = useSession();
+  const showAgentOpsTrace = canViewAgentOpsRole(authSession?.user?.role);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -171,15 +176,14 @@ export default function ChatHistoryPage() {
   // Whether the current user (platform_admin) may view all users' sessions.
   const [canReadAll, setCanReadAll] = useState(false);
   // Persisted preference: platform admins default to viewing all users' sessions.
-  const [scopeAll, setScopeAll] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
-    return localStorage.getItem('history-scope-all') !== 'false';
-  });
-  const [hideDrafts, setHideDrafts] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return true;
+  const [scopeAll, setScopeAll] = useState(true);
+  const [hideDrafts, setHideDrafts] = useState(true);
+
+  useEffect(() => {
+    setScopeAll(localStorage.getItem('history-scope-all') !== 'false');
     const stored = localStorage.getItem('history-hide-drafts');
-    return stored === null ? true : stored === 'true';
-  });
+    setHideDrafts(stored === null ? true : stored === 'true');
+  }, []);
   const [pinning, setPinning] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -437,7 +441,7 @@ export default function ChatHistoryPage() {
               onClick={() => router.push('/agent-lab/workbench')}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7,
-                background: GOLD, border: 'none', color: NAV, fontSize: 13, fontWeight: 600,
+                background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600,
                 fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer',
               }}
             >
@@ -535,12 +539,12 @@ export default function ChatHistoryPage() {
           {/* Date range (created) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: BG, borderRadius: 7, border: `1px solid ${(fromDate || toDate) ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : BORDER}`, padding: '2px 8px' }} title="Filter by created date">
             <input type="date" value={fromDate} max={toDate || undefined} onChange={e => setFromDate(e.target.value)} style={{
-              background: 'transparent', border: 'none', outline: 'none', color: fromDate ? GOLD : MUTED,
+              background: 'transparent', border: 'none', outline: 'none', color: fromDate ? 'var(--brand-a)' : MUTED,
               fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
             }} />
             <span style={{ color: MUTED, fontSize: 13 }}>→</span>
             <input type="date" value={toDate} min={fromDate || undefined} onChange={e => setToDate(e.target.value)} style={{
-              background: 'transparent', border: 'none', outline: 'none', color: toDate ? GOLD : MUTED,
+              background: 'transparent', border: 'none', outline: 'none', color: toDate ? 'var(--brand-a)' : MUTED,
               fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
             }} />
           </div>
@@ -566,7 +570,7 @@ export default function ChatHistoryPage() {
             background: HEADER_BG,
             borderBottom: `1px solid ${BORDER}`,
           }}>
-            <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: allVisibleSelected ? GOLD : MUTED, display: 'flex', alignItems: 'center', flexShrink: 0, width: 28 }}>
+            <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: allVisibleSelected ? 'var(--brand-a)' : MUTED, display: 'flex', alignItems: 'center', flexShrink: 0, width: 28 }}>
               {allVisibleSelected ? <CheckSquare size={13} /> : <Square size={13} />}
             </button>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 0', minWidth: 0, maxWidth: 'min(520px, 50%)' }}>
@@ -613,8 +617,6 @@ export default function ChatHistoryPage() {
         onScroll={() => setShowScrollTop((scrollRef.current?.scrollTop ?? 0) > 300)}
         style={{
           flex: 1, overflowY: 'auto', position: 'relative',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'color-mix(in srgb, var(--brand-a) 35%, transparent) transparent',
         }}
       >
         {loading ? (
@@ -664,6 +666,7 @@ export default function ChatHistoryPage() {
                     onPin={() => handlePin(s)}
                     onDelete={() => handleSingleDelete(s.id)}
                     onRename={(title) => handleRename(s.id, title)}
+                    onDebugTrace={showAgentOpsTrace ? () => router.push(`/agent-lab/runs/${s.id}`) : undefined}
                     dark={dark}
                     BORDER={BORDER}
                     MUTED={MUTED}
@@ -681,7 +684,7 @@ export default function ChatHistoryPage() {
           onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
           style={{
             position: 'fixed', bottom: 28, right: 32, width: 36, height: 36, borderRadius: '50%',
-            background: GOLD, border: 'none', color: NAV, cursor: 'pointer',
+            background: 'var(--brand-a)', border: 'none', color: NAV, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 50,
           }}
@@ -696,10 +699,6 @@ export default function ChatHistoryPage() {
         .history-row:hover { background: ${dark ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'rgba(0,50,98,0.03)'} !important; }
         .history-row:hover .row-actions { opacity: 1 !important; }
         .row-actions { opacity: 0; transition: opacity 0.15s; }
-        div[style*="overflow-y: auto"]::-webkit-scrollbar { width: 5px; }
-        div[style*="overflow-y: auto"]::-webkit-scrollbar-track { background: transparent; }
-        div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--brand-a) 30%, transparent); border-radius: 4px; }
-        div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--brand-a) 50%, transparent); }
       `}</style>
     </div>
   );
@@ -722,7 +721,7 @@ function EmptyState({ query, onNewChat, MUTED, dark }: { query: string; onNewCha
         <>
           <p style={{ fontFamily: "'Source Serif 4', serif", fontSize: 18, color: MUTED, fontWeight: 600, margin: '0 0 8px' }}>No chat history yet</p>
           <p style={{ fontSize: 13, color: MUTED, margin: '0 0 20px', fontFamily: "'Inter Variable', sans-serif" }}>Start a conversation in the Agent Workbench.</p>
-          <button onClick={onNewChat} style={{ padding: '9px 22px', borderRadius: 8, background: GOLD, border: 'none', color: NAV, fontSize: 13, fontWeight: 600, fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={onNewChat} style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600, fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={14} /> Start first chat
           </button>
         </>
@@ -741,6 +740,7 @@ interface RowProps {
   onPin: () => void;
   onDelete: () => void;
   onRename: (title: string) => void;
+  onDebugTrace?: () => void;
   dark: boolean;
   BORDER: string;
   MUTED: string;
@@ -749,11 +749,11 @@ interface RowProps {
 const STATUS_META: Record<SessionStatus, { label: string; color: string; bg: string }> = {
   pinned: { label: 'PINNED', color: GOLD,      bg: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' },
   active: { label: 'ACTIVE', color: '#86EFAC', bg: 'rgba(134,239,172,0.08)' },
-  stale:  { label: 'STALE',  color: '#8892A4', bg: 'rgba(136,146,164,0.08)' },
-  draft:  { label: 'DRAFT',  color: '#5B3DF5', bg: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' },
+  stale:  { label: 'STALE',  color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.08)' },
+  draft:  { label: 'DRAFT',  color: 'var(--brand-a-ink)', bg: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' },
 };
 
-function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, onContinue, onPin, onDelete, onRename, dark, BORDER, MUTED }: RowProps) {
+function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, onContinue, onPin, onDelete, onRename, onDebugTrace, dark, BORDER, MUTED }: RowProps) {
   const meta = typeMeta(session.artifact_type);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -800,7 +800,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
       }}
     >
       {/* Checkbox */}
-      <button onClick={onToggleSelect} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: isSelected ? GOLD : MUTED, display: 'flex', alignItems: 'center', flexShrink: 0, width: 28 }}>
+      <button onClick={onToggleSelect} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: isSelected ? 'var(--brand-a)' : MUTED, display: 'flex', alignItems: 'center', flexShrink: 0, width: 28 }}>
         {isSelected ? <CheckSquare size={13} /> : <Square size={13} />}
       </button>
 
@@ -815,7 +815,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               onKeyDown={handleKeyDown}
               onBlur={commitEdit}
               style={{
-                flex: 1, background: dark ? 'rgba(255,255,255,0.07)' : '#E2E8F0', border: `1px solid ${GOLD}`,
+                flex: 1, background: dark ? 'rgba(255,255,255,0.07)' : '#E2E8F0', border: `1px solid ${'var(--brand-a)'}`,
                 borderRadius: 5, padding: '3px 8px', color: dark ? '#e8eef5' : '#111322', fontSize: 13,
                 fontFamily: "'Inter Variable', sans-serif", fontWeight: 600, outline: 'none',
               }}
@@ -834,8 +834,8 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               padding: '2px 6px', borderRadius: 3, flexShrink: 0,
               ...(session.surface === 'inspector'
-                ? { background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)', color: GOLD, border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' }
-                : { background: '#3B1FD6', color: GOLD }),
+                ? { background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)', color: 'var(--brand-a)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' }
+                : { background: 'var(--brand-a)', color: NAV, border: '1px solid color-mix(in srgb, var(--brand-a) 55%, transparent)' }),
             }}>
               {session.surface === 'inspector' ? 'INSPECTOR' : 'WORKBENCH'}
             </span>
@@ -869,7 +869,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
         {/* Model badge */}
         <div style={{ width: COL.model, display: 'flex', alignItems: 'center' }}>
           {model ? (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: model.color, background: `${model.color}18`, border: `1px solid ${model.color}28`, padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COL.model }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: model.color, background: `${withAlpha(model.color, '18')}`, border: `1px solid ${withAlpha(model.color, '28')}`, padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COL.model }}>
               {model.short}
             </span>
           ) : (
@@ -888,7 +888,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
                 padding: '3px 6px', borderRadius: 3, whiteSpace: 'nowrap',
                 ...(session.context_mode === 'warehouse_only'
                   ? { background: 'rgba(147,197,253,0.12)', color: '#93C5FD', border: '1px solid rgba(147,197,253,0.25)' }
-                  : { background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: '#5B3DF5', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }),
+                  : { background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: 'var(--brand-a-ink)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }),
               }}
             >
               {session.context_mode === 'warehouse_only' ? 'SQL' : 'CTX'}
@@ -919,7 +919,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
                 background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
-                <User size={9} style={{ color: '#5B3DF5' }} />
+                <User size={9} style={{ color: 'var(--brand-a-ink)' }} />
               </div>
               <span title={session.user_email ?? undefined} style={{
                 fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: META_COLOR,
@@ -953,13 +953,22 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               </>
             ) : (
               <>
-                <button onClick={onContinue} title="Open" style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 5, fontSize: 13, fontWeight: 600, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: GOLD, cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif", whiteSpace: 'nowrap' }}>
+                <button onClick={onContinue} title="Open" style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 5, fontSize: 13, fontWeight: 600, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: 'var(--brand-a)', cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif", whiteSpace: 'nowrap' }}>
                   <ChevronRight size={11} /> Open
                 </button>
+                {onDebugTrace && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDebugTrace(); }}
+                    title="Debug trace (tool invocations)"
+                    style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer' }}
+                  >
+                    <Activity size={10} />
+                  </button>
+                )}
                 <button onClick={startEdit} title="Rename" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer' }}>
                   <Pencil size={10} />
                 </button>
-                <button onClick={onPin} disabled={isPinning} title={session.pinned ? 'Unpin' : 'Pin'} style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${session.pinned ? 'color-mix(in srgb, var(--brand-a) 35%, transparent)' : BORDER}`, color: session.pinned ? GOLD : MUTED, cursor: 'pointer' }}>
+                <button onClick={onPin} disabled={isPinning} title={session.pinned ? 'Unpin' : 'Pin'} style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${session.pinned ? 'color-mix(in srgb, var(--brand-a) 35%, transparent)' : BORDER}`, color: session.pinned ? 'var(--brand-a)' : MUTED, cursor: 'pointer' }}>
                   {isPinning ? <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} /> : session.pinned ? <PinOff size={10} /> : <Pin size={10} />}
                 </button>
                 <button onClick={() => setConfirmDelete(true)} title="Delete" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer' }}>

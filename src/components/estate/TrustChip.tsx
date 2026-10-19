@@ -13,9 +13,9 @@ export default function TrustChip({ status }: TrustChipProps) {
 
   if (status === 'certified') {
     styles = {
-      backgroundColor: 'var(--brand-a-ink)',
-      borderColor: 'var(--brand-a-ink)',
-      color: '#111322',
+      backgroundColor: 'var(--brand-a)',
+      borderColor: 'var(--brand-a)',
+      color: 'var(--on-brand)',
       fontWeight: 600,
     };
   } else if (status === 'confirmed') {

@@ -297,13 +297,13 @@ export default function EstateTable({
             {loading ? (
               [...Array(12)].map((_, idx) => (
                 <tr key={idx}>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-3.5 w-3.5 bg-slate-400/15 rounded" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-4/5" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-14" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-16" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-14 ml-auto" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-16" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-20" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-3.5 w-3.5 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-4/5" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-16" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14 ml-auto" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-16" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-20" /></td>
                 </tr>
               ))
             ) : items.length === 0 ? (

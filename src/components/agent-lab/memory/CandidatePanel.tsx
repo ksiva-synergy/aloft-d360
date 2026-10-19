@@ -4,6 +4,7 @@ import React from 'react';
 import { HelpCircle, ShieldAlert, Trash2 } from 'lucide-react';
 import { GOLD, RULE_TYPE_COLORS, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // Define the shape of active bullets returned from the trace route
 export interface BulletItem {
   id: string;
@@ -146,7 +147,7 @@ export function CandidatePanel({
                     <span
                       className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded"
                       style={{
-                        backgroundColor: `${accentColor}15`,
+                        backgroundColor: `${withAlpha(accentColor, '15')}`,
                         color: accentColor,
                       }}
                     >

@@ -38,17 +38,17 @@ export default function ScanCoverageModal({ isOpen, onClose, data, loading }: Pr
       description="Databricks catalog objects vs. Aurora (synced)"
       icon={<Database />}
       maxWidth="3xl"
-      className="!bg-[#111322] !border !border-[color-mix(in_srgb,var(--brand-a)_20%,transparent)]"
+      className="!bg-[color:var(--surface-1)] !border !border-[color:color-mix(in_srgb,var(--brand-a)_20%,transparent)]"
       headerClassName="!border-[color-mix(in_srgb,var(--brand-a)_15%,transparent)]"
     >
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex gap-4 animate-pulse">
-              <div className="h-5 bg-slate-400/10 rounded flex-[2]" />
-              <div className="h-5 bg-slate-400/10 rounded flex-1" />
-              <div className="h-5 bg-slate-400/10 rounded flex-1" />
-              <div className="h-5 bg-slate-400/10 rounded flex-1" />
+              <div className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded flex-[2]" />
+              <div className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded flex-1" />
+              <div className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded flex-1" />
+              <div className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded flex-1" />
             </div>
           ))}
         </div>
@@ -78,7 +78,7 @@ export default function ScanCoverageModal({ isOpen, onClose, data, loading }: Pr
               {data.catalogs.map((row) => (
                 <tr
                   key={row.catalog_name}
-                  className="border-b transition-colors hover:bg-white/[0.02]"
+                  className="border-b transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)]"
                   style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}
                 >
                   <td className="py-2.5 px-3 flex items-center gap-2" style={{ color: '#FFFFFF' }}>
@@ -88,7 +88,7 @@ export default function ScanCoverageModal({ isOpen, onClose, data, loading }: Pr
                     {row.is_new && (
                       <span
                         className="text-xs font-semibold uppercase px-1.5 py-0.5 rounded"
-                        style={{ backgroundColor: '#3f2a00', color: 'var(--brand-a-ink)' }}
+                        style={{ backgroundColor: 'var(--brand-a-soft)', color: 'var(--brand-a-ink)' }}
                       >
                         new
                       </span>

@@ -287,7 +287,7 @@ export function DraftChangeCard({
                 style={{
                   ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
                   border: 'none', borderRadius: 4, padding: '5px 14px', fontWeight: 600,
-                  background: GOLD, color: '#111322',
+                  background: GOLD, color: 'var(--on-brand)',
                   cursor: phase === 'applying' || nothingChanged ? 'default' : 'pointer',
                   opacity: phase === 'applying' || nothingChanged ? 0.6 : 1,
                 }}

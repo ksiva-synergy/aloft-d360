@@ -5,10 +5,10 @@ import React, { useState } from 'react';
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD       = 'var(--brand-a)';
 const NAVY       = 'var(--brand-a-ink)';
-const NAVY2      = '#0a3a6b';
-const TXT        = '#e6ecf4';
-const TXT2       = '#9aa8ba';
-const TXT3       = '#5d6b7d';
+const NAVY2      = 'color-mix(in srgb, var(--brand-a) 45%, transparent)';
+const TXT        = 'var(--ink-1)';
+const TXT2       = 'var(--ink-2)';
+const TXT3       = 'var(--ink-3)';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const body: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };

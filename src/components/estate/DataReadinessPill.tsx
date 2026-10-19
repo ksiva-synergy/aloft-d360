@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react';
 import type { DataScoreShape } from './DataReadinessRing';
 import { scoreColor, levelColor } from './dataReadinessColors';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 const DIMENSION_LABELS: Record<string, string> = {
   discoverable: 'Discoverable',
   accessible:   'Accessible',
@@ -81,7 +82,7 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
         color: badgeColor,
         letterSpacing: '0.06em',
         backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
-        border: `1px solid ${badgeColor}40`,
+        border: `1px solid ${withAlpha(badgeColor, '40')}`,
         borderRadius: 3,
         padding: '2px 8px',
       }}>

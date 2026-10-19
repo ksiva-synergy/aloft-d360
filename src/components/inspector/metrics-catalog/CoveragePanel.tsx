@@ -56,7 +56,7 @@ export function CoveragePanel() {
             height: 8,
             borderRadius: 3,
             overflow: 'hidden',
-            background: 'rgba(255,255,255,0.04)',
+            background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
             display: 'flex',
           }}
         >
@@ -238,7 +238,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
           height: 12,
           borderRadius: 3,
           overflow: 'hidden',
-          background: 'rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
       >
         {bucket.governed > 0 && <span style={{ width: pct(bucket.governed), background: SEG_GOV }} />}

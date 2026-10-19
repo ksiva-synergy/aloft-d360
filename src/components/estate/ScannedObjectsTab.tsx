@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ScannedFacetTree from './ScannedFacetTree';
 import Pagination from './Pagination';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 interface ScannedObjectItem {
   id: string;
   full_path: string;
@@ -135,11 +136,11 @@ function TierLegendPill({
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-xs tracking-wide transition-all duration-150"
       style={{
         color,
-        backgroundColor: active ? `${color}28` : `${color}14`,
-        border: active ? `1px solid ${color}` : `1px solid ${color}33`,
+        backgroundColor: active ? `${withAlpha(color, '28')}` : `${withAlpha(color, '14')}`,
+        border: active ? `1px solid ${color}` : `1px solid ${withAlpha(color, '33')}`,
         outline: 'none',
         cursor: 'pointer',
-        boxShadow: active ? `0 0 0 1px ${color}44` : 'none',
+        boxShadow: active ? `0 0 0 1px ${withAlpha(color, '44')}` : 'none',
       }}
     >
       <span
@@ -379,12 +380,12 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
               {loading && items.length === 0 ? (
                 [...Array(8)].map((_, idx) => (
                   <tr key={idx} className="animate-pulse border-b" style={{ borderColor, backgroundColor: idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)' }}>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-3/4" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-24" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-12 ml-auto" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-20" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16 mx-auto" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-3/4" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-24" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12 ml-auto" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 mx-auto" /></td>
                   </tr>
                 ))
               ) : items.length === 0 ? (

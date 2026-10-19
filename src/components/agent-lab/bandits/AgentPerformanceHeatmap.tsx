@@ -33,7 +33,7 @@ function getCellColor(percentile: number, higherIsBetter: boolean): string {
   const p = higherIsBetter ? percentile : 1 - percentile;
   if (p >= 0.8) return 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300';
   if (p >= 0.6) return 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400';
-  if (p >= 0.4) return 'bg-slate-50 dark:bg-slate-800/30 text-slate-600 dark:text-slate-400';
+  if (p >= 0.4) return 'bg-[color:var(--surface-2)] dark:bg-[color:color-mix(in_srgb,var(--surface-2)_30%,transparent)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)]';
   if (p >= 0.2) return 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400';
   return 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400';
 }
@@ -51,12 +51,12 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
 
   return (
     <div className="bandit-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-[var(--line-1)] flex items-center gap-2">
-        <Grid3X3 className="h-4 w-4 text-indigo-500" />
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+      <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
+        <Grid3X3 className="h-4 w-4 text-[color:var(--brand-a-ink)]" />
+        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Agent Performance Heatmap
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500 ml-1">
+        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           {agents.length} agents
         </span>
       </div>
@@ -68,7 +68,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             <div className="px-2 py-1.5" />
             {METRICS.map(m => (
               <div key={m.key} className="px-2 py-1.5 text-center">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-3)] dark:text-slate-500">
+                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
                   {m.label}
                 </span>
               </div>
@@ -78,12 +78,12 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             {agents.map((agent, rowIdx) => (
               <React.Fragment key={agent.sheet_id}>
                 <div className="px-2 py-2 flex items-center gap-1.5">
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+                  <span className="text-xs font-medium text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] truncate">
                     {agent.sheet_id}
                   </span>
                   {agent.trend > 0.05 && <TrendingUp className="h-3 w-3 text-emerald-500 shrink-0" />}
                   {agent.trend < -0.05 && <TrendingDown className="h-3 w-3 text-red-500 shrink-0" />}
-                  {agent.trend >= -0.05 && agent.trend <= 0.05 && <Minus className="h-3 w-3 text-slate-300 shrink-0" />}
+                  {agent.trend >= -0.05 && agent.trend <= 0.05 && <Minus className="h-3 w-3 text-[color:var(--ink-3)] shrink-0" />}
                 </div>
                 {METRICS.map((m, colIdx) => {
                   const val = agent[m.key] as number;
@@ -96,7 +96,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
                       className={cn(
                         'px-2 py-2 rounded-md text-center transition-all duration-150 cursor-default',
                         getCellColor(percentile, m.higherIsBetter),
-                        isHovered && 'ring-2 ring-indigo-400 dark:ring-indigo-500 scale-105 z-10'
+                        isHovered && 'ring-2 ring-[color:var(--brand-a)] dark:ring-[color:var(--brand-a)] scale-105 z-10'
                       )}
                       onMouseEnter={() => setHoveredCell({ row: rowIdx, col: colIdx })}
                       onMouseLeave={() => setHoveredCell(null)}
@@ -115,8 +115,8 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
       </div>
 
       {/* Legend */}
-      <div className="px-5 py-2 border-t border-slate-100 dark:border-[var(--line-1)] flex items-center gap-4">
-        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500">Performance:</span>
+      <div className="px-5 py-2 border-t border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-4">
+        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Performance:</span>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-red-100 dark:bg-red-950/30" />
           <span className="text-xs text-[var(--ink-3)]">Low</span>

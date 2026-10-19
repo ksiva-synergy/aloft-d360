@@ -10,8 +10,11 @@ import {
   SERIF,
   MONO,
   RULE_TYPE_COLORS,
+  resolveCssColor,
 } from '@/lib/foer/foer-tokens';
+import { useTheme } from 'next-themes';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
 interface ForgettingPanelProps {
@@ -172,7 +175,12 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
     return () => clearTimeout(timerRef);
   }, [triggerSpike]);
 
-  // Config for ECharts sparkline
+  // Config for ECharts sparkline. Canvas cannot read CSS vars, so resolve them at render time.
+  const { resolvedTheme } = useTheme();
+  void resolvedTheme; // re-render (and re-resolve colors) when the theme flips
+  const accentHex = resolveCssColor(GOLD, '#A8481F');
+  const tooltipBgHex = resolveCssColor(TOOLTIP_BG, '#FFFFFF');
+  const tooltipTextHex = resolveCssColor(TOOLTIP_TEXT, '#1A231C');
   const chartOption = {
     grid: {
       left: 0,
@@ -192,11 +200,11 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
     },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: TOOLTIP_BG,
-      borderColor: GOLD,
+      backgroundColor: tooltipBgHex,
+      borderColor: accentHex,
       borderWidth: 1,
       textStyle: {
-        color: TOOLTIP_TEXT,
+        color: tooltipTextHex,
         fontFamily: MONO,
         fontSize: 13,
       },
@@ -218,7 +226,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         type: 'line',
         symbol: 'none',
         lineStyle: {
-          color: GOLD,
+          color: accentHex,
           width: 1.5,
         },
         areaStyle: {
@@ -233,7 +241,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── STYLE BLOCK FOR CUSTOM TRANSITIONS / MICRO-ANIMATIONS ── */}
       <style>{`
         .foer-card-glow:hover {
-          border-color: ${GOLD}50 !important;
+          border-color: color-mix(in srgb, ${GOLD} 31%, transparent) !important;
           transform: translateY(-1px);
         }
         
@@ -399,16 +407,16 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         .spike-label-up {
           animation: spike-label-up 2.8s ease-out forwards;
           color: ${GOLD};
-          background: rgba(91, 61, 245, 0.18);
-          border: 1px solid rgba(91, 61, 245, 0.5);
-          box-shadow: 0 0 12px rgba(91, 61, 245, 0.25);
+          background: color-mix(in srgb, var(--brand-a-ink) 25%, transparent);
+          border: 1px solid color-mix(in srgb, var(--brand-a-ink) 60%, transparent);
+          box-shadow: 0 0 12px color-mix(in srgb, var(--brand-a-ink) 35%, transparent);
         }
         .spike-label-down {
           animation: spike-label-down 2.8s ease-out forwards;
-          color: #a0aec0;
-          background: rgba(0, 50, 98, 0.3);
-          border: 1px solid rgba(0, 50, 98, 0.5);
-          box-shadow: 0 0 12px rgba(0, 50, 98, 0.2);
+          color: var(--ink-3);
+          background: color-mix(in srgb, var(--ink-1) 8%, transparent);
+          border: 1px solid color-mix(in srgb, var(--ink-1) 22%, transparent);
+          box-shadow: none;
         }
 
         .foer-waterline-orb {
@@ -468,8 +476,8 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
             className="rounded border px-2.5 py-1 text-xs font-semibold tracking-wider uppercase"
             style={{
               fontFamily: MONO,
-              borderColor: `${GOLD}60`,
-              backgroundColor: `${GOLD}15`,
+              borderColor: `color-mix(in srgb, ${GOLD} 38%, transparent)`,
+              backgroundColor: `color-mix(in srgb, ${GOLD} 8%, transparent)`,
               color: GOLD,
             }}
           >
@@ -554,7 +562,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
             <div
               className="rounded p-4 flex flex-col gap-1 border"
               style={{
-                borderColor: `${GOLD}40`,
+                borderColor: `color-mix(in srgb, ${GOLD} 25%, transparent)`,
                 backgroundColor: 'var(--foer-surface2)',
               }}
             >
@@ -790,7 +798,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                       className="block text-xs uppercase tracking-wider font-semibold mb-0.5"
                       style={{
                         fontFamily: MONO,
-                        color: orb.zone === 'active' ? RULE_TYPE_COLORS[orb.type] : `${RULE_TYPE_COLORS[orb.type]}90`,
+                        color: orb.zone === 'active' ? RULE_TYPE_COLORS[orb.type] : `${withAlpha(RULE_TYPE_COLORS[orb.type], '90')}`,
                       }}
                     >
                       {orb.type.replace(/_/g, ' ')}{orb.zone === 'archived' ? ' · archived' : ''}
@@ -799,7 +807,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                       className="block text-xs leading-tight"
                       style={{
                         fontFamily: MONO,
-                        color: orb.zone === 'active' ? TOOLTIP_TEXT : `${TOOLTIP_TEXT}AA`,
+                        color: orb.zone === 'active' ? TOOLTIP_TEXT : `color-mix(in srgb, ${TOOLTIP_TEXT} 67%, transparent)`,
                       }}
                     >
                       {orb.snippet}

@@ -180,7 +180,7 @@ function Section({ label, count, children }: { label: string; count: number; chi
           textTransform: 'uppercase',
           color: 'var(--ink-3)',
           padding: '8px 14px 5px',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          borderBottom: '1px solid var(--line-1)',
         }}
       >
         {label} <span style={{ opacity: 0.55 }}>({count})</span>
@@ -236,7 +236,7 @@ export default function RelationshipList({
     alignItems: 'center',
     gap: 10,
     padding: '8px 14px',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    borderBottom: '1px solid var(--line-1)',
     cursor: 'default',
   };
 

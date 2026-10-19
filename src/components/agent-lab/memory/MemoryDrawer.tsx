@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RULE_TYPE_COLORS, TOPIC_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 interface FoerBullet {
   id: string;
   agentClass: string;
@@ -199,8 +200,6 @@ export function MemoryDrawer() {
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--foer-border-dim) transparent',
         }}
       >
         {/* Close Button */}
@@ -264,7 +263,7 @@ export function MemoryDrawer() {
                     borderRadius: 4,
                     border: `1px solid ${color}`,
                     color: color,
-                    background: `${color}10`,
+                    background: `${withAlpha(color, '10')}`,
                     textTransform: 'uppercase',
                   }}
                 >

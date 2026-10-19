@@ -521,7 +521,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                 </div>
                 {/* Mini bar */}
                 {n > 0 && (
-                  <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div style={{ height: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)', overflow: 'hidden' }}>
                     <div style={{
                       width: `${pct}%`,
                       height: '100%',
@@ -584,7 +584,7 @@ function GraphInner(props: RelationshipGraphProps) {
       style={{ background: 'transparent' }}
       proOptions={{ hideAttribution: true }}
     >
-      <Background color="rgba(255,255,255,0.03)" gap={24} />
+      <Background color="color-mix(in srgb, var(--ink-1) 3%, transparent)" gap={24} />
       <Controls
         style={{
           background: 'var(--estate-raised, rgba(13,27,42,0.85))',

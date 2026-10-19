@@ -278,20 +278,98 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
               }
               break;
             }
+            case 'tool_call_suggested':
+            case 'tool_call_running':
+            case 'tool_call_result':
+            case 'tool_call_error':
+              setLocalMessages((prev) => {
+                const updated = [...prev];
+                const idx = updated.findIndex((m) => m.id === assistantMsgId);
+                if (idx < 0) return prev;
+                const msg = updated[idx];
+                const existing = msg.toolCalls ?? [];
+                if (event.type === 'tool_call_suggested') {
+                  if (existing.some((tc) => tc.callId === event.callId)) return updated;
+                  updated[idx] = {
+                    ...msg,
+                    toolCalls: [
+                      ...existing,
+                      {
+                        callId: event.callId as string,
+                        toolId: (event.toolId as string) ?? (event.toolName as string),
+                        toolName: event.toolName as string,
+                        status: 'suggested',
+                      },
+                    ],
+                  };
+                } else if (event.type === 'tool_call_running') {
+                  updated[idx] = {
+                    ...msg,
+                    toolCalls: existing.map((tc) =>
+                      tc.callId === event.callId
+                        ? { ...tc, status: 'running', input: event.input }
+                        : tc,
+                    ),
+                  };
+                } else if (event.type === 'tool_call_result') {
+                  updated[idx] = {
+                    ...msg,
+                    toolCalls: existing.map((tc) =>
+                      tc.callId === event.callId
+                        ? { ...tc, status: 'success', output: event.output, durationMs: event.durationMs as number }
+                        : tc,
+                    ),
+                  };
+                } else {
+                  updated[idx] = {
+                    ...msg,
+                    toolCalls: existing.map((tc) =>
+                      tc.callId === event.callId
+                        ? { ...tc, status: 'error', error: event.error as string }
+                        : tc,
+                    ),
+                  };
+                }
+                return updated;
+              });
+              break;
             case 'done': {
               syncSessionConstruction(sid);
               const started = streamStartRef.current;
               const durationMs = started ? Date.now() - started : 0;
               const usage = event.usage as { inputTokens?: number; outputTokens?: number } | undefined;
-              const tokens = (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0);
+              const inputTokens = usage?.inputTokens ?? 0;
+              const outputTokens = usage?.outputTokens ?? 0;
+              const tokens = inputTokens + outputTokens;
+              const outcome =
+                (event.outcome as 'completed' | 'truncated' | 'errored' | undefined) ?? 'completed';
+              const modelName = String(event.model ?? modelRef.current);
               setCompletionMeta((prev) => ({
                 ...prev,
                 [assistantMsgId]: {
                   durationMs,
                   tokenCount: tokens,
-                  modelName: String(event.model ?? modelRef.current),
+                  modelName,
                 },
               }));
+              setLocalMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantMsgId);
+                if (idx < 0) return prev;
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  turnOps: {
+                    durationMs,
+                    inputTokens,
+                    outputTokens,
+                    loopCount: (event.loops as number) ?? 1,
+                    outcome,
+                    modelKey: modelRef.current,
+                    modelName,
+                  },
+                };
+                return updated;
+              });
               if (event.outcome === 'errored' && tokens === 0) {
                 setError((prev) => prev ?? 'Model request failed. Try Claude Sonnet 5.5 or check XAI_API_KEY / AWS credentials.');
               }

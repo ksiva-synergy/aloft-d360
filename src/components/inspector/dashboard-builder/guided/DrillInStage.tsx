@@ -711,7 +711,7 @@ function railBtn(color: string): React.CSSProperties {
 function primaryBtn(): React.CSSProperties {
   return {
     ...UI, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    padding: '11px 14px', borderRadius: 8, border: 'none', background: GOLD, color: '#111322', cursor: 'pointer', fontWeight: 600,
+    padding: '11px 14px', borderRadius: 8, border: 'none', background: GOLD, color: 'var(--on-brand)', cursor: 'pointer', fontWeight: 600,
   };
 }
 

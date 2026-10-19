@@ -147,7 +147,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 outline: 'none',
               }}
               onFocus={e => {
-                e.currentTarget.style.outline = '1px solid rgba(91, 61, 245,0.5)';
+                e.currentTarget.style.outline = '1px solid color-mix(in srgb, var(--brand-a-ink) 60%, transparent)';
                 e.currentTarget.style.outlineOffset = '-2px';
               }}
               onBlur={e => {
@@ -164,7 +164,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               {isSelected && (
                 <span
                   className="absolute left-0 top-[7px] bottom-[7px] w-[2.5px] rounded-full"
-                  style={{ background: '#5B3DF5' }}
+                  style={{ background: 'var(--brand-a)' }}
                 />
               )}
 

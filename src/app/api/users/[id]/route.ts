@@ -7,7 +7,7 @@ import { writeAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
 const userSelect = {
   id: true,
@@ -41,10 +41,11 @@ function formatUser(user: UserRow) {
   };
 }
 
-export const GET = handle<Ctx>(async (req, { params }) => {
+export const GET = handle<Ctx>(async (req, ctx) => {
+  const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.USER_READ);
-  const user = await prisma.user.findUnique({ where: { id: params.id }, select: userSelect });
+  const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
   if (!user) throw new ApiError(404, 'User not found');
   return ok({ user: formatUser(user) });
 });
@@ -55,12 +56,13 @@ const UpdateUser = z.object({
   role: z.string().optional(),
 });
 
-export const PATCH = handle<Ctx>(async (req, { params }) => {
+export const PATCH = handle<Ctx>(async (req, ctx) => {
+  const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.USER_UPDATE);
   const body = parse(UpdateUser, await req.json());
 
-  const before = await prisma.user.findUnique({ where: { id: params.id }, select: { name: true, status: true, isActive: true } });
+  const before = await prisma.user.findUnique({ where: { id }, select: { name: true, status: true, isActive: true } });
   if (!before) throw new ApiError(404, 'User not found');
 
   // Role change — requires role:assign permission in addition to user:update
@@ -71,14 +73,14 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
     if (!newRole) throw new ApiError(400, `Unknown role: ${body.role}`);
 
     // Revoke all current roles, assign the new one
-    await prisma.userRole.deleteMany({ where: { userId: params.id } });
-    await prisma.userRole.create({ data: { userId: params.id, roleId: newRole.id, assignedBy: auth.userId } });
+    await prisma.userRole.deleteMany({ where: { userId: id } });
+    await prisma.userRole.create({ data: { userId: id, roleId: newRole.id, assignedBy: auth.userId } });
 
     await writeAudit({
       actorId: auth.userId,
       action: 'user.role.changed',
       entityType: 'user',
-      entityId: params.id,
+      entityId: id,
       after: { role: body.role },
       ...clientMeta(req),
     });
@@ -87,7 +89,7 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
   // Profile / status update (only if name or status is present)
   if (body.name !== undefined || body.status !== undefined) {
     await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(body.name !== undefined ? { name: body.name } : {}),
         ...(body.status !== undefined ? { status: body.status, isActive: body.status === 'ACTIVE' } : {}),
@@ -98,28 +100,29 @@ export const PATCH = handle<Ctx>(async (req, { params }) => {
       actorId: auth.userId,
       action: 'user.updated',
       entityType: 'user',
-      entityId: params.id,
+      entityId: id,
       before,
       after: { name: body.name, status: body.status },
       ...clientMeta(req),
     });
   }
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: params.id }, select: userSelect });
+  const user = await prisma.user.findUniqueOrThrow({ where: { id }, select: userSelect });
   return ok({ user: formatUser(user) });
 });
 
 // Soft delete — never hard-delete a user row (preserves audit/session FKs).
-export const DELETE = handle<Ctx>(async (req, { params }) => {
+export const DELETE = handle<Ctx>(async (req, ctx) => {
+  const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.USER_DELETE);
-  if (params.id === auth.userId) throw new ApiError(400, 'You cannot delete your own account');
+  if (id === auth.userId) throw new ApiError(400, 'You cannot delete your own account');
 
-  const before = await prisma.user.findUnique({ where: { id: params.id }, select: { status: true, deletedAt: true } });
+  const before = await prisma.user.findUnique({ where: { id }, select: { status: true, deletedAt: true } });
   if (!before) throw new ApiError(404, 'User not found');
 
   await prisma.user.update({
-    where: { id: params.id },
+    where: { id },
     data: { status: 'DEACTIVATED', isActive: false, deletedAt: new Date() },
   });
 
@@ -127,7 +130,7 @@ export const DELETE = handle<Ctx>(async (req, { params }) => {
     actorId: auth.userId,
     action: 'user.deleted',
     entityType: 'user',
-    entityId: params.id,
+    entityId: id,
     before,
     after: { status: 'DEACTIVATED', softDeleted: true },
     ...clientMeta(req),

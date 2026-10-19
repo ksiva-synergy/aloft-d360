@@ -2,25 +2,23 @@
 
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { useThemeIsDarkSnapshot } from '@/components/providers/ThemeIsDarkProvider';
 
 /**
  * SSR-safe dark-mode detection.
  *
- * On first render (before hydration), we read the `.dark` class that
- * next-themes already sets on <html>, so inline styles match CSS variables
- * immediately without a half-light / half-dark flash.
- * After mount, we switch to the authoritative `resolvedTheme` value.
+ * Before next-themes hydrates, returns the theme cookie snapshot from the
+ * server so inline styles match the first client render (no hydration mismatch).
+ * After mount, uses `resolvedTheme`.
  */
 export function useIsDark(): boolean {
+  const initialIsDark = useThemeIsDarkSnapshot();
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  if (!mounted) {
-    return typeof document !== 'undefined'
-      && document.documentElement.classList.contains('dark');
-  }
+  if (!mounted) return initialIsDark;
 
   return resolvedTheme === 'dark';
 }

@@ -58,7 +58,7 @@ export function ReflectionCard({
       transition={{ duration: 0.25, ease: 'easeOut' }}
       style={{
         width: '100%',
-        backgroundColor: '#0d1220',
+        backgroundColor: 'var(--surface-1)',
         borderLeft: '3px solid var(--brand-a)',
         borderTop: '1px solid color-mix(in srgb, var(--brand-a) 6%, transparent)',
         borderRight: '1px solid color-mix(in srgb, var(--brand-a) 6%, transparent)',
@@ -92,14 +92,14 @@ export function ReflectionCard({
           fontStyle: 'italic',
           fontSize: '17px',
           fontWeight: 400,
-          color: '#e8e6e1',
+          color: 'var(--ink-1)',
         }}>
           {headline}
         </div>
         <div style={{
           fontFamily: "'Inter Variable', system-ui, sans-serif",
           fontSize: '14px',
-          color: '#8b9ab5',
+          color: 'var(--ink-2)',
           lineHeight: 1.55,
         }}>
           {body}
@@ -116,14 +116,14 @@ export function ReflectionCard({
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
-              backgroundColor: '#1a2236',
+              backgroundColor: 'var(--surface-2)',
               border: '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
               color: 'var(--brand-a-ink)',
               cursor: 'pointer',
               transition: 'background-color 0.15s, border-color 0.15s'
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e2840'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 60%, transparent)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#1a2236'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-3)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 60%, transparent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--surface-2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
           >
             {suggestedAction.label || 'Take Action'}
           </button>
@@ -136,14 +136,14 @@ export function ReflectionCard({
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
-              backgroundColor: '#1a2236',
+              backgroundColor: 'var(--surface-2)',
               border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
               color: 'var(--brand-a-ink)',
               cursor: 'pointer',
               transition: 'background-color 0.15s, border-color 0.15s'
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e2840'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#1a2236'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 20%, transparent)'; }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-3)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--surface-2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 20%, transparent)'; }}
           >
             Acknowledge
           </button>
@@ -156,14 +156,14 @@ export function ReflectionCard({
             fontWeight: 500,
             padding: '6px 14px',
             borderRadius: '6px',
-            backgroundColor: '#1a2236',
-            border: '1px solid rgba(255,255,255,0.06)',
-            color: '#5a6a82',
+            backgroundColor: 'var(--surface-2)',
+            border: '1px solid var(--line-1)',
+            color: 'var(--ink-3)',
             cursor: 'pointer',
             transition: 'color 0.15s, background-color 0.15s'
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#8b9ab5'; e.currentTarget.style.backgroundColor = '#1e2840'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#5a6a82'; e.currentTarget.style.backgroundColor = '#1a2236'; }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--ink-2)'; e.currentTarget.style.backgroundColor = 'var(--surface-3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.backgroundColor = 'var(--surface-2)'; }}
         >
           Dismiss
         </button>

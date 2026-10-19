@@ -74,7 +74,45 @@ async function primaryRoleForUser(userId: string): Promise<string> {
   return u ? resolvePrimaryRole(u) : DEFAULT_ROLE;
 }
 
+/**
+ * Dev-only: next-auth reports every sign-in failure to the browser as one of a handful of generic codes (for example
+ * `OAuthCallback`), and the real reason only goes to the server console. Mirror the error NAME and MESSAGE (never tokens,
+ * codes or secrets) to .logs/next-auth.log so a failure can be diagnosed without hunting through terminals.
+ */
+function devAuthLog(level: 'error' | 'warn', code: string, metadata: unknown) {
+  if (process.env.NODE_ENV === 'production') return;
+  try {
+    const m = metadata as { error?: { name?: string; message?: string }; message?: string; name?: string; providerId?: string } | undefined;
+    const err = m?.error ?? m;
+    const line = JSON.stringify({
+      at: new Date().toISOString(),
+      level,
+      code,
+      provider: m?.providerId,
+      name: err?.name,
+      message: String(err?.message ?? '').slice(0, 600),
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('node:fs') as typeof import('node:fs');
+    fs.mkdirSync('.logs', { recursive: true });
+    fs.appendFileSync('.logs/next-auth.log', `${line}\n`);
+  } catch {
+    /* logging must never break sign-in */
+  }
+}
+
 export const authOptions: NextAuthOptions = {
+  logger: {
+    error(code, metadata) {
+      console.error('[next-auth][error]', code, metadata);
+      devAuthLog('error', code, metadata);
+    },
+    warn(code) {
+      console.warn('[next-auth][warn]', code);
+      devAuthLog('warn', code, undefined);
+    },
+    debug() {},
+  },
   providers: [
     // Break-glass local admin (optional). Only usable by accounts that actually
     // have a passwordHash — AAD users have none and cannot log in this way.

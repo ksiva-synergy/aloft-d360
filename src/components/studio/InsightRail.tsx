@@ -70,7 +70,7 @@ function SkeletonCard() {
           height: 10,
           width: '60%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 10,
         }}
       />
@@ -83,7 +83,7 @@ function SkeletonCard() {
           height: 14,
           width: '90%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 6,
         }}
       />
@@ -93,7 +93,7 @@ function SkeletonCard() {
           height: 14,
           width: '70%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 12,
         }}
       />
@@ -104,7 +104,7 @@ function SkeletonCard() {
           height: 11,
           width: '100%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
           marginBottom: 4,
         }}
       />
@@ -114,7 +114,7 @@ function SkeletonCard() {
           height: 11,
           width: '80%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
       />
     </div>

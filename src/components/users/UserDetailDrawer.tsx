@@ -33,7 +33,7 @@ const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string; 
   ACTIVE:      { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Active',      icon: CheckCircle2 },
   SUSPENDED:   { dot: 'bg-red-500',     text: 'text-red-600 dark:text-red-400',         label: 'Blocked',     icon: Ban },
   INVITED:     { dot: 'bg-blue-400',    text: 'text-blue-600 dark:text-blue-400',        label: 'Invited',     icon: Mail },
-  DEACTIVATED: { dot: 'bg-slate-400',   text: 'text-[var(--ink-3)] dark:text-slate-400',      label: 'Deactivated', icon: UserX },
+  DEACTIVATED: { dot: 'bg-[color:var(--line-2)]',   text: 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]',      label: 'Deactivated', icon: UserX },
 };
 
 function getInitials(name?: string | null, email?: string | null): string {

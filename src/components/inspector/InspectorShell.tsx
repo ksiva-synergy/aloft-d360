@@ -18,9 +18,12 @@ import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
 import type { QueryResult } from '@/hooks/useInspectorChat';
+import { useSession } from 'next-auth/react';
+import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
+import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#5B3DF5';
+const GOLD = 'var(--brand-a-ink)';
 
 // ── Inspector status bar ──────────────────────────────────────────────────────
 interface InspectorStatusBarProps {
@@ -91,8 +94,8 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             color: dbConnected ? GOLD : 'var(--wb-muted)',
-            background: dbConnected ? 'rgba(91, 61, 245,0.08)' : 'rgba(74,96,128,0.12)',
-            border: dbConnected ? '1px solid rgba(91, 61, 245,0.25)' : '1px solid rgba(74,96,128,0.25)',
+            background: dbConnected ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'rgba(74,96,128,0.12)',
+            border: dbConnected ? '1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : '1px solid rgba(74,96,128,0.25)',
             borderRadius: 4,
             padding: '3px 8px',
             pointerEvents: 'none',
@@ -104,6 +107,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
               height: 5,
               borderRadius: '50%',
               background: dbConnected ? GOLD : '#4a6080',
+              boxShadow: dbConnected ? '0 0 8px 1px color-mix(in srgb, var(--brand-a-ink) 70%, transparent)' : 'none',
               display: 'inline-block',
               flexShrink: 0,
               animation: dbConnected ? 'insp-pulse 2s ease-in-out infinite' : 'none',
@@ -113,7 +117,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
         </span>
 
         {/* Divider */}
-        <span style={{ width: 1, height: 12, background: 'rgba(91, 61, 245,0.15)', flexShrink: 0 }} />
+        <span style={{ width: 1, height: 12, background: 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)', flexShrink: 0 }} />
 
         {/* Context mode toggle */}
         <button
@@ -130,18 +134,18 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             cursor: 'pointer',
-            border: `1px solid ${isHarvested ? 'rgba(91, 61, 245,0.35)' : 'rgba(147,197,253,0.35)'}`,
+            border: `1px solid ${isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)' : 'rgba(147,197,253,0.35)'}`,
             borderRadius: 4,
             padding: '3px 8px',
-            background: isHarvested ? 'rgba(91, 61, 245,0.06)' : 'rgba(147,197,253,0.06)',
+            background: isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)' : 'rgba(147,197,253,0.06)',
             color: isHarvested ? GOLD : '#93C5FD',
             transition: 'all 0.15s',
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.background = isHarvested ? 'rgba(91, 61, 245,0.14)' : 'rgba(147,197,253,0.14)';
+            e.currentTarget.style.background = isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 20%, transparent)' : 'rgba(147,197,253,0.14)';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.background = isHarvested ? 'rgba(91, 61, 245,0.06)' : 'rgba(147,197,253,0.06)';
+            e.currentTarget.style.background = isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)' : 'rgba(147,197,253,0.06)';
           }}
         >
           {/* Toggle pill */}
@@ -151,7 +155,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             width: 24,
             height: 12,
             borderRadius: 6,
-            background: isHarvested ? 'rgba(91, 61, 245,0.25)' : 'rgba(147,197,253,0.15)',
+            background: isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(147,197,253,0.15)',
             position: 'relative',
             flexShrink: 0,
             transition: 'background 0.15s',
@@ -180,12 +184,12 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             gap: 5,
             height: 28, borderRadius: 6,
             padding: '0 10px',
-            background: 'transparent', border: `1px solid rgba(91, 61, 245,0.30)`,
+            background: 'transparent', border: `1px solid color-mix(in srgb, var(--brand-a-ink) 42%, transparent)`,
             color: GOLD, cursor: 'pointer', transition: 'all 0.15s',
             ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
             flexShrink: 0,
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(91, 61, 245,0.10)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
         >
           <SquarePen size={11} />
@@ -197,12 +201,12 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid rgba(91, 61, 245,0.15)',
+            background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
             color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
             flexShrink: 0,
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = 'rgba(91, 61, 245,0.06)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(91, 61, 245,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; e.currentTarget.style.background = 'transparent'; }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)'; e.currentTarget.style.color = 'var(--wb-muted)'; e.currentTarget.style.background = 'transparent'; }}
         >
           <FlaskConical size={13} />
         </button>
@@ -212,19 +216,19 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid rgba(91, 61, 245,0.15)',
+            background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
             color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
             flexShrink: 0,
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(91, 61, 245,0.15)'; e.currentTarget.style.color = 'var(--wb-muted)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)'; e.currentTarget.style.color = 'var(--wb-muted)'; }}
         >
           <History size={13} />
         </button>
         <span style={{ fontSize: 13 }}>
           SESSION <span style={{ color: 'var(--wb-ink-dim)' }}>{shortId}</span>
         </span>
-        <span style={{ width: 1, height: 14, background: 'rgba(91, 61, 245,0.15)', flexShrink: 0 }} />
+        <span style={{ width: 1, height: 14, background: 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)', flexShrink: 0 }} />
         <span style={{ fontSize: 13, letterSpacing: '0.08em' }}>POWERED BY ALOFT · v0.4</span>
       </div>
 
@@ -259,6 +263,10 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const [hasCandidateModels, setHasCandidateModels] = useState(false);
   const [candidateModelId, setCandidateModelId] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<RightPaneTab>('results');
+
+  const { data: authSession } = useSession();
+  const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
+  const showRightTabBar = hasCandidateModels || showDeveloperTab;
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
 
@@ -416,13 +424,13 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           style={{
             ...mono, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
             padding: '6px 24px', flexShrink: 0, color: GOLD,
-            background: 'rgba(91, 61, 245,0.08)', borderBottom: '1px solid rgba(91, 61, 245,0.2)',
+            background: 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
           }}
         >
           <span style={{ flex: 1 }}>{sourceChartNotice}</span>
           <button
             onClick={() => setSourceChartNotice(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: GOLD, display: 'flex' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-a)', display: 'flex' }}
           >
             <X size={12} />
           </button>
@@ -457,10 +465,25 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
 
         {/* RIGHT — 40% dashboard / semantic governance */}
         <div style={{ width: '40%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {hasCandidateModels && (
-            <RightPaneTabBar activeTab={rightTab} onChange={setRightTab} />
+          {showRightTabBar && (
+            <RightPaneTabBar
+              activeTab={rightTab}
+              onChange={setRightTab}
+              showSemantic={hasCandidateModels}
+              showDeveloper={showDeveloperTab}
+            />
           )}
-          {rightTab === 'results' || !hasCandidateModels ? (
+          {rightTab === 'developer' && showDeveloperTab ? (
+            <DeveloperPane
+              sessionId={insp.sessionId}
+              messages={insp.messages}
+              isStreaming={insp.isStreaming}
+              selectedModel={insp.selectedModel}
+              dbConnected={dbConnected}
+              contextMode={contextMode}
+              surface="inspector"
+            />
+          ) : rightTab === 'results' || !hasCandidateModels ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {showChatEmptyState ? (
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

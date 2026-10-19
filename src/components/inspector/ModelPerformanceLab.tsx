@@ -20,15 +20,15 @@ import {
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
-const GOLD   = '#5B3DF5';
-const NAVY   = '#3B1FD6';
-const BG     = '#070b11';
-const SURF   = '#0d1520';
-const SURF2  = '#111a27';
-const BORDER = 'rgba(91, 61, 245,0.12)';
-const BORDER2 = 'rgba(91, 61, 245,0.22)';
-const TXT    = '#e6ecf4';
-const TXT2   = '#8892A4';
+const GOLD   = 'var(--brand-a-ink)';
+const NAVY   = 'var(--brand-a-ink)';
+const BG     = 'var(--background)';
+const SURF   = 'var(--surface-1)';
+const SURF2  = 'var(--surface-2)';
+const BORDER = 'color-mix(in srgb, var(--brand-a-ink) 17%, transparent)';
+const BORDER2 = 'color-mix(in srgb, var(--brand-a-ink) 31%, transparent)';
+const TXT    = 'var(--ink-1)';
+const TXT2   = 'var(--ink-3)';
 const GREEN  = '#22c55e';
 const BLUE   = '#3A7BD5';
 const RED    = '#f43f5e';
@@ -163,7 +163,7 @@ function ValueSummaryHero() {
       </div>
 
       {/* Takeaway line */}
-      <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${GOLD}`, background: SURF }}>
+      <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${'var(--brand-a)'}`, background: SURF }}>
         <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
         <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier). The advantage is that the harness lets answers exist at all.
@@ -340,7 +340,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
         </div>
         <ResponsiveContainer width="100%" height={160}>
           <BarChart data={tokenData} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in srgb, var(--ink-1) 5%, transparent)" />
             <XAxis dataKey="name" tick={axisTick} interval={0} />
             <YAxis tick={axisTick} />
             <Tooltip content={<ChartTooltip />} />
@@ -358,7 +358,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
         </div>
         <ResponsiveContainer width="100%" height={160}>
           <LineChart data={latencyData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in srgb, var(--ink-1) 5%, transparent)" />
             <XAxis dataKey="turn" tick={axisTick} />
             <YAxis tick={axisTick} />
             <Tooltip content={<ChartTooltip />} />
@@ -380,7 +380,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
         </div>
         <ResponsiveContainer width="100%" height={140}>
           <BarChart data={toolData} layout="vertical" barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="color-mix(in srgb, var(--ink-1) 5%, transparent)" />
             <XAxis type="number" tick={axisTick} />
             <YAxis dataKey="name" type="category" tick={axisTick} width={140} />
             <Tooltip content={<ChartTooltip />} />
@@ -549,9 +549,9 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
                   <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                     <span style={{
                       display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
-                      background: isCtx ? 'rgba(91, 61, 245,0.1)' : 'rgba(58,123,213,0.12)',
+                      background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                       color: isCtx ? GOLD : BLUE,
-                      border: `1px solid ${isCtx ? 'rgba(91, 61, 245,0.25)' : 'rgba(58,123,213,0.3)'}`,
+                      border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
                     }}>
                       {isCtx ? 'CTX' : 'SQL'}
                     </span>
@@ -616,9 +616,9 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                   <span style={{
                     display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
-                    background: isCtx ? 'rgba(91, 61, 245,0.1)' : 'rgba(58,123,213,0.12)',
+                    background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
-                    border: `1px solid ${isCtx ? 'rgba(91, 61, 245,0.25)' : 'rgba(58,123,213,0.3)'}`,
+                    border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
                   }}>
                     {isCtx ? 'CTX' : 'SQL'}
                   </span>
@@ -639,7 +639,7 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
 
 // ── Section E: Tool Trajectory ────────────────────────────────────────────────
 const KIND_STYLES: Record<ToolKind, { color: string; bg: string; border: string; label: string }> = {
-  catalog:   { color: GOLD,  bg: 'rgba(91, 61, 245,0.10)', border: 'rgba(91, 61, 245,0.3)', label: 'CATALOG' },
+  catalog:   { color: GOLD,  bg: 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)', border: 'color-mix(in srgb, var(--brand-a-ink) 42%, transparent)', label: 'CATALOG' },
   data:      { color: GREEN, bg: 'rgba(34,197,94,0.10)',  border: 'rgba(34,197,94,0.3)',  label: 'DATA' },
   discovery: { color: RED,   bg: 'rgba(244,63,94,0.10)',  border: 'rgba(244,63,94,0.3)',  label: 'DISCOVERY' },
   error:     { color: RED,   bg: 'transparent',           border: 'rgba(244,63,94,0.5)',  label: 'ERROR' },
@@ -982,7 +982,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
         <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.06em' }}>
           ALOFT PERFORMANCE LAB · v0.1 · metrics are session-local unless marked historical
         </span>
-        <span style={{ ...mono, fontSize: 13, color: 'rgba(91, 61, 245,0.35)', letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.06em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

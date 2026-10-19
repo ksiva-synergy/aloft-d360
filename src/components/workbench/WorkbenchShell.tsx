@@ -8,6 +8,9 @@ import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
 import { ConfigPanel } from '@/components/workbench/ConfigPanel';
 import { AloftSigil } from '@/components/workbench/atoms';
 import { useWorkbenchChat } from '@/hooks/useWorkbenchChat';
+import { useSession } from 'next-auth/react';
+import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
+import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { canCommissionAgent } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
 
@@ -19,6 +22,9 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
   const [composer, setComposer] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('New Session');
+  const [rightPane, setRightPane] = useState<'config' | 'developer'>('config');
+  const { data: authSession } = useSession();
+  const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
 
   const wb = useWorkbenchChat({
     sessionId: initialSessionId ?? null,
@@ -187,12 +193,48 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
           />
         </div>
         <div style={{ width: '42%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <ConfigPanel
-            state={draftState}
-            readiness={wb.readiness}
-            commissionResult={wb.commissionResult}
-            sessionId={wb.sessionId}
-          />
+          {showDeveloperTab && (
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--wb-border-subtle)', flexShrink: 0 }}>
+              {(['config', 'developer'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setRightPane(tab)}
+                  style={{
+                    ...mono,
+                    fontSize: 10,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    flex: 1,
+                    height: 32,
+                    border: 'none',
+                    borderBottom: rightPane === tab ? `2px solid ${GOLD}` : '2px solid transparent',
+                    background: 'transparent',
+                    color: rightPane === tab ? GOLD : 'var(--wb-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tab === 'config' ? 'CONFIG' : 'DEVELOPER'}
+                </button>
+              ))}
+            </div>
+          )}
+          {rightPane === 'developer' && showDeveloperTab ? (
+            <DeveloperPane
+              sessionId={wb.sessionId}
+              messages={wb.messages}
+              isStreaming={wb.isStreaming}
+              selectedModel={wb.selectedModel}
+              surface="workbench"
+            />
+          ) : (
+            <ConfigPanel
+              state={draftState}
+              readiness={wb.readiness}
+              commissionResult={wb.commissionResult}
+              sessionId={wb.sessionId}
+            />
+          )}
         </div>
       </div>
 

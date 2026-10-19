@@ -23,6 +23,7 @@ import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { SignatureEntry } from '@/app/api/agent-lab/memory/signatures/route';
 import { MONO, SERIF, GOLD, RULE_TYPE_COLORS } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // -- Types ---------------------------------------------------------------------
 
 interface BrowseBullet {
@@ -194,7 +195,7 @@ function ShelfGroupView({ groups, accentColor }: { groups: ShelfGroup[]; accentC
         const over   = g.slots.filter((s) => s.overBudget);
         const used   = active.reduce((sum, s) => sum + s.tokens, 0);
         return (
-          <div key={key} style={{ border: `1px solid ${accentColor}20`, borderRadius: '4px', overflow: 'hidden' }}>
+          <div key={key} style={{ border: `1px solid ${withAlpha(accentColor, '20')}`, borderRadius: '4px', overflow: 'hidden' }}>
             <div onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.6rem', cursor: 'pointer', background: 'var(--foer-surface2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                 <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: accentColor, letterSpacing: '0.06em' }}>{g.label}</span>
@@ -335,7 +336,6 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                   margin: '0.4rem 0 0',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   overflowX: 'auto', maxHeight: '240px', overflowY: 'auto',
-                  scrollbarWidth: 'thin',
                 }}>
                   {previewText}
                 </pre>
@@ -462,7 +462,7 @@ export function MountPanel() {
           {/* Story pipeline */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0', flexWrap: 'nowrap' }}>
             {([
-              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: '#5B3DF5' },
+              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: 'var(--brand-a-ink)' },
               { step: '1a', label: 'Schema map', desc: 'Domain knowledge',    color: '#5E7E96' },
               { step: '1b', label: 'Task recall', desc: 'Pattern memory',     color: '#5FA9AE' },
             ] as const).map((item, i) => (
@@ -491,7 +491,7 @@ export function MountPanel() {
             This signature
           </div>
           {([
-            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: '#5B3DF5' },
+            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: 'var(--brand-a-ink)' },
             { label: 'P1a · schema',    count: p1aActive.length, over: p1aOver, color: '#5E7E96' },
             { label: 'P1b · recall',    count: p1bActive.length, over: p1bOver, color: '#5FA9AE' },
           ] as const).map((row, i) => (
@@ -544,13 +544,13 @@ export function MountPanel() {
           <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
         </div>
         <div style={{ height: '6px', borderRadius: '3px', background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>
-          <div style={{ width: p0W + '%',  background: '#5B3DF5', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
+          <div style={{ width: p0W + '%',  background: 'var(--brand-a)', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
           <div style={{ width: p1aW + '%', background: '#5E7E96', transition: 'width 0.4s ease' }} title={'Phase 1a: ' + p1aUsed + 't'} />
           <div style={{ width: p1bW + '%', background: '#5FA9AE', transition: 'width 0.4s ease' }} title={'Phase 1b: ' + p1bUsed + 't'} />
         </div>
         <div style={{ display: 'flex', gap: '1.25rem' }}>
           {([
-            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: '#5B3DF5' },
+            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: 'var(--brand-a-ink)' },
             { label: 'P1a', used: p1aUsed, budget: P1A_BUDGET, color: '#5E7E96' },
             { label: 'P1b', used: p1bUsed, budget: P1B_BUDGET, color: '#5FA9AE' },
           ] as const).map((seg) => (
@@ -574,7 +574,7 @@ export function MountPanel() {
             <PhaseBlurb
               phaseLabel="0 · Guardrails"
               phaseTag="phase:init"
-              accentColor="#5B3DF5"
+              accentColor="var(--brand-a-ink)"
               budget={P0_BUDGET}
               slots={phases.p0}
               previewText={p0Text}

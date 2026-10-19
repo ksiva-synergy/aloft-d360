@@ -5,7 +5,7 @@ import { Plus, X, Tag } from 'lucide-react';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = 'var(--brand-a)';
-const NAVY = 'var(--brand-a-ink)';
+const NAVY = 'var(--on-brand)';
 const MUTED = 'var(--ink-3)';
 const BLUE = '#93C5FD';
 

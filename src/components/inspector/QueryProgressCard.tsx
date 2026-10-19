@@ -32,7 +32,7 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
         border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
         borderRadius: 6,
         overflow: 'hidden',

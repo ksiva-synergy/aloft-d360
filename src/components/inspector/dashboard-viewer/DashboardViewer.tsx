@@ -258,9 +258,9 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             style={{
               ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
-              border: `1px solid ${exploreOpen ? '#5B3DF5' : 'var(--builder-border)'}`,
-              background: exploreOpen ? 'rgba(91, 61, 245,0.08)' : 'transparent',
-              color: exploreOpen ? '#5B3DF5' : 'var(--builder-text)', cursor: 'pointer',
+              border: `1px solid ${exploreOpen ? 'var(--brand-a-ink)' : 'var(--builder-border)'}`,
+              background: exploreOpen ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'transparent',
+              color: exploreOpen ? 'var(--brand-a-ink)' : 'var(--builder-text)', cursor: 'pointer',
             }}
           >
             <MessageSquare size={12} />EXPLORE
@@ -273,8 +273,8 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
         <div
           style={{
             ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
-            background: 'rgba(91, 61, 245,0.08)', borderBottom: '1px solid rgba(91, 61, 245,0.2)',
-            color: '#5B3DF5', display: 'flex', alignItems: 'center', gap: 8,
+            background: 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
+            color: 'var(--brand-a-ink)', display: 'flex', alignItems: 'center', gap: 8,
           }}
         >
           <AlertCircle size={12} />
@@ -351,7 +351,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                       {result?.status === 'ok' && (
                         <span
                           title={`Last updated ${formatTime(result.executedAt)}`}
-                          style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: result.cached ? '#5B3DF5' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: result.cached ? 'var(--brand-a-ink)' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
                           {result.cached ? 'CACHED · ' : ''}{formatTime(result.executedAt)}
                         </span>
@@ -369,7 +369,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                           <button
                             onClick={() => router.push(`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id!)}`)}
                             title="Open source chart in Inspector"
-                            style={{ background: 'transparent', border: 'none', color: '#5B3DF5', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--brand-a)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
                           >
                             <ExternalLink size={11} />
                           </button>
@@ -452,7 +452,7 @@ function WidgetBody({
   if (result.status === 'model_not_governed') {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-        <span style={{ ...MONO, fontSize: 13, color: '#5B3DF5', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--brand-a-ink)', textAlign: 'center', maxWidth: 220 }}>
           Model not yet published
         </span>
       </div>

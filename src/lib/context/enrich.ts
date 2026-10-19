@@ -4,14 +4,13 @@
 
 import 'server-only';
 import { z } from 'zod';
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
-import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { enqueue, finalize, makeHeartbeat } from './queue';
 import type { DriftResult } from './profile';
 import { extractDomainKeywords } from './keywords';
 import { getUsageSignalsForEnrich } from './usage';
+import { getHarvestLlmCostPerMillion, getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
 
@@ -21,25 +20,7 @@ function matchesPatterns(fullPath: string, patterns: string[]): boolean {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
 const PROMPT_VERSION = 'enrich_object_v2';
-const PRICE_INPUT_PER_M_USD = 3;   // USD per 1M input tokens  (Sonnet)
-const PRICE_OUTPUT_PER_M_USD = 15; // USD per 1M output tokens (Sonnet)
-
-// ── Bedrock client (same factory pattern as generate-title route) ─────────────
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION ?? 'us-east-1',
-    // Explicit timeouts: the SDK default is 0 (no timeout), so a stalled Bedrock
-    // response leaves client.send() hanging forever with no error and no heartbeat.
-    // A 120s request cap fails fast into the SDK retry (maxAttempts=3) → per-object
-    // skip path. Found live during the WS8 T2 backfill (see fix commit).
-    requestHandler: new NodeHttpHandler({ requestTimeout: 120_000, connectionTimeout: 5_000 }),
-    // No explicit credentials — uses default provider chain:
-    // ECS task role in Fargate, local env vars / ~/.aws in dev
-  });
-}
 
 // ── Zod schemas for LLM output validation ────────────────────────────────────
 
@@ -305,38 +286,37 @@ function resolveMaxTokens(userMessage: string): number {
 }
 
 async function callBedrock(userMessage: string): Promise<BedrockCallResult> {
-  const client = getBedrockClient();
   const maxTokens = resolveMaxTokens(userMessage);
 
-  const resp1 = await client.send(new ConverseCommand({
-    modelId: MODEL_ID,
-    system: [{ text: SYSTEM_PROMPT }],
-    messages: [{ role: 'user', content: [{ text: userMessage }] }],
-    inferenceConfig: { maxTokens, temperature: 0.2 },
-  }));
+  const resp1 = await harvestLlmComplete({
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userMessage }],
+    maxTokens,
+  });
 
-  const text1 = resp1.output?.message?.content?.[0]?.text ?? '';
-  let inputTokens = resp1.usage?.inputTokens ?? 0;
-  let outputTokens = resp1.usage?.outputTokens ?? 0;
+  const text1 = resp1.text;
+  let inputTokens = resp1.inputTokens;
+  let outputTokens = resp1.outputTokens;
 
   const parsed1 = tryParseAndValidate(text1);
   if (parsed1) return { parsed: parsed1, inputTokens, outputTokens };
 
-  // One retry with a correction turn (per D-03 in PHASE_CH5_DECISIONS.md)
-  const resp2 = await client.send(new ConverseCommand({
-    modelId: MODEL_ID,
-    system: [{ text: SYSTEM_PROMPT }],
+  const resp2 = await harvestLlmComplete({
+    system: SYSTEM_PROMPT,
     messages: [
-      { role: 'user', content: [{ text: userMessage }] },
-      { role: 'assistant', content: [{ text: text1 }] },
-      { role: 'user', content: [{ text: 'Your previous response was not valid JSON. Return ONLY the JSON object, starting with {.' }] },
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: text1 },
+      {
+        role: 'user',
+        content: 'Your previous response was not valid JSON. Return ONLY the JSON object, starting with {.',
+      },
     ],
-    inferenceConfig: { maxTokens, temperature: 0.2 },
-  }));
+    maxTokens,
+  });
 
-  inputTokens += resp2.usage?.inputTokens ?? 0;
-  outputTokens += resp2.usage?.outputTokens ?? 0;
-  const text2 = resp2.output?.message?.content?.[0]?.text ?? '';
+  inputTokens += resp2.inputTokens;
+  outputTokens += resp2.outputTokens;
+  const text2 = resp2.text;
 
   const parsed2 = tryParseAndValidate(text2);
   if (parsed2) return { parsed: parsed2, inputTokens, outputTokens };
@@ -365,7 +345,7 @@ async function persistCard(
       subject_id: objectId,
       version: nextVersion,
       card: card as unknown as Prisma.InputJsonValue,
-      model_id: MODEL_ID,
+      model_id: getHarvestLlmModelId(),
       prompt_version: PROMPT_VERSION,
       confidence: card.confidence,
       status: 'assumed',
@@ -383,7 +363,7 @@ async function persistColumnSemantics(
     const fullSemantic = {
       ...llmSem,
       status: 'assumed',
-      model_id: MODEL_ID,
+      model_id: getHarvestLlmModelId(),
       prompt_version: PROMPT_VERSION,
     };
     const result = await prisma.platformContextColumn.updateMany({
@@ -473,37 +453,37 @@ function buildColumnsOnlyMessage(
 async function callBedrockColumnsOnly(
   userMessage: string,
 ): Promise<{ parsed: ColumnsOnlyResponse; inputTokens: number; outputTokens: number }> {
-  const client = getBedrockClient();
   const maxTokens = resolveMaxTokens(userMessage);
 
-  const resp1 = await client.send(new ConverseCommand({
-    modelId: MODEL_ID,
-    system: [{ text: SYSTEM_PROMPT }],
-    messages: [{ role: 'user', content: [{ text: userMessage }] }],
-    inferenceConfig: { maxTokens, temperature: 0.2 },
-  }));
+  const resp1 = await harvestLlmComplete({
+    system: SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: userMessage }],
+    maxTokens,
+  });
 
-  const text1 = resp1.output?.message?.content?.[0]?.text ?? '';
-  let inputTokens = resp1.usage?.inputTokens ?? 0;
-  let outputTokens = resp1.usage?.outputTokens ?? 0;
+  const text1 = resp1.text;
+  let inputTokens = resp1.inputTokens;
+  let outputTokens = resp1.outputTokens;
 
   const parsed1 = tryParseColumnsOnly(text1);
   if (parsed1) return { parsed: parsed1, inputTokens, outputTokens };
 
-  const resp2 = await client.send(new ConverseCommand({
-    modelId: MODEL_ID,
-    system: [{ text: SYSTEM_PROMPT }],
+  const resp2 = await harvestLlmComplete({
+    system: SYSTEM_PROMPT,
     messages: [
-      { role: 'user', content: [{ text: userMessage }] },
-      { role: 'assistant', content: [{ text: text1 }] },
-      { role: 'user', content: [{ text: 'Your previous response was not valid JSON. Return ONLY the JSON object starting with {.' }] },
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: text1 },
+      {
+        role: 'user',
+        content: 'Your previous response was not valid JSON. Return ONLY the JSON object starting with {.',
+      },
     ],
-    inferenceConfig: { maxTokens, temperature: 0.2 },
-  }));
+    maxTokens,
+  });
 
-  inputTokens += resp2.usage?.inputTokens ?? 0;
-  outputTokens += resp2.usage?.outputTokens ?? 0;
-  const text2 = resp2.output?.message?.content?.[0]?.text ?? '';
+  inputTokens += resp2.inputTokens;
+  outputTokens += resp2.outputTokens;
+  const text2 = resp2.text;
 
   const parsed2 = tryParseColumnsOnly(text2);
   if (parsed2) return { parsed: parsed2, inputTokens, outputTokens };
@@ -693,8 +673,9 @@ export async function enrichObject(
     data: { last_t2_at: new Date(), domain_keywords: domainKeywords },
   });
 
+  const { input: priceIn, output: priceOut } = getHarvestLlmCostPerMillion();
   const costUsd =
-    (totalInputTokens * PRICE_INPUT_PER_M_USD + totalOutputTokens * PRICE_OUTPUT_PER_M_USD) / 1_000_000;
+    (totalInputTokens * priceIn + totalOutputTokens * priceOut) / 1_000_000;
 
   return { objectId, columnsEnriched, inputTokens: totalInputTokens, outputTokens: totalOutputTokens, costUsd };
 }
@@ -834,7 +815,7 @@ export async function runT2Enrich(
       tokens_used: inputTokens + outputTokens,
       cost_usd: costUsd,
       prompt_version: PROMPT_VERSION,
-      model_id: MODEL_ID,
+      model_id: getHarvestLlmModelId(),
     },
     errors.length > 0 ? errors.join('\n') : undefined,
   );

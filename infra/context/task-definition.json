@@ -21,34 +21,58 @@
       "environment": [
         { "name": "NODE_ENV",          "value": "production" },
         { "name": "HARVESTER_VERSION", "value": "ch4" },
-        { "name": "BEDROCK_REGION",    "value": "ap-south-1" },
+        { "name": "HARVEST_LLM_PROVIDER", "value": "xai" },
+        { "name": "HARVEST_XAI_MODEL",    "value": "grok-4.7" },
+        { "name": "BEDROCK_REGION",       "value": "us-east-1" },
         { "name": "DEFAULT_ORG_SLUG",  "value": "spinor-demo" },
-        { "name": "DEFAULT_ORG_ID",    "value": "cmpm82n5x0000dj0cn3fo9pug" }
+        { "name": "DEFAULT_ORG_ID",    "value": "cmpm82n5x0000dj0cn3fo9pug" },
+        { "name": "FOUNDRY_EMBEDDING_DEPLOYMENT", "value": "text-embedding-3-large" },
+        { "name": "AZURE_OPENAI_API_VERSION",     "value": "2024-12-01-preview" }
       ],
       "secrets": [
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/aurora:DATABASE_URL::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABASE_URL::"
         },
         {
           "name": "DIRECT_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/aurora:DIRECT_URL::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DIRECT_URL::"
         },
         {
           "name": "DATABRICKS_CLIENT_ID",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_CLIENT_ID::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_CLIENT_ID::"
         },
         {
           "name": "DATABRICKS_CLIENT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_CLIENT_SECRET::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_CLIENT_SECRET::"
         },
         {
           "name": "DATABRICKS_HOST",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_HOST::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_HOST::"
         },
         {
           "name": "DATABRICKS_HTTP_PATH",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:aloft/databricks:DATABRICKS_HTTP_PATH::"
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:DATABRICKS_HTTP_PATH::"
+        },
+        {
+          "name": "XAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:XAI_API_KEY::"
+        },
+        {
+          "name": "XAI_MODEL",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:XAI_MODEL::"
+        },
+        {
+          "name": "FOUNDRY_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_API_KEY::"
+        },
+        {
+          "name": "FOUNDRY_EMBEDDING_ENDPOINT",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_EMBEDDING_ENDPOINT::"
+        },
+        {
+          "name": "FOUNDRY_ENDPOINT",
+          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_ENDPOINT::"
         }
       ],
       "logConfiguration": {

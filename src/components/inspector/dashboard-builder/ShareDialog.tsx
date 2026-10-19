@@ -164,7 +164,7 @@ export function ShareDialog({
                   disabled={!canShare}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 4,
-                    background: visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(255,255,255,0.03)',
+                    background: visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
                     border: `1px solid ${visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--border-default)'}`,
                     cursor: canShare ? 'pointer' : 'default', textAlign: 'left', transition: 'all 0.12s',
                     opacity: !canShare ? 0.6 : 1,
@@ -191,13 +191,13 @@ export function ShareDialog({
                   onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="Email address…"
-                  style={{ ...SANS, flex: 1, fontSize: 13, background: 'rgba(255,255,255,0.04)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
+                  style={{ ...SANS, flex: 1, fontSize: 13, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
                 />
                 <RoleSelect value={inviteRole} onChange={setInviteRole} />
                 <button
                   onClick={handleInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: '#111322', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
+                  style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
                 >
                   <UserPlus size={12} />{inviting ? '…' : 'Invite'}
                 </button>
@@ -224,7 +224,7 @@ export function ShareDialog({
                   const email = c.user?.email ?? '';
                   const isOwner = c.role === 'owner';
                   return (
-                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line-1)' }}>
                       {/* Avatar */}
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <span style={{ ...MONO, fontSize: 13, fontWeight: 700, color: GOLD }}>{displayName[0]?.toUpperCase()}</span>
@@ -263,7 +263,7 @@ export function ShareDialog({
           </button>
           <button
             onClick={onClose}
-            style={{ ...MONO, fontSize: 13, padding: '7px 16px', background: GOLD, color: '#111322', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 13, padding: '7px 16px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             DONE
           </button>
@@ -287,7 +287,7 @@ function RoleSelect({ value, onChange, small }: { value: CollabRole; onChange: (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{ ...MONO, fontSize: small ? 9 : 10, display: 'flex', alignItems: 'center', gap: 4, padding: small ? '4px 8px' : '7px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        style={{ ...MONO, fontSize: small ? 9 : 10, display: 'flex', alignItems: 'center', gap: 4, padding: small ? '4px 8px' : '7px 10px', background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {selected?.label}<ChevronDown size={10} />
       </button>

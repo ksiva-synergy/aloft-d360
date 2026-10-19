@@ -3,18 +3,10 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { createId } from '@paralleldrive/cuid2';
 import { z } from 'zod';
-import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { Prisma } from '@prisma/client';
 import { DatabricksAdapter } from './databricks-adapter';
 import type { RawHistoryRow } from './databricks-adapter';
-
-// ── Bedrock client (private — mirrors enrich.ts, no export to avoid circular import) ───
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION ?? 'us-east-1',
-  });
-}
+import { getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
 
 // ── Usage narrative prompt ────────────────────────────────────────────────────
 
@@ -46,7 +38,6 @@ const NarrativeResponseSchema = z.object({
   key_columns: z.array(z.string()),
 });
 
-const NARRATIVE_MODEL_ID = 'us.anthropic.claude-sonnet-4-6';
 export const NARRATIVE_PROMPT_VERSION = 'usage_narrative_v1';
 
 // ── Public result type ────────────────────────────────────────────────────────
@@ -373,19 +364,17 @@ export async function applyUsageNarrative(
     known_columns: Array.from(knownColumns),
   });
 
-  // Bedrock call
   let responseText: string;
   try {
-    const client = getBedrockClient();
-    const resp = await client.send(new ConverseCommand({
-      modelId: NARRATIVE_MODEL_ID,
-      messages: [{ role: 'user', content: [{ text: USAGE_NARRATIVE_PROMPT_V1 + '\n\n' + userMsg }] }],
-      inferenceConfig: { maxTokens: 400 },
-    }));
-    responseText = resp.output?.message?.content?.[0]?.text ?? '';
+    const resp = await harvestLlmComplete({
+      system: USAGE_NARRATIVE_PROMPT_V1,
+      messages: [{ role: 'user', content: userMsg }],
+      maxTokens: 400,
+    });
+    responseText = resp.text;
   } catch (err) {
-    console.error(`[t3_usage] narrative Bedrock error objectId=${contextObjectId}:`, err);
-    return { applied: false, reason: 'bedrock_error' };
+    console.error(`[t3_usage] narrative LLM error objectId=${contextObjectId}:`, err);
+    return { applied: false, reason: 'llm_error' };
   }
 
   // Parse JSON
@@ -429,7 +418,7 @@ export async function applyUsageNarrative(
       subject_id: contextObjectId,
       version: nextVersion,
       card: { usage_patterns: result.usage_patterns, key_columns: result.key_columns } as unknown as Prisma.InputJsonValue,
-      model_id: NARRATIVE_MODEL_ID,
+      model_id: getHarvestLlmModelId(),
       prompt_version: promptVersion,
       status: 'observed',
     },

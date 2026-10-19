@@ -16,14 +16,14 @@ import type { WidgetSpec } from '@/lib/dashboards/types';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
-const NAVY = 'var(--brand-a-ink)';
+const NAVY = 'var(--on-brand)';
 const MUTED = 'var(--ink-3)';
 const GREEN = '#22c55e';
 const RED = '#f43f5e';
 const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
 const BORDER_MID = 'color-mix(in srgb, var(--brand-a) 25%, transparent)';
 const BORDER_STRONG = 'color-mix(in srgb, var(--brand-a) 55%, transparent)';
-const SURFACE = 'rgba(255,255,255,0.03)';
+const SURFACE = 'color-mix(in srgb, var(--ink-1) 3%, transparent)';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 

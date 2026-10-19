@@ -333,7 +333,7 @@ export default function HarvestActionBar({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 12px',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    borderBottom: '1px solid var(--line-1)',
                     cursor: row.canTrigger ? 'pointer' : 'default',
                     opacity: loadingTier && loadingTier !== row.tier ? 0.5 : 1,
                   }}

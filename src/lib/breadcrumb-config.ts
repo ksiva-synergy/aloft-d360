@@ -60,6 +60,7 @@ export const routeLabels: Record<string, string> = {
   // Agent lab
   'agent-lab': 'Agent Lab',
   'agent-staging': 'Agent Staging',
+  try: 'Try',
   graph: 'Graph',
   schemas: 'Schemas',
   scenarios: 'Scenarios',

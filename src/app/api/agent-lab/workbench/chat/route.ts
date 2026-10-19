@@ -15,6 +15,8 @@ import {
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { loadConstructionState, coerceConstructionState } from '@/lib/construction/load-state';
 import { executeBuilderTool, inferAgentClass, type BuilderToolContext } from '@/lib/construction/builder-tools';
+import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
+import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 
@@ -117,10 +119,16 @@ export async function POST(request: NextRequest) {
       const maxLoops = getInspectorMaxLoops();
       let stateRef = constructionState;
 
+      let currentAgentLoop = 1;
+      const turnMetrics = new TurnMetricsRecorder({ sessionId: body.sessionId ?? '', surface: 'workbench' });
+      let toolErrorCount = 0;
       const ctx: BuilderToolContext = {
         getState: () => stateRef,
         setState: (next) => { stateRef = next; },
         emit,
+        sessionId: body.sessionId ?? null,
+        agentLoop: currentAgentLoop,
+        model: effectiveModelId,
       };
 
       try {
@@ -147,14 +155,35 @@ export async function POST(request: NextRequest) {
           systemPrompt: buildWorkbenchSystemPrompt(stateRef),
           messages: userMessages,
           tools: buildWorkbenchToolConfig(),
-          executeTool: (toolName: string, toolInput: Record<string, unknown>, _callId: string) =>
-            executeBuilderTool(toolName, toolInput, ctx),
+          executeTool: (toolName: string, toolInput: Record<string, unknown>, callId: string) => {
+            ctx.agentLoop = currentAgentLoop;
+            return withAgentOpsToolLog(
+              {
+                sessionId: body.sessionId ?? null,
+                runId: turnMetrics.turnId,
+                loop: currentAgentLoop,
+                toolName,
+                callId,
+                model: effectiveModelId,
+              },
+              toolInput,
+              () => executeBuilderTool(toolName, toolInput, ctx),
+            );
+          },
           maxLoops,
           supportsTools: option.supportsTools,
           supportsThinking: option.supportsThinking,
           abortSignal: closed,
-          onLoopStart: (loop: number, max: number) => emit({ type: 'loop_start', loop, maxLoops: max }),
-          onTextChunk: (delta: string) => emit({ type: 'text', delta }),
+          onLoopStart: (loop: number, max: number) => {
+            currentAgentLoop = loop;
+            ctx.agentLoop = loop;
+            emit({ type: 'loop_start', loop, maxLoops: max });
+          },
+          onTextChunk: (delta: string) => {
+            turnMetrics.markFirstToken();
+            emit({ type: 'text', delta });
+          },
+          onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
           onThinkingChunk: (delta: string) => emit({ type: 'thinking', delta }),
           onToolCallEvent: (event: import('@/lib/inspector/agent-loop').ToolCallEvent) => {
             if (event.type === 'tool_call_suggested') {
@@ -197,6 +226,15 @@ export async function POST(request: NextRequest) {
           emit({ type: 'error', message: result.errorDetail, recoverable: true });
         }
 
+        toolErrorCount = result.toolCalls.filter((t) => t.status === 'error').length;
+        void turnMetrics.flush({
+          model: effectiveModelId,
+          outcome: closed.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
+          toolCalls: result.toolCalls.length,
+          toolErrors: toolErrorCount,
+          error: result.errorDetail ?? null,
+        });
+
         stateRef = coerceConstructionState(stateRef);
         await prisma.workbench_sessions.update({
           where: { id: body.sessionId },
@@ -217,6 +255,7 @@ export async function POST(request: NextRequest) {
         });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Workbench stream failed';
+        void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: toolErrorCount, error: msg });
         emit({ type: 'error', message: msg, recoverable: true });
         emit({
           type: 'done',

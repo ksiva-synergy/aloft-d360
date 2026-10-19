@@ -4,11 +4,26 @@ import type { ConstructionState } from '@/lib/construction/constructionState';
 export type { ArtifactType, ArtifactDraft };
 export type { DraftValidationError } from '@/lib/agent-lab/artifactDraftSchemas';
 
+/** Persisted on assistant messages after each completed stream (`done`). */
+export interface TurnOpsSnapshot {
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  loopCount: number;
+  outcome: 'completed' | 'truncated' | 'errored';
+  modelKey?: string;
+  modelName?: string;
+  contextMode?: 'harvested' | 'warehouse_only';
+  firstTokenMs?: number | null;
+}
+
 export interface WorkbenchMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: ToolCall[];
+  /** Server/client turn metrics for Agent Ops cockpit. */
+  turnOps?: TurnOpsSnapshot;
   thinking?: string;
   draftPatches?: JsonPatch[];
   suggestions?: CatalogSuggestion[];

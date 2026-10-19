@@ -3,7 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User } from 'lucide-react';
+import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User, Activity } from 'lucide-react';
+import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 
 interface Session {
   id: string;
@@ -54,6 +55,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
   const router = useRouter();
   const { data: sessionData } = useSession();
   const isPlatformAdmin = (sessionData?.user as { role?: string } | undefined)?.role === 'platform_admin';
+  const showAgentOpsTrace = canViewAgentOpsRole((sessionData?.user as { role?: string } | undefined)?.role);
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,6 +115,12 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
     onClose();
     const base = session.surface === 'inspector' ? '/inspector' : '/agent-lab/workbench';
     router.push(`${base}/${session.id}`);
+  };
+
+  const handleDebugTrace = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    onClose();
+    router.push(`/agent-lab/runs/${sessionId}`);
   };
 
   const handleNewChat = () => {
@@ -241,6 +249,8 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
                   onOpen={handleOpen}
                   onDelete={handleDelete}
                   onPin={handlePin}
+                  showAgentOpsTrace={showAgentOpsTrace}
+                  onDebugTrace={handleDebugTrace}
                 />
               )}
               {recent.length > 0 && (
@@ -253,6 +263,8 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
                   onOpen={handleOpen}
                   onDelete={handleDelete}
                   onPin={handlePin}
+                  showAgentOpsTrace={showAgentOpsTrace}
+                  onDebugTrace={handleDebugTrace}
                 />
               )}
             </>
@@ -295,9 +307,11 @@ interface SectionListProps {
   onOpen: (session: Session) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
   onPin: (e: React.MouseEvent, session: Session) => void;
+  showAgentOpsTrace?: boolean;
+  onDebugTrace?: (e: React.MouseEvent, sessionId: string) => void;
 }
 
-function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDelete, onPin }: SectionListProps) {
+function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDelete, onPin, showAgentOpsTrace, onDebugTrace }: SectionListProps) {
   const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
   const GOLD = 'var(--brand-a)';
 
@@ -408,6 +422,20 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
               position: 'absolute', top: 7, right: 7,
               display: 'flex', gap: 2,
             }}>
+              {showAgentOpsTrace && onDebugTrace && (
+                <button
+                  onClick={e => onDebugTrace(e, s.id)}
+                  title="Debug trace"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 22, height: 22, borderRadius: 4,
+                    background: 'transparent', border: 'none',
+                    color: '#3a5070', cursor: 'pointer', opacity: 0.7,
+                  }}
+                >
+                  <Activity size={10} />
+                </button>
+              )}
               <button
                 onClick={e => onPin(e, s)}
                 disabled={pinning === s.id}

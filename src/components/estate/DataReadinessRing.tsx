@@ -9,7 +9,7 @@
 import React from 'react';
 import { scoreColor, levelColor, GATING_CHIP_COLOR, GATING_CHIP_BG } from './dataReadinessColors';
 
-const TRACK_COLOR = 'rgba(255,255,255,0.07)';
+const TRACK_COLOR = 'color-mix(in srgb, var(--ink-1) 7%, transparent)';
 
 const DIMENSION_LABELS: Record<string, string> = {
   discoverable: 'Discoverable',

@@ -68,7 +68,7 @@ function JsonDisplay({ data }: { data: unknown }) {
 
   if (Array.isArray(data) && data.length > 0 && data.every(v => typeof v !== 'object' || v === null)) {
     return (
-      <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
+      <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
         <div className="flex flex-wrap gap-1.5 p-3">
           {data.map((item, i) => (
             <span
@@ -80,7 +80,7 @@ function JsonDisplay({ data }: { data: unknown }) {
             </span>
           ))}
         </div>
-        <div className="px-3 py-1.5 border-t text-xs font-mono" style={{ borderColor: 'rgba(255,255,255,0.06)', color: 'var(--ink-3)' }}>
+        <div className="px-3 py-1.5 border-t text-xs font-mono" style={{ borderColor: 'var(--line-1)', color: 'var(--ink-3)' }}>
           {data.length} item{data.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -90,7 +90,7 @@ function JsonDisplay({ data }: { data: unknown }) {
   if (typeof data === 'object' && !Array.isArray(data)) {
     const entries = Object.entries(data as Record<string, unknown>);
     return (
-      <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
+      <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
         {entries.map(([key, val], idx) => (
           <div
             key={key}
@@ -131,7 +131,7 @@ function JsonDisplay({ data }: { data: unknown }) {
   }
 
   return (
-    <div className="rounded-lg border p-4 font-mono text-xs" style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'var(--estate-raised, #131d2a)', color: '#b0b8c4' }}>
+    <div className="rounded-lg border p-4 font-mono text-xs" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)', color: '#b0b8c4' }}>
       <JsonValue value={data} />
     </div>
   );
@@ -330,7 +330,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         }}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between px-7 py-5 border-b shrink-0" style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
+        <div className="flex items-center justify-between px-7 py-5 border-b shrink-0" style={{ borderColor: 'var(--line-1)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
           <div className="flex flex-col gap-1.5">
             <h3 className="font-serif text-lg font-semibold" style={{ color: inkColor, fontFamily: "'Source Serif 4', serif" }}>
               Job Details
@@ -409,7 +409,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         </div>
 
         {/* View Full Details link */}
-        <div className="px-7 py-2.5 border-b shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
+        <div className="px-7 py-2.5 border-b shrink-0" style={{ borderColor: 'var(--line-1)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
           <Link
             href={`/agent-lab/estate/jobs/${activeJob.id}`}
             onClick={onClose}
@@ -502,11 +502,11 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <div className="flex items-center gap-3">
                   {finishedDate ? (
                     <>
-                      <div className="w-5 h-5 rounded-full border-2 border-indigo-500 bg-[var(--card,#1c2128)] flex items-center justify-center shrink-0">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                      <div className="w-5 h-5 rounded-full border-2 border-[color:var(--brand-a)] bg-[var(--card,#1c2128)] flex items-center justify-center shrink-0">
+                        <div className="w-2 h-2 rounded-full bg-[color:var(--brand-a)]" />
                       </div>
                       <div>
-                        <span className="font-bold uppercase tracking-wider text-indigo-500">Finished</span>
+                        <span className="font-bold uppercase tracking-wider text-[color:var(--brand-a-ink)]">Finished</span>
                         <span className="mx-2 text-[var(--text-muted)]">|</span>
                         <span style={{ color: inkColor }}>{finishedDate.toLocaleString()}</span>
                       </div>
@@ -538,7 +538,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             return (
               <div className="space-y-3">
                 <h4 className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Execution</h4>
-                <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
+                <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
                   {fargateTaskId && (
                     <div className="flex gap-3 px-4 py-2.5 items-center" style={{ borderBottom: (since || until) ? '1px solid rgba(255,255,255,0.06)' : undefined }}>
                       <span className="font-mono text-xs font-semibold shrink-0 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>fargate_task</span>

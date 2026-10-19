@@ -139,7 +139,7 @@ export function DefinitionPicker({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Tab bar — matches Palette.tsx pattern exactly */}
       <div style={{ display: 'flex', gap: 2, padding: '8px 8px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 4 }}>
+        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', borderRadius: 4 }}>
           {(['definitions', 'charts'] as PickerTab[]).map((tab) => (
             <button
               key={tab}
@@ -156,7 +156,7 @@ export function DefinitionPicker({
                 cursor: 'pointer',
                 border: 'none',
                 transition: 'all 0.15s',
-                background: activeTab === tab ? 'rgba(255,255,255,0.08)' : 'transparent',
+                background: activeTab === tab ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent',
                 fontWeight: activeTab === tab ? 600 : 400,
                 color: activeTab === tab ? GOLD : 'var(--builder-text-muted)',
               }}

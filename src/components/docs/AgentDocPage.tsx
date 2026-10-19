@@ -12,48 +12,75 @@ interface AgentDocPageProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  orchestrator: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  orchestrator: 'bg-[color:var(--brand-a-soft)] text-[color:var(--brand-a-ink)] dark:bg-[color:color-mix(in_srgb,var(--brand-a)_30%,transparent)] dark:text-[color:var(--brand-a-ink)]',
   worker: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
   planner: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
   validator: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   router: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
 };
 
+function schemaFieldToObject(value: unknown): Record<string, unknown> | null {
+  if (value == null) return null;
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    return Object.keys(obj).length > 0 ? obj : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function catalogToolsList(tools: unknown): string[] {
+  if (!Array.isArray(tools)) return [];
+  return tools.map((t) => (typeof t === 'string' ? t : String(t)));
+}
+
 export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
-  const inputSchema = agent.input_schema ? JSON.parse(agent.input_schema) : null;
-  const outputSchema = agent.output_schema ? JSON.parse(agent.output_schema) : null;
+  const inputSchema = schemaFieldToObject(agent.input_schema);
+  const outputSchema = schemaFieldToObject(agent.output_schema);
+  const toolNames = catalogToolsList(agent.tools);
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-[var(--ink-3)] dark:text-slate-400 mb-6">
-        <Link href="/docs" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+      <nav className="flex items-center gap-2 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] mb-6">
+        <Link href="/docs" className="hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors">
           Docs
         </Link>
         <span>/</span>
-        <Link href="/docs/agents" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        <Link href="/docs/agents" className="hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors">
           Agents
         </Link>
         <span>/</span>
-        <span className="text-slate-700 dark:text-slate-200 font-medium">{agent.name}</span>
+        <span className="text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] font-medium">{agent.name}</span>
       </nav>
 
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-bold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
             {agent.name}
           </h1>
-          <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[agent.type] || 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300'}`}>
+          <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[agent.type] || 'bg-[color:var(--surface-2)] text-[color:var(--ink-2)] dark:bg-[color:color-mix(in_srgb,var(--surface-1)_30%,transparent)] dark:text-[color:var(--ink-2)]'}`}>
             {agent.type}
           </span>
         </div>
-        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl">
+        <p className="text-sm text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] leading-relaxed max-w-2xl">
           {agent.description || 'No description available.'}
         </p>
 
         {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[var(--ink-3)] dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             v{agent.version}
@@ -77,7 +104,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
             {agent.tags.map(tag => (
               <span
                 key={tag}
-                className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="text-xs px-2 py-0.5 rounded-full bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]"
               >
                 {tag}
               </span>
@@ -87,20 +114,20 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       </div>
 
       {/* Tools Used */}
-      {agent.tools && agent.tools.length > 0 && (
+      {toolNames.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Tools
           </h2>
           <div className="flex flex-wrap gap-2">
-            {agent.tools.map(toolName => (
+            {toolNames.map(toolName => (
               <Link
                 key={toolName}
                 href={`/docs/tools/${toolName}`}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[var(--surface-1)]"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] transition-colors bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)]"
               >
                 <Wrench className="h-3 w-3 text-[var(--ink-3)]" />
-                <span className="text-slate-700 dark:text-slate-300">{toolName}</span>
+                <span className="text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">{toolName}</span>
               </Link>
             ))}
           </div>
@@ -109,7 +136,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
 
       {/* Input Schema */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Input Schema
         </h2>
         <SchemaTable schema={inputSchema} title="Input" />
@@ -117,7 +144,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
 
       {/* Output Schema */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Output Schema
         </h2>
         <SchemaTable schema={outputSchema} title="Output" />
@@ -126,7 +153,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       {/* Configuration */}
       {agent.config && Object.keys(agent.config).length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Configuration
           </h2>
           <CodeExample
@@ -140,26 +167,26 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       {/* Bus Subscriptions/Publications */}
       {(agent.bus_subscriptions?.length > 0 || agent.bus_publications?.length > 0) && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Event Bus
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {agent.bus_subscriptions?.length > 0 && (
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--surface-1)]">
+              <div className="p-3 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)]">
                 <p className="text-xs font-semibold uppercase text-[var(--ink-3)] mb-2">Subscribes to</p>
                 <div className="space-y-1">
                   {agent.bus_subscriptions.map(sub => (
-                    <p key={sub} className="text-xs font-mono text-slate-700 dark:text-slate-300">{sub}</p>
+                    <p key={sub} className="text-xs font-mono text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">{sub}</p>
                   ))}
                 </div>
               </div>
             )}
             {agent.bus_publications?.length > 0 && (
-              <div className="p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] bg-white dark:bg-[var(--surface-1)]">
+              <div className="p-3 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)]">
                 <p className="text-xs font-semibold uppercase text-[var(--ink-3)] mb-2">Publishes to</p>
                 <div className="space-y-1">
                   {agent.bus_publications.map(pub => (
-                    <p key={pub} className="text-xs font-mono text-slate-700 dark:text-slate-300">{pub}</p>
+                    <p key={pub} className="text-xs font-mono text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">{pub}</p>
                   ))}
                 </div>
               </div>
@@ -171,18 +198,18 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       {/* Try it */}
       <section className="mb-8">
         <Link
-          href="/agent-staging"
-          className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+          href={`/agent-staging/try?agent=${encodeURIComponent(agent.slug)}`}
+          className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)] hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
-          Try it in Agent Staging
+          Try in Inspector (staging)
         </Link>
       </section>
 
       {/* Related Agents */}
       {relatedAgents.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Related Agents
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -190,14 +217,14 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
               <Link
                 key={related.id}
                 href={`/docs/agents/${related.slug}`}
-                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-[var(--line-1)] hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors bg-white dark:bg-[var(--surface-1)]"
+                className="flex items-start gap-3 p-3 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] transition-colors bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)]"
               >
                 <Bot className="h-4 w-4 text-[var(--ink-3)] mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                  <p className="text-xs font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] truncate">
                     {related.name}
                   </p>
-                  <p className="text-xs text-[var(--ink-3)] dark:text-slate-400 line-clamp-2 mt-0.5">
+                  <p className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] line-clamp-2 mt-0.5">
                     {related.description}
                   </p>
                 </div>
@@ -208,10 +235,10 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       )}
 
       {/* Back link */}
-      <div className="pt-4 border-t border-slate-200 dark:border-[var(--line-1)]">
+      <div className="pt-4 border-t border-[color:var(--line-1)] dark:border-[var(--line-1)]">
         <Link
           href="/docs/agents"
-          className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-3)] hover:text-slate-700 dark:hover:text-slate-400 dark:hover:text-slate-200 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-3)] hover:text-[color:var(--ink-2)] dark:hover:text-[color:var(--ink-3)] dark:hover:text-[color:var(--ink-1)] transition-colors"
         >
           <ArrowLeft className="h-3 w-3" />
           Back to all agents

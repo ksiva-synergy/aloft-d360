@@ -13,12 +13,12 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
 
   return (
     <div className="bandit-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-200 dark:border-[var(--line-1)] flex items-center gap-2">
+      <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <Trophy className="h-4 w-4 text-amber-500" />
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Leaderboard
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-slate-500 ml-1">
+        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           {models.length} arms
         </span>
       </div>
@@ -26,15 +26,15 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
       <div className="overflow-x-auto bandit-scrollbar">
         <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-slate-100 dark:border-[var(--line-1)]">
-              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-slate-500 w-10">#</th>
-              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-slate-500">Model</th>
-              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-slate-500">Provider</th>
-              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-slate-500">Pulls</th>
-              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-slate-500 min-w-[140px]">Success Rate</th>
-              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-slate-500 min-w-[100px]">Avg Quality</th>
-              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-slate-500">Avg Duration</th>
-              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-slate-500">Phase</th>
+            <tr className="border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
+              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)] w-10">#</th>
+              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Model</th>
+              <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Provider</th>
+              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Pulls</th>
+              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)] min-w-[140px]">Success Rate</th>
+              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)] min-w-[100px]">Avg Quality</th>
+              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Avg Duration</th>
+              <th className="px-4 py-2.5 text-right font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Phase</th>
               <th className="px-4 py-2.5 w-8" />
             </tr>
           </thead>
@@ -48,13 +48,13 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                 <React.Fragment key={model.model_name}>
                   <tr
                     className={cn(
-                      'border-b border-slate-50 dark:border-[var(--surface-2)] cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-[color-mix(in_srgb,var(--surface-2)_50%,transparent)]',
-                      isExpanded && 'bg-slate-50 dark:bg-[color-mix(in_srgb,var(--surface-2)_50%,transparent)]'
+                      'border-b border-[color:var(--line-1)] dark:border-[var(--surface-2)] cursor-pointer transition-colors hover:bg-[color:var(--surface-2)] dark:hover:bg-[color-mix(in_srgb,var(--surface-2)_50%,transparent)]',
+                      isExpanded && 'bg-[color:var(--surface-2)] dark:bg-[color-mix(in_srgb,var(--surface-2)_50%,transparent)]'
                     )}
                     onClick={() => setExpandedModel(isExpanded ? null : model.model_name)}
                   >
                     <td className="px-4 py-3">
-                      <span className={cn('text-sm font-bold', medalClass || 'text-[var(--ink-3)] dark:text-slate-500')}>
+                      <span className={cn('text-sm font-bold', medalClass || 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]')}>
                         {idx + 1}
                       </span>
                     </td>
@@ -64,7 +64,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: getModelColor(model.model_name) }}
                         />
-                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                        <span className="font-medium text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
                           {getModelShortName(model.model_name)}
                         </span>
                       </div>
@@ -74,12 +74,12 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                         {model.provider}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                    <td className="px-4 py-3 text-right font-mono text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">
                       {model.total_pulls}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-[var(--line-1)] overflow-hidden">
+                        <div className="w-16 h-1.5 rounded-full bg-[color:var(--surface-2)] dark:bg-[var(--line-1)] overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-700"
                             style={{
@@ -88,7 +88,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                             }}
                           />
                         </div>
-                        <span className="font-mono font-medium text-slate-800 dark:text-slate-200 min-w-[40px] text-right">
+                        <span className="font-mono font-medium text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] min-w-[40px] text-right">
                           {formatPct(model.success_rate)}
                         </span>
                       </div>
@@ -104,17 +104,17 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                           {formatPct(model.avg_quality_score)}
                         </span>
                       ) : (
-                        <span className="text-slate-300 dark:text-slate-600">--</span>
+                        <span className="text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)]">--</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-3 text-right font-mono text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)]">
                       {formatMs(model.avg_duration_ms)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className={cn(
                         'inline-flex px-1.5 py-0.5 rounded text-xs font-medium',
                         model.phase === 'exploring'
-                          ? 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400'
+                          ? 'bg-[color:var(--brand-a-soft)] text-[color:var(--brand-a-ink)] dark:bg-[color:color-mix(in_srgb,var(--brand-a)_30%,transparent)] dark:text-[color:var(--brand-a-ink)]'
                           : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
                       )}>
                         {model.phase}
@@ -135,9 +135,9 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                           {model.sheet_breakdown.map(sb => (
                             <div
                               key={sb.sheet_type}
-                              className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 dark:bg-[var(--surface-1)] border border-slate-100 dark:border-[var(--line-1)]"
+                              className="flex items-center justify-between px-3 py-2 rounded-lg bg-[color:var(--surface-2)] dark:bg-[var(--surface-1)] border border-[color:var(--line-1)] dark:border-[var(--line-1)]"
                             >
-                              <span className="font-medium text-slate-700 dark:text-slate-300">{sb.sheet_type}</span>
+                              <span className="font-medium text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">{sb.sheet_type}</span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[var(--ink-3)]">{sb.total}x</span>
                                 <span className={cn(

@@ -16,8 +16,8 @@ import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
-const GOLD   = '#5B3DF5';
-const NAVY   = '#3B1FD6';
+const GOLD   = 'var(--brand-a-ink)';
+const NAVY   = 'var(--brand-a-ink)';
 const BG     = 'var(--wb-canvas)';
 const SURF   = 'var(--wb-surface)';
 const TXT    = 'var(--wb-ink)';
@@ -354,7 +354,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
             background: chartType === ct ? NAVY : 'transparent',
             color: chartType === ct ? '#ffffff' : TXT2,
             cursor: 'pointer', outline: 'none', transition: 'all 0.12s',
-            boxShadow: chartType === ct ? `inset 0 0 0 1px rgba(91, 61, 245,0.35)` : 'none',
+            boxShadow: chartType === ct ? '0 0 0 1px color-mix(in srgb, var(--brand-a-ink) 55%, transparent), 0 4px 14px -4px color-mix(in srgb, var(--brand-a) 80%, transparent)' : 'none',
           }}>
             {ct}
           </button>
@@ -490,11 +490,12 @@ function rawActionBtn(primary: boolean): React.CSSProperties {
   return {
     ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
     display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-    border: `1px solid ${primary ? GOLD : 'rgba(91, 61, 245,0.35)'}`,
+    border: `1px solid ${primary ? GOLD : 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)'}`,
     borderRadius: 3, padding: '3px 8px',
-    background: primary ? GOLD : 'transparent',
-    color: primary ? '#111322' : GOLD,
+    background: primary ? 'var(--brand-a)' : 'transparent',
+    color: primary ? 'var(--on-brand)' : GOLD,
     fontWeight: primary ? 600 : 400,
+    boxShadow: primary ? '0 4px 14px -4px color-mix(in srgb, var(--brand-a) 80%, transparent)' : 'none',
   };
 }
 
@@ -554,7 +555,7 @@ function ResultStrip({ results, activeIdx, onSelect }: ResultStripProps) {
           background: i === activeIdx ? NAVY : 'transparent',
           color: i === activeIdx ? '#ffffff' : TXT2,
           cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-          boxShadow: i === activeIdx ? `inset 0 0 0 1px rgba(91, 61, 245,0.4)` : 'none',
+          boxShadow: i === activeIdx ? '0 0 0 1px color-mix(in srgb, var(--brand-a-ink) 55%, transparent), 0 4px 14px -4px color-mix(in srgb, var(--brand-a) 80%, transparent)' : 'none',
         }}>
           Q{i + 1} · {r.rowCount}r
         </button>
@@ -669,7 +670,7 @@ export function DashboardPane({
               title={`Download up to ${EXPORT_MAX_ROWS.toLocaleString()} rows as CSV`}
               style={{
                 border: `0.5px solid ${GOLD}`,
-                background: exporting ? 'rgba(91, 61, 245,0.12)' : 'transparent',
+                background: exporting ? 'color-mix(in srgb, var(--brand-a-ink) 17%, transparent)' : 'transparent',
                 color: GOLD,
                 borderRadius: '4px',
                 padding: '2px 8px',

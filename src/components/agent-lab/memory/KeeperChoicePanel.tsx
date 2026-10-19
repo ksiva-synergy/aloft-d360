@@ -6,6 +6,7 @@ import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 import type { KeeperSummaryResponse } from '@/app/api/agent-lab/memory/keeper-summary/route';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_TYPE_ORDER: Record<string, number> = {
@@ -228,7 +229,7 @@ function TraceGraph({ bullets, sessionsScanned, memoriesAnalyzed, memoriesKept, 
             r={Math.max(7, Math.round(o.conf * 10))}
             fill={o.color}
             fillOpacity={0.85}
-            style={{ filter: `drop-shadow(0 0 5px ${o.color}66)` }}
+            style={{ filter: `drop-shadow(0 0 5px ${withAlpha(o.color, '66')})` }}
           />
         </g>
       ))}
@@ -308,8 +309,8 @@ export function KeeperChoicePanel() {
         <div
           style={{
             borderRadius: 6,
-            border: `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}30`,
-            background: `${RULE_TYPE_COLORS.FAILURE_MODE}10`,
+            border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
+            background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
             color: RULE_TYPE_COLORS.FAILURE_MODE,
             fontFamily: MONO,
             fontSize: '0.75rem',
@@ -501,8 +502,6 @@ export function KeeperChoicePanel() {
                 flexDirection:  'column',
                 maxHeight:      '340px',
                 overflowY:      'auto',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'var(--foer-border) transparent',
               }}
             >
               {bullets.map((bullet, idx) => {
@@ -542,8 +541,8 @@ export function KeeperChoicePanel() {
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em',
                           color:         accent,
-                          background:    `${accent}12`,
-                          border:        `1px solid ${accent}35`,
+                          background:    `${withAlpha(accent, '12')}`,
+                          border:        `1px solid ${withAlpha(accent, '35')}`,
                           borderRadius:  3,
                           padding:       '1px 4px',
                           whiteSpace:    'nowrap',

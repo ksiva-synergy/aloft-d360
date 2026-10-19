@@ -11,6 +11,8 @@ import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 export type TrajectoryEntry = {
   seq: number;
   tool: string;
+  /** UI card id. Present so a missed tool_call_result can still settle the card. */
+  callId?: string;
   sqlExcerpt: string | null;
   input: Record<string, unknown>;
   output: string | null;
@@ -27,6 +29,40 @@ export type AgentLoopResult = {
   loops: number;
   errorDetail?: string;
 };
+
+/** Per-LLM-call measurements, persisted to agent_loop_log by the caller. */
+export type LoopMetrics = {
+  loop: number;
+  startedAt: number;
+  /** Request sent → stream finished. */
+  llmMs: number;
+  /** Request sent → first streamed token (text, reasoning or tool call). */
+  firstTokenMs: number | null;
+  /** Wall time of the tool batch this loop triggered (parallel calls overlap). */
+  toolMs: number;
+  /** Total input tokens sent, INCLUDING cached ones (normalized across providers). */
+  inputTokens: number;
+  outputTokens: number;
+  /** Subset of inputTokens served from the prompt cache. */
+  cacheReadTokens: number;
+  /** Subset of inputTokens written to the prompt cache (Bedrock/Anthropic only). */
+  cacheWriteTokens: number;
+  /** Size of the conversation sent on this call — shows context growth per loop. */
+  contextMessages: number;
+  contextChars: number;
+  toolCalls: number;
+  stopReason: 'tool_use' | 'end_turn' | 'max_loops' | 'aborted';
+};
+
+export function measureContext(systemPrompt: string, messages: unknown[]): { contextMessages: number; contextChars: number } {
+  let chars = systemPrompt.length;
+  try {
+    chars += JSON.stringify(messages).length;
+  } catch {
+    /* non-serializable content — leave at system prompt size */
+  }
+  return { contextMessages: messages.length, contextChars: chars };
+}
 
 export type ToolCallEvent =
   | { type: 'tool_call_suggested'; callId: string; toolName: string; reason: string }
@@ -58,6 +94,8 @@ export type AgentLoopParams = {
   onToolCallEvent?: (event: ToolCallEvent) => void;
   onLoopStart?: (loop: number, maxLoops: number) => void;
   onLoopUsage?: (loop: number, inputTokens: number, outputTokens: number, totalInput: number, totalOutput: number) => void;
+  /** Fired once per loop after its tools (if any) finish. */
+  onLoopMetrics?: (metrics: LoopMetrics) => void;
   onTextReplace?: (text: string) => void;
   abortSignal?: { value: boolean };
 };
@@ -95,6 +133,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
     onToolCallEvent,
     onLoopStart,
     onLoopUsage,
+    onLoopMetrics,
     onTextReplace,
     abortSignal,
   } = params;
@@ -142,16 +181,22 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
         } : {}),
       });
 
+      const loopStartedAt = Date.now();
+      const ctx = measureContext(systemPrompt, messages);
+      let firstTokenAt: number | null = null;
       const response = await client.send(command);
       let fullText = '';
       const toolUseBlocks: { toolUseId: string; name: string; input: string }[] = [];
       let activeToolIdx = -1;
       let inputTokens = 0;
       let outputTokens = 0;
+      let cacheReadTokens = 0;
+      let cacheWriteTokens = 0;
 
       if (response.stream) {
         for await (const chunk of response.stream) {
           if (abortSignal?.value) break;
+          if (firstTokenAt === null && (chunk.contentBlockDelta || chunk.contentBlockStart)) firstTokenAt = Date.now();
 
           if (chunk.contentBlockDelta?.delta?.text) {
             const delta = chunk.contentBlockDelta.delta.text;
@@ -179,19 +224,39 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
           if (chunk.metadata?.usage) {
             inputTokens = chunk.metadata.usage.inputTokens || 0;
             outputTokens = chunk.metadata.usage.outputTokens || 0;
+            cacheReadTokens = chunk.metadata.usage.cacheReadInputTokens || 0;
+            cacheWriteTokens = chunk.metadata.usage.cacheWriteInputTokens || 0;
           }
         }
       }
 
+      const llmMs = Date.now() - loopStartedAt;
       totalInputTokens += inputTokens;
       totalOutputTokens += outputTokens;
       onLoopUsage?.(loopCount, inputTokens, outputTokens, totalInputTokens, totalOutputTokens);
+      const reportLoop = (toolMs: number, stopReason: LoopMetrics['stopReason']) =>
+        onLoopMetrics?.({
+          loop: loopCount,
+          startedAt: loopStartedAt,
+          llmMs,
+          firstTokenMs: firstTokenAt !== null ? firstTokenAt - loopStartedAt : null,
+          toolMs,
+          // Bedrock's inputTokens excludes cache reads/writes — report the full input size.
+          inputTokens: inputTokens + cacheReadTokens + cacheWriteTokens,
+          outputTokens,
+          cacheReadTokens,
+          cacheWriteTokens,
+          ...ctx,
+          toolCalls: toolUseBlocks.length,
+          stopReason,
+        });
 
       if (toolUseBlocks.length === 0) {
         onTextReplace?.(stripInspectorMarkup(fullText).trim());
       }
 
       if (toolUseBlocks.length > 0 && !(abortSignal?.value)) {
+        const toolBatchStart = Date.now();
         const toolResults = await Promise.all(
           toolUseBlocks.map(async (block) => {
             let toolInput: Record<string, unknown> = {};
@@ -233,6 +298,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
             return { block, toolInput, toolResult };
           }),
         );
+        reportLoop(Date.now() - toolBatchStart, loopCount >= maxLoops ? 'max_loops' : 'tool_use');
 
         const assistantContent: ContentBlock[] = [];
         if (fullText.trim()) assistantContent.push({ text: fullText } as ContentBlock);
@@ -248,6 +314,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
       }
 
       // Clean break — model returned text with no tool calls
+      reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
       finalText = stripInspectorMarkup(fullText).trim();
       return {
         finalText,

@@ -78,8 +78,8 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
 
   if (typeof properties !== 'object' || Object.keys(properties).length === 0) {
     return (
-      <div className={cn('rounded-lg border border-slate-200 dark:border-[var(--line-1)] p-4', className)}>
-        <pre className="text-xs text-slate-600 dark:text-slate-300 overflow-auto whitespace-pre-wrap">
+      <div className={cn('rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] p-4', className)}>
+        <pre className="text-xs text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] overflow-auto whitespace-pre-wrap">
           {JSON.stringify(schema, null, 2)}
         </pre>
       </div>
@@ -89,10 +89,10 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
   const rows = flattenProperties(properties, required);
 
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-slate-200 dark:border-[var(--line-1)]', className)}>
+    <div className={cn('overflow-hidden rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)]', className)}>
       {title && (
-        <div className="px-4 py-2 bg-slate-50 dark:bg-[var(--surface-1)] border-b border-slate-200 dark:border-[var(--line-1)]">
-          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
+        <div className="px-4 py-2 bg-[color:var(--surface-2)] dark:bg-[var(--surface-1)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
+          <h4 className="text-xs font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] uppercase tracking-wider">
             {title}
           </h4>
         </div>
@@ -100,11 +100,11 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-slate-50/50 dark:bg-[var(--background)] border-b border-slate-200 dark:border-[var(--line-1)]">
-              <th className="text-left px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">Parameter</th>
-              <th className="text-left px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">Type</th>
-              <th className="text-center px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">Required</th>
-              <th className="text-left px-4 py-2 font-semibold text-slate-600 dark:text-slate-300">Description</th>
+            <tr className="bg-[color:color-mix(in_srgb,var(--surface-2)_50%,transparent)] dark:bg-[var(--background)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
+              <th className="text-left px-4 py-2 font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">Parameter</th>
+              <th className="text-left px-4 py-2 font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">Type</th>
+              <th className="text-center px-4 py-2 font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">Required</th>
+              <th className="text-left px-4 py-2 font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">Description</th>
             </tr>
           </thead>
           <tbody>
@@ -112,11 +112,11 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
               <tr
                 key={row.name}
                 className={cn(
-                  'border-b border-slate-100 dark:border-[#1e2430] last:border-0',
-                  i % 2 === 0 ? 'bg-white dark:bg-[var(--surface-1)]' : 'bg-slate-50/30 dark:bg-[color-mix(in_srgb,var(--background)_50%,transparent)]'
+                  'border-b border-[color:var(--line-1)] dark:border-[#1e2430] last:border-0',
+                  i % 2 === 0 ? 'bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)]' : 'bg-[color:color-mix(in_srgb,var(--surface-2)_30%,transparent)] dark:bg-[color-mix(in_srgb,var(--background)_50%,transparent)]'
                 )}
               >
-                <td className="px-4 py-2 font-mono text-indigo-600 dark:text-indigo-400">
+                <td className="px-4 py-2 font-mono text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]">
                   {row.name}
                 </td>
                 <td className="px-4 py-2 font-mono text-emerald-600 dark:text-emerald-400">
@@ -126,13 +126,13 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
                   {row.required ? (
                     <span className="inline-block w-2 h-2 rounded-full bg-amber-500" title="Required" />
                   ) : (
-                    <span className="text-slate-300 dark:text-slate-600">-</span>
+                    <span className="text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)]">-</span>
                   )}
                 </td>
-                <td className="px-4 py-2 text-slate-600 dark:text-slate-400">
+                <td className="px-4 py-2 text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)]">
                   {row.description}
                   {row.default && (
-                    <span className="ml-2 text-xs text-[var(--ink-3)] dark:text-slate-500">
+                    <span className="ml-2 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
                       (default: {row.default})
                     </span>
                   )}

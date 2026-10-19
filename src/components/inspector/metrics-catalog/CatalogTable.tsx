@@ -243,7 +243,7 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
                 }}
                 onMouseEnter={(e) => {
                   if (!open && !selected)
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                    e.currentTarget.style.background = 'color-mix(in srgb, var(--ink-1) 2%, transparent)';
                 }}
                 onMouseLeave={(e) => {
                   if (!open && !selected)
@@ -307,7 +307,7 @@ function ClusterParentRow({
         gap: 8,
         padding: '0 16px',
         cursor: 'pointer',
-        background: isExpanded ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)' : 'rgba(255,255,255,0.02)',
+        background: isExpanded ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)' : 'color-mix(in srgb, var(--ink-1) 2%, transparent)',
         borderBottom: `1px solid ${BORDER}`,
         borderLeft: `2px solid ${isExpanded ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)'}`,
       }}
@@ -317,7 +317,7 @@ function ClusterParentRow({
       onMouseLeave={(e) => {
         e.currentTarget.style.background = isExpanded
           ? 'color-mix(in srgb, var(--brand-a) 5%, transparent)'
-          : 'rgba(255,255,255,0.02)';
+          : 'color-mix(in srgb, var(--ink-1) 2%, transparent)';
       }}
     >
       {lens === 'govern' ? (

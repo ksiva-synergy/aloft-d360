@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
+import type { ResponseInputItem } from 'openai/resources/responses/responses';
 import type { ToolConfiguration, Message } from '@aws-sdk/client-bedrock-runtime';
 import type { BoostModel } from '../../boost/models';
-import type { AgentLoopParams, AgentLoopResult, TrajectoryEntry } from '../agent-loop';
+import { measureContext, type AgentLoopParams, type AgentLoopResult, type LoopMetrics, type TrajectoryEntry } from '../agent-loop';
 import { classifyToolCall } from '@/lib/boost/classify';
 
 // ── Resource Configuration ──────────────────────────────────────────────────────
@@ -99,6 +101,9 @@ function extractSql(toolName: string, input: Record<string, unknown>): string | 
 // GPT-5 family on Azure can hang indefinitely on tool-call requests when the
 // deployment is degraded. Cap each model call at FOUNDRY_TOOL_TIMEOUT_MS.
 const FOUNDRY_TOOL_TIMEOUT_MS = parseInt(process.env.FOUNDRY_TOOL_TIMEOUT_MS ?? '45000', 10);
+// grok-4.7 reasons before the first token. 45s is the Azure hang cap and will
+// abort a healthy Grok turn. Refresh this on every stream event.
+const XAI_REQUEST_TIMEOUT_MS = parseInt(process.env.XAI_REQUEST_TIMEOUT_MS ?? '180000', 10);
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -113,14 +118,290 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+// ── xAI Responses API (grok-4.7) ────────────────────────────────────────────────
+// Chat Completions has no field for encrypted reasoning. Each tool round then
+// starts from scratch, which is the "ranking query never ran" repeat. Responses
+// returns that reasoning on every output item; it has to be sent back unchanged.
+
+type XaiEffort = 'low' | 'medium' | 'high' | 'xhigh';
+
+function xaiReasoningEffort(): XaiEffort {
+  const raw = (process.env.XAI_REASONING_EFFORT ?? 'low').trim().toLowerCase();
+  if (raw === 'medium' || raw === 'high' || raw === 'xhigh') return raw;
+  return 'low';
+}
+
+function translateResponsesTools(bedrockToolConfig: ToolConfiguration): OpenAI.Responses.FunctionTool[] {
+  return (bedrockToolConfig.tools ?? []).map(t => ({
+    type: 'function' as const,
+    name: t.toolSpec!.name!,
+    description: t.toolSpec!.description!,
+    parameters: (t.toolSpec!.inputSchema!.json ?? { type: 'object', properties: {} }) as Record<string, unknown>,
+    strict: false,
+  }));
+}
+
+function toResponseInput(systemPrompt: string, msgs: Message[]): ResponseInputItem[] {
+  const items: ResponseInputItem[] = [];
+  if (systemPrompt.trim()) {
+    items.push({ role: 'system', content: systemPrompt });
+  }
+  for (const m of convertBedrockMessages(msgs)) {
+    if (m.role === 'user' || m.role === 'assistant') {
+      items.push({ role: m.role, content: typeof m.content === 'string' ? m.content : '' });
+    }
+  }
+  return items;
+}
+
+/** Rows already travel on query_result. The tool card only needs a small status payload. */
+function uiToolOutput(parsed: unknown): unknown {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return parsed;
+  const rowObj = parsed as { rows?: unknown; row_count?: unknown; columns?: unknown; truncated?: unknown; error?: unknown };
+  if (!Array.isArray(rowObj.rows)) return parsed;
+  return {
+    ok: rowObj.error == null,
+    row_count: rowObj.row_count ?? rowObj.rows.length,
+    columns: rowObj.columns,
+    truncated: rowObj.truncated ?? false,
+  };
+}
+
+function responseOutputText(response: OpenAI.Responses.Response): string {
+  return response.output
+    .filter((item): item is OpenAI.Responses.ResponseOutputMessage => item.type === 'message')
+    .flatMap(item => item.content)
+    .map(part => (part.type === 'output_text' ? part.text : ''))
+    .join('');
+}
+
+async function runXaiResponsesLoop(
+  params: AgentLoopParams & { model: BoostModel },
+): Promise<AgentLoopResult> {
+  const {
+    model, systemPrompt, messages: initialMessages, tools, executeTool, maxLoops, abortSignal,
+    onLoopStart, onTextChunk, onToolCallEvent, onLoopUsage, onLoopMetrics, onTextReplace,
+  } = params;
+
+  const client = getFoundryClient(model);
+  const openAITools = translateResponsesTools(tools);
+  const promptCacheKey = randomUUID();
+
+  let loopCount = 0;
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  const trajectory: TrajectoryEntry[] = [];
+  let trajSeq = 0;
+  let finalText: string | null = null;
+  let inputItems = toResponseInput(systemPrompt, initialMessages);
+
+  try {
+    while (loopCount < maxLoops && !(abortSignal?.value)) {
+      loopCount++;
+      onLoopStart?.(loopCount, maxLoops);
+
+      let assistantContent = '';
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let cacheReadTokens = 0;
+      const loopStartedAt = Date.now();
+      const ctx = measureContext(systemPrompt, inputItems);
+      let firstTokenAt: number | null = null;
+      let completed: OpenAI.Responses.Response | null = null;
+      // output_index -> the exact id already shown on the tool card
+      const uiCallIdByOutput = new Map<number, string>();
+
+      const ac = new AbortController();
+      const stallTimer = setTimeout(() => ac.abort(), XAI_REQUEST_TIMEOUT_MS);
+
+      const stream = await client.responses.create({
+        model: model.modelId,
+        input: inputItems,
+        tools: openAITools,
+        // xAI: stay near 0.7 / 0.95. Other sampling values degrade Grok.
+        // Do not copy this onto GPT-5 / Luna — those reject any non-default temperature.
+        temperature: 0.7,
+        top_p: 0.95,
+        reasoning: { effort: xaiReasoningEffort() },
+        max_output_tokens: 4096,
+        include: ['reasoning.encrypted_content'],
+        store: false,
+        stream: true,
+        prompt_cache_key: promptCacheKey,
+      }, { signal: ac.signal });
+
+      try {
+        for await (const event of stream) {
+          stallTimer.refresh?.();
+          if (abortSignal?.value) break;
+
+          if (event.type === 'response.output_text.delta') {
+            if (firstTokenAt === null) firstTokenAt = Date.now();
+            assistantContent += event.delta;
+            onTextChunk?.(event.delta);
+          }
+
+          if (event.type === 'response.output_item.added' && event.item.type === 'function_call') {
+            if (firstTokenAt === null) firstTokenAt = Date.now();
+            const uiCallId = event.item.call_id || event.item.id || `xai-${loopCount}-${event.output_index}`;
+            uiCallIdByOutput.set(event.output_index, uiCallId);
+            onToolCallEvent?.({
+              type: 'tool_call_suggested',
+              callId: uiCallId,
+              toolName: event.item.name,
+              reason: `Loop ${loopCount}/${maxLoops}`,
+            });
+          }
+
+          if (event.type === 'response.completed' || event.type === 'response.incomplete') {
+            completed = event.response;
+          }
+        }
+      } finally {
+        clearTimeout(stallTimer);
+      }
+
+      if (!completed) {
+        throw new Error(`[${model.modelId}] xAI response ended before completion`);
+      }
+
+      inputTokens = completed.usage?.input_tokens ?? 0;
+      outputTokens = completed.usage?.output_tokens ?? 0;
+      cacheReadTokens = completed.usage?.input_tokens_details?.cached_tokens ?? 0;
+      if (!assistantContent) assistantContent = responseOutputText(completed);
+
+      const calls = completed.output.filter(
+        (item): item is OpenAI.Responses.ResponseFunctionToolCall => item.type === 'function_call',
+      );
+
+      const llmMs = Date.now() - loopStartedAt;
+      totalInputTokens += inputTokens;
+      totalOutputTokens += outputTokens;
+      onLoopUsage?.(loopCount, inputTokens, outputTokens, totalInputTokens, totalOutputTokens);
+      const reportLoop = (toolMs: number, stopReason: LoopMetrics['stopReason']) =>
+        onLoopMetrics?.({
+          loop: loopCount,
+          startedAt: loopStartedAt,
+          llmMs,
+          firstTokenMs: firstTokenAt !== null ? firstTokenAt - loopStartedAt : null,
+          toolMs,
+          inputTokens,
+          outputTokens,
+          cacheReadTokens,
+          cacheWriteTokens: 0,
+          ...ctx,
+          toolCalls: calls.length,
+          stopReason,
+        });
+
+      // Pass reasoning, messages, and function calls back exactly as received.
+      inputItems = inputItems.concat(completed.output as ResponseInputItem[]);
+
+      if (calls.length === 0) {
+        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
+        finalText = assistantContent.trim() || null;
+        if (finalText) onTextReplace?.(finalText);
+        return {
+          finalText,
+          toolCalls: trajectory,
+          outcome: 'completed',
+          usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+          loops: loopCount,
+        };
+      }
+
+      const toolBatchStart = Date.now();
+      const toolResults = await Promise.all(
+        calls.map(async (call) => {
+          const outputIndex = completed.output.indexOf(call);
+          const callId = uiCallIdByOutput.get(outputIndex) || call.call_id || call.id || `xai-${loopCount}-${outputIndex}`;
+          let toolInput: Record<string, unknown> = {};
+          try { toolInput = JSON.parse(call.arguments || '{}'); } catch { /* malformed args */ }
+
+          onToolCallEvent?.({ type: 'tool_call_running', callId, toolName: call.name, input: toolInput });
+
+          const startTime = Date.now();
+          let toolResult: string;
+          let toolStatus: 'success' | 'error';
+          try {
+            toolResult = await executeTool(call.name, toolInput, callId);
+            toolStatus = 'success';
+          } catch (err: unknown) {
+            toolResult = JSON.stringify({ error: err instanceof Error ? err.message : String(err) });
+            toolStatus = 'error';
+          }
+          const durationMs = Date.now() - startTime;
+
+          if (toolStatus === 'success') {
+            let parsedOutput: unknown = toolResult;
+            try { parsedOutput = JSON.parse(toolResult); } catch { /* plain text */ }
+            onToolCallEvent?.({ type: 'tool_call_result', callId, output: uiToolOutput(parsedOutput), durationMs });
+          } else {
+            const errStr = (() => { try { return String(JSON.parse(toolResult)?.error ?? toolResult); } catch { return toolResult; } })();
+            onToolCallEvent?.({ type: 'tool_call_error', callId, error: errStr, retryable: true });
+          }
+
+          const sqlExcerpt = extractSql(call.name, toolInput);
+          trajectory.push({
+            seq: ++trajSeq,
+            tool: call.name,
+            callId,
+            sqlExcerpt,
+            input: toolInput,
+            output: toolResult ? toolResult.slice(0, 2000) : null,
+            status: toolStatus,
+            durationMs,
+            kind: classifyToolCall({ tool: call.name, sql: sqlExcerpt ?? undefined, status: toolStatus }),
+          });
+
+          const outputItem: ResponseInputItem = {
+            type: 'function_call_output',
+            call_id: call.call_id,
+            output: toolResult,
+          };
+          return outputItem;
+        }),
+      );
+      reportLoop(Date.now() - toolBatchStart, loopCount >= maxLoops ? 'max_loops' : 'tool_use');
+      inputItems = inputItems.concat(toolResults);
+    }
+
+    return {
+      finalText,
+      toolCalls: trajectory,
+      outcome: 'truncated',
+      usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+      loops: loopCount,
+    };
+  } catch (err: unknown) {
+    const rawMsg = err instanceof Error ? err.message : 'xAI agent loop failed';
+    const isTimeout = rawMsg.includes('timed out') || rawMsg.includes('aborted') || rawMsg.includes('ended before completion');
+    const errorDetail = isTimeout
+      ? `${model.label} request timed out after ${XAI_REQUEST_TIMEOUT_MS / 1000}s. Grok 4.7 can spend that time reasoning; retry, or set XAI_REASONING_EFFORT=low.`
+      : rawMsg;
+    return {
+      finalText,
+      toolCalls: trajectory,
+      outcome: 'errored',
+      usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+      loops: loopCount,
+      errorDetail,
+    };
+  }
+}
+
 // ── Main Loop ───────────────────────────────────────────────────────────────────
 
 export async function runFoundryAgentLoop(
   params: AgentLoopParams & { model: BoostModel },
 ): Promise<AgentLoopResult> {
+  if (params.model.resource === 'xai') {
+    return runXaiResponsesLoop(params);
+  }
+
   const {
     model, systemPrompt, messages: initialMessages, tools, executeTool, maxLoops, abortSignal,
-    onLoopStart, onTextChunk, onToolCallEvent, onLoopUsage, onTextReplace,
+    onLoopStart, onTextChunk, onToolCallEvent, onLoopUsage, onLoopMetrics, onTextReplace,
   } = params;
 
   const client = getFoundryClient(model);
@@ -149,6 +430,10 @@ export async function runFoundryAgentLoop(
       let toolCalls: { id: string; function: { name: string; arguments: string } }[] = [];
       let inputTokens = 0;
       let outputTokens = 0;
+      let cacheReadTokens = 0;
+      const loopStartedAt = Date.now();
+      const ctx = measureContext('', messages);
+      let firstTokenAt: number | null = null;
 
       if (shouldStream) {
         // Streaming path: accumulate deltas, assemble partial tool_calls by index
@@ -175,6 +460,7 @@ export async function runFoundryAgentLoop(
             stallTimer.refresh?.();
             // Text content delta
             const delta = chunk.choices?.[0]?.delta;
+            if (firstTokenAt === null && (delta?.content || delta?.tool_calls)) firstTokenAt = Date.now();
             if (delta?.content) {
               assistantContent += delta.content;
               onTextChunk?.(delta.content);
@@ -204,6 +490,7 @@ export async function runFoundryAgentLoop(
             if (chunk.usage) {
               inputTokens = chunk.usage.prompt_tokens ?? 0;
               outputTokens = chunk.usage.completion_tokens ?? 0;
+              cacheReadTokens = chunk.usage.prompt_tokens_details?.cached_tokens ?? 0;
             }
           }
         } finally {
@@ -233,6 +520,8 @@ export async function runFoundryAgentLoop(
         assistantContent = choice?.message?.content ?? '';
         inputTokens = response.usage?.prompt_tokens ?? 0;
         outputTokens = response.usage?.completion_tokens ?? 0;
+        cacheReadTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+        firstTokenAt = Date.now();
 
         // Emit text for non-streaming path
         if (assistantContent) onTextChunk?.(assistantContent);
@@ -245,12 +534,30 @@ export async function runFoundryAgentLoop(
         }
       }
 
+      const llmMs = Date.now() - loopStartedAt;
       totalInputTokens += inputTokens;
       totalOutputTokens += outputTokens;
       onLoopUsage?.(loopCount, inputTokens, outputTokens, totalInputTokens, totalOutputTokens);
+      const reportLoop = (toolMs: number, stopReason: LoopMetrics['stopReason']) =>
+        onLoopMetrics?.({
+          loop: loopCount,
+          startedAt: loopStartedAt,
+          llmMs,
+          firstTokenMs: firstTokenAt !== null ? firstTokenAt - loopStartedAt : null,
+          toolMs,
+          inputTokens,
+          outputTokens,
+          cacheReadTokens,
+          // OpenAI-compatible APIs cache automatically and don't bill/report writes.
+          cacheWriteTokens: 0,
+          ...ctx,
+          toolCalls: toolCalls.length,
+          stopReason,
+        });
 
       // ── No tool calls → model returned final answer ────────────────────────
       if (toolCalls.length === 0) {
+        reportLoop(0, abortSignal?.value ? 'aborted' : 'end_turn');
         finalText = assistantContent.trim() || null;
         // Replace accumulated interim narration (prior tool loops) with the final answer only.
         if (finalText) onTextReplace?.(finalText);
@@ -276,6 +583,7 @@ export async function runFoundryAgentLoop(
       };
       messages.push(assistantMsg);
 
+      const toolBatchStart = Date.now();
       const toolResults = await Promise.all(
         toolCalls.map(async (tc) => {
           let toolInput: Record<string, unknown> = {};
@@ -303,7 +611,7 @@ export async function runFoundryAgentLoop(
           if (toolStatus === 'success') {
             let parsedOutput: unknown = toolResult;
             try { parsedOutput = JSON.parse(toolResult); } catch {}
-            onToolCallEvent?.({ type: 'tool_call_result', callId: tc.id, output: parsedOutput, durationMs });
+            onToolCallEvent?.({ type: 'tool_call_result', callId: tc.id, output: uiToolOutput(parsedOutput), durationMs });
           } else {
             const errStr = (() => { try { return String(JSON.parse(toolResult)?.error ?? toolResult); } catch { return toolResult; } })();
             onToolCallEvent?.({ type: 'tool_call_error', callId: tc.id, error: errStr, retryable: true });
@@ -319,6 +627,7 @@ export async function runFoundryAgentLoop(
           trajectory.push({
             seq: ++trajSeq,
             tool: tc.function.name,
+            callId: tc.id,
             sqlExcerpt,
             input: toolInput,
             output: toolResult ? toolResult.slice(0, 2000) : null,
@@ -330,6 +639,7 @@ export async function runFoundryAgentLoop(
           return { toolCallId: tc.id, content: toolResult };
         }),
       );
+      reportLoop(Date.now() - toolBatchStart, loopCount >= maxLoops ? 'max_loops' : 'tool_use');
 
       // Append tool results as role:'tool' messages
       for (const r of toolResults) {

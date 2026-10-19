@@ -277,7 +277,7 @@ export function PinToDashboardDialog({
             style={{
               ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: GOLD, color: '#111322', border: 'none', borderRadius: 4,
+              background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4,
               padding: '8px 14px', cursor: submitting || dashLoading ? 'not-allowed' : 'pointer',
               opacity: submitting || dashLoading ? 0.6 : 1, fontWeight: 600,
             }}

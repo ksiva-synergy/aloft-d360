@@ -173,11 +173,11 @@ export function StatusBadge({ s }: StatusBadgeProps) {
   let border = 'none';
 
   if (upper === 'LIVE') {
-    bg = '#052010';
+    bg = 'color-mix(in srgb, var(--green) 12%, transparent)';
     color = 'var(--green)';
     border = '1px solid var(--green)';
   } else if (upper === 'PREVIEW') {
-    bg = '#1A1200';
+    bg = 'color-mix(in srgb, var(--amber) 12%, transparent)';
     color = 'var(--amber)';
     border = '1px solid var(--amber)';
   } else if (upper === 'COMING SOON') {

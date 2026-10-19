@@ -1,4 +1,8 @@
 import { prisma } from '@/lib/prisma';
+import { ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants';
+
+// Re-exported so existing server-side imports keep working.
+export { ALL_KNOWLEDGE_KEY };
 
 export interface TopicEntry {
   topicKey: string;
@@ -14,7 +18,6 @@ export function currentPeriod(): string {
   return `${y}-${m}`;
 }
 
-export const ALL_KNOWLEDGE_KEY = 'all_knowledge';
 
 /**
  * Loads the latest period's topic assignments for an org.

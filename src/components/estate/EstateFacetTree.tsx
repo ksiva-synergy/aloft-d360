@@ -113,7 +113,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
         {loading ? (
           <div className="space-y-1 mt-2 px-5">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-5 bg-slate-400/10 rounded animate-pulse" />
+              <div key={i} className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded animate-pulse" />
             ))}
           </div>
         ) : (

@@ -146,7 +146,7 @@ export function DetailDrawer({ onRowAction }: Props) {
               {row.description || row.expression || <span style={{ color: MUTED }}>No description yet.</span>}
             </p>
             {row.kind === 'measure' && (row.aggregate || row.expression) && (
-              <div style={{ ...MONO, fontSize: 13, color: 'var(--mc-kind-measure)', marginTop: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '6px 9px' }}>
+              <div style={{ ...MONO, fontSize: 13, color: 'var(--mc-kind-measure)', marginTop: 8, background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '6px 9px' }}>
                 {row.expression ? row.expression : `${row.aggregate}(${row.column ?? ''})`}{row.unit ? ` · ${row.unit}` : ''}
               </div>
             )}

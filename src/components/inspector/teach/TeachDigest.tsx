@@ -64,7 +64,7 @@ const STATE_META: Record<TeachCandidateState, { label: string; cls: string; Icon
   proposed: { label: 'Proposed', cls: 'text-sky-600 dark:text-sky-400', Icon: CircleDot },
   verified: { label: 'Verified', cls: 'text-emerald-600 dark:text-emerald-400', Icon: CheckCircle2 },
   conflict: { label: 'Conflict', cls: 'text-amber-600 dark:text-amber-400', Icon: GitCompare },
-  resolved: { label: 'Resolved', cls: 'text-violet-600 dark:text-violet-400', Icon: ShieldCheck },
+  resolved: { label: 'Resolved', cls: 'text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]', Icon: ShieldCheck },
 };
 
 export function TeachDigest({ sessionId }: { sessionId?: string }) {
@@ -180,7 +180,7 @@ function CandidateRow({ c }: { c: TeachCandidate }) {
 
           {/* Resolution: the recorded choice. */}
           {c.resolution && (
-            <div className="mt-1.5 text-xs text-violet-700 dark:text-violet-300">
+            <div className="mt-1.5 text-xs text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]">
               Resolved: <span className="font-medium">{c.resolution.choice}</span>
               {c.resolution.scopeNote && <span className="text-muted-foreground"> — {c.resolution.scopeNote}</span>}
             </div>

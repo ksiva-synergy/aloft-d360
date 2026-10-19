@@ -6,10 +6,11 @@ import type { WidgetRenderState } from '@/lib/dashboards/widget-render-state';
 import type { RowsToOptionResult } from '@/lib/dashboards/rows-to-option';
 import type { ChartKindGuess } from '@/lib/dashboards/guided-types';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const MUTED = '#8892A4';
 const INK = 'var(--wb-ink, #E6ECF5)';
-const AMBER = '#5B3DF5';
+const AMBER = 'var(--brand-a-ink)';
 const GREEN = '#34D399';
 const VIOLET = '#C4B5FD';
 const RED = '#F87171';
@@ -67,18 +68,18 @@ export function NotWiredChart({
           gap: 12,
           padding: 24,
           borderRadius: 10,
-          border: `1px dashed ${AMBER}55`,
+          border: `1px dashed color-mix(in srgb, ${AMBER} 33%, transparent)`,
           // Diagonal hatch = "scaffold, not a surface". Reads as unfinished on
           // sight, distinct from the solid fill a real chart/empty card uses.
           background:
-            'repeating-linear-gradient(45deg, rgba(91, 61, 245,0.04) 0, rgba(91, 61, 245,0.04) 10px, transparent 10px, transparent 20px)',
+            'repeating-linear-gradient(45deg, color-mix(in srgb, var(--brand-a-ink) 6%, transparent) 0, color-mix(in srgb, var(--brand-a-ink) 6%, transparent) 10px, transparent 10px, transparent 20px)',
         }}
       >
         <PlugZap size={22} color={AMBER} />
         <span
           style={{
             ...MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
-            color: AMBER, border: `1px solid ${AMBER}66`, borderRadius: 4, padding: '2px 7px',
+            color: AMBER, border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 4, padding: '2px 7px',
           }}
         >
           Not wired
@@ -145,7 +146,7 @@ export function NotWiredChart({
         data-widget-render-state="model_not_governed"
         style={{
           flex: 1, minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 10, padding: 24, borderRadius: 10, border: `1px solid ${AMBER}44`, background: `${AMBER}0D`,
+          gap: 10, padding: 24, borderRadius: 10, border: `1px solid color-mix(in srgb, ${AMBER} 27%, transparent)`, background: `color-mix(in srgb, ${AMBER} 5%, transparent)`,
         }}
       >
         <AlertTriangle size={20} color={AMBER} />
@@ -165,7 +166,7 @@ export function NotWiredChart({
       role="alert"
       style={{
         flex: 1, minHeight: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        gap: 10, padding: 24, borderRadius: 10, border: `1px solid ${RED}44`, background: `${RED}0D`,
+        gap: 10, padding: 24, borderRadius: 10, border: `1px solid ${withAlpha(RED, '44')}`, background: `${withAlpha(RED, '0D')}`,
       }}
     >
       <AlertTriangle size={20} color={RED} />
@@ -210,7 +211,7 @@ function LiveChart({
         <span
           style={{
             ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
-            color: GREEN, border: `1px solid ${GREEN}55`, borderRadius: 4, padding: '2px 6px',
+            color: GREEN, border: `1px solid ${withAlpha(GREEN, '55')}`, borderRadius: 4, padding: '2px 6px',
           }}
         >
           Live
@@ -221,7 +222,7 @@ function LiveChart({
             title="These rows came from an owner-scoped preview of a not-yet-governed definition"
             style={{
               ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
-              color: VIOLET, border: `1px solid ${VIOLET}66`, borderRadius: 4, padding: '2px 6px',
+              color: VIOLET, border: `1px solid ${withAlpha(VIOLET, '66')}`, borderRadius: 4, padding: '2px 6px',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
           >

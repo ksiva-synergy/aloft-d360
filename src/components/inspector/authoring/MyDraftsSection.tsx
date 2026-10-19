@@ -7,7 +7,7 @@ import type { AuthoringScope } from './scope';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
-const NAVY = 'var(--brand-a-ink)';
+const NAVY = 'var(--on-brand)';
 const MUTED = 'var(--ink-3)';
 const RED = '#f43f5e';
 const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';

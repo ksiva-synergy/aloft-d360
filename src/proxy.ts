@@ -1,5 +1,12 @@
 import { withAuth } from 'next-auth/middleware';
 
+/**
+ * Login gate for the API.
+ *
+ * Pages are no longer served by Next.js: every page URL is the static Vite app (public, no data), which redirects a
+ * signed-out visitor to /login itself (web/src/RequireAuth.tsx). All data comes from /api/**, so that is what is guarded
+ * here. Route handlers also check `getServerSession` themselves (defense in depth).
+ */
 export default withAuth(
   function proxy(_req) {
     // Future: inject userId/role from token for API request logging
@@ -10,15 +17,8 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname;
 
-        // Public paths — allow unauthenticated access
-        if (
-          path === '/' ||
-          path.startsWith('/login') ||
-          path.startsWith('/_next/') ||
-          path.startsWith('/api/auth') ||
-          path === '/api/health' ||
-          path === '/favicon.ico'
-        ) {
+        // Public API paths — sign-in itself and the health check.
+        if (path.startsWith('/api/auth') || path === '/api/health') {
           return true;
         }
 
@@ -28,6 +28,7 @@ export default withAuth(
   }
 );
 
+// Only the API is guarded. `/api/auth/*` and `/api/health` are excluded here as well as in `authorized`.
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon\\.ico|favicon\\.svg|api/auth|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)).*)'],
+  matcher: ['/api/((?!auth(?:/|$)|health$).*)'],
 };

@@ -276,6 +276,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
 
     const ctrl = new AbortController();
     abortControllerRef.current = ctrl;
+    let streamFailed = false;
 
     try {
       const allMessages = await new Promise<WorkbenchMessage[]>(resolve => {
@@ -364,21 +365,46 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                   if (existing.some(tc => tc.callId === event.callId)) return updated;
                   updated[idx] = { ...msg, toolCalls: [...existing, { callId: event.callId as string, toolId: event.toolId as string, toolName: event.toolName as string, status: 'suggested' as const }] };
                 } else if (event.type === 'tool_call_running') {
-                  updated[idx] = { ...msg, toolCalls: existing.map(tc => tc.callId === event.callId ? { ...tc, status: 'running' as const, input: event.input as Record<string, unknown> } : tc) };
+                  const callId = String(event.callId ?? '');
+                  const matched = existing.some(tc => tc.callId === callId);
+                  const running = { callId, toolId: String(event.toolId ?? ''), toolName: String(event.toolId ?? ''), status: 'running' as const, input: event.input as Record<string, unknown> };
+                  updated[idx] = {
+                    ...msg,
+                    toolCalls: matched
+                      ? existing.map(tc => tc.callId === callId ? { ...tc, status: 'running' as const, input: event.input as Record<string, unknown> } : tc)
+                      : [...existing, running],
+                  };
                 } else if (event.type === 'tool_call_result') {
-                  updated[idx] = { ...msg, toolCalls: existing.map(tc => tc.callId === event.callId ? { ...tc, status: 'success' as const, output: event.output, durationMs: event.durationMs as number } : tc) };
-                  const toolName = existing.find(tc => tc.callId === event.callId)?.toolName ?? '';
-                  const sqlExcerpt = (existing.find(tc => tc.callId === event.callId)?.input as Record<string, unknown> | undefined)?.args
-                    ? ((existing.find(tc => tc.callId === event.callId)?.input as Record<string, unknown>)?.args as Record<string, unknown>)?.statement as string | undefined
-                    : undefined;
-                  const kind = classifyToolCall({ tool: toolName, sql: sqlExcerpt, status: 'success' });
-                  pendingToolCallsRef.current.push({
-                    name: toolName,
-                    durationMs: (event.durationMs as number) ?? 0,
-                    status: 'success',
-                    kind,
-                    sqlExcerpt: sqlExcerpt ? (sqlExcerpt as string).slice(0, 120) : null,
+                  const callId = String(event.callId ?? '');
+                  const durationMs = typeof event.durationMs === 'number' ? event.durationMs : undefined;
+                  let settled = false;
+                  const nextCalls = existing.map(tc => {
+                    if (tc.callId !== callId) return tc;
+                    settled = true;
+                    return { ...tc, status: 'success' as const, output: event.output, durationMs };
                   });
+                  if (!settled) {
+                    const open = nextCalls
+                      .map((tc, i) => ({ tc, i }))
+                      .filter(({ tc }) => tc.status === 'running' || tc.status === 'suggested');
+                    if (open.length === 1) {
+                      nextCalls[open[0].i] = { ...open[0].tc, status: 'success' as const, output: event.output, durationMs };
+                    }
+                  }
+                  updated[idx] = { ...msg, toolCalls: nextCalls };
+                  try {
+                    const card = (updated[idx].toolCalls ?? []).find(tc => tc.callId === callId);
+                    const args = (card?.input as Record<string, unknown> | undefined)?.args;
+                    const statement = args && typeof args === 'object' ? (args as Record<string, unknown>).statement : undefined;
+                    const sqlExcerpt = typeof statement === 'string' ? statement.slice(0, 120) : null;
+                    pendingToolCallsRef.current.push({
+                      name: card?.toolName || card?.toolId || 'execute_tool',
+                      durationMs: durationMs ?? 0,
+                      status: 'success',
+                      kind: classifyToolCall({ tool: card?.toolName || '', sql: sqlExcerpt ?? undefined, status: 'success' }),
+                      sqlExcerpt,
+                    });
+                  } catch { /* card status already settled */ }
                 } else {
                   updated[idx] = { ...msg, toolCalls: existing.map(tc => tc.callId === event.callId ? { ...tc, status: 'error' as const, error: event.error as string } : tc) };
                   const toolName = existing.find(tc => tc.callId === event.callId)?.toolName ?? '';
@@ -493,6 +519,18 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 [assistantMsgId]: { durationMs, tokenCount: totalTokens, modelName: modelLabel },
               }));
 
+              const turnOps = {
+                durationMs,
+                inputTokens,
+                outputTokens,
+                loopCount: finalLoopCount,
+                outcome,
+                modelKey,
+                modelName: modelLabel,
+                contextMode: confirmedCtxMode,
+                firstTokenMs,
+              };
+
               setRunMetrics(prev => ({
                 ...prev,
                 [assistantMsgId]: {
@@ -510,6 +548,28 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                   outcome,
                 },
               }));
+
+              setLocalMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantMsgId);
+                if (idx < 0) return prev;
+                const updated = [...prev];
+                const msg = updated[idx];
+                type Traj = { callId?: string; tool: string; status: 'success' | 'error'; durationMs: number };
+                const traj = Array.isArray(serverTrajectory) ? serverTrajectory as Traj[] : [];
+                const used = new Set<number>();
+                const toolCalls = (msg.toolCalls ?? []).map((tc) => {
+                  if (tc.status === 'success' || tc.status === 'error') return tc;
+                  let matchAt = traj.findIndex((t, i) => !used.has(i) && t.callId && t.callId === tc.callId);
+                  if (matchAt < 0) {
+                    matchAt = traj.findIndex((t, i) => !used.has(i) && t.tool === (tc.toolName || tc.toolId));
+                  }
+                  if (matchAt < 0) return tc;
+                  used.add(matchAt);
+                  return { ...tc, status: traj[matchAt].status, durationMs: traj[matchAt].durationMs };
+                });
+                updated[idx] = { ...msg, turnOps, ...(msg.toolCalls ? { toolCalls } : {}) };
+                return updated;
+              });
 
               pendingToolCallsRef.current = [];
               break;
@@ -602,9 +662,21 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
       if (err instanceof Error && err.name === 'AbortError') {
         setInterrupted(true);
       } else {
+        streamFailed = true;
         setError(err instanceof Error ? err.message : 'Stream failed');
       }
     } finally {
+      if (!ctrl.signal.aborted && !streamFailed) {
+        setLocalMessages(prev => prev.map(m => {
+          if (m.id !== assistantMsgId || !m.toolCalls?.some(tc => tc.status === 'running')) return m;
+          return {
+            ...m,
+            toolCalls: m.toolCalls.map(tc => tc.status === 'running'
+              ? { ...tc, status: 'success' as const }
+              : tc),
+          };
+        }));
+      }
       setIsStreaming(false);
       setQueryProgress(null);
       abortControllerRef.current = null;
