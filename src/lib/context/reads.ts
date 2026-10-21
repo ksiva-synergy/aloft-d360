@@ -1137,8 +1137,8 @@ export async function listEstateObjects(
   let paramIdx = 2;
 
   if (opts.excludeTestSources) {
-    conditions.push(`(peo.source_id IS NULL OR peo.source_id::uuid NOT IN (
-      SELECT id FROM platform_context_sources
+    conditions.push(`(peo.source_id IS NULL OR peo.source_id NOT IN (
+      SELECT id::text FROM platform_context_sources
       WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
     ))`);
   }
@@ -1417,34 +1417,37 @@ export async function getCoverageSummary(
 
 export async function listEstateFacets(
   orgId: string,
-  opts: { excludeTestSources?: boolean } = {},
+  opts: { excludeTestSources?: boolean; sourceId?: string } = {},
 ): Promise<{
   catalogs: { name: string; count: number }[];
   schemas: { catalog: string; name: string; count: number }[];
 }> {
   const testExclusion = opts.excludeTestSources
-    ? `AND (source_id IS NULL OR source_id::uuid NOT IN (
-        SELECT id FROM platform_context_sources
+    ? `AND (source_id IS NULL OR source_id NOT IN (
+        SELECT id::text FROM platform_context_sources
         WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
       ))`
     : '';
+  const sourceFilter = opts.sourceId ? 'AND source_id = $2' : '';
+  const params: string[] = [orgId];
+  if (opts.sourceId) params.push(opts.sourceId);
 
   const [catalogs, schemas] = await Promise.all([
     prisma.$queryRawUnsafe<{ name: string; count: number }[]>(
       `SELECT catalog_name AS name, COUNT(*)::int AS count
        FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}
+       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
        GROUP BY catalog_name
        ORDER BY catalog_name`,
-      orgId,
+      ...params,
     ),
     prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number }[]>(
       `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count
        FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}
+       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
        GROUP BY catalog_name, schema_name
        ORDER BY catalog_name, schema_name`,
-      orgId,
+      ...params,
     ),
   ]);
 

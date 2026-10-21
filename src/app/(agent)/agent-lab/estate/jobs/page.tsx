@@ -609,6 +609,8 @@ interface ConfirmState {
   kinds: string[];
   objectCount: number | null;
   sourceName: string | null;
+  sourceId: string | null;
+  scopeInclude: string[] | null;
   loading: boolean;
   tree: CatalogTree[] | null;
   excludeSchemas: Set<string>; // "catalog.schema"
@@ -720,6 +722,13 @@ function RunJobConfirmModal({
               )}
             </div>
 
+            {confirm.kinds.length === 1 && confirm.kinds[0] === 'estate_inventory' && (
+              <p className="text-[10px] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                Discovery snapshot from the database (not live Databricks). Estate Inventory uses the source&apos;s{' '}
+                <code className="opacity-80">scope_include</code> in settings — not this tree or Focus. Refresh by running inventory, then reopen this dialog.
+              </p>
+            )}
+
             {confirm.loading ? (
               <div className="flex items-center gap-2.5 pt-2">
                 <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }} />
@@ -736,6 +745,20 @@ function RunJobConfirmModal({
                       </svg>
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Source:</span>
                       <span className="text-[13px] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.sourceName}</span>
+                    </div>
+                  )}
+                  {confirm.scopeInclude && confirm.scopeInclude.length > 0 && (
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Source scope:</span>
+                      <span className="text-[11px] font-mono truncate" style={{ color: '#FDB515' }} title={confirm.scopeInclude.join(', ')}>
+                        {confirm.scopeInclude.join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {confirm.tree && confirm.tree.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Catalogs in discovery:</span>
+                      <span className="text-[13px] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.tree.length}</span>
                     </div>
                   )}
                   {includedCount !== null && (
@@ -1155,6 +1178,8 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       kinds: Array.from(selectedKinds),
       objectCount: null,
       sourceName: null,
+      sourceId: null,
+      scopeInclude: null,
       loading: true,
       tree: null,
       excludeSchemas: new Set(),
@@ -1162,16 +1187,21 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       sequential: Array.from(selectedKinds).length > 1,
     });
     try {
-      const [sourcesRes, facetsRes] = await Promise.all([
-        fetch('/api/agent-lab/context/sources'),
-        fetch('/api/agent-lab/context/estate/facets'),
-      ]);
+      const sourcesRes = await fetch('/api/agent-lab/context/sources');
       let sourceName: string | null = null;
+      let sourceId: string | null = null;
+      let scopeInclude: string[] | null = null;
       if (sourcesRes.ok) {
         const data = await sourcesRes.json();
         const source = data.sources?.[0];
         sourceName = source?.display_name ?? source?.connection_kind ?? null;
+        sourceId = source?.id ?? null;
+        scopeInclude = Array.isArray(source?.scope_include) ? source.scope_include : null;
       }
+      const facetsUrl = sourceId
+        ? `/api/agent-lab/context/estate/facets?sourceId=${encodeURIComponent(sourceId)}`
+        : '/api/agent-lab/context/estate/facets';
+      const facetsRes = await fetch(facetsUrl);
       let objectCount: number | null = null;
       let tree: CatalogTree[] | null = null;
       if (facetsRes.ok) {
@@ -1204,7 +1234,16 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           }
         }
       }
-      setConfirm(prev => prev ? { ...prev, objectCount, sourceName, tree, excludeSchemas: autoExclude, loading: false } : null);
+      setConfirm(prev => prev ? {
+        ...prev,
+        objectCount,
+        sourceName,
+        sourceId,
+        scopeInclude,
+        tree,
+        excludeSchemas: autoExclude,
+        loading: false,
+      } : null);
     } catch {
       setConfirm(prev => prev ? { ...prev, loading: false } : null);
     }
