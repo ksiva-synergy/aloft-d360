@@ -17,6 +17,29 @@ import {
   isLocalHarvestRuntime,
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
+import { stripExcludeSchemasForKind } from '@/lib/estate/job-ui';
+
+class NoObjectsInScopeError extends Error {
+  kind: JobKind;
+  constructor(kind: JobKind) {
+    super(`No scanned objects match scope for ${kind}. Check Focus globs and Catalog → Scanned & beyond.`);
+    this.kind = kind;
+  }
+}
+
+async function assertObjectsInScope(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  excludeSchemas: string[],
+  includePatterns: string[],
+): Promise<void> {
+  if (!SPLITTABLE_KINDS.has(kind)) return;
+  const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+  if (plan.totalObjects === 0) {
+    throw new NoObjectsInScopeError(kind);
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -222,14 +245,17 @@ export async function POST(req: NextRequest) {
     const splitSummaries: { kind: string; parentJobId: string; totalChildren: number }[] = [];
 
     const launchOne = async (kind: JobKind, chain: JobKind[]) => {
-      // Check if this kind benefits from splitting and has a source with objects
+      const effectiveExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
       const sourceId = sources[0]?.id;
       if (SPLITTABLE_KINDS.has(kind) && sourceId) {
-        // Check scope size: count objects that would be processed
-        const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+        await assertObjectsInScope(orgId, kind, sourceId, effectiveExcludes, includePatterns);
+        const plan = await planSplit(orgId, kind, sourceId, {
+          excludeSchemas: effectiveExcludes,
+          includePatterns,
+        });
 
         if (plan.needsSplit) {
-          const result = await launchSplitKind(kind, orgId, sourceId, excludeSchemas, includePatterns, chain);
+          const result = await launchSplitKind(kind, orgId, sourceId, effectiveExcludes, includePatterns, chain);
           splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
           totalJobsEnqueued += result.totalChildren + 1; // children + parent
           allFailures.push(...result.failures);
@@ -239,7 +265,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Non-split path
-      const result = await launchKind(kind, orgId, sources, excludeSchemas, includePatterns, chain);
+      const result = await launchKind(kind, orgId, sources, effectiveExcludes, includePatterns, chain);
       totalJobsEnqueued += result.jobsEnqueued;
       allFailures.push(...result.failures);
       if (result.taskArn) taskArns.push(result.taskArn);
@@ -269,6 +295,12 @@ export async function POST(req: NextRequest) {
       split_summaries: splitSummaries.length > 0 ? splitSummaries : undefined,
     });
   } catch (err) {
+    if (err instanceof NoObjectsInScopeError) {
+      return NextResponse.json(
+        { error: 'NO_OBJECTS_IN_SCOPE', message: err.message, kind: err.kind },
+        { status: 400 },
+      );
+    }
     console.error('[context/jobs/launch POST]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });
   }

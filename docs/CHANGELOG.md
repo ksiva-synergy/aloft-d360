@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-21 — Estate Jobs UX and launch scope fixes (ui-redesign cherry-pick)
+
+- **`docs/estate-jobs.md`**, **`src/lib/estate/job-ui.ts`**, launch/plan/children APIs, **`ChildJobsPanel`**, Jobs list/detail UX (Focus scope, empty/orchestrating status).
+- Ported from `feature/estate-jobs` (`bfaa6c8`) onto `feature/ui-redesign` (`src/views/agent-lab/estate/jobs.tsx`).
+- **Verified:** not run on ui-redesign worktree yet (run `npm run typecheck` after merge).
+
 ## How to add an entry
 
 - One `## YYYY-MM-DD — <topic>` section per piece of work (several per day is fine).

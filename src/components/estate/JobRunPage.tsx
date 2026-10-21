@@ -10,6 +10,10 @@ import {
   BarChart3, Zap, Eye, GitBranch, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ChildJobsPanel from './ChildJobsPanel';
+import { mapJobStatus, isKickableJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
+
+export { mapJobStatus };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -48,14 +52,6 @@ interface LogLine {
 type TabId = 'overview' | 'logs' | 'objects' | 'config';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-export function mapJobStatus(status: string): 'queued' | 'running' | 'done' | 'failed' {
-  const s = status.toLowerCase();
-  if (s === 'running') return 'running';
-  if (['succeeded', 'partial', 'completed', 'success', 'done'].includes(s)) return 'done';
-  if (['failed', 'error'].includes(s)) return 'failed';
-  return 'queued';
-}
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -116,8 +112,18 @@ function KindBadge({ kind }: { kind: string }) {
   );
 }
 
-function StatusChip({ status }: { status: string }) {
-  const mapped = mapJobStatus(status);
+function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknown; jobKind?: string }) {
+  const mapped = resolveDisplayJobStatus(status, stats, jobKind);
+  if (mapped === 'orchestrating') return (
+    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      style={{ borderColor: 'rgba(147,197,253,0.35)', color: '#93C5FD', backgroundColor: 'rgba(147,197,253,0.08)' }}>
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#93C5FD] opacity-75" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#93C5FD]" />
+      </span>
+      orchestrating
+    </span>
+  );
   if (mapped === 'running') return (
     <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
       style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
@@ -138,6 +144,13 @@ function StatusChip({ status }: { status: string }) {
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
       style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--bad)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
       <AlertTriangle size={11} />failed
+    </span>
+  );
+  if (mapped === 'empty') return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      style={{ borderColor: 'rgba(245,158,11,0.35)', color: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)' }}
+      title="Succeeded but processed 0 objects">
+      <AlertTriangle size={11} />empty
     </span>
   );
   return (
@@ -178,9 +191,22 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
   };
 
   const isCanceled = job.error?.includes('CANCEL') || job.error?.includes('cancel');
+  const parent = isOrchestratingParent(job);
 
   return (
     <div className="p-8 space-y-10">
+      {parent && (
+        <section>
+          <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#8892A4' }}>
+            Child chunks
+          </h3>
+          <p className="text-xs font-mono mb-4" style={{ color: '#8892A4' }}>
+            This job is a split parent — open a child for logs and per-chunk errors.
+          </p>
+          <ChildJobsPanel jobId={job.id} />
+        </section>
+      )}
+
       {/* Execution Timeline */}
       <section>
         <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-5"
@@ -1036,9 +1062,25 @@ export default function JobRunPage({ job }: { job: JobItem }) {
   const [copied, setCopied] = useState(false);
   const [kicking, setKicking] = useState(false);
   const [jobStatus, setJobStatus] = useState(job.status);
+  const [jobLive, setJobLive] = useState(job);
+
+  useEffect(() => {
+    const s = jobStatus.toLowerCase();
+    if (!['queued', 'running', 'orchestrating'].includes(s)) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/agent-lab/context/jobs/${job.id}`);
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (data?.status) setJobStatus(data.status);
+        if (data) setJobLive((prev) => ({ ...prev, ...data }));
+      } catch { /* ignore */ }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [job.id, jobStatus]);
 
   const mapped = mapJobStatus(jobStatus);
-  const isLive = mapped === 'running' || mapped === 'queued';
+  const isLive = mapped === 'running' || mapped === 'queued' || mapped === 'orchestrating';
   const kindStyle = getKindStyle(job.job_kind); // used for kindStyle-dependent future styling
 
   const startedDate = job.started_at ? new Date(job.started_at) : null;
@@ -1119,8 +1161,8 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                     Job Run
                   </h1>
                   <KindBadge kind={job.job_kind} />
-                  <StatusChip status={jobStatus} />
-                  {mapped === 'queued' && !(job.scope as any)?.fargate_task_id && (
+                  <StatusChip status={jobStatus} stats={jobLive.stats} jobKind={job.job_kind} />
+                  {isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
                     <button
                       type="button"
                       onClick={handleKick}
@@ -1201,8 +1243,16 @@ export default function JobRunPage({ job }: { job: JobItem }) {
       <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
         <div className="max-w-7xl mx-auto">
           <div className="rounded-xl border mx-4 my-4" style={{ backgroundColor: 'var(--card,#1c2128)', borderColor: 'var(--line-1)' }}>
-          {activeTab === 'overview' && <OverviewTab job={job} onTabChange={setActiveTab} />}
-          {activeTab === 'logs' && <LogsTab jobId={job.id} isLive={isLive} />}
+          {activeTab === 'overview' && <OverviewTab job={jobLive} onTabChange={setActiveTab} />}
+          {activeTab === 'logs' && (
+            isOrchestratingParent({ status: jobStatus, scope: job.scope })
+              ? (
+                <div className="p-8 font-mono text-sm" style={{ color: '#8892A4' }}>
+                  Parent orchestrator jobs have no CloudWatch stream. Open a child chunk from Overview.
+                </div>
+              )
+              : <LogsTab jobId={job.id} isLive={isLive} />
+          )}
           {activeTab === 'objects' && <ObjectsTab jobId={job.id} onCountChange={setObjectCount} />}
           {activeTab === 'config' && <ConfigTab job={job} />}
           </div>

@@ -4,7 +4,14 @@ import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Pagination, JobDetailDrawer, mapJobStatus, ScannedObjectsTab } from '@/components/estate';
+import { Pagination, JobDetailDrawer, ScannedObjectsTab } from '@/components/estate';
+import ChildJobsPanel from '@/components/estate/ChildJobsPanel';
+import {
+  formatStatsSummary,
+  launchUsesEstateExcludeTree,
+  resolveDisplayJobStatus,
+  scopeSummaryFocus,
+} from '@/lib/estate/job-ui';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
 import { HARVEST_SCHEDULES, relativeNextRun, getNextRun } from '@/lib/context/schedules';
 import { toast } from 'sonner';
@@ -34,28 +41,6 @@ interface JobItem {
   child_index?: number | null;
 }
 
-interface ChildJob {
-  id: string;
-  job_kind: string;
-  status: string;
-  child_index: number | null;
-  scope: any;
-  stats: any;
-  error: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  created_at: string;
-}
-
-interface ChildCounts {
-  total: number;
-  queued: number;
-  running: number;
-  succeeded: number;
-  failed: number;
-  partial: number;
-}
-
 interface SplitPlanPreview {
   needsSplit: boolean;
   totalObjects: number;
@@ -65,6 +50,9 @@ interface SplitPlanPreview {
   estimatedWallClockMinutes: number;
   estimatedCostUsd: number;
   maxConcurrent: number;
+  scopeWarning?: string | null;
+  emptyScope?: boolean;
+  harvestModelId?: string;
 }
 
 interface KindSummary {
@@ -131,41 +119,6 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
-function formatStatsSummary(stats: any): string {
-  if (!stats || typeof stats !== 'object') return '--';
-  const parts: string[] = [];
-  if ('objects_swept' in stats) parts.push(`${stats.objects_swept} swept`);
-  else if ('objects_profiled' in stats) parts.push(`${stats.objects_profiled} profiled`);
-  else if ('objects_enriched' in stats) parts.push(`${stats.objects_enriched} enriched`);
-  else if ('objects_synced' in stats) {
-    parts.push(`${stats.objects_synced} synced`);
-    if (stats.chunks_ingested) parts.push(`${stats.chunks_ingested} chunks`);
-  } else if ('objects_mapped' in stats) parts.push(`${stats.objects_mapped} mapped`);
-  else if ('mappings_proposed' in stats) parts.push(`${stats.mappings_proposed} mappings`);
-  else if ('scanned_count' in stats) parts.push(`${stats.scanned_count} scanned`);
-  else if ('inserted' in stats) {
-    parts.push(`${stats.inserted} new`);
-    if (stats.updated) parts.push(`${stats.updated} upd`);
-    if (stats.removed) parts.push(`${stats.removed} rm`);
-    if (stats.catalogs) parts.push(`${stats.catalogs} cat`);
-  }
-  else if ('objectsProcessed' in stats) {
-    parts.push(`${stats.objectsProcessed} processed`);
-    if (stats.snapshotsWritten) parts.push(`${stats.snapshotsWritten} snapshots`);
-    if (stats.narrativesApplied) parts.push(`${stats.narrativesApplied} narratives`);
-  }
-  else if ('objects' in stats) parts.push(`${stats.objects} objects`);
-  else if ('count' in stats) parts.push(`${stats.count} items`);
-  if ('errors' in stats) {
-    const n = Array.isArray(stats.errors) ? stats.errors.length : Number(stats.errors);
-    if (n > 0) parts.push(`${n} err`);
-  } else if ('error_count' in stats && Number(stats.error_count) > 0) {
-    parts.push(`${stats.error_count} err`);
-  }
-  if (parts.length === 0) return '--';
-  return parts.join(' | ');
-}
-
 // ?? Kind metadata ??????????????????????????????????????????????????????????????
 
 function fmtScopeDate(d: string): string {
@@ -202,7 +155,9 @@ function ScopeSummary({ scope }: { scope: any }) {
   }
 
   const parts: string[] = [];
-  if (scope.excludeSchemas && Array.isArray(scope.excludeSchemas)) {
+  const focus = scopeSummaryFocus(scope);
+  if (focus) parts.push(`focus: ${focus}`);
+  if (scope.excludeSchemas && Array.isArray(scope.excludeSchemas) && scope.excludeSchemas.length > 0) {
     parts.push(`${scope.excludeSchemas.length} excluded`);
   }
   if (scope.path) parts.push(scope.path);
@@ -223,141 +178,6 @@ function ScopeSummary({ scope }: { scope: any }) {
     <span className="truncate block" title={JSON.stringify(scope, null, 2)}>
       {parts.join(' | ')}
     </span>
-  );
-}
-
-function ChildJobsPanel({ jobId, orgId }: { jobId: string; orgId: string }) {
-  const [children, setChildren] = useState<ChildJob[]>([]);
-  const [counts, setCounts] = useState<ChildCounts | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [retrying, setRetrying] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const res = await fetch(`/api/agent-lab/context/jobs/${jobId}/children`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setChildren(data.children ?? []);
-          setCounts(data.counts ?? null);
-        }
-      } catch { /* ignore */ } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [jobId]);
-
-  async function retryFailed() {
-    setRetrying(true);
-    try {
-      const res = await fetch(`/api/agent-lab/context/jobs/${jobId}/retry-failed`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        // Refresh
-        const r2 = await fetch(`/api/agent-lab/context/jobs/${jobId}/children`);
-        if (r2.ok) {
-          const d2 = await r2.json();
-          setChildren(d2.children ?? []);
-          setCounts(d2.counts ?? null);
-        }
-      }
-    } catch { /* ignore */ } finally {
-      setRetrying(false);
-    }
-  }
-
-  const statusColor: Record<string, string> = {
-    queued: '#8892A4', running: 'var(--brand-a-ink)', succeeded: '#2DD4A0', failed: '#EF4444', partial: '#F59E0B',
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-3 px-4">
-        <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0" style={{ borderColor: 'var(--brand-a-ink)', borderTopColor: 'transparent' }} />
-        <span className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>Loading child jobs...</span>
-      </div>
-    );
-  }
-
-  if (children.length === 0) {
-    return <div className="text-xs font-mono py-3 px-4" style={{ color: 'var(--ink-3)' }}>No child jobs found.</div>;
-  }
-
-  const failedCount = counts?.failed ?? 0;
-
-  return (
-    <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
-        <div className="flex items-center gap-3 text-xs font-mono">
-          <span className="font-bold" style={{ color: 'var(--brand-a-ink)' }}>{counts?.total ?? children.length} chunks</span>
-          {counts && (
-            <>
-              {counts.running > 0 && <span style={{ color: 'var(--brand-a-ink)' }}>{counts.running} running</span>}
-              {counts.queued > 0 && <span style={{ color: 'var(--ink-3)' }}>{counts.queued} queued</span>}
-              {counts.succeeded > 0 && <span style={{ color: '#2DD4A0' }}>{counts.succeeded} done</span>}
-              {counts.failed > 0 && <span style={{ color: '#EF4444' }}>{counts.failed} failed</span>}
-            </>
-          )}
-        </div>
-        {failedCount > 0 && (
-          <button
-            onClick={retryFailed}
-            disabled={retrying}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
-            style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' }}
-          >
-            {retrying ? (
-              <span className="w-2.5 h-2.5 border border-t-transparent rounded-full animate-spin" style={{ borderColor: '#EF4444', borderTopColor: 'transparent' }} />
-            ) : (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.3"/>
-              </svg>
-            )}
-            Retry {failedCount} failed
-          </button>
-        )}
-      </div>
-
-      {/* Child rows */}
-      <div className="max-h-64 overflow-y-auto divide-y" style={{ '--divide-color': 'color-mix(in srgb, var(--ink-1) 4%, transparent)' } as any}>
-        {children.map(child => {
-          const scope = child.scope as any ?? {};
-          const partition = scope.partition_schema
-            ? `${scope.partition_catalog ?? ''}.${scope.partition_schema}${scope.partition_objects ? ` [${(scope.partition_objects as string[]).length}]` : ''}`
-            : `chunk ${(child.child_index ?? 0) + 1}`;
-
-          const duration = child.started_at && child.finished_at
-            ? Math.round((new Date(child.finished_at).getTime() - new Date(child.started_at).getTime()) / 1000)
-            : null;
-
-          return (
-            <div key={child.id} className="flex items-center gap-3 px-4 py-2 text-xs font-mono">
-              <span className="shrink-0 font-semibold tabular-nums w-6 text-right" style={{ color: 'var(--ink-3)' }}>
-                {(child.child_index ?? 0) + 1}
-              </span>
-              <span className="flex-1 truncate" style={{ color: statusColor[child.status] ?? '#8892A4' }}>
-                {partition}
-              </span>
-              <span className="shrink-0 uppercase font-bold" style={{ color: statusColor[child.status] ?? '#8892A4' }}>
-                {child.status}
-              </span>
-              {duration !== null && (
-                <span className="shrink-0 tabular-nums" style={{ color: 'var(--ink-3)' }}>{duration}s</span>
-              )}
-              {child.error && (
-                <span className="shrink-0 max-w-[160px] truncate" style={{ color: '#EF4444' }} title={child.error}>
-                  {child.error.split('\n')[0]}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 
@@ -650,6 +470,8 @@ function RunJobConfirmModal({
     .map(k => TRIGGERABLE_JOBS.find(j => j.kind === k)?.warning)
     .filter(Boolean) as string[];
 
+  const showExcludeTree = launchUsesEstateExcludeTree(confirm.kinds);
+
   const includedCount = confirm.tree
     ? confirm.tree.reduce((sum, cat) => {
         return sum + cat.schemas.reduce((s2, sch) => {
@@ -663,6 +485,7 @@ function RunJobConfirmModal({
   const splittableKinds = ['t2_semantic', 't1_profile', 't0_structural'];
   const dominantSplitKind = confirm.kinds.find(k => splittableKinds.includes(k));
   const activePlan = dominantSplitKind ? splitPlans[dominantSplitKind] : undefined;
+  const launchBlocked = Boolean(dominantSplitKind && !splitPlansLoading && activePlan?.emptyScope);
 
   function toggleCatalog(catalog: string) {
     setExpandedCatalogs(prev => {
@@ -705,6 +528,8 @@ function RunJobConfirmModal({
 
           {/* Scope */}
           <div className="rounded-lg border p-5 space-y-4" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))', backgroundColor: 'var(--muted, rgba(0,0,0,0.2))' }}>
+            {showExcludeTree ? (
+            <>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -841,6 +666,13 @@ function RunJobConfirmModal({
                 )}
               </>
             )}
+            </>
+            ) : (
+              <p className="text-[10px] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                These job types run on <span style={{ color: '#FDB515' }}>Scanned &amp; beyond</span> objects (T0 registry).
+                Use <span style={{ color: '#FDB515' }}>Focus</span> below — the estate exclude tree is only for Inventory / T0.
+              </p>
+            )}
           </div>
 
           {/* Warnings */}
@@ -859,7 +691,7 @@ function RunJobConfirmModal({
             </div>
           )}
 
-          {confirm.excludeSchemas.size > 0 && (
+          {showExcludeTree && confirm.excludeSchemas.size > 0 && (
             <div className="text-xs font-mono px-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
               Excluded schemas are passed as job scope{" - "}the harvester filters them at runtime.
             </div>
@@ -881,10 +713,30 @@ function RunJobConfirmModal({
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 )}
-                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: splitPlansLoading ? 'var(--brand-a-ink)' : activePlan?.needsSplit ? 'var(--brand-a-ink)' : '#2DD4A0' }}>
-                  {splitPlansLoading ? 'Calculating split plan...' : activePlan?.needsSplit ? 'Auto-split enabled' : 'Fits in a single job'}
+                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: splitPlansLoading ? 'var(--brand-a-ink)' : activePlan?.emptyScope ? '#EF4444' : activePlan?.needsSplit ? 'var(--brand-a-ink)' : '#2DD4A0' }}>
+                  {splitPlansLoading ? 'Calculating split plan...' : activePlan?.emptyScope ? 'No objects in scope' : activePlan?.needsSplit ? 'Auto-split enabled' : 'Fits in a single job'}
                 </span>
               </div>
+
+              {!splitPlansLoading && activePlan && (
+                <div className="text-[11px] font-mono pl-1" style={{ color: activePlan.emptyScope ? '#FCA5A5' : '#93C5FD' }}>
+                  {activePlan.totalObjects.toLocaleString()} scanned object(s) match this plan
+                  {confirm.includePatterns.trim() ? ' (Focus applied)' : ''}
+                </div>
+              )}
+
+              {!splitPlansLoading && activePlan?.scopeWarning && (
+                <div className="text-[11px] font-mono px-3 py-2 rounded border" style={{ color: '#FCA5A5', borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
+                  {activePlan.scopeWarning}
+                </div>
+              )}
+
+              {!splitPlansLoading && activePlan?.harvestModelId && confirm.kinds.includes('t2_semantic') && (
+                <div className="text-[10px] font-mono pl-1" style={{ color: '#8892A4' }}>
+                  Harvest LLM model: <span style={{ color: '#e8ecf0' }}>{activePlan.harvestModelId}</span>
+                  <span className="opacity-80"> — runs on Fargate (xAI direct when XAI_API_KEY is set)</span>
+                </div>
+              )}
 
               {!splitPlansLoading && activePlan?.needsSplit && (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 pl-1 pt-1">
@@ -999,7 +851,7 @@ function RunJobConfirmModal({
               style={{ borderColor: 'var(--border, rgba(255,255,255,0.12))', color: 'var(--text-primary, #b0b8c4)' }}>
               Cancel
             </button>
-            <button onClick={onConfirm} disabled={submitting || confirm.loading}
+            <button onClick={onConfirm} disabled={submitting || confirm.loading || launchBlocked}
               className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-sm font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: 'var(--brand-a)', color: '#FFFFFF', borderColor: 'var(--brand-a)' }}>
               {submitting ? (
@@ -1243,7 +1095,9 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kinds: confirm.kinds,
-          excludeSchemas: Array.from(confirm.excludeSchemas),
+          excludeSchemas: launchUsesEstateExcludeTree(confirm.kinds)
+            ? Array.from(confirm.excludeSchemas)
+            : [],
           includePatterns,
           sequential: confirm.sequential,
         }),
@@ -1268,6 +1122,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       } else {
         const err = await res.json().catch(() => ({})) as {
           error?: string;
+          message?: string;
           failures?: { reason?: string; arn?: string }[];
           jobs_enqueued?: number;
         };
@@ -1275,13 +1130,14 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           .map(f => f.reason)
           .filter(Boolean)
           .join(' | ');
-        const description = failureReasons
+        const description = err.message
+          || failureReasons
           || err.error
           || res.statusText;
         console.error(
           '[jobs/launch] failed',
           res.status,
-          failureReasons || err.error,
+          failureReasons || err.error || err.message,
           err,
         );
         toast.error('Failed to launch Fargate task', {
@@ -1457,21 +1313,22 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
   );
 }
 
-function StatusChip({ status }: { status: string }) {
-  const isOrchestrating = status === 'orchestrating';
-  const mapped = isOrchestrating ? 'orchestrating' : mapJobStatus(status);
+function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknown; jobKind?: string }) {
+  const mapped = resolveDisplayJobStatus(status, stats, jobKind);
   const styles: Record<string, { color: string; bg: string; border: string }> = {
     queued:         { color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.08)', border: 'rgba(136,146,164,0.25)' },
     running:        { color: 'var(--brand-a-ink)', bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',  border: 'color-mix(in srgb, var(--brand-a) 30%, transparent)'   },
     done:           { color: '#2DD4A0', bg: 'rgba(45,212,160,0.08)',  border: 'rgba(45,212,160,0.25)'  },
     failed:         { color: '#EF4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.25)'   },
     orchestrating:  { color: '#93C5FD', bg: 'rgba(147,197,253,0.08)', border: 'rgba(147,197,253,0.3)'  },
+    empty:          { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.35)' },
   };
   const s = styles[mapped] ?? styles.queued;
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono uppercase tracking-wider"
       style={{ color: s.color, backgroundColor: s.bg, borderColor: s.border }}
+      title={mapped === 'empty' ? 'Succeeded but processed 0 objects — check logs / Focus' : undefined}
     >
       {(mapped === 'running' || mapped === 'orchestrating') && (
         <span className="relative flex h-1.5 w-1.5 shrink-0">
@@ -2016,7 +1873,7 @@ function L3View({
                     >
                       <td className="p-3">
                         <div className="flex items-center gap-2">
-                          <StatusChip status={job.status} />
+                          <StatusChip status={job.status} stats={job.stats} jobKind={job.job_kind} />
                           {isParent && (
                             <button
                               onClick={e => toggleParentExpand(job.id, e)}
@@ -2044,13 +1901,13 @@ function L3View({
                         {getDuration(job.started_at, job.finished_at)}
                       </td>
                       <td className="p-3 text-xs" style={{ color: labelColor }}>
-                        {formatStatsSummary(job.stats)}
+                        {formatStatsSummary(job.stats, job.job_kind)}
                       </td>
                     </tr>
                     {isParent && isExpanded && (
                       <tr style={{ backgroundColor: getRowBg(idx) }}>
                         <td colSpan={6} className="px-4 pb-4 pt-1">
-                          <ChildJobsPanel jobId={job.id} orgId={job.org_id} />
+                          <ChildJobsPanel jobId={job.id} />
                         </td>
                       </tr>
                     )}
