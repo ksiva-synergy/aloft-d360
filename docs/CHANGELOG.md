@@ -4,7 +4,7 @@
 
 - `listEstateFacets` optional `sourceId` filter; facets API `?sourceId=`; Jobs modal loads facets per source, shows `scope_include` + catalog count, and notes that **Estate Inventory** ignores the exclude tree / Focus.
 - Fixed test-source facet exclusion (`source_id` text vs uuid cast).
-- Committed and pushed to `main` to trigger Beanstalk + harvester ECR builds (`ecr-push.yml`).
+- Cherry-picked onto `chore/remove-azure-workflow` for deploy (Beanstalk + harvester ECR via `ecr-push.yml`).
 
 ## 2026-10-21 — Estate restore script + source POST restore
 
