@@ -9,6 +9,19 @@ import {
 } from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
 
+const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
+
+function schemaMatchesIncludePatterns(catalog: string, schema: string, patterns: string[]): boolean {
+  if (!patterns.length) return true;
+  const qualified = `${catalog}.${schema}`;
+  const wildcard = `${qualified}.*`;
+  return patterns.some(
+    pat =>
+      minimatch(wildcard, pat, { dot: true }) ||
+      minimatch(qualified, pat, { dot: true }),
+  );
+}
+
 export type JobKind =
   | 'change_detect'
   | 't0_structural'
@@ -369,9 +382,12 @@ export async function planSplit(
 
   // Apply excludeSchemas filter
   const excludeSet = new Set(opts.excludeSchemas ?? []);
+  const includePatterns = opts.includePatterns ?? [];
   const filtered = rows.filter(r => {
     const key = `${r.catalog_name}.${r.schema_name}`;
-    return !excludeSet.has(key) && !excludeSet.has(r.schema_name);
+    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
+    if (!schemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
+    return true;
   });
 
   const totalObjects = filtered.reduce((s, r) => s + Number(r.cnt), 0);
