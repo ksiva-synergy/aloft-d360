@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10-21 — Estate Jobs UX and launch scope fixes
+
+- **`docs/estate-jobs.md`**: Jobs section mental model (L1/L2/L3, parent/child, APIs, playbook).
+- **`src/lib/estate/job-ui.ts`**: Shared status/stats helpers (`orchestrating`, `empty` success, `formatStatsSummary`, Focus in scope column).
+- **Launch / plan**: Strip `excludeSchemas` for T1/T2; `planSplit` respects `includePatterns`; **400 NO_OBJECTS_IN_SCOPE** when scanned count is 0; plan returns `scopeWarning`, `harvestModelId` (T2), object count.
+- **Launch modal**: Hide exclude tree for T1/T2-only; show scanned object count, warnings, T2 model; block launch when scope empty.
+- **`ChildJobsPanel`**: Extracted + poll; orchestrating parents on list/drawer/detail.
+- **Job list/detail**: **EMPTY** chip for succeeded-with-zero-work; status poll every 10s on active jobs.
+- **Tests**: `src/lib/estate/job-ui.test.ts` (vitest).
+
+## 2026-10-21 — Jobs children API UUID validation
+
+- `GET /api/agent-lab/context/jobs/[id]/children` returns **400** with a clear message when `id` is not a full UUID (avoids Prisma **500** on placeholders like `PASTE_PARENT_JOB_ID` or the `/jobs` list path).
+
 ## 2026-10-21 — Jobs launch dialog discovery clarity
 
 - `listEstateFacets` optional `sourceId` filter; facets API `?sourceId=`; Jobs modal loads facets per source, shows `scope_include` + catalog count, and notes that **Estate Inventory** ignores the exclude tree / Focus.
