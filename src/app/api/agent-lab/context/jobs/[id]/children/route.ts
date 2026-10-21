@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
+const JOB_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * GET /api/agent-lab/context/jobs/:id/children
  *
@@ -19,6 +22,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
   const { id } = await params;
+
+  if (!JOB_ID_RE.test(id)) {
+    return NextResponse.json(
+      { error: 'BAD_REQUEST', message: 'Job id must be a full UUID (copy from the job page URL).' },
+      { status: 400 },
+    );
+  }
 
   try {
     const org = await getDefaultOrg();

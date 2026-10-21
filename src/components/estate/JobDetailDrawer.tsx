@@ -5,15 +5,10 @@ import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import LogStreamPanel from './LogStreamPanel';
+import ChildJobsPanel from './ChildJobsPanel';
+import { mapJobStatus, isKickableJob, isOrchestratingParent } from '@/lib/estate/job-ui';
 
-// D-23: Shared status mapping function
-export function mapJobStatus(status: string): 'queued' | 'running' | 'done' | 'failed' {
-  const s = status.toLowerCase();
-  if (s === 'running') return 'running';
-  if (s === 'succeeded' || s === 'partial' || s === 'completed' || s === 'success' || s === 'done') return 'done';
-  if (s === 'failed' || s === 'error') return 'failed';
-  return 'queued';
-}
+export { mapJobStatus };
 
 export interface JobItem {
   id: string;
@@ -176,6 +171,21 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
   }, [job]);
 
   useEffect(() => {
+    if (!activeJob) return;
+    const s = activeJob.status.toLowerCase();
+    if (!['queued', 'running', 'orchestrating'].includes(s)) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/agent-lab/context/jobs/${activeJob.id}`);
+        if (!res.ok) return;
+        const { data } = await res.json();
+        if (data) setActiveJob((prev) => (prev ? { ...prev, ...data } : prev));
+      } catch { /* ignore */ }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [activeJob?.id, activeJob?.status]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -245,6 +255,20 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
   const renderStatusChip = (s: string) => {
     const mapped = mapJobStatus(s);
+    if (mapped === 'orchestrating') {
+      return (
+        <span
+          className="inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+          style={{
+            borderColor: 'rgba(147, 197, 253, 0.35)',
+            color: '#93C5FD',
+            backgroundColor: 'rgba(147, 197, 253, 0.08)',
+          }}
+        >
+          orchestrating
+        </span>
+      );
+    }
     switch (mapped) {
       case 'queued':
         return (
@@ -364,7 +388,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             </div>
 
             {/* Launch button — only for queued jobs with no Fargate task */}
-            {mapJobStatus(activeJob.status) === 'queued' && !(activeJob.scope as any)?.fargate_task_id && (
+            {isKickableJob(activeJob) && !(activeJob.scope as any)?.fargate_task_id && (
               <button
                 type="button"
                 onClick={handleKick}
@@ -560,12 +584,25 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             );
           })()}
 
+          {isOrchestratingParent(activeJob) && (
+            <div className="space-y-3">
+              <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: '#8892A4', letterSpacing: '0.1em' }}>
+                Child chunks
+              </h4>
+              <p className="text-[11px] font-mono" style={{ color: '#8892A4' }}>
+                This parent coordinates Fargate workers — logs live on each child row below.
+              </p>
+              <ChildJobsPanel jobId={activeJob.id} />
+            </div>
+          )}
+
           {/* Logs Section */}
           {(() => {
+            if (isOrchestratingParent(activeJob)) return null;
             const mapped = mapJobStatus(activeJob.status);
             const scope = activeJob.scope as Record<string, unknown> | null;
             const hasFargateTask = Boolean(scope?.fargate_task_id);
-            const isLive = mapped === 'queued' || mapped === 'running';
+            const isLive = mapped === 'queued' || mapped === 'running' || mapped === 'orchestrating';
             if (!isLive && !hasFargateTask) return null;
             return (
               <LogStreamPanel

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { planSplit, TIME_BUDGET_MINUTES, MAX_CONCURRENT_TASKS, MAX_CONCURRENT_BY_KIND, RATE_PER_MINUTE, type JobKind } from '@/lib/context/queue';
+import { stripExcludeSchemasForKind } from '@/lib/estate/job-ui';
+import { getContextHarvesterModelId } from '@/lib/context/harvester-llm';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,20 +46,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ needsSplit: false, totalObjects: 0, chunks: 0 });
     }
 
-    const plan = await planSplit(orgId, kind, source.id, { excludeSchemas, includePatterns });
+    const effectiveExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
+    const plan = await planSplit(orgId, kind, source.id, {
+      excludeSchemas: effectiveExcludes,
+      includePatterns,
+    });
     const maxConcurrent = (MAX_CONCURRENT_BY_KIND as Record<string, number>)[kind] ?? MAX_CONCURRENT_TASKS;
     const rate = RATE_PER_MINUTE[kind] ?? 25;
+
+    const chunks = plan.needsSplit ? plan.partitions.length : 1;
+    const scopeWarning =
+      includePatterns.length > 0 && plan.totalObjects === 0
+        ? 'No objects in Scanned registry match Focus. Fix the glob or run T0 first.'
+        : plan.needsSplit && includePatterns.length > 0 && chunks > 10
+          ? `Focus still matches ${chunks} schema chunks — widen/narrow your glob if that is unexpected.`
+          : null;
 
     return NextResponse.json({
       needsSplit: plan.needsSplit,
       totalObjects: plan.totalObjects,
-      chunks: plan.partitions.length || 1,
+      chunks,
       maxObjectsPerChunk: plan.maxObjectsPerChild,
       timeBudgetMinutes: TIME_BUDGET_MINUTES,
       estimatedMinutesPerChunk: TIME_BUDGET_MINUTES,
       estimatedWallClockMinutes: plan.estimatedWallClockMinutes || Math.ceil(plan.totalObjects / rate),
       estimatedCostUsd: plan.estimatedCostUsd,
       maxConcurrent,
+      scopeWarning,
+      emptyScope: plan.totalObjects === 0,
+      ...(kind === 't2_semantic'
+        ? { harvestModelId: getContextHarvesterModelId() }
+        : {}),
     });
   } catch (err) {
     console.error('[context/jobs/plan POST]', err);
