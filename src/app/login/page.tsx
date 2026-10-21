@@ -2,7 +2,6 @@
 
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 
 const KONAMI = [
   'ArrowUp','ArrowUp','ArrowDown','ArrowDown',
@@ -11,15 +10,8 @@ const KONAMI = [
 ];
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
   const [easterEgg, setEasterEgg] = useState(false);
 
   // Konami code easter egg
@@ -47,7 +39,7 @@ export default function LoginPage() {
       setError('Your account has been suspended. Please contact your administrator.');
     } else if (err === 'OAuthCallback' || err === 'Callback') {
       setError(
-        'Microsoft sign-in failed (often an expired Azure app secret). Use Admin Login below, or ask your admin to rotate AZURE_AD_CLIENT_SECRET.',
+        'Microsoft sign-in failed. Please try again or contact your administrator.',
       );
     }
   }, []);
@@ -61,33 +53,6 @@ export default function LoginPage() {
       setError('Unable to connect to Azure AD. Please try again.');
       setSsoLoading(false);
     }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const result = await signIn('credentials', {
-      email,
-      password,
-      rememberMe: rememberMe ? '1' : '0',
-      redirect: false,
-    });
-
-    if (!result?.ok) {
-      if (result?.error === 'ACCOUNT_SUSPENDED') {
-        setError('Your account has been suspended. Please contact your administrator.');
-      } else {
-        setError('Invalid email or password');
-      }
-      setLoading(false);
-      return;
-    }
-
-    // App Router: refresh server session cache, then hard-navigate so the cookie is applied
-    router.refresh();
-    window.location.assign('/dashboard');
   }
 
   return (
@@ -149,7 +114,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleSSOLogin}
-          disabled={ssoLoading || loading}
+          disabled={ssoLoading}
           style={{
             width: '100%',
             padding: '12px',
@@ -178,167 +143,6 @@ export default function LoginPage() {
           </svg>
           {ssoLoading ? 'Redirecting to Microsoft...' : 'Sign in with Microsoft'}
         </button>
-
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', gap: '12px' }}>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-          <button
-            type="button"
-            onClick={() => setShowCredentials(!showCredentials)}
-            style={{
-              fontSize: '12px',
-              color: '#9ca3af',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '2px 4px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {showCredentials ? 'Hide' : 'Admin Login'}
-          </button>
-          <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
-        </div>
-
-        {/* Credentials form (collapsible) */}
-        {showCredentials && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="login-email"
-                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-              >
-                Username
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                placeholder="Enter username"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#1a1a2a',
-                  background: '#fff',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.15s',
-                }}
-                onFocus={e => (e.target.style.borderColor = '#4B55C1')}
-                onBlur={e => (e.target.style.borderColor = '#d1d5db')}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label
-                htmlFor="login-password"
-                style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}
-              >
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 42px 10px 14px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    color: '#1a1a2a',
-                    background: '#fff',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'border-color 0.15s',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = '#4B55C1')}
-                  onBlur={e => (e.target.style.borderColor = '#d1d5db')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#9ca3af',
-                    fontSize: '13px',
-                    padding: '2px',
-                  }}
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Me */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px', color: '#4B55C1' }}
-              >
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={e => setRememberMe(e.target.checked)}
-                  style={{ accentColor: '#4B55C1', width: '14px', height: '14px' }}
-                />
-                Remember Me
-              </label>
-            </div>
-
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: loading ? '#7B82D1' : '#4B55C1',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 600,
-                fontSize: '15px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'background 0.15s',
-                marginTop: '4px',
-              }}
-              onMouseEnter={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#3B46B0'; }}
-              onMouseLeave={e => { if (!loading) (e.target as HTMLButtonElement).style.background = '#4B55C1'; }}
-            >
-              {loading ? 'Signing in...' : 'Login'}
-            </button>
-          </form>
-        )}
 
         {/* Error */}
         {error && (

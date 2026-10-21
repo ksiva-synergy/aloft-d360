@@ -4,8 +4,8 @@
  * middleware. It supports two callers, both funneled through the SINGLE
  * `provisionUserByOid` flow in src/lib/rbac.ts:
  *
- *   1. Cookie sessions — the browser app, authenticated via NextAuth (AzureAD /
- *      credentials). `authenticateSession()` reads the session and loads RBAC.
+ *   1. Cookie sessions — the browser app, authenticated via NextAuth Azure AD.
+ *      `authenticateSession()` reads the session and loads RBAC.
  *   2. Bearer tokens — service/SPA clients presenting a Microsoft Entra (AAD)
  *      access token. `authenticateBearer()` verifies it against Entra's JWKS.
  *

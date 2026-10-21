@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
@@ -123,7 +122,6 @@ export const GET = handle(async (req) => {
 const CreateUser = z.object({
   email: z.string().email(),
   name: z.string().optional(),
-  password: z.string().min(8).optional(), // omit for AAD-only accounts
   roles: z.array(z.string()).optional(), // role names; defaults to ["readonly"]
 });
 
@@ -140,8 +138,8 @@ export const POST = handle(async (req) => {
     data: {
       email: body.email.toLowerCase(),
       name: body.name ?? null,
-      authProvider: 'credentials',
-      passwordHash: body.password ? await bcrypt.hash(body.password, 12) : null,
+      authProvider: 'aad',
+      passwordHash: null,
       status: 'ACTIVE',
       isActive: true,
       emailVerified: false,

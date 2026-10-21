@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Loader2, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 
 interface Role {
   id: string;
@@ -55,8 +55,6 @@ function RoleBadge({ role, label }: { role: string; label?: string }) {
 export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserModalProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('member');
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -84,8 +82,6 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
     if (!open) {
       setEmail('');
       setName('');
-      setPassword('');
-      setShowPassword(false);
       setSelectedRole('member');
       setError(null);
     }
@@ -104,7 +100,6 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
         roles: [selectedRole],
       };
       if (name.trim()) body.name = name.trim();
-      if (password.trim()) body.password = password;
 
       const res = await fetch('/api/users', {
         method: 'POST',
@@ -142,7 +137,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
             <DialogTitle className="text-[15px]">Invite User</DialogTitle>
           </div>
           <DialogDescription className="text-[12.5px]">
-            Create a new platform account. The user can sign in with their email and password.
+            Create a new platform account. The user signs in with Microsoft SSO.
           </DialogDescription>
         </DialogHeader>
 
@@ -184,35 +179,6 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                 'placeholder:text-muted-foreground',
               )}
             />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-[11.5px] font-medium text-[var(--foreground)] mb-1.5">
-              Password <span className="text-muted-foreground font-normal">(optional — omit for SSO-only)</span>
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 8 characters"
-                minLength={password ? 8 : undefined}
-                className={cn(
-                  'w-full px-3 py-2 pr-9 text-[12.5px] rounded-md border',
-                  'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                  'focus:outline-none focus:ring-1 focus:ring-[#FDB515]',
-                  'placeholder:text-muted-foreground',
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
-            </div>
           </div>
 
           {/* Role */}
