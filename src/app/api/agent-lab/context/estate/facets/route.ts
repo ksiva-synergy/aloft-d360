@@ -13,8 +13,10 @@ export async function GET(req: NextRequest) {
   try {
     const orgId = await getOrgId();
     const sp = req.nextUrl.searchParams;
+    const sourceId = sp.get('sourceId')?.trim() || undefined;
     const result = await listEstateFacets(orgId, {
       excludeTestSources: sp.get('excludeTestSources') === 'true',
+      sourceId,
     });
     return NextResponse.json(result);
   } catch (err) {

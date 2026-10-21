@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-21 — Estate inventory + source scope (Synergy `main` / PR #23)
+
+- `src/lib/context/estate.ts`: partial inventory no longer soft-deletes unscanned catalogs (`catalogsSeen`).
+- `GET` / `PATCH` / `POST` `src/app/api/agent-lab/context/sources/[id]/route.ts`; facets `?sourceId=`; restore scripts under `scripts/context/`.
+- Cherry-picked onto `feature/ui-redesign` as commit `c0a7657`.
+
 ## 2026-10-21 — Estate Jobs UX and launch scope fixes (ui-redesign cherry-pick)
 
 - **`docs/estate-jobs.md`**, **`src/lib/estate/job-ui.ts`**, launch/plan/children APIs, **`ChildJobsPanel`**, Jobs list/detail UX (Focus scope, empty/orchestrating status).

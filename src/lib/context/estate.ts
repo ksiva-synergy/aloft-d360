@@ -80,19 +80,27 @@ export async function runEstateInventory(
   stats.catalogs = catalogsSeen.size;
   stats.mode = adapter.queryCount <= 3 ? 'system' : 'per-catalog';
 
-  // Diff soft-delete: mark rows not seen in this sweep
-  const removeResult = await prisma.$executeRawUnsafe(
-    `UPDATE platform_estate_objects
-     SET lifecycle = 'removed'
-     WHERE org_id = $1
-       AND source_id = $2
-       AND lifecycle = 'active'
-       AND last_inventoried_at < $3`,
-    orgId,
-    sourceId,
-    sweepStart,
-  );
-  stats.removed = removeResult;
+  // Diff soft-delete: within each catalog we actually inventoried this run, mark
+  // active rows that were not refreshed (dropped in Databricks). Do NOT touch
+  // catalogs outside catalogsSeen — a partial sweep (narrow scope, permission
+  // skips, etc.) must not mark the rest of the estate as removed.
+  if (catalogsSeen.size > 0) {
+    const catalogList = Array.from(catalogsSeen);
+    const removeResult = await prisma.$executeRawUnsafe(
+      `UPDATE platform_estate_objects
+       SET lifecycle = 'removed'
+       WHERE org_id = $1
+         AND source_id = $2
+         AND lifecycle = 'active'
+         AND catalog_name = ANY($4::text[])
+         AND last_inventoried_at < $3`,
+      orgId,
+      sourceId,
+      sweepStart,
+      catalogList,
+    );
+    stats.removed = removeResult;
+  }
 
   // Audit row
   await prisma.platformContextJob.create({
