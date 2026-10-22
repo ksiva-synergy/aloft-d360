@@ -76,13 +76,32 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws
 
 ## Secrets Manager layout expected by the task
 
+All keys are read from the **`ALOFT`** secret (ARN suffix `ALOFT-scBxmq` in `task-definition.json`).
+
 | Secret ARN suffix               | Key                    |
 |---------------------------------|------------------------|
 | `ALOFT` (JSON keys, e.g. `ALOFT-scBxmq` in ARN) | `DATABASE_URL`, `DIRECT_URL`, `DATABRICKS_*`, `XAI_*`, `FOUNDRY_*` (embed), optional `AZURE_OPENAI_*` (embed fallback) |
 | `aloft/databricks`              | `DATABRICKS_CLIENT_ID` |
 | `aloft/databricks`              | `DATABRICKS_CLIENT_SECRET` |
 
-Create or update these secrets before running the task.
+| JSON key in `ALOFT` secret | Used for |
+|----------------------------|----------|
+| `DATABASE_URL`, `DIRECT_URL` | Postgres / Prisma |
+| `DATABRICKS_*` | Warehouse harvest |
+| `XAI_API_KEY` | Estate harvest LLM (Grok 4.7) |
+| `FOUNDRY_API_KEY` | Embedding **fallback** (Azure `text-embedding-3-large`) if Bedrock Titan fails |
+
+Add `XAI_API_KEY` and `FOUNDRY_API_KEY` to the existing secret JSON if they are not there yet, then re-register the task definition (step 3).
+
+### Estate harvest LLM / embeddings (task env)
+
+| Source | Variables |
+|--------|-----------|
+| Plain env in `task-definition.json` | `XAI_MODEL`, `CONTEXT_HARVEST_MODEL`, `BEDROCK_REGION` (`us-east-1` for Titan v2), `FOUNDRY_*` (fallback), `AZURE_OPENAI_API_VERSION` |
+| `aloftEcsTaskRole` (task role) | `bedrock:InvokeModel` on `amazon.titan-embed-text-v2:0` in **us-east-1** — no `AWS_ACCESS_KEY_ID` in the task |
+| `ALOFT` secret | `XAI_API_KEY` (Grok T2), `FOUNDRY_API_KEY` (optional embed fallback) |
+
+**Primary embed:** Bedrock Titan via the Fargate task role. After changing IAM, secrets, or env, run **step 3** (register task definition) and push a new harvester image.
 
 **Estate embed jobs:** catalog vectors use Bedrock Titan v2 (`amazon.titan-embed-text-v2:0`, `BEDROCK_EMBED_REGION` → `BEDROCK_REGION` → `us-east-1`) through the task role or a Bedrock API key. Rows are embedded in parallel; `EMBED_BULK_CONCURRENCY` sets the limit (1–16, default 8). There is no OpenAI fallback for catalog vectors because search only compares vectors from the same model.
 

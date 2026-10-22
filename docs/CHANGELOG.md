@@ -2,6 +2,15 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-22 — Merge `synergy-marine/main` into `feature/ui-redesign` (PR #25)
+
+- Merged upstream `main` (`a8776e4` estate-jobs / Titan bulk embeds, SSO-only auth, `typecheck` script) into the ui-redesign branch to clear GitHub merge conflicts.
+- **Kept ui-redesign:** Vite login (`src/views/login.tsx`), Titan-only catalog embed path (`embedWithTitan` / `embedBulkWithTitan`), redesigned Jobs UI (`src/views/agent-lab/estate/jobs.tsx`), workbench/inspector UI, API 401 JSON via `src/proxy.ts`.
+- **Integrated from main:** `npm run typecheck`, merged auto-resolved context files (`mapping.ts`, `silo.ts`, `knowledge/embed.ts`, `log-agent-cost.ts`, `middleware/auth.ts`, `scripts/context/backfill-t2.ts`, `users/route.ts`), harvester task env (`XAI_MODEL`, `CONTEXT_HARVEST_MODEL`, Foundry endpoints) while keeping `HARVESTER_VERSION=ch4`.
+- **Removed:** `src/app/login/page.tsx` (deleted on ui-redesign; login is the Vite route only).
+- **Verified:** `npm run typecheck` exit 0 after merge.
+- **Not done:** full `vitest` / `web:test` on this Windows host (runner `describe`/`config` failures appear environmental, not merge-specific); browser smoke of Jobs and login.
+
 ## 2026-10-22 — Prompts and Evals removed from the sidebar
 
 - Removed the Prompts and Evals items from the Build group in `src/components/agent-lab/staging/nav-config.ts`.

@@ -14,7 +14,7 @@
  *             enqueuing or processing anything.
  *
  * Env (loaded from .env.local by noserver.cjs): DATABASE_URL / DIRECT_URL,
- * DEFAULT_ORG_SLUG (or ORG_ID), BEDROCK_REGION, plus AWS credentials for Bedrock.
+ * DEFAULT_ORG_SLUG (or ORG_ID), XAI_API_KEY + XAI_MODEL (or FOUNDRY_*), and FOUNDRY embedding env for embed jobs.
  */
 
 import prisma from '@/lib/db';

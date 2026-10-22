@@ -1,8 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
 import AzureADProvider from 'next-auth/providers/azure-ad';
 import { prisma } from '@/lib/db';
-import bcrypt from 'bcryptjs';
 import {
   provisionUserByOid,
   resolvePrimaryRole,
@@ -14,17 +12,6 @@ import {
 } from '@/lib/rbac';
 
 const SESSION_MAX_AGE_DEFAULT = 8 * 60 * 60; // 8 hours
-const SESSION_MAX_AGE_REMEMBER = 30 * 24 * 60 * 60; // 30 days
-
-function extractIpAndUa(req: any): { ip: string | null; ua: string | null } {
-  const headers = req?.headers ?? {};
-  const ip =
-    headers['x-forwarded-for']?.split(',')[0]?.trim() ??
-    headers['x-real-ip'] ??
-    null;
-  const ua = headers['user-agent'] ?? null;
-  return { ip, ua };
-}
 
 async function recordLoginEvent(params: {
   email: string;
@@ -40,7 +27,7 @@ async function recordLoginEvent(params: {
       data: {
         email: params.email,
         userId: params.userId ?? undefined,
-        provider: params.provider ?? 'credentials',
+        provider: params.provider ?? 'azure_ad',
         success: params.success,
         failureReason: params.failureReason ?? null,
         ipAddress: params.ip ?? null,
@@ -66,12 +53,6 @@ async function updateProfileOnLogin(userId: string, ip: string | null) {
   } catch {
     // non-blocking
   }
-}
-
-/** Resolve a user's coarse role string (primary RBAC role) for the session/JWT. */
-async function primaryRoleForUser(userId: string): Promise<string> {
-  const u = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
-  return u ? resolvePrimaryRole(u) : DEFAULT_ROLE;
 }
 
 /**
@@ -114,94 +95,6 @@ export const authOptions: NextAuthOptions = {
     debug() {},
   },
   providers: [
-    // Break-glass local admin (optional). Only usable by accounts that actually
-    // have a passwordHash — AAD users have none and cannot log in this way.
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-        rememberMe: { label: 'Remember Me', type: 'text' },
-      },
-      async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-
-        const { ip, ua } = extractIpAndUa(req);
-
-        let user: Awaited<ReturnType<typeof prisma.user.findUnique>>;
-        try {
-          user = await prisma.user.findUnique({
-            where: { email: credentials.email.toLowerCase() },
-          });
-        } catch {
-          return null;
-        }
-
-        if (!user) {
-          await recordLoginEvent({
-            email: credentials.email,
-            success: false,
-            failureReason: 'USER_NOT_FOUND',
-            ip,
-            ua,
-          });
-          return null;
-        }
-
-        // AAD-only accounts have no local password to check against.
-        if (!user.passwordHash) {
-          await recordLoginEvent({
-            email: credentials.email,
-            userId: user.id,
-            success: false,
-            failureReason: 'NO_LOCAL_PASSWORD',
-            ip,
-            ua,
-          });
-          return null;
-        }
-
-        if (user.status !== 'ACTIVE' || !user.isActive || user.deletedAt) {
-          await recordLoginEvent({
-            email: credentials.email,
-            userId: user.id,
-            success: false,
-            failureReason: 'ACCOUNT_INACTIVE',
-            ip,
-            ua,
-          });
-          throw new Error('ACCOUNT_SUSPENDED');
-        }
-
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) {
-          await recordLoginEvent({
-            email: credentials.email,
-            userId: user.id,
-            success: false,
-            failureReason: 'INVALID_PASSWORD',
-            ip,
-            ua,
-          });
-          return null;
-        }
-
-        await recordLoginEvent({ email: credentials.email, userId: user.id, success: true, ip, ua });
-        await updateProfileOnLogin(user.id, ip);
-
-        const role = await primaryRoleForUser(user.id);
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? undefined,
-          role,
-          roleLabel: resolveRoleLabel(role),
-          rememberMe: credentials.rememberMe === '1',
-        };
-      },
-    }),
     // Azure AD SSO — activated only when all three env vars are present
     ...(process.env.AZURE_AD_CLIENT_ID &&
     process.env.AZURE_AD_CLIENT_SECRET &&
@@ -287,19 +180,16 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Credentials provider — allow through (authorize already validated)
-      return true;
+      // SSO is the only supported interactive authentication method.
+      return false;
     },
 
     async jwt({ token, user, account, profile, trigger }) {
-      // Initial sign-in — credentials flow populates from the user object
+      // Initial sign-in — populate identity defaults from the provider user object.
       if (user) {
         token.id = (user as { id: string }).id;
         token.role = (user as { role?: string }).role ?? DEFAULT_ROLE;
         token.roleLabel = (user as { roleLabel?: string }).roleLabel ?? resolveRoleLabel(token.role as string);
-        if ((user as { rememberMe?: boolean }).rememberMe) {
-          token.rememberMe = true;
-        }
       }
 
       // AAD initial sign-in — resolve our user id + RBAC role from the oid claim
@@ -363,7 +253,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: SESSION_MAX_AGE_DEFAULT,
   },
   jwt: {
-    maxAge: SESSION_MAX_AGE_REMEMBER,
+    maxAge: SESSION_MAX_AGE_DEFAULT,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
