@@ -83,7 +83,7 @@ All keys are read from the **`ALOFT`** secret (ARN suffix `ALOFT-scBxmq` in `tas
 | `DATABASE_URL`, `DIRECT_URL` | Postgres / Prisma |
 | `DATABRICKS_*` | Warehouse harvest |
 | `XAI_API_KEY` | Estate harvest LLM (Grok 4.7) |
-| `FOUNDRY_API_KEY` | `text-embedding-3-large` embeddings |
+| `FOUNDRY_API_KEY` | Embedding **fallback** (Azure `text-embedding-3-large`) if Bedrock Titan fails |
 
 Add `XAI_API_KEY` and `FOUNDRY_API_KEY` to the existing secret JSON if they are not there yet, then re-register the task definition (step 3).
 
@@ -91,10 +91,11 @@ Add `XAI_API_KEY` and `FOUNDRY_API_KEY` to the existing secret JSON if they are 
 
 | Source | Variables |
 |--------|-----------|
-| Plain env in `task-definition.json` | `XAI_MODEL`, `CONTEXT_HARVEST_MODEL` (default `grok-4.7`), `FOUNDRY_ENDPOINT`, `FOUNDRY_EMBEDDING_*`, `AZURE_OPENAI_API_VERSION` |
-| `aloft/estate-llm` | `XAI_API_KEY` (enrich / T3 / silo / mapping chat), `FOUNDRY_API_KEY` (Azure `text-embedding-3-large` via `embed-client`) |
+| Plain env in `task-definition.json` | `XAI_MODEL`, `CONTEXT_HARVEST_MODEL`, `BEDROCK_REGION` (`us-east-1` for Titan v2), `FOUNDRY_*` (fallback), `AZURE_OPENAI_API_VERSION` |
+| `aloftEcsTaskRole` (task role) | `bedrock:InvokeModel` on `amazon.titan-embed-text-v2:0` in **us-east-1** — no `AWS_ACCESS_KEY_ID` in the task |
+| `ALOFT` secret | `XAI_API_KEY` (Grok T2), `FOUNDRY_API_KEY` (optional embed fallback) |
 
-Bedrock is no longer required for the context harvester pipeline. After changing secrets or env, run **step 3** (register task definition) and ensure EventBridge targets use the new revision.
+**Primary embed:** Bedrock Titan via the Fargate task role. After changing IAM, secrets, or env, run **step 3** (register task definition) and push a new harvester image.
 
 ## Required Env Vars — Org Resolution
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-10-22 — Restore Bedrock Titan v2 for estate embeddings
+
+- **`src/lib/azure/embed-client.ts`**: Titan `amazon.titan-embed-text-v2:0` primary again (`InvokeModel`); OpenAI/Foundry fallback; `embedBulkWithFallback` with `EMBED_BULK_CONCURRENCY` (default 8). `EMBED_OPENAI_ONLY=1` skips Titan.
+- **`src/lib/context/embed.ts`**: Estate embed job uses bulk concurrent Titan calls before DB upsert (objects + columns).
+- **Verified:** `npm run typecheck`. Fargate uses **task role** creds (no access keys in task def); `BEDROCK_REGION=us-east-1` in `task-definition.json`. IAM: `bedrock:InvokeModel` on Titan v2 for `aloftEcsTaskRole`.
+- **Deploy:** pushed to `feature/estate-jobs` and `main` (`ecr-push.yml` builds web + harvester images, Beanstalk deploy on `main`). **Not done:** `aws ecs register-task-definition` for the new `BEDROCK_REGION` env (no local AWS creds) — run step 3 in `infra/context/deploy-notes.md`; code already defaults `BEDROCK_REGION` to `us-east-1`, so this is mainly the `HARVESTER_VERSION` label.
+
+## 2026-10-21 — Embedding coverage audit script
+
+- **`scripts/context/embedding-audit.ts`**: read-only counts for `platform_context_embeddings`, T2 vs object-embed gap, estate lifecycle, recent embed/T2 jobs (uses `noserver.cjs` + `.env.local` DB).
+- Verified against `verify-estate-1` source: **14,710** embedding rows (no orphans on removed context objects); **1,520 / 1,539** T2 objects have object embeddings (**22** backlog).
+
 ## 2026-10-21 — Estate Jobs UX and launch scope fixes
 
 - **`docs/estate-jobs.md`**: Jobs section mental model (L1/L2/L3, parent/child, APIs, playbook).

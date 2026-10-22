@@ -22,7 +22,8 @@
       ],
       "environment": [
         { "name": "NODE_ENV", "value": "production" },
-        { "name": "HARVESTER_VERSION", "value": "ch5-grok-foundry-embed" },
+        { "name": "HARVESTER_VERSION", "value": "ch5-titan-embed-bulk" },
+        { "name": "BEDROCK_REGION", "value": "us-east-1" },
         { "name": "DEFAULT_ORG_SLUG", "value": "spinor-demo" },
         { "name": "DEFAULT_ORG_ID", "value": "cmpm82n5x0000dj0cn3fo9pug" },
         { "name": "XAI_MODEL", "value": "grok-4.7" },
