@@ -8,7 +8,7 @@
 
 import 'server-only';
 import prisma from '@/lib/db';
-import { embedWithTitan, TITAN_EMBED_MODEL } from '@/lib/azure/embed-client';
+import { embedBulkWithTitan, embedWithTitan, TITAN_EMBED_MODEL } from '@/lib/azure/embed-client';
 import { enqueue, finalize } from './queue';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -76,6 +76,29 @@ async function getEmbedding(text: string): Promise<{ vector: number[]; modelId: 
   if (!result) return null;
   return { vector: result.embedding, modelId: result.modelId };
 }
+
+type PendingEmbed = { subjectId: string; embedText: string };
+
+/** Embed queued rows concurrently (Titan only), then upsert each success. */
+async function flushPendingEmbeds(
+  orgId: string,
+  subjectKind: 'object' | 'column',
+  pending: PendingEmbed[],
+  tallies: EmbedSubjectsResult,
+): Promise<void> {
+  if (pending.length === 0) return;
+  const vectors = await embedBulkWithTitan(pending.map((p) => p.embedText), EMBED_DIMS);
+  for (let i = 0; i < pending.length; i++) {
+    const result = vectors[i];
+    if (!result) {
+      tallies.failed++;
+      continue;
+    }
+    await upsertEmbedding(orgId, subjectKind, pending[i].subjectId, pending[i].embedText, result.embedding, result.modelId);
+    tallies.embedded++;
+  }
+}
+
 function vectorToSql(v: number[]): string {
   return `[${v.join(',')}]`;
 }
@@ -137,9 +160,7 @@ export async function embedSubjects(
   });
   const existingMap = new Map(existing.map((e) => [e.subject_id, e.embed_text ?? '']));
 
-  let embedded = 0;
-  let skipped = 0;
-  let failed = 0;
+  const tallies: EmbedSubjectsResult = { embedded: 0, skipped: 0, failed: 0 };
 
   if (subjectKind === 'object') {
     const objects = await prisma.platformContextObject.findMany({
@@ -160,10 +181,11 @@ export async function embedSubjects(
       }
     }
 
+    const pending: PendingEmbed[] = [];
     for (const obj of objects) {
       const card = semanticMap.get(obj.id);
       if (!card) {
-        skipped++;
+        tallies.skipped++;
         continue;
       }
 
@@ -179,19 +201,13 @@ export async function embedSubjects(
 
       const embedText = composeEmbedText('object', row);
       if (existingMap.get(obj.id) === embedText) {
-        skipped++;
+        tallies.skipped++;
         continue;
       }
 
-      const embedResult = await getEmbedding(embedText);
-      if (!embedResult) {
-        failed++;
-        continue;
-      }
-
-      await upsertEmbedding(orgId, 'object', obj.id, embedText, embedResult.vector, embedResult.modelId);
-      embedded++;
+      pending.push({ subjectId: obj.id, embedText });
     }
+    await flushPendingEmbeds(orgId, 'object', pending, tallies);
   } else {
     // Columns — include object full_path via relation
     const columns = await prisma.platformContextColumn.findMany({
@@ -206,10 +222,11 @@ export async function embedSubjects(
       },
     });
 
+    const pending: PendingEmbed[] = [];
     for (const col of columns) {
       const sem = (col.semantic ?? {}) as Record<string, unknown>;
       if (!sem.description || !sem.role) {
-        skipped++;
+        tallies.skipped++;
         continue;
       }
 
@@ -233,22 +250,16 @@ export async function embedSubjects(
 
       const embedText = composeEmbedText('column', row);
       if (existingMap.get(col.id) === embedText) {
-        skipped++;
+        tallies.skipped++;
         continue;
       }
 
-      const embedResult = await getEmbedding(embedText);
-      if (!embedResult) {
-        failed++;
-        continue;
-      }
-
-      await upsertEmbedding(orgId, 'column', col.id, embedText, embedResult.vector, embedResult.modelId);
-      embedded++;
+      pending.push({ subjectId: col.id, embedText });
     }
+    await flushPendingEmbeds(orgId, 'column', pending, tallies);
   }
 
-  return { embedded, skipped, failed };
+  return tallies;
 }
 
 // ── embedQuery (exported for semantic search) ─────────────────────────────────

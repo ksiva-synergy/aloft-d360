@@ -84,6 +84,8 @@ aws iam attach-role-policy --role-name ecsTaskExecutionRole --policy-arn arn:aws
 
 Create or update these secrets before running the task.
 
+**Estate embed jobs:** catalog vectors use Bedrock Titan v2 (`amazon.titan-embed-text-v2:0`, `BEDROCK_EMBED_REGION` → `BEDROCK_REGION` → `us-east-1`) through the task role or a Bedrock API key. Rows are embedded in parallel; `EMBED_BULK_CONCURRENCY` sets the limit (1–16, default 8). There is no OpenAI fallback for catalog vectors because search only compares vectors from the same model.
+
 ## Required Env Vars — Org Resolution
 
 These must be set in **every environment** (local `.env.local`, Vercel, CI).

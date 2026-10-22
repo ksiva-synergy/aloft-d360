@@ -12,6 +12,12 @@ export const OPENAI_EMBED_MODEL =
 export const TITAN_EMBED_MODEL = 'amazon.titan-embed-text-v2:0';
 export const DEFAULT_EMBED_DIMS = 1024;
 
+/** Concurrent Titan InvokeModel calls for estate bulk embed jobs (1–16, default 8). */
+export const EMBED_BULK_CONCURRENCY = Math.min(
+  16,
+  Math.max(1, Number(process.env.EMBED_BULK_CONCURRENCY) || 8),
+);
+
 let titanClient: BedrockRuntimeClient | null = null;
 
 function getTitanClient(): BedrockRuntimeClient {
@@ -20,7 +26,7 @@ function getTitanClient(): BedrockRuntimeClient {
 }
 
 function getTitanRegion(): string {
-  return process.env.BEDROCK_EMBED_REGION?.trim() || 'us-east-1';
+  return process.env.BEDROCK_EMBED_REGION?.trim() || process.env.BEDROCK_REGION?.trim() || 'us-east-1';
 }
 
 /** Bedrock API key (bearer). The Mantle key is a standard Bedrock API key and works for InvokeModel. */
@@ -73,6 +79,27 @@ export async function embedWithTitan(
     console.warn(`[embed] Bedrock Titan embedding (${TITAN_EMBED_MODEL}) failed`, err);
     return null;
   }
+}
+
+/**
+ * Embed many texts with Titan v2 using bounded concurrency (estate embed job bulk path).
+ * Returns one result per input index; null marks a failed row.
+ */
+export async function embedBulkWithTitan(
+  texts: string[],
+  dimensions = DEFAULT_EMBED_DIMS,
+  concurrency = EMBED_BULK_CONCURRENCY,
+): Promise<(EmbeddingResult | null)[]> {
+  const results: (EmbeddingResult | null)[] = new Array(texts.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < texts.length) {
+      const i = next++;
+      results[i] = await embedWithTitan(texts[i], dimensions);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, texts.length) }, worker));
+  return results;
 }
 
 type EmbedCredentials = { apiKey: string; endpoint: string };

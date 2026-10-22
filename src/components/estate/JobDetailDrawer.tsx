@@ -58,6 +58,30 @@ function JsonValue({ value }: { value: unknown }) {
   return null;
 }
 
+function EmbedJobStatsNote({ stats }: { stats: Record<string, unknown> }) {
+  const objects = stats.objects_embedded;
+  const columns = stats.columns_embedded;
+  const skipped = stats.skipped;
+  if (objects === undefined && columns === undefined) return null;
+  return (
+    <p className="font-mono text-[11px] leading-relaxed px-1 text-[var(--text-muted)]">
+      Counts below are for this run only (new or changed vectors). Unchanged rows are in{' '}
+      <span style={{ color: '#93C5FD' }}>skipped</span>
+      {typeof skipped === 'number' ? ` (${skipped.toLocaleString()})` : ''}. Estate totals are on
+      Catalog → Scanned &amp; Beyond (Embed tier).
+      {typeof objects === 'number' || typeof columns === 'number' ? (
+        <>
+          {' '}
+          This run:{' '}
+          {typeof objects === 'number' ? `${objects.toLocaleString()} tables` : ''}
+          {typeof objects === 'number' && typeof columns === 'number' ? ', ' : ''}
+          {typeof columns === 'number' ? `${columns.toLocaleString()} columns` : ''}.
+        </>
+      ) : null}
+    </p>
+  );
+}
+
 function JsonDisplay({ data }: { data: unknown }) {
   if (data === null || data === undefined) return null;
 
@@ -643,7 +667,12 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
               Stats
             </h4>
             {activeJob.stats ? (
-              <JsonDisplay data={activeJob.stats} />
+              <>
+                {activeJob.job_kind === 'embed' && typeof activeJob.stats === 'object' && activeJob.stats !== null ? (
+                  <EmbedJobStatsNote stats={activeJob.stats as Record<string, unknown>} />
+                ) : null}
+                <JsonDisplay data={activeJob.stats} />
+              </>
             ) : (
               <div className="font-mono text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No stats recorded

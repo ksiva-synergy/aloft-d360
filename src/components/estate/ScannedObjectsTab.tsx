@@ -34,6 +34,12 @@ interface ScannedTierCounts {
   t4: number;
 }
 
+interface ScannedEmbeddingTotals {
+  objects_with_embedding: number;
+  object_vector_rows: number;
+  column_vector_rows: number;
+}
+
 type TierFilter = 't0' | 't1' | 't2' | 'embed' | 't3' | 't4' | null;
 
 interface ScannedFilterState {
@@ -86,7 +92,7 @@ const TIER_LABELS: Record<keyof typeof TIER_COLORS, string> = {
   t0: 'T0 Structural — schema, columns, row counts',
   t1: 'T1 Profile — statistical column profiling',
   t2: 'T2 Semantic — AI summaries and PII detection',
-  embed: 'Embed — vector embeddings for semantic search',
+  embed: 'Embed — tables with object-level vectors (column vectors shown separately)',
   t3: 'T3 Connected — usage analysis and cross-object connections',
   t4: 'T4 Modelled — entity + dimension proposals generated',
 };
@@ -163,6 +169,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
   const [items, setItems] = useState<ScannedObjectItem[]>([]);
   const [total, setTotal] = useState(0);
   const [tierCounts, setTierCounts] = useState<ScannedTierCounts>({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+  const [embeddingTotals, setEmbeddingTotals] = useState<ScannedEmbeddingTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchVal, setSearchVal] = useState('');
 
@@ -217,16 +224,19 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
         setItems(newItems);
         setTotal(newTotal);
         setTierCounts(newTierCounts);
+        setEmbeddingTotals(json?.data?.embeddingTotals ?? null);
       } else {
         setItems([]);
         setTotal(0);
         setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+        setEmbeddingTotals(null);
       }
     } catch (err) {
       console.error('[ScannedObjectsTab] fetch error', err);
       setItems([]);
       setTotal(0);
       setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+      setEmbeddingTotals(null);
     } finally {
       setLoading(false);
     }
@@ -344,6 +354,12 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
             {filters.tier && (
               <span style={{ color: TIER_COLORS[filters.tier], marginLeft: 6 }}>
                 · {filters.tier.toUpperCase()} filter active
+              </span>
+            )}
+            {embeddingTotals && embeddingTotals.column_vector_rows > 0 && (
+              <span style={{ marginLeft: 8, color: mutedColor }}>
+                · {embeddingTotals.objects_with_embedding.toLocaleString()} table vectors
+                · {embeddingTotals.column_vector_rows.toLocaleString()} column vectors
               </span>
             )}
           </span>
