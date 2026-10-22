@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { constructionStateSchema, type ConstructionState } from '../constructionState';
 import { applyUserEdit, mergeUserEdits, parseEditValue, userLockFor } from '../user-edits';
-import { executeBuilderTool } from '../builder-tools';
+import { executeBuilderTool, inferAgentClass } from '../builder-tools';
 import { applyAssumption } from '../apply-patch';
 import { detectAgentBuildIntent } from '../handoff';
 import { buildFlowNodes } from '@/components/workbench/config/FlowStrip';
+import { buildWorkbenchSystemPrompt, buildWorkbenchToolConfig } from '../prompts';
 
 const INSTRUCTIONS = 'Answer bunker variance questions for the fleet using the weekly bunker report.';
 
@@ -12,12 +13,18 @@ function draft(overrides: Record<string, unknown> = {}): ConstructionState {
   return constructionStateSchema.parse({ memory: { buildContext: { orgId: 'org-1' } }, ...overrides });
 }
 
-async function runTool(state: ConstructionState, tool: string, input: Record<string, unknown>) {
+async function runTool(
+  state: ConstructionState,
+  tool: string,
+  input: Record<string, unknown>,
+  availableTools: Array<{ id: string; name: string; type: string; description: string }> = [],
+) {
   let current = state;
   const out = await executeBuilderTool(tool, input, {
     getState: () => current,
     setState: (next) => { current = next; },
     emit: () => {},
+    availableTools,
   });
   return { result: JSON.parse(out) as Record<string, unknown>, state: current };
 }
@@ -109,6 +116,92 @@ describe('builder tools respect user-owned fields', () => {
     const { result, state } = await runTool(s, 'add_datasource', { kind: 'databricks', ref: 'a.b.d' });
     expect(result.ok).toBe(true);
     expect(state.tools.datasources).toHaveLength(2);
+  });
+
+  it('selects a class and records the inference on the blueprint', async () => {
+    const { result, state } = await runTool(draft(), 'select_agent_class', {
+      classId: 'rama',
+      confidence: 0.84,
+      rationale: 'The agent verifies operational claims against source evidence.',
+    });
+    expect(result.ok).toBe(true);
+    expect(state.class).toMatchObject({ id: 'rama', source: 'inferred', confidence: 0.84 });
+    expect(state.provenance['class.id']).toBe('ai');
+  });
+
+  it('selects only tools from the active catalog and derives their tier', async () => {
+    const available = [
+      { id: 'bunker-sql', name: 'Bunker SQL', type: 'db_query', description: 'Read bunker data' },
+      { id: 'email-send', name: 'Email', type: 'mcp', description: 'Send email' },
+    ];
+    const { result, state } = await runTool(
+      draft(),
+      'select_agent_tools',
+      { toolIds: ['bunker-sql', 'email-send'] },
+      available,
+    );
+    expect(result.ok).toBe(true);
+    expect(state.tools.actions).toEqual([
+      { toolId: 'bunker-sql', tier: 'governed' },
+      { toolId: 'email-send', tier: 'mcp' },
+    ]);
+  });
+
+  it('rejects tool IDs that are not in the active catalog', async () => {
+    const { result, state } = await runTool(draft(), 'select_agent_tools', { toolIds: ['unknown'] });
+    expect(result).toMatchObject({ ok: false, unknownIds: ['unknown'] });
+    expect(state.tools.actions).toEqual([]);
+  });
+
+  it('does not overwrite a user-selected class or tool list', async () => {
+    const classEdited = applyUserEdit(draft(), 'class.id', 'fermi');
+    const classResult = await runTool(classEdited, 'select_agent_class', {
+      classId: 'feynman',
+      confidence: 0.9,
+      rationale: 'Compliance work.',
+    });
+    expect(classResult.result.error).toBe('USER_LOCKED');
+    expect(classResult.state.class?.id).toBe('fermi');
+
+    const toolsEdited = applyUserEdit(draft(), 'tools.actions', []);
+    const toolsResult = await runTool(
+      toolsEdited,
+      'select_agent_tools',
+      { toolIds: ['bunker-sql'] },
+      [{ id: 'bunker-sql', name: 'Bunker SQL', type: 'db_query', description: 'Read bunker data' }],
+    );
+    expect(toolsResult.result.error).toBe('USER_LOCKED');
+    expect(toolsResult.state.tools.actions).toEqual([]);
+  });
+});
+
+describe('Workbench agent planning', () => {
+  it('tells the builder to research harvested data and choose a class and tools', () => {
+    const prompt = buildWorkbenchSystemPrompt(draft(), {
+      catalogResearch: '{"results":[]}',
+      availableTools: [{ id: 'bunker-sql', name: 'Bunker SQL', type: 'db_query', description: 'Read bunker data' }],
+    });
+    expect(prompt).toContain('research the harvested catalog');
+    expect(prompt).toContain('select_agent_class');
+    expect(prompt).toContain('select_agent_tools');
+    expect(prompt).toContain('bunker-sql');
+    expect(prompt).toContain('INITIAL HARVESTED-CATALOG RESEARCH');
+
+    const toolNames = buildWorkbenchToolConfig()
+      .tools
+      ?.map((tool) => tool.toolSpec?.name);
+    expect(toolNames).toContain('describe_schema');
+    expect(toolNames).toContain('select_agent_class');
+    expect(toolNames).toContain('select_agent_tools');
+  });
+
+  it.each([
+    ['verify claims against evidence', 'rama'],
+    ['forecast fuel demand', 'fermi'],
+    ['orchestrate vendor onboarding', 'grossmann'],
+    ['audit certificates for compliance', 'feynman'],
+  ])('infers %s as %s', (mission, classId) => {
+    expect(inferAgentClass(mission)?.classId).toBe(classId);
   });
 });
 

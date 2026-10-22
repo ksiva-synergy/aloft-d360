@@ -6,7 +6,7 @@ import { RotateCcw, Pencil, ChevronDown, Octagon } from 'lucide-react';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { StreamingMessage } from './StreamingMessage';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
-import { Captain } from '@/components/companion/Captain';
+import { Companion } from '@/components/companion/Companion';
 import { InputComposer } from './InputComposer';
 import { AssumptionChip } from './AssumptionChip';
 import { ClassSuggestionChip } from './ClassSuggestionChip';
@@ -89,7 +89,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
         transition={{ duration: 0.45, ease: 'easeOut' }}
         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: 480 }}
       >
-        <Captain size={72} />
+        <Companion size={72} />
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ ...mono, color: MUTED, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center' }}>
             {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />

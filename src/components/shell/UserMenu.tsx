@@ -97,6 +97,7 @@ export function UserMenu({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Force a JWT refresh on mount so role changes made by an admin are reflected
   // immediately without requiring the user to sign out and back in.
@@ -131,7 +132,16 @@ export function UserMenu({
   const displayRole = user?.roleLabel ?? user?.role ?? null;
 
   return (
-    <div ref={menuRef} className="relative">
+    <div
+      ref={menuRef}
+      className="relative"
+      onMouseEnter={() => { if (leaveTimer.current) clearTimeout(leaveTimer.current); }}
+      onMouseLeave={() => {
+        if (!open) return;
+        if (leaveTimer.current) clearTimeout(leaveTimer.current);
+        leaveTimer.current = setTimeout(() => setOpen(false), 400);
+      }}
+    >
       <button
         onClick={() => !isLoading && setOpen(!open)}
         disabled={isLoading}

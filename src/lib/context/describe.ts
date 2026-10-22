@@ -7,8 +7,9 @@ import 'server-only';
 import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { enqueue } from '@/lib/context/queue';
-import { embedQuery } from '@/lib/context/embed';
-import { tokenizeQuery } from '@/lib/context/keywords';
+import { CURRENT_EMBEDDING_MODEL, embedQuery } from '@/lib/context/embed';
+import { tokenizeCatalogNameQuery, tokenizeQuery } from '@/lib/context/keywords';
+import { MIN_SEMANTIC_SIMILARITY, rankCatalogCandidates } from '@/lib/context/search-ranking';
 
 // ── Input / output types ──────────────────────────────────────────────────────
 
@@ -538,7 +539,7 @@ export async function profileObject(input: ProfileInput): Promise<ProfileResult 
 export interface RoutePromptResult {
   /** Pre-matched object IDs → keyword overlap count */
   scores: Map<string, number>;
-  /** True when confidence is high enough to skip Bedrock embed */
+  /** True when confidence is high enough to use keyword routing as a strong signal */
   routed: boolean;
   /** The tokens extracted from the query */
   tokens: string[];
@@ -549,7 +550,7 @@ export interface RoutePromptResult {
  *
  * Tokenizes the user query and runs a sub-5ms GIN array-overlap query against
  * `platform_context_objects.domain_keywords`. Returns a scored map of object
- * IDs when confident enough to skip the Bedrock embedding call entirely.
+ * IDs with their keyword-overlap scores. This signal supplements vector search.
  *
  * Routing fires when:
  *  - At least one object has an overlap score >= MIN_ROUTE_SCORE (≥2 shared tokens), OR
@@ -592,7 +593,8 @@ export async function routePrompt(input: {
     scored.set(row.id, overlap);
   }
 
-  // Routing fires when the best match has >= MIN_ROUTE_SCORE overlapping tokens.
+  // A strong keyword overlap is retained as a ranking signal, not a reason to
+  // skip the required vector search.
   const bestScore = Math.max(...scored.values());
   if (bestScore < MIN_ROUTE_SCORE) return { scores: scored, routed: false, tokens };
 
@@ -613,115 +615,143 @@ export interface SearchResultItem {
   row_count_est: number | null;
   /** One-line reason, ~150-char budget per DESIGN.md §7.1 */
   reason: string;
-  /** Blended score 0–1 (semantic × 0.7 + name-match bonus × 0.3) */
+  /** Blended ranking score; inspect evidence before treating a match as relevant. */
   score: number;
-  match_type: 'semantic' | 'name' | 'blended';
+  semantic_score: number | null;
+  keyword_score: number;
+  exact_name_match: boolean;
+  match_type: 'semantic' | 'keyword' | 'name' | 'blended';
 }
 
 export interface SearchResult {
   query: string;
   results: SearchResultItem[];
   embedding_available: boolean;
+  vector_candidates_found: number;
+  vector_index: VectorIndexHealth;
+}
+
+export interface VectorIndexHealth {
+  /** Model used for query embeddings; only stored vectors from this model are comparable. */
+  query_model: string;
+  active_objects: number;
+  /** Active objects with an embedding from query_model. */
+  comparable_embeddings: number;
+  /** Active objects embedded with a different model; excluded because their scores are meaningless. */
+  other_model_embeddings: number;
 }
 
 type EmbedRow = { subject_id: string; similarity: number };
+type VectorIndexRow = { active_objects: number; comparable: number; other_model: number };
 
 /**
  * Semantic search over catalog objects for an org.
  *
- * Routing order (stops at the first layer that produces confident results):
- *  1. Keyword routing — GIN array overlap on domain_keywords (<5ms, no Bedrock).
- *     Fires when ≥2 query tokens appear in a stored keyword set.
- *  2. Bedrock embedding — pgvector cosine similarity via Titan v2 (~300ms).
- *     Used when keyword routing is insufficient or returns zero matches.
- *  3. ILIKE name match — always run as an additive blend.
+ * Always runs pgvector cosine similarity and combines it with keyword overlap
+ * and exact catalog-name matches. Keyword/name evidence supplements, but never
+ * substitutes for, vector similarity.
  *
  * Always org-scoped — ingest-org = search-org invariant.
  */
 export async function searchObjects(input: SearchInput): Promise<SearchResult> {
   const k = Math.min(Math.max(input.k ?? 5, 1), 20);
   const candidateLimit = k * 3;
+  const nameTokens = tokenizeCatalogNameQuery(input.query);
 
-  // ── 0. Keyword routing (fast path, zero Bedrock) ──────────────────────────────
-
+  // Retrieve independent evidence signals; keyword/name matches must not bypass
+  // semantic retrieval because a confident lexical route can still be unrelated.
   const route = await routePrompt({ orgId: input.orgId, query: input.query, k });
-
-  // ── 1. Semantic candidates via pgvector (skipped when keyword routing succeeds) ─
-
-  const semanticScores = new Map<string, number>(); // objectId → similarity 0–1
+  const vectorScores = new Map<string, number>(); // objectId → cosine similarity 0–1
   let embeddingAvailable = false;
+  const vec = await embedQuery(input.query);
+  embeddingAvailable = vec !== null;
 
-  if (!route.routed) {
-    const vec = await embedQuery(input.query);
-    embeddingAvailable = vec !== null;
+  // Cosine similarity across different embedding models is meaningless, and
+  // dropped objects cannot be described, so both are excluded from retrieval.
+  const [indexRow] = await prisma.$queryRaw<VectorIndexRow[]>`
+    SELECT
+      count(*)::int AS active_objects,
+      count(e.id) FILTER (WHERE e.model_id = ${CURRENT_EMBEDDING_MODEL})::int AS comparable,
+      count(e.id) FILTER (WHERE e.model_id IS DISTINCT FROM ${CURRENT_EMBEDDING_MODEL})::int AS other_model
+    FROM platform_context_objects o
+    LEFT JOIN platform_context_embeddings e
+      ON e.subject_id = o.id AND e.subject_kind = 'object' AND e.embedding IS NOT NULL
+    WHERE o.org_id = ${input.orgId}
+      AND o.lifecycle = 'active'
+  `;
+  const vectorIndex: VectorIndexHealth = {
+    query_model: CURRENT_EMBEDDING_MODEL,
+    active_objects: indexRow?.active_objects ?? 0,
+    comparable_embeddings: indexRow?.comparable ?? 0,
+    other_model_embeddings: indexRow?.other_model ?? 0,
+  };
 
-    if (vec !== null) {
-      const vecLiteral = `[${vec.join(',')}]`;
-      const embedRows = await prisma.$queryRaw<EmbedRow[]>`
-        SELECT
-          e.subject_id::text AS subject_id,
-          (1 - (e.embedding <=> ${vecLiteral}::text::vector))::float AS similarity
-        FROM platform_context_embeddings e
-        WHERE e.org_id    = ${input.orgId}
-          AND e.subject_kind = 'object'
-          AND e.embedding IS NOT NULL
-        ORDER BY e.embedding <=> ${vecLiteral}::text::vector ASC
-        LIMIT ${candidateLimit}
-      `;
-      for (const r of embedRows) {
-        // Clamp: cosine similarity for unit vectors ∈ [-1, 1]; keep [0, 1]
-        semanticScores.set(r.subject_id, Math.max(0, r.similarity));
-      }
+  if (vec !== null && vectorIndex.comparable_embeddings > 0) {
+    const vecLiteral = `[${vec.join(',')}]`;
+    const embedRows = await prisma.$queryRaw<EmbedRow[]>`
+      SELECT
+        e.subject_id::text AS subject_id,
+        (1 - (e.embedding <=> ${vecLiteral}::text::vector))::float AS similarity
+      FROM platform_context_embeddings e
+      JOIN platform_context_objects o
+        ON o.id = e.subject_id AND o.org_id = e.org_id AND o.lifecycle = 'active'
+      WHERE e.org_id    = ${input.orgId}
+        AND e.subject_kind = 'object'
+        AND e.embedding IS NOT NULL
+        AND e.model_id = ${CURRENT_EMBEDDING_MODEL}
+      ORDER BY e.embedding <=> ${vecLiteral}::text::vector ASC
+      LIMIT ${candidateLimit}
+    `;
+    for (const r of embedRows) {
+      // Clamp: cosine similarity for unit vectors ∈ [-1, 1]; keep [0, 1]
+      vectorScores.set(r.subject_id, Math.max(0, r.similarity));
     }
-  } else {
-    // Keyword route succeeded — convert overlap scores to 0–1 range.
-    // Max possible overlap = number of query tokens; normalise to [0, 0.9]
-    // to leave headroom for the name-match blend below.
-    const maxTokens = Math.max(route.tokens.length, 1);
-    for (const [id, overlap] of route.scores) {
-      semanticScores.set(id, Math.min((overlap / maxTokens) * 0.9, 0.9));
-    }
-    embeddingAvailable = true; // treat as available for result metadata
   }
 
-  // ── 2. Name-match candidates via ILIKE ────────────────────────────────────────
+  // ── Name-match candidates via ILIKE ─────────────────────────────────────────
 
   const nameRows = await prisma.platformContextObject.findMany({
     where: {
       org_id: input.orgId,
       lifecycle: 'active',
-      OR: [
-        { full_path: { contains: input.query, mode: 'insensitive' } },
-        { object_name: { contains: input.query, mode: 'insensitive' } },
-      ],
+      AND: nameTokens.length > 0
+        ? nameTokens.map((token) => ({
+            OR: [
+              { full_path: { contains: token, mode: 'insensitive' as const } },
+              { object_name: { contains: token, mode: 'insensitive' as const } },
+            ],
+          }))
+        : [{
+            OR: [
+              { full_path: { contains: input.query, mode: 'insensitive' as const } },
+              { object_name: { contains: input.query, mode: 'insensitive' as const } },
+            ],
+          }],
     },
     select: { id: true },
     take: candidateLimit,
   });
   const nameMatchIds = new Set(nameRows.map((r) => r.id));
 
-  // ── 3. Merge candidate IDs and compute blended scores ────────────────────────
-
-  const allIds = new Set([...semanticScores.keys(), ...nameMatchIds]);
-  if (allIds.size === 0) {
-    return { query: input.query, results: [], embedding_available: embeddingAvailable };
+  // ── Merge semantic, keyword, and exact-name evidence ─────────────────────────
+  const relevantVectorCount = [...vectorScores.values()]
+    .filter((similarity) => similarity >= MIN_SEMANTIC_SIMILARITY).length;
+  const scored = rankCatalogCandidates({
+    vectorScores,
+    keywordScores: route.scores,
+    exactNameMatchIds: nameMatchIds,
+    keywordCount: route.tokens.length,
+    limit: candidateLimit,
+  });
+  if (scored.length === 0) {
+    return {
+      query: input.query,
+      results: [],
+      embedding_available: embeddingAvailable,
+      vector_candidates_found: relevantVectorCount,
+      vector_index: vectorIndex,
+    };
   }
-
-  type ScoredId = { id: string; score: number; match_type: SearchResultItem['match_type'] };
-  const scored: ScoredId[] = [];
-
-  for (const id of allIds) {
-    const semScore = semanticScores.get(id) ?? 0;
-    const nameBonus = nameMatchIds.has(id) ? 0.3 : 0;
-    const inBoth = semScore > 0 && nameMatchIds.has(id);
-    scored.push({
-      id,
-      score: semScore * 0.7 + nameBonus,
-      match_type: inBoth ? 'blended' : semScore > 0 ? 'semantic' : 'name',
-    });
-  }
-
-  scored.sort((a, b) => b.score - a.score);
 
   // ── 4. Entity group boost (+0.05 for objects sharing a group with a top-K hit) ─
 
@@ -730,7 +760,7 @@ export async function searchObjects(input: SearchInput): Promise<SearchResult> {
   const extPoolIds = extPool.map((s) => s.id);
 
   const extObjects = await prisma.platformContextObject.findMany({
-    where: { id: { in: extPoolIds }, org_id: input.orgId },
+    where: { id: { in: extPoolIds }, org_id: input.orgId, lifecycle: 'active' },
     select: { id: true, full_path: true, object_kind: true, row_count_est: true, native_comment: true, entity_tags: true },
   });
   const extObjMap = new Map(extObjects.map((o) => [o.id, o]));
@@ -776,7 +806,7 @@ export async function searchObjects(input: SearchInput): Promise<SearchResult> {
   // ── 5. Build result list in score order ──────────────────────────────────────
 
   const results: SearchResultItem[] = [];
-  for (const { id, score, match_type } of extPool.slice(0, k)) {
+  for (const { id, score, semantic_score, keyword_score, exact_name_match, match_type } of extPool.slice(0, k)) {
     const obj = extObjMap.get(id);
     if (!obj) continue;
 
@@ -792,11 +822,20 @@ export async function searchObjects(input: SearchInput): Promise<SearchResult> {
       row_count_est: obj.row_count_est !== null ? Number(obj.row_count_est) : null,
       reason,
       score: Math.round(score * 1000) / 1000,
+      semantic_score: semantic_score === null ? null : Math.round(semantic_score * 1000) / 1000,
+      keyword_score: Math.round(keyword_score * 1000) / 1000,
+      exact_name_match,
       match_type,
     });
   }
 
-  return { query: input.query, results, embedding_available: embeddingAvailable };
+  return {
+    query: input.query,
+    results,
+    embedding_available: embeddingAvailable,
+    vector_candidates_found: relevantVectorCount,
+    vector_index: vectorIndex,
+  };
 }
 
 // ── relations ─────────────────────────────────────────────────────────────────

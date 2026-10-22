@@ -3,9 +3,11 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { companionActivity } from '@/lib/companion/activity';
-import { COMPANION_KEY, DEFAULT_COMPANION, parseCompanionPreferences } from '@/lib/companion/preferences';
+import { COMPANION_KEY, DEFAULT_COMPANION, LEGACY_COMPANION_KEY, parseCompanionPreferences } from '@/lib/companion/preferences';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
 import { Captain } from '@/components/companion/Captain';
+import { Wobble } from '@/components/companion/Wobble';
+import { Companion } from '@/components/companion/Companion';
 import { CompanionSettings } from '@/components/companion/CompanionSettings';
 import { saveCompanionPreferences } from '@/hooks/useCompanionPreferences';
 
@@ -58,13 +60,17 @@ describe('Captain activity', () => {
 describe('Captain preferences', () => {
   it('validates malformed and unsupported browser preferences', () => {
     for (const raw of ['broken', 'null', '[]', '{"color":"url(evil)","personality":"chaotic"}']) expect(parseCompanionPreferences(raw)).toEqual(DEFAULT_COMPANION);
-    expect(parseCompanionPreferences('{"color":"accent","personality":"quiet"}')).toEqual({ color: 'accent', personality: 'quiet' });
+    expect(parseCompanionPreferences('{"color":"accent","personality":"quiet"}')).toEqual({ color: 'accent', personality: 'quiet', character: 'nova' });
+    expect(parseCompanionPreferences('{"character":"lumi"}').character).toBe('lumi');
+    expect(parseCompanionPreferences('{"character":"wobble"}').character).toBe('nova');
+    expect(parseCompanionPreferences('{"character":"ghost"}').character).toBe('nova');
   });
   it('updates every mounted companion immediately from keyboard-accessible controls', () => {
     const { container } = render(<><CompanionSettings /><Captain /></>);
+    expect(screen.getByRole('radio', { name: 'Match app accent' })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: 'Violet' }));
     fireEvent.click(screen.getByRole('radio', { name: /Quiet/ }));
-    expect(JSON.parse(localStorage.getItem(COMPANION_KEY)!)).toEqual({ color: '#b9a4ff', personality: 'quiet' });
+    expect(JSON.parse(localStorage.getItem(COMPANION_KEY)!)).toEqual({ color: '#7C4DFF', personality: 'quiet', character: 'nova' });
     expect([...container.querySelectorAll('[data-personality]')].every(el => el.getAttribute('data-personality') === 'quiet')).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Reset companion' }));
     expect(JSON.parse(localStorage.getItem(COMPANION_KEY)!)).toEqual(DEFAULT_COMPANION);
@@ -82,12 +88,51 @@ describe('Captain preferences', () => {
   it('keeps preferences usable when storage writes are denied', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
     const { container } = render(<Captain />);
-    act(() => saveCompanionPreferences({ color: '#aabbcc', personality: 'quiet' }));
+    act(() => saveCompanionPreferences({ color: '#aabbcc', personality: 'quiet', character: 'captain' }));
     expect(container.querySelector('[data-personality]')).toHaveAttribute('data-personality', 'quiet');
   });
   it('assigns unique SVG gradients across multiple messages', () => {
     const { container } = render(<><Captain /><Captain /><Captain /></>);
     const ids = [...container.querySelectorAll('linearGradient')].map(el => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('Wobble companion', () => {
+  it('defaults to Nova in the app accent and switches to any character', () => {
+    expect(DEFAULT_COMPANION).toMatchObject({ character: 'nova', color: 'accent' });
+    const { container } = render(<><CompanionSettings /><CaptainStatus isStreaming /></>, { wrapper });
+    const live = () => container.querySelector('[data-companion-status] [data-captain-state]');
+    expect(live()).toHaveAttribute('data-character', 'nova');
+    for (const name of ['Orbit', 'Lumi'] as const) {
+      fireEvent.click(screen.getByRole('radio', { name: new RegExp(name) }));
+      expect(live()).toHaveAttribute('data-character', name.toLowerCase());
+    }
+    fireEvent.click(screen.getByRole('radio', { name: /Captain/ }));
+    expect(live()).not.toHaveAttribute('data-character');
+    expect(JSON.parse(localStorage.getItem(COMPANION_KEY)!).character).toBe('captain');
+  });
+  it('drops colours saved by the old palette so the app accent applies', () => {
+    localStorage.clear();
+    localStorage.setItem(LEGACY_COMPANION_KEY, JSON.stringify({ color: '#8de4be', personality: 'expressive', character: 'lumi' }));
+    act(() => { window.dispatchEvent(new StorageEvent('storage', { key: LEGACY_COMPANION_KEY })); });
+    const { container } = render(<Companion />);
+    const el = container.querySelector('[data-character]') as HTMLElement;
+    expect(el).toHaveAttribute('data-character', 'lumi');
+    expect(el).toHaveAttribute('data-personality', 'expressive');
+    expect(el.style.getPropertyValue('--wob')).toContain('--brand-a');
+  });
+  it('swaps open eyes for drawn ones when finished or stopped', () => {
+    const { container, rerender } = render(<Wobble state="thinking" />);
+    expect(container.querySelectorAll('circle').length).toBeGreaterThan(0);
+    rerender(<Wobble state="success" />);
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+    rerender(<Wobble state="stopped" />);
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+  });
+  it('assigns unique SVG gradients across multiple messages', () => {
+    const { container } = render(<><Wobble /><Wobble shape="orbit" /><Wobble shape="lumi" /></>);
+    const ids = [...container.querySelectorAll('radialGradient')].map(el => el.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 });

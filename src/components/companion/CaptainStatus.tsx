@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SlidersHorizontal } from 'lucide-react';
 import { companionActivity, type ActivityInput } from '@/lib/companion/activity';
-import { Captain } from './Captain';
+import { Companion } from './Companion';
 import styles from './Captain.module.css';
 
 export function CaptainStatus({ active = true, ...input }: ActivityInput & { active?: boolean }) {
@@ -23,9 +23,9 @@ export function CaptainStatus({ active = true, ...input }: ActivityInput & { act
   }, [input.isStreaming, activity.state, active]);
   const face = activity.state === 'success' && !celebrate ? 'idle' : activity.state;
   return <div className={styles.status} data-companion-status={activity.state}>
-    <Captain state={face} active={active} />
+    <Companion state={face} active={active} />
     <span className={styles.label} role={active ? 'status' : undefined} aria-live={active ? 'polite' : 'off'}>{activity.label}</span>
-    {active && <Link href="/settings/profile#companion" className={styles.settings} aria-label="Customize Captain" title="Customize Captain">
+    {active && <Link href="/settings/profile#companion" className={styles.settings} aria-label="Customize companion" title="Customize companion">
       <SlidersHorizontal size={14} />
     </Link>}
   </div>;

@@ -30,6 +30,7 @@ When fixing auth: update `.env.local` (local) / secrets store (prod), restart th
 | F-002 | Bedrock Mantle | 401 "The security token included in the request is invalid" | 2026-09-21 | 2026-09-21 | `BEDROCK_MANTLE_API_KEY` rejected | Issue/rotate Mantle API key; set `BEDROCK_MANTLE_API_KEY` + `BEDROCK_MANTLE_REGION`; retest Mantle chat path |
 | F-003 | Azure AI Foundry | `ENOTFOUND` for Foundry host | 2026-09-21 | 2026-09-21 | DNS / VPN / endpoint moved | Confirm VPN or correct `FOUNDRY_ENDPOINT`; update env; retest Foundry chat |
 | F-004 | Azure OpenAI (classic) | Connection / resolution failure | 2026-09-21 | 2026-09-21 | Same network class as Foundry | Confirm endpoint reachability + `AZURE_OPENAI_API_KEY`; retest |
+| F-005 | Context harvester (ECS) | 2 `t0_structural` jobs stuck `running` and ~49 `queued` (including Estate per-table requests such as `landing_zone_dev.sire_2_0.sire_report`); nothing processed. Per-table `{path}` jobs harvest the whole source instead of the table. | 2026-10-18 | 2026-10-20 | The queue consumer (EventBridge/ECS) appears down. `scripts/context/orchestrator.ts` ignores `scope.path`. See [incident-2026-10-18-catalog-mass-drop.md](./incident-2026-10-18-catalog-mass-drop.md) | Map `scope.path` → `includePatterns`; check the EventBridge rule, ECS tasks on `aloft-agents-dev` and the `/ecs/aloft-context-harvester` logs; reap stale `running` jobs |
 
 ### Impact notes (Open)
 
@@ -66,6 +67,7 @@ When fixing auth: update `.env.local` (local) / secrets store (prod), restart th
 | 2026-09-25 | Cursor chat | Chart `emit_chart` returned F-001 because handler discarded agent DSL and re-called Bedrock. Mitigated: prefer inline DSL + recommender fallback. AWS keys still broken for scorers/Bedrock chat. |
 | 2026-09-29 | Cursor chat | Reconfirmed **F-001** via Boost semantic + groundedness scorers. Also fixed Foundry session-summary path sending `temperature: 0` (rejected by `gpt-6-luna`; omit like `foundry-chat`). |
 | 2026-09-29 | Cursor chat | **Scorer mitigation:** moved semantic + groundedness off Bedrock Converse to Foundry/Azure OpenAI (`llm-client.ts`, default `gpt-6-luna`). F-001 still open for Bedrock chat/memory paths. |
+| 2026-10-20 | Copilot chat | Added **F-005** (harvest queue stalled; orchestrator ignores `scope.path`). On 2026-10-18 a per-table Estate request triggered a full sweep that wrongly dropped 1,387 catalog objects; those objects (and 167 dropped earlier) were restored and the drop logic fixed. Write-up: [incident-2026-10-18-catalog-mass-drop.md](./incident-2026-10-18-catalog-mass-drop.md). F-001 (AWS keys): new IAM key verified for Bedrock Titan + Converse and Secrets Manager. |
 
 ---
 

@@ -7,6 +7,7 @@ import {
   ACCENT_PRESETS, MODE_DEFAULTS, RAIL_PRESETS,
   loadAppearance, saveAppearance, type Appearance,
 } from '@/lib/theme/appearance';
+import { saveCompanionPreferences, useCompanionPreferences } from '@/hooks/useCompanionPreferences';
 
 function Swatch({
   color, label, selected, onClick,
@@ -81,6 +82,7 @@ export function AppearanceControls() {
   const [state, setState] = useState<Appearance>({ accent: null, rail: null });
 
   const [dark, setDark] = useState(false);
+  const companion = useCompanionPreferences();
 
   useEffect(() => {
     setState(loadAppearance());
@@ -97,6 +99,8 @@ export function AppearanceControls() {
     const next = { ...state, ...patch };
     setState(next);
     saveAppearance(next);
+    // Picking an app accent brings the companion back in step with it.
+    if ('accent' in patch && companion.color !== 'accent') saveCompanionPreferences({ ...companion, color: 'accent' });
   };
   const customised = !!(state.accent || state.rail);
 

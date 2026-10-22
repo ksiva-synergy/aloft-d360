@@ -411,7 +411,7 @@ export function ToolEditor({ items, onSave, disabled }: { items: Action[]; onSav
   return (
     <div>
       <p className="mb-2 text-[12px] text-[var(--ink-3)]">
-        Built in: catalog search and read-only SQL on Databricks. Add more tools below if the agent needs to act.
+        The builder researches harvested data while planning; test runs use read-only Databricks access. Add active catalog tools the agent needs below.
       </p>
       {items.length > 0 && (
         <ul className="space-y-1.5">

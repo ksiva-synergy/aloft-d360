@@ -2,24 +2,24 @@
 // All reads come exclusively from platform_context_* tables via Prisma.
 // executeDatabricksSQL must never be called here, directly or transitively.
 //
-// Embedding: Azure OpenAI / Foundry text-embedding-3-large via embedWithFallback
-// in @/lib/azure/embed-client (Titan / Bedrock embed disabled).
+// Embedding: Bedrock Titan v2 via embedWithTitan in @/lib/azure/embed-client.
+// The catalog index and agent memory are stored as Titan v2 vectors, so query
+// and ingest embeddings here must stay on the same model.
 
 import 'server-only';
 import prisma from '@/lib/db';
-import {
-  embedWithFallback,
-  CURRENT_EMBEDDING_MODEL,
-  OPENAI_EMBED_MODEL,
-  TITAN_EMBED_MODEL,
-} from '@/lib/azure/embed-client';
+import { embedWithTitan, TITAN_EMBED_MODEL } from '@/lib/azure/embed-client';
 import { enqueue, finalize } from './queue';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-export { OPENAI_EMBED_MODEL, TITAN_EMBED_MODEL as TITAN_MODEL, CURRENT_EMBEDDING_MODEL };
+/** Model stored on new catalog embedding rows and required for comparable search. */
+export const CURRENT_EMBEDDING_MODEL = TITAN_EMBED_MODEL;
+export { TITAN_EMBED_MODEL as TITAN_MODEL };
 
-const EMBED_DIMS = 1024;// ── Row types for embed_text composition ──────────────────────────────────────
+const EMBED_DIMS = 1024;
+
+// ── Row types for embed_text composition ──────────────────────────────────────
 
 export interface ObjectEmbedRow {
   full_path: string;
@@ -69,10 +69,10 @@ export function composeEmbedText(
   }
 }
 
-// ── Embedding implementation (Titan → Azure OpenAI fallback) ───────────────────
+// ── Embedding implementation (Bedrock Titan v2) ────────────────────────────────
 
 async function getEmbedding(text: string): Promise<{ vector: number[]; modelId: string } | null> {
-  const result = await embedWithFallback(text, EMBED_DIMS);
+  const result = await embedWithTitan(text, EMBED_DIMS);
   if (!result) return null;
   return { vector: result.embedding, modelId: result.modelId };
 }
@@ -254,7 +254,7 @@ export async function embedSubjects(
 // ── embedQuery (exported for semantic search) ─────────────────────────────────
 
 /**
- * Embed a raw query string (Titan → Azure OpenAI fallback, 1024-dim).
+ * Embed a raw query string with Bedrock Titan v2 (1024-dim).
  * Returns null on failure — callers must fall back gracefully.
  */
 export async function embedQuery(text: string): Promise<number[] | null> {

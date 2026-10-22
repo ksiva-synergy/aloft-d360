@@ -10,11 +10,14 @@ import { resolveBoostModel, resolveWorkbenchModel } from '@/lib/construction/wor
 import {
   buildWorkbenchSystemPrompt,
   buildWorkbenchToolConfig,
+  type AvailableWorkbenchTool,
 } from '@/lib/construction/prompts';
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { loadConstructionState, coerceConstructionState } from '@/lib/construction/load-state';
 import { executeBuilderTool, inferAgentClass, type BuilderToolContext } from '@/lib/construction/builder-tools';
 import { mergeUserEdits } from '@/lib/construction/user-edits';
+import { deriveReadiness } from '@/lib/construction/readiness';
+import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { getDefaultOrg } from '@/lib/platform/agents';
@@ -51,6 +54,25 @@ export async function POST(request: NextRequest) {
 
   const org = await getDefaultOrg();
   let constructionState: ConstructionState = loadConstructionState(row.construction_state, org.id);
+  let availableTools: AvailableWorkbenchTool[] = [];
+  let toolCatalogError: string | null = null;
+  try {
+    const catalogRows = await prisma.tool_catalog.findMany({
+      where: { status: 'active' },
+      orderBy: { name: 'asc' },
+      take: 100,
+      select: { id: true, slug: true, name: true, type: true, description: true },
+    });
+    availableTools = catalogRows.map((tool) => ({
+      id: tool.slug ?? tool.id,
+      name: tool.name,
+      type: tool.type ?? 'tool',
+      description: tool.description ?? '',
+    }));
+  } catch (err) {
+    toolCatalogError = 'Active catalog tools could not be loaded. Check server logs.';
+    console.error('[workbench/chat] active tool catalog load failed', err);
+  }
 
   const userMessages: Message[] = (body.messages || [])
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
@@ -68,7 +90,38 @@ export async function POST(request: NextRequest) {
 
   const lastUser = [...(body.messages || [])].reverse().find((m) => m.role === 'user')?.content ?? '';
   const classHint = inferAgentClass(lastUser);
-  const shouldSuggestClass = classHint && !constructionState.class?.id;
+  if (!constructionState.class?.id && classHint) {
+    constructionState = {
+      ...constructionState,
+      class: {
+        id: classHint.classId,
+        source: 'inferred',
+        confidence: classHint.confidence,
+        skillRef: null,
+      },
+      provenance: { ...constructionState.provenance, 'class.id': 'ai' },
+    };
+    constructionState = {
+      ...constructionState,
+      readiness: deriveReadiness(constructionState),
+    };
+  }
+
+  let initialCatalogResearch: string | null = null;
+  const userTurnCount = userMessages.filter((message) => message.role === 'user').length;
+  if (userTurnCount === 1 && constructionState.tools.datasources.length === 0) {
+    try {
+      initialCatalogResearch = await handleDescribeSchema({
+        action: 'research',
+        connection: 'synergy_dwh',
+        query: lastUser.slice(0, 1000),
+        k: 5,
+      });
+    } catch (err) {
+      console.error('[workbench/chat] initial harvested-catalog research failed', err);
+      initialCatalogResearch = JSON.stringify({ error: 'Harvested-catalog search failed. Check server logs.' });
+    }
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -114,20 +167,15 @@ export async function POST(request: NextRequest) {
           maxLoops,
         });
 
-        if (shouldSuggestClass && classHint) {
-          emit({
-            type: 'class_suggestion',
-            classId: classHint.classId,
-            confidence: classHint.confidence,
-            rationale: classHint.rationale,
-          });
-        }
-
         const loopParams = {
           modelId: effectiveModelId,
-          systemPrompt: buildWorkbenchSystemPrompt(stateRef),
+          systemPrompt: buildWorkbenchSystemPrompt(stateRef, {
+            catalogResearch: initialCatalogResearch,
+            availableTools,
+            toolCatalogError,
+          }),
           messages: userMessages,
-          tools: buildWorkbenchToolConfig(),
+          tools: buildWorkbenchToolConfig(availableTools),
           executeTool: (toolName: string, toolInput: Record<string, unknown>, callId: string) => {
             ctx.agentLoop = currentAgentLoop;
             return withAgentOpsToolLog(
@@ -140,7 +188,9 @@ export async function POST(request: NextRequest) {
                 model: effectiveModelId,
               },
               toolInput,
-              () => executeBuilderTool(toolName, toolInput, ctx),
+              () => toolName === 'describe_schema'
+                ? handleDescribeSchema(toolInput)
+                : executeBuilderTool(toolName, toolInput, { ...ctx, availableTools }),
             );
           },
           maxLoops,

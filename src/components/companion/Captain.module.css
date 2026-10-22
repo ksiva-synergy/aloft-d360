@@ -1,23 +1,60 @@
 .captain { display: inline-block; flex-shrink: 0; vertical-align: middle; }
 .captain svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.head { transform-origin: 60px 60px; transition: transform 200ms cubic-bezier(.23,1,.32,1); }
-.leds { filter: drop-shadow(0 0 1.8px currentColor); }
-.eye { transform-box: fill-box; transform-origin: center; }
-.captain[data-captain-state='idle'] .eye { animation: blink 6s linear infinite; }
-.captain[data-captain-state='reading'] .leds { transform: translateY(1px); }
+.head { transform-origin: 60px 94px; transition: transform 240ms cubic-bezier(.23,1,.32,1); }
+.leds { filter: drop-shadow(0 0 2.5px currentColor); }
+.ear { filter: drop-shadow(0 0 2px currentColor); }
+.pad { opacity: .55; filter: drop-shadow(0 0 3px currentColor); transform-origin: 60px 103px; }
+.eye { transform-box: fill-box; transform-origin: center; transition: transform 200ms cubic-bezier(.23,1,.32,1); }
+.pupil { transition: transform 240ms cubic-bezier(.23,1,.32,1); }
+.waves, .orbit, .progress, .dots, .burst { filter: drop-shadow(0 0 2px currentColor); }
+.progress { transform-origin: 60px 50px; }
+.dots circle { animation: cap-dot 1.4s ease-in-out infinite; }
+.dots circle:nth-child(2) { animation-delay: .2s; }
+.dots circle:nth-child(3) { animation-delay: .4s; }
+
+/* Poses: hold even when motion is off, so each state stays readable. */
+.captain[data-captain-state='reading'] .pupil { transform: translateY(1px); }
+.captain[data-captain-state='thinking'] .pupil { transform: translate(1.5px, -2px); }
+.captain[data-captain-state='writing'] .pupil { transform: translate(1px, 1.5px); }
+.captain[data-captain-state='tools'] .eye { transform: scaleY(.8); }
 .captain[data-captain-state='clarification'] .head { transform: rotate(-7deg); }
-.captain[data-personality='expressive'][data-captain-state='thinking'] .head,
-.captain[data-personality='expressive'][data-captain-state='tools'] .head { animation: float 3.6s cubic-bezier(.77,0,.175,1) infinite; }
-.captain[data-personality='expressive'][data-captain-state='success'] .head { transform: translateY(-3px) rotate(4deg); }
-.signal { animation: signal 1.5s linear infinite; }
-.tool { animation: signal 1.2s linear infinite; }
-.writing { animation: write 1.2s ease infinite; }
-.captain[data-personality='quiet'] *, .captain[data-animate='false'] * { animation: none; transition: none; }
-.captain[data-captain-state='error'] *, .captain[data-captain-state='stopped'] * { animation: none; }
-@keyframes blink { 0%,44%,48%,100% { transform: scaleY(1); } 46% { transform: scaleY(.12); } }
-@keyframes float { 50% { transform: translateY(-2px) rotate(2deg); } }
-@keyframes signal { 0%,22% { opacity: 1; } 45%,100% { opacity: .18; } }
-@keyframes write { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
+.captain[data-captain-state='clarification'] .eyeR { transform: scale(1.15); }
+.captain[data-captain-state='error'] .head { transform: translateY(2px); }
+
+/* Motion */
+.captain[data-captain-state='idle'] .eye { animation: idle-blink 12s linear infinite; }
+.captain[data-captain-state='idle'] .eyeR { animation-name: idle-wink; }
+.captain[data-captain-state='idle'] .pupil { animation: idle-glance 12s ease-in-out infinite; }
+.captain[data-captain-state='idle'] .head { animation: idle-sway 12s ease-in-out infinite; }
+.captain[data-personality='expressive'][data-captain-state='idle'] .head { animation-name: idle-play; }
+.captain[data-personality='expressive'][data-captain-state='idle'] .pad { animation: idle-pad 12s ease-in-out infinite; }
+.captain[data-captain-state='reading'] .head { animation: pulse 1.6s ease-in-out infinite; }
+.captain[data-captain-state='reading'] .waves { animation: waves 1.6s ease-in-out infinite; }
+.captain[data-captain-state='thinking'] .head { animation: float 2.8s ease-in-out infinite; }
+.captain[data-captain-state='tools'] .orbit { animation: orbit 1.6s linear infinite; }
+.captain[data-captain-state='writing'] .progress { animation: spin 1.4s linear infinite; }
+.captain[data-captain-state='writing'] .eye { animation: blink 4s linear infinite; }
+.captain[data-personality='expressive'][data-captain-state='success'] .head { animation: bounce 600ms cubic-bezier(.34,1.56,.64,1); }
+.captain[data-captain-state='success'] .burst { transform-box: fill-box; transform-origin: center; animation: burst 300ms cubic-bezier(.23,1,.32,1) 150ms both; }
+.captain[data-captain-state='error'] .pad, .captain[data-captain-state='stopped'] .pad { opacity: .2; }
+
+.captain[data-personality='quiet'] *, .captain[data-animate='false'] * { animation: none !important; transition: none !important; }
+@keyframes blink { 0%,44%,48%,100% { transform: scaleY(1); } 46% { transform: scaleY(.1); } }
+/* Idle loop (12s): glance left, glance up-right with a lean, wink + happy squint, settle. */
+@keyframes idle-blink { 0%,29%,32%,54%,58.5%,79%,82%,100% { transform: scaleY(1); } 30.5%,80.5% { transform: scaleY(.1); } 55.5%,57% { transform: scaleY(.82); } }
+@keyframes idle-wink { 0%,29%,32%,54%,58.5%,79%,82%,100% { transform: scaleY(1); } 30.5%,55.5%,57%,80.5% { transform: scaleY(.1); } }
+@keyframes idle-glance { 0%,12%,48%,100% { transform: translate(0, 0); } 16%,26% { transform: translate(-2.5px, .5px); } 32%,44% { transform: translate(2.5px, -1.5px); } }
+@keyframes idle-sway { 0%,12%,62%,100% { transform: none; } 16%,26% { transform: rotate(-2deg); } 32%,44% { transform: rotate(2.5deg); } 54%,58% { transform: rotate(-1.5deg); } }
+@keyframes idle-play { 0%,100% { transform: none; } 8% { transform: translateY(-2px); } 16%,26% { transform: translateY(-1px) rotate(-3deg); } 32%,44% { transform: translateY(-3px) rotate(4deg); } 50% { transform: none; } 54%,58% { transform: translateY(-2px) rotate(-2deg) scale(1.02); } 70% { transform: translateY(-3px); } 85% { transform: none; } }
+@keyframes idle-pad { 0%,50%,85%,100% { transform: none; } 8%,32%,44%,54%,58%,70% { transform: scaleX(.85); opacity: .3; } }
+@keyframes float { 50% { transform: translateY(-3px) rotate(2deg); } }
+@keyframes pulse { 50% { transform: scale(1.03); } }
+@keyframes waves { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+@keyframes orbit { to { stroke-dashoffset: -100; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes cap-dot { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+@keyframes bounce { 30% { transform: translateY(-7px) scale(.97, 1.04); } 60% { transform: translateY(0) scale(1.04, .96); } 100% { transform: none; } }
+@keyframes burst { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .captain * { animation: none !important; transition: none !important; } }
 .status { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 16px; }
 .label { font-size: 12px; line-height: 1.5; color: var(--wb-ink-dim, var(--ink-2)); overflow-wrap: anywhere; }

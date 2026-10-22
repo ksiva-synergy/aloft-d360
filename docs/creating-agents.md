@@ -44,7 +44,7 @@ Inspector answers ad-hoc questions. A catalog/platform agent is the durable, rev
 | Create a **catalog** agent tagged/typed for a domain | **Yes (API)** | `POST /api/catalog/agents` with `type`, `tags`, `config.systemPrompt`, `tools`. Docs UI is read-only. |
 | Open a **dedicated chat** bound to that catalog agent | **No** | No “Chat as agent X” route wired to catalog entries. |
 | Commission a **platform** agent with `agent_class` / `kb_namespace` for a domain | **Partial** | `createAgent()` / `createManifest()` exist in code; **no HTTP + UI** to chat as that agent yet. |
-| Workbench builder: interview → validate → **commission** domain agent | **Yes** | Inspector "Open Agent Lab" handoff carries confirmed tables; editable blueprint (edits are user-owned, the builder won't overwrite them); test run against live data; idempotent commission to `agent_catalog`. See CHANGELOG 2026-10-19. |
+| Workbench builder: research → plan → validate → **commission** domain agent | **Yes** | New missions run vector-semantic search over the harvested catalog, then inspect candidate descriptions, columns, and harvested relationships before deciding which sources fit. The builder also selects a class and only active catalog tools that fit the task. Inspector "Open Agent Lab" carries confirmed tables. Commission remains a draft for review, not a published or dedicated chat agent. |
 
 ### What “domain” means in this codebase
 
