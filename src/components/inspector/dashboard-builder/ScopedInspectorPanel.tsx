@@ -121,11 +121,11 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
       }}>
         <Sparkles size={14} color={GOLD} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11.5, fontWeight: 600, color: INK }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>
             Explore Data
           </div>
           {dashboardName && (
-            <div style={{ fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {dashboardName}
             </div>
           )}
@@ -137,7 +137,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
             background: 'transparent', border: `1px solid ${tint(MUTED, 30)}`,
             borderRadius: 5, color: MUTED, cursor: 'pointer',
             padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontSize: 10, fontFamily: UI_FONT,
+            fontSize: 13, fontFamily: UI_FONT,
           }}
         >
           <RotateCcw size={11} /> Reset
@@ -168,7 +168,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
             <div style={{ fontSize: 14, fontWeight: 600, color: INK, lineHeight: 1.4 }}>
               Ask questions about the data
             </div>
-            <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.6, maxWidth: 320 }}>
+            <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.6, maxWidth: 320 }}>
               Questions are scoped to this dashboard's semantic model.
               Ask about trends, breakdowns, comparisons — anything in the governed catalog.
             </div>
@@ -182,7 +182,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
                   key={suggestion}
                   onClick={() => setComposer(suggestion)}
                   style={{
-                    fontFamily: UI_FONT, fontSize: 11.5, color: MUTED, textAlign: 'left',
+                    fontFamily: UI_FONT, fontSize: 13, color: MUTED, textAlign: 'left',
                     background: tint(MUTED, 6), border: `1px solid ${tint(MUTED, 20)}`,
                     borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
                     transition: 'background 0.1s',
@@ -204,7 +204,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
               display: 'flex', gap: 8, alignItems: 'flex-start',
               padding: '10px 12px', borderRadius: 8,
               background: tint('#F87171', 12), border: `1px solid ${tint('#F87171', 35)}`,
-              fontSize: 12, color: INK, lineHeight: 1.5,
+              fontSize: 13, color: INK, lineHeight: 1.5,
             }}
           >
             <AlertTriangle size={14} color="#F87171" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -232,7 +232,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
                 borderRadius: m.role === 'user' ? '12px 12px 4px 12px' : '4px 12px 12px 12px',
                 background: m.role === 'user' ? tint(GOLD, 15) : tint(MUTED, 8),
                 border: `1px solid ${m.role === 'user' ? tint(GOLD, 30) : tint(MUTED, 20)}`,
-                fontSize: 12.5, color: INK, lineHeight: 1.6,
+                fontSize: 13, color: INK, lineHeight: 1.6,
                 fontFamily: UI_FONT,
               }}
             >
@@ -278,7 +278,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '5px 10px', borderRadius: 6,
                   background: tint(GOLD, 12), border: `1px solid ${tint(GOLD, 40)}`,
-                  color: GOLD, cursor: 'pointer', fontFamily: UI_FONT, fontSize: 10.5,
+                  color: GOLD, cursor: 'pointer', fontFamily: UI_FONT, fontSize: 13,
                   fontWeight: 600,
                 }}
               >
@@ -290,7 +290,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
 
         {/* Streaming indicator */}
         {insp.isStreaming && insp.semanticChartMessages.length === 0 && !insp.queryProgress && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', color: MUTED, fontSize: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', color: MUTED, fontSize: 13 }}>
             <Loader2 size={13} className="spin" /> Thinking…
           </div>
         )}
@@ -335,7 +335,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
               border: 'none', borderRadius: 7,
               width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: insp.isStreaming || composer.trim() ? 'pointer' : 'default',
-              color: insp.isStreaming ? '#F87171' : '#0D1B2A',
+              color: insp.isStreaming ? '#F87171' : '#111322',
               flexShrink: 0, transition: 'background 0.1s',
             }}
           >
@@ -345,7 +345,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
             }
           </button>
         </div>
-        <div style={{ fontSize: 9.5, color: tint(MUTED, 60), marginTop: 5, textAlign: 'right' }}>
+        <div style={{ fontSize: 13, color: tint(MUTED, 60), marginTop: 5, textAlign: 'right' }}>
           Enter to send · Shift+Enter for new line
         </div>
       </div>

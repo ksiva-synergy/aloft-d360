@@ -229,7 +229,7 @@ export function BanditsDashboard() {
             onClick={fetchData}
             style={{
               padding: '8px 20px', borderRadius: 6, border: `1px solid ${GOLD}`,
-              background: 'transparent', color: GOLD, fontFamily: MONO, fontSize: 12,
+              background: 'transparent', color: GOLD, fontFamily: MONO, fontSize: 13,
               cursor: 'pointer',
             }}
           >
@@ -277,7 +277,7 @@ export function BanditsDashboard() {
 
         {/* ?? 1. BREADCRUMB ???????????????????????????????????????????????? */}
         <div style={{
-          fontFamily: MONO, fontSize: 11, letterSpacing: '0.08em',
+          fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em',
           color: TEXT_MUT, display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span>DATA 360</span>
@@ -334,7 +334,7 @@ export function BanditsDashboard() {
                 opacity: bornTooltipFading === 'out' ? 0 : 1,
                 transition: 'opacity 300ms ease',
               }}>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: TEXT_SEC, lineHeight: 1.8 }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: TEXT_SEC, lineHeight: 1.8 }}>
                   <div>Max Born &middot; 1882–1970 &middot; Nobel 1954</div>
                   <div style={{ fontStyle: 'italic' }}>The Born rule: outcomes occur in proportion to |&psi;|&sup2;.</div>
                   <div>This system routes LLMs the same way.</div>
@@ -383,7 +383,7 @@ export function BanditsDashboard() {
                   border: `1px solid ${windowDays === w.value ? GOLD : BORDER}`,
                   background: 'transparent',
                   color: windowDays === w.value ? GOLD : TEXT_SEC,
-                  fontFamily: MONO, fontSize: 11, cursor: 'pointer',
+                  fontFamily: MONO, fontSize: 13, cursor: 'pointer',
                   letterSpacing: '0.04em',
                 }}
               >
@@ -400,7 +400,7 @@ export function BanditsDashboard() {
                   border: `1px solid ${sourceFilter === s.value ? GOLD : BORDER}`,
                   background: 'transparent',
                   color: sourceFilter === s.value ? GOLD : TEXT_SEC,
-                  fontFamily: MONO, fontSize: 11, cursor: 'pointer',
+                  fontFamily: MONO, fontSize: 13, cursor: 'pointer',
                   letterSpacing: '0.04em',
                 }}
               >
@@ -412,7 +412,7 @@ export function BanditsDashboard() {
           {/* BornVerdict demo card — inline component preview */}
           {favId && (
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
                 BORN VERDICT · inline component preview
               </div>
               <BornVerdict
@@ -479,7 +479,7 @@ export function BanditsDashboard() {
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
               <span style={sectionTitleStyle}>Leaderboard</span>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT }}>
+              <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
                 {sorted.length} arms
               </span>
             </div>
@@ -493,7 +493,7 @@ export function BanditsDashboard() {
                         style={{
                           padding: '6px 12px',
                           textAlign: (h === '#' || h === 'Model') ? 'left' : 'right',
-                          fontFamily: MONO, fontSize: 10, letterSpacing: '0.06em',
+                          fontFamily: MONO, fontSize: 13, letterSpacing: '0.06em',
                           textTransform: 'uppercase', color: TEXT_MUT,
                           borderBottom: `1px solid ${BORDER}`, whiteSpace: 'nowrap',
                         }}
@@ -524,7 +524,7 @@ export function BanditsDashboard() {
                         {/* Rank */}
                         <td style={{ padding: '10px 12px', width: 36 }}>
                           <span style={{
-                            fontFamily: MONO, fontSize: 12, fontWeight: 700,
+                            fontFamily: MONO, fontSize: 13, fontWeight: 700,
                             color: idx === 0 ? GOLD : TEXT_MUT,
                           }}>
                             {idx + 1}
@@ -549,7 +549,7 @@ export function BanditsDashboard() {
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                           <span style={{
                             ...providerPillStyle(model.provider),
-                            fontFamily: MONO, fontSize: 10, letterSpacing: '0.04em',
+                            fontFamily: MONO, fontSize: 13, letterSpacing: '0.04em',
                             padding: '2px 7px', borderRadius: 4, display: 'inline-block',
                           }}>
                             {model.provider}
@@ -558,7 +558,7 @@ export function BanditsDashboard() {
                         {/* Pulls */}
                         <td style={{
                           padding: '10px 12px', textAlign: 'right',
-                          fontFamily: MONO, fontSize: 12, color: TEXT_SEC,
+                          fontFamily: MONO, fontSize: 13, color: TEXT_SEC,
                         }}>
                           {model.total_pulls}
                         </td>
@@ -578,7 +578,7 @@ export function BanditsDashboard() {
                               }} />
                             </div>
                             <span style={{
-                              fontFamily: MONO, fontSize: 12, color: TEXT_PRI,
+                              fontFamily: MONO, fontSize: 13, color: TEXT_PRI,
                               minWidth: 44, textAlign: 'right',
                             }}>
                               {formatPct(model.success_rate)}
@@ -587,21 +587,21 @@ export function BanditsDashboard() {
                         </td>
                         {/* Avg quality */}
                         <td style={{ padding: '10px 12px', textAlign: 'right', minWidth: 90 }}>
-                          <span style={{ fontFamily: MONO, fontSize: 12, color: qualColor }}>
+                          <span style={{ fontFamily: MONO, fontSize: 13, color: qualColor }}>
                             {model.avg_composite != null ? formatPct(model.avg_composite) : '--'}
                           </span>
                         </td>
                         {/* Duration */}
                         <td style={{
                           padding: '10px 12px', textAlign: 'right',
-                          fontFamily: MONO, fontSize: 12, color: TEXT_MUT,
+                          fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
                         }}>
                           {formatMs(model.avg_duration_ms)}
                         </td>
                         {/* Phase */}
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                           <span style={{
-                            fontFamily: MONO, fontSize: 10, letterSpacing: '0.04em',
+                            fontFamily: MONO, fontSize: 13, letterSpacing: '0.04em',
                             color: model.phase === 'exploiting' ? TEAL : TEXT_MUT,
                           }}>
                             {model.phase}
@@ -621,7 +621,7 @@ export function BanditsDashboard() {
           <div style={cardStyle}>
             <div style={{ marginBottom: 16 }}>
               <div style={sectionTitleStyle}>Reward Anatomy</div>
-              <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT, marginTop: 2 }}>
+              <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
                 CTSGV � 5-axis quality model
               </div>
             </div>
@@ -650,7 +650,7 @@ export function BanditsDashboard() {
                       </span>
                       {model.model_id === favId && (
                         <span style={{
-                          fontFamily: MONO, fontSize: 10, color: GOLD,
+                          fontFamily: MONO, fontSize: 13, color: GOLD,
                           border: `1px solid ${GOLD}`, borderRadius: 3,
                           padding: '1px 5px', letterSpacing: '0.04em',
                         }}>
@@ -660,7 +660,7 @@ export function BanditsDashboard() {
                     </div>
 
                     {allNull ? (
-                      <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT }}>
+                      <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
                         Pending judge
                       </div>
                     ) : (
@@ -694,7 +694,7 @@ export function BanditsDashboard() {
 
                         {/* Weight labels */}
                         <div style={{
-                          fontFamily: MONO, fontSize: 10,
+                          fontFamily: MONO, fontSize: 13,
                           display: 'flex', gap: 12, flexWrap: 'wrap',
                         }}>
                           {axes.map(axis => {
@@ -722,7 +722,7 @@ export function BanditsDashboard() {
             {/* V reserved note */}
             <div style={{
               marginTop: 16, paddingTop: 12, borderTop: `1px solid ${BORDER}`,
-              fontFamily: MONO, fontSize: 10, color: TEXT_MUT,
+              fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
             }}>
               V (verify) reserved � Outcome gate: truncated ? cap 0.25, errored ? cap 0.10
             </div>
@@ -779,7 +779,7 @@ function KpiCard({
       borderRadius: 6, padding: '14px 16px',
     }}>
       <div style={{
-        fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em',
+        fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em',
         textTransform: 'uppercase', color: TEXT_MUT, marginBottom: 8,
       }}>
         {label}
@@ -792,7 +792,7 @@ function KpiCard({
           {value}
         </span>
         {sub && (
-          <span style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT }}>
+          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
             {sub}
           </span>
         )}

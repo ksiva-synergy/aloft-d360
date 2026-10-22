@@ -1,0 +1,37 @@
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/** Unit tests for the Vite UI (`npm run web:test`). Same aliases as web/vite.config.ts, jsdom by default. */
+const webDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(webDir, '..');
+const compat = (name: string) => path.resolve(webDir, 'src/compat', name);
+
+export default defineConfig({
+  root: repoRoot,
+  plugins: [react()],
+  define: {
+    'process.env.NEXTAUTH_URL': 'undefined',
+    'process.env.NEXTAUTH_URL_INTERNAL': 'undefined',
+    'process.env.VERCEL_URL': 'undefined',
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: [path.resolve(repoRoot, 'vitest.setup.ts')],
+    include: ['web/src/**/*.{test,spec}.{ts,tsx}'],
+    testTimeout: 60_000,
+  },
+  resolve: {
+    alias: [
+      { find: /^next\/link$/, replacement: compat('next-link.tsx') },
+      { find: /^next\/navigation$/, replacement: compat('next-navigation.tsx') },
+      { find: /^next\/dynamic$/, replacement: compat('next-dynamic.tsx') },
+      { find: /^next\/image$/, replacement: compat('next-image.tsx') },
+      { find: /^@\/components\/ui\/(.*)$/, replacement: path.resolve(repoRoot, 'packages/aloft-shared/src/components/ui') + '/$1' },
+      { find: /^@\/lib\/utils$/, replacement: path.resolve(repoRoot, 'packages/aloft-shared/src/lib/utils') },
+      { find: /^@\/(.*)$/, replacement: path.resolve(repoRoot, 'src') + '/$1' },
+    ],
+  },
+});

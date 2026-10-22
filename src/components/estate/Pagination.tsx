@@ -20,7 +20,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '11px',
+    fontSize: '13px',
     color: disabled ? 'var(--estate-text-muted)' : inkColor,
     backgroundColor: 'transparent',
     border: `1px solid ${borderColor}`,
@@ -49,7 +49,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           style={btnStyle(page <= 1)}
-          className="hover:border-[#FDB515] hover:text-[#FDB515]"
+          className="hover:border-[var(--brand-a)] hover:text-[var(--brand-a-ink)]"
         >
           &lsaquo; Prev
         </button>
@@ -63,7 +63,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
           style={btnStyle(page >= totalPages)}
-          className="hover:border-[#FDB515] hover:text-[#FDB515]"
+          className="hover:border-[var(--brand-a)] hover:text-[var(--brand-a-ink)]"
         >
           Next &rsaquo;
         </button>

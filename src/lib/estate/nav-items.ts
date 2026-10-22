@@ -9,7 +9,7 @@ import type { ElementType } from 'react';
  * Consumed by BOTH the sidebar Data Estate group
  * ([UnifiedAgentSidebar](../../components/agent-lab/staging/StagingSidebar.tsx))
  * and the in-page tab bar
- * ([EstateNav](../../app/(agent)/agent-lab/estate/EstateNav.tsx)).
+ * ([EstateNav](../../views/agent-lab/estate/EstateNav.tsx)).
  *
  * Before this existed the two lists drifted — the sidebar showed 5 items while
  * the tab bar showed 7 (Entities + Lineage were reachable only via the tab bar).

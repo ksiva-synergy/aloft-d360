@@ -50,10 +50,10 @@ export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps)
           padding: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           {widget.chartKind.toUpperCase()}
         </span>
-        <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
           Assign dimensions & measures
         </span>
       </div>
@@ -74,7 +74,7 @@ export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps)
           padding: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
           Configure chart axes to see preview
         </span>
       </div>

@@ -8,6 +8,8 @@ import { scoreSingleObservation } from '@/lib/lifecycle/judge-batch';
 import { evaluateTrajectoryReflection } from '@/lib/marcus/inspectorReflect';
 import { evaluateInspectorFirstTurn } from '@/lib/marcus/reflect';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
+import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { buildSystemPrompt, buildToolConfig, buildInsightsContext } from '@/lib/inspector/prompts';
 import {
   buildSessionKnowledgeContext,
@@ -30,13 +32,17 @@ import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
-import { isLlmLiteConfigured } from '@/lib/llmlite/config';
 import { fromLlmLiteModelKey } from '@/lib/llmlite/keys';
 import {
   boostModelFromLlmLiteKey,
   llmLiteInspectorRuntimeConfig,
 } from '@/lib/llmlite/inspector-models';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
+import {
+  hasStaticAwsCredentials,
+  hasXaiCredentials,
+  inspectorLlmConfigured,
+} from '@/lib/inspector/llm-configured';
 import type { BoostModel } from '@/lib/boost/models';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -79,20 +85,20 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   // ── Direct xAI Grok (uses XAI_API_KEY + XAI_MODEL) ─────────────────────────
   'grok-xai':         { bedrockId: '', foundryDeployment: process.env.XAI_MODEL || 'grok-4.7', supportsTools: true, supportsThinking: false },
   // ── Legacy keys (backward compat with old client code) ─────────────────────
-  'claude-opus':      { bedrockId: 'us.anthropic.claude-opus-4-6-v1',             supportsTools: true,  supportsThinking: true  },
-  'claude-sonnet':    { bedrockId: 'us.anthropic.claude-sonnet-4-6',               supportsTools: true,  supportsThinking: true  },
+  'claude-opus':      { bedrockId: 'us.anthropic.claude-opus-5-5',                 supportsTools: true,  supportsThinking: true  },
+  'claude-sonnet':    { bedrockId: 'us.anthropic.claude-sonnet-5-5',               supportsTools: true,  supportsThinking: true  },
   'claude-haiku':     { bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0',  supportsTools: true,  supportsThinking: false },
   'mistral-large-3':  { bedrockId: 'mistral.mistral-large-3-675b-instruct',         supportsTools: true,  supportsThinking: false },
 };
 
-const hasAwsCreds = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-const hasXaiCreds = !!process.env.XAI_API_KEY;
+const hasAwsCreds = hasStaticAwsCredentials();
+const hasXaiCreds = hasXaiCredentials();
 
 function resolveInspectorDefaultModelKey(): string {
   const explicit = process.env.INSPECTOR_DEFAULT_MODEL?.trim();
   if (explicit && MODELS_MAP[explicit]) return explicit;
   if (hasXaiCreds) return DEFAULT_INSPECTOR_MODEL_KEY;
-  return 'sonnet-4-6';
+  return 'sonnet-5-5';
 }
 
 const DEFAULT_MODEL_KEY = resolveInspectorDefaultModelKey();
@@ -127,7 +133,7 @@ function inferProvider(modelKey: string | undefined, modelId: string): string {
 }
 
 function isBedrockConfigured(): boolean {
-  return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  return hasStaticAwsCredentials() || process.env.INSPECTOR_USE_INSTANCE_PROFILE === 'true' || process.env.AWS_EXECUTION_ENV === 'AWS_ElasticBeanstalk';
 }
 
 function extractSuggestionsFromText(text: string): string[] {
@@ -171,9 +177,7 @@ export async function POST(request: NextRequest) {
   const authBlock = await guardInspectorChat(request, body.sessionId);
   if (authBlock) return authBlock;
 
-  const hasFoundry = !!(process.env.FOUNDRY_ENDPOINT && process.env.FOUNDRY_API_KEY);
-  const hasMantle = !!process.env.BEDROCK_MANTLE_API_KEY?.trim();
-  if (!isBedrockConfigured() && !hasXaiCreds && !isLlmLiteConfigured() && !hasFoundry && !hasMantle) {
+  if (!inspectorLlmConfigured()) {
     return cannedResponse(request);
   }
 
@@ -317,8 +321,17 @@ export async function POST(request: NextRequest) {
 
       const emit = (event: Record<string, unknown>) => {
         if (closed.value) return;
+        let payload: string;
         try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          payload = `data: ${JSON.stringify(event)}\n\n`;
+        } catch (err) {
+          // A single bad payload must not silence the rest of the turn.
+          // That was leaving execute_tool stuck on "running" and dropping `done`.
+          console.error('[inspector/chat] skipped non-serializable event', event.type, err);
+          return;
+        }
+        try {
+          controller.enqueue(encoder.encode(payload));
         } catch { closed.value = true; }
       };
 
@@ -355,6 +368,8 @@ export async function POST(request: NextRequest) {
       // ── AM0.3 trace capture ──────────────────────────────────────────────────
       const sessionId = body.sessionId ?? '';
       const trace = isUUID(sessionId) ? openSession(sessionId, 'inspector') : null;
+      // Server-side turn + per-loop metrics (timing, TTFT, cache tokens, context growth)
+      const turnMetrics = new TurnMetricsRecorder({ sessionId: isUUID(sessionId) ? sessionId : '', surface: 'inspector' });
 
       // Turn-boundary correction: if the prior turn's last tool errored, the
       // current user message is recorded as a CORRECTION node.
@@ -398,26 +413,42 @@ export async function POST(request: NextRequest) {
           boostModel = { ...boostModel, modelId: process.env.XAI_MODEL };
         }
 
+        let currentAgentLoop = 1;
+        const effectiveModelForOps = effectiveModelId || modelId || modelConfig.bedrockId;
         const loopParams = {
           modelId: isFoundryModel ? (modelConfig.foundryDeployment || (body.model === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '')) : modelId,
           systemPrompt: finalSystemPrompt,
           messages: userMessages,
           tools: toolConfig,
-          executeTool: (toolName: string, toolInput: Record<string, unknown>, callId: string) => executeInspectorTool(toolName, toolInput, callId, emitWithTracking, {
-            queryResults: sessionQueryResults,
-            model: effectiveModelId || modelId || modelConfig.bedrockId,
-            lastUserMessage: lastUserMessageText,
-            sessionId: body.sessionId ?? '',
-            connectionId: resolvedConnectionId,
-          }),
+          executeTool: (toolName: string, toolInput: Record<string, unknown>, callId: string) =>
+            withAgentOpsToolLog(
+              {
+                sessionId: body.sessionId ?? null,
+                runId: turnMetrics.turnId,
+                loop: currentAgentLoop,
+                toolName,
+                callId,
+                model: effectiveModelForOps,
+              },
+              toolInput,
+              () => executeInspectorTool(toolName, toolInput, callId, emitWithTracking, {
+                queryResults: sessionQueryResults,
+                model: effectiveModelForOps,
+                lastUserMessage: lastUserMessageText,
+                sessionId: body.sessionId ?? '',
+                connectionId: resolvedConnectionId,
+              }),
+            ),
           maxLoops: maxInspectorLoops,
           supportsTools: modelConfig.supportsTools,
           supportsThinking: modelConfig.supportsThinking,
           abortSignal: closed,
           onLoopStart: (loop: number, maxLoops: number) => {
+            currentAgentLoop = loop;
             emit({ type: 'loop_start', loop, maxLoops });
           },
           onTextChunk: (delta: string) => {
+            turnMetrics.markFirstToken();
             emit({ type: 'text', delta });
           },
           onThinkingChunk: (delta: string) => {
@@ -435,7 +466,9 @@ export async function POST(request: NextRequest) {
                 const inputRaw = JSON.stringify(event.input);
                 const actionNodeId = trace.action({
                   toolName:   event.toolName,
-                  toolParams: JSON.parse(inputRaw.slice(0, 2000)) as Record<string, unknown>,
+                  toolParams: inputRaw.length <= 2000
+                    ? event.input
+                    : { _truncatedInput: inputRaw.slice(0, 2000) },
                 });
                 actionNodeByCallId.set(event.callId, actionNodeId);
                 toolNameByCallId.set(event.callId, event.toolName);
@@ -498,6 +531,7 @@ export async function POST(request: NextRequest) {
           onLoopUsage: (loop: number, inputTokens: number, outputTokens: number, totalInputTokens: number, totalOutputTokens: number) => {
             emit({ type: 'loop_usage', loop, inputTokens, outputTokens, totalInputTokens, totalOutputTokens });
           },
+          onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
           onTextReplace: (text: string) => {
             emit({ type: 'text_replace', text });
           },
@@ -533,6 +567,10 @@ export async function POST(request: NextRequest) {
             supportsThinking: grokCfg.supportsThinking,
           });
         }
+
+        // Cost-log tokens: prefer recorder totals (include prompt-cache split), else provider usage.
+        const costTokens = () =>
+          turnMetrics.tokenTotals() ?? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens };
 
         // Accumulate bandit counters from trajectory
         for (const entry of result.toolCalls) {
@@ -570,7 +608,7 @@ export async function POST(request: NextRequest) {
 
           emit({ type: 'done', usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }, model: effectiveModelId, loops: result.loops, qualityScore, contextMode, outcome: 'completed' as const, toolTrajectory: result.toolCalls });
 
-          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, toolCalls: result.loops - 1, status: success ? 'success' : 'failed' }).catch(() => {});
+          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, ...costTokens(), toolCalls: result.loops - 1, durationMs: turnMetrics.elapsedMs(), status: success ? 'success' : 'failed' }).catch(() => {});
           reportToBandit({ source: 'inspector', model: effectiveModelId, success, qualityScore, durationMs: Date.now() - runStartTime, sheetType: 'inspector_chat', sessionId: body.sessionId }).catch(() => {});
 
           // Write CTSGV bandit observation (C + T immediate; S + G filled by async judge)
@@ -635,7 +673,7 @@ export async function POST(request: NextRequest) {
           });
 
           emit({ type: 'done', usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }, model: effectiveModelId, loops: result.loops, limitReached: true, qualityScore: qlLimitScore, contextMode, outcome: 'truncated' as const, toolTrajectory: result.toolCalls });
-          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens, toolCalls: result.loops - 1, status: qlLimitSuccess ? 'success' : 'failed' }).catch(() => {});
+          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, ...costTokens(), toolCalls: result.loops - 1, durationMs: turnMetrics.elapsedMs(), status: qlLimitSuccess ? 'success' : 'failed' }).catch(() => {});
           reportToBandit({ source: 'inspector', model: effectiveModelId, success: qlLimitSuccess, qualityScore: qlLimitScore, durationMs: Date.now() - runStartTime, sheetType: 'inspector_chat', sessionId: body.sessionId }).catch(() => {});
 
           // Write CTSGV bandit observation for truncated run (capped at 0.4 by outcome gate)
@@ -676,6 +714,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        void turnMetrics.flush({
+          model: effectiveModelId,
+          outcome: closed.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
+          toolCalls: result.toolCalls.length,
+          toolErrors: toolCallErrorCount,
+          error: result.errorDetail ?? null,
+        });
+
         if (!closed.value) {
           try { controller.close(); } catch {}
         }
@@ -714,6 +760,7 @@ export async function POST(request: NextRequest) {
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Chat stream failed';
+        void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: 0, error: msg });
         emit({ type: 'error', message: msg, recoverable: true });
         emit({ type: 'done', usage: { inputTokens: 0, outputTokens: 0 }, model: effectiveModelId, loops: 0, qualityScore: 0, contextMode, outcome: 'errored' as const, toolTrajectory: [] });
         if (!closed.value) { closed.value = true; try { controller.close(); } catch {} }

@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT D360 — AI, Agent & Memory Guide</title>
+  <style>
+    :root {
+      --navy: #003262;
+      --navy-mid: #1e4a7a;
+      --gold: #FDB515;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --ai: #2563eb;
+      --agent: #0d7a4e;
+      --memory: #6d28d9;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+
+    /* Header */
+    .top-bar {
+      background: var(--navy);
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .top-bar h1 { font-size: 1.1rem; }
+    .top-bar a { color: var(--gold); text-decoration: none; font-size: 0.85rem; }
+    .top-bar a:hover { text-decoration: underline; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, var(--navy), #0a2540);
+      color: white;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+    .hero h2 { font-size: 2rem; margin-bottom: 0.75rem; }
+    .hero p { opacity: 0.85; max-width: 650px; margin: 0 auto; font-size: 1.05rem; }
+
+    /* Main tabs */
+    .main-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1.5rem 1rem 0;
+      flex-wrap: wrap;
+    }
+    .main-tab {
+      padding: 0.75rem 1.5rem;
+      border: 2px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .main-tab:hover { border-color: var(--navy); }
+    .main-tab.active-ai { background: var(--ai); color: white; border-color: var(--ai); }
+    .main-tab.active-agent { background: var(--agent); color: white; border-color: var(--agent); }
+    .main-tab.active-memory { background: var(--memory); color: white; border-color: var(--memory); }
+
+    .panel { display: none; max-width: 1000px; margin: 0 auto; padding: 2rem; }
+    .panel.active { display: block; }
+
+    /* Section blocks */
+    .block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 12px rgba(0,50,98,0.06);
+    }
+    .block h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .block p, .block li { color: var(--muted); font-size: 0.95rem; }
+    .block ul { margin: 0.75rem 0 0 1.25rem; }
+    .block li { margin-bottom: 0.4rem; }
+
+    .tag {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .tag-ai { background: #dbeafe; color: #1e40af; }
+    .tag-agent { background: #d1fae5; color: #065f46; }
+    .tag-memory { background: #ede9fe; color: #5b21b6; }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1.5rem 0;
+    }
+    .flow-step {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      opacity: 0.35;
+      transform: translateY(8px);
+      transition: all 0.4s ease;
+    }
+    .flow-step.on { opacity: 1; transform: translateY(0); }
+    .flow-num {
+      width: 36px; height: 36px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+      color: white;
+    }
+    .flow-body {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      flex: 1;
+      margin-bottom: 0.5rem;
+    }
+    .flow-body strong { color: var(--text); display: block; margin-bottom: 0.25rem; }
+    .flow-body span { font-size: 0.85rem; color: var(--muted); }
+    .flow-line { width: 36px; display: flex; justify-content: center; }
+    .flow-line::after { content: ''; width: 2px; height: 16px; background: var(--border); }
+
+    /* Cards grid */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .mini-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mini-card:hover { border-color: var(--navy); transform: translateY(-2px); }
+    .mini-card.open { border-color: var(--gold); background: #fffbeb; }
+    .mini-card h4 { font-size: 0.95rem; margin-bottom: 0.35rem; color: var(--navy); }
+    .mini-card p { font-size: 0.85rem; color: var(--muted); }
+    .mini-detail { display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text); }
+    .mini-card.open .mini-detail { display: block; }
+
+    /* Comparison table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 1rem; }
+    th, td { padding: 0.65rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #f1f5f9; color: var(--navy); font-weight: 600; }
+    td { color: var(--muted); }
+
+    /* Analogy */
+    .analogy {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .analogy h4 { color: #92400e; font-size: 0.9rem; margin-bottom: 0.4rem; }
+    .analogy p { color: #78350f; font-size: 0.9rem; }
+
+    /* Loop viz */
+    .loop-viz {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      line-height: 1.8;
+      margin: 1rem 0;
+    }
+    .loop-viz .kw { color: #c084fc; }
+    .loop-viz .fn { color: #60a5fa; }
+    .loop-viz .str { color: #86efac; }
+    .loop-viz .cmt { color: #64748b; }
+
+    /* Memory phases */
+    .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+    @media (max-width: 700px) { .phases { grid-template-columns: 1fr; } }
+    .phase {
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.2s;
+      border: 2px solid transparent;
+    }
+    .phase:hover { transform: scale(1.02); }
+    .phase.sel { border-color: var(--memory); }
+    .phase-0 { background: #fef2f2; }
+    .phase-1a { background: #eff6ff; }
+    .phase-1b { background: #f5f3ff; }
+    .phase .num { font-size: 2rem; font-weight: 800; }
+    .phase h4 { margin: 0.5rem 0 0.25rem; font-size: 0.95rem; }
+    .phase p { font-size: 0.8rem; color: var(--muted); }
+    .phase-detail {
+      display: none;
+      background: #faf5ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .phase-detail.show { display: block; }
+
+  .btn {
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .btn-play { background: var(--navy); color: white; }
+    .btn-reset { background: var(--surface); border: 1px solid var(--border); color: var(--navy); }
+
+    /* Integration diagram */
+    .integration {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 0.5rem;
+      align-items: center;
+      margin: 2rem 0;
+      text-align: center;
+    }
+    @media (max-width: 700px) {
+      .integration { grid-template-columns: 1fr; }
+      .integration .arrow { transform: rotate(90deg); }
+    }
+    .int-box {
+      border-radius: 10px;
+      padding: 1.25rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .int-memory { background: #ede9fe; color: #5b21b6; border: 2px solid #c4b5fd; }
+    .int-ai { background: #dbeafe; color: #1e40af; border: 2px solid #93c5fd; }
+    .int-agent { background: #d1fae5; color: #065f46; border: 2px solid #6ee7b7; }
+    .arrow { font-size: 1.5rem; color: var(--muted); }
+
+    footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.85rem; }
+    footer a { color: var(--navy); }
+  </style>
+</head>
+<body>
+
+<header class="top-bar">
+  <h1>🧠 AI · Agent · Memory</h1>
+  <a href="architecture-guide.html">← Back to Architecture Guide</a>
+</header>
+
+<section class="hero">
+  <h2>The Three Brains of ALOFT D360</h2>
+  <p>
+    <strong>AI</strong> thinks and plans. <strong>Agent</strong> executes safely. <strong>Memory</strong> learns from every session.
+    Together they turn a one-off chatbot into a system that gets smarter every day.
+  </p>
+</section>
+
+<!-- How they connect -->
+<div style="max-width:1000px;margin:0 auto;padding:0 2rem;">
+  <div class="integration">
+    <div class="int-box int-memory">🧠 MEMORY<br><small style="font-weight:400">Recalls past lessons</small></div>
+    <div class="arrow">→</div>
+    <div class="int-box int-ai">🤖 AI<br><small style="font-weight:400">Plans & decides</small></div>
+    <div class="arrow">→</div>
+    <div class="int-box int-agent">⚙️ AGENT<br><small style="font-weight:400">Runs tools safely</small></div>
+  </div>
+  <p style="text-align:center;color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">
+    After each session, Memory reviews what happened and stores new rules for next time ↻
+  </p>
+</div>
+
+<!-- Main tabs -->
+<div class="main-tabs">
+  <button class="main-tab active-ai" data-panel="ai" onclick="switchPanel('ai')">🤖 AI Layer</button>
+  <button class="main-tab" data-panel="agent" onclick="switchPanel('agent')">⚙️ Agent Runtime</button>
+  <button class="main-tab" data-panel="memory" onclick="switchPanel('memory')">🧠 Memory System</button>
+</div>
+
+<!-- ═══════════════════ AI PANEL ═══════════════════ -->
+<div class="panel active" id="panel-ai">
+
+  <div class="block">
+    <h3>🤖 What Is the AI Layer? <span class="tag tag-ai">Thinks & Plans</span></h3>
+    <p>
+      The AI layer is the "brain" that understands your questions and decides what to do.
+      It runs on <strong>AWS Bedrock</strong> (primarily Claude Sonnet) and streams answers live.
+      It never touches the database directly — it tells the Agent what tools to run.
+    </p>
+    <div class="analogy">
+      <h4>💡 Think of it like a senior analyst</h4>
+      <p>They read your question, check their notes (memory), look up the data dictionary (semantic layer), decide which query to write, and explain the results — but they don't run the query themselves. That's the Agent's job.</p>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>🔄 The Agent Loop — How AI Thinks</h3>
+    <p>Every question triggers a loop (up to 8 rounds). Click Play to see it animate.</p>
+    <button class="btn btn-play" onclick="playFlow('ai-flow')">▶ Play</button>
+    <button class="btn btn-reset" onclick="resetFlow('ai-flow')">↺ Reset</button>
+
+    <div class="flow" id="ai-flow">
+      <div class="flow-step" data-i="0">
+        <div class="flow-num" style="background:var(--ai)">1</div>
+        <div class="flow-body"><strong>Receive prompt</strong><span>System prompt + memory rules + semantic context + your question</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="1">
+        <div class="flow-num" style="background:var(--ai)">2</div>
+        <div class="flow-body"><strong>Stream to Bedrock</strong><span>ConverseStream API — text appears word by word in the UI</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="2">
+        <div class="flow-num" style="background:var(--ai)">3</div>
+        <div class="flow-body"><strong>Decide: text or tool?</strong><span>If the model needs data, it returns a tool_use block instead of text</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="3">
+        <div class="flow-num" style="background:var(--agent)">4</div>
+        <div class="flow-body"><strong>Agent executes tool</strong><span>SQL runs, schema searched, or chart built — result sent back to AI</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="4">
+        <div class="flow-num" style="background:var(--ai)">5</div>
+        <div class="flow-body"><strong>AI reads result, continues</strong><span>Loop repeats — AI may call more tools or write final answer</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="5">
+        <div class="flow-num" style="background:var(--gold);color:var(--navy)">✓</div>
+        <div class="flow-body"><strong>Final answer streamed</strong><span>Text-only response with no more tool calls = done</span></div>
+      </div>
+    </div>
+
+    <div class="loop-viz">
+<span class="cmt">// Simplified from agent-loop.ts</span>
+<span class="kw">while</span> (loopCount &lt; <span class="str">8</span>) {
+  response = <span class="fn">ConverseStream</span>(messages, systemPrompt, tools)
+  <span class="kw">if</span> (response.hasToolCalls) {
+    result = <span class="fn">executeTool</span>(toolName, input)  <span class="cmt">// → Agent</span>
+    messages.<span class="fn">append</span>(toolResult)
+    <span class="kw">continue</span>  <span class="cmt">// loop again</span>
+  }
+  <span class="kw">return</span> response.text  <span class="cmt">// done!</span>
+}
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>🎛️ Available Models</h3>
+    <p>15+ models supported. Default is Claude Sonnet 4.6. Click a model to learn more.</p>
+    <div class="grid">
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Claude Sonnet 4.6 ⭐</h4>
+        <p>Default — best balance of speed and quality</p>
+        <div class="mini-detail">Supports tools ✅ and extended thinking ✅. Used for Inspector chat, memory synthesis, and Marcus reflections.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Claude Opus 4.6</h4>
+        <p>Highest quality, slower</p>
+        <div class="mini-detail">For complex multi-step analysis. Tools + thinking enabled. Higher cost per token.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Amazon Nova (Pro/Lite/Micro)</h4>
+        <p>Fast, cost-effective</p>
+        <div class="mini-detail">Good for simple queries. Tools supported, no thinking mode.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Mistral Large 3</h4>
+        <p>Alternative with tool support</p>
+        <div class="mini-detail">Useful for A/B testing against Claude via the bandit system.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Azure Foundry (GPT, Grok, Kimi)</h4>
+        <p>Optional secondary provider</p>
+        <div class="mini-detail">Routes through foundry-chat.ts adapter. Requires FOUNDRY_* env vars.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Bedrock Titan</h4>
+        <p>Embeddings only (not chat)</p>
+        <div class="mini-detail">Converts text to vectors for memory search. Hardcoded to us-east-1 region.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>📝 What Goes Into the AI Prompt</h3>
+    <table>
+      <tr><th>Layer</th><th>Source</th><th>Purpose</th></tr>
+      <tr><td>Base workflow rules</td><td>prompts.ts</td><td>"Search catalog first, then SQL"</td></tr>
+      <tr><td>Semantic context</td><td>semantic/context-builder.ts</td><td>Governed metric definitions</td></tr>
+      <tr><td>Harvested insights</td><td>buildInsightsContext()</td><td>Session-specific catalog hints</td></tr>
+      <tr><td>Memory Phase 0</td><td>retrieve.ts</td><td>Safety guardrails (HARD_RULE)</td></tr>
+      <tr><td>Memory Phase 1a</td><td>retrieve.ts</td><td>Schema facts (SCHEMA_MAP)</td></tr>
+      <tr><td>Memory Phase 1b</td><td>retrieve.ts</td><td>Task-specific recall (as assistant turn)</td></tr>
+    </table>
+  </div>
+
+  <div class="block">
+    <h3>✅ Why AI Layer Is Useful</h3>
+    <div class="grid">
+      <div class="mini-card" style="cursor:default"><h4>No SQL needed</h4><p>Analysts ask in plain English</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Live streaming</h4><p>Answers appear word-by-word, not after a long wait</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Model flexibility</h4><p>Swap Claude ↔ Nova ↔ Mistral without code changes</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Cost optimization</h4><p>Prompt caching cuts repeat costs by ~90%</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ AGENT PANEL ═══════════════════ -->
+<div class="panel" id="panel-agent">
+
+  <div class="block">
+    <h3>⚙️ What Is the Agent Runtime? <span class="tag tag-agent">Executes Safely</span></h3>
+    <p>
+      The Agent is the "hands" — it takes the AI's decisions and actually runs them.
+      Every SQL query, chart, and schema lookup goes through the Agent.
+      It enforces safety rules, records a full trace, and scores run quality.
+    </p>
+    <div class="analogy">
+      <h4>💡 Think of it like a database gateway with a black box recorder</h4>
+      <p>The Agent is the only thing allowed to touch Databricks. It checks every query is read-only, logs everything that happened, and reports back whether the run succeeded — so the system can learn from it.</p>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>🔧 The 5 Tools the Agent Can Run</h3>
+    <p>Click each tool to see what it does and where the code lives.</p>
+    <div class="grid">
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>describe_schema</h4>
+        <p>Search the data catalog — FREE</p>
+        <div class="mini-detail">
+          <strong>Actions:</strong> search, describe, profile, list, relations<br>
+          <strong>Cost:</strong> Zero warehouse queries — reads from Postgres catalog<br>
+          <strong>File:</strong> context/dispatch.ts → handleDescribeSchema()<br>
+          <strong>When:</strong> Always first step in harvested mode
+        </div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>execute_tool</h4>
+        <p>Run SQL on Databricks</p>
+        <div class="mini-detail">
+          <strong>Safety:</strong> Read-only allowlist, row cap (1000), byte cap (4MB)<br>
+          <strong>Path:</strong> tools.ts → executeDatabricksSQL() in databricks/execute.ts<br>
+          <strong>Auth:</strong> OAuth M2M token per connection<br>
+          <strong>When:</strong> After catalog confirms table path exists
+        </div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>emit_chart</h4>
+        <p>Auto-generate chart from query results</p>
+        <div class="mini-detail">
+          <strong>Pipeline:</strong> profile → recommend chart type → build Chart DSL → ECharts<br>
+          <strong>File:</strong> chart-pipeline.ts → runChartPipeline()<br>
+          <strong>When:</strong> User asks for a visualization after a query ran
+        </div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>emit_semantic_chart</h4>
+        <p>Chart from governed metrics</p>
+        <div class="mini-detail">
+          <strong>Pipeline:</strong> compile semantic query → execute → profile → chart<br>
+          <strong>Trust:</strong> Shows which governed definitions were used<br>
+          <strong>When:</strong> User asks about an official metric like "Revenue"
+        </div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>emit_disambiguation</h4>
+        <p>Ask user to pick when ambiguous</p>
+        <div class="mini-detail">
+          <strong>UI:</strong> Shows clickable chips for candidate metrics<br>
+          <strong>Rule:</strong> "Refuse rather than guess" — agent stops and waits<br>
+          <strong>When:</strong> Multiple metrics match the user's question
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>🛡️ SQL Safety Gate (The Chokepoint)</h3>
+    <p>Every single SQL query passes through <code>executeDatabricksSQL()</code> in <code>databricks/execute.ts</code>. No bypass exists.</p>
+    <button class="btn btn-play" onclick="playFlow('agent-flow')">▶ Play Safety Check</button>
+    <button class="btn btn-reset" onclick="resetFlow('agent-flow')">↺ Reset</button>
+
+    <div class="flow" id="agent-flow">
+      <div class="flow-step" data-i="0">
+        <div class="flow-num" style="background:var(--agent)">1</div>
+        <div class="flow-body"><strong>Strip comments & string literals</strong><span>Prevents smuggling dangerous SQL inside strings</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="1">
+        <div class="flow-num" style="background:var(--agent)">2</div>
+        <div class="flow-body"><strong>Check first verb is read-only</strong><span>Only SELECT, WITH, SHOW, DESCRIBE, EXPLAIN allowed</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="2">
+        <div class="flow-num" style="background:var(--agent)">3</div>
+        <div class="flow-body"><strong>Block multi-statement</strong><span>Semicolons outside strings = rejected</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="3">
+        <div class="flow-num" style="background:var(--agent)">4</div>
+        <div class="flow-body"><strong>Apply row & byte caps</strong><span>Max 1000 rows (configurable), 4MB response limit</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="4">
+        <div class="flow-num" style="background:var(--agent)">5</div>
+        <div class="flow-body"><strong>Execute on Databricks</strong><span>OAuth token → SQL Statements API → parse results</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="5">
+        <div class="flow-num" style="background:#dc2626">✗</div>
+        <div class="flow-body"><strong>Reject external_links</strong><span>If result too large for inline delivery → fail with "add LIMIT"</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>📡 Live Streaming Events (What You See in the UI)</h3>
+    <table>
+      <tr><th>Event</th><th>What Happens</th><th>UI Effect</th></tr>
+      <tr><td><code>text</code></td><td>AI writes answer text</td><td>Words appear in chat bubble</td></tr>
+      <tr><td><code>thinking</code></td><td>Claude extended reasoning</td><td>Thinking panel expands</td></tr>
+      <tr><td><code>tool_call_running</code></td><td>SQL or schema search starts</td><td>Tool card shows spinner</td></tr>
+      <tr><td><code>query_result</code></td><td>SQL returned rows</td><td>Data table renders</td></tr>
+      <tr><td><code>chart_spec</code></td><td>Chart pipeline complete</td><td>ECharts visualization appears</td></tr>
+      <tr><td><code>tool_call_error</code></td><td>Tool failed</td><td>Error card with retry hint</td></tr>
+    </table>
+  </div>
+
+  <div class="block">
+    <h3>📊 Trace Graph & Marcus Reflection</h3>
+    <p>Every session creates a graph of what happened — used for debugging, scoring, and memory synthesis.</p>
+    <div class="grid">
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Trace Nodes</h4>
+        <p>ACTION → OUTCOME → CORRECTION → DEAD_END</p>
+        <div class="mini-detail">Stored in platform_trace_nodes. Captured fire-and-forget during chat. File: memory/trace/capture.ts</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Marcus Reflection</h4>
+        <p>AI coach reviews the trajectory</p>
+        <div class="mini-detail">Runs after stream closes. Sends trace to Claude Sonnet. Stores insights in platform_marcus_reflections. Flag: MARCUS_REFLECT_ENABLED</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Lifecycle Scoring</h4>
+        <p>Cost, quality, bandit observations</p>
+        <div class="mini-detail">logAgentCost() + scoreRun() + writeBanditObservation(). Feeds model selection and memory attribution.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>✅ Why Agent Runtime Is Useful</h3>
+    <div class="grid">
+      <div class="mini-card" style="cursor:default"><h4>Impossible to bypass safety</h4><p>One chokepoint for all SQL</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Full audit trail</h4><p>Every tool call logged with timing</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Auto charts</h4><p>No manual chart configuration</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Catalog-first</h4><p>Free schema search before expensive queries</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MEMORY PANEL ═══════════════════ -->
+<div class="panel" id="panel-memory">
+
+  <div class="block">
+    <h3>🧠 What Is the Memory System? <span class="tag tag-memory">Learns Over Time</span></h3>
+    <p>
+      Memory stores short, actionable rules learned from past sessions — like sticky notes
+      that the AI reads before answering your next question. No model retraining needed;
+      rules are injected into the prompt instantly.
+    </p>
+    <div class="analogy">
+      <h4>💡 Think of it like a team wiki that writes itself</h4>
+      <p>After every workday, the system reviews what happened in each chat session, extracts useful lessons ("crew data is in ops.crew_manifest"), and adds them to a shared knowledge base. Next time anyone asks about crew data, those lessons are automatically included in the AI's context.</p>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>📋 Five Types of Memory Rules</h3>
+    <table>
+      <tr><th>Type</th><th>What It Stores</th><th>Example</th></tr>
+      <tr><td><strong>HARD_RULE</strong></td><td>Must-follow safety rules</td><td>"Never fabricate column names"</td></tr>
+      <tr><td><strong>SCHEMA_MAP</strong></td><td>Table & schema paths</td><td>"Crew data → ops.crew_manifest"</td></tr>
+      <tr><td><strong>HEURISTIC</strong></td><td>General tips & patterns</td><td>"Filter by voyage_id before joining"</td></tr>
+      <tr><td><strong>SOURCE_PREF</strong></td><td>Which data source to use</td><td>"Vessel data is in curated_db"</td></tr>
+      <tr><td><strong>FAILURE_MODE</strong></td><td>Known error patterns</td><td>"Unqualified name → TABLE_NOT_FOUND"</td></tr>
+    </table>
+  </div>
+
+  <div class="block">
+    <h3>🔍 Three-Phase Retrieval — How Rules Are Found</h3>
+    <p>When you ask a question, memory runs three searches in parallel. Click each phase:</p>
+
+    <div class="phases">
+      <div class="phase phase-0" onclick="selectPhase(0)">
+        <div class="num" style="color:#dc2626">0</div>
+        <h4>INIT — Guardrails</h4>
+        <p>Safety rules, always on</p>
+      </div>
+      <div class="phase phase-1a" onclick="selectPhase(1)">
+        <div class="num" style="color:var(--ai)">1a</div>
+        <h4>SCHEMA — Facts</h4>
+        <p>Table paths for this topic</p>
+      </div>
+      <div class="phase phase-1b" onclick="selectPhase(2)">
+        <div class="num" style="color:var(--memory)">1b</div>
+        <h4>TASK — Recall</h4>
+        <p>Semantic search by question</p>
+      </div>
+    </div>
+
+    <div class="phase-detail" id="phase-detail-0">
+      <strong>Phase 0 (INIT)</strong> — Injected into system prompt. Always includes a default guardrail ("verify tables exist"). Plus any HARD_RULEs with high confidence. No embedding search — deterministic. Budget: ~200 tokens.
+    </div>
+    <div class="phase-detail" id="phase-detail-1">
+      <strong>Phase 1a (SCHEMA_GLOBAL)</strong> — All SCHEMA_MAP bullets for the current topic group. Sorted by confidence × net-helpful score. Plus your personal taught rules (recency-ordered). Injected into system prompt. Budget: ~600 tokens.
+    </div>
+    <div class="phase-detail" id="phase-detail-2">
+      <strong>Phase 1b (TASK_SCOPED)</strong> — Your question is embedded (Titan), then cosine-searched against HEURISTIC / SOURCE_PREF / FAILURE_MODE bullets. Optional MMR diversity prevents redundant rules. Injected as a synthetic "assistant recall" message. Budget: ~1200 tokens.
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>🌙 Overnight Learning — The Synthesis Pipeline</h3>
+    <button class="btn btn-play" onclick="playFlow('memory-flow')">▶ Play Nightly Cycle</button>
+    <button class="btn btn-reset" onclick="resetFlow('memory-flow')">↺ Reset</button>
+
+    <div class="flow" id="memory-flow">
+      <div class="flow-step" data-i="0">
+        <div class="flow-num" style="background:var(--memory)">1</div>
+        <div class="flow-body"><strong>04:30 UTC — Nightly DAG starts</strong><span>Advisory lock acquired — only one run at a time</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="1">
+        <div class="flow-num" style="background:var(--memory)">2</div>
+        <div class="flow-body"><strong>Find unprocessed sessions</strong><span>Sessions newer than last synthesis watermark</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="2">
+        <div class="flow-num" style="background:var(--ai)">3</div>
+        <div class="flow-body"><strong>LLM reflects on each session</strong><span>"Captain Track Sparrow" extracts up to 7 candidate rules</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="3">
+        <div class="flow-num" style="background:var(--memory)">4</div>
+        <div class="flow-body"><strong>Curate & validate</strong><span>Dedup, quarantine bad rules, check for concrete identifiers</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="4">
+        <div class="flow-num" style="background:var(--memory)">5</div>
+        <div class="flow-body"><strong>Store as ACTIVE bullets</strong><span>Embedded with Titan vectors for future search</span></div>
+      </div>
+      <div class="flow-line"></div>
+      <div class="flow-step" data-i="5">
+        <div class="flow-num" style="background:var(--agent)">6</div>
+        <div class="flow-body"><strong>Attribution loop closes</strong><span>Successful runs → helpful_count++. Bad rules → SUPERSEDED</span></div>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem;font-size:0.9rem;color:var(--muted);">
+      <strong>Weekly (Sunday 05:30 UTC):</strong> grow_refine (dedup + TTL cleanup) → reclassify (FOER topic clustering refresh)
+    </p>
+  </div>
+
+  <div class="block">
+    <h3>🎓 Teach Mode & Reputation</h3>
+    <div class="grid">
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Teach Mode</h4>
+        <p>Correct the AI directly</p>
+        <div class="mini-detail">Your correction → teach candidate → admin review → promoted to memory. Personal rules get a dedicated retrieval lane so they always surface for you.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Attribution Loop</h4>
+        <p>Did the rule actually help?</p>
+        <div class="mini-detail">Success → helpful_count++, confidence +0.02. Failure → harmful_count++. 3+ harmful → rule SUPERSEDED. Idempotent — safe to replay.</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>Reputation</h4>
+        <p>Leaderboard for contributors</p>
+        <div class="mini-detail">Season-based scoring. Users earn reputation when their rules lead to successful runs. Flag: MEMORY_REPUTATION_ENABLED</div>
+      </div>
+      <div class="mini-card" onclick="toggleMini(this)">
+        <h4>FOER Clustering</h4>
+        <p>Organize rules by topic</p>
+        <div class="mini-detail">Groups bullets by task_signature into topics like "crew-certificates" or "vessel-voyage". Enables Phase 1a to scope retrieval to the right domain.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="block">
+    <h3>✅ Why Memory Is Useful</h3>
+    <div class="grid">
+      <div class="mini-card" style="cursor:default"><h4>Faster answers</h4><p>AI doesn't rediscover schema every time</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Fewer repeat errors</h4><p>FAILURE_MODE rules prevent same mistake twice</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Org-wide knowledge</h4><p>One analyst's discovery helps everyone</p></div>
+      <div class="mini-card" style="cursor:default"><h4>No retraining</h4><p>New rules work instantly via prompt injection</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Self-cleaning</h4><p>Bad rules auto-superseded after 3 harmful hits</p></div>
+      <div class="mini-card" style="cursor:default"><h4>Personal + shared</h4><p>Your taught rules follow you; org rules help the team</p></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Full technical reference: <a href="AI-AGENT-MEMORY.md">docs/AI-AGENT-MEMORY.md</a> · <a href="self-improving-memory-guide.html">Self-improving memory (HTML)</a> · <a href="../ARCHITECTURE.md">ARCHITECTURE.md</a></p>
+  <p style="margin-top:0.5rem;">ALOFT D360 — Spinor Labs</p>
+</footer>
+
+<script>
+  // Panel switching
+  function switchPanel(name) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    document.querySelectorAll('.main-tab').forEach(t => {
+      t.className = 'main-tab';
+      if (t.dataset.panel === name) t.classList.add('active-' + name);
+    });
+  }
+
+  // Flow animation
+  const timers = {};
+  function playFlow(id) {
+    resetFlow(id);
+    const steps = document.querySelectorAll('#' + id + ' .flow-step');
+    let i = 0;
+    timers[id] = setInterval(() => {
+      if (i < steps.length) {
+        steps[i].classList.add('on');
+        steps[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        i++;
+      } else clearInterval(timers[id]);
+    }, 800);
+  }
+  function resetFlow(id) {
+    clearInterval(timers[id]);
+    document.querySelectorAll('#' + id + ' .flow-step').forEach(s => s.classList.remove('on'));
+  }
+
+  // Mini card toggle
+  function toggleMini(card) {
+    const was = card.classList.contains('open');
+    card.parentElement.querySelectorAll('.mini-card').forEach(c => c.classList.remove('open'));
+    if (!was) card.classList.add('open');
+  }
+
+  // Memory phase selector
+  function selectPhase(n) {
+    document.querySelectorAll('.phase').forEach((p, i) => p.classList.toggle('sel', i === n));
+    document.querySelectorAll('.phase-detail').forEach((d, i) => d.classList.toggle('show', i === n));
+  }
+  selectPhase(0);
+</script>
+
+</body>
+</html>

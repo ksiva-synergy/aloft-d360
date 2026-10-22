@@ -17,10 +17,10 @@ export default function CoverageBar({ label, count, total, color, denominator }:
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[11px] font-medium tracking-wide text-[var(--muted-foreground)]">
+        <span className="text-xs font-medium tracking-wide text-[var(--muted-foreground)]">
           {label}
         </span>
-        <span className="font-mono text-[10px] text-[var(--muted-foreground)]">
+        <span className="font-mono text-xs text-[var(--muted-foreground)]">
           {count} <span className="opacity-60">({percentage}%)</span>
         </span>
       </div>

@@ -97,10 +97,11 @@ async function fetchEstate(orgId: string): Promise<EstateSummary | null> {
           COUNT(*)::int AS harvested,
           COUNT(CASE WHEN o.last_t1_at IS NOT NULL THEN 1 END)::int AS profiled,
           COUNT(CASE WHEN o.last_t2_at IS NOT NULL THEN 1 END)::int AS enriched,
-          COUNT(CASE WHEN e.subject_id IS NOT NULL THEN 1 END)::int AS embedded
+          COUNT(*) FILTER (WHERE EXISTS (
+            SELECT 1 FROM platform_context_embeddings e
+            WHERE e.subject_kind = 'object' AND e.subject_id = o.id AND e.embedding IS NOT NULL
+          ))::int AS embedded
         FROM platform_context_objects o
-        LEFT JOIN platform_context_embeddings e
-          ON o.id = e.subject_id AND e.subject_kind = 'object' AND e.org_id = ${orgId}
         WHERE o.org_id = ${orgId} AND o.lifecycle = 'active'
       `,
       prisma.$queryRaw<{ estate_total: number; stale_count: number; last_sweep: Date | null }[]>`

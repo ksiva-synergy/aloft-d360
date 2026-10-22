@@ -7,6 +7,7 @@ import { syncEstateFromHarvest } from './estate';
 import { saveProfile } from './profile';
 import { countT1Degrade } from './coverage';
 import { makeHeartbeat } from './queue';
+import { selectDroppedPaths } from './scope-match';
 import type { ContextSource, HarvestConfig, ProfileBudget } from './types';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
@@ -152,14 +153,12 @@ export async function runT0Harvest(
 
     // ── 6. Upsert objects + columns ───────────────────────────────────────────
     const now = new Date();
-    const harvestedPaths = new Set<string>();
     let columnsUpserted = 0;
     let objIdx = 0;
     const beat = makeHeartbeat(job.id);
 
     for (const meta of structuralMeta) {
       await beat();
-      harvestedPaths.add(meta.ref.full_path);
       objIdx++;
 
       if (objIdx % 50 === 0 || objIdx === structuralMeta.length) {
@@ -223,47 +222,33 @@ export async function runT0Harvest(
     // Delta runs (detectChanges) don't carry the full set of active objects so
     // we cannot safely infer what's dropped. See PHASE_CH1_DECISIONS.md D-12.
     //
-    // Scoped runs (hasIncludeOverride) must only drop objects within the schemas that
-    // were actually harvested. Objects in schemas outside the job's scope are
-    // invisible to this run and must never be touched.
+    // selectDroppedPaths compares against the resolved listing (not the
+    // budget-capped harvested set), only inside this run's scope, and only in
+    // catalog.schema pairs that were actually listed. Objects outside scope or in
+    // a failed listing are unobserved, not deleted.
     let droppedObjects = 0;
-    if (isFirstRun && harvestedPaths.size > 0) {
-      if (hasIncludeOverride) {
-        // Derive the set of schema names that were actually in scope by extracting
-        // the schema segment (index 1) from each harvested full_path (catalog.schema.object).
-        const harvestedSchemas = new Set<string>();
-        for (const p of harvestedPaths) {
-          const parts = p.split('.');
-          if (parts.length >= 2) harvestedSchemas.add(parts[1]);
-        }
-        if (harvestedSchemas.size > 0) {
-          const dropped = await prisma.platformContextObject.updateMany({
-            where: {
-              source_id: sourceId,
-              lifecycle: 'active',
-              schema_name: { in: [...harvestedSchemas] },
-              full_path: { notIn: [...harvestedPaths] },
-            },
-            data: { lifecycle: 'dropped' },
-          });
-          droppedObjects = dropped.count;
-          console.log(
-            `[t0_structural] scoped drop: ${droppedObjects} objects dropped within ${harvestedSchemas.size} schema(s) — schemas outside this run's scope were not touched`,
-          );
-        }
-      } else {
-        // Full unscoped sweep — the job saw the entire source, so any active
-        // object not present is genuinely gone.
+    if (isFirstRun && refs.length > 0) {
+      const activeRows = await prisma.platformContextObject.findMany({
+        where: { source_id: sourceId, lifecycle: 'active' },
+        select: { id: true, full_path: true },
+      });
+      const dropPaths = new Set(selectDroppedPaths({
+        activePaths: activeRows.map((r) => r.full_path),
+        resolvedPaths: refs.map((r) => r.full_path),
+        includes: source.scope_include ?? ['*.*.*'],
+        excludes: source.scope_exclude ?? [],
+      }));
+      const dropIds = activeRows.filter((r) => dropPaths.has(r.full_path)).map((r) => r.id);
+      for (let i = 0; i < dropIds.length; i += 500) {
         const dropped = await prisma.platformContextObject.updateMany({
-          where: {
-            source_id: sourceId,
-            lifecycle: 'active',
-            full_path: { notIn: [...harvestedPaths] },
-          },
+          where: { id: { in: dropIds.slice(i, i + 500) }, lifecycle: 'active' },
           data: { lifecycle: 'dropped' },
         });
-        droppedObjects = dropped.count;
+        droppedObjects += dropped.count;
       }
+      console.log(
+        `[t0_structural] drop pass: ${droppedObjects} objects dropped (resolved=${refs.length}, active_before=${activeRows.length}, scoped=${hasIncludeOverride})`,
+      );
     }
 
     const estateSync = await syncEstateFromHarvest(

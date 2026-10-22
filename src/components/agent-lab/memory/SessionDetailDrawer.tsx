@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, X, Sparkles, Layers, Archive, ShieldAlert, ChevronDown, ChevronRight } from 'lucide-react';
 import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TraceNode {
@@ -79,14 +80,14 @@ function BulletCard({ bullet, dimmed = false }: { bullet: TraceBullet; dimmed?: 
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: accent, background: `${accent}12`, border: `1px solid ${accent}35`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+        <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
           {ruleTypeLabel(bullet.ruleType)}
         </span>
         <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: 'var(--foer-text-mut)' }}>
           {(bullet.confidence * 100).toFixed(0)}% conf
         </span>
         {bullet.version > 1 && (
-          <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: LEARNED_STEEL, background: `${LEARNED_STEEL}14`, border: `1px solid ${LEARNED_STEEL}35`, borderRadius: 3, padding: '1px 4px' }}>
+          <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: LEARNED_STEEL, background: `${withAlpha(LEARNED_STEEL, '14')}`, border: `1px solid ${withAlpha(LEARNED_STEEL, '35')}`, borderRadius: 3, padding: '1px 4px' }}>
             v{bullet.version}
           </span>
         )}
@@ -133,7 +134,7 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
   if (count === 0 && bullets.length === 0) return null;
 
   return (
-    <div style={{ border: `1px solid ${accent}28`, borderRadius: 6, overflow: 'hidden', marginBottom: '0.75rem' }}>
+    <div style={{ border: `1px solid ${withAlpha(accent, '28')}`, borderRadius: 6, overflow: 'hidden', marginBottom: '0.75rem' }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
@@ -143,7 +144,7 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
           alignItems: 'center',
           gap: '0.6rem',
           padding: '0.75rem 1rem',
-          background: `${accent}0c`,
+          background: `${withAlpha(accent, '0c')}`,
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
@@ -168,13 +169,13 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
       </button>
 
       {open && bullets.length > 0 && (
-        <div style={{ borderTop: `1px solid ${accent}20` }}>
+        <div style={{ borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
           {bullets.map(b => <BulletCard key={b.id} bullet={b} dimmed={dimmed} />)}
         </div>
       )}
 
       {open && bullets.length === 0 && count > 0 && (
-        <div style={{ padding: '0.6rem 1rem', fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)', borderTop: `1px solid ${accent}20` }}>
+        <div style={{ padding: '0.6rem 1rem', fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)', borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
           {count} {count === 1 ? 'memory' : 'memories'} — detail records not retained in this view
         </div>
       )}
@@ -222,7 +223,7 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
         onClick={() => summary && setOpen(v => !v)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, color: c, background: `${c}14`, border: `1px solid ${c}35`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, color: c, background: `${withAlpha(c, '14')}`, border: `1px solid ${withAlpha(c, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
             {node.nodeType}
           </span>
           {node.edgeType && (
@@ -376,7 +377,7 @@ export function SessionDetailDrawer({
                   {sessionLabel ?? sessionId?.slice(0, 8) ?? '—'}
                 </span>
                 {topicName && (
-                  <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: GOLD, background: `${GOLD}12`, border: `1px solid ${GOLD}30`, borderRadius: 3, padding: '1px 6px' }}>
+                  <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: GOLD, background: `color-mix(in srgb, ${GOLD} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`, borderRadius: 3, padding: '1px 6px' }}>
                     {topicName}
                   </span>
                 )}
@@ -412,7 +413,7 @@ export function SessionDetailDrawer({
         </div>
 
         {/* ── SCROLLABLE BODY ── */}
-        <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'var(--foer-border) transparent' }}>
+        <div style={{ flex: 1, overflowY: 'auto' }}>
           {isLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3.5rem', gap: '0.6rem', fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-sec)' }}>
               <Loader2 size={15} style={{ animation: 'spin 1s linear infinite', color: GOLD }} />
@@ -477,8 +478,8 @@ export function SessionDetailDrawer({
                     <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '15px', color: 'var(--foer-text-pri)' }}>Phantoms Blocked</span>
                     <div style={{ flex: 1, height: 1, background: 'var(--foer-border-dim)' }} />
                   </div>
-                  <div style={{ border: `1px solid ${PHANTOM_AMBER}35`, borderRadius: 6, overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1rem', background: `${PHANTOM_AMBER}0a` }}>
+                  <div style={{ border: `1px solid ${withAlpha(PHANTOM_AMBER, '35')}`, borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1rem', background: `${withAlpha(PHANTOM_AMBER, '0a')}` }}>
                       <ShieldAlert size={18} style={{ color: PHANTOM_AMBER, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 600, color: PHANTOM_AMBER, letterSpacing: '0.05em', marginBottom: '3px' }}>

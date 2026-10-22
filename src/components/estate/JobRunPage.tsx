@@ -77,10 +77,10 @@ function isWarnLine(msg: string) {
 
 const KIND_COLORS: Record<string, { color: string; bg: string; border: string; label: string }> = {
   t0_structural: { color: '#60A5FA', bg: 'rgba(96,165,250,0.08)', border: 'rgba(96,165,250,0.3)', label: 'T0 Structural' },
-  t1_profile:   { color: '#86EFAC', bg: 'rgba(134,239,172,0.08)', border: 'rgba(134,239,172,0.3)', label: 'T1 Profile' },
+  t1_profile:   { color: 'var(--ok)', bg: 'rgba(134,239,172,0.08)', border: 'rgba(134,239,172,0.3)', label: 'T1 Profile' },
   t2_semantic:  { color: '#C084FC', bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.3)', label: 'T2 Semantic' },
   embed:        { color: '#818CF8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.3)', label: 'Embed' },
-  mapping:      { color: '#FDB515', bg: 'rgba(253,181,21,0.08)',  border: 'rgba(253,181,21,0.3)',  label: 'Mapping' },
+  mapping:      { color: 'var(--brand-a-ink)', bg: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',  border: 'color-mix(in srgb, var(--brand-a) 30%, transparent)',  label: 'Mapping' },
   silo_scan:    { color: '#2DD4B4', bg: 'rgba(45,212,180,0.08)',  border: 'rgba(45,212,180,0.3)',  label: 'Silo Scan' },
   recompute_entity_tags: { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)', label: 'Entity Tags' },
   estate_inventory:      { color: '#34D399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.3)',  label: 'Inventory' },
@@ -88,12 +88,12 @@ const KIND_COLORS: Record<string, { color: string; bg: string; border: string; l
 };
 
 function getKindStyle(kind: string) {
-  return KIND_COLORS[kind] ?? { color: '#8892A4', bg: 'rgba(136,146,164,0.08)', border: 'rgba(136,146,164,0.3)', label: kind.replace(/_/g, ' ') };
+  return KIND_COLORS[kind] ?? { color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.08)', border: 'rgba(136,146,164,0.3)', label: kind.replace(/_/g, ' ') };
 }
 
 const TIER_COLORS: Record<string, { color: string; bg: string }> = {
   t0_structural: { color: '#60A5FA', bg: 'rgba(96,165,250,0.12)' },
-  t1_profile:    { color: '#86EFAC', bg: 'rgba(134,239,172,0.12)' },
+  t1_profile:    { color: 'var(--ok)', bg: 'rgba(134,239,172,0.12)' },
   t2_semantic:   { color: '#C084FC', bg: 'rgba(192,132,252,0.12)' },
   knowledge_sync: { color: '#93C5FD', bg: 'rgba(147,197,253,0.12)' },
 };
@@ -126,23 +126,23 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
   );
   if (mapped === 'running') return (
     <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(253,181,21,0.3)', color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.08)' }}>
+      style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
       <span className="relative flex h-2 w-2">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FDB515] opacity-75" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FDB515]" />
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
       </span>
       running
     </span>
   );
   if (mapped === 'done') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(134,239,172,0.3)', color: '#86EFAC', backgroundColor: 'rgba(134,239,172,0.08)' }}>
+      style={{ borderColor: 'rgba(134,239,172,0.3)', color: 'var(--ok)', backgroundColor: 'rgba(134,239,172,0.08)' }}>
       <CheckCircle2 size={11} />done
     </span>
   );
   if (mapped === 'failed') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(239,68,68,0.3)', color: '#fca5a5', backgroundColor: 'rgba(239,68,68,0.08)' }}>
+      style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--bad)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
       <AlertTriangle size={11} />failed
     </span>
   );
@@ -155,7 +155,7 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
   );
   return (
     <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(136,146,164,0.3)', color: '#8892A4', backgroundColor: 'rgba(136,146,164,0.08)' }}>
+      style={{ borderColor: 'rgba(136,146,164,0.3)', color: 'var(--ink-3)', backgroundColor: 'rgba(136,146,164,0.08)' }}>
       queued
     </span>
   );
@@ -164,7 +164,7 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
 function Skeleton({ className }: { className?: string }) {
   return (
     <div className={`rounded animate-pulse ${className ?? ''}`}
-      style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+      style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 6%, transparent)' }} />
   );
 }
 
@@ -209,8 +209,8 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
 
       {/* Execution Timeline */}
       <section>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-5"
-          style={{ color: '#8892A4' }}>
+        <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-5"
+          style={{ color: 'var(--ink-3)' }}>
           Execution Timeline
         </h3>
         <div className="flex flex-col gap-0">
@@ -246,13 +246,13 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
       {/* Stats Grid */}
       {statCards.length > 0 && (
         <section>
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-5"
-            style={{ color: '#8892A4' }}>
+          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-5"
+            style={{ color: 'var(--ink-3)' }}>
             Run Statistics
           </h3>
           {allStatsZero && mapped === 'failed' && (
             <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg border font-mono text-xs"
-              style={{ color: '#8892A4', backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+              style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', borderColor: 'var(--line-1)' }}>
               <AlertTriangle size={12} className="shrink-0" style={{ color: '#6b7280' }} />
               Job failed before producing any results — all counters are zero.
             </div>
@@ -277,7 +277,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
                 <AlertTriangle size={14} className="text-red-400 shrink-0" />
                 <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-red-400">Error</h3>
                 {finishedDate && (
-                  <span className="font-mono text-[10px]" style={{ color: '#9ca3af' }}>
+                  <span className="font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
                     · {finishedDate.toLocaleString()}
                   </span>
                 )}
@@ -285,13 +285,13 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onTabChange('logs')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] font-mono transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono transition-colors"
                   style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.25)', backgroundColor: 'transparent' }}>
                   <Terminal size={10} /> View Logs
                 </button>
                 <button onClick={copyError}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] font-mono transition-colors"
-                  style={{ color: errorCopied ? '#86EFAC' : '#8892A4', borderColor: 'rgba(255,255,255,0.12)', backgroundColor: 'transparent' }}>
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono transition-colors"
+                  style={{ color: errorCopied ? 'var(--ok)' : 'var(--ink-3)', borderColor: 'var(--line-2)', backgroundColor: 'transparent' }}>
                   {errorCopied ? <Check size={10} /> : <Copy size={10} />}
                   {errorCopied ? 'Copied' : 'Copy'}
                 </button>
@@ -300,15 +300,15 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
 
             {/* Error body */}
             <div className="p-5 space-y-4">
-              <pre className="font-mono text-[12px] text-red-300 whitespace-pre-wrap break-words leading-relaxed max-h-48 overflow-y-auto p-3 rounded border"
+              <pre className="font-mono text-xs text-red-300 whitespace-pre-wrap break-words leading-relaxed max-h-48 overflow-y-auto p-3 rounded border"
                 style={{ backgroundColor: 'rgba(0,0,0,0.25)', borderColor: 'rgba(239,68,68,0.12)' }}>
                 {job.error || 'No error details recorded.'}
               </pre>
 
               {/* Contextual help for CANCELED errors */}
               {isCanceled && (
-                <div className="flex gap-2 px-3 py-2.5 rounded border font-mono text-[11px]"
-                  style={{ color: '#9ca3af', backgroundColor: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.07)' }}>
+                <div className="flex gap-2 px-3 py-2.5 rounded border font-mono text-xs"
+                  style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', borderColor: 'var(--line-1)' }}>
                   <AlertTriangle size={12} className="shrink-0 mt-0.5" style={{ color: '#d97706' }} />
                   <span>
                     <span style={{ color: '#fbbf24' }}>Query CANCELED</span> typically means the ECS task was stopped externally,
@@ -325,11 +325,11 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
       {/* Quick Debug Panel — for failed jobs */}
       {mapped === 'failed' && (
         <section>
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-4"
-            style={{ color: '#8892A4' }}>
+          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4"
+            style={{ color: 'var(--ink-3)' }}>
             Quick Debug
           </h3>
-          <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+          <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--line-1)' }}>
             {[
               { label: 'Job ID', value: job.id, copy: true },
               { label: 'Fargate Task ID', value: taskId ?? '—', copy: !!taskId },
@@ -342,8 +342,8 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
             ))}
             {taskId && (
               <div className="flex gap-4 px-5 py-3 items-center border-t"
-                style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-                <span className="font-mono text-[10px] uppercase tracking-wider shrink-0 min-w-[120px]" style={{ color: '#8892A4' }}>CloudWatch</span>
+                style={{ borderColor: 'var(--line-1)' }}>
+                <span className="font-mono text-xs uppercase tracking-wider shrink-0 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>CloudWatch</span>
                 <a
                   href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${taskId}`}
                   target="_blank" rel="noopener noreferrer"
@@ -373,11 +373,11 @@ function DebugRow({ label, value, copy, hasBorder }: { label: string; value: str
   return (
     <div className="flex gap-4 px-5 py-3 items-start"
       style={{ borderTop: hasBorder ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-      <span className="font-mono text-[10px] uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: '#8892A4' }}>{label}</span>
+      <span className="font-mono text-xs uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="font-mono text-xs break-all" style={{ color: '#c9d1d9' }}>{value}</span>
+        <span className="font-mono text-xs break-all" style={{ color: 'var(--ink-1)' }}>{value}</span>
         {copy && value !== '—' && (
-          <button onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors" style={{ color: copied ? '#86EFAC' : '#4a5568' }}>
+          <button onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors" style={{ color: copied ? 'var(--ok)' : '#4a5568' }}>
             {copied ? <Check size={10} /> : <Copy size={10} />}
           </button>
         )}
@@ -414,7 +414,7 @@ function TimelineStep({
         </div>
         {!last && (
           <div className="w-0.5 flex-1 min-h-[40px]"
-            style={{ backgroundColor: active ? (connectorColor ?? dotColor) + '40' : 'rgba(255,255,255,0.06)' }} />
+            style={{ backgroundColor: active ? (connectorColor ?? dotColor) + '40' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)' }} />
         )}
       </div>
       <div className="pb-8 flex-1">
@@ -430,7 +430,7 @@ function TimelineStep({
           )}
         </div>
         {connector && (
-          <div className="mt-1.5 font-mono text-xs" style={{ color: '#8892A4' }}>
+          <div className="mt-1.5 font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
             {connector}
           </div>
         )}
@@ -458,28 +458,28 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
   };
 
   const isError = label.includes('error');
-  const accentColor = muted ? '#374151' : isError ? '#EF4444' : '#FDB515';
+  const accentColor = muted ? '#374151' : isError ? '#EF4444' : 'var(--brand-a-ink)';
   const icon = icons[label] ?? <BarChart3 size={14} />;
 
   return (
     <div
       className="rounded-xl border p-4 flex flex-col gap-2 group transition-all duration-150 hover:scale-[1.02]"
       style={{
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderColor: 'rgba(253,181,21,0.15)',
+        backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
+        borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)',
       }}
       onMouseEnter={e => (e.currentTarget.style.borderColor = accentColor + '50')}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(253,181,21,0.15)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 15%, transparent)')}
     >
       <div className="flex items-center justify-between">
-        <span style={{ color: '#8892A4' }}>{icon}</span>
+        <span style={{ color: 'var(--ink-3)' }}>{icon}</span>
         <span className="font-mono text-2xl font-bold" style={{ color: accentColor }}>
           {typeof value === 'number' && !isNaN(value)
             ? value % 1 === 0 ? value.toLocaleString() : value.toFixed(4)
             : String(value)}
         </span>
       </div>
-      <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: '#8892A4' }}>
+      <span className="font-mono text-xs uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
         {label.replace(/_/g, ' ')}
       </span>
     </div>
@@ -489,18 +489,18 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
 function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--line-1)' }}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-white/5"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]"
         style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}
       >
-        <span className="font-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: '#8892A4' }}>
+        <span className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)' }}>
           {title}
         </span>
         <ChevronDown
           size={14}
-          style={{ color: '#8892A4', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.2s' }}
+          style={{ color: 'var(--ink-3)', transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.2s' }}
         />
       </button>
       {open && <div className="p-5">{children}</div>}
@@ -509,31 +509,31 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 }
 
 function StructuredJson({ data }: { data: unknown }) {
-  if (!data) return <p className="font-mono text-sm italic" style={{ color: '#8892A4' }}>No data</p>;
+  if (!data) return <p className="font-mono text-sm italic" style={{ color: 'var(--ink-3)' }}>No data</p>;
   if (typeof data === 'object' && !Array.isArray(data)) {
     const entries = Object.entries(data as Record<string, unknown>);
     return (
       <div className="space-y-1.5">
         {entries.map(([k, v]) => (
           <div key={k} className="flex gap-3 items-start font-mono text-xs">
-            <span className="min-w-[140px] shrink-0 font-semibold" style={{ color: '#FDB515' }}>{k}</span>
-            <span className="break-all" style={{ color: '#c9d1d9' }}>
+            <span className="min-w-[140px] shrink-0 font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{k}</span>
+            <span className="break-all" style={{ color: 'var(--ink-1)' }}>
               {Array.isArray(v) ? (
                 <span className="flex flex-wrap gap-1">
                   {(v as unknown[]).map((item, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[10px] border"
+                    <span key={i} className="px-1.5 py-0.5 rounded text-xs border"
                       style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                       {String(item)}
                     </span>
                   ))}
-                  <span style={{ color: '#8892A4' }}>({(v as unknown[]).length})</span>
+                  <span style={{ color: 'var(--ink-3)' }}>({(v as unknown[]).length})</span>
                 </span>
               ) : typeof v === 'object' && v !== null ? (
-                <pre className="text-[10px] whitespace-pre-wrap" style={{ color: '#8892A4' }}>
+                <pre className="text-xs whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>
                   {JSON.stringify(v, null, 2)}
                 </pre>
               ) : (
-                <span style={{ color: typeof v === 'number' ? '#86EFAC' : typeof v === 'boolean' ? '#F59E0B' : '#93C5FD' }}>
+                <span style={{ color: typeof v === 'number' ? 'var(--ok)' : typeof v === 'boolean' ? '#F59E0B' : '#93C5FD' }}>
                   {String(v)}
                 </span>
               )}
@@ -543,7 +543,7 @@ function StructuredJson({ data }: { data: unknown }) {
       </div>
     );
   }
-  return <pre className="font-mono text-xs whitespace-pre-wrap" style={{ color: '#8892A4' }}>{JSON.stringify(data, null, 2)}</pre>;
+  return <pre className="font-mono text-xs whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>{JSON.stringify(data, null, 2)}</pre>;
 }
 // ── Logs Tab ───────────────────────────────────────────────────────────────────
 
@@ -668,9 +668,9 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
   const warnCount = lines.filter(l => isWarnLine(l.message)).length;
 
   const logBody = (
-    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: '#0d1117', minHeight: 0, fontFamily: 'IBM Plex Mono, monospace' }}>
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0, fontFamily: 'IBM Plex Mono, monospace' }}>
       {isLoading && (
-        <div className="flex items-center gap-2 px-5 py-4" style={{ color: '#8892A4', fontSize: 12 }}>
+        <div className="flex items-center gap-2 px-5 py-4" style={{ color: 'var(--ink-3)', fontSize: 13 }}>
           <Loader2 size={12} className="animate-spin" /> Loading logs…
         </div>
       )}
@@ -683,14 +683,14 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             </div>
             <button onClick={loadLogs}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-mono shrink-0 transition-colors"
-              style={{ color: '#FDB515', borderColor: 'rgba(253,181,21,0.4)', backgroundColor: 'rgba(253,181,21,0.08)' }}>
+              style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
               <RefreshCw size={11} /> Retry
             </button>
           </div>
-          <pre className="font-mono text-[11px] text-red-300 whitespace-pre-wrap break-words leading-relaxed p-3 rounded border" style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          <pre className="font-mono text-xs text-red-300 whitespace-pre-wrap break-words leading-relaxed p-3 rounded border" style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(239,68,68,0.15)' }}>
             {errorMsg}
           </pre>
-          <div className="space-y-2 font-mono text-[11px]" style={{ color: '#8892A4' }}>
+          <div className="space-y-2 font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
             <p>Possible causes:</p>
             <ul className="list-disc list-inside space-y-1 ml-2" style={{ color: '#6b7280' }}>
               <li>The database is temporarily unavailable — retry in a moment</li>
@@ -702,7 +702,7 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             <a
               href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${meta.taskId}`}
               target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[11px] font-mono transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-mono transition-colors"
               style={{ color: '#93C5FD' }}>
               <ExternalLink size={11} /> Open in CloudWatch console
             </a>
@@ -712,23 +712,23 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
       {!isLoading && !errorMsg && filteredLines.length === 0 && (
         <div className="px-5 py-8 space-y-2">
           {lines.length > 0 ? (
-            <p className="text-xs font-mono" style={{ color: '#8892A4' }}>No lines match the current filter.</p>
+            <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No lines match the current filter.</p>
           ) : isLive ? (
-            <div className="flex items-center gap-1.5 text-xs font-mono" style={{ color: '#8892A4' }}>
+            <div className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#FDB515' }} />
-                <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#FDB515' }} />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a)' }} />
+                <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a)' }} />
               </span>
               Waiting for log events — the container may still be starting…
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs font-mono" style={{ color: '#8892A4' }}>No logs found for this job.</p>
-              <p className="text-[11px] font-mono" style={{ color: '#4a5568' }}>
+              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No logs found for this job.</p>
+              <p className="text-xs font-mono" style={{ color: '#4a5568' }}>
                 This can happen when the Fargate container never started, or when CloudWatch log retention has expired.
               </p>
-              <button onClick={loadLogs} className="flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded border transition-colors mt-1"
-                style={{ color: '#FDB515', borderColor: 'rgba(253,181,21,0.3)', backgroundColor: 'rgba(253,181,21,0.06)' }}>
+              <button onClick={loadLogs} className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors mt-1"
+                style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}>
                 <RefreshCw size={10} /> Try again
               </button>
             </div>
@@ -739,23 +739,23 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
         const isErr = isErrorLine(line.message);
         const isWarn = isWarnLine(line.message);
         return (
-          <div key={i} className="flex gap-3 px-4 py-0.5 hover:bg-white/5 group text-[11px] leading-relaxed"
+          <div key={i} className="flex gap-3 px-4 py-0.5 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] group text-xs leading-relaxed"
             style={{ backgroundColor: isErr ? 'rgba(239,68,68,0.08)' : isWarn ? 'rgba(234,179,8,0.05)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
             <span className="shrink-0 select-none tabular-nums w-[7ch]" style={{ color: '#4a5568' }}>{formatTs(line.ts)}</span>
-            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? '#fca5a5' : isWarn ? '#fde047' : 'transparent', fontSize: 9 }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
-            <span className="flex-1 break-all whitespace-pre-wrap" style={{ color: isErr ? '#fca5a5' : isWarn ? '#fde047' : '#c9d1d9' }}>{line.message.replace(/\n$/, '')}</span>
+            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'transparent', fontSize: 13 }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
+            <span className="flex-1 break-all whitespace-pre-wrap" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'var(--ink-1)' }}>{line.message.replace(/\n$/, '')}</span>
           </div>
         );
       })}
       {isDone && lines.length > 0 && (
-        <div className="px-5 py-2 text-[10px] border-t mt-1" style={{ color: '#4a5568', borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="px-5 py-2 text-xs border-t mt-1" style={{ color: '#4a5568', borderColor: 'var(--line-1)' }}>
           — end of log · {lines.length} line{lines.length !== 1 ? 's' : ''} —
         </div>
       )}
       {!autoScroll && filteredLines.length > 0 && (
         <button onClick={() => { setAutoScroll(true); if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }}
-          className="sticky bottom-2 mx-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-mono border shadow-lg"
-          style={{ backgroundColor: '#1c2128', borderColor: 'rgba(253,181,21,0.3)', color: '#FDB515', left: '50%', transform: 'translateX(-50%)' }}>
+          className="sticky bottom-2 mx-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border shadow-lg"
+          style={{ backgroundColor: 'var(--surface-2)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--brand-a-ink)', left: '50%', transform: 'translateX(-50%)' }}>
           <ChevronDown size={11} /> Resume scroll
         </button>
       )}
@@ -763,46 +763,46 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
   );
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b shrink-0" style={{ backgroundColor: '#161b22', borderColor: 'rgba(255,255,255,0.07)' }}>
+    <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b shrink-0" style={{ backgroundColor: 'var(--surface-3)', borderColor: 'var(--line-1)' }}>
       <div className="relative flex-1 min-w-[160px]">
-        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#8892A4' }} />
+        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
         <input type="text" placeholder="Search logs…" value={search} onChange={e => setSearch(e.target.value)}
           className="w-full pl-7 pr-3 py-1.5 rounded border text-xs font-mono outline-none"
-          style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#c9d1d9' }} />
-        {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: '#8892A4' }}><X size={11} /></button>}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', borderColor: 'var(--line-1)', color: 'var(--ink-1)' }} />
+        {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }}><X size={11} /></button>}
       </div>
       <div className="flex gap-1">
         {(['all','error','warn','info'] as const).map(f => (
           <button key={f} onClick={() => setLevelFilter(f)}
-            className="px-2.5 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors"
-            style={{ backgroundColor: levelFilter === f ? 'rgba(253,181,21,0.15)' : 'transparent', borderColor: levelFilter === f ? 'rgba(253,181,21,0.4)' : 'rgba(255,255,255,0.08)', color: levelFilter === f ? '#FDB515' : '#8892A4' }}>
+            className="px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border transition-colors"
+            style={{ backgroundColor: levelFilter === f ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'transparent', borderColor: levelFilter === f ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)', color: levelFilter === f ? 'var(--brand-a-ink)' : 'var(--ink-3)' }}>
             {f === 'error' ? (errorCount > 0 ? `error (${errorCount})` : 'error') : f === 'warn' ? (warnCount > 0 ? `warn (${warnCount})` : 'warn') : f}
           </button>
         ))}
       </div>
       <div className="flex items-center gap-1 ml-auto">
         {isLive && !isDone && (
-          <span className="flex items-center gap-1.5 text-[10px] font-mono mr-2" style={{ color: '#FDB515' }}>
-            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: '#FDB515' }} /><span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: '#FDB515' }} /></span>
+          <span className="flex items-center gap-1.5 text-xs font-mono mr-2" style={{ color: 'var(--brand-a-ink)' }}>
+            <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a)' }} /><span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a)' }} /></span>
             live
           </span>
         )}
-        {meta && <span className="font-mono text-[9px] mr-2 hidden md:block" style={{ color: '#4a5568' }} title={meta.logStream}>{meta.taskId.slice(-12)}</span>}
+        {meta && <span className="font-mono text-xs mr-2 hidden md:block" style={{ color: '#4a5568' }} title={meta.logStream}>{meta.taskId.slice(-12)}</span>}
         {lines.length > 0 && (
-          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded mr-1 hidden md:block" style={{ color: '#8892A4', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+          <span className="font-mono text-xs px-1.5 py-0.5 rounded mr-1 hidden md:block" style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)' }}>
             {lines.length.toLocaleString()} lines
           </span>
         )}
-        <button onClick={loadLogs} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ color: '#8892A4' }} title="Reload"><RefreshCw size={12} /></button>
-        <button onClick={downloadLogs} disabled={lines.length === 0} className="p-1.5 rounded hover:bg-white/10 transition-colors disabled:opacity-40" style={{ color: '#8892A4' }} title="Download"><Download size={12} /></button>
-        <button onClick={() => setIsFullscreen(f => !f)} className="p-1.5 rounded hover:bg-white/10 transition-colors" style={{ color: '#8892A4' }}><Terminal size={12} /></button>
+        <button onClick={loadLogs} className="p-1.5 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors" style={{ color: 'var(--ink-3)' }} title="Reload"><RefreshCw size={12} /></button>
+        <button onClick={downloadLogs} disabled={lines.length === 0} className="p-1.5 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors disabled:opacity-40" style={{ color: 'var(--ink-3)' }} title="Download"><Download size={12} /></button>
+        <button onClick={() => setIsFullscreen(f => !f)} className="p-1.5 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors" style={{ color: 'var(--ink-3)' }}><Terminal size={12} /></button>
       </div>
     </div>
   );
 
   if (isFullscreen) {
     return (
-      <div className="fixed inset-4 z-[60] flex flex-col rounded-xl shadow-2xl overflow-hidden border" style={{ backgroundColor: '#0d1117', borderColor: 'rgba(253,181,21,0.2)' }}>
+      <div className="fixed inset-4 z-[60] flex flex-col rounded-xl shadow-2xl overflow-hidden border" style={{ backgroundColor: 'var(--terminal-bg)', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
         <div className="fixed inset-0 -z-10" style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }} onClick={() => setIsFullscreen(false)} />
         {toolbar}
         {logBody}
@@ -856,7 +856,7 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
   if (objects.length === 0) return (
     <div className="flex flex-col items-center justify-center p-16 gap-4">
       <Database size={40} style={{ color: '#374151' }} />
-      <p className="font-mono text-sm" style={{ color: '#8892A4' }}>No objects touched during this run</p>
+      <p className="font-mono text-sm" style={{ color: 'var(--ink-3)' }}>No objects touched during this run</p>
       <p className="font-mono text-xs text-center max-w-xs" style={{ color: '#4a5568' }}>
         Objects are correlated via tier timestamps. This job may not have processed any objects or may still be running.
       </p>
@@ -865,48 +865,48 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+      <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0" style={{ borderColor: 'var(--line-1)' }}>
         <div className="relative flex-1">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: '#8892A4' }} />
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
           <input type="text" placeholder={`Search ${objects.length} objects…`} value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-7 pr-3 py-1.5 rounded border text-xs font-mono outline-none"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: '#c9d1d9' }} />
+            style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', borderColor: 'var(--line-1)', color: 'var(--ink-1)' }} />
         </div>
-        <span className="font-mono text-xs shrink-0" style={{ color: '#8892A4' }}>{filtered.length} of {objects.length}</span>
+        <span className="font-mono text-xs shrink-0" style={{ color: 'var(--ink-3)' }}>{filtered.length} of {objects.length}</span>
       </div>
       <div className="overflow-y-auto" style={{ maxHeight: '540px' }}>
         <table className="w-full text-xs font-mono border-collapse">
           <thead>
             <tr style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wider text-[10px]" style={{ color: '#8892A4', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Object</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]" style={{ color: '#8892A4', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Schema</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]" style={{ color: '#8892A4', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Kind</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-[10px]" style={{ color: '#8892A4', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Tiers</th>
-              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wider text-[10px]" style={{ color: '#8892A4', borderBottom: '1px solid rgba(255,255,255,0.06)' }}></th>
+              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Object</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Schema</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Kind</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Tiers</th>
+              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}></th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((obj, i) => (
               <tr key={obj.id} className="group transition-colors"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(253,181,21,0.04)')}
+                style={{ borderBottom: '1px solid var(--line-1)' }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--brand-a) 4%, transparent)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                 <td className="px-5 py-3">
                   <span className="font-medium" style={{ color: 'var(--estate-ink,#e2e8f0)' }}>{obj.object_name ?? obj.full_path.split('.').pop()}</span>
-                  <div className="text-[10px] mt-0.5 truncate max-w-[280px]" style={{ color: '#8892A4' }}>{obj.full_path}</div>
+                  <div className="text-xs mt-0.5 truncate max-w-[280px]" style={{ color: 'var(--ink-3)' }}>{obj.full_path}</div>
                 </td>
-                <td className="px-4 py-3" style={{ color: '#8892A4' }}>{obj.schema_name ?? '—'}</td>
+                <td className="px-4 py-3" style={{ color: 'var(--ink-3)' }}>{obj.schema_name ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <span className="px-1.5 py-0.5 rounded border text-[10px] uppercase" style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
+                  <span className="px-1.5 py-0.5 rounded border text-xs uppercase" style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                     {obj.object_kind}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {obj.tiers_touched.map(tier => {
-                      const tc = TIER_COLORS[tier] ?? { color: '#8892A4', bg: 'rgba(136,146,164,0.1)' };
+                      const tc = TIER_COLORS[tier] ?? { color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.1)' };
                       return (
-                        <span key={tier} className="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider"
+                        <span key={tier} className="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
                           style={{ color: tc.color, backgroundColor: tc.bg }}>
                           {tier.replace('_', ' ')}
                         </span>
@@ -916,9 +916,9 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
                 </td>
                 <td className="px-5 py-3 text-right">
                   <Link href={`/agent-lab/estate/object/${obj.id}`}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-mono transition-colors"
-                    style={{ color: '#FDB515', borderColor: 'rgba(253,181,21,0.2)', backgroundColor: 'transparent' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(253,181,21,0.1)'; }}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs font-mono transition-colors"
+                    style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)', backgroundColor: 'transparent' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'color-mix(in srgb, var(--brand-a) 10%, transparent)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}>
                     View <ExternalLink size={9} />
                   </Link>
@@ -947,8 +947,8 @@ function ConfigTab({ job }: { job: JobItem }) {
     <div className="p-8 space-y-8">
       {/* Infrastructure */}
       <section>
-        <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#8892A4' }}>Infrastructure</h3>
-        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+        <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--ink-3)' }}>Infrastructure</h3>
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--line-1)' }}>
           {[
             { label: 'Job ID', value: job.id, mono: true },
             { label: 'Fargate Task ID', value: taskId ?? '—', mono: true },
@@ -960,8 +960,8 @@ function ConfigTab({ job }: { job: JobItem }) {
           ].map(({ label, value, mono }, idx) => (
             <div key={label} className="flex gap-4 px-5 py-3 items-start"
               style={{ borderTop: idx > 0 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-              <span className="font-mono text-[10px] uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: '#8892A4' }}>{label}</span>
-              <span className={mono ? 'font-mono text-xs break-all' : 'text-sm'} style={{ color: '#c9d1d9' }}>{String(value)}</span>
+              <span className="font-mono text-xs uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
+              <span className={mono ? 'font-mono text-xs break-all' : 'text-sm'} style={{ color: 'var(--ink-1)' }}>{String(value)}</span>
             </div>
           ))}
         </div>
@@ -970,11 +970,11 @@ function ConfigTab({ job }: { job: JobItem }) {
       {/* Scope Details */}
       {(excludeSchemas || includePatterns || chain) && (
         <section>
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#8892A4' }}>Scope Configuration</h3>
+          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--ink-3)' }}>Scope Configuration</h3>
           <div className="space-y-4">
             {excludeSchemas && excludeSchemas.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-wider mb-2" style={{ color: '#8892A4' }}>
+                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
                   Excluded Schemas ({excludeSchemas.length})
                 </p>
                 <div
@@ -982,7 +982,7 @@ function ConfigTab({ job }: { job: JobItem }) {
                   style={{ maxHeight: showAllSchemas ? 'none' : '160px' }}
                 >
                   {excludeSchemas.map((s, i) => (
-                    <span key={i} className="px-2 py-1 rounded border text-[10px] font-mono"
+                    <span key={i} className="px-2 py-1 rounded border text-xs font-mono"
                       style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                       {s}
                     </span>
@@ -991,8 +991,8 @@ function ConfigTab({ job }: { job: JobItem }) {
                 {excludeSchemas.length > SCHEMA_LIMIT && (
                   <button
                     onClick={() => setShowAllSchemas(v => !v)}
-                    className="mt-2 font-mono text-[10px] uppercase tracking-wider transition-colors"
-                    style={{ color: '#FDB515' }}>
+                    className="mt-2 font-mono text-xs uppercase tracking-wider transition-colors"
+                    style={{ color: 'var(--brand-a-ink)' }}>
                     {showAllSchemas ? 'Show less ↑' : `Show all ${excludeSchemas.length} schemas ↓`}
                   </button>
                 )}
@@ -1000,13 +1000,13 @@ function ConfigTab({ job }: { job: JobItem }) {
             )}
             {includePatterns && includePatterns.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-wider mb-2" style={{ color: '#8892A4' }}>
+                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
                   Include Patterns ({includePatterns.length})
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {includePatterns.map((s, i) => (
-                    <span key={i} className="px-2 py-1 rounded border text-[10px] font-mono"
-                      style={{ color: '#86EFAC', borderColor: 'rgba(134,239,172,0.2)', backgroundColor: 'rgba(134,239,172,0.06)' }}>
+                    <span key={i} className="px-2 py-1 rounded border text-xs font-mono"
+                      style={{ color: 'var(--ok)', borderColor: 'rgba(134,239,172,0.2)', backgroundColor: 'rgba(134,239,172,0.06)' }}>
                       {s}
                     </span>
                   ))}
@@ -1015,7 +1015,7 @@ function ConfigTab({ job }: { job: JobItem }) {
             )}
             {chain && chain.length > 0 && (
               <div>
-                <p className="font-mono text-[10px] uppercase tracking-wider mb-2" style={{ color: '#8892A4' }}>
+                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
                   Chained Jobs
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1023,8 +1023,8 @@ function ConfigTab({ job }: { job: JobItem }) {
                     const s = getKindStyle(k);
                     return (
                       <React.Fragment key={k}>
-                        {i > 0 && <span style={{ color: '#FDB515' }}>→</span>}
-                        <span className="px-2 py-1 rounded border text-[10px] font-mono font-semibold uppercase"
+                        {i > 0 && <span style={{ color: 'var(--brand-a-ink)' }}>→</span>}
+                        <span className="px-2 py-1 rounded border text-xs font-mono font-semibold uppercase"
                           style={{ color: s.color, borderColor: s.border, backgroundColor: s.bg }}>
                           {s.label}
                         </span>
@@ -1104,7 +1104,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
         toast.success(
           <span>
             Fargate container launched.{' '}
-            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, opacity: 0.7 }}>
+            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, opacity: 0.7 }}>
               {json.task_id?.slice(0, 12)}
             </span>
           </span>
@@ -1143,15 +1143,15 @@ export default function JobRunPage({ job }: { job: JobItem }) {
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--background)' }}>
       {/* Page Header */}
-      <div className="border-b shrink-0 z-30" style={{ backgroundColor: 'var(--card,#1c2128)', borderColor: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(8px)' }}>
+      <div className="border-b shrink-0 z-30" style={{ backgroundColor: 'var(--card,#1c2128)', borderColor: 'var(--line-1)', backdropFilter: 'blur(8px)' }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           {/* Top row: back + title */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <Link href="/agent-lab/estate/jobs"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-mono mt-0.5 shrink-0 transition-colors"
-                style={{ color: '#8892A4', borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'transparent' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)'; }}
+                style={{ color: 'var(--ink-3)', borderColor: 'var(--line-1)', backgroundColor: 'transparent' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'color-mix(in srgb, var(--ink-1) 5%, transparent)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}>
                 <ArrowLeft size={12} /> Jobs
               </Link>
@@ -1169,9 +1169,9 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                       disabled={kicking}
                       className="inline-flex items-center gap-1.5 px-3 py-1 rounded border text-xs font-mono font-semibold uppercase tracking-wider transition-colors"
                       style={{
-                        color: '#FDB515',
-                        borderColor: kicking ? 'rgba(253,181,21,0.3)' : 'rgba(253,181,21,0.5)',
-                        backgroundColor: kicking ? 'rgba(253,181,21,0.12)' : 'rgba(253,181,21,0.08)',
+                        color: 'var(--brand-a-ink)',
+                        borderColor: kicking ? 'color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
+                        backgroundColor: kicking ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
                         opacity: kicking ? 0.7 : 1,
                         cursor: kicking ? 'default' : 'pointer',
                       }}
@@ -1186,22 +1186,22 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                 </div>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                   <button onClick={handleCopyId} className="flex items-center gap-1.5 font-mono text-xs hover:underline"
-                    style={{ color: '#8892A4' }} title="Copy full ID">
+                    style={{ color: 'var(--ink-3)' }} title="Copy full ID">
                     {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
                     {job.id.slice(0, 8)}…
                   </button>
                   {job.trigger && (
-                    <span className="font-mono text-xs" style={{ color: '#8892A4' }}>
-                      trigger: <span style={{ color: '#c9d1d9' }}>{job.trigger}</span>
+                    <span className="font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
+                      trigger: <span style={{ color: 'var(--ink-1)' }}>{job.trigger}</span>
                     </span>
                   )}
                   {runMs !== null && (
-                    <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ color: '#FDB515', backgroundColor: 'rgba(253,181,21,0.08)', border: '1px solid rgba(253,181,21,0.2)' }}>
+                    <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
                       {formatDuration(runMs)}
                     </span>
                   )}
                   {queueMs !== null && queueMs > 0 && (
-                    <span className="font-mono text-xs flex items-center gap-1" style={{ color: '#8892A4' }}>
+                    <span className="font-mono text-xs flex items-center gap-1" style={{ color: 'var(--ink-3)' }}>
                       <Clock size={10} /> queued {formatDuration(Math.max(0, queueMs))}
                     </span>
                   )}
@@ -1218,17 +1218,17 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                 onClick={() => setActiveTab(tab.id)}
                 className="relative flex items-center gap-1.5 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider transition-colors border-b-2"
                 style={{
-                  color: activeTab === tab.id ? '#FDB515' : '#8892A4',
-                  borderBottomColor: activeTab === tab.id ? '#FDB515' : 'transparent',
+                  color: activeTab === tab.id ? 'var(--brand-a-ink)' : 'var(--ink-3)',
+                  borderBottomColor: activeTab === tab.id ? 'var(--brand-a-ink)' : 'transparent',
                   backgroundColor: 'transparent',
                 }}>
                 {tab.icon}
                 {tab.label}
                 {tab.badge !== undefined && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                  <span className="px-1.5 py-0.5 rounded-full text-xs font-bold"
                     style={{
-                      backgroundColor: tab.badge === 'live' ? 'rgba(253,181,21,0.2)' : 'rgba(255,255,255,0.1)',
-                      color: tab.badge === 'live' ? '#FDB515' : '#c9d1d9',
+                      backgroundColor: tab.badge === 'live' ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 10%, transparent)',
+                      color: tab.badge === 'live' ? 'var(--brand-a-ink)' : 'var(--ink-1)',
                     }}>
                     {tab.badge === 'live' ? '●' : tab.badge}
                   </span>
@@ -1242,7 +1242,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
       {/* Tab Content — flex-1 so it fills remaining height and scrolls */}
       <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
         <div className="max-w-7xl mx-auto">
-          <div className="rounded-xl border mx-4 my-4" style={{ backgroundColor: 'var(--card,#1c2128)', borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div className="rounded-xl border mx-4 my-4" style={{ backgroundColor: 'var(--card,#1c2128)', borderColor: 'var(--line-1)' }}>
           {activeTab === 'overview' && <OverviewTab job={jobLive} onTabChange={setActiveTab} />}
           {activeTab === 'logs' && (
             isOrchestratingParent({ status: jobStatus, scope: job.scope })
@@ -1260,7 +1260,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
 
         {/* Keyboard hint footer */}
         <div className="max-w-7xl mx-auto px-6 pb-6">
-          <div className="flex items-center gap-4 font-mono text-[9px] uppercase tracking-wider" style={{ color: '#374151' }}>
+          <div className="flex items-center gap-4 font-mono text-xs uppercase tracking-wider" style={{ color: '#374151' }}>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>G</kbd> Overview</span>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>L</kbd> Logs</span>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>O</kbd> Objects</span>

@@ -17,7 +17,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, ShieldCheck, GitCompare, CircleDot, CheckCircle2, HelpCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-const SANS = "'Inter Tight', sans-serif";
+const SANS = "'Inter Variable', sans-serif";
 const MONO = "'IBM Plex Mono', monospace";
 
 type TeachCandidateState = 'proposed' | 'verified' | 'conflict' | 'resolved';
@@ -64,7 +64,7 @@ const STATE_META: Record<TeachCandidateState, { label: string; cls: string; Icon
   proposed: { label: 'Proposed', cls: 'text-sky-600 dark:text-sky-400', Icon: CircleDot },
   verified: { label: 'Verified', cls: 'text-emerald-600 dark:text-emerald-400', Icon: CheckCircle2 },
   conflict: { label: 'Conflict', cls: 'text-amber-600 dark:text-amber-400', Icon: GitCompare },
-  resolved: { label: 'Resolved', cls: 'text-violet-600 dark:text-violet-400', Icon: ShieldCheck },
+  resolved: { label: 'Resolved', cls: 'text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]', Icon: ShieldCheck },
 };
 
 export function TeachDigest({ sessionId }: { sessionId?: string }) {
@@ -160,7 +160,7 @@ function CandidateRow({ c }: { c: TeachCandidate }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline" className="text-[10px] uppercase tracking-wide">{TYPE_LABEL[c.type]}</Badge>
+            <Badge variant="outline" className="text-xs uppercase tracking-wide">{TYPE_LABEL[c.type]}</Badge>
             <span className={`inline-flex items-center gap-1 text-xs font-medium ${meta.cls}`}>
               <StateIcon size={13} /> {meta.label}
             </span>
@@ -180,7 +180,7 @@ function CandidateRow({ c }: { c: TeachCandidate }) {
 
           {/* Resolution: the recorded choice. */}
           {c.resolution && (
-            <div className="mt-1.5 text-xs text-violet-700 dark:text-violet-300">
+            <div className="mt-1.5 text-xs text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]">
               Resolved: <span className="font-medium">{c.resolution.choice}</span>
               {c.resolution.scopeNote && <span className="text-muted-foreground"> — {c.resolution.scopeNote}</span>}
             </div>

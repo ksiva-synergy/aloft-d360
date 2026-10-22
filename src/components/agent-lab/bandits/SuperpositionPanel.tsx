@@ -379,7 +379,7 @@ export function SuperpositionPanel({
   if (stats.length === 0) {
     return (
       <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: TEXT_MUT }}>No arm data available.</div>
+        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No arm data available.</div>
       </div>
     );
   }
@@ -400,14 +400,14 @@ export function SuperpositionPanel({
           <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
             Superposition
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT, marginTop: 2 }}>
+          <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
             Beta distribution beliefs
           </div>
         </div>
         <button
           onClick={() => setMode(m => m === 'overlap' ? 'ridgeline' : 'overlap')}
           style={{
-            fontFamily: MONO, fontSize: 10, color: TEXT_MUT,
+            fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
             background: 'transparent', border: `1px solid ${BORDER}`,
             borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
             letterSpacing: '0.04em',
@@ -420,7 +420,7 @@ export function SuperpositionPanel({
       {/* Legend */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
-        marginBottom: 10, fontFamily: MONO, fontSize: 11,
+        marginBottom: 10, fontFamily: MONO, fontSize: 13,
       }}>
         {stats.map((stat, idx) => {
           const { alpha, beta } = armAlphaBeta(stat);
@@ -586,7 +586,7 @@ export function SuperpositionPanel({
               borderRadius: 6,
               padding: '8px 12px',
               fontFamily: MONO,
-              fontSize: 11,
+              fontSize: 13,
               color: TEXT_SEC,
               pointerEvents: 'none',
               zIndex: 10,
@@ -643,7 +643,7 @@ export function SuperpositionPanel({
                 Superposition holds.
               </div>
               <div style={{
-                fontFamily: "'Inter Tight', sans-serif",
+                fontFamily: "'Inter Variable', sans-serif",
                 fontSize: 13,
                 color: TEXT_SEC,
               }}>
@@ -675,7 +675,7 @@ export function SuperpositionPanel({
               Wave function collapsed.
             </div>
             <div style={{
-              fontFamily: "'Inter Tight', sans-serif",
+              fontFamily: "'Inter Variable', sans-serif",
               fontSize: 13,
               color: TEXT_SEC,
             }}>
@@ -694,7 +694,7 @@ export function SuperpositionPanel({
           <button
             onClick={startMeasure}
             style={{
-              fontFamily: "'Inter Tight', sans-serif",
+              fontFamily: "'Inter Variable', sans-serif",
               fontSize: 13,
               fontWeight: 600,
               padding: '7px 18px',
@@ -736,7 +736,7 @@ export function SuperpositionPanel({
             <button
               onClick={resetMeasure}
               style={{
-                fontFamily: MONO, fontSize: 11,
+                fontFamily: MONO, fontSize: 13,
                 padding: '5px 12px', borderRadius: 4,
                 border: `1px solid ${BORDER}`,
                 background: 'transparent', color: TEXT_MUT,

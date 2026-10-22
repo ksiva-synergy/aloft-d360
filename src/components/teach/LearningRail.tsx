@@ -60,11 +60,11 @@ export function LearningRail({
               boxShadow: '0 0 9px var(--primary)',
             }}
           />
-          <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foreground)' }}>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foreground)' }}>
             What Captain Track Sparrow is learning
           </span>
         </div>
-        <p style={{ fontSize: 11.5, color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
           Live-extracted learnings from this session. Reviewable now; committed to memory later.
         </p>
       </div>

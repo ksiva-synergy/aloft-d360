@@ -11,9 +11,9 @@ interface BulkBarProps {
 export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
   if (count === 0) return null;
 
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
-  const bgColor = 'rgba(253, 181, 21, 0.08)';
+  const bgColor = 'color-mix(in srgb, var(--brand-a) 8%, transparent)';
   const textMuted = 'var(--estate-text-muted)';
 
   return (
@@ -25,7 +25,7 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
       }}
     >
       <span
-        style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: goldColor, letterSpacing: '0.04em' }}
+        style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: goldColor, letterSpacing: '0.04em' }}
       >
         {count} selected
       </span>
@@ -36,7 +36,7 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
         className="transition-colors"
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '11px',
+          fontSize: '13px',
           letterSpacing: '0.08em',
           textTransform: 'uppercase',
           padding: '6px 14px',
@@ -57,7 +57,7 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
         className="ml-auto transition-colors"
         style={{
           fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '10.5px',
+          fontSize: '13px',
           color: textMuted,
           cursor: 'pointer',
           textTransform: 'uppercase',

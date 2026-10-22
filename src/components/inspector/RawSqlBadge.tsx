@@ -8,7 +8,7 @@ const MONO: React.CSSProperties = {
 };
 
 /** Amber, muted. The visible line between governed and escape-hatch. */
-const AMBER = '#FDB515';
+const AMBER = 'var(--brand-a)';
 
 /**
  * Phase 3.5C — the "Unverified · Raw SQL" badge. Rendered everywhere a raw-SQL
@@ -39,9 +39,9 @@ export function RawSqlBadge({
         gap: 3,
         padding: size === 'xs' ? '1px 5px' : '2px 6px',
         borderRadius: 3,
-        background: 'rgba(253,181,21,0.12)',
+        background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
         color: AMBER,
-        border: '1px solid rgba(253,181,21,0.3)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
         whiteSpace: 'nowrap',
         flexShrink: 0,
         ...style,

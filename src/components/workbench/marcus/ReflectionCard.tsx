@@ -47,7 +47,7 @@ export function ReflectionCard({
   }, []);
 
   const label = TECHNIQUE_LABELS[technique] || `CAPTAIN TRACK SPARROW · ${technique.toUpperCase()}`;
-  const dotColor = severity === 'gate' ? '#e85a5a' : severity === 'caution' ? '#e8934a' : '#FDB515';
+  const dotColor = severity === 'gate' ? '#e85a5a' : severity === 'caution' ? '#e8934a' : 'var(--brand-a)';
 
   if (!mounted) return null;
 
@@ -58,11 +58,11 @@ export function ReflectionCard({
       transition={{ duration: 0.25, ease: 'easeOut' }}
       style={{
         width: '100%',
-        backgroundColor: '#0d1220',
-        borderLeft: '3px solid #FDB515',
-        borderTop: '1px solid rgba(253,181,21,0.06)',
-        borderRight: '1px solid rgba(253,181,21,0.06)',
-        borderBottom: '1px solid rgba(253,181,21,0.06)',
+        backgroundColor: 'var(--surface-1)',
+        borderLeft: '3px solid var(--brand-a)',
+        borderTop: '1px solid color-mix(in srgb, var(--brand-a) 6%, transparent)',
+        borderRight: '1px solid color-mix(in srgb, var(--brand-a) 6%, transparent)',
+        borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 6%, transparent)',
         borderRadius: '0 6px 6px 0',
         padding: '16px 20px',
         display: 'flex',
@@ -76,11 +76,11 @@ export function ReflectionCard({
         <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
         <div style={{
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '11px',
+          fontSize: '13px',
           fontWeight: 500,
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
-          color: '#FDB515',
+          color: 'var(--brand-a-ink)',
         }}>
           {label}
         </div>
@@ -88,18 +88,18 @@ export function ReflectionCard({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{
-          fontFamily: "'Source Serif 4', Georgia, serif",
+          fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
           fontStyle: 'italic',
           fontSize: '17px',
           fontWeight: 400,
-          color: '#e8e6e1',
+          color: 'var(--ink-1)',
         }}>
           {headline}
         </div>
         <div style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
+          fontFamily: "'Inter Variable', system-ui, sans-serif",
           fontSize: '14px',
-          color: '#8b9ab5',
+          color: 'var(--ink-2)',
           lineHeight: 1.55,
         }}>
           {body}
@@ -112,18 +112,18 @@ export function ReflectionCard({
             onClick={() => onAct(id, suggestedAction)}
             style={{
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: '11px',
+              fontSize: '13px',
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
-              backgroundColor: '#1a2236',
-              border: '1px solid rgba(253,181,21,0.4)',
-              color: '#FDB515',
+              backgroundColor: 'var(--surface-2)',
+              border: '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
+              color: 'var(--brand-a-ink)',
               cursor: 'pointer',
               transition: 'background-color 0.15s, border-color 0.15s'
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e2840'; e.currentTarget.style.borderColor = 'rgba(253,181,21,0.6)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#1a2236'; e.currentTarget.style.borderColor = 'rgba(253,181,21,0.4)'; }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-3)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 60%, transparent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--surface-2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
           >
             {suggestedAction.label || 'Take Action'}
           </button>
@@ -132,18 +132,18 @@ export function ReflectionCard({
             onClick={() => onAcknowledge(id)}
             style={{
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: '11px',
+              fontSize: '13px',
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
-              backgroundColor: '#1a2236',
-              border: '1px solid rgba(253,181,21,0.2)',
-              color: '#FDB515',
+              backgroundColor: 'var(--surface-2)',
+              border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
+              color: 'var(--brand-a-ink)',
               cursor: 'pointer',
               transition: 'background-color 0.15s, border-color 0.15s'
             }}
-            onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#1e2840'; e.currentTarget.style.borderColor = 'rgba(253,181,21,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#1a2236'; e.currentTarget.style.borderColor = 'rgba(253,181,21,0.2)'; }}
+            onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-3)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 40%, transparent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'var(--surface-2)'; e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 20%, transparent)'; }}
           >
             Acknowledge
           </button>
@@ -152,18 +152,18 @@ export function ReflectionCard({
           onClick={() => onDismiss(id)}
           style={{
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: '11px',
+            fontSize: '13px',
             fontWeight: 500,
             padding: '6px 14px',
             borderRadius: '6px',
-            backgroundColor: '#1a2236',
-            border: '1px solid rgba(255,255,255,0.06)',
-            color: '#5a6a82',
+            backgroundColor: 'var(--surface-2)',
+            border: '1px solid var(--line-1)',
+            color: 'var(--ink-3)',
             cursor: 'pointer',
             transition: 'color 0.15s, background-color 0.15s'
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#8b9ab5'; e.currentTarget.style.backgroundColor = '#1e2840'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#5a6a82'; e.currentTarget.style.backgroundColor = '#1a2236'; }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--ink-2)'; e.currentTarget.style.backgroundColor = 'var(--surface-3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.backgroundColor = 'var(--surface-2)'; }}
         >
           Dismiss
         </button>

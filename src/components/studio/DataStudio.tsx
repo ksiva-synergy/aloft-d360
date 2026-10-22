@@ -37,7 +37,7 @@ function NoResultsState() {
       <span
         style={{
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 11,
+          fontSize: 13,
           letterSpacing: '0.10em',
           textTransform: 'uppercase',
           color: 'var(--builder-text-label)',
@@ -47,7 +47,7 @@ function NoResultsState() {
       >
         NO RESULTS YET
         <br />
-        <span style={{ opacity: 0.6, fontSize: 10 }}>RUN A QUERY IN THE INSPECTOR</span>
+        <span style={{ opacity: 0.6, fontSize: 13 }}>RUN A QUERY IN THE INSPECTOR</span>
       </span>
     </div>
   );
@@ -293,7 +293,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
             padding: '0 20px',
             gap: 8,
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
           }}
@@ -312,11 +312,11 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
               <span
                 style={{
                   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                  fontSize: 9,
+                  fontSize: 13,
                   letterSpacing: '0.08em',
                   color: 'var(--builder-gold)',
-                  background: 'rgba(253,181,21,0.08)',
-                  border: '1px solid rgba(253,181,21,0.2)',
+                  background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
                   borderRadius: 4,
                   padding: '2px 6px',
                 }}
@@ -342,7 +342,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '11px',
+              fontSize: '13px',
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
               cursor: 'pointer',
               textTransform: 'uppercase',
@@ -415,7 +415,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
             borderTop: '1px solid var(--builder-border)',
             padding: '0 16px',
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 9,
+            fontSize: 13,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'var(--builder-text-label)',
@@ -496,7 +496,7 @@ function StudioMainCanvas({
           borderBottom: '1px solid var(--builder-border)',
           padding: '0 16px',
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontSize: 13,
           letterSpacing: '0.10em',
           textTransform: 'uppercase',
         }}
@@ -505,13 +505,13 @@ function StudioMainCanvas({
         <button
           onClick={() => setCanvasMode('table')}
           style={{
-            background: canvasMode === 'table' ? 'rgba(253,181,21,0.1)' : 'transparent',
-            border: canvasMode === 'table' ? '1px solid rgba(253,181,21,0.3)' : '1px solid transparent',
+            background: canvasMode === 'table' ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+            border: canvasMode === 'table' ? '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' : '1px solid transparent',
             color: canvasMode === 'table' ? 'var(--builder-gold)' : 'var(--builder-text-label)',
             borderRadius: 4,
             padding: '3px 10px',
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             cursor: 'pointer',
@@ -524,13 +524,13 @@ function StudioMainCanvas({
         <button
           onClick={() => setCanvasMode('dashboard')}
           style={{
-            background: canvasMode === 'dashboard' ? 'rgba(253,181,21,0.1)' : 'transparent',
-            border: canvasMode === 'dashboard' ? '1px solid rgba(253,181,21,0.3)' : '1px solid transparent',
+            background: canvasMode === 'dashboard' ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+            border: canvasMode === 'dashboard' ? '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' : '1px solid transparent',
             color: canvasMode === 'dashboard' ? 'var(--builder-gold)' : 'var(--builder-text-label)',
             borderRadius: 4,
             padding: '3px 10px',
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             cursor: 'pointer',
@@ -545,11 +545,11 @@ function StudioMainCanvas({
             style={{
               marginLeft: 8,
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: 9,
+              fontSize: 13,
               letterSpacing: '0.06em',
               color: 'var(--builder-gold)',
-              background: 'rgba(253,181,21,0.08)',
-              border: '1px solid rgba(253,181,21,0.2)',
+              background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
               borderRadius: 3,
               padding: '2px 6px',
               textTransform: 'uppercase',
@@ -575,13 +575,13 @@ function StudioMainCanvas({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            background: exporting ? 'rgba(253,181,21,0.08)' : 'transparent',
-            border: '1px solid rgba(253,181,21,0.35)',
+            background: exporting ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
+            border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
             color: !result.sql?.trim() || exporting ? 'var(--builder-text-label)' : 'var(--builder-gold)',
             borderRadius: 4,
             padding: '3px 10px',
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 10,
+            fontSize: 13,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             cursor: !result.sql?.trim() || exporting ? 'not-allowed' : 'pointer',
@@ -597,7 +597,7 @@ function StudioMainCanvas({
         <div
           style={{
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 11,
+            fontSize: 13,
             color: '#f87171',
             background: 'rgba(248,113,113,0.08)',
             borderBottom: '1px solid var(--builder-border)',
@@ -614,7 +614,7 @@ function StudioMainCanvas({
         <div
           style={{
             fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 11,
+            fontSize: 13,
             color: 'var(--builder-text-label)',
             background: 'var(--builder-surface)',
             borderBottom: '1px solid var(--builder-border)',
@@ -642,7 +642,7 @@ function StudioMainCanvas({
           <span
             style={{
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: 11,
+              fontSize: 13,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               color: 'var(--builder-text-label)',
@@ -674,7 +674,7 @@ function StudioMainCanvas({
           borderTop: '1px solid var(--builder-border)',
           padding: '0 16px',
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontSize: 13,
           color: 'var(--builder-text-label)',
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
@@ -732,7 +732,7 @@ function StudioDataTable({ result }: { result: QueryResult }) {
           width: '100%',
           borderCollapse: 'collapse',
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 11,
+          fontSize: 13,
         }}
       >
         <thead
@@ -755,7 +755,7 @@ function StudioDataTable({ result }: { result: QueryResult }) {
                     textAlign: isNum ? 'right' : 'left',
                     fontWeight: 500,
                     color: 'var(--builder-text)',
-                    fontSize: 11,
+                    fontSize: 13,
                     whiteSpace: 'nowrap',
                     borderRight: '1px solid var(--builder-border)',
                   }}
@@ -767,7 +767,7 @@ function StudioDataTable({ result }: { result: QueryResult }) {
                   <span
                     style={{
                       fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 9,
+                      fontSize: 13,
                       color: 'var(--builder-text-label)',
                       border: '1px solid var(--builder-border)',
                       borderRadius: 2,
@@ -807,7 +807,7 @@ function StudioDataTable({ result }: { result: QueryResult }) {
                       padding: '5px 12px',
                       textAlign: isNum ? 'right' : 'left',
                       color: 'var(--builder-text-muted)',
-                      fontSize: 11,
+                      fontSize: 13,
                       fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                       borderRight: '1px solid rgba(30,58,82,0.4)',
                       whiteSpace: 'nowrap',
@@ -864,7 +864,7 @@ function VirtualTable({
           width: '100%',
           borderCollapse: 'collapse',
           fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 11,
+          fontSize: 13,
         }}
       >
         <thead
@@ -887,7 +887,7 @@ function VirtualTable({
                     textAlign: isNum ? 'right' : 'left',
                     fontWeight: 500,
                     color: 'var(--builder-text)',
-                    fontSize: 11,
+                    fontSize: 13,
                     whiteSpace: 'nowrap',
                     borderRight: '1px solid var(--builder-border)',
                   }}
@@ -897,7 +897,7 @@ function VirtualTable({
                   <span
                     style={{
                       fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 9,
+                      fontSize: 13,
                       color: 'var(--builder-text-label)',
                       border: '1px solid var(--builder-border)',
                       borderRadius: 2,
@@ -947,7 +947,7 @@ function VirtualTable({
                         padding: '5px 12px',
                         textAlign: isNum ? 'right' : 'left',
                         color: 'var(--builder-text-muted)',
-                        fontSize: 11,
+                        fontSize: 13,
                         fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
                         borderRight: '1px solid rgba(30,58,82,0.4)',
                         whiteSpace: 'nowrap',

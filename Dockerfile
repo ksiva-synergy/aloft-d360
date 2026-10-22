@@ -1,4 +1,4 @@
-# Web app image for Elastic Beanstalk / ECS (Next.js standalone)
+# Web app image for Elastic Beanstalk / ECS: Vite + React Router UI served by the Next.js standalone server (UI + API, one container)
 # Build from repo root: docker build -t aloft-d360-web -f Dockerfile .
 
 FROM node:20-alpine AS deps
@@ -17,6 +17,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build --workspace=@aloft/shared
+# `npm run build` first builds the Vite UI into public/spa (npm `prebuild`: web/scripts/prepare-spa.mjs), then `next build`.
+# Next.js serves the SPA for every page URL and keeps serving /api/**.
 RUN npm run build
 
 FROM node:20-alpine AS runner

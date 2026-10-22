@@ -37,11 +37,11 @@ export function FacetRail() {
       className="agent-labs-scrollbar"
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ ...MONO, fontSize: 10, color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
+        <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
         {anyActive && (
           <button
             onClick={clearFacets}
-            style={{ ...MONO, fontSize: 9, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{ ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
           >
             Clear all
           </button>
@@ -125,7 +125,7 @@ export function FacetRail() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ ...MONO, fontSize: 9, color: INK_DIM, letterSpacing: '0.06em', marginBottom: 5 }}>{title.toUpperCase()}</div>
+      <div style={{ ...MONO, fontSize: 13, color: INK_DIM, letterSpacing: '0.06em', marginBottom: 5 }}>{title.toUpperCase()}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>{children}</div>
     </div>
   );
@@ -142,7 +142,7 @@ function Row({
       title={title}
       style={{
         display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left',
-        background: checked ? 'rgba(253,181,21,0.08)' : 'transparent', border: 'none',
+        background: checked ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none',
         borderRadius: 3, padding: '4px 6px', cursor: 'pointer',
       }}
     >
@@ -150,7 +150,7 @@ function Row({
         aria-hidden
         style={{
           width: 12, height: 12, borderRadius: 3, flexShrink: 0,
-          border: `1.5px solid ${checked ? GOLD : 'var(--wb-muted, #8892A4)'}`,
+          border: `1.5px solid ${checked ? GOLD : 'var(--wb-muted, var(--ink-3))'}`,
           background: checked ? GOLD : 'transparent',
         }}
       />
@@ -163,7 +163,7 @@ function Row({
       >
         {label}
       </span>
-      <span style={{ ...MONO, fontSize: 9, color: MUTED, flexShrink: 0 }}>{count}</span>
+      <span style={{ ...MONO, fontSize: 13, color: MUTED, flexShrink: 0 }}>{count}</span>
     </button>
   );
 }

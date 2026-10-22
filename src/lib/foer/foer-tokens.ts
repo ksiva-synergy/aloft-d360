@@ -36,11 +36,12 @@ export const TOPIC_COLORS: readonly string[] = [
 export const TOPIC_ALL_KNOWLEDGE_ACCENT = '#A89B8C' as const;
 
 // ── Brand anchors (shared with BORN) ─────────────────────────────────────────
-export const GOLD = '#FDB515' as const;
-export const NAVY = '#003262' as const;
-export const BG_DARK = '#05090f' as const;
-export const TOOLTIP_BG = '#0F2236' as const;
-export const TOOLTIP_TEXT = '#F0F4F8' as const;
+// UI accent follows the app theme + user accent (HARD_RULE keeps its literal gold in RULE_TYPE_COLORS).
+export const GOLD = 'var(--brand-a-ink)' as const;
+export const NAVY = 'var(--ink-3)' as const;
+export const BG_DARK = 'var(--foer-bg)' as const;
+export const TOOLTIP_BG = 'var(--surface-1)' as const;
+export const TOOLTIP_TEXT = 'var(--ink-1)' as const;
 export const MAXWELL_GREEN = '#88B8A0' as const;
 
 // ── Typography roles ──────────────────────────────────────────────────────────
@@ -56,4 +57,15 @@ export function topicColor(rank: number): string {
 /** Return the canonical colour for a rule type, falling back to muted text. */
 export function ruleTypeColor(ruleType: string): string {
   return RULE_TYPE_COLORS[ruleType] ?? '#8a9bb5';
+}
+
+/**
+ * Canvas libraries (ECharts) cannot resolve CSS var(); read the computed value instead.
+ * Call at render time so a theme or accent change is picked up on the next render.
+ */
+export function resolveCssColor(value: string, fallback: string): string {
+  const m = /^var\((--[\w-]+)\)$/.exec(value);
+  if (!m || typeof document === 'undefined') return m ? fallback : value;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(m[1]).trim();
+  return v || fallback;
 }

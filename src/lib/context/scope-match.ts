@@ -64,6 +64,42 @@ export function catalogMatchesIncludes(catalog: string, includes: string[]): boo
 }
 
 /**
+ * Picks which active catalog objects a full sweep may mark `dropped`.
+ *
+ * A path is dropped only when all of these hold:
+ *   - it is inside the sweep's include/exclude scope (objects outside scope are
+ *     unobserved, not deleted — narrowing scope must never drop them);
+ *   - its catalog.schema was listed by the sweep (a failed or skipped listing
+ *     is not evidence of deletion);
+ *   - it is absent from the resolved listing.
+ */
+export function selectDroppedPaths(args: {
+  activePaths: Iterable<string>;
+  resolvedPaths: Iterable<string>;
+  includes: string[];
+  excludes: string[];
+}): string[] {
+  const resolved = new Set<string>();
+  const listedSchemas = new Set<string>();
+  for (const p of args.resolvedPaths) {
+    resolved.add(p);
+    const [cat, sch] = p.split('.');
+    if (cat && sch) listedSchemas.add(`${cat}.${sch}`);
+  }
+  if (resolved.size === 0) return [];
+
+  const dropped: string[] = [];
+  for (const p of args.activePaths) {
+    if (resolved.has(p)) continue;
+    const [cat, sch] = p.split('.');
+    if (!cat || !sch || !listedSchemas.has(`${cat}.${sch}`)) continue;
+    if (!matchesScope(p, args.includes, args.excludes)) continue;
+    dropped.push(p);
+  }
+  return dropped;
+}
+
+/**
  * Returns true iff the schema within a catalog could match the second segment
  * of any include pattern for that catalog. Mirrors resolveScope()'s
  * candidateSchemas derivation.

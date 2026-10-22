@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT D360 — Self-Improving Memory (Architecture &amp; Flow)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --navy: #003262;
+      --gold: #FDB515;
+      --memory: #6d28d9;
+      --memory-bg: #f3e8ff;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --radius: 12px;
+      --mono: 'Consolas', 'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--navy);
+      color: #fff;
+      padding: 1rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      padding: 0.5rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .sidebar a {
+      display: block;
+      padding: 0.45rem 1.25rem;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 0.88rem;
+      border-left: 3px solid transparent;
+    }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .sidebar .back {
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.75rem;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .content { flex: 1; max-width: 960px; padding: 2rem 2.5rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, #4c1d95, var(--navy));
+      color: #fff;
+      padding: 2rem 2.5rem;
+      margin: -2rem -2.5rem 2rem;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .hero h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    .hero p { margin: 0; opacity: 0.92; max-width: 44rem; }
+    .badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 0.5rem;
+    }
+    section { margin-bottom: 2.5rem; scroll-margin-top: 1rem; }
+    section h2 {
+      font-size: 1.35rem;
+      color: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      padding-bottom: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    section h3 { font-size: 1.05rem; color: var(--navy); margin: 1.25rem 0 0.5rem; }
+    section h4 { font-size: 0.95rem; color: var(--memory); margin: 1rem 0 0.4rem; }
+    .block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 12px rgba(0,50,98,0.05);
+    }
+    .callout {
+      background: var(--memory-bg);
+      border: 1px solid #c4b5fd;
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      font-size: 0.95rem;
+      margin: 1rem 0;
+    }
+    .callout strong { color: #5b21b6; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      margin: 0.75rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.65rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0ebe3; font-weight: 600; }
+    pre, code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+    pre {
+      background: #1a2332;
+      color: #e8e4dc;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    .mermaid-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .mermaid-wrap .mermaid .node rect,
+    .mermaid-wrap .mermaid .node polygon,
+    .mermaid-wrap .mermaid .node circle,
+    .mermaid-wrap .mermaid .node path,
+    .mermaid-wrap .mermaid .actor,
+    .mermaid-wrap .mermaid .messageText,
+    .mermaid-wrap .mermaid .note {
+      cursor: pointer;
+    }
+    .mermaid-wrap .mermaid .node:hover rect,
+    .mermaid-wrap .mermaid .node:hover polygon {
+      filter: brightness(0.92);
+    }
+    .mermaid-hint {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .mermaid-hint strong { color: var(--memory); }
+    ul, ol { margin: 0.5rem 0 0 1.25rem; color: var(--muted); }
+    li { margin-bottom: 0.35rem; }
+    p { color: var(--muted); margin: 0.5rem 0; }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.5rem;
+      height: 1.5rem;
+      padding: 0 0.35rem;
+      background: var(--memory);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-right: 0.35rem;
+    }
+    .file-ref { color: #1e40af; font-family: var(--mono); font-size: 0.82rem; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: #ede9fe;
+      color: #5b21b6;
+      margin-right: 0.25rem;
+    }
+    .timeline-item {
+      border-left: 3px solid var(--memory);
+      padding-left: 1rem;
+      margin: 1rem 0;
+    }
+    /* Interactive flow */
+    .flow-explorer { margin: 1.5rem 0 2rem; }
+    .flow-explorer > .hint {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .flow-detail {
+      background: var(--surface);
+      border: 2px solid var(--memory);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.5rem;
+      min-height: 12rem;
+      box-shadow: 0 4px 24px rgba(109, 40, 217, 0.12);
+    }
+    .flow-detail.empty .flow-detail-body { display: none; }
+    .flow-detail.empty .flow-detail-placeholder { display: block; }
+    .flow-detail:not(.empty) .flow-detail-placeholder { display: none; }
+    .flow-detail-placeholder {
+      color: var(--muted);
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.95rem;
+    }
+    .flow-detail-lane {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    .flow-detail-lane.day { background: #dbeafe; color: #1e40af; }
+    .flow-detail-lane.night { background: #ede9fe; color: #5b21b6; }
+    .flow-detail-lane.store { background: #fef3c7; color: #854d0e; }
+    .flow-detail h3 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      color: var(--navy);
+    }
+    .flow-detail-section {
+      margin-bottom: 1rem;
+    }
+    .flow-detail-section h4 {
+      margin: 0 0 0.35rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--memory);
+    }
+    .flow-detail-section p,
+    .flow-detail-section li {
+      color: var(--text);
+      font-size: 0.92rem;
+      margin: 0.25rem 0;
+    }
+    .flow-detail-section ol { margin: 0.35rem 0 0 1.25rem; }
+    .flow-detail-section .example-box {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-top: 0.35rem;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
+    .flow-detail-section .example-box.secondary {
+      border-left-color: var(--memory);
+      margin-top: 0.65rem;
+    }
+    .flow-detail-code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: #1e40af;
+      margin-top: 0.5rem;
+    }
+    .flow-lane-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 1.25rem 0 0.65rem;
+    }
+    .flow-lane-label:first-of-type { margin-top: 0; }
+    .flow-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 0.25rem;
+    }
+    .flow-block {
+      cursor: pointer;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--navy);
+      transition: border-color 0.15s, background 0.15s, transform 0.1s;
+      text-align: left;
+      line-height: 1.3;
+    }
+    .flow-block:hover {
+      border-color: var(--memory);
+      background: var(--memory-bg);
+    }
+    .flow-block.active {
+      border-color: var(--memory);
+      background: var(--memory);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(109, 40, 217, 0.35);
+    }
+    .flow-block small {
+      display: block;
+      font-weight: 500;
+      font-size: 0.68rem;
+      opacity: 0.75;
+      margin-top: 0.15rem;
+    }
+    .flow-arrow {
+      color: var(--muted);
+      font-size: 1rem;
+      user-select: none;
+      padding: 0 0.15rem;
+    }
+    @media (max-width: 900px) {
+      .flow-row { gap: 0.5rem; }
+      .flow-arrow { display: none; }
+      .flow-block { flex: 1 1 calc(50% - 0.5rem); min-width: 140px; }
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .content { padding: 1rem; }
+      .hero { margin: 0 0 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Table of contents">
+      <a class="back" href="ai-agent-memory-guide.html">← AI &amp; Memory Guide</a>
+      <a class="back" href="all-database-tables-guide.html" style="border:none;padding-top:0">All project database tables</a>
+      <a class="back" href="AI-AGENT-MEMORY.md" style="border:none;padding-top:0">Markdown source</a>
+      <h2>Overview</h2>
+      <a href="#purpose">What self-improving means</a>
+      <a href="#interactive-flow">Interactive flow (click steps)</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#layers">Code layers</a>
+      <a href="#architecture" data-flow="memory-store">Memory bullets</a>
+      <h2>Daytime loop</h2>
+      <a href="#architecture" data-flow="user-question">Inspector chat entry</a>
+      <a href="#architecture" data-flow="trace">Trace graph</a>
+      <a href="#architecture" data-flow="select-memory">Three-phase injection</a>
+      <a href="#architecture" data-flow="attribute">Attribution loop</a>
+      <a href="#architecture" data-flow="marcus">Marcus reflections</a>
+      <h2>Overnight loop</h2>
+      <a href="#architecture" data-flow="orchestrate">Synthesis DAG</a>
+      <a href="#architecture" data-flow="sweep">Synthesis sweep</a>
+      <a href="#architecture" data-flow="reflect">Reflect (LLM)</a>
+      <a href="#architecture" data-flow="curate">Curate (merge)</a>
+      <a href="#architecture" data-flow="refine">Weekly refine</a>
+      <a href="#architecture" data-flow="foer">FOER topics</a>
+      <h2>Other paths</h2>
+      <a href="#architecture" data-flow="teach">Teach vs synthesis</a>
+      <a href="#reputation">Reputation</a>
+      <h2>Reference</h2>
+      <a href="#tables-db">Database tables</a>
+      <a href="#config">Configuration</a>
+      <a href="#timeline-example">Timeline example</a>
+      <a href="#files">Key source files</a>
+    </nav>
+
+    <main class="content">
+      <header class="hero">
+        <span class="badge">FOER · Operating Memory</span>
+        <h1>Self-Improving Memory — Architecture &amp; Step-by-Step Flow</h1>
+        <p>
+          How ALOFT D360 learns from Inspector sessions without retraining models:
+          traces are captured during the day, rules are injected into prompts, and overnight jobs distill new bullets for tomorrow.
+        </p>
+      </header>
+
+      <section id="purpose">
+        <h2>What “self-improving” means</h2>
+        <div class="block">
+          <p><strong style="color:var(--text)">Self-improving</strong> is not fine-tuning Claude or Bedrock weights. It is a <strong>closed feedback loop</strong>:</p>
+          <ol>
+            <li>Analysts use Inspector; every tool call is recorded as a trace graph.</li>
+            <li>Relevant memory bullets are retrieved and injected into the next prompt.</li>
+            <li>Run success or failure updates bullet quality (<code>helpful_count</code> / <code>harmful_count</code>).</li>
+            <li>Overnight synthesis reads traces and extracts new rules via an LLM (“Captain Track Sparrow”).</li>
+            <li>New rules appear in Postgres immediately and affect the next chat via injection.</li>
+          </ol>
+        </div>
+        <div class="callout">
+          <strong>Design principle:</strong> Learning happens at <em>prompt time</em> — auditable, reversible (<code>SUPERSEDED</code> status), and scoped by <code>task_signature</code> so crew rules do not bleed into vessel tasks.
+        </div>
+      </section>
+
+      <section id="interactive-flow">
+        <h2>Interactive flow — click each step</h2>
+        <p class="hint" style="color:var(--muted);margin-top:-0.5rem">Click a button below, or open <a href="#architecture"><strong>Architecture</strong></a> and click any box in the diagram — the same detail panel updates with <strong style="color:var(--text)">what it is</strong>, <strong style="color:var(--text)">how it works</strong>, and <strong style="color:var(--text)">two examples</strong>.</p>
+
+        <div class="flow-explorer">
+          <p class="flow-lane-label">Daytime — every Inspector chat</p>
+          <div class="flow-row" role="list">
+            <button type="button" class="flow-block" data-flow="user-question">User question<small>Natural language ask</small></button>
+            <span class="flow-arrow" aria-hidden="true">→</span>
+            <button type="button" class="flow-block" data-flow="select-memory">selectMemoryAll<small>Phase 0 · 1a · 1b</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="prompt-inject">Prompt + memory<small>System + recall turn</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="agent-loop">Agent loop<small>Bedrock + tools</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="trace">Trace graph<small>platform_trace_*</small></button>
+          </div>
+          <div class="flow-row" style="margin-top:0.65rem">
+            <button type="button" class="flow-block" data-flow="record-injection">recordInjection<small>Log bullets used</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="attribute">attributeRunOutcome<small>Helpful / harmful</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="memory-store">Memory store<small>platform_agent_memory</small></button>
+          </div>
+          <p class="flow-lane-label">Injection phases (inside retrieve)</p>
+          <div class="flow-row">
+            <button type="button" class="flow-block" data-flow="phase-0">Phase 0 INIT<small>HARD_RULE guardrails</small></button>
+            <button type="button" class="flow-block" data-flow="phase-1a">Phase 1a SCHEMA<small>SCHEMA_MAP + topic</small></button>
+            <button type="button" class="flow-block" data-flow="phase-1b">Phase 1b TASK<small>Vector recall</small></button>
+          </div>
+          <p class="flow-lane-label">Overnight / weekly jobs</p>
+          <div class="flow-row">
+            <button type="button" class="flow-block" data-flow="orchestrate">orchestrate.runDag<small>Lock + schedule</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="sweep">runSynthesisSweep<small>Find sessions</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="reflect">reflectSession<small>Captain Track Sparrow</small></button>
+            <span class="flow-arrow">→</span>
+            <button type="button" class="flow-block" data-flow="curate">curate<small>Insert / dedup</small></button>
+          </div>
+          <div class="flow-row" style="margin-top:0.65rem">
+            <button type="button" class="flow-block" data-flow="foer">FOER reclassify<small>Topic labels</small></button>
+            <button type="button" class="flow-block" data-flow="refine">grow_refine<small>TTL + GC</small></button>
+            <button type="button" class="flow-block" data-flow="marcus">Marcus reflect<small>Optional signal</small></button>
+            <button type="button" class="flow-block" data-flow="teach">Teach mode<small>User-written rules</small></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>Architecture — closed loop</h2>
+        <p class="mermaid-hint"><strong>Click any box</strong> in the diagram (or a button in Interactive flow above) to see full details here.</p>
+
+        <div id="flow-detail" class="flow-detail empty" aria-live="polite">
+          <p class="flow-detail-placeholder">Click a box in the diagram below ←</p>
+          <div class="flow-detail-body"></div>
+        </div>
+
+        <div class="mermaid-wrap" id="architecture-diagram">
+          <pre class="mermaid">
+flowchart TB
+  subgraph day ["Daytime — every Inspector chat"]
+    Q["User question"]
+    R["selectMemoryAll"]
+    P["System prompt + memory blocks"]
+    L["Agent loop — Bedrock + tools"]
+    T["platform_trace_nodes / edges"]
+    I["recordInjection"]
+    A["attributeRunOutcome"]
+    Q --> R --> P --> L --> T
+    R --> I
+    L --> A
+    I --> A
+  end
+  subgraph night ["Scheduled jobs — nightly / weekly"]
+    O["orchestrate.runDag"]
+    S["runSynthesisSweep"]
+    Ref["reflectSession"]
+    Cur["curate"]
+    FOER["runCluster FOER"]
+    Refine["refineMemoryStore"]
+    O --> S --> Ref --> Cur
+    O --> Refine
+    O --> FOER
+  end
+  M[("platform_agent_memory")]
+  Cur --> M
+  Refine --> M
+  FOER --> M
+  M --> R
+
+          </pre>
+        </div>
+        <div class="block">
+          <table>
+            <thead><tr><th>Layer</th><th>Role</th><th>Primary location</th></tr></thead>
+            <tbody>
+              <tr><td>Agent runtime</td><td>Execute tools, SSE, write traces</td><td class="file-ref">src/app/api/inspector/chat/route.ts</td></tr>
+              <tr><td>Memory store</td><td>Short rules + pgvector embeddings</td><td class="file-ref">platform_agent_memory</td></tr>
+              <tr><td>Retrieval</td><td>Phase 0 / 1a / 1b before each turn</td><td class="file-ref">src/lib/memory/retrieve.ts</td></tr>
+              <tr><td>Synthesis</td><td>Create and maintain bullets from traces</td><td class="file-ref">src/lib/memory/run-sweep.ts</td></tr>
+              <tr><td>Orchestration</td><td>Advisory lock + job DAG</td><td class="file-ref">src/lib/memory/orchestrate.ts</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="layers">
+        <h2>Code structure</h2>
+        <pre>src/lib/memory/
+├── orchestrate.ts      # nightly / weekly DAG
+├── run-sweep.ts        # session discovery + per-session pipeline
+├── lock.ts             # PostgreSQL advisory lock (DIRECT_URL)
+├── retrieve.ts         # injection selection
+├── phases.ts           # token budgets per phase
+├── attribution.ts      # injection + outcome loop
+├── teach.ts            # user-authored rules (separate path)
+├── trace/
+│   ├── capture.ts      # runtime graph writes
+│   └── reconstruct.ts  # CTE walk for synthesis
+├── synthesis/
+│   ├── reflect.ts      # LLM bullet extraction
+│   ├── curate.ts       # embed, dedup, insert
+│   ├── validate.ts     # Rama phantom gate
+│   ├── scrub.ts        # PII scrub
+│   └── refine.ts       # weekly TTL / GC
+├── reputation/         # seasons, leaderboard
+└── caveat-guard.ts     # optional quarantine
+
+src/lib/foer/run-cluster.ts   # topic classification (FOER)</pre>
+      </section>
+
+      <section id="bullets">
+        <h2>Memory bullets</h2>
+        <p>Each rule is a row in <code>platform_agent_memory</code>.</p>
+        <table>
+          <thead><tr><th>Field / concept</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag">rule_type</span></td><td><code>HARD_RULE</code>, <code>SCHEMA_MAP</code>, <code>HEURISTIC</code>, <code>SOURCE_PREF</code>, <code>FAILURE_MODE</code></td></tr>
+            <tr><td><span class="tag">task_signature</span></td><td>16-char hash: agent class + tools + domain keywords — groups “same kind of task”</td></tr>
+            <tr><td><span class="tag">embedding</span></td><td>Bedrock Titan vector for Phase 1b cosine search</td></tr>
+            <tr><td><span class="tag">helpful / harmful</span></td><td>Updated when injected bullets participate in a scored run</td></tr>
+            <tr><td><span class="tag">status</span></td><td><code>ACTIVE</code>, <code>SUPERSEDED</code>, <code>QUARANTINED</code>, …</td></tr>
+            <tr><td><span class="tag">visibility</span></td><td><code>org</code> (default) or <code>personal</code> (Teach path)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="chat-entry">
+        <h2>Daytime — Inspector chat entry</h2>
+        <p><code>POST /api/inspector/chat</code> — approximate order of operations:</p>
+        <ol>
+          <li>Auth, semantic context, base system prompt</li>
+          <li><strong>Memory injection</strong> if <code>MEMORY_INJECT_ENABLED=true</code> and class allowed</li>
+          <li><strong>Trace writer</strong> — <code>openSession(sessionId, 'inspector')</code></li>
+          <li>Agent loop (Bedrock stream + <code>executeInspectorTool</code>)</li>
+          <li>After stream: cost log, bandit, optional Marcus, <code>attributeRunOutcome</code></li>
+        </ol>
+      </section>
+
+      <section id="trace">
+        <h2>Trace graph (synthesis input)</h2>
+        <p><span class="file-ref">src/lib/memory/trace/capture.ts</span> writes nodes fire-and-forget to Postgres.</p>
+        <table>
+          <thead><tr><th>Node type</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>ACTION</td><td>Tool invoked (name + params in payload)</td></tr>
+            <tr><td>OUTCOME</td><td>Tool succeeded; linked via <code>LED_TO</code></td></tr>
+            <tr><td>CORRECTION</td><td>User or agent fixed a path; <code>CORRECTED_BY</code> edge</td></tr>
+            <tr><td>DEAD_END</td><td>Failed path (TABLE_NOT_FOUND, etc.)</td></tr>
+            <tr><td>SOURCE</td><td>Catalog / schema reference</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Cross-turn corrections:</strong> if the last tool of a turn failed, the next user message can be recorded as CORRECTION — user semantics are treated as ground truth in synthesis.</p>
+        <p><strong>Reconstruction:</strong> <span class="file-ref">reconstructSession()</span> runs a recursive CTE (max depth 3) for reflect + Rama validation.</p>
+      </section>
+
+      <section id="injection">
+        <h2>Three-phase injection</h2>
+        <p>Gated by <code>MEMORY_INJECT_ENABLED=true</code> and <code>MEMORY_INJECT_CLASSES</code> (e.g. <code>inspector</code>).</p>
+        <table>
+          <thead><tr><th>Phase</th><th>Name</th><th>Rule types</th><th>Where injected</th><th>Default budget</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>INIT</td><td><code>HARD_RULE</code> with confidence ≥ 0.9 and harmful_count ≥ 1</td><td>System prompt</td><td>~200 tokens, max 3</td></tr>
+            <tr><td>1a</td><td>SCHEMA_GLOBAL</td><td><code>SCHEMA_MAP</code> for agent class (+ FOER topic filter)</td><td>System prompt</td><td>~600 tokens, max 10</td></tr>
+            <tr><td>1b</td><td>TASK_SCOPED</td><td><code>HEURISTIC</code>, <code>SOURCE_PREF</code>, <code>FAILURE_MODE</code> via embedding search</td><td>Synthetic assistant turn before first user message</td><td>~1200 tokens, max 20</td></tr>
+          </tbody>
+        </table>
+        <h3>Extras</h3>
+        <ul>
+          <li><strong>Personal taught lane</strong> — author’s <code>visibility='personal'</code> rules even when helpful_count is 0</li>
+          <li><strong>MMR</strong> — <code>MEMORY_MMR_ENABLED</code> diversifies similar bullets</li>
+          <li><strong>Topic key</strong> — derived from user text + <code>platform_memory_topics</code> (FOER)</li>
+        </ul>
+        <pre>=== OPERATING MEMORY | phase:init ===
+- [HARD_RULE] Verify tables exist before querying...
+=== END OPERATING MEMORY ===</pre>
+      </section>
+
+      <section id="attribution">
+        <h2>Attribution loop</h2>
+        <p><span class="file-ref">src/lib/memory/attribution.ts</span></p>
+        <p class="mermaid-hint"><strong>Click any participant or message</strong> to show the related operating-memory details in the panel above the Architecture diagram.</p>
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+sequenceDiagram
+  participant Chat as inspector/chat
+  participant Inj as platform_memory_injections
+  participant Mem as platform_agent_memory
+  Chat->>Inj: recordInjection(runId, bulletIds)
+  Note over Chat: Agent completes run
+  Chat->>Inj: attributeRunOutcome(runId, success)
+  Inj->>Mem: helpful++ or harmful++
+  Mem->>Mem: SUPERSEDED if harmful >= helpful and harmful >= 3
+          </pre>
+        </div>
+        <ul>
+          <li>Idempotent: <code>attributed_at</code> marker; replays are no-ops</li>
+          <li>Success: <code>helpful_count++</code>, <code>confidence += 0.02</code> (max 1.0)</li>
+          <li>Failure: <code>harmful_count++</code></li>
+          <li><code>runId</code> in Inspector equals workbench <code>sessionId</code></li>
+        </ul>
+      </section>
+
+      <section id="marcus">
+        <h2>Marcus reflections (optional)</h2>
+        <p>When <code>MARCUS_REFLECT_ENABLED=true</code>, after SSE closes Marcus (Claude Sonnet) reviews the trajectory → <code>platform_marcus_reflections</code>.</p>
+        <p>Synthesis <code>reflectSession</code> includes these reflections as extra signal alongside the trace graph.</p>
+      </section>
+
+      <section id="dag">
+        <h2>Synthesis DAG</h2>
+        <p><span class="file-ref">src/lib/memory/orchestrate.ts</span></p>
+        <table>
+          <thead><tr><th>Schedule (target)</th><th>Jobs</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Nightly 04:30 UTC</td><td><code>synthesize</code>, optional <code>reclassify</code></td><td>Extract bullets; reclassify if topic coverage &lt; 90%</td></tr>
+            <tr><td>Weekly Sun 05:30 UTC</td><td><code>grow_refine</code>, <code>reclassify</code></td><td>Dedup / TTL / harmful GC; always refresh FOER labels</td></tr>
+          </tbody>
+        </table>
+        <h3>Advisory lock</h3>
+        <p><span class="file-ref">lock.ts</span> uses a dedicated <code>pg.Client</code> on <code>DIRECT_URL</code> and <code>pg_try_advisory_lock(fnv1a64('mem-orch:{orgId}:{group}'))</code> for the full DAG duration — prevents duplicate synthesis on the same org.</p>
+        <h3>Job audit</h3>
+        <p>Each job writes <code>platform_job_runs</code> (status, items processed, errors). Synthesis also writes <code>platform_memory_synthesis_runs</code> + per-session <code>platform_memory_synthesis_details</code>.</p>
+        <div class="callout">
+          <strong>Manual trigger:</strong> <code>POST /api/agent-lab/memory/synthesize</code> runs <code>runSynthesisSweep</code> only (cap 20 sessions) — not the full locked DAG. Production nightly/weekly runs are expected to invoke <code>runDag(orgId, 'nightly' | 'weekly')</code> from your scheduler; monitor via Agent Lab FOER Ops UI.
+        </div>
+      </section>
+
+      <section id="sweep">
+        <h2>Synthesis sweep — step by step</h2>
+        <p><span class="file-ref">src/lib/memory/run-sweep.ts</span></p>
+        <h4><span class="step-num">1</span> Start run</h4>
+        <p>Create <code>platform_memory_synthesis_runs</code> with <code>reflectorVersion</code> (e.g. <code>marcus_reflect_v3</code>).</p>
+        <h4><span class="step-num">2</span> Discover sessions</h4>
+        <ul>
+          <li><strong>Watermark:</strong> max <code>created_at</code> on ACTIVE bullets for org</li>
+          <li><strong>Already processed:</strong> union of all <code>source_session_ids</code> on ACTIVE bullets — each session synthesized at most once</li>
+          <li><strong>Candidates:</strong> distinct <code>session_id</code> in <code>platform_trace_nodes</code> where <code>created_at &gt; watermark</code></li>
+          <li><strong>Exclude:</strong> <code>MEMORY_SYNTH_EXCLUDE_SESSION_IDS</code> (comma-separated stopgap)</li>
+        </ul>
+        <h4><span class="step-num">3</span> Per session — <code>processSession</code></h4>
+        <ol>
+          <li>Resolve <code>agentClass</code> from first trace node</li>
+          <li><code>computeTaskSignature</code> — SHA-256(agentClass :: tools :: entity keywords)[0:16]</li>
+          <li><code>reconstructSession</code></li>
+          <li><code>reflectSession</code> → 0–7 candidate bullets</li>
+          <li><code>curate</code> → insert / dedup / supersede / quarantine</li>
+        </ol>
+        <h4><span class="step-num">4</span> Finalize</h4>
+        <p>Update synthesis run aggregates; one detail row per session.</p>
+      </section>
+
+      <section id="reflect">
+        <h2>Reflect — LLM extraction</h2>
+        <p><span class="file-ref">src/lib/memory/synthesis/reflect.ts</span> — persona <strong>Captain Track Sparrow</strong>, prompt version <code>marcus_reflect_v3</code>, model <code>BEDROCK_SONNET_MODEL_ID</code>.</p>
+        <h3>Inputs (JSON to Bedrock)</h3>
+        <ul>
+          <li><code>TASK_SIGNATURE</code></li>
+          <li><code>ORDERED_TRACE</code> — nodes, tool params, summaries, errors</li>
+          <li><code>EXISTING_BULLETS</code> for dedup guidance</li>
+          <li><code>MARCUS_REFLECTIONS</code> for the session</li>
+        </ul>
+        <h3>Sieve — discard</h3>
+        <p>Typos, retry flaps, cosmetic fixes, dismissed reflections, negative existence inferred only from truncated describe_schema, invented join logic not seen in trace.</p>
+        <h3>Sieve — keep</h3>
+        <p>Structural errors, approach-changing corrections, successful SQL paths, schema discoveries, source preferences. User CORRECTION nodes are authoritative.</p>
+        <h3>Output</h3>
+        <p>0–7 JSON objects; Zod validated; <strong>no DB writes</strong> in reflect — only candidates to curate.</p>
+      </section>
+
+      <section id="curate">
+        <h2>Curate — merge into store</h2>
+        <p><span class="file-ref">src/lib/memory/synthesis/curate.ts</span> — per candidate, in order:</p>
+        <table>
+          <thead><tr><th>Step</th><th>Module</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>0</td><td>scrub.ts</td><td>PII / credential redaction before embed or insert</td></tr>
+            <tr><td>0b</td><td>validate.ts (Rama)</td><td>Block phantoms — identifier must appear in trace</td></tr>
+            <tr><td>0c</td><td>caveat-guard.ts</td><td>Optional QUARANTINE for caveat-heavy tables</td></tr>
+            <tr><td>1</td><td>embedQuery</td><td>Titan embedding → pgvector</td></tr>
+            <tr><td>2</td><td>Nearest neighbours</td><td>Cosine distance within task scope (<code>SCHEMA_MAP</code> cross-signature dedup)</td></tr>
+            <tr><td>3</td><td>DEDUP</td><td>distance &lt; 0.07 → increment helpfulCount, append session id</td></tr>
+            <tr><td>4</td><td>SUPERSEDE</td><td>distance &lt; 0.20 + type/confidence change → old SUPERSEDED, new version+1</td></tr>
+            <tr><td>5</td><td>INSERT</td><td>New ACTIVE bullet v1</td></tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>Invariants:</strong> curate never hard-deletes rows; never rewrites bullets outside the candidate’s scope; supersede preserves history with <code>valid_until</code>.
+        </div>
+      </section>
+
+      <section id="refine">
+        <h2>Weekly refine — <code>grow_refine</code></h2>
+        <p><span class="file-ref">src/lib/memory/synthesis/refine.ts</span></p>
+        <ol>
+          <li><strong>Dedup clustering</strong> — pairs with distance &lt; 0.07 within (agentClass, taskSignature); merge counts</li>
+          <li><strong>TTL decay</strong> — e.g. FAILURE_MODE 14d, HEURISTIC 60d, SCHEMA_MAP 90d, HARD_RULE never (override via <code>MEMORY_TTL_*</code>)</li>
+          <li><strong>Harmful GC</strong> — harmful ≥ helpful and harmful ≥ 3 → SUPERSEDED</li>
+          <li><strong>Stats</strong> — health logging for Agent Lab</li>
+        </ol>
+      </section>
+
+      <section id="foer">
+        <h2>FOER — topic clustering</h2>
+        <p><strong>Framework for Organizing Episodic Recall</strong> — <span class="file-ref">src/lib/foer/run-cluster.ts</span></p>
+        <p>Classifies each <code>task_signature</code> into a domain vocabulary (e.g. <code>crew_personnel</code>, <code>vessel_voyage</code>, <code>estate_navigation</code>) using Bedrock on sample rule texts → <code>platform_memory_topics</code>.</p>
+        <p><strong>Coverage target:</strong> 90% of signatures assigned. Nightly DAG appends <code>reclassify</code> inline when coverage drops after synthesize; weekly always runs reclassify.</p>
+        <p>At chat time, Inspector derives <code>topicKey</code> from the user message to scope Phase 1a SCHEMA_MAP retrieval.</p>
+      </section>
+
+      <section id="teach">
+        <h2>Teach mode vs automatic synthesis</h2>
+        <table>
+          <thead><tr><th></th><th>Automatic (self-improving)</th><th>Teach</th></tr></thead>
+          <tbody>
+            <tr><td>Source</td><td>Trace + reflect LLM</td><td>User-authored text</td></tr>
+            <tr><td>Path</td><td>reflect → curate (Rama needs trace)</td><td><span class="file-ref">teach.ts</span> direct insert</td></tr>
+            <tr><td>Default visibility</td><td>org</td><td>personal until promoted</td></tr>
+            <tr><td>Table</td><td colspan="2">Same <code>platform_agent_memory</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="reputation">
+        <h2>Reputation (optional)</h2>
+        <p>When <code>MEMORY_REPUTATION_ENABLED=true</code>:</p>
+        <ul>
+          <li>Curate records contributions (<code>INSERT_AUTHOR</code>, <code>DEDUP_REINFORCE</code>, …)</li>
+          <li>Attribution updates contributor reputation on helpful/harmful outcomes</li>
+          <li>Season-based leaderboard in Agent Lab; weekly rollover (Sunday 05:30 UTC target)</li>
+        </ul>
+        <p>All reputation hooks are <strong>non-fatal</strong> — failures never break chat or synthesis.</p>
+      </section>
+
+      <section id="tables-db">
+        <h2>Database tables</h2>
+        <table>
+          <thead><tr><th>Table</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>platform_trace_nodes / platform_trace_edges</td><td>Raw session experience</td></tr>
+            <tr><td>platform_agent_memory</td><td>Operating memory bullets</td></tr>
+            <tr><td>platform_memory_injections</td><td>Which bullets were injected per run</td></tr>
+            <tr><td>platform_memory_synthesis_runs / _details</td><td>Sweep audit trail</td></tr>
+            <tr><td>platform_job_runs</td><td>DAG job heartbeat</td></tr>
+            <tr><td>platform_memory_topics</td><td>FOER topic labels</td></tr>
+            <tr><td>platform_memory_contributions / platform_user_reputation</td><td>Reputation</td></tr>
+            <tr><td>platform_marcus_reflections</td><td>Optional reflector input</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="config">
+        <h2>Configuration</h2>
+        <table>
+          <thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>MEMORY_INJECT_ENABLED</code></td><td>Master switch for using memory in chat</td></tr>
+            <tr><td><code>MEMORY_INJECT_CLASSES</code></td><td>e.g. <code>inspector</code></td></tr>
+            <tr><td><code>MEMORY_PHASE1A_BUDGET</code> / <code>MEMORY_PHASE1B_BUDGET</code></td><td>Token budgets for injection phases</td></tr>
+            <tr><td><code>MEMORY_MMR_ENABLED</code></td><td>Diversity re-ranking in Phase 1b</td></tr>
+            <tr><td><code>MEMORY_REPUTATION_ENABLED</code></td><td>Contribution + outcome reputation</td></tr>
+            <tr><td><code>MEMORY_SYNTH_EXCLUDE_SESSION_IDS</code></td><td>Skip sessions in synthesis sweep</td></tr>
+            <tr><td><code>MEMORY_CAVEAT_GUARD_ENABLED</code></td><td>Quarantine risky schema bullets</td></tr>
+            <tr><td><code>BEDROCK_SONNET_MODEL_ID</code></td><td>Reflect + FOER classification</td></tr>
+            <tr><td><code>MARCUS_REFLECT_ENABLED</code></td><td>Post-session Marcus → richer synthesis input</td></tr>
+            <tr><td><code>DIRECT_URL</code></td><td>Required for advisory lock (or falls back to DATABASE_URL)</td></tr>
+          </tbody>
+        </table>
+        <p>Synthesis can run while injection is off — traces still accumulate; injection controls consumption only.</p>
+      </section>
+
+      <section id="timeline-example">
+        <h2>Timeline example</h2>
+        <div class="timeline-item">
+          <strong>Monday 10:00 — Analyst asks about crew certificate expiry</strong>
+          <ul>
+            <li>Phase 0/1a/1b bullets injected (if enabled)</li>
+            <li>Agent runs describe_schema → execute_tool; trace nodes append</li>
+            <li><code>recordInjection</code> + successful run → injected bullets get helpful_count++</li>
+          </ul>
+        </div>
+        <div class="timeline-item">
+          <strong>Tuesday 04:30 UTC — Nightly synthesize</strong>
+          <ul>
+            <li>Lock → sweep finds Monday’s session</li>
+            <li>Reflect extracts HEURISTIC about <code>expiry_date</code> as DATE</li>
+            <li>Curate validates against trace, embeds, INSERT or DEDUP</li>
+            <li>Optional reclassify if FOER coverage &lt; 90%</li>
+          </ul>
+        </div>
+        <div class="timeline-item">
+          <strong>Tuesday 10:00 — Similar question</strong>
+          <ul>
+            <li>New bullet appears in Phase 1b (semantic) or 1a (SCHEMA_MAP) without model retraining</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="files">
+        <h2>Key source files</h2>
+        <table>
+          <thead><tr><th>File</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td class="file-ref">docs/AI-AGENT-MEMORY.md</td><td>Markdown deep dive (companion)</td></tr>
+            <tr><td class="file-ref">docs/ai-agent-memory-guide.html</td><td>Tabbed AI / Agent / Memory overview</td></tr>
+            <tr><td class="file-ref">src/app/api/inspector/chat/route.ts</td><td>Inject, trace, attribute</td></tr>
+            <tr><td class="file-ref">src/lib/memory/orchestrate.ts</td><td>DAG runner</td></tr>
+            <tr><td class="file-ref">src/lib/memory/run-sweep.ts</td><td>Synthesis sweep</td></tr>
+            <tr><td class="file-ref">src/lib/memory/synthesis/reflect.ts</td><td>LLM rule extraction</td></tr>
+            <tr><td class="file-ref">src/lib/memory/synthesis/curate.ts</td><td>Store merge</td></tr>
+            <tr><td class="file-ref">src/lib/memory/retrieve.ts</td><td>Injection retrieval</td></tr>
+            <tr><td class="file-ref">src/app/api/agent-lab/memory/synthesize/route.ts</td><td>Manual sweep API</td></tr>
+            <tr><td class="file-ref">ARCHITECTURE.md § Memory Synthesis DAG</td><td>Repo architecture summary</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+  <script>
+    const FLOW = {
+      'user-question': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'User question',
+        what: 'The analyst’s natural-language request that starts one Inspector turn (e.g. crew counts, certificate expiry, vessel voyages).',
+        how: [
+          'Request hits POST /api/inspector/chat with sessionId, messages, and model choice.',
+          'The first user message text is sliced (~500 chars) as task context for memory retrieval and FOER topic matching.',
+          'The same text is what Phase 1b embeds for semantic bullet search.'
+        ],
+        ex1: 'User asks: “How many active crew certificates expire this month?”',
+        ex2: 'Next turn: “Break that down by vessel” — new retrieval runs; trace links corrections if the prior SQL failed.'
+      },
+      'select-memory': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'selectMemoryAll — retrieve bullets',
+        what: 'Before the model thinks, the platform loads the best-fitting memory rules from Postgres (three phases).',
+        how: [
+          'Checks MEMORY_INJECT_ENABLED and MEMORY_INJECT_CLASSES includes inspector.',
+          'Runs Phase 0, 1a, 1b in retrieve.ts with token budgets from phases.ts.',
+          'Optional MMR diversifies Phase 1b; personal taught lane adds the caller’s own rules.',
+          'Returns bullet objects formatted into OPERATING MEMORY blocks.'
+        ],
+        ex1: 'Question mentions “crew certificates” → Phase 1b cosine search returns HEURISTIC: filter status=ACTIVE first.',
+        ex2: 'If injection is off, this step is skipped — traces still record for overnight synthesis.'
+      },
+      'prompt-inject': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'Prompt + memory injection',
+        what: 'Stacked instructions the model sees: base Inspector prompt, semantic context, then memory blocks.',
+        how: [
+          'Phase 0 and 1a append to finalSystemPrompt.',
+          'Phase 1b is injected as a synthetic assistant message before the first user turn (recall pattern).',
+          'Model reads memory as operational rules, not as user chat.'
+        ],
+        ex1: 'System prompt ends with: === OPERATING MEMORY | phase:schema_global === … SCHEMA_MAP bullets …',
+        ex2: 'Assistant recall turn: === OPERATING MEMORY | phase:task_scoped === … FAILURE_MODE about unqualified table names …'
+      },
+      'agent-loop': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'Agent loop (Bedrock + tools)',
+        what: 'The execution engine: Claude plans tool calls, runs SQL on Databricks, emits charts, streams SSE to the UI.',
+        how: [
+          'agent-loop.ts calls Bedrock ConverseStream up to 8 rounds per message.',
+          'Each tool_use → executeInspectorTool (read-only SQL gate, catalog search, charts).',
+          'Trajectory + trace nodes recorded per tool; user sees SQL and results live.'
+        ],
+        ex1: 'Loop 1: describe_schema search “crew certificates”. Loop 2: execute_tool SELECT … WHERE status=\'ACTIVE\' …',
+        ex2: 'Failed TABLE_NOT_FOUND → DEAD_END trace node → tomorrow’s synthesis may emit FAILURE_MODE rule.'
+      },
+      'trace': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'Trace graph',
+        what: 'A durable graph of what happened in the session — the primary input for overnight learning.',
+        how: [
+          'openSession() in trace/capture.ts writes ACTION, OUTCOME, CORRECTION, DEAD_END, SOURCE nodes.',
+          'Edges LED_TO and CORRECTED_BY link the story.',
+          'reconstructSession() rebuilds an ordered walk (CTE, depth ≤ 3) for reflect and Rama validation.'
+        ],
+        ex1: 'ACTION execute_tool → OUTCOME 47 rows → user CORRECTION “expiry_date is DATE not timestamp”.',
+        ex2: 'Synthesis will treat user CORRECTION as ground truth; reflect must not contradict it.'
+      },
+      'record-injection': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'recordInjection',
+        what: 'Persists exactly which memory bullets were injected into this run — needed for attribution.',
+        how: [
+          'Called from chat/route.ts after selectMemoryAll, with sessionId as runId.',
+          'Inserts into platform_memory_injections (run_id, bullet_id, phase).',
+          'ON CONFLICT DO NOTHING — safe if called twice.'
+        ],
+        ex1: 'Run injects 3 bullets: 1× INIT HARD_RULE, 2× TASK_SCOPED HEURISTIC → 3 injection rows.',
+        ex2: 'Synthetic default guardrail IDs starting with __ are filtered out — not attributed.'
+      },
+      'attribute': {
+        lane: 'day', laneLabel: 'Daytime',
+        title: 'attributeRunOutcome',
+        what: 'Scores whether injected memory helped or hurt this run — closes the quality loop.',
+        how: [
+          'After stream ends, chat route calls attributeRunOutcome(sessionId, { success }).',
+          'Claims unattributed injection rows; updates helpful_count or harmful_count on each bullet.',
+          'Success: confidence += 0.02. Repeated harm: bullet may become SUPERSEDED.'
+        ],
+        ex1: 'Successful certificate query → all injected bullets get helpful_count++.',
+        ex2: 'Run fails after bad heuristic → harmful_count++; at 3+ harmful with harmful ≥ helpful → SUPERSEDED.'
+      },
+      'memory-store': {
+        lane: 'store', laneLabel: 'Memory store',
+        title: 'platform_agent_memory',
+        what: 'The org’s operating memory: short rules with embeddings, scores, and lifecycle status.',
+        how: [
+          'Bullets created by curate (synthesis) or teachRule (user).',
+          'Retrieved by selectMemoryAll; updated by attribution and weekly refine.',
+          'Never deleted — bad rules marked SUPERSEDED with valid_until.'
+        ],
+        ex1: 'ACTIVE row: rule_type HEURISTIC, task_signature a1b2…, rule_text “Use ops.crew_certificates.expiry_date as DATE …”',
+        ex2: 'SUPERSEDED row remains in DB for audit; retrieval queries only status=ACTIVE.'
+      },
+      'phase-0': {
+        lane: 'day', laneLabel: 'Phase 0',
+        title: 'Phase 0 — INIT guardrails',
+        what: 'Small set of must-follow HARD_RULEs after the org has seen them fail at least once.',
+        how: [
+          'Only HARD_RULE with confidence ≥ 0.9 and harmful_count ≥ 1.',
+          'No embedding search — deterministic query.',
+          'Injected into system prompt (~200 tokens, max 3 bullets).'
+        ],
+        ex1: '“Never use unqualified crew_manifest in maritime_db — causes TABLE_NOT_FOUND.”',
+        ex2: 'Brand-new HARD_RULE from synthesis has harmful_count 0 → does not appear in Phase 0 until a failed run attributes harm.'
+      },
+      'phase-1a': {
+        lane: 'day', laneLabel: 'Phase 1a',
+        title: 'Phase 1a — SCHEMA_GLOBAL',
+        what: 'Domain schema map: which catalogs, tables, and columns matter for this agent class and topic.',
+        how: [
+          'Loads SCHEMA_MAP bullets for inspector, filtered by FOER topicKey when detected.',
+          'Sorted by confidence × net helpful; capped by MEMORY_PHASE1A_BUDGET.',
+          'Personal taught SCHEMA_MAPs can appear via personal lane.'
+        ],
+        ex1: 'Topic crew_personnel → bullets listing ops.crew_certificates columns cert_id, expiry_date, status.',
+        ex2: 'User message has no topic keyword → top global SCHEMA_MAPs for inspector still inject (broader shelf).'
+      },
+      'phase-1b': {
+        lane: 'day', laneLabel: 'Phase 1b',
+        title: 'Phase 1b — TASK_SCOPED recall',
+        what: 'Situation-specific tips: heuristics, source preferences, and failure warnings matched to the question embedding.',
+        how: [
+          'embedQuery(user question) → pgvector cosine search on HEURISTIC, SOURCE_PREF, FAILURE_MODE.',
+          'Optional MMR re-ranks top 40 candidates for diversity.',
+          'Packed into token budget; injected as synthetic assistant recall turn.'
+        ],
+        ex1: 'Embedding similar to “certificate expiry this month” pulls FAILURE_MODE about DATE_TRUNC vs timestamp.',
+        ex2: 'Five near-duplicate “use ops.crew_manifest” bullets → MMR keeps one diverse set instead of five repeats.'
+      },
+      'orchestrate': {
+        lane: 'night', laneLabel: 'Overnight',
+        title: 'orchestrate.runDag',
+        what: 'Job runner for nightly and weekly memory maintenance with mutual exclusion per org.',
+        how: [
+          'Acquires advisory lock mem-orch:{orgId}:{group} on DIRECT_URL connection.',
+          'Runs job sequence: nightly [synthesize, reclassify?]; weekly [grow_refine, reclassify].',
+          'Writes platform_job_runs; releases lock in finally block.'
+        ],
+        ex1: 'Nightly 04:30 UTC: synthesize completes → coverage 82% → reclassify appended same lock.',
+        ex2: 'Second scheduler fires while first runs → lock fails → “skipped: locked” (no duplicate sweep).'
+      },
+      'sweep': {
+        lane: 'night', laneLabel: 'Overnight',
+        title: 'runSynthesisSweep',
+        what: 'Finds unprocessed Inspector sessions and runs reflect + curate on each.',
+        how: [
+          'Watermark + source_session_ids prevent reprocessing the same session.',
+          'Sessions from platform_trace_nodes newer than watermark.',
+          'Per session: signature → reconstruct → reflect → curate; logs platform_memory_synthesis_details.'
+        ],
+        ex1: 'Monday session with 12 trace nodes → 4 candidate bullets → 2 inserted, 2 deduped against existing.',
+        ex2: 'MEMORY_SYNTH_EXCLUDE_SESSION_IDS=abc123 skips one session for a targeted rerun.'
+      },
+      'reflect': {
+        lane: 'night', laneLabel: 'Overnight',
+        title: 'reflectSession (LLM)',
+        what: 'Captain Track Sparrow reads the trace (+ Marcus) and proposes 0–7 new rule JSON objects.',
+        how: [
+          'Bedrock Sonnet with marcus_reflect_v3 system prompt.',
+          'Inputs: TASK_SIGNATURE, ORDERED_TRACE, EXISTING_BULLETS, MARCUS_REFLECTIONS.',
+          'Zod validation; no DB writes — candidates only.'
+        ],
+        ex1: 'Extracts HEURISTIC: “For expiry in ops.crew_certificates use BETWEEN with DATE_TRUNC on expiry_date (DATE).”',
+        ex2: 'Discards: “Table has no country column” inferred only from empty describe_schema — phantom risk.'
+      },
+      'curate': {
+        lane: 'night', laneLabel: 'Overnight',
+        title: 'curate — merge into store',
+        what: 'Deterministic gatekeeper: scrub, validate against trace, embed, dedup or insert bullets.',
+        how: [
+          'scrub → validateAgainstTrace (Rama) → optional caveat quarantine → embedQuery.',
+          'Nearest neighbour: DEDUP (&lt;0.07), SUPERSEDE (&lt;0.20 + type/conf change), or INSERT.',
+          'Reputation hooks if MEMORY_REPUTATION_ENABLED.'
+        ],
+        ex1: 'New rule near-identical to existing → DEDUP: helpfulCount++ on existing id.',
+        ex2: 'Rule names table never in trace → phantomsBlocked; nothing written to ACTIVE store.'
+      },
+      'foer': {
+        lane: 'night', laneLabel: 'FOER',
+        title: 'FOER topic clustering',
+        what: 'Labels each task_signature with a domain topic so Phase 1a schema maps match the user’s question area.',
+        how: [
+          'runCluster sends signatures + sample rule texts to Bedrock (fixed vocabulary).',
+          'Writes platform_memory_topics for current period.',
+          'Target 90% coverage; nightly/weekly reclassify keeps labels fresh.'
+        ],
+        ex1: 'Signature for crew certificate tasks → topic_key crew_personnel → Phase 1a filters SCHEMA_MAPs.',
+        ex2: 'User asks about IMO numbers → topic vessel_voyage → different SCHEMA_MAP shelf injects.'
+      },
+      'refine': {
+        lane: 'night', laneLabel: 'Weekly',
+        title: 'grow_refine (refineMemoryStore)',
+        what: 'Weekly housekeeping so memory stays bounded and stale rules fade.',
+        how: [
+          'Dedup clusters across concurrent synthesis duplicates.',
+          'TTL by rule_type (e.g. FAILURE_MODE 14 days, SCHEMA_MAP 90 days).',
+          'Harmful GC supersede; stats logged for Agent Lab health.'
+        ],
+        ex1: 'Two ACTIVE bullets 0.05 apart after parallel runs → merged, loser SUPERSEDED.',
+        ex2: 'Old SOURCE_PREF unused for 30+ days → EXPIRED/SUPERSEDED per TTL — no hard delete.'
+      },
+      'marcus': {
+        lane: 'day', laneLabel: 'Optional',
+        title: 'Marcus reflections',
+        what: 'Secondary AI review of the tool trajectory after the user’s answer finishes — extra context for synthesis.',
+        how: [
+          'MARCUS_REFLECT_ENABLED → evaluateTrajectoryReflection after SSE close.',
+          'Stored in platform_marcus_reflections (headline, body, severity).',
+          'reflectSession includes non-dismissed reflections in MARCUS_REFLECTIONS JSON.'
+        ],
+        ex1: 'Marcus: “Efficient 2-tool path; catalog search before SQL” → reflect may encode as HEURISTIC.',
+        ex2: 'User dismisses reflection in UI → status dismissed → reflect prompt ignores it.'
+      },
+      'teach': {
+        lane: 'day', laneLabel: 'Manual',
+        title: 'Teach mode (parallel path)',
+        what: 'User writes a standing rule directly — not extracted from trace — still stored in the same table.',
+        how: [
+          'teach.ts embeds and inserts personal visibility rule (often SCHEMA_MAP).',
+          'Does not go through curate/Rama (no trace required).',
+          'promoteRuleToOrg for org-wide; personal lane ensures author sees it before helpful_count grows.'
+        ],
+        ex1: 'User teaches: “When I say active crew, mean status=\'ACTIVE\' in ops.crew_certificates.”',
+        ex2: 'Automatic synthesis from Monday’s session still adds org HEURISTIC; Teach adds personal preference for that user.'
+      }
+    };
+
+    const MERMAID_TO_FLOW = {
+      Q: 'user-question',
+      R: 'select-memory',
+      P: 'prompt-inject',
+      L: 'agent-loop',
+      T: 'trace',
+      I: 'record-injection',
+      A: 'attribute',
+      O: 'orchestrate',
+      S: 'sweep',
+      Ref: 'reflect',
+      Cur: 'curate',
+      FOER: 'foer',
+      Refine: 'refine',
+      M: 'memory-store'
+    };
+
+    function selectFlow(id) {
+      if (!FLOW[id]) return;
+      document.querySelectorAll('.flow-block').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-flow') === id);
+      });
+      renderFlow(id);
+    }
+
+    window.flowNodeClick = function (nodeId) {
+      var id = MERMAID_TO_FLOW[nodeId];
+      if (id) selectFlow(id);
+    };
+
+    function renderFlow(id) {
+      var data = FLOW[id];
+      if (!data) return;
+      var panel = document.getElementById('flow-detail');
+      if (!panel) return;
+      var body = panel.querySelector('.flow-detail-body');
+      panel.classList.remove('empty');
+      body.innerHTML =
+        '<span class="flow-detail-lane ' + data.lane + '">' + data.laneLabel + '</span>' +
+        '<h3>' + data.title + '</h3>' +
+        '<div class="flow-detail-section"><h4>What is it?</h4><p>' + data.what + '</p></div>' +
+        '<div class="flow-detail-section"><h4>How it works</h4><ol>' +
+        data.how.map(function (s) { return '<li>' + s + '</li>'; }).join('') +
+        '</ol></div>' +
+        '<div class="flow-detail-section"><h4>Example 1 — scenario</h4><div class="example-box">' + data.ex1 + '</div></div>' +
+        '<div class="flow-detail-section"><h4>Example 2 — outcome</h4><div class="example-box secondary">' + data.ex2 + '</div></div>' +
+        (data.code ? '<p class="flow-detail-code">' + data.code + '</p>' : '');
+      try {
+        history.replaceState(null, '', '#flow-detail');
+      } catch (e) { /* file:// may block */ }
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function bindMermaidSvgClicks() {
+      document.querySelectorAll('.mermaid-wrap').forEach(function (wrap) {
+        if (wrap.dataset.delegationBound) return;
+        wrap.dataset.delegationBound = '1';
+
+        wrap.addEventListener('click', function (ev) {
+          var node = ev.target.closest
+            ? ev.target.closest('g.node, g.actor, g.labelGroup, .messageText, .note')
+            : null;
+          if (!node || !wrap.contains(node)) return;
+
+          var nodeId = node.id || '';
+          var fromId = nodeId.match(/flowchart-([^-]+)-/);
+          if (fromId && MERMAID_TO_FLOW[fromId[1]]) {
+            ev.preventDefault();
+            selectFlow(MERMAID_TO_FLOW[fromId[1]]);
+            return;
+          }
+
+          var text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+          var keys = [
+            ['platform_agent_memory', 'memory-store'],
+            ['attributeRunOutcome', 'attribute'],
+            ['recordInjection', 'record-injection'],
+            ['selectMemoryAll', 'select-memory'],
+            ['runSynthesisSweep', 'sweep'],
+            ['reflectSession', 'reflect'],
+            ['refineMemoryStore', 'refine'],
+            ['runCluster FOER', 'foer'],
+            ['orchestrate.runDag', 'orchestrate'],
+            ['System prompt', 'prompt-inject'],
+            ['Agent loop', 'agent-loop'],
+            ['platform_trace', 'trace'],
+            ['User question', 'user-question'],
+            ['platform_memory_injections', 'record-injection'],
+            ['inspector/chat', 'agent-loop'],
+            ['helpful++', 'attribute'],
+            ['harmful++', 'attribute'],
+            ['SUPERSEDED', 'memory-store'],
+            ['curate', 'curate']
+          ];
+          for (var i = 0; i < keys.length; i++) {
+            if (text.indexOf(keys[i][0]) !== -1) {
+              ev.preventDefault();
+              selectFlow(keys[i][1]);
+              return;
+            }
+          }
+        });
+      });
+    }
+
+    function initPage() {
+      document.querySelectorAll('.flow-block').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          selectFlow(btn.getAttribute('data-flow'));
+        });
+      });
+
+      document.querySelectorAll('.sidebar a[data-flow]').forEach(function (link) {
+        link.addEventListener('click', function () {
+          var id = link.getAttribute('data-flow');
+          if (!id) return;
+          setTimeout(function () { selectFlow(id); }, 80);
+        });
+      });
+
+      bindMermaidSvgClicks();
+
+      if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+        mermaid.run({ querySelector: '.mermaid' }).then(function () {
+          bindMermaidSvgClicks();
+        }).catch(function (err) {
+          console.warn('[guide] mermaid.run failed', err);
+          try {
+            mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+          } catch (e2) { /* ignore */ }
+          setTimeout(bindMermaidSvgClicks, 300);
+        });
+      } else {
+        console.warn('[guide] Mermaid not loaded — use flow buttons; check network for CDN.');
+      }
+
+      if (location.hash === '#architecture' || location.hash === '#interactive-flow' || location.hash === '#flow-detail') {
+        selectFlow('user-question');
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPage);
+    } else {
+      initPage();
+    }
+  </script>
+</body>
+</html>

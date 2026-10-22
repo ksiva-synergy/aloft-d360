@@ -94,7 +94,7 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
   if (loading) {
     return (
       <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)' }}>Loading…</span>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>Loading…</span>
       </div>
     );
   }
@@ -102,14 +102,14 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
       {error && (
-        <div style={{ ...MONO, fontSize: 10, color: '#F87171', padding: '6px 0', marginBottom: 4 }}>
+        <div style={{ ...MONO, fontSize: 13, color: '#F87171', padding: '6px 0', marginBottom: 4 }}>
           {error}
         </div>
       )}
 
       {versions.length === 0 && (
         <div style={{ padding: 16, textAlign: 'center' }}>
-          <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)' }}>
+          <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>
             No saved versions yet
           </span>
         </div>
@@ -131,30 +131,30 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ ...MONO, fontSize: 10, color: 'var(--builder-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>v{v.version_number}</span>
                 {isCurrent && (
-                  <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 2, background: 'rgba(134,239,172,0.1)', color: '#86EFAC', border: '1px solid rgba(134,239,172,0.2)' }}>
+                  <span style={{ fontSize: 13, padding: '1px 4px', borderRadius: 2, background: 'rgba(134,239,172,0.1)', color: '#86EFAC', border: '1px solid rgba(134,239,172,0.2)' }}>
                     CURRENT
                   </span>
                 )}
               </div>
-              <div style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', marginTop: 2 }}>
+              <div style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', marginTop: 2 }}>
                 {date.toLocaleDateString()} {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
               {v.change_summary && (
-                <div style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-label)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {v.change_summary}
                 </div>
               )}
               {diff && (diff.added > 0 || diff.removed > 0 || diff.modified > 0) && (
                 <div
-                  style={{ ...MONO, fontSize: 8, color: 'var(--builder-text-muted)', marginTop: 3, display: 'flex', gap: 6 }}
+                  style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', marginTop: 3, display: 'flex', gap: 6 }}
                   title={`${diff.added} added, ${diff.removed} removed, ${diff.modified} modified`}
                 >
                   {diff.added > 0 && <span style={{ color: '#86EFAC' }}>+{diff.added}</span>}
                   {diff.removed > 0 && <span style={{ color: '#F87171' }}>−{diff.removed}</span>}
-                  {diff.modified > 0 && <span style={{ color: '#FDB515' }}>~{diff.modified}</span>}
+                  {diff.modified > 0 && <span style={{ color: 'var(--brand-a-ink)' }}>~{diff.modified}</span>}
                 </div>
               )}
             </div>
@@ -165,7 +165,7 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
                 title="Restore this version"
                 style={{
                   ...MONO,
-                  fontSize: 9,
+                  fontSize: 13,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 3,

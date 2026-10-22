@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ScannedFacetTree from './ScannedFacetTree';
 import Pagination from './Pagination';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 interface ScannedObjectItem {
   id: string;
   full_path: string;
@@ -31,6 +32,12 @@ interface ScannedTierCounts {
   embed: number;
   t3: number;
   t4: number;
+}
+
+interface ScannedEmbeddingTotals {
+  objects_with_embedding: number;
+  object_vector_rows: number;
+  column_vector_rows: number;
 }
 
 type TierFilter = 't0' | 't1' | 't2' | 'embed' | 't3' | 't4' | null;
@@ -85,7 +92,7 @@ const TIER_LABELS: Record<keyof typeof TIER_COLORS, string> = {
   t0: 'T0 Structural — schema, columns, row counts',
   t1: 'T1 Profile — statistical column profiling',
   t2: 'T2 Semantic — AI summaries and PII detection',
-  embed: 'Embed — vector embeddings for semantic search',
+  embed: 'Embed — tables with object-level vectors (column vectors shown separately)',
   t3: 'T3 Connected — usage analysis and cross-object connections',
   t4: 'T4 Modelled — entity + dimension proposals generated',
 };
@@ -132,14 +139,14 @@ function TierLegendPill({
       type="button"
       title={`${label}${active ? ' — click to clear filter' : ' — click to filter'}`}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-[10px] tracking-wide transition-all duration-150"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-xs tracking-wide transition-all duration-150"
       style={{
         color,
-        backgroundColor: active ? `${color}28` : `${color}14`,
-        border: active ? `1px solid ${color}` : `1px solid ${color}33`,
+        backgroundColor: active ? `${withAlpha(color, '28')}` : `${withAlpha(color, '14')}`,
+        border: active ? `1px solid ${color}` : `1px solid ${withAlpha(color, '33')}`,
         outline: 'none',
         cursor: 'pointer',
-        boxShadow: active ? `0 0 0 1px ${color}44` : 'none',
+        boxShadow: active ? `0 0 0 1px ${withAlpha(color, '44')}` : 'none',
       }}
     >
       <span
@@ -162,6 +169,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
   const [items, setItems] = useState<ScannedObjectItem[]>([]);
   const [total, setTotal] = useState(0);
   const [tierCounts, setTierCounts] = useState<ScannedTierCounts>({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+  const [embeddingTotals, setEmbeddingTotals] = useState<ScannedEmbeddingTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchVal, setSearchVal] = useState('');
 
@@ -216,16 +224,19 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
         setItems(newItems);
         setTotal(newTotal);
         setTierCounts(newTierCounts);
+        setEmbeddingTotals(json?.data?.embeddingTotals ?? null);
       } else {
         setItems([]);
         setTotal(0);
         setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+        setEmbeddingTotals(null);
       }
     } catch (err) {
       console.error('[ScannedObjectsTab] fetch error', err);
       setItems([]);
       setTotal(0);
       setTierCounts({ t0: 0, t1: 0, t2: 0, embed: 0, t3: 0, t4: 0 });
+      setEmbeddingTotals(null);
     } finally {
       setLoading(false);
     }
@@ -257,7 +268,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
 
   const selectStyle: React.CSSProperties = {
     fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '12px',
+    fontSize: '13px',
     letterSpacing: '0.04em',
     backgroundColor: surfaceBg,
     border: `1px solid var(--estate-border)`,
@@ -311,7 +322,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
               className="flex-1 bg-transparent border-none outline-none"
               style={{
                 color: inkColor,
-                fontFamily: "'Inter Tight', sans-serif",
+                fontFamily: "'Inter Variable', sans-serif",
                 fontSize: '13px',
               }}
             />
@@ -338,11 +349,17 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
             borderColor: 'var(--estate-border)',
           }}
         >
-          <span className="font-mono text-[10px] tracking-wide" style={{ color: mutedColor }}>
+          <span className="font-mono text-xs tracking-wide" style={{ color: mutedColor }}>
             {loading && total === 0 ? '—' : `${total.toLocaleString()} scanned object${total !== 1 ? 's' : ''}`}
             {filters.tier && (
               <span style={{ color: TIER_COLORS[filters.tier], marginLeft: 6 }}>
                 · {filters.tier.toUpperCase()} filter active
+              </span>
+            )}
+            {embeddingTotals && embeddingTotals.column_vector_rows > 0 && (
+              <span style={{ marginLeft: 8, color: mutedColor }}>
+                · {embeddingTotals.objects_with_embedding.toLocaleString()} table vectors
+                · {embeddingTotals.column_vector_rows.toLocaleString()} column vectors
               </span>
             )}
           </span>
@@ -367,24 +384,24 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 className="sticky top-0 z-10 border-b select-none"
                 style={{ backgroundColor: thBg, borderColor }}
               >
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase" style={{ color: labelColor }}>Object Path</th>
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Kind</th>
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Source</th>
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Rows</th>
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-36" style={{ color: labelColor }}>Last Scanned</th>
-                <th className="p-3 font-mono text-[9px] font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Tiers</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Object Path</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Kind</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Source</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Rows</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-36" style={{ color: labelColor }}>Last Scanned</th>
+                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Tiers</th>
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 [...Array(8)].map((_, idx) => (
                   <tr key={idx} className="animate-pulse border-b" style={{ borderColor, backgroundColor: idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)' }}>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-3/4" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-24" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-12 ml-auto" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-20" /></td>
-                    <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16 mx-auto" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-3/4" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-24" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12 ml-auto" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20" /></td>
+                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 mx-auto" /></td>
                   </tr>
                 ))
               ) : items.length === 0 ? (
@@ -392,7 +409,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   <td colSpan={6} className="p-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <span className="text-xl opacity-40 font-mono">◆</span>
-                      <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: labelColor }}>
+                      <span className="font-mono text-xs tracking-widest uppercase" style={{ color: labelColor }}>
                         No Scanned Objects
                       </span>
                       <p className="text-xs max-w-sm text-center" style={{ color: mutedColor }}>
@@ -425,7 +442,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   </td>
                   <td className="p-3">
                     <span
-                      className="px-1.5 py-0.5 rounded border text-[10px] font-mono uppercase tracking-wider"
+                      className="px-1.5 py-0.5 rounded border text-xs font-mono uppercase tracking-wider"
                       style={{
                         borderColor: 'rgba(96, 165, 250, 0.3)',
                         color: '#60A5FA',

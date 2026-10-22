@@ -3,10 +3,10 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { createId } from '@paralleldrive/cuid2';
 import { z } from 'zod';
-import { callContextHarvesterLlm, getContextHarvesterModelId } from './harvester-llm';
 import { Prisma } from '@prisma/client';
 import { DatabricksAdapter } from './databricks-adapter';
 import type { RawHistoryRow } from './databricks-adapter';
+import { getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
 
 // ── Usage narrative prompt ────────────────────────────────────────────────────
 
@@ -37,10 +37,6 @@ const NarrativeResponseSchema = z.object({
   usage_patterns: z.string().min(10),
   key_columns: z.array(z.string()),
 });
-
-function narrativeModelId(): string {
-  return getContextHarvesterModelId();
-}
 
 export const NARRATIVE_PROMPT_VERSION = 'usage_narrative_v1';
 
@@ -368,14 +364,12 @@ export async function applyUsageNarrative(
     known_columns: Array.from(knownColumns),
   });
 
-  // Bedrock call
   let responseText: string;
   try {
-    const resp = await callContextHarvesterLlm({
+    const resp = await harvestLlmComplete({
       system: USAGE_NARRATIVE_PROMPT_V1,
       messages: [{ role: 'user', content: userMsg }],
       maxTokens: 400,
-      temperature: 0.2,
     });
     responseText = resp.text;
   } catch (err) {
@@ -424,7 +418,7 @@ export async function applyUsageNarrative(
       subject_id: contextObjectId,
       version: nextVersion,
       card: { usage_patterns: result.usage_patterns, key_columns: result.key_columns } as unknown as Prisma.InputJsonValue,
-      model_id: narrativeModelId(),
+      model_id: getHarvestLlmModelId(),
       prompt_version: promptVersion,
       status: 'observed',
     },

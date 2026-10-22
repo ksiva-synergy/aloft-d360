@@ -13,6 +13,7 @@ import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-quer
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2 } from 'lucide-react';
 import type { StatsResponse } from '@/lib/foer/types';
 import { DistillationStage } from './DistillationStage';
@@ -34,6 +35,7 @@ import {
   topicColor,
 } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // ── One QueryClient per mount (not module-level to avoid SSR issues) ──────────
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
@@ -142,44 +144,6 @@ function buildKpis(stats: StatsResponse): KpiDef[] {
 // ── Theme detection helper ─────────────────────────────────────────────────────
 
 // ── CSS variable themes ───────────────────────────────────────────────────────
-const DARK_THEME = {
-  '--foer-bg':          '#05090f',
-  '--foer-surface':     '#0b1017',
-  '--foer-surface2':    '#111822',
-  '--foer-border':      'rgba(253,181,21,0.12)',
-  '--foer-border-dim':  'rgba(255,255,255,0.07)',
-  '--foer-text-pri':    '#F0F4F8',
-  '--foer-text-sec':    '#8BAFC8',
-  '--foer-text-mut':    '#4A6080',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#FDB515',
-  '--foer-pill-bg':     'rgba(253,181,21,0.10)',
-  '--foer-pill-active': 'rgba(253,181,21,0.20)',
-  '--foer-filter-bg':   'rgba(255,255,255,0.04)',
-  '--foer-filter-active':'rgba(253,181,21,0.15)',
-  '--foer-card-bg':     '#0d1520',
-  '--foer-placeholder-bg': '#0b1017',
-} as const;
-
-const LIGHT_THEME = {
-  '--foer-bg':          '#F8F5EE',
-  '--foer-surface':     '#EFEBE0',
-  '--foer-surface2':    '#E7E1D4',
-  '--foer-border':      'rgba(0,50,98,0.14)',
-  '--foer-border-dim':  'rgba(0,50,98,0.08)',
-  '--foer-text-pri':    '#0D1B2A',
-  '--foer-text-sec':    '#2C3E50',
-  '--foer-text-mut':    '#5A6A7A',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#003262',
-  '--foer-pill-bg':     'rgba(0,50,98,0.08)',
-  '--foer-pill-active': 'rgba(0,50,98,0.18)',
-  '--foer-filter-bg':   'rgba(0,50,98,0.04)',
-  '--foer-filter-active':'rgba(0,50,98,0.12)',
-  '--foer-card-bg':     '#FFFFFF',
-  '--foer-placeholder-bg': '#EFEBE0',
-} as const;
-
 // ── Inner dashboard (needs Suspense for useSearchParams) ──────────────────────
 function FoerStoryInner() {
   const router      = useRouter();
@@ -188,9 +152,10 @@ function FoerStoryInner() {
 
   // ── Theme state — synced with global sidebar toggle via next-themes ──────────
   const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme !== 'light';
+  // Colors come from the app's design tokens, so only non-CSS bits (SVG tints) need the flag.
+  const dark = resolvedTheme === 'dark';
 
-  const theme = dark ? DARK_THEME : LIGHT_THEME;
+  const theme = FOER_THEME;
 
   // ── Filter state from URL ─────────────────────────────────────────────────
   const topicParam    = searchParams.get('topic')    ?? '';
@@ -342,9 +307,7 @@ function FoerStoryInner() {
           alignItems:     'center',
           gap:            '1.25rem',
           padding:        '0.75rem 2rem',
-          background:     dark
-            ? 'linear-gradient(to bottom, rgba(5,9,15,0.98) 0%, rgba(5,9,15,0.80) 100%)'
-            : 'linear-gradient(to bottom, rgba(248,245,238,0.98) 0%, rgba(248,245,238,0.80) 100%)',
+          background:     'linear-gradient(to bottom, color-mix(in srgb, var(--foer-bg) 98%, transparent) 0%, color-mix(in srgb, var(--foer-bg) 80%, transparent) 100%)',
           backdropFilter: 'blur(8px)',
           borderBottom:   '1px solid var(--foer-border-dim)',
         }}
@@ -381,7 +344,7 @@ function FoerStoryInner() {
           id="foer-kicker"
           style={{
             fontFamily:    MONO,
-            fontSize:      '11px',
+            fontSize:      '13px',
             letterSpacing: '0.28em',
             color:         'var(--foer-text-mut)',
             textTransform: 'uppercase',
@@ -459,8 +422,8 @@ function FoerStoryInner() {
             style={{
               padding:      '1.5rem',
               borderRadius: '6px',
-              border:       `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}30`,
-              background:   `${RULE_TYPE_COLORS.FAILURE_MODE}10`,
+              border:       `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
+              background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
               color:        RULE_TYPE_COLORS.FAILURE_MODE,
               fontFamily:   MONO,
               fontSize:     '0.8rem',
@@ -489,7 +452,7 @@ function FoerStoryInner() {
                 <div
                   style={{
                     fontFamily:    MONO,
-                    fontSize:      '9px',
+                    fontSize:      '13px',
                     letterSpacing: '0.13em',
                     textTransform: 'uppercase',
                     color:         'var(--foer-text-mut)',
@@ -515,7 +478,7 @@ function FoerStoryInner() {
                   <div
                     style={{
                       fontFamily:    MONO,
-                      fontSize:      '9px',
+                      fontSize:      '13px',
                       letterSpacing: '0.04em',
                       color:         'var(--foer-text-sec)',
                       lineHeight:    1.3,
@@ -739,7 +702,7 @@ function FoerStoryInner() {
             fontFamily:MONO,
             fontSize:  '0.7rem',
             color:     'var(--foer-text-sec)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+            boxShadow: 'var(--shadow-card)',
             zIndex:    50,
           }}
         >
@@ -765,7 +728,7 @@ export function FoerStoryDashboard() {
               alignItems:     'center',
               justifyContent: 'center',
               height:         '100%',
-              color:          '#4A6080',
+              color:          'var(--ink-3)',
               fontFamily:     MONO,
               fontSize:       '0.8rem',
               gap:            '0.5rem',

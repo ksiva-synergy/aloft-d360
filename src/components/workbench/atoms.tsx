@@ -173,11 +173,11 @@ export function StatusBadge({ s }: StatusBadgeProps) {
   let border = 'none';
 
   if (upper === 'LIVE') {
-    bg = '#052010';
+    bg = 'color-mix(in srgb, var(--green) 12%, transparent)';
     color = 'var(--green)';
     border = '1px solid var(--green)';
   } else if (upper === 'PREVIEW') {
-    bg = '#1A1200';
+    bg = 'color-mix(in srgb, var(--amber) 12%, transparent)';
     color = 'var(--amber)';
     border = '1px solid var(--amber)';
   } else if (upper === 'COMING SOON') {
@@ -189,7 +189,7 @@ export function StatusBadge({ s }: StatusBadgeProps) {
   return (
     <span style={{
       fontFamily: 'var(--mono)',
-      fontSize: 9,
+      fontSize: 13,
       textTransform: 'uppercase',
       letterSpacing: '0.1em',
       padding: '2px 6px',
@@ -214,7 +214,7 @@ export function Check({ ok, label }: CheckProps) {
       alignItems: 'center',
       gap: 3,
       fontFamily: 'var(--mono)',
-      fontSize: 9,
+      fontSize: 13,
       textTransform: 'uppercase',
       letterSpacing: '0.1em',
       padding: '1px 5px',
@@ -236,7 +236,7 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{
-        fontSize: 8,
+        fontSize: 13,
         fontFamily: 'var(--mono)',
         textTransform: 'uppercase',
         letterSpacing: '0.1em',
@@ -248,7 +248,7 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: 'var(--mono)',
         color: accent ? 'var(--green)' : 'var(--text)',
       }}>

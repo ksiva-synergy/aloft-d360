@@ -1,11 +1,12 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Menu } from 'lucide-react';
 import { AppBreadcrumb } from '@/components/app-breadcrumb';
+import { toggleMobileNav } from '@/components/agent-lab/staging/StagingSidebar';
 import { cn } from '@/lib/utils';
 
-const ROOT_PATHS = new Set(['/agent-staging', '/agent-lab', '/health']);
+const ROOT_PATHS = new Set(['/agent-staging', '/agent-lab', '/health', '/dashboard']);
 
 export function StagingHeader() {
   const router = useRouter();
@@ -13,22 +14,34 @@ export function StagingHeader() {
   const isRoot = ROOT_PATHS.has(pathname);
 
   return (
-    <div className="shrink-0 h-[42px] flex items-center gap-2 px-4 border-b bg-[var(--header-bg)] border-[var(--header-border)]">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-[var(--header-border)] bg-[var(--header-bg)] px-4 backdrop-blur-md md:px-6">
+      <button
+        onClick={toggleMobileNav}
+        aria-label="Open menu"
+        className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--ink-2)] transition-colors hover:bg-[var(--surface-3)] md:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       <button
         onClick={() => router.back()}
         disabled={isRoot}
         aria-label="Go back"
         className={cn(
-          'flex items-center justify-center w-6 h-6 rounded-md transition-colors',
+          'flex h-9 w-9 items-center justify-center rounded-lg transition-colors',
           isRoot
-            ? 'text-[var(--muted-foreground)] cursor-not-allowed opacity-40'
-            : 'text-[var(--text-secondary,#475569)] hover:text-[var(--foreground)] hover:bg-[var(--muted)]',
+            ? 'cursor-not-allowed text-[var(--ink-3)] opacity-40'
+            : 'text-[var(--ink-2)] hover:bg-[var(--surface-3)] hover:text-[var(--ink-1)]',
         )}
       >
-        <ArrowLeft className="h-3.5 w-3.5" />
+        <ArrowLeft className="h-[18px] w-[18px]" />
       </button>
 
-      <AppBreadcrumb />
-    </div>
+      <span aria-hidden className="mx-1 h-5 w-px bg-[var(--line-1)]" />
+
+      <div className="min-w-0 flex-1 text-[15px]">
+        <AppBreadcrumb />
+      </div>
+    </header>
   );
 }

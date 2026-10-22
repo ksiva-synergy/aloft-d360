@@ -39,7 +39,17 @@ yarn-error.log*
 # vercel
 .vercel
 
+# built Vite UI copied in by the Dockerfile / verification builds
+/public/spa
+/.next-*
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 migration_review.sql
+
+# vite UI build
+/web/dist
+
+# local diagnostics (next-auth error mirror)
+/.logs

@@ -59,7 +59,7 @@ export function MemoryRecallExpander({
         >
           <RotateCcw size={9} />
         </span>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Recalled {hits.length} related {hits.length === 1 ? 'memory' : 'memories'}
         </span>
         {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -95,7 +95,7 @@ export function MemoryRecallExpander({
                     <div
                       style={{
                         fontFamily: FONT_MONO,
-                        fontSize: 8.5,
+                        fontSize: 13,
                         letterSpacing: '0.06em',
                         textTransform: 'uppercase',
                         color: 'var(--text-tertiary)',

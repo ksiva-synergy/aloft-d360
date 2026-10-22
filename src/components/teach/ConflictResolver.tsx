@@ -78,7 +78,7 @@ export function ConflictResolver({
             {learning.conflict.existingStatement}
           </div>
           {learning.conflict.note && (
-            <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{learning.conflict.note}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>{learning.conflict.note}</div>
           )}
         </div>
 
@@ -106,7 +106,7 @@ export function ConflictResolver({
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: FONT_MONO,
-              fontSize: 9,
+              fontSize: 13,
               letterSpacing: '0.08em',
               color: 'var(--text-tertiary)',
             }}
@@ -121,7 +121,7 @@ export function ConflictResolver({
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, lineHeight: 1.4, color: 'var(--foreground)', margin: '8px 0 10px' }}>
             {learning.statement}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Taught in this session</div>
+          <div style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>Taught in this session</div>
         </div>
       </div>
 
@@ -151,7 +151,7 @@ export function ConflictResolver({
               }}
             >
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{c.label}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted-foreground)', marginTop: 3 }}>{c.detail}</div>
+              <div style={{ fontSize: 13, color: 'var(--muted-foreground)', marginTop: 3 }}>{c.detail}</div>
             </button>
           );
         })}
@@ -186,7 +186,7 @@ export function ConflictResolver({
           >
             <Check size={12} strokeWidth={3} />
           </span>
-          <span style={{ fontSize: 12.5, color: 'var(--foreground)', lineHeight: 1.45 }}>
+          <span style={{ fontSize: 13, color: 'var(--foreground)', lineHeight: 1.45 }}>
             {confirmText} — captured as a learning; the memory commit happens later, outside Teach.
           </span>
         </div>
@@ -197,7 +197,7 @@ export function ConflictResolver({
 
 const caption: React.CSSProperties = {
   fontFamily: FONT_MONO,
-  fontSize: 9,
+  fontSize: 13,
   letterSpacing: '0.1em',
   textTransform: 'uppercase',
   color: 'var(--text-tertiary)',
@@ -214,7 +214,7 @@ function pill(colorVar: string): React.CSSProperties {
     boxShadow: `inset 0 0 0 1px ${mix(colorVar, 32)}`,
     color: colorVar,
     fontFamily: FONT_MONO,
-    fontSize: 9.5,
+    fontSize: 13,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
   };

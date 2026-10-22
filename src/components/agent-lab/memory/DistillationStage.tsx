@@ -8,19 +8,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { LastRunInfo } from '@/lib/foer/types';
 import { GOLD, MONO, SERIF } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 // ── SVG layout coordinates (matching reference HTML) ───────────────────────────
 const VW = 1000;
 const VH = 420;
 
 // ── Brand colors (matching reference HTML / foer-tokens) ───────────────────────
 const C_SESSION  = '#5FA9AE';
-const C_KEPT_NEW = '#FDB515';
+const C_KEPT_NEW = 'var(--brand-a-ink)';
 const C_KEPT_DED = '#C9A04E';
 const C_DISCARD  = '#4A6080';
 const C_PHANTOM  = '#D9774B';
 
 const RULE_TYPE_COLORS: Record<string, string> = {
-  HARD_RULE:    '#FDB515', // gold
+  HARD_RULE:    'var(--brand-a-ink)', // gold
   FAILURE_MODE: '#D9774B', // rust
   HEURISTIC:    '#5FA9AE', // teal
   SOURCE_PREF:  '#6F9DC4', // steel
@@ -90,7 +91,7 @@ export interface DistillationStageProps {
 
 export function DistillationStage({ lastRun }: DistillationStageProps) {
   const { resolvedTheme } = useTheme();
-  const isLight = resolvedTheme === 'light';
+  const isLight = resolvedTheme !== 'dark';
 
   // Detect prefers-reduced-motion — starts false (matches server) and updates after mount
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -514,7 +515,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       }}>
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '10.5px',
+          fontSize:      '13px',
           letterSpacing: '0.22em',
           color:         'var(--foer-text-mut)',
           textTransform: 'uppercase',
@@ -532,7 +533,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           title="Trigger a synthesis sweep — reflects new sessions into memory bullets"
           style={{
             fontFamily:    MONO,
-            fontSize:      '10px',
+            fontSize:      '13px',
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
             borderRadius:  '6px',
@@ -565,7 +566,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           }}
         >
           {sweepState === 'running' && (
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '11px' }}>⟳</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '13px' }}>⟳</span>
           )}
           {sweepState === 'running'
             ? 'Distilling…'
@@ -617,7 +618,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               disabled={!run}
               style={{
                 fontFamily:    MONO,
-                fontSize:      '11px',
+                fontSize:      '13px',
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 borderRadius:  '6px',
@@ -625,7 +626,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
                 cursor:        run ? 'pointer' : 'default',
                 border:        `1px solid ${GOLD}`,
                 background:    run ? GOLD : 'var(--foer-surface2)',
-                color:         run ? '#05090f' : 'var(--foer-text-mut)',
+                color:         run ? 'var(--background)' : 'var(--foer-text-mut)',
                 fontWeight:    600,
                 opacity:       run ? 1 : 0.4,
                 transition:    'all 0.15s ease',
@@ -637,7 +638,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           {isPlaying && (
             <button onClick={handlePause} style={{
               fontFamily:    MONO,
-              fontSize:      '11px',
+              fontSize:      '13px',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               background:    'transparent',
@@ -654,7 +655,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           {(isPlaying || isPaused || isDone) && (
             <button onClick={handleReset} disabled={isIdle} style={{
               fontFamily:    MONO,
-              fontSize:      '11px',
+              fontSize:      '13px',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               background:    'transparent',
@@ -670,7 +671,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           )}
           <span style={{
             fontFamily:    MONO,
-            fontSize:      '11px',
+            fontSize:      '13px',
             letterSpacing: '0.14em',
             color:         'var(--foer-text-mut)',
             textTransform: 'uppercase',
@@ -686,7 +687,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           justifyContent: 'space-between',
           margin:         '4px 4px 0',
           fontFamily:     MONO,
-          fontSize:       '10px',
+          fontSize:       '13px',
           letterSpacing:  '0.16em',
           textTransform:  'uppercase',
           color:          'var(--foer-text-mut)',
@@ -708,14 +709,14 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           <defs>
             <linearGradient id="keeperBeam" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor="#FDE7A0" stopOpacity={0.95} />
-              <stop offset="0.5" stopColor="#FDB515" stopOpacity={0.5} />
-              <stop offset="1" stopColor="#FDB515" stopOpacity={0} />
+              <stop offset="0.5" stopColor="var(--brand-a-ink)" stopOpacity={0.5} />
+              <stop offset="1" stopColor="var(--brand-a-ink)" stopOpacity={0} />
             </linearGradient>
 
             {/* Scene floor gradient — warm glow under the keeper */}
             <radialGradient id="floorGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0"   stopColor="#FDB515" stopOpacity={isLight ? 0.18 : 0.28} />
-              <stop offset="1"   stopColor="#FDB515" stopOpacity={0} />
+              <stop offset="0"   stopColor="var(--brand-a-ink)" stopOpacity={isLight ? 0.18 : 0.28} />
+              <stop offset="1"   stopColor="var(--brand-a-ink)" stopOpacity={0} />
             </radialGradient>
           </defs>
 
@@ -780,7 +781,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               cy={358 - 56}
               rx={40}
               ry={70}
-              fill={isLight ? 'rgba(248,245,238,0.42)' : 'rgba(5,9,15,0.45)'}
+              fill={isLight ? 'rgba(244,246,241,0.42)' : 'rgba(18,19,20,0.45)'}
               style={{ filter: 'blur(14px)' }}
             />
             {/* The keeper image itself, elliptical vignette via CSS mask — fades all edges */}
@@ -806,7 +807,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               y={358 - 152}
               width={76}
               height={152}
-              fill={isLight ? 'rgba(248,245,238,0.08)' : 'rgba(5,9,15,0.12)'}
+              fill={isLight ? 'rgba(244,246,241,0.08)' : 'rgba(18,19,20,0.12)'}
               style={{ pointerEvents: 'none' }}
             />
           </g>
@@ -981,7 +982,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
                   fillOpacity={fillOpacity}
                   style={{
                     filter: !isIdle && p.kind === 'signal' && elapsed >= 1850 + d
-                      ? (isLight ? `drop-shadow(0 2px 6px ${fill}66)` : `drop-shadow(0 0 12px ${fill})`)
+                      ? (isLight ? `drop-shadow(0 2px 6px ${withAlpha(fill, '66')})` : `drop-shadow(0 0 12px ${fill})`)
                       : 'none',
                   }}
                 />
@@ -1023,7 +1024,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
         {/* ── Recon counters (inline text) ─────────────────────────────────── */}
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '12px',
+          fontSize:      '13px',
           letterSpacing: '0.04em',
           color:         'var(--foer-text-sec)',
           marginTop:     '14px',

@@ -4,17 +4,13 @@
 
 import 'server-only';
 import { z } from 'zod';
-import {
-  callContextHarvesterLlm,
-  getContextHarvesterModelId,
-  getContextHarvesterTokenPricing,
-} from './harvester-llm';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db';
 import { enqueue, finalize, makeHeartbeat } from './queue';
 import type { DriftResult } from './profile';
 import { extractDomainKeywords } from './keywords';
 import { getUsageSignalsForEnrich } from './usage';
+import { getHarvestLlmCostPerMillion, getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
 
@@ -25,14 +21,6 @@ function matchesPatterns(fullPath: string, patterns: string[]): boolean {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PROMPT_VERSION = 'enrich_object_v2';
-
-function harvestModelId(): string {
-  return getContextHarvesterModelId();
-}
-
-function harvestTokenPricing(): { inputPerM: number; outputPerM: number } {
-  return getContextHarvesterTokenPricing();
-}
 
 // ── Zod schemas for LLM output validation ────────────────────────────────────
 
@@ -286,9 +274,10 @@ function tryParseAndValidate(text: string): LlmResponse | null {
   }
 }
 
-type HarvestCallResult = { parsed: LlmResponse; inputTokens: number; outputTokens: number };
+type BedrockCallResult = { parsed: LlmResponse; inputTokens: number; outputTokens: number };
 
 // Scale output token budget with message length: wide tables need more room.
+// claude-sonnet-4-6 supports up to 64K output tokens on Bedrock.
 function resolveMaxTokens(userMessage: string): number {
   const charLen = userMessage.length;
   if (charLen > 20_000) return 32768;
@@ -296,14 +285,13 @@ function resolveMaxTokens(userMessage: string): number {
   return 8192;
 }
 
-async function callHarvester(userMessage: string): Promise<HarvestCallResult> {
+async function callBedrock(userMessage: string): Promise<BedrockCallResult> {
   const maxTokens = resolveMaxTokens(userMessage);
 
-  const resp1 = await callContextHarvesterLlm({
+  const resp1 = await harvestLlmComplete({
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
     maxTokens,
-    temperature: 0.2,
   });
 
   const text1 = resp1.text;
@@ -313,8 +301,7 @@ async function callHarvester(userMessage: string): Promise<HarvestCallResult> {
   const parsed1 = tryParseAndValidate(text1);
   if (parsed1) return { parsed: parsed1, inputTokens, outputTokens };
 
-  // One retry with a correction turn (per D-03 in PHASE_CH5_DECISIONS.md)
-  const resp2 = await callContextHarvesterLlm({
+  const resp2 = await harvestLlmComplete({
     system: SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: userMessage },
@@ -325,7 +312,6 @@ async function callHarvester(userMessage: string): Promise<HarvestCallResult> {
       },
     ],
     maxTokens,
-    temperature: 0.2,
   });
 
   inputTokens += resp2.inputTokens;
@@ -359,7 +345,7 @@ async function persistCard(
       subject_id: objectId,
       version: nextVersion,
       card: card as unknown as Prisma.InputJsonValue,
-      model_id: harvestModelId(),
+      model_id: getHarvestLlmModelId(),
       prompt_version: PROMPT_VERSION,
       confidence: card.confidence,
       status: 'assumed',
@@ -377,7 +363,7 @@ async function persistColumnSemantics(
     const fullSemantic = {
       ...llmSem,
       status: 'assumed',
-      model_id: harvestModelId(),
+      model_id: getHarvestLlmModelId(),
       prompt_version: PROMPT_VERSION,
     };
     const result = await prisma.platformContextColumn.updateMany({
@@ -464,16 +450,15 @@ function buildColumnsOnlyMessage(
   ].join('\n');
 }
 
-async function callHarvesterColumnsOnly(
+async function callBedrockColumnsOnly(
   userMessage: string,
 ): Promise<{ parsed: ColumnsOnlyResponse; inputTokens: number; outputTokens: number }> {
   const maxTokens = resolveMaxTokens(userMessage);
 
-  const resp1 = await callContextHarvesterLlm({
+  const resp1 = await harvestLlmComplete({
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userMessage }],
     maxTokens,
-    temperature: 0.2,
   });
 
   const text1 = resp1.text;
@@ -483,7 +468,7 @@ async function callHarvesterColumnsOnly(
   const parsed1 = tryParseColumnsOnly(text1);
   if (parsed1) return { parsed: parsed1, inputTokens, outputTokens };
 
-  const resp2 = await callContextHarvesterLlm({
+  const resp2 = await harvestLlmComplete({
     system: SYSTEM_PROMPT,
     messages: [
       { role: 'user', content: userMessage },
@@ -494,7 +479,6 @@ async function callHarvesterColumnsOnly(
       },
     ],
     maxTokens,
-    temperature: 0.2,
   });
 
   inputTokens += resp2.inputTokens;
@@ -590,7 +574,7 @@ export async function enrichObject(
         obj.full_path, obj.object_kind, obj.native_comment,
         batches[i], i, batches.length,
       );
-      const { parsed, inputTokens, outputTokens } = await callHarvesterColumnsOnly(msg);
+      const { parsed, inputTokens, outputTokens } = await callBedrockColumnsOnly(msg);
       mergedColumns = { ...mergedColumns, ...parsed.columns };
       totalInputTokens += inputTokens;
       totalOutputTokens += outputTokens;
@@ -619,7 +603,7 @@ export async function enrichObject(
     } catch {
       // T3 unavailability must never block T2 enrichment
     }
-    const { parsed: finalParsed, inputTokens: fi, outputTokens: fo } = await callHarvester(finalMsg);
+    const { parsed: finalParsed, inputTokens: fi, outputTokens: fo } = await callBedrock(finalMsg);
     mergedColumns = { ...mergedColumns, ...finalParsed.columns };
     finalCard = finalParsed.card;
     totalInputTokens += fi;
@@ -644,7 +628,7 @@ export async function enrichObject(
     } catch {
       // T3 unavailability must never block T2 enrichment
     }
-    const { parsed, inputTokens, outputTokens } = await callHarvester(userMessage);
+    const { parsed, inputTokens, outputTokens } = await callBedrock(userMessage);
     mergedColumns = parsed.columns;
     finalCard = parsed.card;
     totalInputTokens = inputTokens;
@@ -689,9 +673,9 @@ export async function enrichObject(
     data: { last_t2_at: new Date(), domain_keywords: domainKeywords },
   });
 
+  const { input: priceIn, output: priceOut } = getHarvestLlmCostPerMillion();
   const costUsd =
-    (totalInputTokens * harvestTokenPricing().inputPerM + totalOutputTokens * harvestTokenPricing().outputPerM) /
-    1_000_000;
+    (totalInputTokens * priceIn + totalOutputTokens * priceOut) / 1_000_000;
 
   return { objectId, columnsEnriched, inputTokens: totalInputTokens, outputTokens: totalOutputTokens, costUsd };
 }
@@ -831,7 +815,7 @@ export async function runT2Enrich(
       tokens_used: inputTokens + outputTokens,
       cost_usd: costUsd,
       prompt_version: PROMPT_VERSION,
-      model_id: harvestModelId(),
+      model_id: getHarvestLlmModelId(),
     },
     errors.length > 0 ? errors.join('\n') : undefined,
   );

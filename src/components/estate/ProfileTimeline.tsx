@@ -44,21 +44,21 @@ function DriftValue({ label, value }: { label: string; value: any }) {
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return (
-        <div className="flex items-start gap-2 text-[11px] font-mono">
+        <div className="flex items-start gap-2 text-xs font-mono">
           <span className="font-semibold text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">{label}:</span>
           <span style={{ color: mutedColor }}>[]</span>
         </div>
       );
     }
     return (
-      <div className="text-[11px] font-mono">
+      <div className="text-xs font-mono">
         <button
           type="button"
           className="flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-300 bg-transparent border-none cursor-pointer p-0 hover:underline"
           onClick={() => setExpanded(!expanded)}
         >
           <span
-            className="inline-block text-[9px] transition-transform duration-150"
+            className="inline-block text-xs transition-transform duration-150"
             style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
           >
             ▶
@@ -66,7 +66,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
           {label}: [{value.length} item{value.length !== 1 ? 's' : ''}]
         </button>
         {expanded && (
-          <div className="mt-1 ml-3 pl-2 py-1 text-[10px] overflow-x-auto max-h-[120px] overflow-y-auto rounded"
+          <div className="mt-1 ml-3 pl-2 py-1 text-xs overflow-x-auto max-h-[120px] overflow-y-auto rounded"
             style={{ borderLeft: '2px solid rgba(245,158,11,0.3)', color: 'var(--estate-text-secondary)' }}
           >
             {value.map((item: any, i: number) => (
@@ -83,7 +83,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
   if (typeof value === 'object' && value !== null) {
     if (value.from !== undefined && value.to !== undefined) {
       return (
-        <div className="flex items-start gap-2 text-[11px] font-mono">
+        <div className="flex items-start gap-2 text-xs font-mono">
           <span className="font-semibold text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">{label}:</span>
           <span className="text-amber-800 dark:text-amber-200 break-all">{String(value.from)} → {String(value.to)}</span>
         </div>
@@ -92,7 +92,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
     const jsonStr = JSON.stringify(value);
     const isLong = jsonStr.length > 60;
     return (
-      <div className="text-[11px] font-mono">
+      <div className="text-xs font-mono">
         {isLong ? (
           <>
             <button
@@ -101,7 +101,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
               onClick={() => setExpanded(!expanded)}
             >
               <span
-                className="inline-block text-[9px] transition-transform duration-150"
+                className="inline-block text-xs transition-transform duration-150"
                 style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
               >
                 ▶
@@ -109,7 +109,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
               {label}: {'{...}'}
             </button>
             {expanded && (
-              <div className="mt-1 ml-3 pl-2 py-1 text-[10px] overflow-x-auto max-h-[120px] overflow-y-auto rounded break-all"
+              <div className="mt-1 ml-3 pl-2 py-1 text-xs overflow-x-auto max-h-[120px] overflow-y-auto rounded break-all"
                 style={{ borderLeft: '2px solid rgba(245,158,11,0.3)', color: 'var(--estate-text-secondary)' }}
               >
                 {JSON.stringify(value, null, 2)}
@@ -127,7 +127,7 @@ function DriftValue({ label, value }: { label: string; value: any }) {
   }
 
   return (
-    <div className="flex items-start gap-2 text-[11px] font-mono">
+    <div className="flex items-start gap-2 text-xs font-mono">
       <span className="font-semibold text-amber-700 dark:text-amber-300 whitespace-nowrap shrink-0">{label}:</span>
       <span className="text-amber-800 dark:text-amber-200">{String(value)}</span>
     </div>
@@ -150,7 +150,7 @@ function DriftSummary({ drift }: { drift: any }) {
 
   if (!hasSignificantDrift) {
     return (
-      <div className="mt-2 text-[11px] font-sans italic" style={{ color: 'var(--estate-text-muted)' }}>
+      <div className="mt-2 text-xs font-sans italic" style={{ color: 'var(--estate-text-muted)' }}>
         No significant changes
       </div>
     );
@@ -190,7 +190,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
         {/* Vertical Timeline Line */}
         <div
           className="absolute left-2.5 top-2.5 bottom-2.5 w-0.5"
-          style={{ backgroundColor: 'rgba(253, 181, 21, 0.2)' }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)' }}
         />
 
         {displayedHistory.map((item) => {
@@ -212,7 +212,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
               <div
                 className="absolute -left-[21.5px] top-2.5 w-3.5 h-3.5 rounded-full border-2 transition-all duration-200"
                 style={{
-                  backgroundColor: hasDrift ? '#F59E0B' : '#FDB515',
+                  backgroundColor: hasDrift ? '#F59E0B' : 'var(--brand-a)',
                   borderColor: entryBg,
                   boxShadow: hasDrift ? '0 0 6px rgba(245, 158, 11, 0.4)' : 'none',
                 }}
@@ -228,18 +228,18 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-[#FDB515]">
+                    <span className="font-mono text-sm font-bold text-[var(--brand-a-ink)]">
                       v{item.version}
                     </span>
                     {hasDrift && (
-                      <span className="font-mono text-[10px] text-amber-500">⚡ drift</span>
+                      <span className="font-mono text-xs text-amber-500">⚡ drift</span>
                     )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div className="font-mono text-[11px]" style={{ color: labelColor }} title={absolute}>
+                    <div className="font-mono text-xs" style={{ color: labelColor }} title={absolute}>
                       {relative}
                     </div>
-                    <div className="font-mono text-[10px]" style={{ color: mutedColor }}>
+                    <div className="font-mono text-xs" style={{ color: mutedColor }}>
                       {new Date(item.captured_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </div>
                   </div>
@@ -247,7 +247,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
 
                 {hasDrift && (
                   <div className="mt-2.5 pt-2.5" style={{ borderTop: '1px solid rgba(245,158,11,0.15)' }}>
-                    <div className="text-[11px] font-sans font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 select-none mb-1">
+                    <div className="text-xs font-sans font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 select-none mb-1">
                       <span>⚡</span> Drift detected
                     </div>
                     <DriftSummary drift={item.drift} />
@@ -263,8 +263,8 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
         <button
           type="button"
           onClick={() => setShowAll(o => !o)}
-          className="mt-3 ml-6 font-mono text-[11px] hover:underline"
-          style={{ color: '#FDB515', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          className="mt-3 ml-6 font-mono text-xs hover:underline"
+          style={{ color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           {showAll ? '↑ Show less' : `↓ Show ${profileHistory.length - VISIBLE_LIMIT} more versions`}
         </button>

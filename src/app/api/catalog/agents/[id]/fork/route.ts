@@ -3,7 +3,8 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   try {
     const original = await prisma.agent_catalog.findUnique({ where: { id: params.id } });
     if (!original) {

@@ -99,14 +99,14 @@ export function shortName(modelId: string): string {
 export const MODEL_COLOR_MAP: Record<string, string> = {
   'gpt-5.4-PBC':                               BORN_COLORS[0],  // steel-blue
   'gpt-6-luna':                                BORN_COLORS[0],  // steel-blue
-  'openai.gpt-6-luna':                         BORN_COLORS[0],
+  'openai.gpt-6-luna':                         BORN_COLORS[0],  // steel-blue
   'o3-pro-PBC':                                BORN_COLORS[1],  // orange
   'o3-mini':                                   BORN_COLORS[2],  // red
   'grok-4.3-PBC':                              BORN_COLORS[3],  // teal
   'kimi-k2-6-PBC':                             BORN_COLORS[4],  // green
   'DeepSeek-V4-Pro':                           BORN_COLORS[5],  // yellow
-  'us.anthropic.claude-sonnet-5-5':            BORN_COLORS[4],
-  'us.anthropic.claude-opus-5-5':              BORN_COLORS[5],
+  'us.anthropic.claude-sonnet-5-5':            BORN_COLORS[6],  // purple
+  'us.anthropic.claude-opus-5-5':              BORN_COLORS[7],  // pink
   'us.anthropic.claude-sonnet-4-6':            BORN_COLORS[6],  // purple
   'us.anthropic.claude-opus-4-6-v1':           BORN_COLORS[7],  // pink
   'us.anthropic.claude-haiku-4-5-20251001-v1:0': BORN_COLORS[8], // brown

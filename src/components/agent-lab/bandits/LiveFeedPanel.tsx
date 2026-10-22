@@ -10,6 +10,7 @@ import {
 import { shortName } from '@/lib/bandits/born-tokens';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 function stripPrefix(s: string): string {
   if (!s) return s;
   if (s === 'inspector_chat') return 'inspector';
@@ -136,11 +137,11 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
           }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT, letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.04em' }}>
             Last {recentRuns.length} runs
           </span>
           <span style={{
-            fontFamily: MONO, fontSize: 9,
+            fontFamily: MONO, fontSize: 13,
             color: TEXT_MUT, opacity: 0.7,
             background: 'var(--born-overlay)',
             padding: '2px 8px', borderRadius: 3,
@@ -162,7 +163,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
       }}>
         {['', 'Task', 'Time', 'Dur', 'Tok', 'Score', 'CTSGV'].map((h, i) => (
           <span key={i} style={{
-            fontFamily: MONO, fontSize: 9,
+            fontFamily: MONO, fontSize: 13,
             letterSpacing: '0.06em', color: TEXT_MUT,
             textAlign: i > 1 ? 'right' : 'left',
             textTransform: 'uppercase',
@@ -178,14 +179,12 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
         style={{
           maxHeight: 440,
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--born-border) transparent',
         }}
       >
         {recentRuns.length === 0 ? (
           <div style={{
             padding: '40px 0', textAlign: 'center',
-            fontFamily: MONO, fontSize: 12, color: TEXT_MUT, opacity: 0.5,
+            fontFamily: MONO, fontSize: 13, color: TEXT_MUT, opacity: 0.5,
           }}>
             No runs recorded yet.
           </div>
@@ -246,7 +245,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                 {/* Task + source */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
                   <span style={{
-                    fontFamily: MONO, fontSize: 11,
+                    fontFamily: MONO, fontSize: 13,
                     color: isFavRun ? GOLD : TEXT_PRI,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -257,12 +256,12 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                   </span>
                   {srcConfig && (
                     <span style={{
-                      fontFamily: MONO, fontSize: 9,
+                      fontFamily: MONO, fontSize: 13,
                       padding: '1px 6px', borderRadius: 3,
                       flexShrink: 0,
                       background: srcConfig.bg,
                       color: srcConfig.color,
-                      border: `1px solid ${srcConfig.color}20`,
+                      border: `1px solid ${withAlpha(srcConfig.color, '20')}`,
                     }}>
                       {srcConfig.label}
                     </span>
@@ -271,26 +270,26 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
 
                 {/* Time ago */}
                 <span style={{
-                  fontFamily: MONO, fontSize: 10, color: TEXT_MUT,
+                  fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
                   textAlign: 'right',
                 }}>
                   {run.created_at ? timeAgo(run.created_at) : '--'}
                 </span>
 
                 {/* Duration */}
-                <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT, textAlign: 'right' }}>
+                <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, textAlign: 'right' }}>
                   {fmtDuration(durationMs)}
                 </span>
 
                 {/* Tokens */}
-                <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT, textAlign: 'right' }}>
+                <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, textAlign: 'right' }}>
                   {fmtTokens(tokens)}
                 </span>
 
                 {/* Composite score */}
                 <div style={{ textAlign: 'right' }}>
                   <span style={{
-                    fontFamily: MONO, fontSize: 11,
+                    fontFamily: MONO, fontSize: 13,
                     color: qualityColor(composite),
                     fontWeight: composite != null ? 600 : 400,
                     padding: composite != null && composite >= 0.85 ? '1px 4px' : undefined,

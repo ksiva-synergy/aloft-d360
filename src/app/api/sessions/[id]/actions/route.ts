@@ -7,17 +7,18 @@ import { PERMISSIONS } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
-type Ctx = { params: { id: string } };
+type Ctx = { params: Promise<{ id: string }> };
 
-export const GET = handle<Ctx>(async (req, { params }) => {
+export const GET = handle<Ctx>(async (req, ctx) => {
+  const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.SESSION_READ);
   // Verify ownership before returning actions: platform_admin may view any session's actions.
-  const session = await prisma.session.findUnique({ where: { id: params.id }, select: { userId: true } });
+  const session = await prisma.session.findUnique({ where: { id }, select: { userId: true } });
   if (!session) throw new ApiError(404, 'Session not found');
   requireOwnerOrPermission(auth, session.userId, PERMISSIONS.SESSION_READ_ALL);
   const actions = await prisma.action.findMany({
-    where: { sessionId: params.id },
+    where: { sessionId: id },
     orderBy: { sequence: 'asc' },
     select: { id: true, type: true, name: true, status: true, sequence: true, durationMs: true, startedAt: true, completedAt: true },
   });
@@ -33,19 +34,20 @@ const CreateAction = z.object({
   status: z.enum(['PENDING', 'RUNNING', 'SUCCESS', 'ERROR', 'SKIPPED']).optional(),
 });
 
-export const POST = handle<Ctx>(async (req, { params }) => {
+export const POST = handle<Ctx>(async (req, ctx) => {
+  const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.SESSION_WRITE);
   const body = parse(CreateAction, await req.json());
 
-  const session = await prisma.session.findUnique({ where: { id: params.id }, select: { id: true, userId: true } });
+  const session = await prisma.session.findUnique({ where: { id }, select: { id: true, userId: true } });
   if (!session) throw new ApiError(404, 'Session not found');
   // Only the session owner (or platform_admin) may append actions to a session.
   requireOwnerOrPermission(auth, session.userId, PERMISSIONS.SESSION_READ_ALL);
 
   const action = await prisma.action.create({
     data: {
-      sessionId: params.id,
+      sessionId: id,
       userId: auth.userId,
       parentActionId: body.parentActionId ?? null,
       type: body.type,

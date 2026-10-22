@@ -58,7 +58,7 @@ function KpiCard({ spec }: { spec: ChartSpec }) {
       <span
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 13,
           color: T.label,
           letterSpacing: '0.12em',
           textTransform: 'uppercase',
@@ -77,7 +77,7 @@ function ColChip({ col }: { col: string }) {
     <span
       style={{
         ...MONO,
-        fontSize: 10,
+        fontSize: 13,
         border: `1px solid ${T.border}`,
         borderRadius: 3,
         padding: '1px 5px',
@@ -153,12 +153,12 @@ function SwapMenu({
                 cursor: 'pointer',
                 padding: '4px 8px',
                 ...MONO,
-                fontSize: 10,
+                fontSize: 13,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 borderRadius: 3,
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(253,181,21,0.08)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 8%, transparent)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               {alt.kind.toUpperCase()}
@@ -201,7 +201,7 @@ function GearMenu({
     color: T.text,
     padding: '3px 6px',
     ...MONO,
-    fontSize: 10,
+    fontSize: 13,
     width: '100%',
     marginTop: 3,
   };
@@ -244,7 +244,7 @@ function GearMenu({
         >
           {spec.x !== undefined && (
             <div>
-              <span style={{ ...MONO, fontSize: 9, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>X AXIS</span>
+              <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>X AXIS</span>
               <select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
@@ -253,7 +253,7 @@ function GearMenu({
           )}
           {spec.y && spec.y.length > 0 && (
             <div>
-              <span style={{ ...MONO, fontSize: 9, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Y AXIS</span>
+              <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Y AXIS</span>
               <select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
@@ -263,14 +263,14 @@ function GearMenu({
           <button
             onClick={applyOverride}
             style={{
-              background: 'rgba(253,181,21,0.1)',
-              border: `1px solid rgba(253,181,21,0.3)`,
+              background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+              border: `1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)`,
               borderRadius: 3,
               color: T.gold,
               cursor: 'pointer',
               padding: '4px 8px',
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
             }}
@@ -355,10 +355,10 @@ function ChartCard({
         transition: prefersReducedMotion
           ? 'none'
           : 'opacity 180ms ease-out, transform 180ms ease-out, box-shadow 300ms ease-out',
-        outline: (isHighlighted || pulse) ? '2px solid #FDB515' : 'none',
+        outline: (isHighlighted || pulse) ? '2px solid var(--brand-a)' : 'none',
         outlineOffset: 2,
         boxShadow: (!prefersReducedMotion && pulse)
-          ? '0 0 0 3px #FDB515'
+          ? '0 0 0 3px var(--brand-a)'
           : 'none',
       }}
     >
@@ -377,7 +377,7 @@ function ChartCard({
         <span
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 13,
             color: T.label,
             letterSpacing: '0.10em',
             textTransform: 'uppercase',
@@ -414,7 +414,7 @@ function ChartCard({
       >
         {shownChips.map(col => <ColChip key={col} col={col} />)}
         {extraCount > 0 && (
-          <span style={{ ...MONO, fontSize: 9, color: T.label, letterSpacing: '0.06em' }}>
+          <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.06em' }}>
             +{extraCount} more
           </span>
         )}
@@ -503,11 +503,11 @@ export function DashboardGrid({
             gap: 12,
             flexWrap: 'nowrap',
             overflow: 'hidden',
-            outline: kpiPulse ? '2px solid #FDB515' : 'none',
+            outline: kpiPulse ? '2px solid var(--brand-a)' : 'none',
             outlineOffset: 2,
             borderRadius: 6,
             transition: 'outline 300ms ease-out, box-shadow 300ms ease-out',
-            boxShadow: kpiPulse ? '0 0 0 3px #FDB515' : 'none',
+            boxShadow: kpiPulse ? '0 0 0 3px var(--brand-a)' : 'none',
           }}
         >
           {kpis.slice(0, 3).map((kpi, i) => (
@@ -554,7 +554,7 @@ export function DashboardGrid({
           <span
             style={{
               ...MONO,
-              fontSize: 11,
+              fontSize: 13,
               color: T.label,
               letterSpacing: '0.10em',
               textTransform: 'uppercase',
@@ -571,7 +571,7 @@ export function DashboardGrid({
           <span
             style={{
               ...MONO,
-              fontSize: 10,
+              fontSize: 13,
               color: T.label,
               letterSpacing: '0.10em',
               textTransform: 'uppercase',

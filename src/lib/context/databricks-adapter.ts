@@ -112,19 +112,34 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
         schemaFilter += ` AND table_schema IN (${schemaList})`;
       }
 
-      let tableResult;
-      try {
-        tableResult = await this.scopeExec(
-          `SELECT table_catalog, table_schema, table_name ` +
-          `FROM \`${catSafe}\`.information_schema.tables ` +
-          `WHERE ${schemaFilter}`
-        );
-      } catch (e) {
-        console.warn(`resolveScope: skipping catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
-        continue;
+      // Page explicitly: executeDatabricksSQL defaults to DATABRICKS_MAX_ROWS (1000),
+      // and a silently truncated listing makes the full-sweep drop pass mark every
+      // unlisted table as dropped. A failed page discards the whole catalog so the
+      // drop pass never sees a partial listing for it.
+      const catalogRows: Record<string, unknown>[] = [];
+      let catalogFailed = false;
+      for (let offset = 0; ; offset += SCOPE_PAGE_SIZE) {
+        let page;
+        try {
+          page = await this.scopeExec(
+            `SELECT table_catalog, table_schema, table_name ` +
+            `FROM \`${catSafe}\`.information_schema.tables ` +
+            `WHERE ${schemaFilter} ` +
+            `ORDER BY table_schema, table_name ` +
+            `LIMIT ${SCOPE_PAGE_SIZE} OFFSET ${offset}`,
+            { rowLimit: SCOPE_PAGE_SIZE },
+          );
+        } catch (e) {
+          console.warn(`resolveScope: skipping catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
+          catalogFailed = true;
+          break;
+        }
+        catalogRows.push(...page.rows);
+        if (page.rows.length < SCOPE_PAGE_SIZE) break;
       }
+      if (catalogFailed) continue;
 
-      for (const row of tableResult.rows) {
+      for (const row of catalogRows) {
         const cat = String(row['table_catalog'] ?? catalog);
         const sch = String(row['table_schema'] ?? '');
         const tbl = String(row['table_name'] ?? '');
@@ -1027,6 +1042,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
   }
 }
 
+const SCOPE_PAGE_SIZE = 1000;
 const PROFILE_SIZE_FULL_TABLE_MAX = 10_000_000; // 10 MB — scan whole table
 const PROFILE_SIZE_LARGE_TABLE = 1_000_000_000; // 1 GB — drop to 5k row window
 const PROFILE_ROW_LIMIT_DEFAULT = 10_000;

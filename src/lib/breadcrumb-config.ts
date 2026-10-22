@@ -60,6 +60,7 @@ export const routeLabels: Record<string, string> = {
   // Agent lab
   'agent-lab': 'Agent Lab',
   'agent-staging': 'Agent Staging',
+  try: 'Try',
   graph: 'Graph',
   schemas: 'Schemas',
   scenarios: 'Scenarios',
@@ -95,6 +96,10 @@ export const routeLabels: Record<string, string> = {
   'ocr-compare': 'OCR Compare',
   'payroll-submit': 'Payroll Submit',
   'connectivity-tests': 'Connectivity Tests',
+
+  // Settings
+  settings: 'Settings',
+  profile: 'Profile',
 
   // Misc
   'bow-testing': 'BOW Testing',

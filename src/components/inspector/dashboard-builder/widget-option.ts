@@ -242,13 +242,13 @@ export function buildPreviewOption(
     xAxis: {
       type: kind === 'scatter' ? 'value' : 'category',
       name: xLabel ?? '',
-      nameTextStyle: { fontSize: 9, fontFamily: "'IBM Plex Mono', monospace" },
+      nameTextStyle: { fontSize: 13, fontFamily: "'IBM Plex Mono', monospace" },
       data: categories,
     },
     yAxis: {
       type: 'value',
       name: yLabels[0] ?? '',
-      nameTextStyle: { fontSize: 9, fontFamily: "'IBM Plex Mono', monospace" },
+      nameTextStyle: { fontSize: 13, fontFamily: "'IBM Plex Mono', monospace" },
     },
     series: seriesArr,
   };
@@ -267,7 +267,7 @@ export function buildPreviewOption(
           type: 'text',
           style: {
             text: 'PREVIEW — NO DATA',
-            fontSize: 10,
+            fontSize: 13,
             fontFamily: "'IBM Plex Mono', monospace",
             fill: '#8892A4',
           },
@@ -303,7 +303,7 @@ export function buildHeatmapOption(
         elements: [
           {
             type: 'text',
-            style: { text: 'PREVIEW — NO DATA', fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
+            style: { text: 'PREVIEW — NO DATA', fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
             left: 'center',
             top: 'center',
           },
@@ -369,7 +369,7 @@ export function buildKpiOption(label: string, value: unknown): Record<string, un
           type: 'text',
           left: 'center',
           top: '68%',
-          style: { text: label.toUpperCase(), fontSize: 9, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
+          style: { text: label.toUpperCase(), fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
         },
       ],
     },
