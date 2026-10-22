@@ -2190,6 +2190,18 @@ function JobsDrilldownNav({
 
 // ?? Main Page ?????????????????????????????????????????????????????????????????
 
+/** Read an API response. A non-JSON body (the HTML login page) is ignored instead of thrown. */
+async function fetchJson(url: string): Promise<{ ok: boolean; data: any } | null> {
+  try {
+    const res = await fetch(url);
+    const type = res.headers.get('content-type') ?? '';
+    if (!type.includes('json')) return { ok: false, data: null };
+    return { ok: res.ok, data: await res.json() };
+  } catch {
+    return null;
+  }
+}
+
 function EstateJobsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -2254,13 +2266,8 @@ function EstateJobsPageContent() {
   const fetchSummaries = useCallback(async () => {
     setSummariesLoading(true);
     try {
-      const res = await fetch('/api/agent-lab/context/jobs/summary');
-      if (res.ok) {
-        const json = await res.json();
-        setSummaries(json.data ?? []);
-      }
-    } catch (err) {
-      console.error('[jobs/summary]', err);
+      const json = await fetchJson('/api/agent-lab/context/jobs/summary');
+      if (json?.ok) setSummaries(json.data?.data ?? []);
     } finally {
       setSummariesLoading(false);
     }
@@ -2270,15 +2277,8 @@ function EstateJobsPageContent() {
 
   // ?? Fetch queued jobs (poll 15s)
   const fetchQueued = useCallback(async () => {
-    try {
-      const res = await fetch('/api/agent-lab/context/jobs/queued');
-      if (res.ok) {
-        const json = await res.json();
-        setQueuedJobs(json.data ?? []);
-      }
-    } catch (err) {
-      console.error('[jobs/queued]', err);
-    }
+    const json = await fetchJson('/api/agent-lab/context/jobs/queued');
+    if (json?.ok) setQueuedJobs(json.data?.data ?? []);
   }, []);
 
   useEffect(() => {
@@ -2291,10 +2291,8 @@ function EstateJobsPageContent() {
   useEffect(() => {
     if (!urlKind) return;
     setDateGroupsLoading(true);
-    fetch(`/api/agent-lab/context/jobs/dates?kind=${encodeURIComponent(urlKind)}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(json => setDateGroups(json.data ?? []))
-      .catch(err => console.error('[jobs/dates]', err))
+    fetchJson(`/api/agent-lab/context/jobs/dates?kind=${encodeURIComponent(urlKind)}`)
+      .then(json => { if (json?.ok) setDateGroups(json.data?.data ?? []); })
       .finally(() => setDateGroupsLoading(false));
   }, [urlKind]);
 
@@ -2311,13 +2309,12 @@ function EstateJobsPageContent() {
       page: String(jobsPage),
       pageSize: String(jobsPageSize),
     });
-    fetch(`/api/agent-lab/context/jobs?${p}`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    fetchJson(`/api/agent-lab/context/jobs?${p}`)
       .then(json => {
-        setJobs(json.data?.items ?? []);
-        setJobsTotal(json.data?.total ?? 0);
+        if (!json?.ok) return;
+        setJobs(json.data?.data?.items ?? []);
+        setJobsTotal(json.data?.data?.total ?? 0);
       })
-      .catch(err => console.error('[jobs list]', err))
       .finally(() => setJobsLoading(false));
   }, [urlKind, urlDate, jobsPage]);
 
@@ -2330,11 +2327,10 @@ function EstateJobsPageContent() {
       const after = new Date(urlDate + 'T00:00:00Z').toISOString();
       const before = new Date(urlDate + 'T23:59:59Z').toISOString();
       const p = new URLSearchParams({ kind: urlKind, after, before, page: String(jobsPage), pageSize: String(jobsPageSize) });
-      const res = await fetch(`/api/agent-lab/context/jobs?${p}`).catch(() => null);
-      if (res?.ok) {
-        const json = await res.json();
-        setJobs(json.data?.items ?? []);
-        setJobsTotal(json.data?.total ?? 0);
+      const json = await fetchJson(`/api/agent-lab/context/jobs?${p}`);
+      if (json?.ok) {
+        setJobs(json.data?.data?.items ?? []);
+        setJobsTotal(json.data?.data?.total ?? 0);
       }
     }, 10_000);
     return () => clearInterval(id);

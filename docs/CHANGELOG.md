@@ -2,6 +2,20 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-22 — Prompts and Evals removed from the sidebar
+
+- Removed the Prompts and Evals items from the Build group in `src/components/agent-lab/staging/nav-config.ts`.
+- The pages stay reachable at `/agent-lab/ops/prompts` and `/agent-lab/ops/evals`. They are just no longer in the nav.
+- **Verified:** the Build group in `nav-config.ts` now ends at History. Browser check of the signed-in sidebar was not run.
+
+
+## 2026-10-22 — Jobs API no longer returns the login page as JSON
+
+- **Cause:** a signed-out `fetch('/api/agent-lab/context/jobs/queued')` was answered with `307` to `/login`. The browser followed it and got `index.html` (`<!doctype html>`) with status 200, then `res.json()` threw `Unexpected token '<'`. The same happened for the jobs summary, dates and list calls. `src/proxy.ts` used `withAuth`, which always redirects.
+- **Fix:** `src/proxy.ts` now returns `{ error: 'UNAUTHORIZED' }` with status 401 for a signed-out `/api/**` call. `/api/auth/*` and `/api/health` stay public via the existing matcher. `src/views/agent-lab/estate/jobs.tsx` reads JSON only when the response content type is JSON, so a bad body cannot throw on the 15s poll.
+- **Verified:** `curl` against the running dev server (`localhost:3000` and `:3001`) now returns `401` and `{"error":"UNAUTHORIZED"}` for `/api/agent-lab/context/jobs/queued` with no session. Before the change the same call was `307` to `/login` and, followed, `200` HTML.
+- **Not done:** a signed-in browser pass of the jobs page. The console stack that names `src/app/(agent)/agent-lab/estate/jobs/page.tsx` and Next.js 15.5.20 is the older app at `C:\ALOFT\aloft-d360`, which is not the server running here.
+
 ## 2026-10-22 — Fix the production build: harvester LLM file was UTF-16
 
 - **Deployment error:** `npm run build` (`next build`, the step the Docker image runs) failed with `Turbopack build failed` on `src/lib/context/harvester-llm.ts`: `invalid utf-8 sequence`. The committed file is UTF-16 LE (BOM `FF FE`). Turbopack only reads UTF-8, so the image build, and therefore the Elastic Beanstalk deploy, stops there.

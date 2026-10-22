@@ -56,8 +56,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Performance Lab', href: '/performance-lab',      icon: FlaskIcon },
       { label: 'Bandits',         href: '/agent-lab/bandits',    icon: DiceFiveIcon },
       { label: 'History',         href: '/agent-lab/history',    icon: ClockCounterClockwiseIcon },
-      { label: 'Prompts',         href: '/agent-lab/ops/prompts', icon: ScrollIcon },
-      { label: 'Evals',           href: '/agent-lab/ops/evals',  icon: FlaskIcon },
     ],
   },
   {

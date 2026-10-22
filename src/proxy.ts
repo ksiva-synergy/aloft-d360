@@ -1,32 +1,25 @@
-import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 /**
  * Login gate for the API.
  *
- * Pages are no longer served by Next.js: every page URL is the static Vite app (public, no data), which redirects a
- * signed-out visitor to /login itself (web/src/RequireAuth.tsx). All data comes from /api/**, so that is what is guarded
- * here. Route handlers also check `getServerSession` themselves (defense in depth).
+ * Pages are the static Vite app, which sends a signed-out visitor to /login itself
+ * (web/src/RequireAuth.tsx). Data comes from /api/**. A signed-out API call must
+ * answer with JSON 401. Redirecting to /login makes the browser follow it and
+ * receive index.html, which then fails as `Unexpected token '<'` when parsed as JSON.
+ * Route handlers also check `getServerSession` themselves.
+ *
+ * The matcher already lets /api/auth/* and /api/health through without this gate.
  */
-export default withAuth(
-  function proxy(_req) {
-    // Future: inject userId/role from token for API request logging
-  },
-  {
-    pages: { signIn: '/login' },
-    callbacks: {
-      authorized: ({ token, req }) => {
-        const path = req.nextUrl.pathname;
-
-        // Public API paths — sign-in itself and the health check.
-        if (path.startsWith('/api/auth') || path === '/api/health') {
-          return true;
-        }
-
-        return !!token;
-      },
-    },
+export default async function proxy(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!token) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
-);
+  return NextResponse.next();
+}
 
 // Only the API is guarded. `/api/auth/*` and `/api/health` are excluded here as well as in `authorized`.
 export const config = {
