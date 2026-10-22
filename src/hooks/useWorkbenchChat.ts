@@ -540,8 +540,9 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: sid, field, value, confirm: opts.confirm }),
         });
-        const data = (await res.json().catch(() => ({}))) as { state?: unknown; error?: string };
+        const data = (await res.json().catch(() => ({}))) as { state?: unknown; error?: string; warning?: string };
         if (!res.ok) return data.error ?? `Save failed (${res.status})`;
+        if (data.warning) setError(data.warning);
         const parsed = constructionStateSchema.safeParse(data.state);
         if (parsed.success) {
           setConstructionState(parsed.data);

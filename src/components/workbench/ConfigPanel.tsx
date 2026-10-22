@@ -67,11 +67,11 @@ export function ConfigPanel({
   const lastRun = state.validation.lastTestRun;
   const testPassed = !!lastRun && lastRun.outcome === 'completed' && lastRun.toolErrors === 0;
 
-  const readOnly = !onEditField || commissioned || isStreaming || !sessionId;
-  const lockNote = commissioned
-    ? 'Commissioned. This draft is now read-only.'
-    : isStreaming
-      ? 'The builder is updating the draft. Editing unlocks when it finishes.'
+  const readOnly = !onEditField || isStreaming || !sessionId;
+  const lockNote = isStreaming
+    ? 'The builder is updating the draft. Editing unlocks when it finishes.'
+    : commissioned
+      ? 'Saved. Edits here update the agent the next time you use it.'
       : null;
 
   const saver = (field: EditableField): SaveFn => (value) =>
@@ -116,7 +116,7 @@ export function ConfigPanel({
 
       {lockNote && (
         <p className="mt-2 flex items-center gap-1.5 rounded-md bg-[var(--surface-2)] px-2.5 py-1.5 text-[12px] text-[var(--ink-2)]">
-          <Lock className="h-3.5 w-3.5 shrink-0" /> {lockNote}
+          {isStreaming && <Lock className="h-3.5 w-3.5 shrink-0" />} {lockNote}
         </p>
       )}
 
@@ -148,20 +148,23 @@ export function ConfigPanel({
         <div className="mt-5 flex items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--ok)_35%,transparent)] bg-[var(--ok-bg)] p-3.5">
           <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[var(--ok)]" />
           <div className="min-w-0">
-            <p className="text-[13.5px] font-semibold text-[var(--ok)]">Agent commissioned</p>
+            <p className="text-[13.5px] font-semibold text-[var(--ok)]">Agent saved</p>
             <p className="mt-0.5 text-[12.5px] leading-relaxed text-[var(--ink-2)]">
-              Saved to the catalog as a draft for review.
+              You can use it, view it, and come back to edit it. It is listed under Agents.
             </p>
             {commissionResult && (
               <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1">
-                <a href={commissionResult.catalogUrl} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
-                  View in catalog <ExternalLink className="h-3.5 w-3.5" />
-                </a>
                 {catalogSlug && (
-                  <a href={`/agent-staging/try?agent=${encodeURIComponent(catalogSlug)}`} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
-                    Try it <ExternalLink className="h-3.5 w-3.5" />
+                  <a href={`/agent-lab/agents/${encodeURIComponent(catalogSlug)}`} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
+                    Use <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 )}
+                <a href={commissionResult.catalogUrl} className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
+                  View <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <a href="/agent-lab/agents" className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--brand-a-ink)] hover:underline">
+                  All agents <ExternalLink className="h-3.5 w-3.5" />
+                </a>
               </div>
             )}
           </div>

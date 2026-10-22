@@ -1,10 +1,4 @@
-import type { Metadata } from 'next';
 import TeachShell from '@/components/teach/TeachShell';
-
-export const metadata: Metadata = {
-  title: 'Teach · Captain Track Sparrow Reflect',
-  description: 'Teach Captain Track Sparrow — a learning-mode session that understands rather than does, extracting verified, curated knowledge and showing it live.',
-};
 
 /**
  * Teach Phase 4 — the always-available Teach page.

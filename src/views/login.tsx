@@ -3,10 +3,9 @@
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2, ChevronDown, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { DotCompanion, DotField, type DotBotMode } from '@/components/login/AgentScene';
-import { forgetFirstName, recallFirstName } from '@/lib/login-greeting';
 import { useIsDark } from '@/hooks/useIsDark';
 
 /**
@@ -17,13 +16,13 @@ const THEME_VARS = {
   dark: {
     '--bg': '#0b0a16', '--ink': '255 255 255', '--field': 'rgb(255 255 255 / 0.04)', '--field-focus': 'rgb(255 255 255 / 0.06)',
     '--focus': '143 180 255', '--bloom': 'rgb(90 123 220 / 0.2)', '--ms-bg': '#ffffff', '--ms-ink': '#0b0a16',
-    '--ms-hover': 'rgb(255 255 255 / 0.9)', '--chip': '95 216 255', '--chip-ink': '#9fe9ff', '--bad': '#ff9fae',
+    '--ms-hover': 'rgb(255 255 255 / 0.9)', '--bad': '#ff9fae',
     '--toast-bg': '#ffffff', '--toast-ink': '#0b0a16', colorScheme: 'dark',
   },
   light: {
     '--bg': '#f4f6fb', '--ink': '15 20 48', '--field': '#ffffff', '--field-focus': '#ffffff',
     '--focus': '79 107 255', '--bloom': 'rgb(143 176 255 / 0.3)', '--ms-bg': '#0f1430', '--ms-ink': '#ffffff',
-    '--ms-hover': '#1c2350', '--chip': '8 145 178', '--chip-ink': '#0e7490', '--bad': '#be123c',
+    '--ms-hover': '#1c2350', '--bad': '#be123c',
     '--toast-bg': '#0f1430', '--toast-ink': '#ffffff', colorScheme: 'light',
   },
 } as const;
@@ -50,27 +49,6 @@ export default function LoginPage() {
   const [hoverSignIn, setHoverSignIn] = useState(false);
   const [success, setSuccess] = useState(false);
   const [keystrokes, setKeystrokes] = useState(0);
-  const [ambient, setAmbient] = useState(false);
-  // first name of whoever last signed in on this browser (greeting only; see login-greeting.ts)
-  const [returning, setReturning] = useState('');
-
-  // Remember the particle switch (a per-browser preference) and who signed in last.
-  useEffect(() => {
-    try {
-      if (localStorage.getItem('login-particles') === 'always') setAmbient(true);
-    } catch { /* storage blocked */ }
-    setReturning(recallFirstName());
-  }, []);
-  function forgetMe() {
-    forgetFirstName();
-    setReturning('');
-  }
-  function toggleAmbient() {
-    setAmbient(on => {
-      try { localStorage.setItem('login-particles', on ? 'actions' : 'always'); } catch { /* storage blocked */ }
-      return !on;
-    });
-  }
 
   // Typing in a field takes priority over a lingering error, so Dot looks away for the password.
   const botMode: DotBotMode =
@@ -174,20 +152,6 @@ export default function LoginPage() {
         <BrandMark size={32} />
         <span className="text-sm font-semibold tracking-tight text-[rgb(var(--ink)/0.9)]">Synergy Group</span>
         <span className="text-sm text-[rgb(var(--ink)/0.45)]">Data 360</span>
-        <button
-          type="button"
-          onClick={toggleAmbient}
-          aria-pressed={ambient}
-          title={ambient ? 'Show particles only during actions' : 'Keep particles on all the time'}
-          className={`ml-auto flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-            ambient
-              ? 'border-[rgb(var(--chip)/0.4)] bg-[rgb(var(--chip)/0.1)] text-[var(--chip-ink)] hover:bg-[rgb(var(--chip)/0.15)]'
-              : 'border-[rgb(var(--ink)/0.12)] text-[rgb(var(--ink)/0.5)] hover:border-[rgb(var(--ink)/0.22)] hover:text-[rgb(var(--ink)/0.8)]'
-          }`}
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Particles: {ambient ? 'always' : 'on action'}
-        </button>
       </header>
 
       {/* Centre column */}
@@ -199,23 +163,13 @@ export default function LoginPage() {
               name={firstName}
               keystrokes={keystrokes}
               progress={Math.min(email.length / 22, 1)}
-              ambient={ambient}
-              returning={returning}
+              ambient={false}
               theme={theme}
             />
             <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em]">
-              {returning ? `Welcome back, ${returning}` : 'Welcome to Agent Lab'}
+              Welcome to Agent Lab
             </h1>
             <p className="mt-2 text-[15px] text-[rgb(var(--ink)/0.55)]">Design, stage and operate AI agent pipelines.</p>
-            {returning && (
-              <button
-                type="button"
-                onClick={forgetMe}
-                className="mt-2 text-xs text-[rgb(var(--ink)/0.4)] underline-offset-4 transition-colors hover:text-[rgb(var(--ink)/0.75)] hover:underline"
-              >
-                Not {returning}?
-              </button>
-            )}
           </div>
 
           <div className="mt-9">

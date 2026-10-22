@@ -186,9 +186,9 @@ function eyePattern(mode: Mode, side: 'L' | 'R', t: number, blink: boolean, boop
 /** What Captain says for each moment: `sr` is the full sentence for screen readers, `led` is what the visor shows. */
 function lineFor(mode: Mode, prev: Mode, name: string): { sr: string | null; led: Led | null } {
   switch (mode) {
-    case 'idle': return prev === 'sleep' ? { sr: 'Oh! Hi there.', led: { text: 'HI!' } } : { sr: null, led: null };
+    case 'idle': return prev === 'sleep' ? { sr: 'Oh! Hi there.', led: null } : { sr: null, led: null };
     case 'happy': return { sr: "Let's get you in.", led: null };
-    case 'watching': return name ? { sr: `Hi ${name}!`, led: { text: `HI ${name}` } } : { sr: null, led: null };
+    case 'watching': return name ? { sr: `Hi ${name}!`, led: null } : { sr: null, led: null };
     case 'privacy': return { sr: "I won't look. Promise.", led: { icon: 'lock', dur: 1.3 } };
     case 'peek': return { sr: 'Okay, just a tiny peek.', led: null };
     case 'loading': return { sr: 'Signing you in.', led: null };
@@ -256,8 +256,6 @@ type Props = {
   progress?: number;
   /** Keep the floating particles on at rest; false shows them only during actions (click, sign-in, success, error). */
   ambient?: boolean;
-  /** First name of whoever last signed in on this browser; Captain greets them by name. */
-  returning?: string;
   /** Page theme: the glow effects are drawn differently on a light page. */
   theme?: LoginTheme;
 };
@@ -269,7 +267,7 @@ type Props = {
  * watching → reads along as you type · privacy → eyes shut · peek → one eye opens
  * loading → spinner eyes, motes swirl in faster · error → > < and a head shake · success → nod and burst
  */
-export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, ambient = true, returning = '', theme = 'dark' }: Props) {
+export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, ambient = true, theme = 'dark' }: Props) {
   const companionPreferences = useCompanionPreferences();
   const backRef = useRef<HTMLCanvasElement>(null);
   const frontRef = useRef<HTMLCanvasElement>(null);
@@ -281,8 +279,8 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
   const ledRefs = useRef<(SVGCircleElement | null)[]>([]);
   const [spoken, setSpoken] = useState('');
 
-  const props = useRef({ mode, name, progress, ambient, returning, theme });
-  props.current = { mode, name, progress, ambient, returning, theme };
+  const props = useRef({ mode, name, progress, ambient, theme });
+  props.current = { mode, name, progress, ambient, theme };
   const api = useRef<{ setMode: (m: Mode) => void; sparks: (n: number) => void; greet: (name: string) => void } | null>(null);
   const lastKeys = useRef(keystrokes);
 
@@ -345,7 +343,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       setMode: m => { sleeping = false; lastActivity = now(); setMode(m); },
       sparks: n => { sparks += n; sqV += n * 0.15; },
       // the name arrives while typing the username: greet once it's known
-      greet: n => { if (n && cur === 'watching') say(`Hi ${n}!`, { text: `HI ${n}` }); },
+      greet: n => { if (n && cur === 'watching') say(`Hi ${n}!`, null); },
     };
 
     // ── dozing off when left alone ──
@@ -386,9 +384,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       if (cur !== 'idle') return;
       const h = new Date().getHours();
       const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-      const back = props.current.returning;
-      if (back) say(`${greeting}, ${back}! Welcome back.`, { text: `HI ${back}` });
-      else say(`${greeting}! I'm Captain, your Agent Lab companion.`, { text: 'HI!' });
+      say(`${greeting}! I'm Captain, your Agent Lab companion.`, null);
     }, 1500);
 
     // ── canvases ──
@@ -429,7 +425,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
     // ── LED eyes ──
     const level = [new Float32Array(49), new Float32Array(49)];
     const paintEyes = (t: number, dt: number, gaze: { x: number; y: number }) => {
-      const color = 'currentColor';
+      const color = '#fff';
       // eyes glow brighter while Captain speaks
       ledGroup.style.filter = `drop-shadow(0 0 ${(2 + amp * 4).toFixed(1)}px ${color})`;
       const k = 1 - Math.exp(-dt * 26);

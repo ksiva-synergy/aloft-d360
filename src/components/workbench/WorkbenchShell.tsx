@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { History, SquarePen } from 'lucide-react';
+import { History, SquarePen, Bot } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
 import { ConfigPanel } from '@/components/workbench/ConfigPanel';
@@ -127,6 +127,27 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             }}
           >
             <SquarePen size={11} /> NEW
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/agent-lab/agents')}
+            title="Saved agents"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              height: 28,
+              padding: '0 10px',
+              borderRadius: 6,
+              background: 'transparent',
+              border: '1px solid rgba(253,181,21,0.15)',
+              color: 'var(--wb-muted)',
+              cursor: 'pointer',
+              ...mono,
+              fontSize: 9,
+            }}
+          >
+            <Bot size={11} /> AGENTS
           </button>
           <button
             type="button"

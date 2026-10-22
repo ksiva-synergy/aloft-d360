@@ -2,6 +2,102 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-22 — Fix the production build: harvester LLM file was UTF-16
+
+- **Deployment error:** `npm run build` (`next build`, the step the Docker image runs) failed with `Turbopack build failed` on `src/lib/context/harvester-llm.ts`: `invalid utf-8 sequence`. The committed file is UTF-16 LE (BOM `FF FE`). Turbopack only reads UTF-8, so the image build, and therefore the Elastic Beanstalk deploy, stops there.
+- **Fix:** rewrote `src/lib/context/harvester-llm.ts` as UTF-8. The text is unchanged (compared against the committed UTF-16 bytes, line endings normalized). A scan of `src`, `web`, `packages`, `prisma`, and `scripts` found no other UTF-16 source file.
+- **Type error:** root `tsc` failed with `Cannot find module '@radix-ui/react-switch'` because the local install of that package (and `@radix-ui/react-collection`, `react-focus-scope`, `react-portal`) had only `dist/index.js` and was missing the type declarations. Restored those four folders from the published npm tarballs. This is a local `node_modules` repair, not a source change. A fresh `npm ci` in Docker already gets the complete packages, so this was not the deploy failure.
+- **Verified:** `tsc --noEmit --incremental false` exit 0. `npm run build` with `WEB_SKIP_BUILD=1` (Vite output already built) exit 0: compiled, TypeScript finished, static pages generated. Next.js added `.next-deploy-check` includes to `tsconfig.json` because the check used `NEXT_DIST_DIR`; that edit was reverted and the temporary output directory removed.
+- **Not done:** a Docker image build and an Elastic Beanstalk deploy. Next.js printed a warning that React 18 support is deprecated in Next.js 16; the build still succeeded.
+
+## 2026-10-22 — Remove leftover Next.js frontend files after the Vite cut-over
+
+- **Removed:** `src/app/icon.png` and `src/app/icon.svg`. These were Next metadata icon routes and are unused because Next renders no pages. Also removed the create-next-app starter SVGs `public/{next,vercel,file,globe,window}.svg`, which nothing references.
+- **Moved:** `src/app/favicon.ico` to `public/favicon.ico`, so the browser's automatic `/favicon.ico` request still resolves in production and now also resolves in Vite dev.
+- **Removed dead `export const metadata` and the `next` `Metadata` import** from `src/views/agent-lab/{teach/index,teach/digest,memory/index,memory/contributions}.tsx`. The same titles are already set as `handle.title` in `web/src/router.tsx`. Updated the outdated route-table comment in that file.
+- **Kept on purpose:** Next.js is still the API and auth server, so `src/app/api/**`, `src/proxy.ts`, `next.config.ts`, `next-env.d.ts`, and the `next`, `next-auth` and `eslint-config-next` packages stay. `src/app/globals.css` stays because `web/src/main.tsx` imports it. The `next/link`, `next/navigation`, `next/dynamic` and `next/image` imports in about 60 UI files stay too; Vite maps them to the shims in `web/src/compat`.
+- **Verified:** `tsc -p web/tsconfig.json` is clean. Root `tsc` shows only the existing `@radix-ui/react-switch` error. `npm run web:test` passed 9 files / 61 tests, and `npm run web:build` succeeded.
+- **Not done:** rewriting the `next/*` imports to `react-router` and dropping the compat shims. `next build` and the browser were not re-run.
+
+## 2026-10-22 — Login page drops the Particles switch
+
+- Removed the “Particles: always / on action” button from the login header (`src/views/login.tsx`).
+- The aura stays on the default: visible during sign-in, errors, and clicks, hidden while the page is idle. A saved `login-particles` preference is no longer read.
+- **Verified:** `/login` in the browser shows the header without the Particles switch. Idle page has no floating motes; they still run on sign-in, error, and click.
+
+## 2026-10-22 — Agents list and chat look like a conversation
+
+- `/agent-lab/agents` is a searchable card grid: avatar, class, status, Chat / View / Edit (`src/views/agent-lab/agents/index.tsx`).
+- Opening an agent fills the page as a chat: header, starter prompts, message thread, and a composer pinned to the bottom (`src/views/agent-lab/agents/use.tsx`).
+- **Verified:** components read for structure. Opening `/agent-lab/agents` in a fresh browser stopped at the Microsoft login screen, so the signed-in layout was not clicked through.
+- **Not done:** chat threads are still kept in the browser tab only.
+
+## 2026-10-22 — Saved workbench agents can be used, viewed, and edited later
+
+A commissioned agent stays available after you leave the Workbench.
+
+- **Agents list** at `/agent-lab/agents` (sidebar Build → Agents, and an Agents button in the Workbench). Each row has Use, View, and Edit.
+- **Use** opens `/agent-lab/agents/:slug` and chats with the saved instructions and the same read-only data tools as a test run. The conversation is kept in this browser tab only.
+- **View** is the existing catalog page (`/docs/agents/:slug`), which now links to Use and Edit.
+- **Edit** reopens the Workbench session. The blueprint is no longer locked after commission. Panel edits and later builder turns write back to the catalog agent and the platform agent. The catalog slug does not change when the name changes.
+- Files: `src/app/api/agent-lab/agents/route.ts`, `src/app/api/agent-lab/agents/chat/route.ts`, `src/views/agent-lab/agents/{index,use}.tsx`, `src/lib/construction/{catalog-sync,persist-commissioned,prompts}.ts`, `src/app/api/agent-lab/{construction/route,workbench/chat/route,workbench/commission/route}.ts`, `src/components/workbench/{ConfigPanel,WorkbenchShell}.tsx`, `src/components/docs/AgentDocPage.tsx`, `src/components/agent-lab/staging/nav-config.ts`, `web/src/router.tsx`.
+- **Verified:** `src/lib/construction/__tests__/catalog-sync.test.ts`. Route table updated (`web/src/router.test.tsx`, `web/e2e/smoke.mjs`).
+- **Not done:** no publish step, no automatic agent routing in Inspector, and chat threads are not stored on the server. Agents commissioned before this change have no `platformAgentId`; edits still find the platform row by the `<slug>-runtime` slug.
+
+## 2026-10-22 — Port today's estate-jobs changes to the ui-redesign Jobs section
+
+- **Source:** `feature/estate-jobs` (uncommitted work in the `aloft-d360` checkout, plus commit `a8776e4`). Ported as commit `292d5ca`.
+- **Embedding coverage UI** (applied cleanly with a 3-way merge onto the redesigned components):
+  - `src/components/estate/JobDetailDrawer.tsx`: embed jobs show a note that stats are per-run deltas, not estate totals. The note uses the `--text-muted` theme token so it reads correctly in light and dark themes.
+  - `src/components/estate/ScannedObjectsTab.tsx`: shows table and column vector totals; the Embed tier label now says "tables with object-level vectors".
+  - `src/lib/context/embedding-presence.ts` (new), `src/lib/context/reads.ts`, `src/lib/dashboard/summary.ts`: `EXISTS … embedding IS NOT NULL` replaces the brittle `e.org_id` join. Estate discovery joins by source and path. The scanned API returns `embeddingTotals`.
+- **Bulk embeds** (`a8776e4`, adapted):
+  - `src/lib/azure/embed-client.ts`: new `embedBulkWithTitan`, with concurrency set by `EMBED_BULK_CONCURRENCY` (1–16, default 8). The Titan region now also honours `BEDROCK_REGION`.
+  - `src/lib/context/embed.ts`: `embedSubjects` queues changed rows and embeds them concurrently.
+  - Deliberately **Titan-only** (no OpenAI fallback): catalog search only compares vectors from the same model, so OpenAI fallback rows would be invisible to search.
+  - `scripts/context/embedding-audit.ts` copied as-is.
+- `infra/context/deploy-notes.md`: added a note on bulk embedding and region. `task-definition.json` kept as-is on this branch (it already sets `BEDROCK_REGION`; ui-redesign runs harvester `ch4`, not main's `ch5-titan-embed-bulk`).
+- **Verified:** new `src/lib/azure/embed-client.test.ts` (order preserved, null on failure, concurrency limit respected, empty batch) passes 3/3. Root `vitest run` passes 68 files / 533 tests (run before the new test was added). `tsc -p web/tsconfig.json` is clean. Root `tsc` shows only the existing `@radix-ui/react-switch` error.
+- **Not done:**
+  - No browser check of the Jobs drawer or the Scanned tab.
+  - No live embed job run.
+  - The untracked ops scripts in `aloft-d360` (`embedding-by-source`, `job-inspect`, `list-embed-jobs`, etc.) were not ported.
+  - The knowledge-base embedding path (`embedWithFallback`) was left on OpenAI.
+
+## 2026-10-22 — Restore pre-integration work dropped when stash@{0} was never re-applied
+
+- **What happened:** the wip stash `dceacb5` ("wip before estate-jobs merge 2026-10-21") was taken before the Jobs/estate cherry-picks (`0b0e8ae`, `a6a8f6b`, `22ae77b`) and never popped, so 25 tracked-file changes and 10 new files were missing from `feature/ui-redesign`.
+- **Restored (commit `afdbef1`, exact file contents from the stash):**
+  - Companions: character picker Nova / Orbit / Lumi / Captain (`src/components/companion/{Companion,Wobble,useAnimateWhenVisible}.*`, `Captain*`, `CompanionSettings.tsx`, `src/lib/companion/preferences.ts` with v1→v2 migration, `useCompanionPreferences.ts`, `PromptCanvas.tsx`); companion colour follows the app accent; account menu auto-closes (`UserMenu.tsx`, `AppearanceControls.tsx`).
+  - Workbench agent planning: first-turn schema research, active tool catalog, `select_agent_class` / `select_agent_tools` builder tools that respect user locks (`src/app/api/agent-lab/workbench/chat/route.ts`, `src/lib/construction/{builder-tools,prompts}.ts`, `FieldEditors.tsx`).
+  - Catalog integrity: paged `resolveScope` and scope-safe drop logic (`src/lib/context/{databricks-adapter,harvest,scope-match,dispatch}.ts`).
+  - Embeddings/search: Bedrock Titan v2 embeddings, always-on vector retrieval with ranked hybrid results (`src/lib/azure/embed-client.ts`, `src/lib/context/{embed,describe,keywords,search-ranking}.ts`).
+  - Docs and tests: `docs/{creating-agents,ops-failure-log,commissioned-agent-usage-brainstorm,incident-2026-10-18-catalog-mass-drop}.md`, plus the stash's tests.
+- `src/components/login/AgentScene.tsx`: login robot LED eyes painted `#fff` again (the stash's white-eyes fix); the 2026-10-22 login text changes were kept as they are.
+- Historical stash entries (2026-10-20/21) inserted below in date order.
+- **Kept:** all Jobs/estate work from main (no Jobs/estate file is in the restore set; the only shared file was this changelog).
+- **Verified:** done first in an isolated worktree. Root `vitest run` 68 files / 533 tests passed. Web `vitest` 9 files / 61 tests passed. `tsc -p web/tsconfig.json` clean. Root `tsc --noEmit` shows only the existing `@radix-ui/react-switch` error, which is also present before the restore.
+- **Not done:**
+  - No signed-in browser check of the Workbench or the companion picker.
+  - Bedrock credentials and live catalog search were not exercised.
+  - Upstream `synergy-marine/main` changes are not reconciled: Titan-first embedding fallback (`a8776e4`), the `typecheck` script (`778ad37`), SSO-only login (`00c507d`).
+  - `stash@{0}` has not been dropped.
+
+## 2026-10-22 — Remove personalized returning-user login welcome
+
+- `src/views/login.tsx`: login page always displays “Welcome to Agent Lab”; removed the saved-name greeting and “Not [name]?” control.
+- `src/components/login/AgentScene.tsx`: removed the returning-user name from the robot's greeting and props; the generic greeting remains.
+- **Why:** keep the login welcome consistent and avoid displaying a remembered first name.
+- **Verified:** `git diff --check` passed; a focused search found no returning-user greeting or name-specific control in the login page/robot. TypeScript check reached an unrelated existing failure because `@radix-ui/react-switch` is missing.
+- **Not done:** no browser visual check.
+
+## 2026-10-22 — Remove login robot's HI visor message
+
+- `src/components/login/AgentScene.tsx`: stopped scrolling “HI” greetings across the login robot's visor, including initial, returning-user, typing, and wake-up greetings. The robot's expressions and screen-reader announcements remain unchanged.
+- **Why:** keep the robot's expression visible without the greeting text on its LED face.
+- **Verified:** `git diff --check` passed; TypeScript check reached an unrelated existing failure because `@radix-ui/react-switch` is missing. Focused ESLint could not run because the repository config crashes while formatting a circular configuration.
+- **Not done:** no visual browser check.
+
 ## 2026-10-21 — Estate inventory + source scope (Synergy `main` / PR #23)
 
 - `src/lib/context/estate.ts`: partial inventory no longer soft-deletes unscanned catalogs (`catalogsSeen`).
@@ -26,6 +122,187 @@ Single running log of changes made in this repo, **newest first**.
 Kept separate on purpose:
 [ops-failure-log.md](./ops-failure-log.md) — live status of broken dependencies (not a changelog; has its own Cursor rule) ·
 [agent-lab-workbench-session-log.md](./agent-lab-workbench-session-log.md) — March 2026 workbench session (archived).
+
+---
+
+## 2026-10-21 — Login robot eyes stay white across themes
+
+**Changed:** [AgentScene.tsx](../src/components/login/AgentScene.tsx) now paints the login robot's lit LED pixels and glow explicitly white instead of inheriting the companion accent. The earlier login greeting change also keeps the visor text at `HI` rather than appending the user's name; screen-reader greetings remain personalized.
+**Why:** Keep the login robot's eyes white regardless of theme or companion color preference.
+**Verified:** `npm.cmd run web:typecheck` passed. Browser DOM/computed-style checks under both light and dark root classes, with the inherited companion color overridden to red: lit pixels and glow remained white. The shared browser tab was hidden, so animation frames were advanced explicitly for these checks. Targeted ESLint could not run because the existing configuration throws a circular-JSON error.
+**Not done:** No changes to other companions, particle colors, expressions, or screen-reader greetings.
+
+---
+
+## 2026-10-20 — Documented: how commissioned agents are used (brainstorm)
+
+**What changed:** New [commissioned-agent-usage-brainstorm.md](./commissioned-agent-usage-brainstorm.md). Docs only, no code.
+**Why:** After COMMISSION the agent is a catalog `draft` and is only reachable via Try → plain Inspector. The Inspector hint `aloft.catalogAgent.slug` is written but never read, nothing routes a question like "Latest SIRE observations for IMO N" to an agent, and there is no publish step.
+**Verified:** By reading the code (`commission/route.ts`, `ConfigPanel.tsx`, `views/agent-staging/try.tsx`, grep for the hint key). Not exercised in the UI.
+Also added option E: an agent gallery ("app store") with sharing. `/docs/agents` is only a searchable list today, and `agent_catalog` has no visibility or share model.
+**Not done:** Explicit agent pick in Inspector, automatic routing, runtime chat, publish lifecycle, gallery and sharing. Options and open questions are in the doc.
+
+---
+
+## 2026-10-20 — Harvester no longer drops tables it did not see (SIRE tables restored)
+
+**Problem:** Workbench said `sire_report` was not in the catalog. `landing_zone_dev.sire_2_0.sire_report` was harvested in July and has a semantic card. But a full T0 sweep on 2026-10-18 18:36 (source `b491…`, scope `open_analytics_zone.*.*`) marked 1,387 objects `dropped`, leaving exactly 1,000 active. The Estate inventory showed every one of the 1,554 dropped objects as still active. Two bugs caused this:
+1. `DatabricksAdapter.resolveScope()` listed `information_schema.tables` with no row limit, so the 1,000-row `DATABRICKS_MAX_ROWS` default silently truncated the listing. It saw 1,000 tables, so the rest of `open_analytics_zone` was treated as deleted (190 dropped in that catalog at restore time).
+2. The full-sweep drop pass in `harvest.ts` dropped every active object missing from the sweep, including objects outside the (narrowed) scope. That removed `landing_zone_dev`, `reporting_layer`, `curated_db` and other catalogs. The scoped branch matched on schema name only, across catalogs, and compared against the budget-capped harvested set.
+
+**Changes:**
+- `src/lib/context/databricks-adapter.ts`: `resolveScope()` pages the listing (`ORDER BY … LIMIT 1000 OFFSET n`, explicit `rowLimit`). A failed page discards that catalog's refs, so a partial listing never reaches the drop pass.
+- `src/lib/context/scope-match.ts`: new pure `selectDroppedPaths()`. An object is dropped only if it is inside the sweep's include/exclude scope, its `catalog.schema` was actually listed, and it is absent from the resolved listing.
+- `src/lib/context/harvest.ts`: both drop branches are replaced by `selectDroppedPaths()` over the resolved refs, not the harvested set. Updates are chunked by id, and the step logs a drop-pass summary.
+- `src/lib/context/scope-match.test.ts`: 4 tests (narrowed scope, unlisted schema, empty listing, excludes).
+
+**Data fix (prod-writer DB, user-approved):** set `lifecycle='active'` on the 1,554 dropped objects whose Estate row is active. Embedded 742 restored objects with Titan v2: 0 failed, 22 skipped as unchanged. Active objects 1,000 → 2,554; Titan-embedded active objects 467 → 1,520.
+
+**Verified:**
+- `vitest run src/lib/context` passes (10 tests).
+- `tsc` shows only the existing `@radix-ui/react-switch` error.
+- Live `describe_schema research`:
+  - "sire_report" returns `landing_zone_dev.sire_2_0.sire_report` first (0.52), then `q88_report` and `classnk_report_metadata`.
+  - "SIRE inspection report observations findings vessel IMO" also returns `sire_report` first.
+- `describe` on `sire_report` returns its card.
+
+**Not done:**
+- 1,034 active objects still have no semantic card or embedding.
+- The 2 jobs stuck `running` since 2026-10-18 and 49 queued T0 jobs are untouched.
+- The Workbench conversation was not re-run in the UI.
+
+**Incident write-up (timeline, root cause, actor findings, follow-ups):** [incident-2026-10-18-catalog-mass-drop.md](./incident-2026-10-18-catalog-mass-drop.md). Ops tracking: `ops-failure-log.md` **F-005**. Still open: `scripts/context/orchestrator.ts` ignores the Estate `scope.path`, so per-table harvest requests run source-wide, and queued `{path}` jobs will likely not harvest their table.
+
+---
+
+## 2026-10-20 — Catalog/memory embeddings back on Bedrock Titan v2; vector search fixes
+
+**Why:** Analysis of Workbench session `41cb8ff9…` showed vector search returning noise: all 13,508 stored catalog
+vectors (and agent-memory vectors, written Jun–Jul) are `amazon.titan-embed-text-v2:0`, but since the Oct 12 refactor
+query embeddings came from Azure OpenAI `text-embedding-3-large`. Cross-model cosine scores were ~0.03–0.10 (random),
+e.g. "mintra training courses" → defect/purchase tables in Inspector. Inspector's apparently good results came from
+keyword routing (which skipped vectors and labelled keyword hits "semantic"), not from Azure embeddings.
+Search also returned `dropped` objects that `describe` cannot open (every candidate showed `inspected:false`).
+
+**Changes:**
+- `src/lib/azure/embed-client.ts` — new `embedWithTitan()` (Bedrock Titan v2, 1024-dim, normalized). Uses a Bedrock
+  API key (`AWS_BEARER_TOKEN_BEDROCK` / `BEDROCK_API_KEY` / `BEDROCK_MANTLE_API_KEY`) as bearer auth, else the AWS SDK
+  credential chain. Region `BEDROCK_EMBED_REGION` (default `us-east-1`). The IAM key in `.env` is rejected by AWS
+  (`UnrecognizedClientException`); the Bedrock API key works. `embedWithFallback` (OpenAI) is unchanged and still used
+  by the knowledge base, whose vectors are OpenAI.
+- `src/lib/context/embed.ts` — catalog ingest and `embedQuery` (catalog, memory, intent, estate briefing) use Titan;
+  `CURRENT_EMBEDDING_MODEL` is now the Titan id.
+- `src/lib/context/describe.ts` — vector search only compares vectors of the query model and only active objects;
+  result candidates are restricted to active objects; responses include `vector_index` health (active objects,
+  comparable embeddings, other-model embeddings).
+- `src/lib/context/search-ranking.ts` — vector hits below `MIN_SEMANTIC_SIMILARITY` (0.15) are discarded.
+- `src/lib/context/dispatch.ts` — `research` notes say when the index is empty/incompatible or sparse.
+
+**Verified:** ran the real `describe_schema research` path against the dev server's DB: Titan query embeddings,
+related tables score 0.2–0.33, all candidates active and inspected (columns returned). Unrelated queries now return
+0 vector hits instead of noise. Focused tests pass (42); `tsc` shows only the existing `@radix-ui/react-switch` error.
+
+**Data fix (run 2026-10-20, with user approval):** embedded the 460 active catalog objects that had semantic cards but
+no Titan vector (460 embedded, 0 failed) against the DB the dev server uses (`.env`'s last `DATABASE_URL`,
+aloft-prod-writer). Index coverage went from 7 to 467 of 1,000 active objects. "AI inspection agent for vessel
+inspections, PSC, ISM audits, deficiencies and corrective actions" now returns `vw_audit_and_inspection`,
+`vw_audit_inspection_testing`, `vw_corrective_action`, `sm2_psc`, `data_audit.report_info` (similarity 0.40–0.53).
+
+**Not done:** 533 active objects have no semantic card (T2) and so cannot be embedded yet.
+`landing_zone_dev.sire_2_0.sire_report` is active in Estate but `dropped` in the harvested context; its on-demand
+`t0_structural` job (2026-10-20 14:02) is one of 47 queued harvest jobs, and 2 jobs have been stuck `running` since
+2026-10-18. Nothing has been processed since then, so the ECS `aloft-context-harvester` / EventBridge worker appears
+to be down. The Estate harvest route also skips re-requests while `harvest_state = 'queued'`, so the UI cannot retry it.
+
+---
+
+## 2026-10-20 — Require semantic evidence in Workbench catalog research
+
+Workbench catalog search now always queries the pgvector embedding index, even when keyword routing is confident, and blends vector similarity with keyword and exact-name evidence. Search responses expose the evidence signals instead of presenting lexical matches as semantic matches. The Workbench's initial research now inspects the top candidates' harvested semantic cards, columns, and relationship evidence before the builder selects sources; the prompt requires relevance justification and rejects name-only matches. Files: `src/lib/context/search-ranking.ts`, `src/lib/context/search-ranking.test.ts`, `src/lib/context/describe.ts`, `src/lib/context/dispatch.ts`, `src/app/api/agent-lab/workbench/chat/route.ts`, `src/lib/construction/prompts.ts`, `docs/creating-agents.md`.
+
+Verified: focused search-ranking, keyword, and construction tests pass (37 tests); `git diff --check`. Root TypeScript check remains blocked by the missing `@radix-ui/react-switch` package, and ESLint remains blocked by its existing circular React plugin/config error. Not done: live vector-database/Estate lookup, signed-in Workbench flow, or warehouse test run.
+
+---
+
+## 2026-10-20 — Match natural-language catalog searches to underscored table paths
+
+Fixed harvested-catalog name matching so natural-language queries such as “there is a table called SIRE report” are
+tokenized into meaningful terms and matched against each term in a catalog path like
+`landing_zone_dev.sire_2_0.sire_report`. Previously, schema search compared the full input phrase against the table
+name/path, so spaces and conversational words prevented this existing harvested object from being found.
+Files: `src/lib/context/keywords.ts`, `src/lib/context/describe.ts`, `src/lib/context/keywords.test.ts`.
+
+Verified: focused keyword and construction tests pass; `git diff --check` passes. Live search against the shared Estate
+catalog is not available in this environment.
+
+---
+
+## 2026-10-20 — Workbench agent research and planning
+
+Workbench chat now searches the harvested catalog for a new mission, exposes catalog-only schema research to the builder,
+and gives it active tool inventory plus explicit class/tool selection actions. Confident mission-to-class matches are
+saved into the blueprint; user-owned class/tool edits remain protected. Updated the Workbench tools panel copy and the
+agent-creation capability note. Files: `src/app/api/agent-lab/workbench/chat/route.ts`,
+`src/lib/construction/prompts.ts`, `src/lib/construction/builder-tools.ts`,
+`src/lib/construction/__tests__/user-edits.test.ts`, `src/components/workbench/config/FieldEditors.tsx`,
+`docs/creating-agents.md`.
+
+Verified: focused construction tests passed (32 tests). Root TypeScript check is blocked by the existing missing
+`@radix-ui/react-switch` dependency in `packages/aloft-shared/src/components/ui/switch.tsx`; ESLint is blocked by the
+existing circular React plugin/config error.
+Not done: no signed-in browser flow, live LLM/catalog lookup, or Databricks test run.
+
+---
+
+## 2026-10-20 — Wobble companion, login greeting, account menu auto-close
+
+1. **Wobble companion (Nova concept).** New `src/components/companion/Wobble.tsx` + `Wobble.module.css`: SVG blob with
+   glossy eyes, same `CompanionState` states as Captain — idle (blink, float when expressive), reading (pulse + listening
+   waves), thinking (slow tilt, eyes up), tools (focused squint + wobble), writing (bob, eyes down), success (happy arcs,
+   bounce, sparks), clarification (tilt, one eye bigger), error (worried brows), stopped (closed eyes). Respects
+   personality `quiet`, reduced motion, and pauses off screen / in background tabs.
+   `Companion.tsx` picks Wobble or Captain from a new `character` preference (`src/lib/companion/preferences.ts`,
+   default `wobble`, default colour now lavender `#b9a4ff`, which also tints the login robot's eyes).
+   Used in `CaptainStatus` (chat messages) and `PromptCanvas` empty state; `CompanionSettings` gained a Character picker.
+   Visibility logic moved to `useAnimateWhenVisible.ts` (shared with Captain).
+2. **Login:** heading is always "Welcome to Agent Lab"; removed the "Not {name}?" link (`src/views/login.tsx`). The login
+   robot's spoken greeting still uses the remembered name.
+3. **Account menu:** closes 400 ms after the pointer leaves it (`src/components/shell/UserMenu.tsx`).
+
+Verified: editor diagnostics clean on changed files. Tests updated/added in `web/src/companion.test.tsx` but **not run**
+(`node_modules` install was failing locally). Not browser-checked.
+
+**Follow-up (same day): all three characters + app accent.** `Wobble` takes `shape` = `nova` | `orbit` | `lumi`
+(own body path, eye placement, and per-character motion: Orbit sways/leans/stretches, Lumi squashes and moves slower).
+`character` preference is now `nova` | `orbit` | `lumi` | `captain` (legacy `wobble` → `nova`); default colour is
+`accent`, so the companion follows the app accent (`--brand-a`) from the account menu. Settings shows a live preview card
+per character. Motion-off rules (`quiet`, off screen) now use `!important` so state animations can't override them.
+
+**Follow-up: companion colour uses the app accent palette.** `COMPANION_COLORS` is now "Match app accent" (default) plus
+the account menu's `ACCENT_PRESETS`; `CompanionSettings` renders them as the same round swatches + rainbow custom picker
+as the account menu. Browsers that already saved a companion colour keep it until "Match app accent" is picked.
+
+**Follow-up: Captain redesigned as a glossy sphere.** `src/components/companion/Captain.tsx` + `Captain.module.css`:
+white sphere, dark visor with glowing crescent eyes, glowing side ear and floor pad (all in the companion colour).
+States: listening waves (reading), thinking dots + float, rotating orbit ring (tools / analyzing), spinning progress arc
+(writing / executing), happy eyes + burst (success), curious tilt (clarification), lidded eyes (error), closed (stopped).
+The login page's canvas robot (`AgentScene.tsx`) is unchanged.
+
+**Fix: companion ignored the app accent for existing users.** Colours saved under the old palette (e.g. mint) kept
+overriding "Match app accent". Storage key bumped to `aloft-companion-v2` (`src/lib/companion/preferences.ts`); the hook
+(`src/hooks/useCompanionPreferences.ts`) reads v1 as a fallback but keeps only personality/character, so the colour
+falls back to the accent. Test added in `web/src/companion.test.tsx` (not run).
+
+**Captain colour variants.** The companion colour now tints Captain's whole shell (radial gradient from near-white to a
+shaded tone, via `--cap` in `Captain.tsx`), with eyes/ear/rings glowing a lighter tint of the same colour, matching the
+Ocean/Purple/Green/Amber/Red concept sheet. Not browser-checked.
+
+**Companion follows accent changes + playful idle.** `src/components/shell/AppearanceControls.tsx`: picking (or
+resetting) the app accent in the account menu now sets the companion colour back to "Match app accent", so a colour
+saved earlier in companion settings no longer hides the change. Idle is now a 12s CSS loop for Captain and
+Nova/Orbit/Lumi (`Captain.module.css`, `Wobble.module.css`): glance left, glance up-right with a small lean, a wink with a
+happy squint, then settle; Expressive adds a gentle float/hop, Lumi runs it slower (16s). Quiet/off-screen/reduced
+motion still stop it. Not browser-checked; tests not run.
 
 ---
 

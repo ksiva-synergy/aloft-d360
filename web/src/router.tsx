@@ -21,10 +21,8 @@ import {
 } from './routes/adapters';
 
 /**
- * Route table = the Next.js `src/app/**` tree, one entry per `page.tsx` (44 pages).
- *
- * Pages are imported from `src/app` in place (code-split per route). A page that was an async server component
- * is replaced by an adapter in ./routes/adapters. `export const metadata` titles are carried as `handle.title`.
+ * Route table for the UI. Pages live in `src/views/**` and are code-split per route. Pages that need route data
+ * are wrapped by adapters in ./routes/adapters. The tab title for each route is `handle.title`.
  */
 type PageModule = { default: ComponentType };
 const page =
@@ -105,6 +103,8 @@ export const routes: RouteObject[] = [
                 handle: title('Teach · Candidate hand-off'),
               },
               { path: 'agent-lab/teach/:sessionId', Component: TeachSessionRoute, handle: title('Teach · Captain Track Sparrow Reflect') },
+              { path: 'agent-lab/agents', lazy: page(() => import('@/views/agent-lab/agents/index')) },
+              { path: 'agent-lab/agents/:slug', lazy: page(() => import('@/views/agent-lab/agents/use')) },
               { path: 'agent-lab/workbench', lazy: page(() => import('@/views/agent-lab/workbench')) },
               { path: 'agent-lab/workbench/:sessionId', Component: WorkbenchSessionRoute },
 

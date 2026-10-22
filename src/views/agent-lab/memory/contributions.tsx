@@ -1,10 +1,4 @@
-import type { Metadata } from 'next';
 import { MemoryCredCard } from '@/components/dashboard/MemoryCredCard';
-
-export const metadata: Metadata = {
-  title: 'Memory Contributions · Aloft',
-  description: 'Per-domain memory-cred reputation leaderboard showing user contributions to agent memory.',
-};
 
 export default function MemoryContributionsPage() {
   return (

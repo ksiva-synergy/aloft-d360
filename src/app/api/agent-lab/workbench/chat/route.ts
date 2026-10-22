@@ -16,6 +16,7 @@ import type { ConstructionState } from '@/lib/construction/constructionState';
 import { loadConstructionState, coerceConstructionState } from '@/lib/construction/load-state';
 import { executeBuilderTool, inferAgentClass, type BuilderToolContext } from '@/lib/construction/builder-tools';
 import { mergeUserEdits } from '@/lib/construction/user-edits';
+import { persistCommissionedAgent } from '@/lib/construction/persist-commissioned';
 import { deriveReadiness } from '@/lib/construction/readiness';
 import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
@@ -273,6 +274,14 @@ export async function POST(request: NextRequest) {
             updated_at: new Date(),
           },
         });
+
+        if (row.saved_agent_id) {
+          try {
+            await persistCommissionedAgent(row.saved_agent_id, stateRef);
+          } catch (err) {
+            console.error('[workbench/chat] catalog sync failed', err);
+          }
+        }
 
         emit({ type: 'construction_state', state: stateRef });
         emit({

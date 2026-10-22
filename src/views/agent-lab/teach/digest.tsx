@@ -1,10 +1,4 @@
-import type { Metadata } from 'next';
 import { TeachDigest } from '@/components/inspector/teach/TeachDigest';
-
-export const metadata: Metadata = {
-  title: 'Teach · Candidate hand-off',
-  description: 'Read-only typed feed of candidates Teach has captured, ready for review in Build.',
-};
 
 /**
  * Teach Phase 3 — the read-only candidate hand-off (Digest) surface. Projects the

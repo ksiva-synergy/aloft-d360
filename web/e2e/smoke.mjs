@@ -54,6 +54,8 @@ const ROUTES = [
   ['/agent-lab/teach'],
   ['/agent-lab/teach/digest'],
   ['/agent-lab/teach/sess-1'],
+  ['/agent-lab/agents'],
+  ['/agent-lab/agents/some-agent'],
   ['/agent-lab/workbench'],
   ['/agent-lab/workbench/sess-1'],
   ['/agent-staging', '/docs/agents'],

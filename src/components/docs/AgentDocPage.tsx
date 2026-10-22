@@ -49,6 +49,13 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
   const inputSchema = schemaFieldToObject(agent.input_schema);
   const outputSchema = schemaFieldToObject(agent.output_schema);
   const toolNames = catalogToolsList(agent.tools);
+  const prompt = typeof agent.config?.systemPrompt === 'string' ? agent.config.systemPrompt.trim() : '';
+  const canUse = prompt.length >= 20;
+  const source = agent.config?.source;
+  const workbenchSessionId = source && typeof source === 'object' && typeof (source as { workbenchSessionId?: unknown }).workbenchSessionId === 'string'
+    ? (source as { workbenchSessionId: string }).workbenchSessionId
+    : null;
+  const editUrl = workbenchSessionId ? `/agent-lab/workbench/${workbenchSessionId}` : null;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
@@ -195,15 +202,33 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
         </section>
       )}
 
-      {/* Try it */}
-      <section className="mb-8">
-        <Link
-          href={`/agent-staging/try?agent=${encodeURIComponent(agent.slug)}`}
-          className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)] hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" />
-          Try in Inspector (staging)
-        </Link>
+      {/* Use, view is this page, edit returns to the workbench session */}
+      <section className="mb-8 flex flex-wrap gap-4">
+        {canUse ? (
+          <Link
+            href={`/agent-lab/agents/${encodeURIComponent(agent.slug)}`}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] hover:underline"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Use this agent
+          </Link>
+        ) : (
+          <Link
+            href={`/agent-staging/try?agent=${encodeURIComponent(agent.slug)}`}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] hover:underline"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Try in Inspector (staging)
+          </Link>
+        )}
+        {editUrl && (
+          <Link
+            href={editUrl}
+            className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] hover:underline"
+          >
+            Edit in Workbench
+          </Link>
+        )}
       </section>
 
       {/* Related Agents */}

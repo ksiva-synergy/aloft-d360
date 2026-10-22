@@ -68,18 +68,27 @@ ${JSON.stringify(state, null, 2)}`;
 }
 
 /**
- * System prompt for a workbench Test run: the draft agent's own instructions plus
- * the read-only data rules every Inspector-backed agent follows.
+ * The agent's own instructions plus the read-only data rules every Inspector-backed
+ * agent follows. `test` is a pre-commission sample; `live` is a saved agent in use.
  */
-export function buildTestRunSystemPrompt(state: ConstructionState): string {
-  const name = state.name?.trim() || 'Untitled agent';
-  const sources = state.tools.datasources
+export function buildRuntimeSystemPrompt(input: {
+  name: string;
+  persona?: string | null;
+  instructions: string;
+  datasources: Array<{ kind: string; ref: string; scope?: string | null }>;
+  mode: 'test' | 'live';
+}): string {
+  const name = input.name.trim() || 'Untitled agent';
+  const sources = input.datasources
     .map((d) => `- ${d.kind}: ${d.ref}${d.scope ? ` (${d.scope})` : ''}`)
     .join('\n');
-  return `You are "${name}", an agent being test-run before it is commissioned.
-${state.prompt.persona ? `\nPurpose: ${state.prompt.persona}\n` : ''}
+  const intro = input.mode === 'test'
+    ? `You are "${name}", an agent being test-run before it is commissioned.`
+    : `You are "${name}", a saved agent. Do the job in your instructions. Do not redesign yourself unless asked.`;
+  return `${intro}
+${input.persona ? `\nPurpose: ${input.persona}\n` : ''}
 ## YOUR INSTRUCTIONS
-${state.prompt.instructions.trim() || '(No instructions written yet.)'}
+${input.instructions.trim() || '(No instructions written yet.)'}
 
 ## DATA SOURCES
 ${sources || '- None declared. Find the right tables with describe_schema.'}
@@ -89,6 +98,17 @@ ${sources || '- None declared. Find the right tables with describe_schema.'}
 - execute_tool runs read-only SQL against synergy_dwh. SELECT / WITH only, always fully qualified table names, always LIMIT (100 or less).
 - Never guess a table or column name. If a query fails, recheck the path with describe_schema.
 - Keep the final answer concise, in markdown, with key numbers in bold. Do not narrate tool steps.`;
+}
+
+/** System prompt for a workbench Test run. */
+export function buildTestRunSystemPrompt(state: ConstructionState): string {
+  return buildRuntimeSystemPrompt({
+    name: state.name?.trim() || 'Untitled agent',
+    persona: state.prompt.persona,
+    instructions: state.prompt.instructions,
+    datasources: state.tools.datasources,
+    mode: 'test',
+  });
 }
 
 export function buildWorkbenchToolConfig(availableTools: AvailableWorkbenchTool[] = []): ToolConfiguration {

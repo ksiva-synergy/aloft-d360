@@ -99,6 +99,16 @@ export async function POST(request: NextRequest) {
     retrieval_scope: state.memory.runtimeProvision?.retrievalScope ?? undefined,
   });
 
+  await prisma.agent_catalog.update({
+    where: { id: catalog.id },
+    data: {
+      config: {
+        ...(catalog.config as Record<string, unknown>),
+        platformAgentId: platform.id,
+      },
+    },
+  });
+
   const commissioned = {
     ...state,
     readiness: 'commission' as const,
