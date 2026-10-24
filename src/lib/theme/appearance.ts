@@ -12,8 +12,15 @@ export const APPEARANCE_KEY = 'aloft-appearance';
 export interface Appearance {
   /** Accent color as #rrggbb, or null for the default. */
   accent: string | null;
-  /** Sidebar color as #rrggbb, or null for the default. */
+  /**
+   * Legacy single sidebar color. Light picks apply in light mode only; dark picks in dark
+   * mode only. Prefer {@link railLight} / {@link railDark}.
+   */
   rail: string | null;
+  /** Sidebar override for light mode (Sage Studio default when null). */
+  railLight: string | null;
+  /** Sidebar override for dark mode (Data 360 Night default when null). */
+  railDark: string | null;
 }
 
 type Vars = Record<string, string>;
@@ -124,13 +131,26 @@ const DARK_SURFACE = "#1A1B1D";
 
 /** The defaults in globals.css, per mode. */
 export const MODE_DEFAULTS = {
-  light: { accent: "#A8481F", rail: "#E3E9DE" }, // Sage Studio
-  dark:  { accent: "#1F5FD6", rail: "#0B1426" }, // Data 360 Night, sapphire
+  light: { accent: "#A8481F", rail: "#ECEFE6" }, // Sage Studio shell-bg
+  dark:  { accent: "#1F5FD6", rail: "#16171A" }, // Data 360 Night sidebar (graphite)
 } as const;
 
 type Mode = "light" | "dark";
 
-function buildForMode(mode: Mode, { accent, rail }: Appearance): Vars {
+/** Sidebar hex for this mode, or null → use globals.css defaults (no inline --rail-*). */
+export function resolveRailHex(mode: Mode, a: Appearance): string | null {
+  if (mode === 'light' && isHex(a.railLight)) return a.railLight;
+  if (mode === 'dark' && isHex(a.railDark)) return a.railDark;
+  if (isHex(a.rail)) {
+    const darkRail = luminance(a.rail) < 0.2;
+    if (mode === 'light' && !darkRail) return a.rail;
+    if (mode === 'dark' && darkRail) return a.rail;
+  }
+  return null;
+}
+
+function buildForMode(mode: Mode, appearance: Appearance): Vars {
+  const { accent } = appearance;
   const vars: Vars = {};
   const baseAccent = isHex(accent) ? accent : MODE_DEFAULTS[mode].accent;
 
@@ -149,26 +169,27 @@ function buildForMode(mode: Mode, { accent, rail }: Appearance): Vars {
     }
   }
 
-  const railBg = isHex(rail) ? rail : MODE_DEFAULTS[mode].rail;
+  const railHex = resolveRailHex(mode, appearance);
+  const railBg = railHex ?? MODE_DEFAULTS[mode].rail;
   const railDark = luminance(railBg) < 0.2;
 
-  if (isHex(rail)) {
-    const top = railDark ? mix(rail, "#FFFFFF", 0.06) : mix(rail, "#FFFFFF", 0.35);
-    vars["--rail-bg"] = rail;
+  if (railHex) {
+    const top = railDark ? mix(railHex, "#FFFFFF", 0.06) : mix(railHex, "#FFFFFF", 0.35);
+    vars["--rail-bg"] = railHex;
     vars["--rail-bg-top"] = top;
     if (railDark) {
       vars["--rail-ink-strong"] = "#FFFFFF";
-      vars["--rail-ink"] = mix(rail, "#FFFFFF", 0.78);
-      vars["--rail-muted"] = shiftUntil(mix(rail, "#FFFFFF", 0.5), rail, 5.2, 1);
+      vars["--rail-ink"] = mix(railHex, "#FFFFFF", 0.78);
+      vars["--rail-muted"] = shiftUntil(mix(railHex, "#FFFFFF", 0.5), railHex, 5.2, 1);
       vars["--rail-line"] = "rgba(255,255,255,.10)";
       vars["--rail-hover"] = "rgba(255,255,255,.06)";
       vars["--rail-active"] = "rgba(255,255,255,.12)";
       vars["--rail-shadow"] = "rgba(8,12,24,.85)";
       vars["--rail-glow"] = "1";
     } else {
-      vars["--rail-ink-strong"] = mix(rail, "#000000", 0.88);
-      vars["--rail-ink"] = mix(rail, "#000000", 0.78);
-      vars["--rail-muted"] = shiftUntil(mix(rail, "#000000", 0.55), rail, 5, -1);
+      vars["--rail-ink-strong"] = mix(railHex, "#000000", 0.88);
+      vars["--rail-ink"] = mix(railHex, "#000000", 0.78);
+      vars["--rail-muted"] = shiftUntil(mix(railHex, "#000000", 0.55), railHex, 5, -1);
       vars["--rail-line"] = "rgba(0,0,0,.12)";
       vars["--rail-hover"] = "rgba(0,0,0,.06)";
       vars["--rail-active"] = "rgba(255,255,255,.8)";
@@ -178,12 +199,16 @@ function buildForMode(mode: Mode, { accent, rail }: Appearance): Vars {
   }
 
   // Accent used on the sidebar itself (focus rings, markers) must read on its background.
-  if (isHex(accent) || isHex(rail)) {
+  if (isHex(accent) || railHex) {
     vars["--rail-accent"] = railDark
       ? shiftUntil(baseAccent, railBg, 7, 1)
       : shiftUntil(baseAccent, railBg, 4.5, -1);
   }
   return vars;
+}
+
+function hasCustomAppearance(a: Appearance): boolean {
+  return !!(a.accent || a.rail || a.railLight || a.railDark);
 }
 
 /** Only the variables the user has changed; everything else keeps the globals.css default. */
@@ -195,14 +220,21 @@ export function buildAppearanceVars(a: Appearance): AppearanceVars {
 
 interface Stored extends Appearance { vars: AppearanceVars }
 
+const EMPTY_APPEARANCE: Appearance = { accent: null, rail: null, railLight: null, railDark: null };
+
 export function loadAppearance(): Appearance {
   try {
     const raw = localStorage.getItem(APPEARANCE_KEY);
-    if (!raw) return { accent: null, rail: null };
+    if (!raw) return EMPTY_APPEARANCE;
     const p = JSON.parse(raw) as Partial<Appearance>;
-    return { accent: isHex(p.accent) ? p.accent : null, rail: isHex(p.rail) ? p.rail : null };
+    return {
+      accent: isHex(p.accent) ? p.accent : null,
+      rail: isHex(p.rail) ? p.rail : null,
+      railLight: isHex(p.railLight) ? p.railLight : null,
+      railDark: isHex(p.railDark) ? p.railDark : null,
+    };
   } catch {
-    return { accent: null, rail: null };
+    return EMPTY_APPEARANCE;
   }
 }
 
@@ -217,14 +249,14 @@ export function applyAppearance(a: Appearance): void {
   const root = document.documentElement;
   // Clear first so switching mode (or resetting one of the two colors) leaves no stale values.
   ALL_VARS.forEach((v) => root.style.removeProperty(v));
-  if (!a.accent && !a.rail) return;
+  if (!hasCustomAppearance(a)) return;
   const vars = buildAppearanceVars(a)[root.classList.contains('dark') ? 'dark' : 'light'];
   Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
 }
 
 export function saveAppearance(a: Appearance): void {
   try {
-    if (!a.accent && !a.rail) {
+    if (!hasCustomAppearance(a)) {
       localStorage.removeItem(APPEARANCE_KEY);
     } else {
       const stored: Stored = { ...a, vars: buildAppearanceVars(a) };
@@ -235,9 +267,5 @@ export function saveAppearance(a: Appearance): void {
   window.dispatchEvent(new Event('aloft:appearance'));
 }
 
-/**
- * Tiny blocking script for <head>: applies the saved variables before first paint so a
- * custom accent doesn't flash the default. Mirrors applyAppearance() using the
- * precomputed variables stored by saveAppearance().
- */
-export const APPEARANCE_BOOT_SCRIPT = `(function(){try{var s=JSON.parse(localStorage.getItem('${APPEARANCE_KEY}')||'null');if(!s||!s.vars)return;var r=document.documentElement,v=s.vars[r.classList.contains('dark')?'dark':'light'];for(var k in v)r.style.setProperty(k,v[k])}catch(e){}})();`;
+/** Re-export for callers that read the boot script; Vite imports `appearance-boot-script.ts` directly. */
+export { APPEARANCE_BOOT_SCRIPT } from './appearance-boot-script';

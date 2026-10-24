@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { APPEARANCE_BOOT_SCRIPT } from '../src/lib/theme/appearance';
+import { APPEARANCE_BOOT_SCRIPT } from '../src/lib/theme/appearance-boot-script';
 import { THEME_COOKIE_NAME } from '../src/lib/theme/cookie';
 
 /**

@@ -5,8 +5,8 @@ export const COMPANION_KEY = 'aloft-companion-v2';
 export const LEGACY_COMPANION_KEY = 'aloft-companion-v1';
 export const COMPANION_EVENT = 'aloft-companion-change';
 export type CompanionPersonality = 'quiet' | 'balanced' | 'expressive';
-export type CompanionCharacter = 'nova' | 'orbit' | 'lumi' | 'captain';
-export const COMPANION_CHARACTERS: readonly CompanionCharacter[] = ['nova', 'orbit', 'lumi', 'captain'];
+export type CompanionCharacter = 'nova' | 'orbit' | 'lumi' | 'captain' | 'mochi';
+export const COMPANION_CHARACTERS: readonly CompanionCharacter[] = ['nova', 'orbit', 'lumi', 'captain', 'mochi'];
 export interface CompanionPreferences { color: string; personality: CompanionPersonality; character: CompanionCharacter }
 // 'accent' follows the app accent colour chosen in the account menu.
 export const DEFAULT_COMPANION: CompanionPreferences = { color: 'accent', personality: 'balanced', character: 'nova' };

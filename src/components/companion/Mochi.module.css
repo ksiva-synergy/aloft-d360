@@ -1,0 +1,62 @@
+.mochi { display: inline-block; flex-shrink: 0; vertical-align: middle; }
+.mochi svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.body { transform-origin: 60px 100px; transition: transform 240ms cubic-bezier(.23,1,.32,1); }
+.shadow { fill: color-mix(in srgb, var(--mochi) 30%, #1a1c33); opacity: .16; transform-origin: 60px 104px; }
+.arm { transition: transform 240ms cubic-bezier(.23,1,.32,1); }
+.armL { transform-origin: 25px 58px; }
+.armR { transform-origin: 95px 58px; }
+.eye { transform-box: fill-box; transform-origin: center; transition: transform 200ms cubic-bezier(.23,1,.32,1); }
+.pupil { transition: transform 240ms cubic-bezier(.23,1,.32,1); }
+.waves, .sparks, .question { stroke: color-mix(in srgb, var(--mochi) 85%, #2b2560); }
+.dots { fill: color-mix(in srgb, var(--mochi) 70%, #2b2560); }
+.dots circle { animation: mochi-dot 1.4s ease-in-out infinite; }
+.dots circle:nth-child(2) { animation-delay: .2s; }
+.dots circle:nth-child(3) { animation-delay: .4s; }
+.sparks, .question { transform-box: fill-box; transform-origin: center; }
+
+/* Poses: hold even when motion is off, so each state stays readable. */
+.mochi[data-captain-state='reading'] .pupil { transform: translate(1.5px, -.5px); }
+.mochi[data-captain-state='reading'] .body { transform: rotate(3deg); }
+.mochi[data-captain-state='thinking'] .pupil { transform: translate(2px, -3px); }
+.mochi[data-captain-state='writing'] .pupil { transform: translate(-1.5px, 2.5px); }
+.mochi[data-captain-state='success'] .armL { transform: rotate(120deg); }
+.mochi[data-captain-state='success'] .armR { transform: rotate(-120deg); }
+.mochi[data-captain-state='clarification'] .body { transform: rotate(-8deg); }
+.mochi[data-captain-state='clarification'] .eyeR { transform: scale(1.15); }
+.mochi[data-captain-state='error'] .eye { transform: scale(1.12); }
+.mochi[data-captain-state='error'] .body { transform: translateY(2px) scale(1.02, .97); }
+
+/* Motion */
+.mochi[data-captain-state='idle'] .eye { animation: idle-blink 12s linear infinite; }
+.mochi[data-captain-state='idle'] .eyeR { animation-name: idle-wink; }
+.mochi[data-captain-state='idle'] .look { animation: idle-glance 12s ease-in-out infinite; }
+.mochi[data-captain-state='idle'] .body { animation: idle-sway 12s ease-in-out infinite; }
+.mochi[data-personality='expressive'][data-captain-state='idle'] .armR { animation: idle-wave 12s ease-in-out infinite; }
+.mochi[data-captain-state='reading'] .waves { animation: waves 1.6s ease-in-out infinite; }
+.mochi[data-captain-state='thinking'] .body { animation: float 2.8s ease-in-out infinite; }
+.mochi[data-captain-state='tools'] .look { animation: look-around 2.4s ease-in-out infinite; }
+.mochi[data-captain-state='tools'] .body { animation: wobble 1.2s ease-in-out infinite; }
+.mochi[data-captain-state='writing'] .body { animation: bob 1.2s ease-in-out infinite; }
+.mochi[data-captain-state='writing'] .eye { animation: blink 4s linear infinite; }
+.mochi[data-personality='expressive'][data-captain-state='success'] .body { animation: bounce 600ms cubic-bezier(.34,1.56,.64,1); }
+.mochi[data-captain-state='success'] .sparks { animation: pop 300ms cubic-bezier(.23,1,.32,1) 150ms both; }
+.mochi[data-captain-state='clarification'] .question { animation: pop 300ms cubic-bezier(.23,1,.32,1) both; }
+
+.mochi[data-personality='quiet'] *, .mochi[data-animate='false'] * { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .mochi * { animation: none !important; transition: none !important; } }
+
+@keyframes blink { 0%,44%,48%,100% { transform: scaleY(1); } 46% { transform: scaleY(.1); } }
+/* Idle loop (12s): glance left, glance up-right with a lean, wink, a small wave, settle. */
+@keyframes idle-blink { 0%,29%,32%,54%,58.5%,79%,82%,100% { transform: scaleY(1); } 30.5%,80.5% { transform: scaleY(.1); } 55.5%,57% { transform: scaleY(.82); } }
+@keyframes idle-wink { 0%,29%,32%,54%,58.5%,79%,82%,100% { transform: scaleY(1); } 30.5%,55.5%,57%,80.5% { transform: scaleY(.1); } }
+@keyframes idle-glance { 0%,12%,48%,100% { transform: translate(0, 0); } 16%,26% { transform: translate(-2.2px, .4px); } 32%,44% { transform: translate(2.2px, -1.2px); } }
+@keyframes idle-sway { 0%,12%,62%,100% { transform: none; } 16%,26% { transform: rotate(-2deg); } 32%,44% { transform: rotate(2.5deg); } 54%,58% { transform: rotate(-1.5deg); } }
+@keyframes idle-wave { 0%,62%,82%,100% { transform: none; } 66%,74% { transform: rotate(-115deg); } 70%,78% { transform: rotate(-140deg); } }
+@keyframes look-around { 0%,100% { transform: translate(0, 0); } 25% { transform: translate(-2.4px, -.6px); } 60% { transform: translate(2.4px, -.6px); } }
+@keyframes float { 50% { transform: translateY(-3px) rotate(2deg); } }
+@keyframes wobble { 0%,100% { transform: scale(1, 1); } 30% { transform: scale(1.03, .97); } 65% { transform: scale(.98, 1.02); } }
+@keyframes bob { 50% { transform: translateY(-1.5px) rotate(-1.5deg); } }
+@keyframes bounce { 30% { transform: translateY(-7px) scale(.97, 1.04); } 60% { transform: translateY(0) scale(1.05, .95); } 100% { transform: none; } }
+@keyframes waves { 0%,100% { opacity: .2; } 50% { opacity: .9; } }
+@keyframes pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes mochi-dot { 0%,100% { opacity: .25; } 50% { opacity: 1; } }

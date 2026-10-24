@@ -79,7 +79,7 @@ function PickerRow({
 
 /** Accent + sidebar color pickers; changes apply live and are remembered in this browser. */
 export function AppearanceControls() {
-  const [state, setState] = useState<Appearance>({ accent: null, rail: null });
+  const [state, setState] = useState<Appearance>({ accent: null, rail: null, railLight: null, railDark: null });
 
   const [dark, setDark] = useState(false);
   const companion = useCompanionPreferences();
@@ -102,7 +102,9 @@ export function AppearanceControls() {
     // Picking an app accent brings the companion back in step with it.
     if ('accent' in patch && companion.color !== 'accent') saveCompanionPreferences({ ...companion, color: 'accent' });
   };
-  const customised = !!(state.accent || state.rail);
+  const customised = !!(state.accent || state.rail || state.railLight || state.railDark);
+  const sidebarValue =
+    (dark ? state.railDark : state.railLight ?? state.rail) ?? defaults.rail;
 
   return (
     <div className="space-y-3">
@@ -111,7 +113,7 @@ export function AppearanceControls() {
         {customised && (
           <button
             type="button"
-            onClick={() => update({ accent: null, rail: null })}
+            onClick={() => update({ accent: null, rail: null, railLight: null, railDark: null })}
             className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
           >
             <RotateCcw className="h-3 w-3" />
@@ -127,9 +129,11 @@ export function AppearanceControls() {
       />
       <PickerRow
         title="Sidebar"
-        value={state.rail ?? defaults.rail}
+        value={sidebarValue}
         presets={RAIL_PRESETS}
-        onChange={(hex) => update({ rail: hex })}
+        onChange={(hex) =>
+          update(dark ? { railDark: hex, rail: null } : { railLight: hex, rail: null })
+        }
       />
     </div>
   );

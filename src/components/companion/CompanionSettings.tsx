@@ -12,6 +12,7 @@ const CHARACTERS: { value: CompanionCharacter; label: string; detail: string }[]
   { value: 'orbit', label: 'Orbit', detail: 'The tilted wobble. Playful and attentive, with a lively personality.' },
   { value: 'lumi', label: 'Lumi', detail: 'The gentle wobble. Calm, warm and quietly reassuring.' },
   { value: 'captain', label: 'Captain', detail: 'A glossy sphere with a glowing visor. Simple, friendly, intelligent.' },
+  { value: 'mochi', label: 'Mochi', detail: 'A soft white friend with tiny arms. Pure, playful and welcoming.' },
 ];
 
 const PERSONALITIES: { value: CompanionPersonality; label: string; detail: string }[] = [
@@ -45,7 +46,7 @@ export function CompanionSettings() {
       </div>
     </div>
     <fieldset className="mb-5"><legend className="text-xs font-semibold text-[var(--ink-2)]">Character</legend>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {CHARACTERS.map(item => <label key={item.value} className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-[var(--line-1)] p-3 text-center text-sm text-[var(--ink-1)] has-[:checked]:border-[var(--brand-a)] has-[:checked]:bg-[var(--brand-a-soft)]">
           <Companion size={56} active={false} preferences={{ ...preferences, character: item.value }} />
           <span className="flex items-center gap-2 font-semibold">
