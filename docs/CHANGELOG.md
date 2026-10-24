@@ -2,6 +2,53 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-24 — CI: single-platform ECR images (arm64 web / amd64 harvester)
+
+- **What:** `.github/workflows/ecr-push.yml` builds **one** platform per image (not multi-arch): web defaults to **`linux/arm64`** for **t4g** Beanstalk; harvester defaults to **`linux/amd64`** for x86 Fargate. Optional repo vars `DOCKER_PLATFORM_WEB` / `DOCKER_PLATFORM_HARVESTER` to switch without code changes. Web job uses Buildx for cross-build on GHA.
+- **Docs:** `docs/deploy-beanstalk.md` — t4g vs t3 platform mapping.
+- **Verified:** Workflow YAML only (not run on GHA from this session).
+- **Not done:** Redeploy EB after the next successful `main` build.
+
+## 2026-10-23 — New companion: Mochi (white login-style character)
+
+- **What:** Added a fifth companion character, Mochi, based on the "Login Character – White" sheet: a soft white sphere with big glossy black eyes, a small smile, stubby arms and feet. New `src/components/companion/Mochi.tsx` + `Mochi.module.css`; registered in `src/lib/companion/preferences.ts` (`'mochi'` in `CompanionCharacter` / `COMPANION_CHARACTERS`), `src/components/companion/Companion.tsx`, and the picker in `src/components/companion/CompanionSettings.tsx` (grid now `sm:grid-cols-3 lg:grid-cols-5`).
+- **Expressions mapped to companion states:** idle = blink, glance left/right, wink (expressive also waves); reading = Listening (sound arcs, leans in); thinking = eyes up, flat mouth, dots; tools = Curious (looks around); writing = Typing (looks down at input); success = Delighted (^ ^ eyes, open smile, arms up, sparks); clarification = Confused (tilt, bigger right eye, "?"); error = Surprised (wide eyes, "o" mouth); stopped = eyes closed. The body stays white; the chosen colour tints the rim shading, shadow and effects (sparks, "?", arcs, dots). Quiet personality, off-screen and reduced motion stop animation like the other characters.
+- **Verified:** `npx tsc -p web/tsconfig.json --noEmit` and root `npx tsc --noEmit` both exit 0.
+- **Not done:** visual check in the browser. The running Vite server on `:3000` returns 504 for every module after the restart loop at 9:50 ("Port 3000 is already in use"), so it needs a restart. Login page still shows the canvas Captain (`src/components/login/AgentScene.tsx`) regardless of the chosen companion.
+
+## 2026-10-23 — Dark sidebar nav surface `#16171A`
+
+- **Change:** Data 360 Night command/rail sidebar uses `--rail-bg: #16171A` and `--rail-bg-top: #1B1C1F` in `globals.css`; `MODE_DEFAULTS.dark.rail` in `appearance.ts` matches (same as the Graphite preset).
+- **Verified:** Not run in browser.
+- **Not done:** Main canvas stays `--main-bg: #121314`; only the sidebar rail uses `#16171A`.
+
+## 2026-10-23 — Dev: next-auth CLIENT_FETCH_ERROR during Vite restart
+
+- **Cause:** `[next-auth][error] CLIENT_FETCH_ERROR` / `Failed to fetch` on `/api/auth/session` when the Vite dev server fully restarts (e.g. after editing `appearance.ts` while it was imported from `vite.config.ts`). The `/api` proxy is down for a few seconds; the next lines in the log usually show `GET /api/auth/session 200` again.
+- **Fix:** Moved `APPEARANCE_BOOT_SCRIPT` to `src/lib/theme/appearance-boot-script.ts` so routine `appearance.ts` edits only HMR, not a full Vite restart.
+- **If it keeps failing:** Use `npm run dev:all`, open **http://localhost:3000**, wait until `[api] ✓ Ready`, then refresh once.
+
+## 2026-10-23 — Dark shell: sidebar, header, and page share one surface stack
+
+- **Problem:** In Data 360 Night, the command sidebar used navy (`#0B1426`) while the header and dashboard used neutral graphite (`#121314` / `#151617`), so dark mode looked like three different themes.
+- **Fix:** Theme v2 in `src/app/globals.css` sets `--rail-bg` / `--rail-bg-top` from `--shell-bg` / `--main-bg` in light and dark; header uses `--main-bg` and `--line-1` (removed the semi-transparent header override). `MODE_DEFAULTS` rail hexes in `appearance.ts` match the shell defaults. Midnight remains available under Colors → Sidebar for users who want a navy rail.
+- **Verified:** Not run in browser.
+- **Not done:** Custom `railDark: #0B1426` in localStorage still forces navy by design.
+
+## 2026-10-23 — Dark mode uses the dark sidebar (not light Sage)
+
+- **Problem:** Choosing Dark while a light sidebar color was saved (legacy single `rail` in `localStorage`, often Sage `#E3E9DE`) kept applying light `--rail-*` inline styles on `<html>`, so the command sidebar stayed beige while the main canvas was Data 360 Night.
+- **Fix:** `resolveRailHex()` in `src/lib/theme/appearance.ts` applies legacy light rails in light mode only and legacy dark rails in dark mode only; new `railLight` / `railDark` fields for explicit per-mode picks. Boot script strips stale rail vars when they do not apply. `AppearanceControls` saves sidebar color for the active theme. `AppearanceSync` re-applies on `resolvedTheme` change.
+- **Verified:** `src/lib/theme/__tests__/appearance.test.ts`.
+- **Not done:** Hard refresh may still show one frame of stale boot vars until React mounts; use Colors → Reset if an old pick persists.
+
+## 2026-10-23 — Shell header row aligned across sidebar, main header, and estate nav
+
+- **Problem:** The main `StagingHeader` was 64px tall with a bottom border, but the command sidebar workspace row was shorter and had no matching rule, so the top bar looked misaligned—especially when switching light and dark (different header vs page background on `EstateNav`).
+- **Fix:** Added `--shell-header-h: 4rem` in `src/app/globals.css`. `StagingHeader`, `CommandSidebar`, and rail `StagingSidebar` (rail mark + slide-out panel title) use that height and `border-[var(--header-border)]`. `EstateNav` now uses `--header-bg` / `--header-border` and a theme-token active tab background instead of `bg-black/[0.04]` + `dark:` mix. Login top bar uses the same height (fallback `4rem` on the login-only palette).
+- **Verified:** Not run in a signed-in browser (session required).
+- **Not done:** Signed-in browser pass in both themes.
+
 ## 2026-10-22 — Merge `synergy-marine/main` into `feature/ui-redesign` (PR #25)
 
 - Merged upstream `main` (`a8776e4` estate-jobs / Titan bulk embeds, SSO-only auth, `typecheck` script) into the ui-redesign branch to clear GitHub merge conflicts.

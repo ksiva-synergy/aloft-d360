@@ -262,7 +262,7 @@ eb init -p docker aloft-d360-web --region ap-south-1
 # Cloud dev (HTTPS + SSO): load-balanced, 1 instance
 eb create Aloft-d360-web-env `
   --elb-type application `
-  --instance-types t3.medium `
+  --instance-types t4g.medium `
   --scale 1 `
   --envvars NODE_ENV=production,HARVEST_RUNTIME=ecs
 
@@ -275,7 +275,7 @@ eb create Aloft-d360-web-env `
 1. Elastic Beanstalk → **Create environment** → **Web server environment**
 2. Platform: **Docker running on 64bit Amazon Linux 2023**
 3. Upload zip of `infra/beanstalk` (after fixing `Dockerrun.aws.json`)
-4. Instance: **t3.medium**; load balanced for HTTPS
+4. Instance: **t4g.medium** (Graviton); load balanced for HTTPS. CI web image must match the instance: **`linux/arm64`** for t4g (default in [`.github/workflows/ecr-push.yml`](../.github/workflows/ecr-push.yml)), **`linux/amd64`** for t3 (set repo variable `DOCKER_PLATFORM_WEB=linux/amd64`). One platform per environment — no need to build both.
 
 ---
 
