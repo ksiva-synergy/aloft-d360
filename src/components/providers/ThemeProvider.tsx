@@ -7,15 +7,23 @@ import { THEME_COOKIE_NAME, themeCookieValue } from '@/lib/theme/cookie';
 
 /** Re-applies the saved accent whenever the light/dark class flips, or another tab changes it. */
 function AppearanceSync() {
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    applyAppearance(loadAppearance());
+  }, [resolvedTheme]);
+
   useEffect(() => {
     const apply = () => applyAppearance(loadAppearance());
     apply();
     const observer = new MutationObserver(apply);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     window.addEventListener('storage', apply);
+    window.addEventListener('aloft:appearance', apply);
     return () => {
       observer.disconnect();
       window.removeEventListener('storage', apply);
+      window.removeEventListener('aloft:appearance', apply);
     };
   }, []);
   return null;

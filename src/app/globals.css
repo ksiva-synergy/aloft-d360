@@ -121,6 +121,7 @@
   --text-tertiary: #4F5F76;
 
   /* Shell surfaces */
+  --shell-header-h: 4rem;
   --shell-bg: #F4F5FA;
   --main-bg: #F4F5FA;
   --header-bg: #FFFFFF;
@@ -1621,8 +1622,8 @@ body {
 .light {
   /* Accent (light default: Sage Studio terracotta) */
   --brand-a:#A8481F; --brand-a-2:#C2653A; --brand-a-soft:#F8E6DC; --brand-a-ink:#843817;
-  /* Sidebar: light sage in light mode */
-  --rail-bg:#E3E9DE; --rail-bg-top:#EBF0E6; --rail-accent:#843817;
+  /* Sidebar: same surface stack as the main shell (light) */
+  --rail-bg:var(--shell-bg); --rail-bg-top:var(--main-bg); --rail-accent:#843817;
   --rail-ink:#34413A; --rail-ink-strong:#1A231C; --rail-muted:#5A6A5E; --rail-line:rgba(26,35,28,.12);
   --rail-hover:rgba(26,35,28,.06); --rail-active:rgba(255,255,255,.8); --rail-shadow:rgba(26,35,28,.35); --rail-glow:0;
 
@@ -1637,7 +1638,7 @@ body {
   --background:#F4F6F1; --foreground:#1A231C;
   --card:#FFFFFF; --card-foreground:#1A231C; --popover:#FFFFFF; --popover-foreground:#1A231C;
   --muted:#EEF1EA; --muted-foreground:#4F5C52; --border:#C9D1BF; --input:#FFFFFF;
-  --shell-bg:#ECEFE6; --main-bg:#F4F6F1; --header-bg:#FFFFFF; --header-border:#E1E6DA;
+  --shell-bg:#ECEFE6; --main-bg:#F4F6F1; --header-bg:var(--main-bg); --header-border:var(--line-1);
   --nav-bg:#F4F6F1; --nav-hover:#E7ECE1; --nav-border:#D6DCCB; --nav-text:#1A231C;
   --nav-item-text:#3A463C; --nav-section-label:#6B776D;
 
@@ -1650,9 +1651,12 @@ body {
 
 .dark {
   --brand-a:#1F5FD6; --brand-a-2:#447CE4; --brand-a-soft:rgba(31,95,214,.20); --brand-a-ink:#8AB4FF;
-  --rail-bg:#0B1426; --rail-bg-top:#111E3A; --rail-accent:#7CA3EC;
-  --rail-ink:#C3CDE0; --rail-ink-strong:#FFFFFF; --rail-muted:#8D9AB4; --rail-line:rgba(255,255,255,.10);
-  --rail-hover:rgba(255,255,255,.06); --rail-active:rgba(255,255,255,.12); --rail-shadow:rgba(8,12,24,.85); --rail-glow:1;
+  /* Sidebar (dark): graphite nav surface */
+  --rail-bg:#16171A; --rail-bg-top:#1B1C1F; --rail-accent:#7CA3EC;
+  --rail-ink:#C3CDE0; --rail-ink-strong:#FFFFFF; --rail-muted:#8D9AB4; --rail-line:var(--line-1);
+  --rail-hover:color-mix(in srgb, var(--ink-1) 6%, transparent);
+  --rail-active:color-mix(in srgb, var(--ink-1) 12%, transparent);
+  --rail-shadow:rgba(0,0,0,.45); --rail-glow:0;
 
   /* Data 360 Night neutrals */
   --surface-1:#1A1B1D; --surface-2:#212225; --surface-3:#28292D;
@@ -1665,7 +1669,7 @@ body {
   --card:#1A1B1D; --card-elevated:#212225; --card-foreground:#E4E6E8; --popover:#1A1B1D; --popover-foreground:#E4E6E8;
   --muted:#212225; --muted-foreground:#B9BCC1; --border:#3A3C40; --border-subtle:#2B2D30; --input:#212225;
   --text-primary:#E4E6E8; --text-secondary:#B9BCC1; --text-tertiary:#8B8F96;
-  --shell-bg:#0C0D0E; --main-bg:#121314; --header-bg:#151617; --header-border:#2B2D30;
+  --shell-bg:#0C0D0E; --main-bg:#121314; --header-bg:var(--main-bg); --header-border:var(--line-1);
   --nav-bg:#0C0D0E; --nav-hover:#17181A; --nav-border:#1F2022; --nav-text:#E4E6E8;
   --nav-item-text:#A9ADB4; --nav-section-label:#7F848B;
   --table-header-dark:#212225; --table-row-hover-dark:#25262A;
@@ -1716,11 +1720,9 @@ body {
 .light {
   --text-primary:var(--ink-1); --text-secondary:var(--ink-2); --text-tertiary:var(--ink-3);
   --border-default:var(--line-2); --border-subtle:var(--line-1);
-  --header-bg:color-mix(in srgb, var(--main-bg) 82%, transparent); --header-border:var(--line-1);
 }
 .dark {
   --border-default:var(--line-2);
-  --header-bg:color-mix(in srgb, var(--main-bg) 82%, transparent); --header-border:var(--line-1);
 }
 /* One consistent, accent-colored focus ring and selection across the app */
 :focus-visible { outline-color: var(--brand-a); }

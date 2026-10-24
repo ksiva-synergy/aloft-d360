@@ -84,21 +84,23 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
       >
         {/* ── Rail: a full-height vertical pill ─────────────── */}
         <nav
-          className="relative flex shrink-0 flex-col items-center rounded-none px-1.5 py-2.5"
+          className="relative flex shrink-0 flex-col items-center rounded-none px-1.5 pb-2.5"
           style={{
             width: RAIL_W,
             background: 'linear-gradient(180deg, var(--rail-bg-top) 0%, var(--rail-bg) 60%)',
           }}
         >
           <AuroraGlow />
-          <Link
-            href="/dashboard"
-            aria-label="Synergy Group — Data 360 home"
-            className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
-          >
-            <BrandMark size={44} className="!rounded-full" />
-          </Link>
-          <span aria-hidden className="relative my-2.5 h-px w-6 rounded-full bg-[var(--rail-line)]" />
+          <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
+            <Link
+              href="/dashboard"
+              aria-label="Synergy Group — Data 360 home"
+              className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
+            >
+              <BrandMark size={40} className="!rounded-full" />
+            </Link>
+          </div>
+          <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
 
           <div className="relative flex flex-col items-center gap-1">
             <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
@@ -134,15 +136,12 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           aria-hidden={!expanded}
         >
           <div className="flex h-full flex-col p-2.5" style={{ width: PANEL_W }}>
-            <div className="mb-2.5 flex items-start gap-2 px-2 pt-1.5">
+            <div className="-mx-2.5 mb-2.5 flex h-[var(--shell-header-h)] shrink-0 items-center gap-2 border-b border-[var(--header-border)] px-2.5">
               <div className="min-w-0 flex-1">
-                <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">Agent Lab</p>
-                <h2 className="mt-0.5 truncate text-base font-semibold tracking-[-0.015em] text-[var(--ink-1)]">
+                <p className="text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--ink-3)]">Agent Lab</p>
+                <h2 className="mt-1 truncate text-sm font-semibold tracking-[-0.015em] text-[var(--ink-1)]">
                   {isHome ? 'Home' : area.label}
                 </h2>
-                <p className="truncate text-xs text-[var(--ink-3)]">
-                  {isHome ? 'Your workspace overview' : area.description}
-                </p>
               </div>
               <button
                 onClick={() => (mobileOpen ? shell.setMobileOpen(false) : shell.togglePin())}
@@ -159,6 +158,9 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                 {mobileOpen ? <XIcon size={16} /> : pinned ? <PushPinSlashIcon size={16} weight="fill" /> : <PushPinIcon size={16} />}
               </button>
             </div>
+            <p className="mb-2 truncate px-2 text-xs text-[var(--ink-3)]">
+              {isHome ? 'Your workspace overview' : area.description}
+            </p>
 
             {!isHome && (
               <label className="mb-2 flex h-9 items-center gap-2 rounded-full border border-[var(--line-1)] bg-[var(--surface-2)] px-3 text-[var(--ink-3)] transition-colors focus-within:border-[var(--brand-a)] focus-within:bg-[var(--surface-1)] focus-within:ring-4 focus-within:ring-[var(--brand-a-soft)]">

@@ -110,9 +110,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
       >
         <AuroraGlow />
 
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3 pt-3">
-          {/* ── Workspace header ───────────────────────────── */}
-          <div className="flex h-10 items-center gap-3">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3">
+          {/* ── Workspace header (height matches StagingHeader in light and dark) ─ */}
+          <div className="-mx-3 flex h-[var(--shell-header-h)] shrink-0 items-center gap-3 border-b border-[var(--header-border)] px-3">
             <Link
               href="/dashboard"
               aria-label="Synergy Group — Data 360 home"

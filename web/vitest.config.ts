@@ -20,7 +20,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: [path.resolve(repoRoot, 'vitest.setup.ts')],
-    include: ['web/src/**/*.{test,spec}.{ts,tsx}'],
+    include: [
+      'web/src/**/*.{test,spec}.{ts,tsx}',
+      'src/lib/theme/**/*.{test,spec}.{ts,tsx}',
+    ],
     testTimeout: 60_000,
   },
   resolve: {

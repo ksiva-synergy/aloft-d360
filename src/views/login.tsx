@@ -148,7 +148,7 @@ export default function LoginPage() {
       <span aria-hidden className="pointer-events-none absolute left-1/2 top-[38%] h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--bloom)] blur-[120px]" />
 
       {/* Top bar */}
-      <header className="relative flex items-center gap-3 px-6 py-5 sm:px-10">
+      <header className="relative flex h-[var(--shell-header-h,4rem)] items-center gap-3 px-6 sm:px-10">
         <BrandMark size={32} />
         <span className="text-sm font-semibold tracking-tight text-[rgb(var(--ink)/0.9)]">Synergy Group</span>
         <span className="text-sm text-[rgb(var(--ink)/0.45)]">Data 360</span>
