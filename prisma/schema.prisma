@@ -2293,10 +2293,10 @@ model PlatformTeachCandidate {
 }
 
 model PlatformMemoryInjection {
-  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-  orgId        String    @map("org_id")
-  runId        String    @map("run_id")
-  bulletId     String    @map("bullet_id")
+  id                String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  orgId             String    @map("org_id")
+  runId             String    @map("run_id")
+  bulletId          String    @map("bullet_id")
   phase             String
   attributedAt      DateTime? @map("attributed_at") @db.Timestamptz(6)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -2325,20 +2325,20 @@ model PlatformMemoryContribution {
 }
 
 model PlatformUserReputation {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orgId       String    @map("org_id")
-  userId      String    @map("user_id")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id")
+  userId      String   @map("user_id")
   domain      String
-  role        String    @default("member")
-  pos         Float     @default(0)
-  neg         Float     @default(0)
-  lastDecayAt DateTime  @default(now()) @map("last_decay_at") @db.Timestamptz
-  capDay      DateTime  @default(now()) @map("cap_day") @db.Date
-  capPosToday Float     @default(0) @map("cap_pos_today")
-  seasonId    String    @default("S1") @map("season_id")
-  seasonXp    Float     @default(0) @map("season_xp")
-  lastRank    Int?      @map("last_rank")
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  role        String   @default("member")
+  pos         Float    @default(0)
+  neg         Float    @default(0)
+  lastDecayAt DateTime @default(now()) @map("last_decay_at") @db.Timestamptz
+  capDay      DateTime @default(now()) @map("cap_day") @db.Date
+  capPosToday Float    @default(0) @map("cap_pos_today")
+  seasonId    String   @default("S1") @map("season_id")
+  seasonXp    Float    @default(0) @map("season_xp")
+  lastRank    Int?     @map("last_rank")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
   @@unique([orgId, userId, domain], name: "uq_reputation_user_domain")
   @@index([orgId, domain, seasonXp(sort: Desc)])
@@ -2435,8 +2435,8 @@ model platform_sem_dimensions {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
-  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
-  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
+  created_by            String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String? // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([entity_id, column_name], map: "ux_psd_entity_col")
@@ -2455,7 +2455,7 @@ model platform_sem_entities {
   created_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   status                                                                      String                    @default("candidate")
-  created_by                                                                  String?                   // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  created_by                                                                  String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
   platform_sem_dimensions                                                     platform_sem_dimensions[]
   platform_semantic_models                                                    platform_semantic_models  @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities platform_sem_joins[]      @relation("platform_sem_joins_from_entity_idToplatform_sem_entities")
@@ -2502,8 +2502,8 @@ model platform_sem_measures {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
-  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
-  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
+  created_by            String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String? // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([org_id], map: "idx_psmeas_org")
@@ -2630,16 +2630,16 @@ model platform_dashboard_collaborators {
 //     recomputed on hydrate. guided_session reserves the guided flow's non-widget
 //     state (intent+blueprint+cursor) so enabling it needs no later migration.
 model platform_dashboard_drafts {
-  id             String   @id
-  dashboard_id   String
-  user_id        String
-  org_id         String
+  id              String   @id
+  dashboard_id    String
+  user_id         String
+  org_id          String
   base_version_id String?
-  widgets        Json     @default("[]")
-  layouts        Json     @default("{}")
-  guided_session Json?
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  widgets         Json     @default("[]")
+  layouts         Json     @default("{}")
+  guided_session  Json?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@unique([dashboard_id, user_id], map: "uq_pdd_dashboard_user")
   @@index([dashboard_id], map: "idx_pdd_dashboard")
@@ -2666,15 +2666,15 @@ model platform_charts {
   // ── Phase 3.5C: raw-SQL escape-hatch charts ────────────────────────────────
   // Discriminates a governed semantic chart from an ungoverned raw-SQL chart.
   // Defaults to 'semantic' so existing rows need no backfill.
-  chart_source      String    @default("semantic") // 'semantic' | 'raw_sql'
+  chart_source  String  @default("semantic") // 'semantic' | 'raw_sql'
   // The frozen SQL string (raw_sql charts only). enforceReadOnly-guarded at save.
-  raw_sql           String?
+  raw_sql       String?
   // Frozen result columns [{ name, type }] the chart_dsl binds to (raw_sql only).
-  result_schema     Json?
+  result_schema Json?
   // The natural-language question this chart answers (prefilled from the prompt).
-  nl_intent         String?
+  nl_intent     String?
   // Which warehouse this raw SQL runs against (raw_sql charts carry their own).
-  connection_id     String?
+  connection_id String?
 }
 
 // ── Maxwell watchdog models (MX0) ─────────────────────────────────────────────
@@ -3093,4 +3093,79 @@ model agent_loop_log {
 
   @@index([session_id, turn_id, loop], map: "idx_agent_loop_log_session")
   @@map("agent_loop_log")
+}
+
+// ─── Flows (describe-an-automation) — see docs/flows-design.md ───────────────
+
+model PlatformFlow {
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  name               String
+  slug               String
+  owner              String
+  status             String                @default("draft")
+  current_version_id String?               @db.Uuid
+  created_at         DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  versions           PlatformFlowVersion[]
+  runs               PlatformFlowRun[]
+
+  @@unique([org_id, slug], map: "uq_platform_flow_org_slug")
+  @@index([org_id, status], map: "idx_platform_flow_org_status")
+  @@map("platform_flows")
+}
+
+model PlatformFlowVersion {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flow_id    String            @db.Uuid
+  version    Int
+  definition Json
+  created_by String
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  flow       PlatformFlow      @relation(fields: [flow_id], references: [id], onDelete: Cascade)
+  runs       PlatformFlowRun[]
+
+  @@unique([flow_id, version], map: "uq_platform_flow_version")
+  @@map("platform_flow_versions")
+}
+
+model PlatformFlowRun {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  flow_id      String                @db.Uuid
+  version_id   String                @db.Uuid
+  trigger      String
+  status       String                @default("queued")
+  inputs       Json                  @default("{}")
+  error        String?
+  triggered_by String?
+  total_tokens Int                   @default(0)
+  cost_usd     Decimal               @default(0) @db.Decimal(10, 6)
+  started_at   DateTime?             @db.Timestamptz(6)
+  finished_at  DateTime?             @db.Timestamptz(6)
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  flow         PlatformFlow          @relation(fields: [flow_id], references: [id], onDelete: Cascade)
+  version      PlatformFlowVersion   @relation(fields: [version_id], references: [id])
+  steps        PlatformFlowStepRun[]
+
+  @@index([org_id, status], map: "idx_platform_flow_run_org_status")
+  @@index([flow_id, created_at(sort: Desc)], map: "idx_platform_flow_run_flow_created")
+  @@map("platform_flow_runs")
+}
+
+model PlatformFlowStepRun {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_id      String          @db.Uuid
+  step_id     String
+  status      String          @default("pending")
+  attempt     Int             @default(0)
+  output      Json?
+  error       String?
+  llm_call_id String?
+  started_at  DateTime?       @db.Timestamptz(6)
+  finished_at DateTime?       @db.Timestamptz(6)
+  run         PlatformFlowRun @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  @@unique([run_id, step_id], map: "uq_platform_flow_step_run")
+  @@map("platform_flow_step_runs")
 }

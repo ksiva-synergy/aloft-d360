@@ -2,6 +2,25 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-25 — Flows Phase 1 foundation: schema, validator, runner core, tables (not wired to any route or UI)
+
+Design: `docs/flows-design.md`. Decision: stay on the current Next.js routes; Hono is out of scope for now.
+
+- **`src/lib/flows/schema.ts`:** zod flow definition. Triggers `manual` / `schedule` (cron) / `event`; typed inputs; steps `query`, `retrieve`, `agent`, `transform` (filter/limit/count), `approval`, `output` (`save` only). No step evaluates code.
+- **`src/lib/flows/validate.ts`:** `validateFlow` (never throws): duplicate ids, unknown step/input refs, ref scopes other than `steps.`/`inputs.`, self-refs, invalid cron, dependency cycles; returns execution order (refs and `dependsOn` both count).
+- **`src/lib/flows/resolve.ts`:** `{{steps.x.y}}` / `{{inputs.z}}` resolution (whole-string refs keep their type), `applyInputs` (defaults, required, type check).
+- **`src/lib/flows/runner.ts`:** `executeRun` against a `RunStore` and per-type `StepExecutors`, so it is independent of Next and can move to a worker. Saves state after every step, resumes by skipping succeeded steps, per-step retries with backoff and timeout, pauses at approval, honours cancellation, fails the run and skips the rest on error.
+- **`prisma/schema.prisma` + `prisma/migrations/20261025_flows/migration.sql`:** new `PlatformFlow`, `PlatformFlowVersion`, `PlatformFlowRun`, `PlatformFlowStepRun` (`org_id` scoped, new tables only). `prisma format` also re-aligned whitespace on ~36 existing lines (no content change).
+- **Verified:** `npx vitest run src/lib/flows` 18 passed (found and fixed three bugs: missing input defaults, wrong attempt counts, timeout message hidden by the abort error); `npx tsc --noEmit` clean; `prisma validate` passes.
+- **Not done:** The migration is **not applied** to any database (apply per the file header) and `prisma generate` was not re-run. No step executors (query/agent/output are not connected to Databricks, Bedrock or storage), no `RunStore` backed by Prisma, no API routes, no approval endpoint, no UI, no builder, no scheduling. The full root test suite was not re-run. No commit was made.
+
+## 2026-10-25 — Design proposal: Flows (describe an automation, ALOFT builds and runs it)
+
+- **What:** Added `docs/flows-design.md`, a design for a Quick Flows-style feature: flow schema with typed steps, new `PlatformFlow*` tables, a durable step runner, a chat builder reusing Workbench, governance, and four phases.
+- **Why:** Requested after comparing with Amazon Quick Suite; the design is based on a read of the Workbench, agent loop, scheduling code and Prisma schema.
+- **Verified:** Documentation only; claims about existing code were checked against the files named in the doc. Nothing was run.
+- **Not done:** No code, schema or migration. Open decisions (runner location, first outbound action, navigation, old pipeline tables) are listed in the doc with proposed defaults.
+
 ## 2026-10-24 — CI: single-platform ECR images (arm64 web / amd64 harvester)
 
 - **What:** `.github/workflows/ecr-push.yml` builds **one** platform per image (not multi-arch): web defaults to **`linux/arm64`** for **t4g** Beanstalk; harvester defaults to **`linux/amd64`** for x86 Fargate. Optional repo vars `DOCKER_PLATFORM_WEB` / `DOCKER_PLATFORM_HARVESTER` to switch without code changes. Web job uses Buildx for cross-build on GHA.
