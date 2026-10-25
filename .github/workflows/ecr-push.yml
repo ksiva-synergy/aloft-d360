@@ -7,6 +7,8 @@
 #   EB_APPLICATION_NAME  default aloft-d360-web
 #   EB_ENVIRONMENT_NAME  default Aloft-d360-web-env
 #   ENABLE_EB_DEPLOY     set to "false" to skip EB deploy (default: deploy on main after ECR push)
+#   DOCKER_PLATFORM_WEB  default linux/arm64 (t4g Beanstalk). Use linux/amd64 if EB is t3.
+#   DOCKER_PLATFORM_HARVESTER  default linux/amd64 (x86 Fargate). Use linux/arm64 if ECS is Graviton.
 #
 # IAM role needs:
 #   ECR push (harvester + web repos)
@@ -65,6 +67,7 @@ jobs:
           context: .
           file: Dockerfile.harvester
           push: true
+          platforms: ${{ vars.DOCKER_PLATFORM_HARVESTER || 'linux/amd64' }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_HARVESTER }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_HARVESTER }}:${{ github.sha }}
@@ -92,12 +95,16 @@ jobs:
         id: meta
         run: echo "image_uri=${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile
           push: true
+          platforms: ${{ vars.DOCKER_PLATFORM_WEB || 'linux/arm64' }}
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ github.sha }}

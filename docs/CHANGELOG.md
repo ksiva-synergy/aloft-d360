@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-25 — CI: arm64 web image for Beanstalk
+
+- **What:** `.github/workflows/ecr-push.yml` builds the web image as `linux/arm64` (Buildx; override with `DOCKER_PLATFORM_WEB`). Harvester stays amd64 on the runner.
+- **Why:** t4g Beanstalk needs arm64; the estate line had no `platforms` set on the web job.
+- **Verified:** Workflow YAML only.
+- **Not done:** Not pushed until `main` is updated on Synergy-Marine.
+
 ## 2026-10-21 — Estate Jobs UX and launch scope fixes
 
 - **`docs/estate-jobs.md`**: Jobs section mental model (L1/L2/L3, parent/child, APIs, playbook).
