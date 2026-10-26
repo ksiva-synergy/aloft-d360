@@ -72,7 +72,7 @@ New tables, all scoped by `org_id` (Prisma, `PlatformFlow*` naming like the rest
 
 ## 7. Governance
 
-- Flows run as their owner, subject to RBAC and `data_level`; a step cannot reach data the owner cannot.
+- Flows run under their owner's identity with permissions re-checked at run time. **Caveat (found by reading the code):** ALOFT has no per-dataset permissions, `data_level` is not enforced for data access, and queries use one shared Databricks credential, so "cannot reach data the owner cannot" holds only for what ALOFT itself enforces (governed semantic definitions, read-only SQL, route login). See `flows-architecture.md` §12.
 - Every activate, edit, run and approval is written to `AuditLog`.
 - `output` steps that send data outside the platform require an `approval` step before them unless an admin allows otherwise (policy via `policy_entry`).
 - Tool credentials stay server-side; the LLM sees tool names and schemas only.

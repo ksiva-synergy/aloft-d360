@@ -2,6 +2,22 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-26 — Data access control, safety and policy plan
+
+- **What:** Added `docs/data-access-control-design.md`: inventory of 16 data paths with current protection and gaps, Phase 0 holes, target model (platform vs data roles, sensitivity labels, grants, one `authorize()` decision point, per-path enforcement, admin screens), Databricks service principals per tier, label propagation to derived data, AI-specific safety, audit and incident response, retention, written policies, phased build plan, tests, observe-then-enforce rollout, decisions. Items tagged mandatory / should / good to have.
+- **Why:** Requested deep dive on what the application needs for safety and policy; builds on the 24 October audit.
+- **Findings (verified by reading code today):** audit P0s S1 (new users default to `admin`), S2 (workbench sessions without owner check), S3 (policy writes without role check), S4 (any user can add a Databricks connection) and S7 are still open. New: `/api/inspector/export` accepts SQL from the browser (up to 100,000 rows); `org`-visible dashboards run widget queries for every org user with the shared credential; memory rules are org-wide by default; estate column profiles keep `top_k`/`min`/`max` until an LLM flags PII, and keep `min`/`max` after; the code can route prompts to xAI and Azure OpenAI; `traceLlmCall` is not called anywhere.
+- **Verified:** Documentation only. No tests run; deployment flags and Unity Catalog setup unverified.
+- **Not done:** No code. Decisions in §15 of the doc are open.
+
+## 2026-10-25 — Flows: detailed architecture and build plan
+
+- **What:** Added `docs/flows-architecture.md` (components, data model, integration with existing code, execution model, scheduling and worker, chat builder, API, security, testing, phased plan with exit criteria, rollout, open decisions, code map). Corrected the governance line in `docs/flows-design.md`.
+- **Why:** Requested as full documentation of the proposed architecture and how to build it. Written after reading the Workbench builder, `agents/chat` route, `executeSemanticQuery`, `executeDatabricksSQL`, `session-auth`, `rbac`, `audit` and the harvest queue/schedule code.
+- **Findings recorded in the doc:** queries use one shared Databricks credential; there are no per-dataset permissions and `data_level` is not enforced for data access; `INSPECTOR_AUTH_ENFORCE` defaults to observe-only; no reusable run-an-agent-once function exists (only the SSE route); `executeSemanticQuery` allows governed models only and `executeDatabricksSQL` enforces read-only itself.
+- **Verified:** Documentation only; the main files and functions named were checked to exist. Nothing was run or built.
+- **Not done:** No code. Proposed schema change (`semantic` mode on the `query` step) is not implemented. Open decisions are listed in §17 of the doc.
+
 ## 2026-10-25 — Flows Phase 1 foundation: schema, validator, runner core, tables (not wired to any route or UI)
 
 Design: `docs/flows-design.md`. Decision: stay on the current Next.js routes; Hono is out of scope for now.
