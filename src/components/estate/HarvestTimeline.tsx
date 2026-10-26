@@ -12,6 +12,7 @@
 //   not-run  → muted at reduced opacity
 
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface HarvestTierStatus {
   last_t0_at: string | null;
@@ -155,10 +156,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
             {isFailed && (
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: COLOR_FAILED,
                 }}
               >

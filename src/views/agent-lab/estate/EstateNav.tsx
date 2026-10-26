@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { usePathname } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { ESTATE_NAV_ITEMS, isEstateItemActive } from '@/lib/estate/nav-items';
 
@@ -20,7 +20,7 @@ export default function EstateNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                'relative flex items-center h-full px-4 text-xs font-mono tracking-wider uppercase font-semibold transition-colors duration-200 rounded-t',
+                'relative flex items-center h-full px-4 text-ui transition-colors duration-200 rounded-t',
                 isActive
                   ? 'bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--nav-item-text-active)]'
                   : 'bg-transparent text-[var(--nav-item-text)] hover:text-[var(--nav-text)]',
@@ -34,7 +34,7 @@ export default function EstateNav() {
           );
         })}
       </div>
-      <div className="text-xs font-mono tracking-wider text-right uppercase text-[var(--nav-item-text)]">
+   <div className="text-eyebrow text-right uppercase text-[var(--nav-item-text)]">
         Data Estate System
       </div>
     </div>

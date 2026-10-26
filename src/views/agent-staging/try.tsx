@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useSearchParams } from '@/lib/navigation';
 import { ExternalLink, ArrowLeft, Bot } from 'lucide-react';
 import type { AgentCatalogEntry } from '@/types/catalog';
 

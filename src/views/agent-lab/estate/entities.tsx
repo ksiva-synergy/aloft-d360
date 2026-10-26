@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { Database, Ruler, Tag, ArrowRight, Info } from 'lucide-react';
 
 // ── Response shape (mirrors /api/inspector/semantic/entities-catalog) ──────────
@@ -35,7 +35,7 @@ function StatusBadge({ status }: { status: string }) {
   const governed = status === 'governed';
   return (
     <span
-      className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase rounded-full px-2 py-0.5"
+   className="inline-flex items-center gap-1.5 text-label rounded-full px-2 py-0.5"
       style={
         governed
           ? { color: '#2DD4A0', background: 'rgba(45,212,160,0.12)', border: '1px solid rgba(45,212,160,0.5)' }
@@ -107,7 +107,7 @@ export default function EntitiesPage() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>
             Entities
           </h1>
           <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
@@ -147,7 +147,7 @@ export default function EntitiesPage() {
                 <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: GOLD }} />
                 <span className="absolute inset-3 border-2 rotate-45 opacity-60" style={{ borderColor: GOLD }} />
               </span>
-              <h2 className="text-xl font-serif font-semibold" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>No governed model yet</h2>
+              <h2 className="text-xl font-semibold" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>No governed model yet</h2>
               <p className="text-xs leading-relaxed" style={{ color: muted }}>
                 The entities catalog surfaces a <b style={{ color: ink }}>governed</b> semantic model. Promote a model to governed to see its entities here.
               </p>
@@ -182,7 +182,7 @@ export default function EntitiesPage() {
                   <div className="flex items-center gap-3 mb-3">
                     <Database size={18} style={{ color: GOLD }} />
                     <div className="min-w-0">
-                      <div className="text-lg" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>{e.label}</div>
+                      <div className="text-lg" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>{e.label}</div>
                       <div className="font-mono text-xs" style={{ color: '#5B9DFF' }}>{e.fullPath}</div>
                     </div>
                     <div className="ml-auto"><StatusBadge status={e.status} /></div>
@@ -191,7 +191,7 @@ export default function EntitiesPage() {
                   {/* Dimensions */}
                   {e.dimensions.length > 0 && (
                     <div className="mb-3">
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+           <div className="flex items-center gap-1.5 text-label mb-2" style={{ color: muted }}>
                         <Tag size={11} /> Dimensions
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
@@ -199,7 +199,7 @@ export default function EntitiesPage() {
                           <div key={d.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="text-xs" style={{ color: ink }}>{d.label}</span>
-                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{d.dimensionType}</span>
+               <span className="text-label " style={{ color: muted }}>{d.dimensionType}</span>
                               <span className="ml-auto"><StatusBadge status={d.status} /></span>
                             </div>
                             <FieldPill full={d.resolvesTo.fullPath} col={d.resolvesTo.column} expr={null} />
@@ -228,7 +228,7 @@ export default function EntitiesPage() {
                   {/* Measures */}
                   {e.measures.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+           <div className="flex items-center gap-1.5 text-label mb-2" style={{ color: muted }}>
                         <Ruler size={11} /> Measures
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
@@ -236,7 +236,7 @@ export default function EntitiesPage() {
                           <div key={m.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
                             <div className="flex items-center gap-2 mb-1.5">
                               <span className="text-xs" style={{ color: ink }}>{m.label}</span>
-                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{m.metricType} · {m.aggregate}{m.unit ? ` · ${m.unit}` : ''}</span>
+               <span className="text-label " style={{ color: muted }}>{m.metricType} · {m.aggregate}{m.unit ? ` · ${m.unit}` : ''}</span>
                               <span className="ml-auto"><StatusBadge status={m.status} /></span>
                             </div>
                             <FieldPill full={m.resolvesTo.fullPath} col={m.resolvesTo.column} expr={m.resolvesTo.expression} />
@@ -265,7 +265,7 @@ export default function EntitiesPage() {
                   type="button"
                   onClick={() => void load(q, entities.length)}
                   disabled={loadingMore}
-                  className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-4 py-2 disabled:opacity-50"
+         className="text-label border rounded px-4 py-2 disabled:opacity-50"
                   style={{ borderColor: GOLD, color: GOLD, background: 'transparent' }}
                 >
                   {loadingMore ? 'Loading…' : `Load more (${(meta.total ?? 0) - entities.length} left)`}

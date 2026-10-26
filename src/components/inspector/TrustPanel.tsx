@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Copy, Check, ChevronRight } from 'lucide-react';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -165,10 +166,7 @@ export function TrustPanel({
               onClick={handleCopy}
               title="Copy SQL to clipboard"
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
@@ -216,10 +214,7 @@ function TrustLabel({ text }: { text: string }) {
   return (
     <span
       style={{
-        ...MONO,
-        fontSize: 13,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
+        ...type.label,
         color: MUTED,
       }}
     >

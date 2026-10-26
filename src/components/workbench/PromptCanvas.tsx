@@ -15,6 +15,7 @@ import { useReflections } from './marcus/useReflections';
 import type { Reflection } from './marcus/useReflections';
 import { ReflectionCard } from './marcus/ReflectionCard';
 import { DismissedReflection } from './marcus/DismissedReflection';
+import { type } from '@/lib/typography/tokens';
 
 // ── Constants ─────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
@@ -91,13 +92,13 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
       >
         <Companion size={72} />
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ ...mono, color: MUTED, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center' }}>
+          <div style={{ ...type['title-card'], color: MUTED, display: 'flex', alignItems: 'center' }}>
             {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />
           </div>
           {surface === 'workbench' && (
           <button
             onClick={() => setTemplatesOpen(o => !o)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...mono, fontSize: 13, color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...type['ui-regular'], color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.color = templatesOpen ? GOLD : MUTED; }}
           >
@@ -105,7 +106,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
           </button>
           )}
         </div>
-        <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
+        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
         <AnimatePresence>
           {templatesOpen && (
             <motion.div
@@ -122,10 +123,10 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
-                    <span style={{ ...mono, fontSize: 13, color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
+                    <span style={{ ...type['ui-regular'], color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
                     <span style={{ ...sans, fontSize: 13, color: INK }}>{t.name}</span>
                   </div>
-                  <div style={{ ...mono, fontSize: 13, color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
+                  <div style={{ ...type['ui-regular'], color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
                 </button>
               ))}
             </motion.div>
@@ -155,11 +156,11 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       }}
     >
       <Octagon size={13} style={{ color: RED, flexShrink: 0 }} />
-      <span style={{ ...mono, fontSize: 13, color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
+      <span style={{ ...type['ui-regular'], color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
       <button
         onClick={onContinue}
         style={{
-          ...mono, fontSize: 13, color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+          ...type['ui-regular'], color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
           border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'background 0.15s',
         }}
@@ -171,7 +172,7 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       <button
         onClick={onReset}
         style={{
-          ...mono, fontSize: 13, color: MUTED, background: 'transparent',
+          ...type['ui-regular'], color: MUTED, background: 'transparent',
           border: '1px solid rgba(74,96,128,0.3)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'color 0.15s, border-color 0.15s',
         }}
@@ -200,7 +201,7 @@ function SuggestionPills({ suggestions, onSelect }: { suggestions: string[]; onS
           key={s}
           onClick={() => onSelect(s)}
           style={{
-            ...mono, fontSize: 13, color: INK_DIM,
+            ...type['ui-regular'], color: INK_DIM,
             background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
             borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
             transition: 'border-color 0.15s, color 0.15s',
@@ -233,7 +234,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
       onMouseLeave={() => setHovered(false)}
       style={{ borderLeft: `2px solid ${GOLD}`, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}
     >
-      <div style={{ ...mono, fontSize: 13, color: INK, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+      <div style={{ ...type['ui-regular'], color: INK, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
         {msg.content}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -252,7 +253,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Edit and resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 13, color: MUTED,
+                    ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
                     borderRadius: 4, transition: 'color 0.15s',
                   }}
@@ -266,7 +267,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 13, color: MUTED,
+                    ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
                     borderRadius: 4, transition: 'color 0.15s',
                   }}
@@ -279,7 +280,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
             )}
           </AnimatePresence>
         </div>
-        <div style={{ ...mono, fontSize: 13, color: MUTED }}>{ts}</div>
+        <div style={{ ...type['ui-regular'], color: MUTED }}>{ts}</div>
       </div>
     </motion.div>
   );
@@ -302,8 +303,7 @@ function ScrollToBottomPill({ onClick }: { onClick: () => void }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        ...mono,
-        fontSize: 13,
+        ...type['ui-regular'],
         color: INK_DIM,
         background: SURFACE,
         border: `1px solid ${BORDER_GOLD}`,
@@ -772,7 +772,7 @@ export function PromptCanvas({
               borderTop: `1px solid ${BORDER_SUBTLE}`,
             }}
           >
-            <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
+            <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
               Next →
             </span>
             {suggestions.map(s => (
@@ -784,8 +784,7 @@ export function PromptCanvas({
                   setTimeout(onSubmit, 0);
                 }}
                 style={{
-                  ...mono,
-                  fontSize: 13,
+                  ...type['ui-regular'],
                   color: INK_DIM,
                   background: CANVAS,
                   border: `1px solid ${BORDER_SUBTLE}`,

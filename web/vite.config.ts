@@ -9,12 +9,11 @@ import { THEME_COOKIE_NAME } from '../src/lib/theme/cookie';
  * Vite + React Router v7 UI for Aloft. Run every script from the REPO ROOT (`npm run web:dev`),
  * because Tailwind resolves its `content` globs and `tailwind.config.js` relative to the cwd.
  *
- * The app reuses `src/` in place through the `@` alias, so there is no duplicated UI code and the
- * Next.js UI keeps working. Only four `next/*` modules are swapped for shims (see web/src/compat).
+ * The app reuses `src/` in place through the `@` alias. Navigation goes through `@/lib/navigation`
+ * (React Router), so the UI imports nothing from `next/*`.
  */
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(webDir, '..');
-const compat = (name: string) => path.resolve(webDir, 'src/compat', name);
 
 /** Same two blocking scripts `app/layout.tsx` renders in <head>: no theme/accent flash before first paint. */
 function bootScripts(): Plugin[] {
@@ -61,10 +60,6 @@ export default defineConfig(({ mode, command }) => ({
   resolve: {
     // Most specific first (mirrors tsconfig.json / vitest.config.ts).
     alias: [
-      { find: /^next\/link$/, replacement: compat('next-link.tsx') },
-      { find: /^next\/navigation$/, replacement: compat('next-navigation.tsx') },
-      { find: /^next\/dynamic$/, replacement: compat('next-dynamic.tsx') },
-      { find: /^next\/image$/, replacement: compat('next-image.tsx') },
       { find: /^@\/components\/ui\/(.*)$/, replacement: path.resolve(repoRoot, 'packages/aloft-shared/src/components/ui') + '/$1' },
       { find: /^@\/lib\/utils$/, replacement: path.resolve(repoRoot, 'packages/aloft-shared/src/lib/utils') },
       { find: /^@\/(.*)$/, replacement: path.resolve(repoRoot, 'src') + '/$1' },

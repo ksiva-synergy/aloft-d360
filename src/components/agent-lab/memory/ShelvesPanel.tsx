@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from '@/lib/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RULE_TYPE_COLORS,
@@ -16,6 +16,7 @@ import {
 } from '@/lib/foer/foer-tokens';
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { ALL_KNOWLEDGE_KEY as _ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants'; // kept for future sidebar integration
+import { type } from '@/lib/typography/tokens';
 
 function humanizeRuleType(ruleType: string): string {
   const labels: Record<string, string> = {
@@ -358,9 +359,7 @@ export function ShelvesPanel() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span
           style={{
-            fontFamily:    MONO,
-            fontSize:      '13px',
-            textTransform: 'uppercase',
+            ...type.label,
             letterSpacing: '0.05em',
             color:         ruleTypeColor(tooltip.bullet.ruleType),
             border:        `1px solid ${ruleTypeColor(tooltip.bullet.ruleType)}50`,
@@ -490,7 +489,7 @@ export function ShelvesPanel() {
                       opacity:      0.9,
                     }}
                   />
-                  <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span style={{ ...type.label, letterSpacing: '0.05em' }}>
                     {rt.replace(/_/g, ' ')}
                   </span>
                 </div>

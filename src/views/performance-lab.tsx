@@ -10,6 +10,7 @@ import {
   ScoringMethodologyTab,
 } from '@/components/inspector/BoostTabs';
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 // Accent colors are literal (they're concatenated with hex-opacity suffixes and
@@ -47,10 +48,7 @@ const heroStat: React.CSSProperties = {
   marginBottom: 6,
 };
 const heroLabel: React.CSSProperties = {
-  ...mono,
-  fontSize: 13,
-  letterSpacing: '0.14em',
-  textTransform: 'uppercase',
+  ...type.label,
   color: GOLD,
   marginBottom: 10,
   fontWeight: 600,
@@ -66,7 +64,7 @@ function ValueSummaryHero() {
   const S = BOOST_V2_SUMMARY;
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 6 }}>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 6 }}>
         CONTEXT HARNESS — VALUE SUMMARY
       </div>
       <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
@@ -107,7 +105,7 @@ function ValueSummaryHero() {
       </div>
 
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${GOLD}`, background: SURF }}>
-        <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
+        <span style={{ ...type.label, color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
         <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete
           (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier).
@@ -252,7 +250,7 @@ export default function PerformanceLabPage() {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <span style={{
-            ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
+            ...type.label,
             borderRadius: 4, padding: '4px 10px', border: `1px solid ${BORDER}`,
             color: TXT2, background: 'transparent',
           }}>
@@ -318,7 +316,7 @@ export default function PerformanceLabPage() {
           )}
           {activeTab === 'historical' && (
             <div>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>
+              <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>
                 Aggregated across all inspector sessions
               </div>
               <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>

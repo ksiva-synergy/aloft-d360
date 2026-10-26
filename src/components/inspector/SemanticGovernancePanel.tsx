@@ -5,6 +5,7 @@ import { MyDraftsSection } from './authoring/MyDraftsSection';
 import { SynonymEditor } from './authoring/SynonymEditor';
 import { WhatIveTaughtSection } from './authoring/WhatIveTaughtSection';
 import type { AuthoringScope } from './authoring/scope';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = 'var(--brand-a)';
@@ -88,7 +89,7 @@ function StatusBadge({ status }: { status: string }) {
   }
   return (
     <span style={{
-      ...mono, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
+      ...type.label,
       background: bg, border: `1px solid ${bd}`, color, borderRadius: 4, padding: '2px 7px',
       flexShrink: 0,
     }}>
@@ -139,7 +140,7 @@ function EditableField({
           ...sans, fontSize: 13,
         }}
       >
-        <span style={{ ...mono, fontSize: 13, color: MUTED, marginRight: 6 }}>{label}</span>
+        <span style={{ ...type['ui-regular'], color: MUTED, marginRight: 6 }}>{label}</span>
         {value || <span style={{ color: MUTED, fontStyle: 'italic' }}>—</span>}
       </div>
     );
@@ -147,7 +148,7 @@ function EditableField({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{label}</span>
+      <span style={{ ...type['ui-regular'], color: MUTED }}>{label}</span>
       {multiline ? (
         <textarea
           autoFocus
@@ -179,7 +180,7 @@ function EditableField({
           onClick={handleSave}
           disabled={saving}
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.06em',
+            ...type['ui-regular'],
             background: saving ? SURFACE : GOLD, color: saving ? MUTED : NAVY,
             border: 'none', borderRadius: 4, padding: '3px 10px', cursor: saving ? 'default' : 'pointer',
           }}
@@ -189,7 +190,7 @@ function EditableField({
         <button
           onClick={() => { setEditing(false); setEditError(null); }}
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.06em',
+            ...type['ui-regular'],
             background: 'transparent', color: MUTED,
             border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
           }}
@@ -198,7 +199,7 @@ function EditableField({
         </button>
       </div>
       {editError && (
-        <span style={{ ...mono, fontSize: 13, color: '#f43f5e', lineHeight: 1.4 }}>{editError}</span>
+        <span style={{ ...type['ui-regular'], color: '#f43f5e', lineHeight: 1.4 }}>{editError}</span>
       )}
     </div>
   );
@@ -273,7 +274,7 @@ function EntityCard({
         onClick={() => setExpanded(e => !e)}
       >
         <span style={{
-          ...mono, fontSize: 13, color: MUTED, flexShrink: 0,
+          ...type['ui-regular'], color: MUTED, flexShrink: 0,
           transition: 'transform 0.15s',
           display: 'inline-block',
           transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -286,12 +287,12 @@ function EntityCard({
             </span>
             <StatusBadge status={entity.status} />
           </div>
-          <div style={{ ...mono, fontSize: 13, color: MUTED, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+          <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
             {entity.full_path}
           </div>
         </div>
 
-        <div style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0, display: 'flex', gap: 10 }}>
+        <div style={{ ...type['ui-regular'], color: MUTED, flexShrink: 0, display: 'flex', gap: 10 }}>
           <span>{entity.dimensions.length}D</span>
           <span>{entity.measures.length}M</span>
           <span>{entity.joins.length}J</span>
@@ -307,7 +308,7 @@ function EntityCard({
               disabled={acting !== null}
               title="Promote to governed"
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: acting === 'promote' ? SURFACE : GOLD,
                 color: acting === 'promote' ? MUTED : NAVY,
                 border: 'none', borderRadius: 4, padding: '4px 10px',
@@ -323,7 +324,7 @@ function EntityCard({
               disabled={acting !== null}
               title="Archive"
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: 'transparent', color: MUTED,
                 border: `1px solid ${ARCH_BD}`, borderRadius: 4, padding: '4px 10px',
                 cursor: acting !== null ? 'default' : 'pointer',
@@ -363,7 +364,7 @@ function EntityCard({
           {/* Dimensions */}
           {entity.dimensions.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
                 DIMENSIONS ({entity.dimensions.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -371,9 +372,9 @@ function EntityCard({
                   <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{d.dimension_type}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>·</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{d.column_name}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{d.dimension_type}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{d.column_name}</span>
                     </div>
                     <EditableField label="LABEL" value={d.dimension_label} onSave={v => patchField('dimension', d.id, 'dimension_label', v)} />
                     <EditableField label="DESCRIPTION" value={d.description ?? ''} multiline onSave={v => patchField('dimension', d.id, 'description', v)} />
@@ -394,7 +395,7 @@ function EntityCard({
           {/* Measures */}
           {entity.measures.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
                 MEASURES ({entity.measures.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -402,10 +403,10 @@ function EntityCard({
                   <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
                       <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{m.aggregate}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>·</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{m.metric_type}</span>
-                      {m.unit && <span style={{ ...mono, fontSize: 13, color: MUTED }}>· {m.unit}</span>}
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{m.aggregate}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{m.metric_type}</span>
+                      {m.unit && <span style={{ ...type['ui-regular'], color: MUTED }}>· {m.unit}</span>}
                     </div>
                     <EditableField label="LABEL" value={m.measure_label} onSave={v => patchField('measure', m.id, 'measure_label', v)} />
                     <EditableField label="DESCRIPTION" value={m.description ?? ''} multiline onSave={v => patchField('measure', m.id, 'description', v)} />
@@ -427,14 +428,14 @@ function EntityCard({
           {/* Joins */}
           {entity.joins.length > 0 && (
             <div>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
                 JOINS ({entity.joins.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {entity.joins.map(j => (
                   <div key={j.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '5px 8px' }}>
-                    <span style={{ ...mono, fontSize: 13, color: MUTED }}>{j.join_type.toUpperCase()}</span>
-                    <span style={{ ...mono, fontSize: 13, color: 'var(--wb-ink-dim)', marginLeft: 8 }}>{j.join_on_sql}</span>
+                    <span style={{ ...type['ui-regular'], color: MUTED }}>{j.join_type.toUpperCase()}</span>
+                    <span style={{ ...type['ui-regular'], color: 'var(--wb-ink-dim)', marginLeft: 8 }}>{j.join_on_sql}</span>
                   </div>
                 ))}
               </div>
@@ -548,7 +549,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
   if (loading) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--wb-canvas)' }}>
-        <span style={{ ...mono, fontSize: 13, color: MUTED }}>LOADING SEMANTIC MODEL…</span>
+        <span style={{ ...type['ui-regular'], color: MUTED }}>LOADING SEMANTIC MODEL…</span>
       </div>
     );
   }
@@ -556,7 +557,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
   if (error) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--wb-canvas)' }}>
-        <span style={{ ...mono, fontSize: 13, color: '#f43f5e' }}>ERROR: {error}</span>
+        <span style={{ ...type['ui-regular'], color: '#f43f5e' }}>ERROR: {error}</span>
       </div>
     );
   }
@@ -587,9 +588,9 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
               {data.model.name}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <span style={{ ...mono, fontSize: 13, color: GOLD }}>{candidateCount} CANDIDATE</span>
-              <span style={{ ...mono, fontSize: 13, color: GREEN }}>{governedCount} GOVERNED</span>
-              {archivedCount > 0 && <span style={{ ...mono, fontSize: 13, color: MUTED }}>{archivedCount} ARCHIVED</span>}
+              <span style={{ ...type['ui-regular'], color: GOLD }}>{candidateCount} CANDIDATE</span>
+              <span style={{ ...type['ui-regular'], color: GREEN }}>{governedCount} GOVERNED</span>
+              {archivedCount > 0 && <span style={{ ...type['ui-regular'], color: MUTED }}>{archivedCount} ARCHIVED</span>}
             </div>
           </div>
           {candidateCount > 0 && (
@@ -597,7 +598,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
               onClick={handlePromoteAll}
               disabled={bulkActing}
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: bulkActing ? SURFACE : GOLD,
                 color: bulkActing ? MUTED : NAVY,
                 border: 'none', borderRadius: 4, padding: '5px 12px',
@@ -622,11 +623,11 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
             metrics, synonyms, standing rules (teach/promote/retire), SQL charts. */}
         <WhatIveTaughtSection scope={scope} />
 
-        <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: MUTED, margin: '4px 0 8px' }}>
+        <div style={{ ...type['ui-regular'], color: MUTED, margin: '4px 0 8px' }}>
           GOVERNANCE QUEUE
         </div>
         {data.entities.length === 0 ? (
-          <div style={{ ...mono, fontSize: 13, color: MUTED, textAlign: 'center', marginTop: 16 }}>
+          <div style={{ ...type['ui-regular'], color: MUTED, textAlign: 'center', marginTop: 16 }}>
             No submitted entities yet
           </div>
         ) : (
@@ -649,7 +650,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
         borderTop: `1px solid ${BORDER_SUBTLE}`,
         flexShrink: 0,
       }}>
-        <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.06em' }}>
+        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.06em' }}>
           SEMANTIC GOVERNANCE · ALOFT v0.4
         </span>
       </div>
@@ -670,9 +671,9 @@ interface RightPaneTabBarProps {
 
 export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false }: RightPaneTabBarProps) {
   const tabs: { id: RightPaneTab; label: string }[] = [
-    { id: 'results', label: 'RESULTS' },
-    ...(showSemantic ? [{ id: 'semantic' as const, label: 'SEMANTIC' }] : []),
-    ...(showDeveloper ? [{ id: 'developer' as const, label: 'DEVELOPER' }] : []),
+    { id: 'results', label: 'Results' },
+    ...(showSemantic ? [{ id: 'semantic' as const, label: 'Semantic' }] : []),
+    ...(showDeveloper ? [{ id: 'developer' as const, label: 'Developer' }] : []),
   ];
 
   return (
@@ -693,10 +694,7 @@ export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, show
             key={tab.id}
             onClick={() => onChange(tab.id)}
             style={{
-              ...mono,
-              fontSize: 13,
-              letterSpacing: '0.10em',
-              textTransform: 'uppercase',
+              ...type.label,
               background: 'transparent',
               border: 'none',
               borderBottom: isActive ? `2px solid ${GOLD}` : '2px solid transparent',

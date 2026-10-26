@@ -11,9 +11,10 @@
  * of the Teach surface, and only ever shows teach sessions.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { X, Clock, Plus, Trash2, Loader2, MessageSquare } from 'lucide-react';
 import { FONT_BODY, FONT_MONO } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 interface TeachSessionRow {
   id: string;
@@ -96,7 +97,7 @@ export function TeachHistoryDrawer({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={13} color="var(--primary)" />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.1em', color: 'var(--primary)', textTransform: 'uppercase' }}>
+            <span style={{ ...type.label, }}>
               Teach History
             </span>
           </div>

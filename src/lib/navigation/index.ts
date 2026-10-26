@@ -1,12 +1,9 @@
 /**
- * `next/navigation` for the Vite UI, backed by React Router v7 (Data mode).
- *
- * Covers exactly what the code base uses (measured): useRouter (push/replace/back/refresh),
- * usePathname, useSearchParams, useParams, redirect, notFound. `redirect`/`notFound` were only used in
- * server pages that the Vite app replaces with <Navigate> / API calls; they are provided for completeness.
+ * App navigation hooks, backed by React Router v7 (Data mode). The API mirrors the old `next/navigation`
+ * (useRouter push/replace/back/refresh, usePathname, useSearchParams, useParams) so call sites stay unchanged.
  */
 import { useMemo } from 'react';
-import { redirect as rrRedirect, useLocation, useNavigate, useParams as useRRParams, useRevalidator } from 'react-router';
+import { useLocation, useNavigate, useParams as useRRParams, useRevalidator } from 'react-router';
 
 export interface NavigateOptions {
   /** `false` keeps the scroll position (Next: `{ scroll: false }`). */
@@ -75,13 +72,4 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 
 export function useParams<T extends Record<string, string | string[]> = Record<string, string>>(): T {
   return useRRParams() as unknown as T;
-}
-
-/** Only valid in route loaders/actions (React Router handles the thrown Response). Use <Navigate> in render. */
-export function redirect(url: string): never {
-  throw rrRedirect(url);
-}
-
-export function notFound(): never {
-  throw new Response('Not Found', { status: 404, statusText: 'Not Found' });
 }

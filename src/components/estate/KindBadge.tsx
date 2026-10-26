@@ -9,7 +9,7 @@ interface KindBadgeProps {
 export default function KindBadge({ kind }: KindBadgeProps) {
   return (
     <span
-      className="inline-block font-mono text-xs font-semibold tracking-wider uppercase px-2 py-0.5 rounded border transition-all duration-200"
+   className="inline-block text-label px-2 py-0.5 rounded border transition-all duration-200"
       style={{
         borderColor: 'var(--estate-border-gold)',
         color: 'var(--estate-text-secondary)',

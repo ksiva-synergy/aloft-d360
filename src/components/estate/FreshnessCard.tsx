@@ -40,7 +40,7 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
         borderWidth: freshness.stale ? '1.5px' : '1px'
       }}
     >
-      <div className="font-mono text-xs tracking-wider uppercase" style={{ color: labelColor }}>
+   <div className="text-label " style={{ color: labelColor }}>
         Freshness Contract
       </div>
 

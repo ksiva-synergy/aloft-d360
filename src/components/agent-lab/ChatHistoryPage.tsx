@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { useSession } from 'next-auth/react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useIsDark } from '@/hooks/useIsDark';
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 interface Session {
   id: string;
   title: string | null;
@@ -387,7 +388,7 @@ export default function ChatHistoryPage() {
       <div style={{ padding: '24px 32px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontFamily: "'Source Serif 4', serif", fontSize: 26, fontWeight: 700, color: H1_COLOR, margin: 0, lineHeight: 1.2 }}>
+            <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 26, fontWeight: 700, color: H1_COLOR, margin: 0, lineHeight: 1.2 }}>
               Chat History
             </h1>
             <p style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: MUTED, marginTop: 5, marginBottom: 0 }}>
@@ -440,7 +441,7 @@ export default function ChatHistoryPage() {
               <RefreshCw size={13} style={loading ? { animation: 'spin 1s linear infinite' } : undefined} />
             </button>
             <button
-              onClick={() => router.push('/agent-lab/workbench')}
+              onClick={() => router.push('/agent-lab/agents/workbench')}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7,
                 background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600,
@@ -632,7 +633,7 @@ export default function ChatHistoryPage() {
             <span style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13 }}>{error}</span>
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState query={query} onNewChat={() => router.push('/agent-lab/workbench')} MUTED={MUTED} dark={dark} />
+          <EmptyState query={query} onNewChat={() => router.push('/agent-lab/agents/workbench')} MUTED={MUTED} dark={dark} />
         ) : (
           <div style={{ background: LIST_BG, position: 'relative', height: rowVirtualizer.getTotalSize() }}>
             {rowVirtualizer.getVirtualItems().map(vItem => {
@@ -648,7 +649,7 @@ export default function ChatHistoryPage() {
                     backdropFilter: 'blur(4px)',
                     zIndex: 2,
                   }}>
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: dark ? '#6b7d94' : '#4A5A6A', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                    <span style={{ ...type.label, }}>
                       {item.label}
                     </span>
                   </div>
@@ -664,7 +665,7 @@ export default function ChatHistoryPage() {
                     isSelected={selected.has(s.id)}
                     isPinning={pinning === s.id}
                     onToggleSelect={() => toggleSelect(s.id)}
-                    onContinue={() => router.push(s.surface === 'inspector' ? `/inspector/${s.id}` : `/agent-lab/workbench/${s.id}`)}
+                    onContinue={() => router.push(s.surface === 'inspector' ? `/inspector/${s.id}` : `/agent-lab/agents/workbench/${s.id}`)}
                     onPin={() => handlePin(s)}
                     onDelete={() => handleSingleDelete(s.id)}
                     onRename={(title) => handleRename(s.id, title)}
@@ -712,7 +713,7 @@ function EmptyState({ query, onNewChat, MUTED, dark }: { query: string; onNewCha
       <MessageSquare size={36} style={{ margin: '0 auto 14px', color: MUTED, display: 'block', opacity: 0.5 }} />
       {query ? (
         <>
-          <p style={{ fontFamily: "'Source Serif 4', serif", fontSize: 16, color: MUTED, fontWeight: 600, margin: '0 0 6px' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: MUTED, fontWeight: 600, margin: '0 0 6px' }}>
             No sessions match
           </p>
           <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, margin: 0 }}>
@@ -721,7 +722,7 @@ function EmptyState({ query, onNewChat, MUTED, dark }: { query: string; onNewCha
         </>
       ) : (
         <>
-          <p style={{ fontFamily: "'Source Serif 4', serif", fontSize: 18, color: MUTED, fontWeight: 600, margin: '0 0 8px' }}>No chat history yet</p>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 18, color: MUTED, fontWeight: 600, margin: '0 0 8px' }}>No chat history yet</p>
           <p style={{ fontSize: 13, color: MUTED, margin: '0 0 20px', fontFamily: "'Inter Variable', sans-serif" }}>Start a conversation in the Agent Workbench.</p>
           <button onClick={onNewChat} style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600, fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={14} /> Start first chat
@@ -832,8 +833,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               ? <Database size={11} style={{ color: GOLD, flexShrink: 0, opacity: 0.85 }} />
               : <Layers size={11} style={{ color: MUTED, flexShrink: 0, opacity: 0.7 }} />}
             <span style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               padding: '2px 6px', borderRadius: 3, flexShrink: 0,
               ...(session.surface === 'inspector'
                 ? { background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)', color: 'var(--brand-a)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)' }
@@ -885,8 +885,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
             <span
               title={session.context_mode === 'warehouse_only' ? 'SQL Only — no catalog context used' : 'Catalog + SQL — harvested context (T0/T1/T2) was used'}
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                ...type.label,
                 padding: '3px 6px', borderRadius: 3, whiteSpace: 'nowrap',
                 ...(session.context_mode === 'warehouse_only'
                   ? { background: 'rgba(147,197,253,0.12)', color: '#93C5FD', border: '1px solid rgba(147,197,253,0.25)' }

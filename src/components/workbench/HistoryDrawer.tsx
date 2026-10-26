@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { useSession } from 'next-auth/react';
 import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User, Activity } from 'lucide-react';
 import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
+import { type } from '@/lib/typography/tokens';
 
 interface Session {
   id: string;
@@ -113,7 +114,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
 
   const handleOpen = (session: Session) => {
     onClose();
-    const base = session.surface === 'inspector' ? '/inspector' : '/agent-lab/workbench';
+    const base = session.surface === 'inspector' ? '/inspector' : '/agent-lab/agents/workbench';
     router.push(`${base}/${session.id}`);
   };
 
@@ -125,7 +126,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
 
   const handleNewChat = () => {
     onClose();
-    router.push('/agent-lab/workbench');
+    router.push('/agent-lab/agents/workbench');
   };
 
   if (!open) return null;
@@ -168,7 +169,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={14} color={GOLD} />
-            <span style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, textTransform: 'uppercase' }}>
+            <span style={{ ...type.label, }}>
               Chat History
             </span>
           </div>
@@ -184,8 +185,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
                   background: showAllUsers ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'transparent',
                   border: `1px solid ${showAllUsers ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--wb-border-subtle)'}`,
                   color: showAllUsers ? GOLD : 'var(--wb-muted)',
-                  fontSize: 13, fontFamily: "'IBM Plex Mono', monospace",
-                  letterSpacing: '0.06em', textTransform: 'uppercase',
+                  fontSize: 13, ...type.label,
                   cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
@@ -319,8 +319,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
     <div style={{ marginBottom: 4 }}>
       {label && (
         <div style={{
-          ...mono, fontSize: 13, letterSpacing: '0.10em', color: 'var(--wb-muted)',
-          textTransform: 'uppercase', padding: '8px 10px 4px',
+          ...type.label, padding: '8px 10px 4px',
         }}>
           {label}
         </div>

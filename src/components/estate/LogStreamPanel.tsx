@@ -272,7 +272,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
       <div className="flex items-center gap-2.5">
         <button
           onClick={() => setIsCollapsed(c => !c)}
-          className="flex items-center gap-1.5 text-xs font-mono font-semibold tracking-wider uppercase"
+     className="flex items-center gap-1.5 text-label "
           style={{ color: 'var(--ink-3)' }}
         >
           {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}

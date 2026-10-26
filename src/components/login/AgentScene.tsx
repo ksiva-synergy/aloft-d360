@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCompanionPreferences } from '@/hooks/useCompanionPreferences';
 import { companionColor } from '@/lib/companion/preferences';
+import { FONT_SANS } from '@/lib/typography/tokens';
 
 /** The page's own face, for anything Captain draws as text on the canvas. */
-const CAPTAIN_FONT = "'DM Sans Variable', 'Inter Variable', system-ui, sans-serif";
+const CAPTAIN_FONT = FONT_SANS;
 
 export type DotBotMode = 'idle' | 'happy' | 'watching' | 'privacy' | 'peek' | 'loading' | 'error' | 'success';
 type Mode = DotBotMode | 'sleep';

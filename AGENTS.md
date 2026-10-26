@@ -7,3 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Estate Jobs & harvest pipeline
+
+When changing or fixing **Jobs**, **harvest** (T0–T3), **estate** scope, **orchestrator**, or `src/views/agent-lab/estate/jobs.tsx`:
+
+1. Read `docs/jobs/AGENT_INSTRUCTIONS.md` and `docs/jobs/current-status.md`.
+2. On **every session** that changes code or docs in this area, append **`docs/jobs/session-log.md`** (newest first) **and** **`docs/CHANGELOG.md`**.
+3. If behavior changes, update `docs/jobs/current-status.md`.
+
+Index: `docs/jobs/README.md`.

@@ -115,7 +115,7 @@ export function Modal({
               )}
               <div>
                 {title && (
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <h2 className="text-title-section text-gray-900 dark:text-white">
                     {title}
                   </h2>
                 )}

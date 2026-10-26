@@ -13,6 +13,7 @@ import { InsightRail } from './InsightRail';
 import type { InsightCacheEntry, InsightResult } from './InsightRail';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
+import { type } from '@/lib/typography/tokens';
 
 export interface DataStudioProps {
   open: boolean;
@@ -36,10 +37,7 @@ function NoResultsState() {
     >
       <span
         style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--builder-text-label)',
           textAlign: 'center',
           lineHeight: 1.8,
@@ -292,10 +290,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
             borderBottom: '1px solid var(--builder-border)',
             padding: '0 20px',
             gap: 8,
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
+            ...type.label,
           }}
         >
           {/* Breadcrumb */}
@@ -414,10 +409,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
             justifyContent: 'space-between',
             borderTop: '1px solid var(--builder-border)',
             padding: '0 16px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: 'var(--builder-text-label)',
           }}
         >
@@ -495,10 +487,7 @@ function StudioMainCanvas({
           gap: 4,
           borderBottom: '1px solid var(--builder-border)',
           padding: '0 16px',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
+          ...type.label,
         }}
       >
         {/* TABLE tab */}
@@ -510,10 +499,7 @@ function StudioMainCanvas({
             color: canvasMode === 'table' ? 'var(--builder-gold)' : 'var(--builder-text-label)',
             borderRadius: 4,
             padding: '3px 10px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: 'pointer',
           }}
         >
@@ -529,10 +515,7 @@ function StudioMainCanvas({
             color: canvasMode === 'dashboard' ? 'var(--builder-gold)' : 'var(--builder-text-label)',
             borderRadius: 4,
             padding: '3px 10px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: 'pointer',
           }}
         >
@@ -580,10 +563,7 @@ function StudioMainCanvas({
             color: !result.sql?.trim() || exporting ? 'var(--builder-text-label)' : 'var(--builder-gold)',
             borderRadius: 4,
             padding: '3px 10px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: !result.sql?.trim() || exporting ? 'not-allowed' : 'pointer',
             opacity: !result.sql?.trim() ? 0.45 : 1,
           }}
@@ -641,10 +621,7 @@ function StudioMainCanvas({
         >
           <span
             style={{
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: 13,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: 'var(--builder-text-label)',
             }}
           >
@@ -673,11 +650,7 @@ function StudioMainCanvas({
           alignItems: 'center',
           borderTop: '1px solid var(--builder-border)',
           padding: '0 16px',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
-          color: 'var(--builder-text-label)',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          ...type.label,
           gap: 8,
         }}
       >

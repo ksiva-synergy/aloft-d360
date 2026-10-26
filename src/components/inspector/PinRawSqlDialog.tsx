@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { createId } from '@paralleldrive/cuid2';
 import { X, Pin, LayoutDashboard, Plus } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
@@ -11,6 +11,7 @@ import {
   type RawSqlChartDsl,
 } from '@/lib/dashboards/raw-sql-chart';
 import { RawSqlBadge } from './RawSqlBadge';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = 'var(--brand-a)';
@@ -194,7 +195,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <Pin size={13} style={{ color: GOLD }} />
-          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: GOLD, flex: 1 }}>
+          <span style={{ ...type.label, color: GOLD, flex: 1 }}>
             PIN RAW-SQL CHART
           </span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--wb-muted)', display: 'flex' }}>
@@ -231,7 +232,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
             onClick={handleConfirm}
             disabled={submitting || dashLoading || dashboards.length === 0}
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4,
               padding: '8px 14px', cursor: (submitting || dashLoading || dashboards.length === 0) ? 'not-allowed' : 'pointer',
@@ -256,7 +257,7 @@ const inputStyle: React.CSSProperties = {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--wb-muted)' }}>
+      <span style={{ ...type.label, color: 'var(--wb-muted)' }}>
         {label}
       </span>
       {children}

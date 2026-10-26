@@ -1,6 +1,8 @@
 @import '@fontsource-variable/inter/index.css';
-@import '@fontsource-variable/dm-sans/index.css';
-@import '@fontsource/ibm-plex-mono/index.css';
+@import '@fontsource-variable/inter/wght-italic.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '../styles/typography.css';
 
 @tailwind base;
 @tailwind components;
@@ -458,12 +460,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  /* REBRAND: Inter Tight (UI), Source Serif 4 (display), IBM Plex Mono (code) */
-  font-family: 'DM Sans Variable', 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.55;
+  /* Inter (sans) + IBM Plex Mono (machine text) — tokens in src/styles/typography.css */
+  font-family: var(--font-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-lh);
   letter-spacing: 0;
-  font-feature-settings: 'cv11', 'ss01';
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1147,9 +1148,9 @@ body {
   --overlay-shadow: var(--shadow-elevated);
   --spinner-track:  rgba(13, 27, 42, 0.22);
   --spinner-head:   var(--accent-navy);
-  --display:        'Inter Variable', 'Inter', system-ui, sans-serif;
-  --mono:           'IBM Plex Mono', monospace;
-  --sans:           'Inter Tight', sans-serif;
+  --display:        var(--font-sans);
+  --mono:           var(--font-mono);
+  --sans:           var(--font-sans);
 
   /* Live commission panel — parchment-native */
   --live-bg-start:  #E8F5EC;
@@ -1220,7 +1221,7 @@ body {
   --live-halo-inset-2: rgba(34,197,94,0.40);
   --sigil-stroke:     var(--gold);
   --sigil-fill:       var(--gold);
-  --display:          'Inter Tight', sans-serif;
+  --display:          var(--font-sans);
 }
 
 /* ── Workbench light — component polish (demo page) ───── */

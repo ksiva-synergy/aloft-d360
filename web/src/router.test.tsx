@@ -18,7 +18,7 @@ const EXPECTED_PAGES = [
   '/agent-lab/estate/object/:id', '/agent-lab/estate/silo', '/agent-lab/history', '/agent-lab/memory',
   '/agent-lab/memory/contributions', '/agent-lab/memory/ops', '/agent-lab/metrics', '/agent-lab/ops/evals',
   '/agent-lab/ops/prompts', '/agent-lab/runs', '/agent-lab/runs/:sessionId', '/agent-lab/teach', '/agent-lab/teach/digest',
-  '/agent-lab/agents', '/agent-lab/agents/:slug',
+  '/agent-lab/agents', '/agent-lab/agents/:slug', '/agent-lab/agents/workbench', '/agent-lab/agents/workbench/:sessionId',
   '/agent-lab/teach/:sessionId', '/agent-lab/workbench', '/agent-lab/workbench/:sessionId',
   '/agent-staging', '/agent-staging/audit', '/agent-staging/policies', '/agent-staging/try', '/agent-staging/users',
   '/docs', '/docs/agents', '/docs/agents/:slug', '/docs/tools', '/docs/tools/:slug',
@@ -61,8 +61,8 @@ describe('route table', () => {
   const urls = EXPECTED_PAGES;
 
   it('covers the expected page and legacy redirect URLs', () => {
-    expect(urls.length).toBe(50);
-    expect(new Set(urls).size).toBe(50);
+    expect(urls.length).toBe(52);
+    expect(new Set(urls).size).toBe(52);
   });
 
   it('Next.js serves no pages: src/app holds route handlers only (the UI is the Vite app)', () => {
@@ -98,6 +98,8 @@ describe('route table', () => {
     expect(leafOf('/inspector/dashboards')).toBe('inspector/dashboards');
     expect(leafOf('/inspector/xyz')).toBe('inspector/:sessionId');
     expect(leafOf('/inspector/dashboards/d1/builder')).toBe('inspector/dashboards/:dashboardId/builder');
+    expect(leafOf('/agent-lab/agents/workbench')).toBe('workbench');
+    expect(leafOf('/agent-lab/agents/my-agent')).toBe(':slug');
   });
 
   it('redirect-only pages use <Navigate>, and /dashboard is the default landing page', () => {

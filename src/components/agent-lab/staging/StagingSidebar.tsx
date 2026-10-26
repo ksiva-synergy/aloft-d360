@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { usePathname } from '@/lib/navigation';
 import { useEffect, useState } from 'react';
 import {
   HouseIcon, MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon,

@@ -11,6 +11,7 @@ import {
 } from '@/lib/bandits/born-tokens';
 import { betaPDF } from '@/lib/bandits/born-math';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
+import { type } from '@/lib/typography/tokens';
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
@@ -78,8 +79,7 @@ function providerPillStyle(provider: string): React.CSSProperties {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontFamily: MONO, fontSize: 13, letterSpacing: '0.1em',
-      textTransform: 'uppercase', color: TEXT_MUT,
+      ...type.label, color: TEXT_MUT,
       borderBottom: `1px solid ${BORDER}`, paddingBottom: 6, marginBottom: 14,
     }}>
       {children}
@@ -470,8 +470,7 @@ export function ArmDetailDrawer({
                       <th
                         key={h}
                         style={{
-                          fontFamily: MONO, fontSize: 13, letterSpacing: '0.06em',
-                          textTransform: 'uppercase', color: TEXT_MUT,
+                          ...type.label, color: TEXT_MUT,
                           borderBottom: `1px solid ${BORDER}`,
                           padding: '4px 8px',
                           textAlign: h === 'Sheet' ? 'left' : 'right',

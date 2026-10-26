@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import EstateCatalogTab from '@/components/estate/EstateCatalogTab';
 import { ScannedObjectsTab } from '@/components/estate';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
+import { type } from '@/lib/typography/tokens';
 
 type TabView = 'discovery' | 'scanned';
 
@@ -26,10 +27,7 @@ export default function EstateCatalogPage() {
     alignItems: 'center',
     gap: '8px',
     padding: '8px 16px',
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    ...type.label,
     color: active ? activeText : textMuted,
     cursor: 'pointer',
     background: active ? activeBg : 'transparent',

@@ -271,7 +271,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
       className="border-r overflow-y-auto py-4 min-h-0 select-none flex flex-col gap-2 shrink-0 w-[260px] sticky top-0"
       style={{ borderColor, height: '100%' }}
     >
-      <div className="px-4 pb-2 font-mono text-xs tracking-widest text-[#5A6A85] uppercase">
+   <div className="px-4 pb-2 text-label text-[#5A6A85] ">
         Navigator
       </div>
 

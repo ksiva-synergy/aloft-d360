@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Eye, Pencil, Send, Trash2 } from 'lucide-react';
 import { DefineMetricPanel, type DefineMetricEdit } from './DefineMetricPanel';
 import type { AuthoringScope } from './scope';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
@@ -150,7 +151,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
           disabled={!authorModelId}
           title={authorModelId ? 'Define a new metric' : 'No semantic model available to author against yet'}
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+            ...type.label,
             display: 'inline-flex', alignItems: 'center', gap: 5,
             background: authorModelId ? GOLD : 'transparent', color: authorModelId ? NAVY : MUTED,
             border: authorModelId ? 'none' : `1px solid ${DRAFT_BD}`, borderRadius: 4, padding: '5px 11px',
@@ -238,7 +239,7 @@ function DraftRow({
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: subtitle ? 2 : 0 }}>
         <span style={{
-          ...mono, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
+          ...type.label,
           background: 'rgba(136,146,164,0.12)', color: MUTED, border: `1px solid ${DRAFT_BD}`,
           borderRadius: 3, padding: '1px 6px', flexShrink: 0,
         }}>
@@ -279,7 +280,7 @@ function RowBtn({
       disabled={disabled}
       title={label}
       style={{
-        ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+        ...type.label,
         display: 'inline-flex', alignItems: 'center', gap: 4,
         background: bg, color, border: `1px solid ${border}`, borderRadius: 3,
         padding: '3px 8px', cursor: disabled ? 'default' : 'pointer', fontWeight: accent ? 600 : 400,

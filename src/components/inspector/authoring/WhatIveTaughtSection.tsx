@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GraduationCap, Plus, ArrowUpCircle, X, Tag, Ruler, MessageSquareText, Code2, ChevronDown } from 'lucide-react';
 import type { AuthoringScope } from './scope';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
@@ -196,7 +197,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ ...SANS, fontSize: 13, color: 'var(--wb-ink, #E6ECF5)', lineHeight: 1.4 }}>{r.ruleText}</div>
                 <span style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
+                  ...type.label,
                   color: isOrg ? GREEN : MUTED, border: `1px solid ${isOrg ? 'rgba(34,197,94,0.3)' : 'rgba(136,146,164,0.3)'}`,
                   borderRadius: 3, padding: '1px 5px', marginTop: 3, display: 'inline-block',
                 }}>
@@ -257,7 +258,7 @@ function Row({ label, sub, badge, badgeColor }: { label: string; sub?: string; b
         {sub && <div style={{ ...MONO, fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
       </div>
       {badge && (
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: badgeColor ?? MUTED, flexShrink: 0 }}>{badge}</span>
+        <span style={{ ...type.label, color: badgeColor ?? MUTED, flexShrink: 0 }}>{badge}</span>
       )}
     </div>
   );

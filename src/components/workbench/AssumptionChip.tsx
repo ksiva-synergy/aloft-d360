@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { AssumptionLedgerEntry } from '@/lib/construction/assumptionHelpers';
+import { type } from '@/lib/typography/tokens';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD    = 'var(--brand-a)';
@@ -116,7 +117,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
 
       {/* Confirmed badge — replaces ::after pseudo from spec */}
       {isConfirmed && (
-        <span style={{ ...mono, fontSize: 13, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0, paddingRight: 6 }}>
+        <span style={{ ...type.label, flexShrink: 0, paddingRight: 6 }}>
           confirmed
         </span>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from '@/lib/navigation';
 import { Plus, Save, History, ArrowLeft, Share2, Eye, Sparkles, LayoutGrid, MessageSquare } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
 import type { WidgetDriftInfo, DriftStatus, GuidedSession } from './builder-store';
@@ -27,6 +27,7 @@ import {
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -575,7 +576,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
   if (initialLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           LOADING DASHBOARD…
         </span>
       </div>
@@ -619,7 +620,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         {isReadOnly && (
           <span
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4,
               color: 'var(--ink-3)', background: 'rgba(136,146,164,0.1)',
               border: '1px solid rgba(136,146,164,0.25)', borderRadius: 3, padding: '2px 7px',
@@ -640,7 +641,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                 onClick={() => setMode(m)}
                 title={m === 'guided' ? 'NL-first guided authoring' : 'Manual grid builder'}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', border: 'none',
                   background: mode === m ? 'var(--brand-a)' : 'transparent',
                   color: mode === m ? 'var(--on-brand)' : 'var(--builder-text)',
@@ -658,7 +659,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={handleAddWidget}
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
               borderRadius: 4, border: '1px solid var(--builder-border)',
               background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
@@ -671,7 +672,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         <button
           onClick={() => setRightPanel(rightPanel === 'history' ? 'config' : 'history')}
           style={{
-            ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+            ...type.label,
             display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
             border: `1px solid ${rightPanel === 'history' ? 'var(--brand-a)' : 'var(--builder-border)'}`,
             background: rightPanel === 'history' ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
@@ -685,7 +686,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={() => setShareOpen(true)}
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
@@ -701,7 +702,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             onClick={() => setExploreOpen((o) => !o)}
             title="Explore data in this model"
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: `1px solid ${exploreOpen ? 'var(--brand-a)' : 'var(--builder-border)'}`,
               background: exploreOpen ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
@@ -717,7 +718,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             onClick={handleSave}
             disabled={saving || !dirty}
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: 'none', background: dirty ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
               color: 'var(--on-brand)', cursor: dirty && !saving ? 'pointer' : 'default',
@@ -879,7 +880,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   flexDirection: 'column',
                 }}
               >
-                <div style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+                <div style={{ ...type.label, color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
                   LIBRARY
                 </div>
                 {pickerHint && (
@@ -926,7 +927,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                 flexDirection: 'column',
               }}
             >
-              <div style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
+              <div style={{ ...type.label, color: 'var(--builder-text-label)', padding: '10px 12px 4px', flexShrink: 0 }}>
                 {rightPanel === 'config' ? (isReadOnly ? 'WIDGET INFO' : 'WIDGET CONFIG') : 'VERSION HISTORY'}
               </div>
               {rightPanel === 'config' && selectedWidget && (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ── Dot ──────────────────────────────────────────────────────
 export interface DotProps { c?: string; s?: number; }
@@ -188,9 +189,7 @@ export function StatusBadge({ s }: StatusBadgeProps) {
 
   return (
     <span style={{
-      fontFamily: 'var(--mono)',
-      fontSize: 13,
-      textTransform: 'uppercase',
+      ...type.label,
       letterSpacing: '0.1em',
       padding: '2px 6px',
       borderRadius: 3,
@@ -213,9 +212,7 @@ export function Check({ ok, label }: CheckProps) {
       display: 'inline-flex',
       alignItems: 'center',
       gap: 3,
-      fontFamily: 'var(--mono)',
-      fontSize: 13,
-      textTransform: 'uppercase',
+      ...type.label,
       letterSpacing: '0.1em',
       padding: '1px 5px',
       borderRadius: 3,
@@ -237,8 +234,7 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{
         fontSize: 13,
-        fontFamily: 'var(--mono)',
-        textTransform: 'uppercase',
+        ...type.label,
         letterSpacing: '0.1em',
         color: 'var(--label)',
       }}>

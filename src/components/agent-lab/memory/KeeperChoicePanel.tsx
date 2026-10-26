@@ -7,6 +7,7 @@ import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/
 import type { KeeperSummaryResponse } from '@/app/api/agent-lab/memory/keeper-summary/route';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_TYPE_ORDER: Record<string, number> = {
@@ -339,11 +340,7 @@ export function KeeperChoicePanel() {
     >
       {/* Section kicker */}
       <div style={{
-        fontFamily:    MONO,
-        fontSize:      '13px',
-        letterSpacing: '0.22em',
-        color:         'var(--foer-text-mut)',
-        textTransform: 'uppercase',
+        ...type.label,
         marginBottom:  '14px',
         display:       'flex',
         alignItems:    'center',
@@ -472,7 +469,7 @@ export function KeeperChoicePanel() {
             alignItems:   'center',
             justifyContent: 'space-between',
           }}>
-            <span style={{ fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foer-text-mut)' }}>
+            <span style={{ ...type.label, color: 'var(--foer-text-mut)' }}>
               The Keeper weighs
             </span>
             {!isEmpty && (
@@ -535,10 +532,7 @@ export function KeeperChoicePanel() {
                       {/* Text badge */}
                       <span
                         style={{
-                          fontFamily:    MONO,
-                          fontSize:      '0.60rem',
-                          fontWeight:    600,
-                          textTransform: 'uppercase',
+                          ...type.label,
                           letterSpacing: '0.05em',
                           color:         accent,
                           background:    `${withAlpha(accent, '12')}`,

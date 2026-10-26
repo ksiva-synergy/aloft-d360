@@ -7,6 +7,7 @@ import type { RowsToOptionResult } from '@/lib/dashboards/rows-to-option';
 import type { ChartKindGuess } from '@/lib/dashboards/guided-types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const MUTED = '#8892A4';
 const INK = 'var(--wb-ink, #E6ECF5)';
@@ -78,7 +79,7 @@ export function NotWiredChart({
         <PlugZap size={22} color={AMBER} />
         <span
           style={{
-            ...MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
+            ...type.label,
             color: AMBER, border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 4, padding: '2px 7px',
           }}
         >
@@ -210,7 +211,7 @@ function LiveChart({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span
           style={{
-            ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
+            ...type.label,
             color: GREEN, border: `1px solid ${withAlpha(GREEN, '55')}`, borderRadius: 4, padding: '2px 6px',
           }}
         >
@@ -221,7 +222,7 @@ function LiveChart({
             data-testid="draft-badge"
             title="These rows came from an owner-scoped preview of a not-yet-governed definition"
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               color: VIOLET, border: `1px solid ${withAlpha(VIOLET, '66')}`, borderRadius: 4, padding: '2px 6px',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}

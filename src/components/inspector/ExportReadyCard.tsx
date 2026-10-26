@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { ExportReadyMessage } from '@/hooks/useInspectorChat';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -61,10 +62,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
     >
       <div
         style={{
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: GOLD,
           marginBottom: 6,
         }}
@@ -84,10 +82,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
+          ...type.label,
           padding: '7px 12px',
           borderRadius: 6,
           border: `1px solid ${GOLD}`,

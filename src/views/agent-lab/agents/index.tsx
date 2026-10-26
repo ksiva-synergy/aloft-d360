@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
+import { AGENTS_WORKBENCH_HREF } from '@/lib/navigation/agents-routes';
 import { Bot, MessageCircle, Pencil, Plus, Search } from 'lucide-react';
 
 type SavedAgent = {
@@ -72,7 +73,7 @@ export default function SavedAgentsPage() {
           </p>
         </div>
         <Link
-          href="/agent-lab/workbench"
+          href={AGENTS_WORKBENCH_HREF}
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--brand-a)] px-4 text-sm font-semibold text-white"
         >
           <Plus className="h-4 w-4" /> New agent

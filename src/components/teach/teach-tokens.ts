@@ -7,10 +7,11 @@
  * no scoped `--tm-*` vars, no hardcoded hex. Fonts are the repo's loaded families.
  */
 import type { LearningState, LearningType } from '@/lib/inspector/reflect-tools';
+import { FONT_SANS, FONT_MONO } from '@/lib/typography/tokens';
 
-export const FONT_DISPLAY = "'Inter Variable', 'Inter', system-ui, sans-serif";
-export const FONT_BODY = "'Inter Variable', Inter, system-ui, sans-serif";
-export const FONT_MONO = "'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace";
+export const FONT_DISPLAY = FONT_SANS;
+export const FONT_BODY = FONT_SANS;
+export { FONT_MONO };
 
 /**
  * State → the APP theme token that drives its dot / badge / chip:

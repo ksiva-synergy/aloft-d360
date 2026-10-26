@@ -6,6 +6,7 @@ import { BOOST_SUITE_V1, BOOST_SUITE_V2, type BoostCase } from '@/lib/boost/suit
 import type { ToolKind } from '@/lib/boost/classify';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // Accent colors stay literal (concatenated with hex-opacity suffixes; readable on
 // both themes). Surface/text/border tokens resolve from the `--pl-*` CSS custom
 // properties defined in globals.css (`:root` light + `.dark` override), so the
@@ -38,7 +39,7 @@ function JoinPathBlock({ joinPath }: { joinPath: NonNullable<BoostCase['joinPath
   return (
     <div style={{ marginTop: 14 }}>
       <div style={{
-        ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase',
+        ...type.label,
         color: GOLD, marginBottom: 7, fontWeight: 600,
       }}>
         JOIN PATH
@@ -67,7 +68,7 @@ function HarnessStrengthBadge({ strength }: { strength: NonNullable<BoostCase['h
   const isStrong = strength === 'STRONG';
   return (
     <span style={{
-      ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
+      ...type.label,
       borderRadius: 4, padding: '2px 8px', border: '1px solid',
       color: isStrong ? GOLD : TXT2,
       borderColor: isStrong ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'rgba(136,146,164,0.4)',
@@ -189,7 +190,7 @@ function ModePill({ mode }: { mode: string }) {
   const ctx = mode === 'harvested';
   return (
     <span style={{
-      ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
+      ...type.label,
       borderRadius: 4, padding: '3px 8px', border: '1px solid',
       color: ctx ? GOLD : BLUE,
       borderColor: ctx ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'rgba(58,123,213,0.5)',
@@ -203,7 +204,7 @@ function ModePill({ mode }: { mode: string }) {
 function OutcomeDot({ outcome }: { outcome: string }) {
   const ok = outcome === 'completed';
   return (
-    <span style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
+    <span style={{ ...type.label,
       display: 'inline-flex', alignItems: 'center', gap: 6, color: ok ? GREEN : RED }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: ok ? GREEN : RED, display: 'inline-block' }} />
       {outcome}
@@ -215,7 +216,7 @@ function MetricRow({ label, value, sub, color }: { label: string; value: string;
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
       padding: '9px 0', borderBottom: '1px dashed var(--pl-hair)' }}>
-      <span style={{ ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: TXT2 }}>{label}</span>
+      <span style={{ ...type.label, color: TXT2 }}>{label}</span>
       <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: color || TXT }}>
         {value}{sub && <small style={{ ...mono, fontSize: 13, color: TXT2, fontWeight: 400, marginLeft: 4 }}>{sub}</small>}
       </span>
@@ -300,7 +301,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
           : <MetricRow label="Semantic" value="—" color={TXT2} />}
         {run.answer_excerpt && (
           <div style={{ marginTop: 14, borderTop: '1px solid var(--pl-hair)', paddingTop: 13 }}>
-            <div style={{ ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: TXT2, marginBottom: 7 }}>Terminal answer</div>
+            <div style={{ ...type.label, color: TXT2, marginBottom: 7 }}>Terminal answer</div>
             <div style={{
               fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13,
               color: run.outcome === 'completed' ? TXT : RED,
@@ -317,14 +318,14 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
 
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>A/B Isolation · one task · two modes</div>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>A/B Isolation · one task · two modes</div>
       <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', letterSpacing: '-0.01em', color: TXT }}>The same model. The same question. Context on, context off.</h2>
       <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 20px' }}>Identical task, two modes. The warehouse run may show fewer tokens precisely because it died early. Outcome gates everything else.</p>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' as const }}>
         {/* Model selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Model</span>
+          <span style={{ ...type.label, }}>Model</span>
           <select value={activeModel} onChange={e => setSelectedModel(e.target.value)} style={{
             ...mono, fontSize: 13, color: TXT, background: SURF2, border: `1px solid ${BORDER2}`,
             borderRadius: 6, padding: '6px 12px', cursor: 'pointer', outline: 'none',
@@ -339,7 +340,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
         {/* Case selector */}
         {caseList.length > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Case</span>
+            <span style={{ ...type.label, }}>Case</span>
             <select value={activeCase} onChange={e => setSelectedCase(e.target.value)} style={{
               ...mono, fontSize: 13, color: TXT, background: SURF2, border: `1px solid ${BORDER2}`,
               borderRadius: 6, padding: '6px 12px', cursor: 'pointer', outline: 'none',
@@ -355,10 +356,10 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
 
       <div style={{ background: SURF, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: TXT2, marginBottom: 5 }}>Task · {caseLabel}</div>
+          <div style={{ ...type.label, color: TXT2, marginBottom: 5 }}>Task · {caseLabel}</div>
           <div style={{ ...mono, fontSize: 13, color: TXT }}>Case: {activeCase}</div>
         </div>
-        {model && <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', borderRadius: 4, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: 'var(--brand-a)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
+        {model && <span style={{ ...type.label, borderRadius: 4, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: 'var(--brand-a)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -369,19 +370,19 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
       <div style={{ marginTop: 16, border: `1px solid ${BORDER2}`, borderRadius: 6, background: 'var(--pl-grad)', padding: '18px 20px', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 18, alignItems: 'center' }}>
         <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 700, fontSize: 16, color: TXT }}>
           Context Boost Score
-          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, display: 'block', marginTop: 4, fontWeight: 400 }}>harvested vs warehouse-only · this task</span>
+          <span style={{ ...type.label, color: TXT2, display: 'block', marginTop: 4, fontWeight: 400 }}>harvested vs warehouse-only · this task</span>
         </div>
         <div>
           <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 700, fontSize: 30, lineHeight: 1, color: outcomeFlip ? GREEN : TXT2 }}>{outcomeFlip ? 'PASS' : 'NO FLIP'}</div>
-          <div style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, marginTop: 6 }}>outcome flip<br />truncated → complete</div>
+          <div style={{ ...type.label, color: TXT2, marginTop: 6 }}>outcome flip<br />truncated → complete</div>
         </div>
         <div>
           <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 700, fontSize: 30, lineHeight: 1, color: GOLD }}>{callReduction >= 0 ? `−${fmt(callReduction, 0)}%` : `+${fmt(-callReduction, 0)}%`}</div>
-          <div style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, marginTop: 6 }}>tool calls<br />{sqlRun.tool_calls_total} → {ctxRun.tool_calls_total}</div>
+          <div style={{ ...type.label, color: TXT2, marginTop: 6 }}>tool calls<br />{sqlRun.tool_calls_total} → {ctxRun.tool_calls_total}</div>
         </div>
         <div>
           <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 700, fontSize: 30, lineHeight: 1, color: GOLD }}>{discReduction >= 0 ? `−${fmt(discReduction, 0)}%` : `+${fmt(-discReduction, 0)}%`}</div>
-          <div style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, marginTop: 6 }}>schema discovery<br />{sqlRun.tool_calls_discovery} → {ctxRun.tool_calls_discovery}</div>
+          <div style={{ ...type.label, color: TXT2, marginTop: 6 }}>schema discovery<br />{sqlRun.tool_calls_discovery} → {ctxRun.tool_calls_discovery}</div>
         </div>
       </div>
 
@@ -429,7 +430,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
 
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>Task x model x context · benchmark matrix</div>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>Task x model x context · benchmark matrix</div>
       <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>Does the harness beat raw model strength?</h2>
       <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 24px' }}>Grouped by difficulty. Click a tier to expand model results per case. If a weaker model <em>with</em> the harness beats a frontier model <em>without</em> it, the harness is doing the work.</p>
 
@@ -526,9 +527,9 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
                           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 6 }}>
                             <thead>
                               <tr>
-                                <th style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, fontWeight: 500, padding: '6px 10px', textAlign: 'left', width: 160 }}></th>
+                                <th style={{ ...type.label, color: TXT2, fontWeight: 500, padding: '6px 10px', textAlign: 'left', width: 160 }}></th>
                                 {['CTX · Harvested', 'SQL · Warehouse-only', 'Harness Lift'].map(h => (
-                                  <th key={h} style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, fontWeight: 500, padding: '6px 10px', textAlign: 'center' }}>{h}</th>
+                                  <th key={h} style={{ ...type.label, color: TXT2, fontWeight: 500, padding: '6px 10px', textAlign: 'center' }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
@@ -656,7 +657,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
 
   const Th = ({ col, label, right }: { col: string; label: string; right?: boolean }) => (
     <th onClick={() => toggle(col)} style={{
-      ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: sortCol === col ? GOLD : TXT2,
+      ...type.label, color: sortCol === col ? GOLD : TXT2,
       textAlign: right ? 'right' : 'left', padding: '9px 12px', borderBottom: `1px solid ${BORDER}`, fontWeight: 500,
       cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
     }}>
@@ -666,13 +667,13 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
 
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>Golden-set · reproducible · the defensible artifact</div>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>Golden-set · reproducible · the defensible artifact</div>
       <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>Context Boost Benchmark</h2>
       <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 16px' }}>All runs, most recent first. Click column headers to sort. Color-coded scores: green ≥0.8, gold 0.5–0.8, red &lt;0.5.</p>
 
       {/* Suite selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase', flexShrink: 0 }}>Suite</span>
+        <span style={{ ...type.label, flexShrink: 0 }}>Suite</span>
         <div style={{ display: 'flex', gap: 6 }}>
           {SUITE_OPTIONS.map(s => (
             <button key={s.id} onClick={() => setSelectedSuiteId(s.id)} style={{
@@ -702,8 +703,8 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
               <Th col="input_tokens" label="Tokens" right />
               <Th col="loops" label="Loops" right />
               <Th col="latency_ms" label="Latency" right />
-              <th style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, textAlign: 'right', padding: '9px 12px', borderBottom: `1px solid ${BORDER}`, fontWeight: 500 }}>Grounded</th>
-              <th style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: TXT2, textAlign: 'right', padding: '9px 12px', borderBottom: `1px solid ${BORDER}`, fontWeight: 500 }}>Semantic</th>
+              <th style={{ ...type.label, color: TXT2, textAlign: 'right', padding: '9px 12px', borderBottom: `1px solid ${BORDER}`, fontWeight: 500 }}>Grounded</th>
+              <th style={{ ...type.label, color: TXT2, textAlign: 'right', padding: '9px 12px', borderBottom: `1px solid ${BORDER}`, fontWeight: 500 }}>Semantic</th>
             </tr>
           </thead>
           <tbody>
@@ -730,10 +731,10 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
                     </td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)', ...mono, fontSize: 13, color: TXT2 }}>{model?.label ?? run.model_key}</td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)' }}>
-                      <span style={{ ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: isCtx ? GOLD : BLUE }}>{isCtx ? 'CTX' : 'SQL'}</span>
+                      <span style={{ ...type.label, color: isCtx ? GOLD : BLUE }}>{isCtx ? 'CTX' : 'SQL'}</span>
                     </td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)' }}>
-                      <span style={{ ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 4, padding: '3px 8px', border: '1px solid', color: ok ? GREEN : RED, borderColor: ok ? 'rgba(34,197,94,0.4)' : 'rgba(244,63,94,0.4)' }}>{run.outcome}</span>
+                      <span style={{ ...type.label, borderRadius: 4, padding: '3px 8px', border: '1px solid', color: ok ? GREEN : RED, borderColor: ok ? 'rgba(34,197,94,0.4)' : 'rgba(244,63,94,0.4)' }}>{run.outcome}</span>
                     </td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)', textAlign: 'right', ...mono, fontSize: 13, color: ok ? TXT : RED }}>{run.tool_calls_total}</td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)', textAlign: 'right', ...mono, fontSize: 13, color: run.tool_calls_discovery > 0 ? RED : GREEN }}>{run.tool_calls_discovery}</td>
@@ -761,7 +762,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
                             </span>
                             {boostCase.difficulty && (
                               <span style={{
-                                ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                ...type.label,
                                 borderRadius: 4, padding: '2px 7px', border: '1px solid',
                                 color: boostCase.difficulty === 'hard' ? RED : boostCase.difficulty === 'medium' ? GOLD : GREEN,
                                 borderColor: boostCase.difficulty === 'hard' ? 'rgba(244,63,94,0.4)' : boostCase.difficulty === 'medium' ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'rgba(34,197,94,0.4)',
@@ -779,7 +780,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
 
                           {/* Expected dimensions */}
                           <div style={{ marginBottom: boostCase.joinPath ? 0 : 0 }}>
-                            <div style={{ ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: TXT2, marginBottom: 6 }}>
+                            <div style={{ ...type.label, color: TXT2, marginBottom: 6 }}>
                               Expected dimensions
                             </div>
                             <ul style={{ margin: 0, padding: '0 0 0 14px', listStyle: 'disc' }}>
@@ -805,10 +806,10 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
       </div>
 
       <div style={{ marginTop: 18, padding: '14px 16px', background: SURF2, border: `1px solid ${BORDER}`, borderRadius: 6, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-        <div><span style={{ ...mono, fontSize: 13, color: TXT2, textTransform: 'uppercase', letterSpacing: '0.1em' }}>CTX completion </span><strong style={{ ...mono, color: GREEN }}>{ctxComplete}/{ctxRuns.length}</strong></div>
-        <div><span style={{ ...mono, fontSize: 13, color: TXT2, textTransform: 'uppercase', letterSpacing: '0.1em' }}>SQL completion </span><strong style={{ ...mono, color: BLUE }}>{sqlComplete}/{sqlRuns.length}</strong></div>
-        {meanCallReduction !== null && <div><span style={{ ...mono, fontSize: 13, color: TXT2, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mean call reduction </span><strong style={{ ...mono, color: GOLD }}>−{fmt(meanCallReduction, 0)}%</strong></div>}
-        {meanDiscReduction !== null && <div><span style={{ ...mono, fontSize: 13, color: TXT2, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mean disc elimination </span><strong style={{ ...mono, color: GOLD }}>−{fmt(meanDiscReduction, 0)}%</strong></div>}
+        <div><span style={{ ...type.label, letterSpacing: '0.1em' }}>CTX completion </span><strong style={{ ...mono, color: GREEN }}>{ctxComplete}/{ctxRuns.length}</strong></div>
+        <div><span style={{ ...type.label, letterSpacing: '0.1em' }}>SQL completion </span><strong style={{ ...mono, color: BLUE }}>{sqlComplete}/{sqlRuns.length}</strong></div>
+        {meanCallReduction !== null && <div><span style={{ ...type.label, letterSpacing: '0.1em' }}>Mean call reduction </span><strong style={{ ...mono, color: GOLD }}>−{fmt(meanCallReduction, 0)}%</strong></div>}
+        {meanDiscReduction !== null && <div><span style={{ ...type.label, letterSpacing: '0.1em' }}>Mean disc elimination </span><strong style={{ ...mono, color: GOLD }}>−{fmt(meanDiscReduction, 0)}%</strong></div>}
       </div>
     </div>
   );
@@ -853,7 +854,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
     marginBottom: 16,
   };
   const layerLabel: React.CSSProperties = {
-    ...mono, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase',
+    ...type.label,
     color: GOLD, marginBottom: 10, fontWeight: 600,
   };
   const layerTitle: React.CSSProperties = {
@@ -865,7 +866,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
 
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 8 }}>Layered evaluation · deterministic + LLM-judged</div>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>Layered evaluation · deterministic + LLM-judged</div>
       <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>Scoring Methodology</h2>
       <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 24px' }}>
         Four scoring layers, applied lexicographically. A run must pass each gate before downstream scores matter.
@@ -939,7 +940,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
         background: 'var(--pl-grad)',
         border: `1px solid ${BORDER2}`,
       }}>
-        <div style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginBottom: 10 }}>Composite Ranking</div>
+        <div style={{ ...type.label, color: GOLD, marginBottom: 10 }}>Composite Ranking</div>
         <p style={{ fontSize: 13, color: TXT, lineHeight: 1.6, margin: 0 }}>
           <strong>Lexicographic:</strong> outcome first, then groundedness, then efficiency, then semantic.
           A completed-but-slow run always beats a truncated-but-lean one. A grounded answer always beats an

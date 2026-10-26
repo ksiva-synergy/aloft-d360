@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, HelpCircle, Sparkles } from 'lucide-react';
 import type { IntentDisambiguation } from '@/lib/dashboards/guided-types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -104,7 +105,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             ) : (
               <AlertTriangle size={11} color={VIOLET} />
             )}
-            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
+            <span style={{ ...type.label, color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
               {d.resolution === 'ambiguous' ? `Which "${d.term}"?` : `"${d.term}" isn’t governed`}
             </span>
           </div>
@@ -145,10 +146,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             <button
               onClick={() => { onDefineInTeach(d.term); setOpen(false); }}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
+                ...type.label,
                 padding: '6px 8px',
                 borderRadius: 4,
                 border: `1px solid ${VIOLET}`,

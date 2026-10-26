@@ -14,6 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
+import { type } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
@@ -80,8 +81,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 4,
-            ...mono,
-            fontSize: 13,
+            ...type['ui-regular'],
             fontWeight: 500,
             color: GOLD,
             background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
@@ -124,8 +124,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 4,
-            ...mono,
-            fontSize: 13,
+            ...type['ui-regular'],
             color: open ? GOLD : MUTED,
             background: 'transparent',
             border: `1px solid ${open ? BORDER_GOLD : 'rgba(74,96,128,0.35)'}`,
@@ -162,7 +161,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
               }}
             >
               <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-                <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
                   Attach tool
                 </span>
               </div>
@@ -191,13 +190,12 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
                       <div style={{ ...sans, fontSize: 13, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {displayName(tool.name)}
                       </div>
-                      <div style={{ ...mono, fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ ...type['ui-regular'], color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {tool.slug}
                       </div>
                     </div>
                     <span style={{
-                      ...mono,
-                      fontSize: 13,
+                      ...type['ui-regular'],
                       fontWeight: 700,
                       padding: '2px 6px',
                       borderRadius: 4,
@@ -279,7 +277,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         <Zap size={11} style={{ color: providerColor, flexShrink: 0 }} />
-        <span style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'nowrap' }}>
+        <span style={{ ...type['ui-regular'], color: INK_DIM, whiteSpace: 'nowrap' }}>
           {current.label}
         </span>
         <ChevronDown size={10} style={{ color: MUTED, flexShrink: 0 }} />
@@ -306,12 +304,12 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
             }}
           >
             <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-              <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Model</span>
+              <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Model</span>
             </div>
             <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
               {Object.entries(grouped).map(([provider, models]) => (
                 <div key={provider}>
-                  <div style={{ padding: '6px 12px 3px', ...mono, fontSize: 13, color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <div style={{ padding: '6px 12px 3px', ...type['ui-regular'], color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
                     {provider === 'llmlite' ? 'LLM Lite' : provider}
                   </div>
                   {models.map(m => {
@@ -342,10 +340,10 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
                           <div style={{ ...sans, fontSize: 13, color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
                             {m.label}
                             {m.supportsThinking && (
-                              <span style={{ ...mono, fontSize: 13, color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.06em' }}>thinking</span>
+                              <span style={{ ...type['ui-regular'], color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.06em' }}>thinking</span>
                             )}
                           </div>
-                          <div style={{ ...mono, fontSize: 13, color: MUTED, marginTop: 1 }}>{m.description}</div>
+                          <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 1 }}>{m.description}</div>
                         </div>
                       </button>
                     );
@@ -465,8 +463,7 @@ export function InputComposer({
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            ...mono,
-            fontSize: 14,
+            ...type['ui-regular'],
             color: busy ? MUTED : INK,
             padding: '14px 16px 10px',
             lineHeight: 1.6,
@@ -483,8 +480,7 @@ export function InputComposer({
         {busy && (
           <div style={{
             padding: '2px 16px 10px',
-            ...mono,
-            fontSize: 13,
+            ...type['ui-regular'],
             color: GOLD,
             display: 'flex',
             alignItems: 'center',
@@ -518,7 +514,7 @@ export function InputComposer({
         {/* Right: hint + send/stop */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {!busy && (
-            <span style={{ ...mono, fontSize: 13, color: MUTED, whiteSpace: 'nowrap', opacity: focused ? 1 : 0.5, transition: 'opacity 0.2s' }}>
+            <span style={{ ...type['ui-regular'], color: MUTED, whiteSpace: 'nowrap', opacity: focused ? 1 : 0.5, transition: 'opacity 0.2s' }}>
               ↵ send · ⇧↵ newline
             </span>
           )}
@@ -592,10 +588,7 @@ export function InputComposer({
                     border: 'none',
                     cursor: canCommission ? 'pointer' : 'not-allowed',
                     color: canCommission ? '#001f3f' : MUTED,
-                    ...mono,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    letterSpacing: '0.1em',
+                    ...type.ui,
                     padding: '0 14px',
                     transition: 'background 0.15s, transform 0.1s',
                     whiteSpace: 'nowrap',
@@ -605,7 +598,7 @@ export function InputComposer({
                   onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
                 >
                   <Zap size={12} />
-                  COMMISSION
+                  Commission
                 </button>
               )}
             </div>

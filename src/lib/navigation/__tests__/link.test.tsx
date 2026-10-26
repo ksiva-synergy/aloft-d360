@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { act, render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import Link, { formatUrl } from './next-link';
+import Link, { formatUrl } from '../link';
 
 function Where() {
   const l = useLocation();

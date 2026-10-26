@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
 
 interface Source {
@@ -443,7 +443,7 @@ export default function EstateMapperPage() {
     <div className="h-full flex flex-col overflow-y-auto p-6" style={{ color: inkColor }}>
       {/* 1. Step indicator strip */}
       <div className="flex items-center gap-8 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
+    <div className="flex items-center gap-2 text-label ">
           {step > 1 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : (
@@ -452,7 +452,7 @@ export default function EstateMapperPage() {
           <span style={{ color: step === 1 ? activeColor : labelColor }}>Pick pair</span>
         </div>
         <div style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
+    <div className="flex items-center gap-2 text-label ">
           {step > 2 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : step === 2 ? (
@@ -463,7 +463,7 @@ export default function EstateMapperPage() {
           <span style={{ color: step === 2 ? activeColor : labelColor }}>Run</span>
         </div>
         <div style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold">
+    <div className="flex items-center gap-2 text-label ">
           {step === 3 ? (
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeColor }} />
           ) : (
@@ -533,7 +533,7 @@ export default function EstateMapperPage() {
             <button
               onClick={handleRunMapping}
               disabled={!canRun}
-              className="px-6 py-2.5 rounded text-xs font-mono tracking-wider uppercase font-semibold transition-all duration-200"
+       className="px-6 py-2.5 rounded text-label transition-all duration-200"
               style={{
                 backgroundColor: canRun ? activeColor : raisedBg,
                 color: canRun ? 'var(--on-brand)' : labelColor,
@@ -550,7 +550,7 @@ export default function EstateMapperPage() {
 
       {step === 2 && (
         <div className="flex flex-col gap-6 max-w-xl">
-          <h2 className="text-sm font-mono tracking-wider uppercase">Job Execution</h2>
+     <h2 className="text-label ">Job Execution</h2>
           
           <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
             <div className="flex flex-col gap-3 font-mono text-xs">
@@ -595,7 +595,7 @@ export default function EstateMapperPage() {
                   setJobError(null);
                   setJobData(null);
                 }}
-                className="px-4 py-2 border rounded self-start text-xs font-mono uppercase tracking-wider hover:border-[var(--brand-a)] transition-colors"
+        className="px-4 py-2 border rounded self-start text-label hover:border-[var(--brand-a)] transition-colors"
                 style={{ borderColor, color: inkColor }}
               >
                 ← Try again
@@ -608,11 +608,11 @@ export default function EstateMapperPage() {
       {step === 3 && (
         <div className="flex flex-col gap-6 max-w-5xl">
           <div className="flex justify-between items-center pb-2 border-b" style={{ borderColor }}>
-            <h2 className="text-sm font-mono tracking-wider uppercase">Mapping Review</h2>
+      <h2 className="text-label ">Mapping Review</h2>
             <Link
               href="/api/agent-lab/context/mappings/export?format=md"
               download
-              className="px-4 py-1.5 border rounded text-xs font-mono uppercase tracking-wider hover:border-[var(--brand-a)] transition-all"
+       className="px-4 py-1.5 border rounded text-label hover:border-[var(--brand-a)] transition-all"
               style={{ borderColor, color: inkColor }}
             >
               Export as Markdown ↓
@@ -683,7 +683,7 @@ export default function EstateMapperPage() {
                         <button
                           disabled={!!confirmingState}
                           onClick={() => handleBulkConfirm(group)}
-                          className="px-3 py-1 bg-[var(--brand-a)] text-[#FFFFFF] rounded text-xs font-mono font-semibold uppercase tracking-wider hover:brightness-110 disabled:opacity-50"
+             className="px-3 py-1 bg-[var(--brand-a)] text-[#FFFFFF] rounded text-label hover:brightness-110 disabled:opacity-50"
                         >
                           {confirmingState || 'Confirm'}
                         </button>
@@ -776,13 +776,13 @@ export default function EstateMapperPage() {
                                     <>
                                       <button
                                         onClick={() => handleUpdateStatus(m.id, 'confirmed')}
-                                        className="px-2.5 py-1 rounded border border-green-500/30 text-green-500 hover:bg-green-500/10 text-xs font-mono uppercase font-semibold"
+                    className="px-2.5 py-1 rounded border border-green-500/30 text-green-500 hover:bg-green-500/10 text-label "
                                       >
                                         Confirm
                                       </button>
                                       <button
                                         onClick={() => handleUpdateStatus(m.id, 'rejected')}
-                                        className="px-2.5 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 text-xs font-mono uppercase font-semibold"
+                    className="px-2.5 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 text-label "
                                       >
                                         Reject
                                       </button>
@@ -797,7 +797,7 @@ export default function EstateMapperPage() {
                         {/* Collapsible Unmapped Remainder Panel */}
                         <div className="border-t p-3" style={{ borderColor }}>
                           <div
-                            className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider font-semibold cursor-pointer select-none"
+              className="flex items-center gap-2 text-label cursor-pointer select-none"
                             style={{ color: labelColor }}
                             onClick={() =>
                               setExpandedRemainder((prev) => ({ ...prev, [group.key]: !isRemainderExpanded }))
@@ -1008,14 +1008,14 @@ function SchemaPicker({
 
   return (
     <div className="flex flex-col gap-4 p-4 rounded border" style={{ borderColor, backgroundColor: raisedBg }}>
-      <h3 className="text-xs font-mono uppercase tracking-wider font-semibold" style={{ color: activeColor }}>
+   <h3 className="text-label " style={{ color: activeColor }}>
         {title}
       </h3>
 
       <div className="flex flex-col gap-3">
         {/* 1. Source selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
+     <label className="text-label " style={{ color: labelColor }}>
             Source
           </label>
           <select
@@ -1034,7 +1034,7 @@ function SchemaPicker({
 
         {/* 2. Catalog selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
+     <label className="text-label " style={{ color: labelColor }}>
             Catalog
           </label>
           <select
@@ -1056,7 +1056,7 @@ function SchemaPicker({
 
         {/* 3. Schema selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs uppercase font-semibold font-mono" style={{ color: labelColor }}>
+     <label className="text-label " style={{ color: labelColor }}>
             Schema
           </label>
           <select

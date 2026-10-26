@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Plus, X, Tag } from 'lucide-react';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = 'var(--brand-a)';
@@ -98,7 +99,7 @@ export function SynonymEditor({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: compact ? 4 : 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Tag size={compact ? 10 : 11} color={MUTED} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', color: MUTED, textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           Also called
         </span>
       </div>

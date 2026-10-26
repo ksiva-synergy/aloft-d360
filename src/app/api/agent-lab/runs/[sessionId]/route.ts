@@ -81,7 +81,7 @@ export async function GET(
   const openPath =
     session.surface === 'inspector'
       ? `/inspector/${sessionId}`
-      : `/agent-lab/workbench/${sessionId}`;
+      : `/agent-lab/agents/workbench/${sessionId}`;
 
   return NextResponse.json({
     session: {
@@ -110,7 +110,7 @@ export async function GET(
     links: {
       foerTrace: `/agent-lab/memory/ops?session=${sessionId}`,
       inspector: `/inspector/${sessionId}`,
-      workbench: `/agent-lab/workbench/${sessionId}`,
+      workbench: `/agent-lab/agents/workbench/${sessionId}`,
       open: openPath,
       performanceLab: '/performance-lab',
     },

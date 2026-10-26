@@ -5,6 +5,7 @@ import { ArrowLeftRight, Settings2 } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 import StudioChart from './StudioChart';
+import { type } from '@/lib/typography/tokens';
 
 // ── Surface tokens (direct hex — consistent with spec) ────────────────────────
 const T = {
@@ -57,11 +58,7 @@ function KpiCard({ spec }: { spec: ChartSpec }) {
       </span>
       <span
         style={{
-          ...MONO,
-          fontSize: 13,
-          color: T.label,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
+          ...type.label,
           marginTop: 2,
         }}
       >
@@ -152,10 +149,7 @@ function SwapMenu({
                 color: T.text,
                 cursor: 'pointer',
                 padding: '4px 8px',
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                ...type.label,
                 borderRadius: 3,
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 8%, transparent)')}
@@ -244,7 +238,7 @@ function GearMenu({
         >
           {spec.x !== undefined && (
             <div>
-              <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>X AXIS</span>
+              <span style={{ ...type.label, }}>X AXIS</span>
               <select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
@@ -253,7 +247,7 @@ function GearMenu({
           )}
           {spec.y && spec.y.length > 0 && (
             <div>
-              <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Y AXIS</span>
+              <span style={{ ...type.label, }}>Y AXIS</span>
               <select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
@@ -269,10 +263,7 @@ function GearMenu({
               color: T.gold,
               cursor: 'pointer',
               padding: '4px 8px',
-              ...MONO,
-              fontSize: 13,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             APPLY
@@ -376,11 +367,7 @@ function ChartCard({
       >
         <span
           style={{
-            ...MONO,
-            fontSize: 13,
-            color: T.label,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             flex: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -553,11 +540,7 @@ export function DashboardGrid({
         >
           <span
             style={{
-              ...MONO,
-              fontSize: 13,
-              color: T.label,
-              letterSpacing: '0.10em',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             NO CHARTS AVAILABLE FOR THIS DATASET
@@ -570,11 +553,7 @@ export function DashboardGrid({
         <div style={{ display: 'flex', alignItems: 'center', padding: '8px 0' }}>
           <span
             style={{
-              ...MONO,
-              fontSize: 13,
-              color: T.label,
-              letterSpacing: '0.10em',
-              textTransform: 'uppercase',
+              ...type.label,
               border: `1px solid ${T.border}`,
               borderRadius: 4,
               padding: '4px 10px',

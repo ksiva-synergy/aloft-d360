@@ -10,6 +10,7 @@ import type { DriftStatus } from './builder-store';
 import { useBuilderStore } from './builder-store';
 import { WidgetPreview } from './WidgetPreview';
 import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -74,7 +75,7 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
           gap: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           NO WIDGETS YET
         </span>
         <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', maxWidth: 260, textAlign: 'center' }}>
@@ -131,10 +132,7 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
                 >
                   <span
                     style={{
-                      ...MONO,
-                      fontSize: 13,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
+                      ...type.label,
                       color: 'var(--builder-text)',
                       flex: 1,
                       overflow: 'hidden',
@@ -187,10 +185,7 @@ function DriftBadge({ drift }: { drift?: { status: DriftStatus; changedMeasures?
       <span
         title={tip}
         style={{
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          ...type.label,
           padding: '2px 5px',
           borderRadius: 2,
           background: 'rgba(239,68,68,0.12)',
@@ -216,10 +211,7 @@ function DriftBadge({ drift }: { drift?: { status: DriftStatus; changedMeasures?
     <span
       title={tip}
       style={{
-        ...MONO,
-        fontSize: 13,
-        letterSpacing: '0.06em',
-        textTransform: 'uppercase',
+        ...type.label,
         padding: '2px 5px',
         borderRadius: 2,
         background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',

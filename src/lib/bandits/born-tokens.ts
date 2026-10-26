@@ -1,3 +1,4 @@
+import { FONT_SANS, FONT_MONO } from '@/lib/typography/tokens';
 /**
  * BORN design tokens — colours, typography roles, geometry.
  * Extracted from the BORN Dashboard style strip (BORN Dashboard.dc.html).
@@ -38,9 +39,10 @@ export const TEXT_SEC = 'var(--born-text-sec)' as const;
 export const TEXT_MUT = 'var(--born-text-mut)' as const;
 
 // ── Typography roles ──
-export const SERIF = "'Source Serif 4'" as const;
-export const BODY  = "'Inter Tight'"    as const;
-export const MONO  = "'IBM Plex Mono'"  as const;
+// One sans, one mono (see src/lib/typography/tokens.ts). SERIF/BODY are kept as aliases so importers do not change.
+export const SERIF = FONT_SANS;
+export const BODY  = FONT_SANS;
+export const MONO  = FONT_MONO;
 
 // ── Geometry ──
 export const RADIUS_MAX = 6 as const;

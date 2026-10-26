@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { FONT_BODY, FONT_DISPLAY, FONT_MONO } from '../teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 const STARTERS = [
   "Here's what actually counts as ‘the fleet’.",
@@ -72,7 +73,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         }}
       >
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--primary)' }}>
+        <span style={{ ...type.label, color: 'var(--primary)' }}>
           Reflect Mode · Captain Track Sparrow is listening
         </span>
       </span>
@@ -100,7 +101,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
 
       {/* Starters */}
       <div style={{ marginTop: 26, width: '100%', maxWidth: 460 }}>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 10 }}>
+        <div style={{ ...type.label, color: 'var(--text-tertiary)', marginBottom: 10 }}>
           Try starting with
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

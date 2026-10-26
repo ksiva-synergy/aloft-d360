@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { ArrowRight, Bot, Loader2, X } from 'lucide-react';
 import { stashWorkbenchSeed } from '@/lib/construction/handoff';
 
@@ -40,7 +40,7 @@ export function AgentHandoffCard({
         return;
       }
       stashWorkbenchSeed(data.sessionId, data.seedMessage ?? mission);
-      router.push(`/agent-lab/workbench/${data.sessionId}`);
+      router.push(`/agent-lab/agents/workbench/${data.sessionId}`);
     } catch {
       setError('Could not open Agent Lab. Check your connection and try again.');
       setBusy(false);

@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { scoreColor, levelColor, GATING_CHIP_COLOR, GATING_CHIP_BG } from './dataReadinessColors';
+import { type } from '@/lib/typography/tokens';
 
 const TRACK_COLOR = 'color-mix(in srgb, var(--ink-1) 7%, transparent)';
 
@@ -209,11 +210,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
       {/* Right: Gating callout */}
       <div style={{ paddingTop: 4, minWidth: 0, flex: 1 }}>
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--estate-text-secondary, var(--ink-3))',
           marginBottom: 8,
         }}>
@@ -232,11 +229,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
           padding: '2px 7px',
         }}>
           <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: GATING_CHIP_COLOR,
           }}>
             GATING

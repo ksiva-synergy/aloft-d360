@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { usePathname, useRouter } from '@/lib/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { GearSixIcon, MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon } from '@phosphor-icons/react';

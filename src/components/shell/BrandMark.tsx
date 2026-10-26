@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,12 +23,12 @@ export function BrandMark({
       )}
       style={{ width: size, height: size, borderRadius: Math.round(size * 0.28) }}
     >
-      <Image
+      <img
         src={src}
         alt="Synergy Group"
         width={size}
         height={size}
-        priority
+        loading="eager"
         className="h-full w-full object-contain"
         style={{ padding: variant === 'full' ? 0 : Math.round(size * 0.1) }}
       />

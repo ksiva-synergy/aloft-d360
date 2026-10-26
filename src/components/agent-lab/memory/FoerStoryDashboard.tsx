@@ -10,8 +10,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useTheme } from 'next-themes';
 import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2 } from 'lucide-react';
@@ -36,6 +36,7 @@ import {
 } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // ── One QueryClient per mount (not module-level to avoid SSR issues) ──────────
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
@@ -214,8 +215,6 @@ function FoerStoryInner() {
       <EasterEggs />
       {/* Injected CSS for @keyframes and utility classes */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,600&family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
         [data-foer-theme] * { box-sizing: border-box; }
 
         @keyframes foer-pulse-gold {
@@ -343,11 +342,7 @@ function FoerStoryInner() {
         <p
           id="foer-kicker"
           style={{
-            fontFamily:    MONO,
-            fontSize:      '13px',
-            letterSpacing: '0.28em',
-            color:         'var(--foer-text-mut)',
-            textTransform: 'uppercase',
+            ...type.label,
             marginBottom:  '14px',
           }}
         >
@@ -451,10 +446,7 @@ function FoerStoryInner() {
                 {/* Label */}
                 <div
                   style={{
-                    fontFamily:    MONO,
-                    fontSize:      '13px',
-                    letterSpacing: '0.13em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color:         'var(--foer-text-mut)',
                   }}
                 >
@@ -511,11 +503,7 @@ function FoerStoryInner() {
           <label
             htmlFor="foer-filter-topic"
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Topic
@@ -542,11 +530,7 @@ function FoerStoryInner() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Window
@@ -570,11 +554,7 @@ function FoerStoryInner() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Rule Type

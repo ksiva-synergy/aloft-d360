@@ -48,7 +48,6 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: HammerIcon,
     items: [
       { label: 'Inspector',       href: '/inspector',            icon: MagnifyingGlassIcon },
-      { label: 'Workbench',       href: '/agent-lab/workbench',    icon: HammerIcon },
       { label: 'Agents',          href: '/agent-lab/agents',       icon: RobotIcon },
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },

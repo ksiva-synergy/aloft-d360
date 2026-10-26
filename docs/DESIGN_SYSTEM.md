@@ -53,16 +53,16 @@ Brand aliases in Tailwind: `brand.navy` (`#003262`), `brand.gold` (`#FDB515`). S
 
 ### Typography
 
-Three typefaces, loaded via `@fontsource` in [`globals.css`](../src/app/globals.css):
+Two typefaces, self-hosted through `@fontsource` (imports in [`globals.css`](../src/app/globals.css)); all values live in [`src/styles/typography.css`](../src/styles/typography.css) and are mirrored for inline styles, canvas and ECharts in [`src/lib/typography/tokens.ts`](../src/lib/typography/tokens.ts).
 
-| Family | Font | Usage | Tailwind alias |
+| Family | Font | Usage | Tailwind / token |
 |---|---|---|---|
-| Sans (UI/body) | **Inter Tight** | Default UI text, labels, body | `font-sans`, `font-body` |
-| Serif (display) | **Source Serif 4** | Headings, agent names, display | `font-serif`, `font-display` |
-| Mono (code) | **IBM Plex Mono** | Code, terminal, section labels | `font-mono` |
+| Sans | **Inter Variable** (upright + italic) | Everything people read | `font-sans`, `var(--font-sans)`, `FONT_SANS` |
+| Mono | **IBM Plex Mono** (400, 500) | Machine text only: code, SQL, ids, paths, cron | `font-mono`, `var(--font-mono)`, `FONT_MONO` |
 
-`body` font stack: `'Inter Tight', var(--font-sans), Arial, Helvetica, sans-serif`.
-Font fallbacks: sans → `Inter, system-ui`; serif → `Georgia`; mono → `JetBrains Mono, SF Mono, monospace`.
+`font-serif`, `font-display` and `font-body` remain as aliases of the sans; the serif family (Source Serif 4), Inter Tight and DM Sans are retired. Weights are 400 / 500 / 600 only.
+
+Type tokens (use a token, never a raw size): `display`, `title-page`, `title-section`, `title-card`, `body-lg`, `body`, `ui-lg`, `ui`, `ui-regular`, `label`, `caption`, `eyebrow`, `kpi-lg`, `kpi-md`, `kpi-sm`, `code`, `code-inline`. Available as Tailwind classes (`text-title-page`), CSS classes (`.type-title-page`) and objects (`style={{ ...type.eyebrow }}`). Full table and migration plan: [`audits/typography-implementation-plan.md`](audits/typography-implementation-plan.md). `src/lib/typography/__tests__/typography-guard.test.ts` fails on unloaded font names, runtime font CDNs and growth of hardcoded typography.
 
 ### Border radius
 
@@ -256,7 +256,7 @@ Two layers exist: global `--wb-*` tokens, and a fuller scoped token set under `.
 
 **Scoped `.workbench-frame`** defines a richer set: surface stack (`--bg-base/surface/elevated/sunken`), borders (`--border-default/subtle/strong`), ink (`--text-primary/secondary/tertiary/muted`), brand (`--accent-gold/navy/gold-dim`), status (`--status-live #22C55E`, `--status-preview #F59E0B`, `--status-draft #6B7280`), functional shadows, a "live commission" green panel palette (`--live-*`), and typography vars (`--display`, `--mono`, `--sans`). It also carries **legacy aliases** (`--bg`, `--surface`, `--raised`, `--gold`, etc.) for inline styles in workbench components.
 
-> In dark mode, `.workbench-frame`'s `--display` switches from Source Serif 4 to Inter Tight.
+> `.workbench-frame`'s `--display`, `--sans` and `--mono` now point at the global `--font-sans` / `--font-mono` in both themes.
 
 ### 5.4 Guided blueprint palette (`--bp-*`)
 
@@ -426,7 +426,7 @@ Plugin: **`tailwindcss-animate`**.
 - **Prefer the theme-reactive Tailwind aliases** (`builder.*`, `brand.*`) or `dark:` variants over hardcoded colors.
 - **Radius discipline:** `rounded-sm` (4px) for controls, `rounded-card` (6px) for surfaces; never exceed 6px. `md`/`lg`/`xl` in JSX are considered violations.
 - **Theme branching in JS:** use `useIsDark()` — do not read `matchMedia` or `localStorage` directly.
-- **Fonts:** `font-display`/`font-serif` (Source Serif 4) for headings & agent names, `font-sans`/`font-body` (Inter Tight) for UI, `font-mono` (IBM Plex Mono) for code and small caps-y section labels.
+- **Fonts:** Inter (`font-sans`) for all readable text, IBM Plex Mono (`font-mono`) for machine text only (code, ids, paths). Pick a type token; see Typography above.
 - **Two dark identities coexist:** the global `.dark` is a neutral GitHub-style dark; the branded subsystems (Workbench, Data Estate, Performance Lab, BORN) reassert navy/gold. When adding a surface, decide which family it belongs to and reuse that namespace rather than inventing new tokens.
 
 ---

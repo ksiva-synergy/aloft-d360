@@ -19,6 +19,7 @@ import { PosteriorTimelinePanel } from './bandits/PosteriorTimelinePanel';
 import { LiveFeedPanel } from './bandits/LiveFeedPanel';
 import { BornVerdict } from './bandits/BornVerdict';
 import { ArmDetailDrawer } from './bandits/ArmDetailDrawer';
+import { type } from '@/lib/typography/tokens';
 
 // ?? Constants ????????????????????????????????????????????????????????????????
 
@@ -282,7 +283,7 @@ export function BanditsDashboard() {
         }}>
           <span>DATA 360</span>
           <span style={{ opacity: 0.4 }}>/</span>
-          <span>ALOFT � AGENT LAB</span>
+          <span>ALOFT · AGENT LAB</span>
           <span style={{ opacity: 0.4 }}>/</span>
           <span style={{ color: GOLD }}>BORN</span>
         </div>
@@ -349,7 +350,7 @@ export function BanditsDashboard() {
             color: TEXT_MUT, marginBottom: 24, maxWidth: 700, lineHeight: 1.6,
           }}>
             Ten models in superposition. Every run is a measurement; every measurement collapses
-            belief. The favourite isn&apos;t chosen ? it&apos;s measured into being.
+            belief. The favourite isn&apos;t chosen — it&apos;s measured into being.
           </div>
 
           {/* KPI row */}
@@ -493,8 +494,7 @@ export function BanditsDashboard() {
                         style={{
                           padding: '6px 12px',
                           textAlign: (h === '#' || h === 'Model') ? 'left' : 'right',
-                          fontFamily: MONO, fontSize: 13, letterSpacing: '0.06em',
-                          textTransform: 'uppercase', color: TEXT_MUT,
+                          ...type.label, color: TEXT_MUT,
                           borderBottom: `1px solid ${BORDER}`, whiteSpace: 'nowrap',
                         }}
                       >
@@ -622,7 +622,7 @@ export function BanditsDashboard() {
             <div style={{ marginBottom: 16 }}>
               <div style={sectionTitleStyle}>Reward Anatomy</div>
               <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
-                CTSGV � 5-axis quality model
+                CTSGV — 5-axis quality model
               </div>
             </div>
 
@@ -724,7 +724,7 @@ export function BanditsDashboard() {
               marginTop: 16, paddingTop: 12, borderTop: `1px solid ${BORDER}`,
               fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
             }}>
-              V (verify) reserved � Outcome gate: truncated ? cap 0.25, errored ? cap 0.10
+              V (verify) reserved — Outcome gate: truncated → cap 0.25, errored → cap 0.10
             </div>
           </div>
         )}
@@ -779,8 +779,7 @@ function KpiCard({
       borderRadius: 6, padding: '14px 16px',
     }}>
       <div style={{
-        fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em',
-        textTransform: 'uppercase', color: TEXT_MUT, marginBottom: 8,
+        ...type.label, color: TEXT_MUT, marginBottom: 8,
       }}>
         {label}
       </div>

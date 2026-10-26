@@ -1,3 +1,4 @@
+import { FONT_SANS, FONT_MONO } from '@/lib/typography/tokens';
 // FOER design tokens — colours, status weights, topic accent ramp.
 // Mirrors born-tokens.ts structure; import freely in client and server modules.
 // Gold is repurposed here as the "golden core memory" orb for HARD_RULE (not a header accent).
@@ -45,9 +46,10 @@ export const TOOLTIP_TEXT = 'var(--ink-1)' as const;
 export const MAXWELL_GREEN = '#88B8A0' as const;
 
 // ── Typography roles ──────────────────────────────────────────────────────────
-export const SERIF = "'Source Serif 4'" as const;
-export const BODY  = "'Inter Tight'"    as const;
-export const MONO  = "'IBM Plex Mono'"  as const;
+// One sans, one mono (see src/lib/typography/tokens.ts). SERIF/BODY are kept as aliases so importers do not change.
+export const SERIF = FONT_SANS;
+export const BODY  = FONT_SANS;
+export const MONO  = FONT_MONO;
 
 /** Return a stable topic accent colour by rank index. */
 export function topicColor(rank: number): string {

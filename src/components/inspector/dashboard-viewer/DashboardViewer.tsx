@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { GridLayout, useContainerWidth, verticalCompactor } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import { ArrowLeft, Pencil, AlertCircle, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
@@ -13,6 +13,7 @@ import { TrustPanel } from '@/components/inspector/TrustPanel';
 import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 import { ScopedInspectorPanel } from '@/components/inspector/dashboard-builder/ScopedInspectorPanel';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -240,7 +241,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <button
             onClick={() => router.push(`/inspector/dashboards/${dashboardId}/builder`)}
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
@@ -256,7 +257,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             onClick={() => setExploreOpen((o) => !o)}
             title="Explore data in this model"
             style={{
-              ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
               border: `1px solid ${exploreOpen ? 'var(--brand-a-ink)' : 'var(--builder-border)'}`,
               background: exploreOpen ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'transparent',
@@ -341,7 +342,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderBottom: '1px solid var(--builder-border)', flexShrink: 0 }}>
                       <span
                         style={{
-                          ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                          ...type.label,
                           color: 'var(--builder-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                         }}
                       >
@@ -493,7 +494,7 @@ function WidgetSkeleton() {
 function CenterMessage({ text }: { text: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 200 }}>
-      <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center' }}>
+      <span style={{ ...type.label, textAlign: 'center' }}>
         {text}
       </span>
     </div>

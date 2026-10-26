@@ -6,6 +6,7 @@ import { Loader2, X, Sparkles, Layers, Archive, ShieldAlert, ChevronDown, Chevro
 import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TraceNode {
@@ -80,7 +81,7 @@ function BulletCard({ bullet, dimmed = false }: { bullet: TraceBullet; dimmed?: 
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-        <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+        <span style={{ ...type.label, letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
           {ruleTypeLabel(bullet.ruleType)}
         </span>
         <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: 'var(--foer-text-mut)' }}>
@@ -152,7 +153,7 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
         }}
       >
         <span style={{ color: accent, display: 'flex', alignItems: 'center', flexShrink: 0 }}>{icon}</span>
-        <span style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 600, letterSpacing: '0.06em', color: accent, textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           {label}
         </span>
         <span style={{ fontFamily: MONO, fontSize: '1.1rem', fontWeight: 700, color: accent, marginLeft: '2px', lineHeight: 1 }}>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface DismissedReflectionProps {
   technique: string;
@@ -30,11 +31,7 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
         <div style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '13px',
-          fontWeight: 500,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: '#5a6a82',
           flexShrink: 0,
         }}>

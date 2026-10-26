@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 interface BulkBarProps {
   count: number;
@@ -35,10 +36,7 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
         onClick={onHarvest}
         className="transition-colors"
         style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '13px',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
+          ...type.label,
           padding: '6px 14px',
           backgroundColor: goldColor,
           color: 'var(--estate-bg)',

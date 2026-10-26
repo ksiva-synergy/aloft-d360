@@ -1,5 +1,7 @@
 # Estate Jobs — mental model and UI map
 
+**Extended docs (status, schema harvest, agent logging):** [jobs/README.md](./jobs/README.md)
+
 ## What the Jobs section is
 
 **Agent Lab → Estate → Jobs** is the control plane for **harvest workers** (Fargate `aloft-context-harvester` or local orchestrator). It does not query Databricks directly from the browser; it enqueues rows in `platform_context_jobs` and starts ECS tasks that run `scripts/context/orchestrator.ts`.

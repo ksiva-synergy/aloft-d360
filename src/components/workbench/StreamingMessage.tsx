@@ -18,8 +18,8 @@ import { CaptainStatus } from '@/components/companion/CaptainStatus';
 import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const serif: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
 const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
 
 const GOLD = 'var(--brand-a-ink)';
@@ -229,7 +229,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             <div style={{ borderTop: `1px solid ${BORDER_SUBTLE}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {tc.input !== undefined && (
                 <div>
-                  <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Input</div>
+                  <div style={{ ...type.label, color: MUTED, marginBottom: 4 }}>Input</div>
                   <pre style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
                     {typeof tc.input === 'object' ? JSON.stringify(tc.input, null, 2) : String(tc.input)}
                   </pre>
@@ -237,7 +237,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
               )}
               {tc.output !== undefined && (
                 <div>
-                  <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Output</div>
+                  <div style={{ ...type.label, color: MUTED, marginBottom: 4 }}>Output</div>
                   <pre style={{ ...mono, fontSize: 13, color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
                     {formatOutput(tc.output)}
                   </pre>
@@ -425,11 +425,7 @@ function MarkdownTable({
                   key={i}
                   style={{
                     ...cellPad,
-                    ...mono,
-                    fontSize: 13,
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color: MUTED,
                     textAlign: aligns[i] ?? 'left',
                     borderBottom: `1px solid ${BORDER_GOLD}`,
@@ -535,14 +531,12 @@ function MarkdownLine({
 
   const inline = renderInline(raw);
 
-  if (isH1) return <div style={{ ...serif, fontSize: 18, fontWeight: 700, color: INK, marginTop: 18, marginBottom: 6, letterSpacing: '-0.01em' }}>{inline}</div>;
+  if (isH1) return <div style={{ ...type['title-section'], color: INK, marginTop: 18, marginBottom: 6 }}>{inline}</div>;
   if (isH2 || asSectionTitle) {
     return (
       <div
         style={{
-          ...serif,
-          fontSize: 15,
-          fontWeight: 600,
+          ...type['title-card'],
           color: INK,
           marginTop: 18,
           marginBottom: 6,
@@ -554,10 +548,10 @@ function MarkdownLine({
       </div>
     );
   }
-  if (isH3) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
-  if (isH4) return <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: MUTED, marginTop: 10, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{inline}</div>;
+  if (isH3) return <div style={{ ...type.ui, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
+  if (isH4) return <div style={{ ...type.label, color: MUTED, marginTop: 10, marginBottom: 3 }}>{inline}</div>;
   if (isBullet) return (
-    <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, lineHeight: 1.55 }}>
+    <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, ...type['body-lg'] }}>
       <span style={{ color: GOLD, fontSize: 13, flexShrink: 0, marginTop: 5 }}>▸</span>
       <span style={{ flex: 1 }}>{inline}</span>
     </div>
@@ -577,7 +571,7 @@ function MarkdownLine({
     </div>
   );
   if (line === '') return <div style={{ height: 10 }} />;
-  return <div style={{ marginBottom: 2, lineHeight: 1.65 }}>{inline}</div>;
+  return <div style={{ marginBottom: 2, ...type['body-lg'] }}>{inline}</div>;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -670,7 +664,7 @@ export function AssistantContent({ content }: { content: string }) {
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  const proseStyle: React.CSSProperties = { ...serif, fontSize: 14, lineHeight: 1.65, color: INK };
+  const proseStyle: React.CSSProperties = { ...type['body-lg'], color: INK };
 
   while ((match = codeBlockRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD       = 'var(--brand-a)';
@@ -139,8 +140,7 @@ export function ClassSuggestionChip({
           onClick={handleApply}
           disabled={applying}
           style={{
-            ...mono, fontSize: 13,
-            textTransform: 'uppercase' as const,
+            ...type.label,
             letterSpacing: '0.1em',
             background: NAVY,
             color: '#ffffff',

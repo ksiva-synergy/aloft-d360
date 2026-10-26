@@ -13,6 +13,7 @@ import {
   widgetDiffIsEmpty,
   type WidgetDiffLabelResolver,
 } from '@/lib/dashboards/widget-diff';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -210,7 +211,7 @@ export function DraftChangeCard({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
         <GitCompare size={12} color={GOLD} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase', flex: 1 }}>
+        <span style={{ ...type.label, flex: 1 }}>
           Apply to dashboard widget
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, display: 'flex' }}>
@@ -246,7 +247,7 @@ export function DraftChangeCard({
 
         {(phase === 'ready' || phase === 'applying') && target && afterWidget && (
           <>
-            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>
+            <span style={{ ...type.label, color: MUTED }}>
               Widget “{target.widget.title}” · {target.dashboardName}
             </span>
 
@@ -261,7 +262,7 @@ export function DraftChangeCard({
               <span style={{ ...MONO, fontSize: 13, color: MUTED }}>No differences — the widget already matches this chart.</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>What changed</span>
+                <span style={{ ...type.label, color: MUTED }}>What changed</span>
                 {diffLines.map((line, i) => (
                   <span key={i} style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>• {line}</span>
                 ))}
@@ -274,7 +275,7 @@ export function DraftChangeCard({
                 onClick={onClose}
                 disabled={phase === 'applying'}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   border: '1px solid rgba(74,96,128,0.35)', borderRadius: 4, padding: '5px 12px',
                   background: 'transparent', color: MUTED, cursor: phase === 'applying' ? 'default' : 'pointer',
                 }}
@@ -285,7 +286,7 @@ export function DraftChangeCard({
                 onClick={handleApply}
                 disabled={phase === 'applying' || nothingChanged}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   border: 'none', borderRadius: 4, padding: '5px 14px', fontWeight: 600,
                   background: GOLD, color: 'var(--on-brand)',
                   cursor: phase === 'applying' || nothingChanged ? 'default' : 'pointer',
@@ -331,7 +332,7 @@ function WidgetFacet({
         gap: 3,
       }}
     >
-      <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent }}>{label}</span>
+      <span style={{ ...type.label, color: accent }}>{label}</span>
       <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
         <span style={{ color: MUTED }}>Kind: </span>{widget.chartKind}
       </span>

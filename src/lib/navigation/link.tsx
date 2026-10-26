@@ -1,7 +1,6 @@
 /**
- * `next/link` for the Vite UI, backed by React Router's <Link>.
- * (Measured: no caller passes prefetch / scroll / replace / legacyBehavior / passHref, but they are accepted
- * and mapped so new code written in the Next style keeps working.)
+ * App link, backed by React Router's <Link>. Takes `href` (string or `{ pathname, query, hash }`) like the old
+ * `next/link`. External URLs, in-page anchors and `target="_blank"` render as plain anchors.
  */
 import { forwardRef } from 'react';
 import type { AnchorHTMLAttributes } from 'react';

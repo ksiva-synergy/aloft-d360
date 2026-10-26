@@ -8,6 +8,7 @@
 import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
+import { agentsWorkbenchSessionHref, AGENTS_WORKBENCH_HREF } from '@/lib/navigation/agents-routes';
 import type { DashboardSummary } from '@/lib/dashboard/summary';
 import { useJson } from '../lib/useJson';
 
@@ -62,6 +63,13 @@ export const RedirectTo = ({ to }: { to: string }) => <Navigate to={to} replace 
 export function EstateObjectLegacyRedirect() {
   const { id = '' } = useParams();
   return <Navigate to={`/agent-lab/estate/object/${encodeURIComponent(id)}`} replace />;
+}
+
+/** Legacy workbench URLs live under Agents now. */
+export function WorkbenchLegacyRedirect() {
+  const { sessionId } = useParams();
+  const to = sessionId ? agentsWorkbenchSessionHref(sessionId) : AGENTS_WORKBENCH_HREF;
+  return <Navigate to={to} replace />;
 }
 
 /* ── `await params` pages ─────────────────────────────────────────────────────────── */

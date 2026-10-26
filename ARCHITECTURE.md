@@ -1287,9 +1287,8 @@ Full reference: `docs/DESIGN_SYSTEM.md`
 
 | Family | Font | Usage |
 |---|---|---|
-| Sans | Inter Tight | UI text, labels, body |
-| Serif | Source Serif 4 | Headings, display |
-| Mono | IBM Plex Mono | Code, terminal, labels |
+| Sans | Inter Variable | All readable text (tokens in `src/styles/typography.css`) |
+| Mono | IBM Plex Mono | Machine text only: code, SQL, ids, paths |
 
 ### 16.3 Theming
 

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import LogStreamPanel from './LogStreamPanel';
 import ChildJobsPanel from './ChildJobsPanel';
 import { mapJobStatus, isKickableJob, isOrchestratingParent } from '@/lib/estate/job-ui';
+import { type } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
 
@@ -269,7 +270,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
     const styles = getKindStyle(k);
     return (
       <span
-        className="px-2 py-1 rounded border text-xs font-mono font-semibold uppercase tracking-wider"
+    className="px-2 py-1 rounded border text-label "
         style={styles}
       >
         {k.replace(/_/g, ' ')}
@@ -282,7 +283,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
     if (mapped === 'orchestrating') {
       return (
         <span
-          className="inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+     className="inline-flex items-center gap-2 px-2 py-1 rounded text-label border"
           style={{
             borderColor: 'rgba(147, 197, 253, 0.35)',
             color: '#93C5FD',
@@ -297,7 +298,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
       case 'queued':
         return (
           <span
-            className="inline-flex items-center px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      className="inline-flex items-center px-2 py-1 rounded text-label border"
             style={{
               borderColor: 'var(--estate-status-default-border)',
               color: 'var(--estate-status-default-text)',
@@ -310,7 +311,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
       case 'running':
         return (
           <span
-            className="inline-flex items-center gap-2 px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      className="inline-flex items-center gap-2 px-2 py-1 rounded text-label border"
             style={{
               borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
               color: 'var(--brand-a-ink)',
@@ -327,7 +328,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
       case 'done':
         return (
           <span
-            className="inline-flex items-center px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      className="inline-flex items-center px-2 py-1 rounded text-label border"
             style={{
               borderColor: 'var(--estate-status-success-border)',
               color: 'var(--estate-status-success-text)',
@@ -340,7 +341,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
       case 'failed':
         return (
           <span
-            className="inline-flex items-center px-2 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+      className="inline-flex items-center px-2 py-1 rounded text-label border"
             style={{
               borderColor: 'var(--estate-status-error-border)',
               color: 'var(--estate-status-error-text)',
@@ -380,7 +381,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-7 py-5 border-b shrink-0" style={{ borderColor: 'var(--line-1)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-serif text-lg font-semibold" style={{ color: inkColor, fontFamily: "'Source Serif 4', serif" }}>
+            <h3 className="text-lg font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
               Job Details
             </h3>
             {/* Copyable ID */}
@@ -418,11 +419,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 onClick={handleKick}
                 disabled={kicking}
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   padding: '5px 10px',
                   borderRadius: 3,
                   border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)',
@@ -474,7 +471,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           
           {/* Timing Section */}
           <div className="space-y-4">
-            <h4 className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Timings</h4>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Timings</h4>
             <div className="flex flex-col gap-2.5 font-mono text-sm select-none">
               {/* Created Step */}
               <div className="flex items-center gap-3">
@@ -585,7 +582,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
             return (
               <div className="space-y-3">
-                <h4 className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Execution</h4>
+        <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Execution</h4>
                 <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
                   {fargateTaskId && (
                     <div className="flex gap-3 px-4 py-2.5 items-center" style={{ borderBottom: (since || until) ? '1px solid rgba(255,255,255,0.06)' : undefined }}>
@@ -610,7 +607,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {isOrchestratingParent(activeJob) && (
             <div className="space-y-3">
-              <h4 className="font-mono text-[11px] font-bold uppercase tracking-widest" style={{ color: '#8892A4', letterSpacing: '0.1em' }}>
+       <h4 className="text-label text-[11px] " style={{ color: '#8892A4', letterSpacing: '0.1em' }}>
                 Child chunks
               </h4>
               <p className="text-[11px] font-mono" style={{ color: '#8892A4' }}>
@@ -640,7 +637,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           {/* Error Section (if failed) */}
           {mapJobStatus(activeJob.status) === 'failed' && (
             <div className="border rounded-lg p-4 flex flex-col gap-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
-              <h4 className="font-mono text-xs font-bold text-red-500 uppercase tracking-wider">Error</h4>
+       <h4 className="text-label text-red-500 ">Error</h4>
               <div className="font-mono text-xs text-red-400 select-text break-words whitespace-pre-wrap leading-relaxed">
                 {activeJob.error || 'No error details recorded'}
               </div>
@@ -649,7 +646,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {/* Scope Section */}
           <div className="flex flex-col gap-3">
-            <h4 className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
               Scope
             </h4>
             {activeJob.scope ? (
@@ -663,7 +660,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {/* Stats Section */}
           <div className="flex flex-col gap-3">
-            <h4 className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
               Stats
             </h4>
             {activeJob.stats ? (

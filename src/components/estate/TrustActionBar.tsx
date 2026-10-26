@@ -12,6 +12,7 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
+import { type } from '@/lib/typography/tokens';
 
 type TrustStatus = 'assumed' | 'confirmed' | 'certified';
 
@@ -148,11 +149,7 @@ export default function TrustActionBar({
             disabled={loading}
             onClick={handleAdvance}
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              ...type.label,
               padding: '3px 10px',
               borderRadius: 3,
               border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',

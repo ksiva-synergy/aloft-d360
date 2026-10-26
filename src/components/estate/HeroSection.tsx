@@ -15,7 +15,7 @@
 //   native_comment: border-left 3px solid #e0b23c, border-radius 0 6px 6px 0
 
 import React, { useRef } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import KindBadge from './KindBadge';
 import FreshnessDot from './FreshnessDot';
 import LifecycleBadge from './HeroLifecycleBadge';
@@ -23,6 +23,7 @@ import HarvestActionBar from './HarvestActionBar';
 import DataReadinessRing from './DataReadinessRing';
 import type { DataScoreShape } from './DataReadinessRing';
 import type { FreshnessBlock } from './FreshnessCard';
+import { type } from '@/lib/typography/tokens';
 
 interface HeroSectionProps {
   object: {
@@ -168,11 +169,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
             >
               <div
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: '#e0b23c',
                   marginBottom: 4,
                 }}
@@ -219,11 +216,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
             }}
           >

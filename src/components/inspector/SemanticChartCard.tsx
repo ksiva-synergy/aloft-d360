@@ -9,6 +9,7 @@ import { TrustPanel } from './TrustPanel';
 import { DefineMetricPanel, type DefineMetricPrefill } from './authoring/DefineMetricPanel';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -153,11 +154,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
       >
         <span
           style={{
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            color: GOLD,
-            textTransform: 'uppercase',
+            ...type.label,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -168,10 +165,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
         </span>
         <span
           style={{
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: 'var(--wb-muted)',
             padding: '2px 6px',
             border: '1px solid rgba(74,96,128,0.25)',
@@ -189,10 +183,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: 'pointer',
             border: 'none',
             borderRadius: 3,
@@ -215,10 +206,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: 'pointer',
             border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
             borderRadius: 3,
@@ -257,10 +245,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              ...MONO,
-              fontSize: 13,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              ...type.label,
               cursor: 'pointer',
               border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
               borderRadius: 3,
@@ -345,10 +330,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               disabled={!refineText.trim()}
               title="Refine chart"
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 border: `1px solid color-mix(in srgb, var(--brand-a-ink) 49%, transparent)`,
                 borderRadius: 3,
                 padding: '5px 10px',
@@ -370,10 +352,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               <button
                 onClick={() => setShowDraft((s) => !s)}
                 style={{
-                  ...MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
@@ -421,7 +400,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               marginBottom: 8,
             }}
           >
-            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>
+            <span style={{ ...type.label, }}>
               SAVE CHART
             </span>
             <button
@@ -476,10 +455,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             onClick={handleSave}
             disabled={saving}
             style={{
-              ...MONO,
-              fontSize: 13,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              ...type.label,
               background: 'var(--brand-a)',
               color: 'var(--on-brand)',
               border: 'none',

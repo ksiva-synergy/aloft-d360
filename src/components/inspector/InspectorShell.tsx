@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from '@/lib/navigation';
 import { X } from 'lucide-react';
 import { History, FlaskConical, SquarePen } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
@@ -23,6 +23,7 @@ import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { AgentHandoffCard } from './AgentHandoffCard';
 import { detectAgentBuildIntent } from '@/lib/construction/handoff';
+import { type } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const GOLD = 'var(--brand-a-ink)';
@@ -56,18 +57,16 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
         flexShrink: 0,
         background: 'var(--wb-canvas)',
         borderBottom: '1px solid var(--wb-border-subtle)',
-        ...mono,
-        fontSize: 13,
-        letterSpacing: '0.04em',
+        ...type['ui-regular'],
         overflow: 'hidden',
       }}
     >
       {/* LEFT — breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)', whiteSpace: 'nowrap', minWidth: 0 }}>
         <AloftSigil size={14} />
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 13 }}>DATA 360</span>
+        <span style={{ ...type.label }}>Data 360</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: 13, color: GOLD }}>INSPECTOR</span>
+        <span style={{ ...type.label, color: GOLD }}>Inspector</span>
         <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
         <span style={{ color: 'var(--wb-ink-dim)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
           {sessionTitle || 'New Session'}
@@ -91,10 +90,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 5,
-            ...mono,
-            fontSize: 13,
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: dbConnected ? GOLD : 'var(--wb-muted)',
             background: dbConnected ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'rgba(74,96,128,0.12)',
             border: dbConnected ? '1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : '1px solid rgba(74,96,128,0.25)',
@@ -115,7 +111,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
               animation: dbConnected ? 'insp-pulse 2s ease-in-out infinite' : 'none',
             }}
           />
-          DATABRICKS {dbConnected ? 'CONNECTED' : 'CHECKING…'}
+          Databricks {dbConnected ? 'connected' : 'checking…'}
         </span>
 
         {/* Divider */}
@@ -131,10 +127,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            ...mono,
-            fontSize: 13,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
+            ...type.label,
             cursor: 'pointer',
             border: `1px solid ${isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)' : 'rgba(147,197,253,0.35)'}`,
             borderRadius: 4,
@@ -172,7 +165,7 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
               transition: 'left 0.15s, background 0.15s',
             }} />
           </span>
-          {isHarvested ? 'CATALOG + SQL' : 'SQL ONLY'}
+          {isHarvested ? 'Catalog + SQL' : 'SQL only'}
         </button>
       </div>
 
@@ -188,14 +181,14 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
             padding: '0 10px',
             background: 'transparent', border: `1px solid color-mix(in srgb, var(--brand-a-ink) 42%, transparent)`,
             color: GOLD, cursor: 'pointer', transition: 'all 0.15s',
-            ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
+            ...type.label,
             flexShrink: 0,
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
         >
           <SquarePen size={11} />
-          NEW
+          New
         </button>
         <button
           onClick={onOpenLab}
@@ -228,10 +221,10 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
           <History size={13} />
         </button>
         <span style={{ fontSize: 13 }}>
-          SESSION <span style={{ color: 'var(--wb-ink-dim)' }}>{shortId}</span>
+          Session <span style={{ color: 'var(--wb-ink-dim)' }}>{shortId}</span>
         </span>
         <span style={{ width: 1, height: 14, background: 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)', flexShrink: 0 }} />
-        <span style={{ fontSize: 13, letterSpacing: '0.08em' }}>POWERED BY ALOFT · v0.4</span>
+        <span style={{ ...type.caption }}>Powered by ALOFT · v0.4</span>
       </div>
 
       <style>{`
@@ -435,7 +428,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       {sourceChartNotice && (
         <div
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 8,
+            ...type['ui-regular'], display: 'flex', alignItems: 'center', gap: 8,
             padding: '6px 24px', flexShrink: 0, color: GOLD,
             background: 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
           }}

@@ -25,7 +25,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
 
         {/* Phase Badge */}
         <span
-          className="font-mono text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded border transition-colors duration-200"
+     className="text-label px-2 py-0.5 rounded border transition-colors duration-200"
           style={{
             backgroundColor: 'var(--estate-hover)',
             borderColor: 'var(--estate-border-gold)',
@@ -36,7 +36,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
         </span>
 
         {/* Title */}
-        <h2 className="text-xl font-serif font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: "'Source Serif 4', serif" }}>
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: 'var(--font-sans)' }}>
           {title}
         </h2>
 

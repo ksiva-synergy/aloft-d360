@@ -20,9 +20,10 @@
 // Unresolved targets (no object_id, only path) render the path but skip navigation.
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import type { FkCandidate, ObjectLinkItem, EntityGroupObject } from './RelationshipGraph';
+import { type } from '@/lib/typography/tokens';
 
 interface MappingItem {
   id: string;
@@ -77,11 +78,7 @@ function ActionPair({
     return (
       <span
         style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.07em',
-          textTransform: 'uppercase',
+          ...type.label,
           padding: '2px 7px',
           borderRadius: 3,
           background: chipStyle.bg,
@@ -173,11 +170,7 @@ function Section({ label, count, children }: { label: string; count: number; chi
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <div
         style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--ink-3)',
           padding: '8px 14px 5px',
           borderBottom: '1px solid var(--line-1)',

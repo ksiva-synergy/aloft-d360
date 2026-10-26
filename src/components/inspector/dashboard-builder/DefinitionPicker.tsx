@@ -5,6 +5,7 @@ import { Search, Layers, BarChart3, Hash, ChevronRight, BarChart2 } from 'lucide
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { MeasureSnapshot } from '@/lib/dashboards/types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -128,7 +129,7 @@ export function DefinitionPicker({
   if (loading) {
     return (
       <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           LOADING DEFINITIONS…
         </span>
       </div>
@@ -148,10 +149,7 @@ export function DefinitionPicker({
                 flex: 1,
                 textAlign: 'center',
                 padding: '4px 0',
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 borderRadius: 3,
                 cursor: 'pointer',
                 border: 'none',
@@ -227,7 +225,7 @@ export function DefinitionPicker({
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {chartsLoading && (
             <div style={{ padding: 16, textAlign: 'center' }}>
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <span style={{ ...type.label, }}>
                 LOADING CHARTS…
               </span>
             </div>
@@ -349,10 +347,7 @@ function EntityGroup({
       <button
         onClick={onToggle}
         style={{
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          ...type.label,
           display: 'flex',
           alignItems: 'center',
           gap: 4,
@@ -385,7 +380,7 @@ function EntityGroup({
           {/* Dimensions */}
           {entity.dimensions.length > 0 && (
             <div style={{ marginBottom: 4 }}>
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', letterSpacing: '0.10em', textTransform: 'uppercase', padding: '2px 4px', display: 'block' }}>
+              <span style={{ ...type.label, padding: '2px 4px', display: 'block' }}>
                 DIMENSIONS
               </span>
               {entity.dimensions.map((dim) => (
@@ -403,7 +398,7 @@ function EntityGroup({
           {/* Measures */}
           {entity.measures.length > 0 && (
             <div>
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', letterSpacing: '0.10em', textTransform: 'uppercase', padding: '2px 4px', display: 'block' }}>
+              <span style={{ ...type.label, padding: '2px 4px', display: 'block' }}>
                 MEASURES
               </span>
               {entity.measures.map((meas) => (
@@ -482,10 +477,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       style={{
-        ...MONO,
-        fontSize: 13,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
+        ...type.label,
         padding: '1px 4px',
         borderRadius: 2,
         flexShrink: 0,

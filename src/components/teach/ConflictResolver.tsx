@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import type { Learning, LearningState } from '@/lib/inspector/reflect-tools';
 import { FONT_DISPLAY, FONT_MONO, mix } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 type ConflictChoice = 'keep_new' | 'keep_existing' | 'scope_by_context';
 
@@ -196,10 +197,7 @@ export function ConflictResolver({
 }
 
 const caption: React.CSSProperties = {
-  fontFamily: FONT_MONO,
-  fontSize: 13,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
+  ...type.label,
   color: 'var(--text-tertiary)',
 };
 
@@ -213,10 +211,7 @@ function pill(colorVar: string): React.CSSProperties {
     background: mix(colorVar, 14),
     boxShadow: `inset 0 0 0 1px ${mix(colorVar, 32)}`,
     color: colorVar,
-    fontFamily: FONT_MONO,
-    fontSize: 13,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
+    ...type.label,
   };
 }
 

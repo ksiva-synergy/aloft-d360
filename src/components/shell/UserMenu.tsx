@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';

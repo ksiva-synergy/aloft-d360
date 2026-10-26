@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { Search, Wrench, Bot, BookOpen, Filter } from 'lucide-react';
 import type { ToolCatalogEntry, AgentCatalogEntry } from '@/types/catalog';
 

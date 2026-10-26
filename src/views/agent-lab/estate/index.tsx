@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { ScanSearch, RefreshCw } from 'lucide-react';
 import SourceCard from '@/components/estate/SourceCard';
 import ScanCoverageModal from '@/components/estate/ScanCoverageModal';
@@ -150,7 +150,7 @@ export default function EstateOverviewPage() {
           <div>
             <h1
               className="text-3xl font-bold tracking-tight"
-              style={{ color: inkColor, fontFamily: "'Source Serif 4', serif" }}
+              style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
             >
               Data Estate
             </h1>
@@ -166,7 +166,7 @@ export default function EstateOverviewPage() {
               type="button"
               onClick={handleScanCoverage}
               disabled={scanLoading}
-              className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+       className="text-label border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
               style={{ borderColor: 'var(--brand-a-ink)', color: 'var(--brand-a-ink)', backgroundColor: 'transparent' }}
             >
               {scanLoading ? <RefreshCw size={12} className="animate-spin" /> : <ScanSearch size={12} />}
@@ -226,8 +226,8 @@ export default function EstateOverviewPage() {
 
               {/* Title */}
               <h2
-                className="text-xl font-serif font-semibold"
-                style={{ color: inkColor, fontFamily: "'Source Serif 4', serif" }}
+                className="text-xl font-semibold"
+                style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
               >
                 No sources configured
               </h2>

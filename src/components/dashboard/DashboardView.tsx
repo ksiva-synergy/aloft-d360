@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { motion } from 'framer-motion';
 import {
   Database, Lightbulb, Users, LayoutDashboard, ArrowRight, ArrowUpRight,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { SlidersHorizontal } from 'lucide-react';
 import { companionActivity, type ActivityInput } from '@/lib/companion/activity';
 import { Companion } from './Companion';

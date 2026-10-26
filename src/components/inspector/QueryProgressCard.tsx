@@ -4,6 +4,7 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { TrustPanel } from './TrustPanel';
 import type { QueryProgress } from '@/hooks/useInspectorChat';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -52,11 +53,7 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
         <Loader2 size={12} color={GOLD} className="query-progress-spin" />
         <span
           style={{
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            color: GOLD,
-            textTransform: 'uppercase',
+            ...type.label,
           }}
         >
           {STAGE_COPY[progress.stage ?? 'planning'] ?? 'Working…'}

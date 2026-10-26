@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { FilterState } from './FilterBar';
 import KindBadge from './KindBadge';
 import StatusChip from './StatusChip';
@@ -120,55 +120,55 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
               }}
             >
               <th
-                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Object Path
               </th>
               <th
-                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3 w-20"
+        className="text-left text-label p-3 w-20"
                 style={{ color: labelColor }}
               >
                 Kind
               </th>
               <th
-                className="text-right font-mono text-xs font-bold tracking-widest uppercase p-3 w-24"
+        className="text-right text-label p-3 w-24"
                 style={{ color: labelColor }}
               >
                 Rows
               </th>
               <th
-                className="text-right font-mono text-xs font-bold tracking-widest uppercase p-3 w-16"
+        className="text-right text-label p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Cols
               </th>
               <th
-                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Summary
               </th>
               <th
-                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3 w-28"
+        className="text-left text-label p-3 w-28"
                 style={{ color: labelColor }}
               >
                 Status
               </th>
               <th
-                className="text-center font-mono text-xs font-bold tracking-widest uppercase p-3 w-16"
+        className="text-center text-label p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Fresh
               </th>
               <th
-                className="text-center font-mono text-xs font-bold tracking-widest uppercase p-3 w-12"
+        className="text-center text-label p-3 w-12"
                 style={{ color: labelColor }}
               >
                 Pii
               </th>
               <th
-                className="text-left font-mono text-xs font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Entity Tags
@@ -246,7 +246,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                     —
                   </td>
                   {/* summary */}
-                  <td className="p-3 font-serif text-xs truncate max-w-[240px]" style={{ color: labelColor }}>
+                  <td className="p-3 text-xs truncate max-w-[240px]" style={{ color: labelColor }}>
                     {getSummary(item)}
                   </td>
                   {/* status */}

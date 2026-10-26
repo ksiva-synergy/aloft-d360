@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter } from '@/lib/navigation';
 import { ObjectKnowledgePage } from '@/components/estate';
 
 export default function EstateObjectDetailPage() {
@@ -151,8 +151,8 @@ export default function EstateObjectDetailPage() {
           </span>
 
           <h2
-            className="text-xl font-serif font-semibold"
-            style={{ color: inkColor, fontFamily: "'Source Serif 4', serif" }}
+            className="text-xl font-semibold"
+            style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
           >
             Object not found
           </h2>

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import StatusChip from './StatusChip';
 
 export interface JobItem {
@@ -67,11 +67,11 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                 borderColor: borderColor,
               }}
             >
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Kind</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-24" style={{ color: labelColor }}>Status</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Started</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right w-20" style={{ color: labelColor }}>Duration</th>
+       <th className="p-2.5 text-label w-32" style={{ color: labelColor }}>Kind</th>
+       <th className="p-2.5 text-label w-28" style={{ color: labelColor }}>Trigger</th>
+       <th className="p-2.5 text-label w-24" style={{ color: labelColor }}>Status</th>
+       <th className="p-2.5 text-label " style={{ color: labelColor }}>Started</th>
+       <th className="p-2.5 text-label text-right w-20" style={{ color: labelColor }}>Duration</th>
             </tr>
           </thead>
           <tbody>

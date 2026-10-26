@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { Dices, ArrowRight } from 'lucide-react';
 
 export function BanditsEmptyState() {

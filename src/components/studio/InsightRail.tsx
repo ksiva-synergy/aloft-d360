@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec, ColumnProfile } from '@/lib/studio/types';
+import { type } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface InsightItem {
@@ -48,7 +49,7 @@ const SANS: React.CSSProperties = {
   fontFamily: "'Inter Variable', 'Inter', ui-sans-serif, sans-serif",
 };
 const SERIF: React.CSSProperties = {
-  fontFamily: "'Source Serif 4', 'Georgia', ui-serif, serif",
+  fontFamily: 'var(--font-sans)',
 };
 
 // ── Shimmer skeleton card ─────────────────────────────────────────────────────
@@ -150,11 +151,7 @@ function InsightCard({
       >
         <span
           style={{
-            ...MONO,
-            fontSize: 13,
-            color: T.label,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
+            ...type.label,
           }}
         >
           INSIGHT · {insight.kind.toUpperCase()}
@@ -370,10 +367,7 @@ export function InsightRail({
     justifyContent: 'space-between',
     padding: '0 16px',
     borderBottom: `1px solid ${T.border}`,
-    ...MONO,
-    fontSize: 13,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase' as const,
+    ...type.label,
     color: T.label,
   };
 
@@ -419,7 +413,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...MONO, fontSize: 13, color: T.label, textTransform: 'uppercase', letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.10em', textAlign: 'center' }}>
             INSIGHTS UNAVAILABLE
           </span>
           <button
@@ -465,7 +459,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...MONO, fontSize: 13, color: T.label, textTransform: 'uppercase', letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.10em', textAlign: 'center' }}>
             NO INSIGHTS GENERATED
           </span>
         </div>

@@ -17,6 +17,7 @@ import { SessionHeader } from './SessionHeader';
 import { VerificationChip } from './VerificationChip';
 import { MemoryRecallExpander } from './MemoryRecallExpander';
 import { ThreadEmptyState } from './states/ThreadEmptyState';
+import { type } from '@/lib/typography/tokens';
 
 const SUBTAG_COLOR: Record<string, string> = {
   'Follow-up question': 'var(--primary)',
@@ -137,11 +138,11 @@ function MarcusBubble({ m, streaming }: { m: TeachMessage; streaming: boolean })
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
+          <span style={{ ...type.label, color: 'var(--muted-foreground)' }}>
             Captain Track Sparrow
           </span>
           {m.subTag && (
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
+            <span style={{ ...type.label, color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
               · {m.subTag}
             </span>
           )}
@@ -232,10 +233,7 @@ function Composer({
         />
         <span
           style={{
-            fontFamily: FONT_MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: 'var(--text-tertiary)',
             border: '1px solid var(--border)',
             padding: '3px 8px',

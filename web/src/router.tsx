@@ -18,6 +18,7 @@ import {
   RunSessionRoute,
   TeachSessionRoute,
   WorkbenchSessionRoute,
+  WorkbenchLegacyRedirect,
 } from './routes/adapters';
 
 /**
@@ -103,10 +104,21 @@ export const routes: RouteObject[] = [
                 handle: title('Teach · Candidate hand-off'),
               },
               { path: 'agent-lab/teach/:sessionId', Component: TeachSessionRoute, handle: title('Teach · Captain Track Sparrow Reflect') },
-              { path: 'agent-lab/agents', lazy: page(() => import('@/views/agent-lab/agents/index')) },
-              { path: 'agent-lab/agents/:slug', lazy: page(() => import('@/views/agent-lab/agents/use')) },
-              { path: 'agent-lab/workbench', lazy: page(() => import('@/views/agent-lab/workbench')) },
-              { path: 'agent-lab/workbench/:sessionId', Component: WorkbenchSessionRoute },
+              {
+                path: 'agent-lab/agents',
+                lazy: async () => {
+                  const Layout = (await import('@/views/agent-lab/agents/AgentsLayout')).default;
+                  return { Component: () => <Layout /> };
+                },
+                children: [
+                  { index: true, lazy: page(() => import('@/views/agent-lab/agents/index')) },
+                  { path: 'workbench', lazy: page(() => import('@/views/agent-lab/workbench')) },
+                  { path: 'workbench/:sessionId', Component: WorkbenchSessionRoute },
+                  { path: ':slug', lazy: page(() => import('@/views/agent-lab/agents/use')) },
+                ],
+              },
+              { path: 'agent-lab/workbench', element: <RedirectTo to="/agent-lab/agents/workbench" /> },
+              { path: 'agent-lab/workbench/:sessionId', Component: WorkbenchLegacyRedirect },
 
               // ── Govern (agent-staging) ─────────────────────────────────────────────
               { path: 'agent-staging', element: <RedirectTo to="/docs/agents" /> },

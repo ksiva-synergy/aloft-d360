@@ -455,7 +455,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
           className="flex items-center justify-between px-4 py-3 border-b"
           style={{ backgroundColor: thBg, borderColor }}
         >
-          <span className="font-mono text-xs tracking-wider uppercase font-bold" style={{ color: labelColor }}>
+     <span className="text-label " style={{ color: labelColor }}>
             Columns Schema
           </span>
         </div>
@@ -477,7 +477,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         style={{ backgroundColor: thBg, borderColor }}
       >
         {/* Section label */}
-        <span className="font-mono text-xs tracking-wider uppercase font-bold shrink-0" style={{ color: labelColor }}>
+    <span className="text-label shrink-0" style={{ color: labelColor }}>
           Columns Schema
         </span>
 
@@ -562,17 +562,17 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
             >
               {/* Sortable: Name */}
               <th
-                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
+        className="px-4 py-2.5 text-label cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('name')}
               >
                 <span className="flex items-center gap-1">Name {sortIndicator('name')}</span>
               </th>
-              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Type</th>
-              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Role</th>
+       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Type</th>
+       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Role</th>
               {/* Sortable: Null% */}
               <th
-                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
+        className="px-4 py-2.5 text-label text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('null_rate')}
               >
@@ -580,15 +580,15 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               </th>
               {/* Sortable: Distinct */}
               <th
-                className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
+        className="px-4 py-2.5 text-label text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
                 style={{ color: labelColor }}
                 onClick={() => handleSortToggle('distinct_est')}
               >
                 <span className="flex items-center justify-end gap-1">Distinct {sortIndicator('distinct_est')}</span>
               </th>
-              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Top Values</th>
-              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Description</th>
-              <th className="px-4 py-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }} title="Semantic annotation confidence">Conf</th>
+       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Top Values</th>
+       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Description</th>
+       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }} title="Semantic annotation confidence">Conf</th>
             </tr>
           </thead>
           <tbody>

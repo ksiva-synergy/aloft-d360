@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { act, render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-import { notFound, ReadonlyURLSearchParams, redirect, useParams, usePathname, useRouter, useSearchParams } from './next-navigation';
+import { ReadonlyURLSearchParams, useParams, usePathname, useRouter, useSearchParams } from '..';
 
 function Probe() {
   const router = useRouter();
@@ -36,7 +37,7 @@ function mount(initial = '/start?q=0') {
   return router;
 }
 
-describe('next/navigation shim', () => {
+describe('@/lib/navigation', () => {
   it('usePathname / useSearchParams / useParams read the current route', () => {
     mount('/item/42?q=hello');
     expect(screen.getByTestId('path').textContent).toBe('/item/42');
@@ -98,23 +99,5 @@ describe('next/navigation shim', () => {
     expect(() => p.set()).toThrow();
     expect(() => p.append()).toThrow();
     expect(() => p.delete()).toThrow();
-  });
-
-  it('notFound throws a 404 Response; redirect throws a redirect Response', () => {
-    let nf: unknown;
-    try {
-      notFound();
-    } catch (e) {
-      nf = e;
-    }
-    expect(nf).toBeInstanceOf(Response);
-    expect((nf as Response).status).toBe(404);
-    let rd: unknown;
-    try {
-      redirect('/login');
-    } catch (e) {
-      rd = e;
-    }
-    expect((rd as Response).headers.get('Location')).toBe('/login');
   });
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 interface BulkActionBarProps {
   count: number;
@@ -19,10 +20,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
   const blueDim = 'rgba(96, 165, 250, 0.35)';
 
   const btnBase: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
+    ...type.label,
     padding: '6px 14px',
     borderRadius: '6px',
     cursor: 'pointer',
@@ -90,10 +88,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
         onClick={onClear}
         className="ml-auto cursor-pointer transition-colors"
         style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '13px',
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--estate-text-muted)',
           display: count > 0 ? undefined : 'none',
         }}

@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import type { RelatedMemoryHit, ConflictInfo } from '@/lib/inspector/reflect-tools';
 import { FONT_MONO } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 const PHASE_LABEL: Record<RelatedMemoryHit['phase'], string> = {
   INIT: 'Core rule',
@@ -59,7 +60,7 @@ export function MemoryRecallExpander({
         >
           <RotateCcw size={9} />
         </span>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           Recalled {hits.length} related {hits.length === 1 ? 'memory' : 'memories'}
         </span>
         {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -94,10 +95,7 @@ export function MemoryRecallExpander({
                     <div style={{ fontSize: 13, lineHeight: 1.45, color: 'var(--foreground)' }}>{h.ruleText}</div>
                     <div
                       style={{
-                        fontFamily: FONT_MONO,
-                        fontSize: 13,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
+                        ...type.label,
                         color: 'var(--text-tertiary)',
                         marginTop: 5,
                       }}

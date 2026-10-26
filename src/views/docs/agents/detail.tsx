@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useParams } from '@/lib/navigation';
 import { AgentDocPage } from '@/components/docs';
 import type { AgentCatalogEntry } from '@/types/catalog';
 

@@ -22,6 +22,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Trophy, ArrowRight } from 'lucide-react';
+import { type } from '@/lib/typography/tokens';
 
 // ── Types (mirror the API's wire shape — note: no userId) ──────────────────────
 
@@ -125,7 +126,7 @@ function YouTag() {
   return (
     <span
       style={{
-        fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
+        ...type.label,
         color: TEAL, border: `1px solid color-mix(in srgb, ${TEAL} 55%, transparent)`,
         borderRadius: 4, padding: '1px 4px', marginLeft: 6,
       }}
@@ -256,7 +257,7 @@ function NascentState({ view }: { view: View }) {
               </span>
             </span>
             <Meter cred={e.cred} provisional width="100%" />
-            <span style={{ fontFamily: MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>
+            <span style={{ ...type.label, color: MUTED }}>
               provisional
             </span>
           </div>

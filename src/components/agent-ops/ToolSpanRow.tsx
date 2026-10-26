@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { TraceToolSpan } from '@/lib/agent-ops/types';
 import { SqlPreview, extractSqlFromInput } from './SqlPreview';
+import { type } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 
@@ -60,7 +61,7 @@ export function ToolSpanRow({ span }: { span: TraceToolSpan }) {
               {span.durationMs}ms
             </span>
           )}
-          <span style={{ ...mono, fontSize: 10, color: rail, textTransform: 'uppercase' }}>{span.status}</span>
+          <span style={{ ...type.label, }}>{span.status}</span>
         </button>
         {span.error && (
           <div style={{ ...mono, fontSize: 11, color: '#D9774B', marginTop: 4 }}>{span.error}</div>

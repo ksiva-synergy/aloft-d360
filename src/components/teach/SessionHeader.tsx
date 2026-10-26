@@ -10,6 +10,7 @@
 import React from 'react';
 import type { TeachCounters } from '@/hooks/useTeachChat';
 import { FONT_DISPLAY, FONT_MONO } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 export function SessionHeader({ topic, counters }: { topic: string | null; counters: TeachCounters }) {
   const tiles: { n: number; label: string; color: string }[] = [
@@ -39,7 +40,7 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
       {/* Left — Reflect pill + topic */}
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+          <span style={{ ...type.label, color: 'var(--text-tertiary)' }}>
             Teach Session
           </span>
           <ReflectPill />
@@ -76,7 +77,7 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, lineHeight: 1, color: t.color }}>
               {t.n}
             </div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginTop: 5 }}>
+            <div style={{ ...type.label, color: 'var(--text-tertiary)', marginTop: 5 }}>
               {t.label}
             </div>
           </div>
@@ -100,7 +101,7 @@ export function ReflectPill() {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
-      <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--primary)' }}>
+      <span style={{ ...type.label, color: 'var(--primary)' }}>
         Reflect · Learning, not executing
       </span>
     </span>

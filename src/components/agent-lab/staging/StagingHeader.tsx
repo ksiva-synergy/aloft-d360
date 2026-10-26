@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from '@/lib/navigation';
 import { ArrowLeft, Menu } from 'lucide-react';
 import { AppBreadcrumb } from '@/components/app-breadcrumb';
 import { toggleMobileNav } from '@/components/agent-lab/staging/StagingSidebar';

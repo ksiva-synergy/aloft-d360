@@ -114,7 +114,7 @@ export default function SourceCard({
             {sourceName}
           </h3>
           <span
-            className="font-mono text-xs tracking-wider uppercase px-2 py-0.5 rounded border mt-1.5 inline-block transition-colors duration-200"
+      className="text-label px-2 py-0.5 rounded border mt-1.5 inline-block transition-colors duration-200"
             style={{
               backgroundColor: raisedBg,
               borderColor: borderColor,
@@ -169,7 +169,7 @@ export default function SourceCard({
           type="button"
           onClick={handleHarvest}
           disabled={isBtnDisabled}
-          className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+     className="text-label border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{
             borderColor: 'var(--brand-a-ink)',
             color: 'var(--brand-a-ink)',
@@ -189,7 +189,7 @@ export default function SourceCard({
           type="button"
           onClick={handleRefresh}
           disabled={isBtnDisabled}
-          className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+     className="text-label border rounded px-3.5 py-2 cursor-pointer transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
           style={{
             borderColor: 'var(--estate-border-gold)',
             color: labelColor,

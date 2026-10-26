@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 
 export interface ChildJob {
   id: string;
@@ -124,7 +124,7 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
             type="button"
             onClick={retryFailed}
             disabled={retrying}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+      className="text-label inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] transition-colors disabled:opacity-50"
             style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' }}
           >
             Retry {failedCount} failed

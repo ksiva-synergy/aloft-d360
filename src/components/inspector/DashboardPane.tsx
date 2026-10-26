@@ -14,6 +14,7 @@ import { PinRawSqlDialog } from './PinRawSqlDialog';
 import { DefineMetricPanel } from './authoring/DefineMetricPanel';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const GOLD   = 'var(--brand-a-ink)';
@@ -86,8 +87,7 @@ function DataTable({ columns, rows, rowCount, truncated }: DataTableProps) {
             <tr>
               {columns.map(col => (
                 <th key={col.name} style={{
-                  ...mono, fontSize: 13, fontWeight: 700,
-                  letterSpacing: '0.10em', textTransform: 'uppercase',
+                  ...type.label,
                   color: GOLD, padding: '6px 10px',
                   borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap',
                   textAlign: 'left',
@@ -349,7 +349,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         {CHART_TYPES.map(ct => (
           <button key={ct} onClick={() => setChartType(ct)} style={{
-            ...mono, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase',
+            ...type.label,
             padding: '3px 8px', borderRadius: 3, border: 'none',
             background: chartType === ct ? NAVY : 'transparent',
             color: chartType === ct ? '#ffffff' : TXT2,
@@ -441,7 +441,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
           {showSaveDialog && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 4, background: SURF }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ ...mono, fontSize: 13, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase' }}>SAVE RAW-SQL CHART</span>
+                <span style={{ ...type.label, }}>SAVE RAW-SQL CHART</span>
                 <button onClick={() => { setShowSaveDialog(false); setSaveError(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TXT2, display: 'flex' }}>
                   <X size={12} />
                 </button>
@@ -488,7 +488,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
 /** Raw-SQL action button style. `primary` = gold fill, else outlined gold. */
 function rawActionBtn(primary: boolean): React.CSSProperties {
   return {
-    ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+    ...type.label,
     display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
     border: `1px solid ${primary ? GOLD : 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)'}`,
     borderRadius: 3, padding: '3px 8px',
@@ -515,7 +515,7 @@ function SqlBadge({ sql }: { sql: string }) {
         background: 'transparent', border: 'none', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 5, width: '100%',
       }}>
-        <span style={{ ...mono, fontSize: 13, color: GOLD, letterSpacing: '0.06em', textTransform: 'uppercase' }}>SQL</span>
+        <span style={{ ...type.label, }}>SQL</span>
         <span style={{ ...mono, fontSize: 13, color: TXT2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
           {preview}{sql.length > 60 ? '…' : ''}
         </span>
@@ -651,7 +651,7 @@ export function DashboardPane({
         padding: '10px 16px',
         borderBottom: `1px solid ${LINE}`,
         flexShrink: 0,
-        ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase',
+        ...type.label,
         color: GOLD,
       }}>
         <DataDiamond size={12} />

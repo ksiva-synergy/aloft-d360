@@ -12,6 +12,7 @@ import { Pencil } from 'lucide-react';
 import type { Learning, LearningState } from '@/lib/inspector/reflect-tools';
 import { FONT_MONO } from './teach-tokens';
 import { LearningCard } from './LearningCard';
+import { type } from '@/lib/typography/tokens';
 
 export function LearningRail({
   learnings,
@@ -60,7 +61,7 @@ export function LearningRail({
               boxShadow: '0 0 9px var(--primary)',
             }}
           />
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foreground)' }}>
+          <span style={{ ...type.label, color: 'var(--foreground)' }}>
             What Captain Track Sparrow is learning
           </span>
         </div>

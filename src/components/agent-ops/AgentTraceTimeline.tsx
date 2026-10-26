@@ -3,6 +3,7 @@
 import React from 'react';
 import type { TraceLoopGroup } from '@/lib/agent-ops/types';
 import { ToolSpanRow } from './ToolSpanRow';
+import { type } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 
@@ -24,10 +25,7 @@ export function AgentTraceTimeline({ loops, emptyLabel = 'No tool spans yet.' }:
         <section key={group.loop} style={{ marginBottom: 16 }}>
           <div
             style={{
-              ...mono,
-              fontSize: 10,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: 'var(--brand-a)',
               marginBottom: 6,
             }}

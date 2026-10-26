@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 
@@ -27,7 +28,7 @@ export function SqlPreview({ sql, maxLen = 280 }: { sql: string; maxLen?: number
   return (
     <div style={{ marginTop: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ ...mono, fontSize: 9, letterSpacing: '0.08em', color: 'var(--ink-3)', textTransform: 'uppercase' }}>SQL</span>
+        <span style={{ ...type.label, }}>SQL</span>
         <button
           type="button"
           onClick={onCopy}

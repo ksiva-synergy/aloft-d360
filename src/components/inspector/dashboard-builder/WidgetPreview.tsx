@@ -5,6 +5,7 @@ import type { WidgetSpec } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import StudioChart from '@/components/studio/StudioChart';
 import { widgetToChartSpec, type DefinitionMap } from './widget-option';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -50,7 +51,7 @@ export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps)
           padding: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           {widget.chartKind.toUpperCase()}
         </span>
         <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>

@@ -183,7 +183,7 @@ export function CandidatePanel({
 
       {/* Decorative Caption */}
       <div className="border-t border-[var(--foer-border-dim)] pt-4 text-center">
-        <p className="font-serif text-xs italic text-[var(--foer-text-mut)] leading-relaxed px-4">
+        <p className="text-xs italic text-[var(--foer-text-mut)] leading-relaxed px-4">
           "Failures become rules in the imperative. A retry loop becomes nothing."
         </p>
       </div>

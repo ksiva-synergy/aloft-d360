@@ -15,8 +15,8 @@
 //   /api/agent-lab/context/objects/[id]/reharvest-all. T3 is always source-wide/meta.
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 
 interface TierRow {

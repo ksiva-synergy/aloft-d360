@@ -13,6 +13,7 @@
 // Co-objects removed from Usage (now shown in RelationshipGraph sidebar).
 
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,10 +143,7 @@ function HeadlineStat({ label, value, sub, color }: { label: string; value: stri
       minWidth: 100,
     }}>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
+        ...type.label,
         color: 'var(--estate-text-muted, var(--ink-3))',
       }}>
         {label}
@@ -185,11 +183,7 @@ function SourceBreakdownPanel({ breakdown }: { breakdown: SourceBreakdown }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Section label */}
       <div style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
+        ...type.label,
         color: 'var(--estate-text-secondary, var(--ink-3))',
       }}>
         Source Breakdown
@@ -285,11 +279,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Section label */}
       <div style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
+        ...type.label,
         color: 'var(--estate-text-secondary, var(--ink-3))',
         display: 'flex',
         alignItems: 'center',
@@ -437,11 +427,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
+        ...type.label,
         color: 'var(--estate-text-secondary, var(--ink-3))',
       }}>
         Filter Patterns

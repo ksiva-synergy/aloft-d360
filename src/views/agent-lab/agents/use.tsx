@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useParams } from '@/lib/navigation';
+import { agentsWorkbenchSessionHref } from '@/lib/navigation/agents-routes';
 import { ArrowUp, Bot, Pencil, RotateCcw, Square } from 'lucide-react';
 import { AssistantContent } from '@/components/workbench/StreamingMessage';
 
@@ -99,7 +100,7 @@ export default function UseAgentPage() {
         const sessionId = source && typeof source === 'object' && typeof (source as { workbenchSessionId?: unknown }).workbenchSessionId === 'string'
           ? (source as { workbenchSessionId: string }).workbenchSessionId
           : null;
-        setEditUrl(sessionId ? `/agent-lab/workbench/${sessionId}` : null);
+        setEditUrl(sessionId ? agentsWorkbenchSessionHref(sessionId) : null);
       } catch (err: unknown) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Could not load this agent');
       } finally {

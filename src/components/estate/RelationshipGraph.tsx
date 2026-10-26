@@ -28,8 +28,9 @@ import {
 } from '@xyflow/react';
 import dagre from 'dagre';
 import '@xyflow/react/dist/style.css';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter } from '@/lib/navigation';
+import Link from '@/lib/navigation/link';
+import { type } from '@/lib/typography/tokens';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -424,11 +425,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
         background: 'var(--estate-bg, #111322)',
       }}>
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--estate-text-secondary, var(--ink-3))',
         }}>
           Usage Co-objects

@@ -37,6 +37,156 @@ Design: `docs/flows-design.md`. Decision: stay on the current Next.js routes; Ho
 - **Verified:** Documentation only; claims about existing code were checked against the files named in the doc. Nothing was run.
 - **Not done:** No code, schema or migration. Open decisions (runner location, first outbound action, navigation, old pipeline tables) are listed in the doc with proposed defaults.
 
+## 2026-10-25 — Typography implementation: Data Estate labels (PR-7/8) and uppercase-mono chrome across the app
+
+Plan: `docs/audits/typography-implementation-plan.md` §4.4 (and the same pattern in §4.5, 4.7–4.9, 4.12).
+
+- **Data Estate (`src/views/agent-lab/estate/*`, `src/components/estate/*`):** ~160 class strings that combined `font-mono` + `uppercase` + wide tracking + bold now use `text-label` (chips, table headers, section labels) or `text-ui` (buttons). `EstateNav.tsx` tabs are sentence-case `text-ui`; "Data Estate System" is `text-eyebrow`. Job-type, catalog table headers, schedule and stat labels follow.
+- **App-wide inline-style pass:** 303 inline style objects in 82 files that set an IBM Plex Mono family with `textTransform: 'uppercase'` (plus optional size, tracking, weight, line height) were replaced by `...type.label` (imports added from `@/lib/typography/tokens`). Largest: `BoostTabs.tsx` (34), `EstateTable.tsx` (13), `ModelPerformanceLab.tsx` (11), `SemanticCard.tsx` (11), `DashboardBuilder.tsx` (10), `DataStudio.tsx` (9), `SemanticChartCard.tsx` (9), `DashboardGrid.tsx` (8). Source text in these places was already title case, so labels now read "Object Path", "Last Inventoried" instead of capitals.
+- **Verified:** `tsc --noEmit` and `web:typecheck` clean (after fixing two bad replacements, a leftover `as const,` in `InsightRail.tsx` and `ClassSuggestionChip.tsx`, and a misplaced import in `ShelvesPanel.tsx`). Root `npx vitest run` 579 passed; `npm run web:test` 63 passed (one earlier run showed 9 files failing to load while the dev server was being stopped; re-run clean). Chrome screenshots of Estate Jobs and Catalog, FOER and BORN (light) show sentence-case sans labels and no layout breakage. Typography baseline lowered: inline `fontSize` 1,803 → 1,502, `fontFamily` literals 518 → 439, `letterSpacing` 585 → 300, heavy weights 221 → 129.
+- **Not done:** Mono is still used for prose-like chips and values that are not uppercase (e.g. Catalog "Kind: All" and "Test: hidden", FOER KPI sub-lines, BORN panel subtitles, "no runs yet"); sizes of non-uppercase mono text, KPI value styles, table cell styles, weights 700+ and Tailwind `text-xs/sm` legacy sizes are unchanged. Only light theme was looked at for these screens. Dashboard (PR-5), admin pages (PR-6), Teach, charts/SSR (PR-14) and the final lock-down (PR-15) are not started. No commit was made.
+
+## 2026-10-24 — Nest Workbench under Agents navigation
+
+- **What:** Removed the standalone **Workbench** sidebar item. Workbench now lives under **Build → Agents** with in-page tabs (**Saved agents** | **Workbench**). Routes moved to `/agent-lab/agents/workbench` and `/agent-lab/agents/workbench/:sessionId`; legacy `/agent-lab/workbench*` redirects preserve old links.
+- **Files:** `src/lib/navigation/agents-routes.ts`, `src/views/agent-lab/agents/{AgentsLayout,AgentsSubNav}.tsx`, `src/components/agent-lab/staging/nav-config.ts`, `web/src/router.tsx`, `web/src/routes/adapters.tsx`, workbench/history/handoff/edit URL call sites.
+- **Why:** One Agents area for listing, chatting with commissioned agents, and building new ones.
+- **Verified:** `npm run web:test` — 63 passed (router contract).
+- **Not done:** Docs sweep (`docs/creating-agents.md`, audit URLs) for the new paths.
+
+## 2026-10-24 — Typography implementation: PR-3 shared primitives, PR-9 chat surfaces (Inspector, Workbench)
+
+Plan: `docs/audits/typography-implementation-plan.md` §4.14, §4.5–4.6.
+
+- **PR-3 shared `ui/*` primitives** (`packages/aloft-shared/src/components/ui/`): `button` (sizes → `text-ui` / `text-ui-lg`; default `md` is now 13 px), `badge` (`text-label`), `dialog`, `alert-dialog`, `card` (`text-title-card`), `modal` and `modal/modal` (`text-title-section`), `label` and `form-field` (`text-label`, error text `text-caption`), `tabs` (`text-ui`), `tooltip` (`text-caption`), `table` (`text-ui-regular`, headers `text-label`), `calendar` weekday labels (`text-caption`). **`tailwind.config.js` `content` now includes `./packages/aloft-shared/src/components/ui/**`**; before this the Tailwind classes used only in those files were not scanned, so they were not generated unless used elsewhere. Expect small visible changes where primitives are used.
+- **PR-9 chat surfaces:** `InspectorShell.tsx`, `SemanticGovernancePanel.tsx`, `EmptyStatePrompts.tsx`, `workbench/PromptCanvas.tsx`, `InputComposer.tsx`, `WorkbenchShell.tsx`, `StreamingMessage.tsx` now use `type.*` tokens instead of inline mono sizes and tracking. Uppercase tracked mono chrome became sentence-case sans: header breadcrumb and pills ("Databricks connected", "Catalog + SQL", "New", "Session", "Powered by ALOFT · v0.4"), tabs ("Results", "Semantic", "Developer", "Config"), "Commission", "Agents". Empty-state headings use `title-card`; placeholders and composer hints are sans. AI answer prose, bullets and numbered items use `body-lg` (16 px); markdown `#`/`##`/`###`/`####` use `title-section` / `title-card` / `ui` / `label`. Tool input/output labels use `label`. The local `serif` constant in `StreamingMessage.tsx` was removed.
+- **Verified:** `tsc --noEmit` and `web:typecheck` clean; Chrome screenshots of `/inspector` and `/agent-lab/workbench` (dark) show sentence-case sans chrome and the earlier "Catalog + SQL" / "New" overlap gone; typography baseline refreshed with `UPDATE_TYPOGRAPHY_BASELINE=1` (see `typography-baseline.json`). Root `npx vitest run` 579 passed, `npm run web:test` 63 passed. Baseline now 1,803 inline `fontSize` (was 1,895), 585 `letterSpacing` (was 612), 518 `fontFamily` literals (was 519), 221 heavy weights (was 222).
+- **Not done:** The rest of `StreamingMessage.tsx` tool-call rows, `ModelPerformanceLab`, dashboard builder, Teach thread and Studio still use inline mono and sizes (PR-10/11/13). Inspector answers were not checked with real streamed content. Remaining plan steps PR-4 to PR-8, PR-10 to PR-15 are not started.
+
+## 2026-10-24 — Typography implementation: PR-0 guards, PR-1 foundation, PR-2 one font family
+
+Plan: `docs/audits/typography-implementation-plan.md`. Findings addressed: TYP-01, 02, 03, 04, 13, 17 (partly 14).
+
+- **PR-0 guards (new):** `src/lib/typography/__tests__/typography-guard.test.ts` fails when source names a font that is not loaded, loads fonts from a CDN, or grows hardcoded typography beyond `typography-baseline.json` (today: 1,895 inline `fontSize`, 144 `text-[Npx]`, 519 `fontFamily` literals, 612 `letterSpacing`, 222 heavy weights). `typography-tokens.test.ts` keeps CSS, Tailwind and TS tokens in sync and allows only weights 400/500/600. Update the baseline with `UPDATE_TYPOGRAPHY_BASELINE=1 npx vitest run src/lib/typography`.
+- **PR-1 foundation (new):** `src/styles/typography.css` (font stacks, 17 type tokens as CSS variables and `.type-*` classes, `.tnum`); `src/lib/typography/tokens.ts` (`FONT_SANS`, `FONT_MONO`, `type.*` style objects, `CHART_TEXT`); `src/components/type/index.tsx` (`PageTitle`, `SectionTitle`, `Eyebrow`, `Num`, `Code`). `tailwind.config.js` adds the token classes (`text-title-page`, `text-ui`, `text-eyebrow`, …) and points `sans`/`serif`/`display`/`body` at `var(--font-sans)` and `mono` at `var(--font-mono)`. The old `xs…2xl` sizes are untouched.
+- **PR-2 one family:** `src/app/globals.css` imports Inter (upright and real italic) and IBM Plex Mono 400/500 only; `body` uses the tokens; the Inter-specific `cv11`/`ss01` feature settings were removed (they had applied to DM Sans); `.workbench-frame` `--display/--sans/--mono` now use the global font variables. `SERIF`/`BODY`/`MONO` in `foer-tokens.ts` and `born-tokens.ts`, `FONT_*` in `teach-tokens.ts`, `UI_FONT` in `inspector-viz-tokens.ts`, `cockpit/format.ts` and the Captain canvas font now resolve to the shared constants. Inline `'Source Serif 4'` literals (12 files) became `var(--font-sans)`; `font-serif` classes were dropped. The Google Fonts `@import` was deleted from `FoerOpsDashboard.tsx` and `FoerStoryDashboard.tsx`. Packages `@fontsource-variable/dm-sans`, `@fontsource/inter-tight`, `@fontsource/source-serif-4` removed (`package.json`, `package-lock.json`).
+- **Mojibake fixed** in `BanditsDashboard.tsx` (4 places: `·`, `—`, `→`).
+- **Docs:** `docs/DESIGN_SYSTEM.md` typography section and `ARCHITECTURE.md` §16.2 rewritten to match the code.
+- **Verified:**
+  - `npm run web:typecheck` and `npx tsc --noEmit` clean; `npm run web:test` 63 passed; root `npx vitest run` 579 passed (includes the 22 new typography tests).
+  - Chrome sweep of 25 routes, light and dark: only Inter Variable (52.1 % of characters) and IBM Plex Mono (47.9 %) are used (before: 5 families). Only Inter (upright and italic) and Plex Mono 400/500 files were requested, and nothing came from Google. `CSS.getPlatformFontsForNode` reports Inter for the Data Estate, Lineage, Entities and Chat History headings (before: Times New Roman), with Google Fonts allowed and blocked.
+- **Not done (later PRs in the plan):**
+  - Mono is still used for UI chrome; sizes, weights, tracking and heading rules are unchanged; mixed 700/800 weights remain.
+  - Shared `ui/*` primitives, per-screen token migration, and `.workbench-frame` `!important` rules (PR-3 to PR-15).
+  - Server-side chart rendering still uses Inter Tight TTF (`lib/studio/ssr-render.ts`, `aloftDarkTheme.ts`) and is allow-listed in the guard until PR-14.
+  - Default `h1–h4` rules are written in the plan but not enabled (would change unclassed headings).
+  - Contrast, small-text and numeric fixes.
+  - Rendered after-state was checked on stubbed data only; the first-paint font-swap shift was not measured. No commit was made.
+
+## 2026-10-24 — Typography implementation plan
+
+- **What:** Added `docs/audits/typography-implementation-plan.md`. It settles the font decision (Inter Variable for all readable text, IBM Plex Mono for machine text only; DM Sans, Inter Tight and Source Serif 4 retired) and gives a role map for every kind of text. It also has screen-by-screen assignments for every route, shared-primitive changes, the code layout (`typography.css`, `tokens.ts`, type components) and a 16-PR delivery sequence with effort estimates and acceptance checks.
+- **Why:** Follow-up to the typography audit: one concrete typography assignment for every place in the app before implementation starts.
+- **Verified:** Per-file typography counts (7,178 declarations in 220 files) and shared `ui/*` primitive classes were read from source. Confirmed from the build that only upright Inter ships, so current Inter italics are synthesised.
+- **Not done:** Plan only. No code, fonts, tokens or theme settings changed.
+
+## 2026-10-24 — Jobs docs: versioning and incremental policy
+
+- **What:** Added `docs/jobs/versioning-and-incremental.md`; linked from `current-status.md`, `schema-harvest-guide.md`, `AGENT_INSTRUCTIONS.md`, `README.md`.
+- **Why:** User principle — incremental harvest is good when each re-run keeps version history (T1 profiles, T2 semantic cards).
+- **Verified:** Code paths `saveProfile` / `persistCard` append monotonic `version`; T2 skip leaves latest card in place.
+- **Not done:** Versioned T0 structural snapshots; T1 stale-only incremental.
+
+## 2026-10-24 — Jobs docs: current status, schema harvest, session logging for agents
+
+- **What:** Added `docs/jobs/` — `README.md`, `current-status.md` (tier incremental/overwrite snapshot), `schema-harvest-guide.md` (single `catalog.schema.*` harvest), `AGENT_INSTRUCTIONS.md`, `session-log.md`. Updated `AGENTS.md`, `CLAUDE.md`, `docs/estate-jobs.md`, remediation charter cross-links.
+- **Why:** User wants easy per-schema harvest, run-only-what’s-needed + optional overwrite, full job status documentation, and mandatory per-session logs for Claude/Cursor on this workstream.
+- **Verified:** Docs cross-linked; agent checklist references CHANGELOG + session-log.
+- **Not done:** No code; P0-3 and one-click schema harvest UI still open.
+
+## 2026-10-24 — Harvest jobs remediation charter (cockpit UX + phased fixes)
+
+- **What:** Added `docs/audits/harvest-job-pipeline-remediation-charter.md` — vision, UX spec (pipeline strip, 4-step launch wizard, copy/vocabulary), four engineering phases mapping all P0–P3 issues from the register, technical anchors (`planEstateSplit`, `JobScope`), tests and governance. Linked from `harvest-job-pipeline-issues.md`.
+- **Why:** User asked for a charter to fix audit issues and make Jobs a clear, non-confusing cockpit.
+- **Verified:** Issue IDs cross-walked against `harvest-job-pipeline-issues.md` §4–7.
+- **Not done:** No application code; wizard and APIs not built.
+
+## 2026-10-24 — Harvest job pipeline audit (T0 launch modal field report)
+
+- **What:** Updated `docs/audits/harvest-job-pipeline-issues.md` — expanded P0-3/P1-1/P1-7/P2-16, added P1-20 (exclude tree vs Focus), new symptom→issue rows, §13 operator field report (T0 blocked with valid Focus e.g. `curated_db.<schema>*`), code touchpoints for a fix PR.
+- **Why:** Operator hit “No objects in scope” with discovery objects visible and a correct-looking Focus glob; triage showed launch gate uses Scanned rows only, not operator misconfiguration.
+- **Verified:** Cross-checked `jobs.tsx`, `plan/route.ts`, `launch/route.ts`, `queue.ts` `planSplit`, `harvest.ts` `runT0Harvest`.
+- **Not done:** No application fix for P0-3; T0 plan/assert still Scanned-only.
+
+## 2026-10-24 — Typography and font system audit
+
+- **What:** Added `docs/audits/typography-audit.md` (12-section report: font inventory, 17 verified findings TYP-01…17, 6 design recommendations, font shortlist, proposed token table, implementation architecture, phased roadmap, acceptance criteria) and nine screenshots in `docs/audits/typography-audit-assets/`.
+- **Why:** The UI feels like fonts were applied without a plan. The audit establishes the cause before anything is changed.
+- **Headline findings:** `Source Serif 4` and `Inter Tight` are named in ~100 places but never imported, so Estate, Lineage, Entities, Chat History and BORN headings render in Times New Roman; FOER loads them from Google Fonts via inline `@import`; three sans families and no type scale (39 distinct sizes, 71 % of text ≤ 13 px); Plex Mono used for UI chrome with faux bold.
+- **Verified:** Source and `web/dist` CSS read; Chrome (playwright-core, API stubbed with `web/e2e/fixtures.mjs`) swept 25 routes in light and dark, checked the painted font with `CSS.getPlatformFontsForNode` (Google Fonts allowed and blocked), measured contrast heuristically on 6 routes, and checked 390/820 px overflow.
+- **Not done:** No application code, fonts, theme settings or tokens changed; none of the recommendations are implemented. A font decision (D-1) is awaiting review. Not tested: real data, macOS/Linux, screen readers, dark-mode contrast on Estate Jobs, font-swap layout shift. The probe scripts were not committed.
+
+## 2026-10-24 — Knowledge base design report
+
+- **What:** Added `docs/reports/ALOFT knowledge base design.md` — design for one typed, governed knowledge layer: eleven knowledge types with trust tiers, a `kb_index` retrieval projection on Aurora (RLS, tsvector + trigram + vector fused by RRF, governance priors, one-hop edges), a 12k-token context envelope, five `kb_*` agent tools, governance rules, an evaluation harness, twelve fix-first defects with file citations, and four build phases with exit criteria. Also added `docs/research_notes/ALOFT knowledge base design/aloft_current_state.md` (code inventory of knowledge stores).
+- **Why:** User asked for deep research on what knowledge base ALOFT needs and how to build it.
+- **Verified:** Synthesised from the five research-note files. Spot-checked the top defect against code: T3 writes a summary-less `observed` card as newest version (`src/lib/context/usage.ts` 414–424) and readers take the newest card regardless of status (`src/lib/context/describe.ts` 290–301, `src/lib/context/embed.ts` 172–181).
+- **Not done:** No application code changes. Deployed Aurora indexes, presence of `knowledge_chunks` rows, and model citation support remain unverified. The cross-org embedding upsert risk (fix #2) is low in practice because subject IDs are UUIDs.
+
+## 2026-10-24 — Research notes: agent memory, context engineering, knowledge governance
+
+- **What:** Added `docs/research_notes/ALOFT knowledge base design/agent_memory_context_governance.md` — cited notes on context engineering (Anthropic context-engineering, tools and Agent Skills posts; Manus KV-cache and file-system-as-memory lessons; LangChain write/select/compress/isolate; OpenAI Agents SDK sessions/trimming/summarization; Chroma context rot), memory systems (Letta core/archival + sleep-time agents, Mem0, Zep/Graphiti bi-temporal graph, LangMem memory types, ChatGPT memory, Claude memory tool, LongMemEval/LoCoMo), retrieval tool design and MCP primitives, prompt-injection and memory-poisoning governance (OWASP LLM01:2025, spotlighting, lethal trifecta, design patterns, AgentPoison, MINJA, tenant-scope findings), and knowledge lifecycle (invalidation, conflict surfacing, 2026 preprints TEPA/TRACE/StateFuse).
+- **Why:** Input for designing the memory + knowledge harness of the ALOFT analytics agent platform.
+- **Verified:** Every finding has an inline source link; Mem0-vs-Zep benchmark dispute and LoCoMo weaknesses flagged; 2026 preprints labelled as abstract-level reads.
+- **Not done:** OWASP LLM02/LLM04/LLM08 entries, Anthropic "Building effective agents" primary page, and PII-in-context patterns not covered in depth. No application code changes.
+
+## 2026-10-24 — Research notes: enterprise retrieval architecture
+
+- **What:** Added `docs/research_notes/ALOFT knowledge base design/enterprise_retrieval.md` — cited notes on chunking (Contextual Retrieval, late chunking, semantic vs fixed, hierarchical), hybrid search on Postgres/Aurora (tsvector + RRF; ParadeDB `pg_search` not supported on Aurora), rerankers on Bedrock (Cohere 3.5 / Amazon Rerank pricing and regions), Bedrock embedding models and dimensions, pgvector 0.8 HNSW tuning and iterative scans, agentic / just-in-time retrieval vs long context, GraphRAG/LightRAG/LazyGraphRAG costs, incremental indexing, RLS-based permission-aware retrieval, and Claude `search_result` citations on Bedrock.
+- **Why:** Input for choosing the ALOFT knowledge-base retrieval architecture (Aurora pgvector + Bedrock + Databricks).
+- **Verified:** Every finding has an inline source link; vendor benchmarks flagged; gaps listed per section.
+- **Not done:** No application code changes.
+
+## 2026-10-24 — Research notes: text-to-SQL grounding / catalog knowledge
+
+- **What:** Added `docs/research_notes/ALOFT knowledge base design/text_to_sql_grounding.md` — cited notes on the knowledge artifacts and retrieval used by Databricks Genie, Snowflake Cortex Analyst, dbt/AtScale/Looker semantic layers, Google/AWS/Microsoft copilots, academic systems (CHESS, Spider 2.0, BIRD), open-source tools (Vanna, WrenAI), large-catalog production systems (Uber, Pinterest), and feedback loops.
+- **Why:** Input for designing the catalog knowledge layer of the analytics agent platform over Unity Catalog.
+- **Verified:** Every finding links to a fetched source; vendor claims are labeled separately from independent benchmarks.
+- **Not done:** Did not cover Cube, Dataherald, LangChain, or the DIN-SQL, MAC-SQL, and CHASE-SQL ablation papers in depth. No application code changes.
+
+## 2026-10-24 — Research notes: KB evaluation and operations
+
+- **What:** Added `docs/research_notes/ALOFT knowledge base design/evaluation_operations.md` — cited notes on retrieval metrics and golden-set construction, RAG grounding metrics and tools (RAGAS, TruLens, MLflow/Databricks, Bedrock, Braintrust), LLM-as-judge reliability, text-to-SQL evaluation (EX vs EM, FLEX, Spider 2.0, BIRD annotation-error audits), tau-bench pass^k, OpenTelemetry GenAI spans, CI gating, and anti-patterns.
+- **Why:** Input for designing the eval-and-observability harness for the ALOFT knowledge base (text-to-SQL and document-RAG agents).
+- **Verified:** Every finding has an inline source link; gaps (DeepEval/Phoenix/LangSmith docs, freshness SLOs, drift detection) are listed explicitly.
+- **Not done:** No application code changes.
+
+## 2026-10-24 — Harvest job pipeline issues audit
+
+- **What:** Added `docs/audits/harvest-job-pipeline-issues.md` — register of P0–P3 findings for estate inventory vs Scanned context, Jobs launch/Focus/sequential chain, T3/embed scope, duplicate job rows, `scope.path` ignored at runtime, API entry-point fragmentation, orchestrator stub/success behavior, and recommended fix themes.
+- **Why:** Capture the full pipeline analysis from the harvest debugging session so engineering can prioritize fixes without re-deriving issues from chat.
+- **Verified:** Document only; cross-checked against `orchestrator.ts`, `queue.ts`, `harvest.ts`, `usage.ts`, `jobs/launch`, and `jobs.tsx`.
+- **Not done:** No application code changes.
+
+## 2026-10-24 — Inspector architecture HTML documentation
+
+- **What:** Added `docs/inspector-architecture.html` — standalone browser documentation for Inspector (harness layers, end-to-end SSE flow, context stack, tools, sub-pipelines, UI composition, limits, file index). Mermaid sequence diagram via CDN.
+- **Why:** Capture the Inspector execution model from the architecture review in a shareable HTML doc alongside `docs/audits/business-ai-studio-current-state.md`.
+- **Verified:** Not opened in browser from this session.
+- **Not done:** No changes to application code.
+
+## 2026-10-24 — UI no longer imports `next/*` for routing, links, lazy loading or images
+
+- **Why:** First step toward dropping Next.js. The UI is already the Vite + React Router app; Next.js only hosts the API (`src/app/api`, 158 route files), next-auth, and serves `public/spa` in production. The UI still imported `next/link`, `next/navigation`, `next/dynamic` and `next/image`, which only worked through aliases to `web/src/compat/*`.
+- **What:**
+  - Moved the navigation shim to `src/lib/navigation/index.ts` (`useRouter`, `usePathname`, `useSearchParams`, `useParams`, `ReadonlyURLSearchParams`; same behavior) and the link shim to `src/lib/navigation/link.tsx`. Dropped the unused `redirect` / `notFound`.
+  - Rewrote the imports in 60 files under `src/components`, `src/views` and `web/src` (`next/navigation` to `@/lib/navigation`, `next/link` to `@/lib/navigation/link`). Only the import line changed.
+  - `src/components/studio/StudioChart.tsx` and `src/components/agent-lab/memory/ForgettingPanel.tsx` use `React.lazy` for ECharts (ForgettingPanel now wraps it in `Suspense`). `src/components/shell/BrandMark.tsx` uses a plain `<img loading="eager">`.
+  - Deleted `web/src/compat/` (the image and dynamic shims and their tests). The link/navigation tests moved to `src/lib/navigation/__tests__/` with a jsdom docblock.
+  - Removed the `next/*` aliases from `web/vite.config.ts`, `web/vitest.config.ts` and `web/tsconfig.json`. `web/vitest.config.ts` now includes the `src/lib/navigation` tests. Added `src/lib/navigation` to `tailwind.config.js` `content` (required by `web/src/tailwind-content.test.ts`). Updated `web/README.md`.
+- **Verified:** `npm run web:typecheck` and root `npx tsc --noEmit` exit 0. `npm run web:test` passes 62 tests; the one failure (the Tailwind content guard) was fixed and re-run green with the navigation tests. Root `npx vitest run src/lib/navigation` passes 13 tests. `npm run web:build` succeeds, `web:check-bundle` reports a clean bundle, and `web/dist/assets` contains no `next/*` references.
+- **Not done:** No browser click-through. ESLint could not run: it crashes loading `eslint.config.cjs` ("Converting circular structure to JSON" in `@eslint/eslintrc`), unrelated to this change. `next-auth/react` and `next-themes` stay in the UI because they work without Next. Replacing the Next.js API server (Hono plus a new auth layer) is a separate, larger phase that hasn't started.
+
 ## 2026-10-24 — CI: single-platform ECR images (arm64 web / amd64 harvester)
 
 - **What:** `.github/workflows/ecr-push.yml` builds **one** platform per image (not multi-arch): web defaults to **`linux/arm64`** for **t4g** Beanstalk; harvester defaults to **`linux/amd64`** for x86 Fargate. Optional repo vars `DOCKER_PLATFORM_WEB` / `DOCKER_PLATFORM_HARVESTER` to switch without code changes. Web job uses Buildx for cross-build on GHA.

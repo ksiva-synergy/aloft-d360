@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { type } from '@/lib/typography/tokens';
 
 const TECHNIQUE_LABELS: Record<string, string> = {
   self_examination:     'CAPTAIN TRACK SPARROW · SELF-EXAMINATION',
@@ -75,11 +76,7 @@ export function ReflectionCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
         <div style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '13px',
-          fontWeight: 500,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--brand-a-ink)',
         }}>
           {label}

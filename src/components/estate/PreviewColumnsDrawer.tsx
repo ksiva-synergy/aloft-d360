@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
+import { type } from '@/lib/typography/tokens';
 
 interface Column {
   column_name: string;
@@ -105,7 +106,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             ✕
           </button>
           <div
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '0.16em', textTransform: 'uppercase', color: textDim }}
+            style={{ ...type.label, color: textDim }}
           >
             Preview Columns · live
           </div>
@@ -232,7 +233,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             type="button"
             onClick={onClose}
             className="flex-1 text-center py-2.5 rounded-md border transition-colors"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', borderColor: borderStrong, color: textMuted, background: 'transparent' }}
+            style={{ ...type.label, borderColor: borderStrong, color: textMuted, background: 'transparent' }}
           >
             Close
           </button>
@@ -241,7 +242,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               type="button"
               onClick={() => { onClose(); router.push(`/agent-lab/estate/object/${contextObjectId}`); }}
               className="flex-1 text-center py-2.5 rounded-md font-semibold transition-colors"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', backgroundColor: goldColor, color: 'var(--estate-bg)' }}
+              style={{ ...type.label, backgroundColor: goldColor, color: 'var(--estate-bg)' }}
             >
               ◆ View Full Detail
             </button>
@@ -250,7 +251,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               type="button"
               onClick={() => { onHarvest([path]); onClose(); }}
               className="flex-1 text-center py-2.5 rounded-md font-semibold transition-colors"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase', backgroundColor: goldColor, color: 'var(--estate-bg)' }}
+              style={{ ...type.label, backgroundColor: goldColor, color: 'var(--estate-bg)' }}
             >
               ⛏ Harvest this object
             </button>

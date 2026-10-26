@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { Database, Ruler, Tag, LayoutDashboard, AlertTriangle, Info } from 'lucide-react';
 
 // ── Response shape (mirrors /api/inspector/semantic/lineage) ───────────────────
@@ -116,7 +116,7 @@ export default function LineagePage() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>Lineage</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>Lineage</h1>
           <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
             One graph, two lenses — estate table → definition → consumers. Pick a metric (forward) or an entity (reverse).
           </p>
@@ -129,7 +129,7 @@ export default function LineagePage() {
         {!err && noModel && (
           <div className="flex justify-center py-12">
             <div className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-4" style={{ backgroundColor: raised, borderColor: borderGold }}>
-              <h2 className="text-xl font-serif font-semibold" style={{ color: ink }}>No governed model yet</h2>
+              <h2 className="text-xl font-semibold" style={{ color: ink }}>No governed model yet</h2>
               <p className="text-xs" style={{ color: muted }}>Lineage traces a governed semantic model. Promote one to see its graph.</p>
               <Link href="/agent-lab/estate/catalog" className="font-mono text-xs hover:underline" style={{ color: GOLD }}>Go to Catalog &rarr;</Link>
             </div>
@@ -140,7 +140,7 @@ export default function LineagePage() {
           <>
             {/* Focus picker (searchable — the model has thousands of nodes) */}
             <div className="border rounded-xl p-3 mb-4" style={{ backgroundColor: raised, borderColor: borderGold }}>
-              <div className="text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
+       <div className="text-label mb-2" style={{ color: muted }}>
                 Focus · metric (forward) or entity (reverse){model ? ` · ${options?.total ?? 0} focusable nodes` : ''}
               </div>
               <input
@@ -204,7 +204,7 @@ export default function LineagePage() {
                     const list: LineageNode[] = cols[colKey];
                     return (
                       <div key={colKey}>
-                        <div className="text-xs font-mono tracking-widest uppercase text-center pb-2 mb-2 border-b" style={{ color: muted, borderColor: softBorder }}>{heads[colKey]}</div>
+            <div className="text-label text-center pb-2 mb-2 border-b" style={{ color: muted, borderColor: softBorder }}>{heads[colKey]}</div>
                         <div className="flex flex-col gap-2">
                           {list.length === 0 && <div className="text-xs text-center py-3" style={{ color: muted }}>—</div>}
                           {list.map((n) => {
@@ -256,8 +256,8 @@ export default function LineagePage() {
                   <div className="border rounded-xl p-5" style={{ backgroundColor: raised, borderColor: borderGold }}>
                     <div className="flex items-center gap-2 mb-3">
                       {nodeIcon(detailNode)}
-                      <span className="text-lg" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>{detailNode.label}</span>
-                      <span className="font-mono text-xs uppercase tracking-wide ml-1" style={{ color: muted }}>{detailNode.kind}</span>
+                      <span className="text-lg" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>{detailNode.label}</span>
+           <span className="text-label ml-1" style={{ color: muted }}>{detailNode.kind}</span>
                     </div>
 
                     {detailNode.kind === 'estate' && (
@@ -268,10 +268,10 @@ export default function LineagePage() {
                       const d = detailNode as DefNode;
                       return (
                         <div className="flex flex-col gap-2 text-xs" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
-                          <div><span className="font-mono text-xs uppercase" style={{ color: muted }}>resolves to</span>{' '}
+             <div><span className="text-label " style={{ color: muted }}>resolves to</span>{' '}
                             <span className="font-mono text-xs"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: GOLD }}> · expression</span>}</span>
                           </div>
-                          <div><span className="font-mono text-xs uppercase" style={{ color: muted }}>result key</span>{' '}
+             <div><span className="text-label " style={{ color: muted }}>result key</span>{' '}
                             <span className="font-mono text-xs" style={{ color: ink }}>{d.resolvesTo.resultAlias}</span>
                             <span className="text-xs"> (rows come back keyed by this, not the label)</span>
                           </div>
@@ -285,7 +285,7 @@ export default function LineagePage() {
                           )}
                           {d.compiledSql && (
                             <div className="mt-1">
-                              <div className="flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide mb-1" style={{ color: muted }}>
+               <div className="flex items-center gap-1.5 text-label mb-1" style={{ color: muted }}>
                                 <Info size={11} /> Compiled SQL — read-only trust-spine peek
                               </div>
                               <pre className="font-mono text-xs leading-relaxed p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.04)', color: ink }}>{d.compiledSql}</pre>

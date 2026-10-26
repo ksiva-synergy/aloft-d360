@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Share2, Lock, Building2, Users, UserPlus, Trash2, ChevronDown, Check, Link2 } from 'lucide-react';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
@@ -153,7 +154,7 @@ export function ShareDialog({
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Visibility */}
           <section>
-            <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+            <p style={{ ...type.label, color: 'var(--text-muted)', margin: '0 0 10px' }}>
               ACCESS LEVEL {savingVisibility && <span style={{ color: GOLD, marginLeft: 8 }}>SAVING…</span>}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -184,7 +185,7 @@ export function ShareDialog({
           {/* Invite people */}
           {canShare && (
             <section>
-              <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>INVITE PEOPLE</p>
+              <p style={{ ...type.label, color: 'var(--text-muted)', margin: '0 0 10px' }}>INVITE PEOPLE</p>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                 <input
                   value={inviteEmail}
@@ -210,7 +211,7 @@ export function ShareDialog({
 
           {/* Collaborators list */}
           <section>
-            <p style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: '0 0 10px' }}>
+            <p style={{ ...type.label, color: 'var(--text-muted)', margin: '0 0 10px' }}>
               WHO HAS ACCESS {!loading && `· ${collaborators.length} PEOPLE`}
             </p>
             {loading ? (
@@ -243,7 +244,7 @@ export function ShareDialog({
                           </button>
                         </div>
                       ) : (
-                        <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>{c.role}</span>
+                        <span style={{ ...type.label, flexShrink: 0 }}>{c.role}</span>
                       )}
                     </div>
                   );

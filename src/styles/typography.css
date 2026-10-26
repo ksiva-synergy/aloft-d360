@@ -1,0 +1,126 @@
+/*
+ * Typography foundation — single source of truth for font families and text styles.
+ * Mirrors src/lib/typography/tokens.ts (a test keeps the two in sync).
+ * Plan: docs/audits/typography-implementation-plan.md
+ *
+ * Families: Inter Variable for everything people read, IBM Plex Mono for machine text only
+ * (code, SQL, ids, paths, cron). Weights used: 400 / 500 / 600.
+ */
+
+:root {
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --type-display-size: clamp(28px, 4vw, 40px);
+  --type-display-weight: 600;
+  --type-display-lh: 1.1;
+  --type-display-ls: -0.02em;
+
+  --type-title-page-size: clamp(22px, 2.6vw, 28px);
+  --type-title-page-weight: 600;
+  --type-title-page-lh: 1.2;
+  --type-title-page-ls: -0.02em;
+
+  --type-title-section-size: 20px;
+  --type-title-section-weight: 600;
+  --type-title-section-lh: 1.3;
+  --type-title-section-ls: -0.01em;
+
+  --type-title-card-size: 15px;
+  --type-title-card-weight: 600;
+  --type-title-card-lh: 1.35;
+  --type-title-card-ls: 0;
+
+  --type-body-lg-size: 16px;
+  --type-body-lg-weight: 400;
+  --type-body-lg-lh: 1.6;
+  --type-body-lg-ls: 0;
+
+  --type-body-size: 15px;
+  --type-body-weight: 400;
+  --type-body-lh: 1.55;
+  --type-body-ls: 0;
+
+  --type-ui-lg-size: 15px;
+  --type-ui-lg-weight: 500;
+  --type-ui-lg-lh: 1.4;
+  --type-ui-lg-ls: 0;
+
+  --type-ui-size: 13px;
+  --type-ui-weight: 500;
+  --type-ui-lh: 1.4;
+  --type-ui-ls: 0;
+
+  --type-ui-regular-size: 13px;
+  --type-ui-regular-weight: 400;
+  --type-ui-regular-lh: 1.45;
+  --type-ui-regular-ls: 0;
+
+  --type-label-size: 12px;
+  --type-label-weight: 500;
+  --type-label-lh: 1.35;
+  --type-label-ls: 0;
+
+  --type-caption-size: 12px;
+  --type-caption-weight: 400;
+  --type-caption-lh: 1.4;
+  --type-caption-ls: 0;
+
+  --type-eyebrow-size: 11px;
+  --type-eyebrow-weight: 600;
+  --type-eyebrow-lh: 1.3;
+  --type-eyebrow-ls: 0.08em;
+
+  --type-kpi-lg-size: 28px;
+  --type-kpi-lg-weight: 600;
+  --type-kpi-lg-lh: 1.1;
+  --type-kpi-lg-ls: -0.02em;
+
+  --type-kpi-md-size: 20px;
+  --type-kpi-md-weight: 600;
+  --type-kpi-md-lh: 1.2;
+  --type-kpi-md-ls: -0.01em;
+
+  --type-kpi-sm-size: 15px;
+  --type-kpi-sm-weight: 600;
+  --type-kpi-sm-lh: 1.3;
+  --type-kpi-sm-ls: 0;
+
+  --type-code-size: 13px;
+  --type-code-weight: 400;
+  --type-code-lh: 1.55;
+  --type-code-ls: 0;
+
+  --type-code-inline-size: 0.92em;
+  --type-code-inline-weight: 400;
+  --type-code-inline-lh: inherit;
+  --type-code-inline-ls: 0;
+}
+
+@layer base {
+  /* Default heading sizes (h1 → title-page, h2 → title-section, h3/h4 → title-card) are NOT enabled yet:
+     many unclassed headings inherit today's size, so turning this on is a visible change. Enable per
+     docs/audits/typography-implementation-plan.md once each area is migrated. */
+  code, kbd, samp, pre { font-family: var(--font-mono); }
+}
+
+@layer components {
+  .type-display { font-family: var(--font-sans); font-size: var(--type-display-size); font-weight: var(--type-display-weight); line-height: var(--type-display-lh); letter-spacing: var(--type-display-ls); }
+  .type-title-page { font-family: var(--font-sans); font-size: var(--type-title-page-size); font-weight: var(--type-title-page-weight); line-height: var(--type-title-page-lh); letter-spacing: var(--type-title-page-ls); }
+  .type-title-section { font-family: var(--font-sans); font-size: var(--type-title-section-size); font-weight: var(--type-title-section-weight); line-height: var(--type-title-section-lh); letter-spacing: var(--type-title-section-ls); }
+  .type-title-card { font-family: var(--font-sans); font-size: var(--type-title-card-size); font-weight: var(--type-title-card-weight); line-height: var(--type-title-card-lh); letter-spacing: var(--type-title-card-ls); }
+  .type-body-lg { font-family: var(--font-sans); font-size: var(--type-body-lg-size); font-weight: var(--type-body-lg-weight); line-height: var(--type-body-lg-lh); letter-spacing: var(--type-body-lg-ls); }
+  .type-body { font-family: var(--font-sans); font-size: var(--type-body-size); font-weight: var(--type-body-weight); line-height: var(--type-body-lh); letter-spacing: var(--type-body-ls); }
+  .type-ui-lg { font-family: var(--font-sans); font-size: var(--type-ui-lg-size); font-weight: var(--type-ui-lg-weight); line-height: var(--type-ui-lg-lh); letter-spacing: var(--type-ui-lg-ls); }
+  .type-ui { font-family: var(--font-sans); font-size: var(--type-ui-size); font-weight: var(--type-ui-weight); line-height: var(--type-ui-lh); letter-spacing: var(--type-ui-ls); }
+  .type-ui-regular { font-family: var(--font-sans); font-size: var(--type-ui-regular-size); font-weight: var(--type-ui-regular-weight); line-height: var(--type-ui-regular-lh); letter-spacing: var(--type-ui-regular-ls); }
+  .type-label { font-family: var(--font-sans); font-size: var(--type-label-size); font-weight: var(--type-label-weight); line-height: var(--type-label-lh); letter-spacing: var(--type-label-ls); }
+  .type-caption { font-family: var(--font-sans); font-size: var(--type-caption-size); font-weight: var(--type-caption-weight); line-height: var(--type-caption-lh); letter-spacing: var(--type-caption-ls); }
+  .type-eyebrow { font-family: var(--font-sans); font-size: var(--type-eyebrow-size); font-weight: var(--type-eyebrow-weight); line-height: var(--type-eyebrow-lh); letter-spacing: var(--type-eyebrow-ls); text-transform: uppercase; }
+  .type-kpi-lg { font-family: var(--font-sans); font-size: var(--type-kpi-lg-size); font-weight: var(--type-kpi-lg-weight); line-height: var(--type-kpi-lg-lh); letter-spacing: var(--type-kpi-lg-ls); font-variant-numeric: tabular-nums; }
+  .type-kpi-md { font-family: var(--font-sans); font-size: var(--type-kpi-md-size); font-weight: var(--type-kpi-md-weight); line-height: var(--type-kpi-md-lh); letter-spacing: var(--type-kpi-md-ls); font-variant-numeric: tabular-nums; }
+  .type-kpi-sm { font-family: var(--font-sans); font-size: var(--type-kpi-sm-size); font-weight: var(--type-kpi-sm-weight); line-height: var(--type-kpi-sm-lh); letter-spacing: var(--type-kpi-sm-ls); font-variant-numeric: tabular-nums; }
+  .type-code { font-family: var(--font-mono); font-size: var(--type-code-size); font-weight: var(--type-code-weight); line-height: var(--type-code-lh); letter-spacing: var(--type-code-ls); }
+  .type-code-inline { font-family: var(--font-mono); font-size: var(--type-code-inline-size); font-weight: var(--type-code-inline-weight); letter-spacing: var(--type-code-inline-ls); }
+  .tnum { font-variant-numeric: tabular-nums; }
+}

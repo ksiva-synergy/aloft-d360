@@ -4,6 +4,7 @@ import React from 'react';
 import { Ruler, Scale, Circle, ChevronDown, Plus } from 'lucide-react';
 import { useCatalogStore } from './catalog-store';
 import { MONO, SANS, MUTED, INK, GOLD, BORDER } from './mc-ui';
+import { type } from '@/lib/typography/tokens';
 
 /**
  * Top model bar: brand, active-model picker (switches scope → refetch), candidate
@@ -78,7 +79,7 @@ export function TopModelBar() {
               {active?.name ?? 'No model'}
             </span>
             {active && (
-              <span style={{ ...MONO, fontSize: 13, color: MUTED, textTransform: 'uppercase' }}>{active.status}</span>
+              <span style={{ ...type.label, }}>{active.status}</span>
             )}
             <ChevronDown size={13} color={MUTED} />
           </button>
@@ -130,7 +131,7 @@ export function TopModelBar() {
                     <span style={{ ...SANS, fontSize: 13, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.name}
                     </span>
-                    <span style={{ ...MONO, fontSize: 13, color: MUTED, textTransform: 'uppercase' }}>{m.status}</span>
+                    <span style={{ ...type.label, }}>{m.status}</span>
                   </button>
                 ))}
                 <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 4, paddingTop: 4 }}>

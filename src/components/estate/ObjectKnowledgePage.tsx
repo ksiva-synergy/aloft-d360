@@ -12,7 +12,7 @@
 // co-objects (compact summary + anchor link to #relationships).
 
 import React, { useCallback, useRef, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 
 import HeroSection from './HeroSection';
 import InPageNav, { type SectionRefs } from './InPageNav';
@@ -28,6 +28,7 @@ import HarvestTimeline from './HarvestTimeline';
 import RelationshipGraph from './RelationshipGraph';
 import RelationshipList from './RelationshipList';
 import type { DataScoreShape } from './DataReadinessRing';
+import { type } from '@/lib/typography/tokens';
 
 interface ObjectItem {
   id: string;
@@ -196,11 +197,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -297,11 +294,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -382,11 +375,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -419,11 +408,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
               <div style={{ minHeight: 200 }}>
                 <div
                   style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color: labelColor,
                     marginBottom: 12,
                   }}
@@ -436,11 +421,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
               <div>
                 <div
                   style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color: labelColor,
                     marginBottom: 12,
                   }}
@@ -461,11 +442,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',

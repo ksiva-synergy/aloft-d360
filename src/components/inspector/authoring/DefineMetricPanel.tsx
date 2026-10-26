@@ -13,6 +13,7 @@ import {
 } from '@/lib/semantic/authoring-draft';
 import { compileSafety } from '@/lib/semantic/compiler';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
@@ -459,7 +460,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                     disabled={isEdit}
                     onClick={() => { setTableKind(k); markDirty(); }}
                     style={{
-                      ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                      ...type.label,
                       flex: 1, padding: '6px 0', borderRadius: 4, cursor: isEdit ? 'default' : 'pointer',
                       background: tableKind === k ? GOLD : 'transparent',
                       color: tableKind === k ? NAVY : MUTED,
@@ -613,7 +614,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 onClick={handlePreview}
                 disabled={!canSave || previewing || (!!exprUnsafe)}
                 style={{
-                  ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   padding: '7px 0', borderRadius: 4, border: 'none',
                   background: (!canSave || previewing) ? SURFACE : GOLD, color: (!canSave || previewing) ? MUTED : NAVY,
@@ -632,8 +633,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                   <WidgetPreview widget={previewWidget.widget} definitions={previewWidget.defs} rows={preview!.rows} />
                   {preview!.isDraft && (
                     <span style={{
-                      position: 'absolute', top: 8, right: 8, ...mono, fontSize: 13, letterSpacing: '0.08em',
-                      textTransform: 'uppercase', background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: GOLD,
+                      position: 'absolute', top: 8, right: 8, ...type.label, background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: GOLD,
                       border: `1px solid ${BORDER_STRONG}`, borderRadius: 4, padding: '3px 8px',
                     }}>
                       Draft — not governed
@@ -674,7 +674,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
             onClick={() => handleSave()}
             disabled={!canSave || saving}
             style={{
-              ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               padding: '7px 16px', borderRadius: 4, border: 'none', fontWeight: 600,
               background: (!canSave || saving) ? SURFACE : GOLD, color: (!canSave || saving) ? MUTED : NAVY,
               cursor: (!canSave || saving) ? 'default' : 'pointer',
@@ -709,6 +709,6 @@ const inputStyle: React.CSSProperties = {
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
 const iconBtn: React.CSSProperties = { background: 'transparent', border: 'none', color: MUTED, cursor: 'pointer', display: 'flex', alignItems: 'center' };
 const ghostBtn: React.CSSProperties = {
-  ...mono, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+  ...type.label,
   padding: '7px 14px', borderRadius: 4, background: 'transparent', color: MUTED, border: `1px solid ${BORDER_SUBTLE}`, cursor: 'pointer',
 };

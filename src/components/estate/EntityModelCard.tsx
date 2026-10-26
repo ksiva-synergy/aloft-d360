@@ -12,6 +12,7 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
+import { type } from '@/lib/typography/tokens';
 
 interface Dimension {
   column_name: string;
@@ -133,10 +134,7 @@ export default function EntityModelCard({
           </span>
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: 'var(--estate-text-secondary)',
             }}
           >
@@ -168,11 +166,7 @@ export default function EntityModelCard({
               disabled={promoting}
               onClick={handlePromote}
               style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 padding: '3px 10px',
                 borderRadius: 3,
                 border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
@@ -223,10 +217,7 @@ export default function EntityModelCard({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div
               style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
+                ...type.label,
                 color: 'var(--estate-text-secondary)',
               }}
             >
@@ -242,11 +233,7 @@ export default function EntityModelCard({
                     <span
                       style={{
                         flexShrink: 0,
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
+                        ...type.label,
                         padding: '2px 5px',
                         borderRadius: 3,
                         border: `1px solid ${typeStyle.borderColor}`,
@@ -278,10 +265,7 @@ export default function EntityModelCard({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div
               style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
+                ...type.label,
                 color: 'var(--estate-text-secondary)',
               }}
             >
@@ -295,11 +279,7 @@ export default function EntityModelCard({
                   <span
                     style={{
                       flexShrink: 0,
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
+                      ...type.label,
                       padding: '2px 5px',
                       borderRadius: 3,
                       border: '1px solid rgba(251,146,60,0.3)',

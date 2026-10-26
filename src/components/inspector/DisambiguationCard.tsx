@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { HelpCircle, Search, ChevronDown, Sparkles } from 'lucide-react';
 import type { DisambiguationMessage, DisambiguationCandidate } from '@/hooks/useInspectorChat';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -184,7 +185,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
         }}
       >
         <HelpCircle size={12} color={BLUE} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: BLUE, textTransform: 'uppercase', flex: 1 }}>
+        <span style={{ ...type.label, flex: 1 }}>
           Which did you mean{message.originalTerm ? ` by "${message.originalTerm}"` : ''}?
         </span>
       </div>
@@ -268,10 +269,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
               }}
               disabled={resolved}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,

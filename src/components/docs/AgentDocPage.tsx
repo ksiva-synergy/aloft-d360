@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { ArrowLeft, ExternalLink, Tag, Calendar, User, Bot, Wrench } from 'lucide-react';
 import { SchemaTable } from './SchemaTable';
 import { CodeExample } from './CodeExample';
@@ -55,7 +55,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
   const workbenchSessionId = source && typeof source === 'object' && typeof (source as { workbenchSessionId?: unknown }).workbenchSessionId === 'string'
     ? (source as { workbenchSessionId: string }).workbenchSessionId
     : null;
-  const editUrl = workbenchSessionId ? `/agent-lab/workbench/${workbenchSessionId}` : null;
+  const editUrl = workbenchSessionId ? `/agent-lab/agents/workbench/${workbenchSessionId}` : null;
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">

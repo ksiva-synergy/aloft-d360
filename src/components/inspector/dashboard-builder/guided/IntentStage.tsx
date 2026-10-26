@@ -6,6 +6,7 @@ import { useBuilderStore } from '../builder-store';
 import { DisambiguationUnderline } from './DisambiguationUnderline';
 import { prefetchBlueprint } from './blueprint-prefetch';
 import type { ResolvedIntent, IntentDisambiguation } from '@/lib/dashboards/guided-types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -193,7 +194,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color={GOLD} />
-          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: GOLD }}>
+          <span style={{ ...type.label, color: GOLD }}>
             Guided · Step 1 · Intent
           </span>
         </div>
@@ -221,7 +222,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
       {/* ── Starter topics — governed questions only, each traceable to a real
              platform_nl_intent_embeddings row (source_type, source_id). ────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED }}>
+        <span style={{ ...type.label, color: MUTED }}>
           Starter topics — questions your org has governed
         </span>
         {startersLoading ? (
@@ -261,7 +262,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           onClick={handleResolve}
           disabled={!topic.trim() || resolving}
           style={{
-            ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
+            ...type.label,
             display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 6,
             border: 'none', background: topic.trim() ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--on-brand)',
             cursor: topic.trim() && !resolving ? 'pointer' : 'default', fontWeight: 500,
@@ -293,7 +294,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             <button
               onClick={() => setModelConfirmed((c) => !c)}
               style={{
-                ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
+                ...type.label,
                 display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 5,
                 border: `1px solid ${modelConfirmed ? GREEN : 'rgba(147,197,253,0.4)'}`,
                 background: modelConfirmed ? 'rgba(52,211,153,0.1)' : 'transparent',
@@ -307,7 +308,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           {/* Term resolution — the topic re-rendered with per-term underlines. */}
           {mergedTerms.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED }}>
+              <span style={{ ...type.label, color: MUTED }}>
                 How your terms resolved
               </span>
               <div style={{ ...MONO, fontSize: 13, lineHeight: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -340,7 +341,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
                     : undefined
               }
               style={{
-                ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
+                ...type.label,
                 display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 6,
                 border: 'none', background: canProceed ? GOLD : 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--on-brand)',
                 cursor: canProceed ? 'pointer' : 'default', fontWeight: 500,

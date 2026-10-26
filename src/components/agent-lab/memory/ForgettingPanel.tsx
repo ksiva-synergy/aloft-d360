@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useMemo, useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
   GOLD,
   NAVY,
@@ -15,7 +14,7 @@ import {
 import { useTheme } from 'next-themes';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
+const ReactECharts = lazy(() => import('echarts-for-react'));
 
 interface ForgettingPanelProps {
   statusBuckets: {
@@ -618,11 +617,13 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
 
           <div className="relative w-full h-[80px]">
             {storeSizeSeries.length >= 2 ? (
-              <ReactECharts
-                option={chartOption}
-                style={{ height: '80px', width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-              />
+              <Suspense fallback={null}>
+                <ReactECharts
+                  option={chartOption}
+                  style={{ height: '80px', width: '100%' }}
+                  opts={{ renderer: 'canvas' }}
+                />
+              </Suspense>
             ) : (
               <div className="flex items-center justify-center h-full border border-dashed border-[var(--foer-border-dim)] rounded bg-[var(--foer-bg)] p-2">
                 <span className="font-mono text-xs text-center tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import type { InvocationRow, SessionAnalytics, SessionCockpitPayload } from '@/lib/agent-ops/session-cockpit';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
 import { CallDrawer, type DrawerState } from './cockpit/CallDrawer';

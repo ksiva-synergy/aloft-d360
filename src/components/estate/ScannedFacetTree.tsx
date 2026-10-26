@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 interface FacetCatalog {
   name: string;
@@ -87,7 +88,7 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
         {/* Header */}
         <div
           className="flex justify-between px-5 pb-3"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '0.16em', color: textDim, textTransform: 'uppercase' }}
+          style={{ ...type.label, }}
         >
           <span>Databases</span>
           <span>{catalogs.length}</span>

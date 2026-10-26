@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback, type CSSProperties } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { Eye, EyeOff, Loader2, ChevronDown } from 'lucide-react';
 import { BrandMark } from '@/components/shell/BrandMark';
 import { DotCompanion, DotField, type DotBotMode } from '@/components/login/AgentScene';

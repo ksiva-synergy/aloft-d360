@@ -18,6 +18,7 @@ import {
   ScoringMethodologyTab,
 } from '@/components/inspector/BoostTabs';
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
+import { type } from '@/lib/typography/tokens';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 const GOLD   = 'var(--brand-a-ink)';
@@ -69,7 +70,7 @@ function avg(arr: number[]): number {
 function SectionHeader({ label, sub }: { label: string; sub?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
-      <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD }}>
+      <span style={{ ...type.label, color: GOLD }}>
         {label}
       </span>
       {sub && (
@@ -98,10 +99,7 @@ const heroStat: React.CSSProperties = {
   marginBottom: 6,
 };
 const heroLabel: React.CSSProperties = {
-  ...mono,
-  fontSize: 13,
-  letterSpacing: '0.14em',
-  textTransform: 'uppercase',
+  ...type.label,
   color: GOLD,
   marginBottom: 10,
   fontWeight: 600,
@@ -117,7 +115,7 @@ function ValueSummaryHero() {
   const S = BOOST_V2_SUMMARY;
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: TXT2, marginBottom: 6 }}>
+      <div style={{ ...type.label, color: TXT2, marginBottom: 6 }}>
         CONTEXT HARNESS — VALUE SUMMARY
       </div>
       <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
@@ -164,7 +162,7 @@ function ValueSummaryHero() {
 
       {/* Takeaway line */}
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${'var(--brand-a)'}`, background: SURF }}>
-        <span style={{ ...mono, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
+        <span style={{ ...type.label, color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
         <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier). The advantage is that the harness lets answers exist at all.
         </span>
@@ -183,7 +181,7 @@ function StatTile({ label, value, sub, color = TXT }: { label: string; value: st
       padding: '10px 14px',
       minWidth: 110,
     }}>
-      <div style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+      <div style={{ ...type.label, marginBottom: 6 }}>{label}</div>
       <div style={{ ...mono, fontSize: 18, color, fontWeight: 600, lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 4 }}>{sub}</div>}
     </div>
@@ -335,7 +333,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
       {/* Token breakdown */}
       <div style={{ background: SURF2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16 }}>
-        <div style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ ...type.label, marginBottom: 12 }}>
           Avg Token Breakdown
         </div>
         <ResponsiveContainer width="100%" height={160}>
@@ -353,7 +351,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
 
       {/* Latency over turns */}
       <div style={{ background: SURF2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16 }}>
-        <div style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ ...type.label, marginBottom: 12 }}>
           Latency Over Turns (ms)
         </div>
         <ResponsiveContainer width="100%" height={160}>
@@ -375,7 +373,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
 
       {/* Tool call distribution */}
       <div style={{ background: SURF2, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16, gridColumn: '1 / -1' }}>
-        <div style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>
+        <div style={{ ...type.label, marginBottom: 12 }}>
           Tool Call Distribution — Catalog Hits vs Warehouse Calls
         </div>
         <ResponsiveContainer width="100%" height={140}>
@@ -649,10 +647,7 @@ function KindBadge({ kind }: { kind: ToolKind }) {
   const s = KIND_STYLES[kind];
   return (
     <span style={{
-      ...mono,
-      fontSize: 13,
-      letterSpacing: '0.08em',
-      textTransform: 'uppercase',
+      ...type.label,
       borderRadius: 3,
       padding: '2px 6px',
       width: 78,
@@ -675,7 +670,7 @@ function OutcomeChip({ outcome }: { outcome: TurnOutcome }) {
   };
   const { color, dotColor } = map[outcome];
   return (
-    <span style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 6, color }}>
+    <span style={{ ...type.label, display: 'inline-flex', alignItems: 'center', gap: 6, color }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: dotColor, display: 'inline-block' }} />
       {outcome}
     </span>
@@ -714,7 +709,7 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
           justifyContent: 'space-between',
           alignItems: 'center',
         }}>
-          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: latest.contextMode === 'harvested' ? GOLD : BLUE }}>
+          <span style={{ ...type.label, color: latest.contextMode === 'harvested' ? GOLD : BLUE }}>
             {latest.contextMode === 'harvested' ? 'CTX · Harvested' : 'SQL · Warehouse-only'}
           </span>
           <OutcomeChip outcome={latest.outcome} />

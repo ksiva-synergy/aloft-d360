@@ -144,7 +144,7 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 font-mono text-xs tracking-wider uppercase leading-none whitespace-nowrap"
+   className="inline-flex items-center gap-1.5 text-label leading-none whitespace-nowrap"
       style={{
         color: c.color,
         border: `1px ${state === 'discovered' ? 'dashed' : 'solid'} ${c.borderColor}`,

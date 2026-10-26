@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 
 const truncateText = (text: string, maxLen: number = 60) => {
   if (!text) return '';
@@ -361,7 +361,7 @@ function SiloFinderContent() {
     <div className="h-full flex flex-col overflow-y-auto p-6 bg-[var(--background)]" style={{ color: inkColor }}>
       {/* 1. Step Indicator strip */}
       <div className="flex items-center gap-4 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
           {step > 1 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : (
@@ -370,7 +370,7 @@ function SiloFinderContent() {
           <span style={{ color: step === 1 ? inkColor : labelColor }}>Pick object</span>
         </div>
         <div className="text-xs" style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
           {step > 2 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : step === 2 ? (
@@ -384,7 +384,7 @@ function SiloFinderContent() {
           <span style={{ color: step === 2 ? inkColor : labelColor }}>Scan</span>
         </div>
         <div className="text-xs" style={{ color: borderColor }}>→</div>
-        <div className="flex items-center gap-2 text-xs font-mono tracking-wider uppercase font-semibold" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
           {step === 3 ? (
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeColor }} />
           ) : (
@@ -397,7 +397,7 @@ function SiloFinderContent() {
       {/* 2. Step Views */}
       {step === 1 && (
         <div className="flex flex-col gap-6 max-w-xl">
-          <h2 className="text-xs font-mono tracking-wider uppercase" style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
+     <h2 className="text-label " style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
             Silo Finder
           </h2>
 
@@ -554,7 +554,7 @@ function SiloFinderContent() {
             <button
               onClick={handleRunScan}
               disabled={!selectedObject || submitting}
-              className="px-6 py-2.5 rounded text-xs font-mono tracking-wider uppercase font-semibold transition-all duration-200"
+       className="px-6 py-2.5 rounded text-label transition-all duration-200"
               style={{
                 fontFamily: "'IBM Plex Mono', monospace",
                 backgroundColor: selectedObject && !submitting ? activeColor : raisedBg,
@@ -640,7 +640,7 @@ function SiloFinderContent() {
 
       {step === 3 && (
         <div className="flex flex-col gap-4 max-w-2xl">
-          <h2 className="text-xs font-mono tracking-wider uppercase mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
+     <h2 className="text-label mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
             Scan Results
           </h2>
 
@@ -808,7 +808,7 @@ function SiloFinderContent() {
                       {link.llm_verdict && (
                         <div className="mt-2 p-3 rounded border flex flex-col gap-1.5" style={{ borderColor, backgroundColor: 'var(--estate-hover)' }}>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs uppercase font-mono tracking-wider" style={{ color: labelColor }}>
+              <span className="text-label " style={{ color: labelColor }}>
                               LLM Verdict:
                             </span>
                             <span className="text-xs font-mono px-2 py-0.5 rounded border font-semibold" style={badgeStyle}>

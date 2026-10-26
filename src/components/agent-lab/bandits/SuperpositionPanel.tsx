@@ -634,7 +634,7 @@ export function SuperpositionPanel({
               textAlign: 'center',
             }}>
               <div style={{
-                fontFamily: "'Source Serif 4', serif",
+                fontFamily: 'var(--font-sans)',
                 fontStyle: 'italic',
                 fontSize: 18,
                 color: GOLD,
@@ -666,7 +666,7 @@ export function SuperpositionPanel({
             zIndex: 20,
           }}>
             <div style={{
-              fontFamily: "'Source Serif 4', serif",
+              fontFamily: 'var(--font-sans)',
               fontStyle: 'italic',
               fontSize: 20,
               color: GOLD,

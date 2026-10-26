@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import ScannedFacetTree from './ScannedFacetTree';
 import Pagination from './Pagination';
 
@@ -384,12 +384,12 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 className="sticky top-0 z-10 border-b select-none"
                 style={{ backgroundColor: thBg, borderColor }}
               >
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Object Path</th>
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Kind</th>
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Source</th>
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Rows</th>
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-36" style={{ color: labelColor }}>Last Scanned</th>
-                <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Tiers</th>
+        <th className="p-3 text-label " style={{ color: labelColor }}>Object Path</th>
+        <th className="p-3 text-label w-28" style={{ color: labelColor }}>Kind</th>
+        <th className="p-3 text-label w-32" style={{ color: labelColor }}>Source</th>
+        <th className="p-3 text-label w-20 text-right" style={{ color: labelColor }}>Rows</th>
+        <th className="p-3 text-label w-36" style={{ color: labelColor }}>Last Scanned</th>
+        <th className="p-3 text-label w-24 text-center" style={{ color: labelColor }}>Tiers</th>
               </tr>
             </thead>
             <tbody>
@@ -409,7 +409,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   <td colSpan={6} className="p-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <span className="text-xl opacity-40 font-mono">◆</span>
-                      <span className="font-mono text-xs tracking-widest uppercase" style={{ color: labelColor }}>
+           <span className="text-label " style={{ color: labelColor }}>
                         No Scanned Objects
                       </span>
                       <p className="text-xs max-w-sm text-center" style={{ color: mutedColor }}>
@@ -442,7 +442,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   </td>
                   <td className="p-3">
                     <span
-                      className="px-1.5 py-0.5 rounded border text-xs font-mono uppercase tracking-wider"
+           className="px-1.5 py-0.5 rounded border text-label "
                       style={{
                         borderColor: 'rgba(96, 165, 250, 0.3)',
                         color: '#60A5FA',

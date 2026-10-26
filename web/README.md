@@ -31,8 +31,8 @@ and nothing has to change in Azure (not yet tested with a real Microsoft login).
 | `npm run build` | **Production build**: builds the UI into `public/spa` (`prebuild`), then `next build` |
 | `npm start` | `next start`: serves the UI and the API from one process |
 | `npm run web:build` | UI only, to `web/dist` (assets under `/spa/`) |
-| `npm run web:typecheck` | `tsc` over `web/` and every page it imports, resolved through the shims |
-| `npm run web:test` | Unit tests (shims, auth guard, data routes, route table) |
+| `npm run web:typecheck` | `tsc` over `web/` and every page it imports |
+| `npm run web:test` | Unit tests (navigation, auth guard, data routes, route table) |
 | `npm run web:check-bundle` | Fails if `web/dist` contains Prisma, AWS SDK, bcrypt or secrets |
 | `npm run web:e2e` | Real-Chrome smoke test of all 43 routes against the dev server, API stubbed in the browser |
 | `WEB_E2E_MODE=preview npm run web:e2e` | Same, against the **production bundle** (also scans the bundle for server-only code) |
@@ -44,7 +44,7 @@ and nothing has to change in Azure (not yet tested with a real Microsoft login).
 |---|---|
 | Pages | `src/views/**` (31 pages) + adapters in `web/src/routes/adapters.tsx` (pages that read a route param or load data) |
 | Routes | `web/src/router.tsx`, one entry per page, lazy-loaded; `handle.title` replaces Next `metadata` |
-| `next/link`, `next/navigation`, `next/dynamic`, `next/image` | `web/src/compat/*`, aliased in `vite.config.ts` (components still import the Next names) |
+| Links and navigation hooks | `src/lib/navigation` (`useRouter`, `usePathname`, `useSearchParams`, `useParams`) and `src/lib/navigation/link` (`<Link href>`), backed by React Router. The UI imports nothing from `next/*`; lazy charts use `React.lazy`, the logo a plain `<img>` |
 | Login guard | `RequireAuth` (UX only; every API route is protected on the server) |
 | Data for dashboard, FOER ops, job detail | `/api/dashboard/summary`, `/api/agent-lab/memory/topic-map`, `/api/agent-lab/context/jobs/:id` |
 | Serving in production | Next answers every page URL with `public/spa/index.html` (rewrite in `next.config.ts`), serves `/spa/**` assets (immutable cache), and keeps `/api/**` |

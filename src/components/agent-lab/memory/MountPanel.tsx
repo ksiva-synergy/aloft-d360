@@ -17,13 +17,14 @@
  */
 
 import { useMemo, useState } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { SignatureEntry } from '@/app/api/agent-lab/memory/signatures/route';
 import { MONO, SERIF, GOLD, RULE_TYPE_COLORS } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // -- Types ---------------------------------------------------------------------
 
 interface BrowseBullet {
@@ -259,7 +260,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.68rem', letterSpacing: '0.10em', color: accentColor, textTransform: 'uppercase', fontWeight: 700 }}>{phaseLabel}</span>
+          <span style={{ ...type.label, fontWeight: 700 }}>{phaseLabel}</span>
           <span style={{ fontFamily: MONO, fontSize: '0.57rem', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>{injectionPoint}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
@@ -446,7 +447,7 @@ export function MountPanel() {
     <section id="foer-section-mounted" style={{ padding: '56px 0', borderTop: '1px solid var(--foer-border)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
       {/* Section kicker */}
-      <div style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ ...type.label, display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ color: GOLD }}>06</span> · MOUNT · INJECTION
       </div>
 
@@ -487,7 +488,7 @@ export function MountPanel() {
 
         {/* Stats summary card */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0', border: '1px solid var(--foer-border)', borderRadius: '6px', overflow: 'hidden', minWidth: 210, flexShrink: 0 }}>
-          <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', borderBottom: '1px solid var(--foer-border)', fontFamily: MONO, fontSize: '0.60rem', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', borderBottom: '1px solid var(--foer-border)', ...type.label, }}>
             This signature
           </div>
           {([
@@ -515,7 +516,7 @@ export function MountPanel() {
       {/* Signature selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-          <label htmlFor="mount-sig-select" style={{ fontFamily: MONO, fontSize: '0.60rem', letterSpacing: '0.1em', color: 'var(--foer-text-mut)', textTransform: 'uppercase' }}>Previewing task signature</label>
+          <label htmlFor="mount-sig-select" style={{ ...type.label, }}>Previewing task signature</label>
           {isLoading ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foer-text-mut)', fontFamily: MONO, fontSize: '0.75rem' }}>
               <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading...
@@ -540,7 +541,7 @@ export function MountPanel() {
       {/* Segmented budget bar */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: 'var(--foer-text-mut)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Token Budget · 1800t total</span>
+          <span style={{ ...type.label, letterSpacing: '0.08em' }}>Token Budget · 1800t total</span>
           <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
         </div>
         <div style={{ height: '6px', borderRadius: '3px', background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>

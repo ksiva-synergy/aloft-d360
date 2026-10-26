@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from '@/lib/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Pagination, JobDetailDrawer, ScannedObjectsTab } from '@/components/estate';
@@ -389,7 +389,7 @@ function KindBadge({ kind, small }: { kind: string; small?: boolean }) {
   const m = getKindMeta(kind);
   return (
     <span
-      className={`inline-flex items-center rounded border font-mono font-semibold uppercase tracking-wider ${small ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-0.5 text-xs'}`}
+   className={`inline-flex items-center rounded border ${small ? 'px-1.5 py-0.5 text-label' : 'px-2 py-0.5 text-xs'}`}
       style={{ color: m.color, backgroundColor: m.bg, borderColor: m.border }}
     >
       {m.label}
@@ -517,7 +517,7 @@ function RunJobConfirmModal({
       >
         {/* Header */}
         <div className="px-7 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border, rgba(255,255,255,0.06))' }}>
-          <div className="text-xs font-mono font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+     <div className="text-label mb-3" style={{ color: 'var(--text-secondary, #8892A4)' }}>
             Launching {confirm.kinds.length} job type{confirm.kinds.length !== 1 ? 's' : ''} on Fargate
           </div>
           <div className="flex flex-wrap gap-2">
@@ -537,7 +537,7 @@ function RunJobConfirmModal({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+        <span className="text-label " style={{ color: 'var(--text-secondary, #8892A4)' }}>
                   Scope{" - "}click schemas to exclude
                 </span>
               </div>
@@ -736,7 +736,7 @@ function RunJobConfirmModal({
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
                 )}
-                <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: splitPlansLoading ? 'var(--brand-a-ink)' : activePlan?.emptyScope ? '#EF4444' : activePlan?.needsSplit ? 'var(--brand-a-ink)' : '#2DD4A0' }}>
+        <span className="text-label " style={{ color: splitPlansLoading ? 'var(--brand-a-ink)' : activePlan?.emptyScope ? '#EF4444' : activePlan?.needsSplit ? 'var(--brand-a-ink)' : '#2DD4A0' }}>
                   {splitPlansLoading ? 'Calculating split plan...' : activePlan?.emptyScope ? 'No objects in scope' : activePlan?.needsSplit ? 'Auto-split enabled' : 'Fits in a single job'}
                 </span>
               </div>
@@ -798,7 +798,7 @@ function RunJobConfirmModal({
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
               </svg>
-              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+       <span className="text-label " style={{ color: 'var(--text-secondary, #8892A4)' }}>
                 Focus{" - "}limit to specific tables (optional)
               </span>
             </div>
@@ -875,7 +875,7 @@ function RunJobConfirmModal({
               Cancel
             </button>
             <button onClick={onConfirm} disabled={submitting || confirm.loading || launchBlocked}
-              className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-sm font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+       className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-ui transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: 'var(--brand-a)', color: '#FFFFFF', borderColor: 'var(--brand-a)' }}>
               {submitting ? (
                 <>
@@ -1198,7 +1198,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setOpen(!open)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+     className="inline-flex items-center gap-2 px-4 py-2 rounded border text-label transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
           style={{ backgroundColor: 'var(--brand-a)', color: '#FFFFFF', borderColor: 'var(--brand-a)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1222,7 +1222,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           >
             {/* Panel header */}
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)' }}>
-              <span className="text-xs font-mono font-bold uppercase tracking-widest" style={{ color: 'var(--brand-a-ink)' }}>
+       <span className="text-label " style={{ color: 'var(--brand-a-ink)' }}>
                 Select job types to run
               </span>
               <div className="flex items-center gap-3">
@@ -1257,7 +1257,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                       >
                         {group.step}
                       </span>
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+           <span className="text-label " style={{ color: 'var(--text-secondary, #8892A4)' }}>
                         {group.label}
                       </span>
                     </div>
@@ -1322,7 +1322,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
               <button
                 disabled={selectedKinds.size === 0}
                 onClick={openConfirmation}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-2 px-4 py-2 rounded border text-label transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'var(--brand-a)', color: '#FFFFFF', borderColor: 'var(--brand-a)' }}
               >
                 Review {selectedKinds.size > 0 ? `${selectedKinds.size} ` : ''}job{selectedKinds.size !== 1 ? 's' : ''}
@@ -1365,7 +1365,7 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
   const s = styles[mapped] ?? styles.queued;
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-mono uppercase tracking-wider"
+   className="inline-flex items-center gap-1 px-2 py-0.5 rounded border text-label "
       style={{ color: s.color, backgroundColor: s.bg, borderColor: s.border }}
       title={mapped === 'empty' ? 'Succeeded but processed 0 objects — check logs / Focus' : undefined}
     >
@@ -1412,23 +1412,23 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
         <SuccessRing rate={overallRate} color={rateColor} />
         <div>
           <div className="text-lg font-mono font-bold" style={{ color: rateColor }}>{overallRate}%</div>
-          <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Success</div>
+     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Success</div>
         </div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{totalRuns.toLocaleString()}</div>
-        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
+    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'rgba(45,212,160,0.15)', backgroundColor: 'rgba(45,212,160,0.04)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: '#2DD4A0' }}>{totalSuccess.toLocaleString()}</div>
-        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
+    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: totalFailed > 0 ? 'rgba(239,68,68,0.2)' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)', backgroundColor: totalFailed > 0 ? 'rgba(239,68,68,0.04)' : 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: totalFailed > 0 ? '#EF4444' : 'var(--estate-text-muted)' }}>{totalFailed}</div>
-        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
+    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)', backgroundColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'var(--estate-raised)' }}>
@@ -1441,12 +1441,12 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
           )}
           <span className="text-lg font-mono font-bold" style={{ color: totalRunning > 0 ? 'var(--brand-a-ink)' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
         </div>
-        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Active</div>
+    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Active</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
         <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{activeKinds}/{ALL_KINDS.length}</div>
-        <div className="text-xs font-mono uppercase tracking-wider" style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
+    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
       </div>
     </div>
   );
@@ -1462,7 +1462,7 @@ function JobKindGroupHeader({ group, isFirst }: { group: JobKindGroup; isFirst?:
         {group.step}
       </span>
       <div className="min-w-0">
-        <div className="text-xs font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--estate-text-secondary)' }}>
+    <div className="text-label " style={{ color: 'var(--estate-text-secondary)' }}>
           {group.label}
         </div>
         <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
@@ -1509,7 +1509,7 @@ function JobKindCard({
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: meta.color, opacity: s ? 1 : 0.3 }} />
           <div className="min-w-0">
-            <div className="font-mono text-sm font-bold tracking-wide uppercase truncate" style={{ color: meta.color }}>
+      <div className="text-label truncate" style={{ color: meta.color }}>
               {meta.label}
             </div>
             <div className="text-xs leading-snug mt-0.5 line-clamp-1" style={{ color: 'var(--estate-text-secondary)' }}>
@@ -1519,7 +1519,7 @@ function JobKindCard({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isActive && (
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono font-bold uppercase"
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-label "
               style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
@@ -1639,7 +1639,7 @@ function L1View({
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
           </span>
-          <span className="font-mono text-xs font-bold tracking-wider uppercase text-[var(--brand-a-ink)]">
+     <span className="text-label text-[var(--brand-a-ink)]">
             {queuedJobs.length} job{queuedJobs.length !== 1 ? 's' : ''} queued
           </span>
           <div className="flex flex-wrap gap-1.5 ml-2">
@@ -1648,7 +1648,7 @@ function L1View({
               return (
                 <span
                   key={qj.id}
-                  className="inline-flex items-center gap-1 rounded border font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 text-xs group"
+         className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-label group"
                   style={{ color: m.color, backgroundColor: m.bg, borderColor: m.border }}
                 >
                   {m.label}
@@ -1729,10 +1729,10 @@ function L2View({
       <table className="w-full border-collapse text-xs text-left">
         <thead>
           <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Date</th>
-            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-24 text-center" style={{ color: labelColor }}>Runs</th>
-            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Outcome</th>
-            <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-32 text-right" style={{ color: labelColor }}>Total Duration</th>
+      <th className="p-3 text-label " style={{ color: labelColor }}>Date</th>
+      <th className="p-3 text-label w-24 text-center" style={{ color: labelColor }}>Runs</th>
+      <th className="p-3 text-label " style={{ color: labelColor }}>Outcome</th>
+      <th className="p-3 text-label w-32 text-right" style={{ color: labelColor }}>Total Duration</th>
             <th className="p-3 w-16" />
           </tr>
         </thead>
@@ -1862,12 +1862,12 @@ function L3View({
         <table className="w-full border-collapse text-xs text-left">
           <thead>
             <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Status</th>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Scope</th>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Started</th>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-20 text-right" style={{ color: labelColor }}>Duration</th>
-              <th className="p-3 font-mono text-xs font-bold tracking-widest uppercase w-40" style={{ color: labelColor }}>Stats</th>
+       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Status</th>
+       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Trigger</th>
+       <th className="p-3 text-label " style={{ color: labelColor }}>Scope</th>
+       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Started</th>
+       <th className="p-3 text-label w-20 text-right" style={{ color: labelColor }}>Duration</th>
+       <th className="p-3 text-label w-40" style={{ color: labelColor }}>Stats</th>
             </tr>
           </thead>
           <tbody>
@@ -1886,7 +1886,7 @@ function L3View({
               <tr>
                 <td colSpan={6} className="p-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <span className="font-mono text-xs tracking-widest uppercase" style={{ color: labelColor }}>No jobs on this date</span>
+          <span className="text-label " style={{ color: labelColor }}>No jobs on this date</span>
                     <p className="text-xs" style={{ color: mutedColor }}>No {getKindMeta(kind).label} jobs ran on {formatDate(date)}.</p>
                   </div>
                 </td>
@@ -1917,7 +1917,7 @@ function L3View({
                             <button
                               onClick={e => toggleParentExpand(job.id, e)}
                               title={isExpanded ? 'Hide child jobs' : 'Show child jobs'}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-xs font-mono font-bold uppercase tracking-wider transition-colors"
+               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-label transition-colors"
                               style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)', color: 'var(--brand-a-ink)', backgroundColor: isExpanded ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}
                             >
                               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
@@ -2367,7 +2367,7 @@ function EstateJobsPageContent() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              <span className="font-mono text-xs font-bold tracking-wider uppercase text-[var(--text-secondary)]">
+       <span className="text-label text-[var(--text-secondary)]">
                 Schedules
               </span>
             </div>

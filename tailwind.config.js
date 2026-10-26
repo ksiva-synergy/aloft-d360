@@ -5,6 +5,8 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
     './src/views/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/lib/navigation/**/*.{ts,tsx}',
+    './packages/aloft-shared/src/components/ui/**/*.{ts,tsx}',
     './web/index.html',
     './web/src/**/*.{ts,tsx}',
   ],
@@ -143,15 +145,33 @@ module.exports = {
         lg:   ['1.1875rem', { lineHeight: '1.75rem' }],
         xl:   ['1.375rem',  { lineHeight: '1.9rem' }],
         '2xl':['1.625rem',  { lineHeight: '2.1rem' }],
+        // Type tokens — values live in src/styles/typography.css (docs/audits/typography-implementation-plan.md).
+        // The xs…2xl keys above are legacy aliases, removed once every screen is migrated.
+        'display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)',       fontWeight: 'var(--type-display-weight)',       letterSpacing: 'var(--type-display-ls)' }],
+        'title-page':    ['var(--type-title-page-size)',    { lineHeight: 'var(--type-title-page-lh)',    fontWeight: 'var(--type-title-page-weight)',    letterSpacing: 'var(--type-title-page-ls)' }],
+        'title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)', fontWeight: 'var(--type-title-section-weight)', letterSpacing: 'var(--type-title-section-ls)' }],
+        'title-card':    ['var(--type-title-card-size)',    { lineHeight: 'var(--type-title-card-lh)',    fontWeight: 'var(--type-title-card-weight)',    letterSpacing: 'var(--type-title-card-ls)' }],
+        'body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)',       fontWeight: 'var(--type-body-lg-weight)',       letterSpacing: 'var(--type-body-lg-ls)' }],
+        'body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)',          fontWeight: 'var(--type-body-weight)',          letterSpacing: 'var(--type-body-ls)' }],
+        'ui-lg':         ['var(--type-ui-lg-size)',         { lineHeight: 'var(--type-ui-lg-lh)',         fontWeight: 'var(--type-ui-lg-weight)',         letterSpacing: 'var(--type-ui-lg-ls)' }],
+        'ui':            ['var(--type-ui-size)',            { lineHeight: 'var(--type-ui-lh)',            fontWeight: 'var(--type-ui-weight)',            letterSpacing: 'var(--type-ui-ls)' }],
+        'ui-regular':    ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)',    fontWeight: 'var(--type-ui-regular-weight)',    letterSpacing: 'var(--type-ui-regular-ls)' }],
+        'label':         ['var(--type-label-size)',         { lineHeight: 'var(--type-label-lh)',         fontWeight: 'var(--type-label-weight)',         letterSpacing: 'var(--type-label-ls)' }],
+        'caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)',       fontWeight: 'var(--type-caption-weight)',       letterSpacing: 'var(--type-caption-ls)' }],
+        'eyebrow':       ['var(--type-eyebrow-size)',       { lineHeight: 'var(--type-eyebrow-lh)',       fontWeight: 'var(--type-eyebrow-weight)',       letterSpacing: 'var(--type-eyebrow-ls)' }],
+        'kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)',        fontWeight: 'var(--type-kpi-lg-weight)',        letterSpacing: 'var(--type-kpi-lg-ls)' }],
+        'kpi-md':        ['var(--type-kpi-md-size)',        { lineHeight: 'var(--type-kpi-md-lh)',        fontWeight: 'var(--type-kpi-md-weight)',        letterSpacing: 'var(--type-kpi-md-ls)' }],
+        'kpi-sm':        ['var(--type-kpi-sm-size)',        { lineHeight: 'var(--type-kpi-sm-lh)',        fontWeight: 'var(--type-kpi-sm-weight)',        letterSpacing: 'var(--type-kpi-sm-ls)' }],
+        'code':          ['var(--type-code-size)',          { lineHeight: 'var(--type-code-lh)',          fontWeight: 'var(--type-code-weight)',          letterSpacing: 'var(--type-code-ls)' }],
       },
       fontFamily: {
-        // REBRAND: Inter → Inter Tight | JetBrains Mono → IBM Plex Mono
-        sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'monospace'],
-        // evals-v2 semantic font aliases
-        display: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],   // --fd: headings, agent names
-        body:    ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'], // --fu: labels, body
+        // One sans, one mono (values in src/styles/typography.css). serif/display/body stay as aliases of
+        // the sans so existing classes keep working; the serif family is retired.
+        sans: ['var(--font-sans)'],
+        serif: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
+        display: ['var(--font-sans)'],
+        body: ['var(--font-sans)'],
       },
       borderRadius: {
         // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)

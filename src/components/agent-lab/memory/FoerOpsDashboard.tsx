@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { useTheme } from 'next-themes';
 import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2, ChevronDown, ChevronRight, ArrowLeft, Play } from 'lucide-react';
@@ -29,6 +29,7 @@ import { ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants';
 import { SessionDetailDrawer } from './SessionDetailDrawer';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 interface BrowseBullet {
   id: string;
   agentClass?: string;
@@ -433,7 +434,6 @@ function FoerOpsInner({ topicMap }: InnerProps) {
       }}
     >
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,600&family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
         [data-foer-theme] * { box-sizing: border-box; }
         @keyframes dashflow { to { stroke-dashoffset: -33; } }
         .foer-flow-line {
@@ -1108,7 +1108,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div style={{ borderTop: '1px solid var(--foer-border)', display: 'flex', flexDirection: 'column', gap: '0' }}>
               {/* Task signature selector row */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 18px', borderBottom: '1px solid var(--foer-border-dim)' }}>
-                <label htmlFor="ops-sig-select" style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', flexShrink: 0 }}>
+                <label htmlFor="ops-sig-select" style={{ ...type.label, flexShrink: 0 }}>
                   Task Signature
                 </label>
                 <select
@@ -1152,7 +1152,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       <React.Fragment key={b.id}>
                         {(idx === 0 || showDivider) && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 18px', borderBottom: '1px solid var(--foer-border)', borderTop: idx > 0 ? '1px solid var(--foer-border)' : 'none', background: 'var(--foer-surface2)', position: 'sticky', top: 0, zIndex: 1 }}>
-                            <span style={{ fontFamily: MONO, fontSize: '13px', letterSpacing: '0.1em', color: phaseColor, textTransform: 'uppercase' }}>
+                            <span style={{ ...type.label, }}>
                               {phaseLabel}
                             </span>
                             <div style={{ flex: 1, height: '1px', background: `${withAlpha(phaseColor, '30')}` }} />

@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import {
   LayoutDashboard, Plus, BarChart2, Calendar, User, Search,
   Lock, Building2, Users, MoreHorizontal, Share2, Copy, Trash2, Eye,
 } from 'lucide-react';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
 const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
 const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
@@ -149,7 +150,7 @@ export default function DashboardsListPage() {
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   padding: '8px 14px', background: 'transparent', border: 'none',
                   borderBottom: filter === tab.id ? `2px solid ${GOLD}` : '2px solid transparent',
                   color: filter === tab.id ? GOLD : 'var(--text-muted)',
@@ -193,7 +194,7 @@ export default function DashboardsListPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-            <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>LOADING…</span>
+            <span style={{ ...type.label, }}>LOADING…</span>
           </div>
         )}
 
@@ -348,7 +349,7 @@ function DashboardCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           <VisibilityBadge visibility={dashboard.visibility} />
           <RoleBadge role={dashboard.my_role} />
-          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 3, padding: '2px 6px' }}>
+          <span style={{ ...type.label, color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 3, padding: '2px 6px' }}>
             {dashboard.widget_count} {dashboard.widget_count === 1 ? 'WIDGET' : 'WIDGETS'}
           </span>
           {dashboard.collaborator_count > 1 && (

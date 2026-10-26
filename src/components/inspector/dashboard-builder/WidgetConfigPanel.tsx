@@ -12,6 +12,7 @@ import {
   type ChartRecommendation,
 } from '@/lib/dashboards/chart-defaults';
 import { useBuilderStore } from './builder-store';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
@@ -111,7 +112,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             <button
               onClick={() => removeWidget(widget.widgetId)}
               style={{
-                ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                ...type.label,
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
                 border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
                 color: '#F87171', cursor: 'pointer', width: '100%', justifyContent: 'center',
@@ -262,10 +263,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               key={kind}
               onClick={() => handleChartKindChange(kind)}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 padding: '4px 8px',
                 borderRadius: 3,
                 border: `1px solid ${widget.chartKind === kind ? 'var(--brand-a)' : 'var(--builder-border)'}`,
@@ -296,7 +294,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                     key={kind}
                     onClick={() => handleChartKindChange(kind)}
                     style={{
-                      ...MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase',
+                      ...type.label,
                       padding: '2px 7px', borderRadius: 3, border: '1px dashed var(--builder-border)',
                       background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
                     }}
@@ -382,10 +380,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             <button
               onClick={handleAddFilter}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
@@ -414,7 +409,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                 key={mode}
                 onClick={() => handleFreshnessMode(mode)}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   flex: 1, padding: '4px 8px', borderRadius: 3,
                   border: `1px solid ${active ? 'var(--brand-a)' : 'var(--builder-border)'}`,
                   background: active ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
@@ -496,10 +491,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         <button
           onClick={() => removeWidget(widget.widgetId)}
           style={{
-            ...MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
@@ -524,7 +516,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)' }}>
+      <span style={{ ...type.label, color: 'var(--builder-text-label)' }}>
         {label}
       </span>
       {children}

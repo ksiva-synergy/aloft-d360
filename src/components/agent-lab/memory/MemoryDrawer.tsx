@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from '@/lib/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { RULE_TYPE_COLORS, TOPIC_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 interface FoerBullet {
   id: string;
   agentClass: string;
@@ -316,10 +317,7 @@ export function MemoryDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div
                 style={{
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: 'var(--foer-text-mut)',
                 }}
               >
@@ -398,10 +396,7 @@ export function MemoryDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div
                 style={{
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: 'var(--foer-text-mut)',
                 }}
               >
@@ -447,10 +442,7 @@ export function MemoryDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div
                 style={{
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: 'var(--foer-text-mut)',
                 }}
               >
@@ -486,10 +478,7 @@ export function MemoryDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div
                 style={{
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: 'var(--foer-text-mut)',
                 }}
               >

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import { ArrowLeft, ExternalLink, Tag, Calendar, User, Wrench } from 'lucide-react';
 import { SchemaTable } from './SchemaTable';
 import { CodeExample } from './CodeExample';
