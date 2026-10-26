@@ -38,4 +38,10 @@ export const type: Readonly<Record<TypeTokenName, CSSProperties>> = Object.freez
 );
 
 /** Chart text sizes (px). */
-export const CHART_TEXT = { axis: 11, legend: 12, tooltip: 13 } as const;
+export const CHART_TEXT = { axis: 11, legend: 12, tooltip: 13, kpi: 28 } as const;
+
+/**
+ * Readable text colour for a palette colour (category accents, gold, steel…): mixes it toward the theme
+ * ink so small text keeps >= 4.5:1 on both light and dark surfaces. Use for text only, not fills.
+ */
+export const inkOf = (color: string, amount = 45): string => `color-mix(in srgb, ${color} ${amount}%, var(--ink-1))`;

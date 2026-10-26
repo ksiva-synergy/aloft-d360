@@ -44,7 +44,7 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
         Freshness Contract
       </div>
 
-      <div className="space-y-2.5 font-mono text-xs select-none">
+      <div className="space-y-2.5 font-mono text-size-ui select-none">
         {/* STRUCTURAL */}
         <div className="flex items-center justify-between">
           <span style={{ color: mutedColor }}>STRUCTURAL</span>
@@ -74,7 +74,7 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
 
       {/* Guidance */}
       <p
-        className="text-xs leading-relaxed border-t pt-3"
+        className="text-size-ui leading-relaxed border-t pt-3"
         style={{
           color: labelColor,
           fontFamily: 'var(--font-sans)',

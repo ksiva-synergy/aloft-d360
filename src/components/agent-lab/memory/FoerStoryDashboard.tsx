@@ -36,7 +36,7 @@ import {
 } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── One QueryClient per mount (not module-level to avoid SSR issues) ──────────
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
@@ -419,7 +419,7 @@ function FoerStoryInner() {
               borderRadius: '6px',
               border:       `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
               background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
-              color:        RULE_TYPE_COLORS.FAILURE_MODE,
+              color:        inkOf(RULE_TYPE_COLORS.FAILURE_MODE),
               fontFamily:   'var(--font-sans)',
               fontSize: 'var(--type-ui-regular-size)',
             }}

@@ -40,7 +40,7 @@ export default function AgentOpsEvalsPage() {
           </div>
         ))}
       </section>
-      <h2 style={{ ...mono, fontSize: 'var(--type-caption-size)', marginTop: 32, color: 'var(--ink-3)' }}>Recent runs</h2>
+      <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', marginTop: 32, color: 'var(--ink-3)' }}>Recent runs</h2>
       {runs.map((r) => (
         <div key={r.id} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: '4px 0' }}>
           {r.suite?.name ?? 'suite'} — {r.status}

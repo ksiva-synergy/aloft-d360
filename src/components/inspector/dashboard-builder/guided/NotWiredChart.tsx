@@ -7,8 +7,8 @@ import type { RowsToOptionResult } from '@/lib/dashboards/rows-to-option';
 import type { ChartKindGuess } from '@/lib/dashboards/guided-types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+import { type, inkOf } from '@/lib/typography/tokens';
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const MUTED = '#8892A4';
 const INK = 'var(--wb-ink, #E6ECF5)';
 const AMBER = 'var(--brand-a-ink)';
@@ -80,16 +80,16 @@ export function NotWiredChart({
         <span
           style={{
             ...type.label,
-            color: AMBER, border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 4, padding: '2px 7px',
+            color: inkOf(AMBER), border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 4, padding: '2px 7px',
           }}
         >
           Not wired
         </span>
         <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 340 }}>
-          <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 600 }}>
             Awaiting data{chartKindGuess ? ` — will render as a ${chartKindGuess}` : ''}
           </span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.5 }}>
             Add this chart to the dashboard and its live preview loads here. No query has run yet,
             so nothing here is real data.
           </span>
@@ -111,7 +111,7 @@ export function NotWiredChart({
           padding: 24, borderRadius: 10, border: '1px solid rgba(136,146,164,0.2)', background: 'rgba(0,0,0,0.12)',
         }}
       >
-        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Running the query…</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Running the query…</span>
       </div>
     );
   }
@@ -131,8 +131,8 @@ export function NotWiredChart({
         }}
       >
         <Inbox size={20} color={MUTED} />
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>No rows for this query</span>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 600 }}>No rows for this query</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
           The query ran and returned zero rows — this is a real empty result, not a chart that failed to load.
           Try loosening a filter.
         </span>
@@ -151,8 +151,8 @@ export function NotWiredChart({
         }}
       >
         <AlertTriangle size={20} color={AMBER} />
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>Publish to see live data</span>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 600 }}>Publish to see live data</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
           {state.message || "This dashboard's model is still a candidate — publish it to see live data."}
         </span>
       </div>
@@ -171,8 +171,8 @@ export function NotWiredChart({
       }}
     >
       <AlertTriangle size={20} color={RED} />
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>Could not load data</span>
-      <span style={{ ...MONO, fontSize: 13, color: RED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5, wordBreak: 'break-word' }}>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 600 }}>Could not load data</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: RED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5, wordBreak: 'break-word' }}>
         {state.message || 'The query failed to run.'}
       </span>
     </div>
@@ -231,7 +231,7 @@ function LiveChart({
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{rowCount} row{rowCount === 1 ? '' : 's'}</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{rowCount} row{rowCount === 1 ? '' : 's'}</span>
       </div>
 
       {isKpi ? (
@@ -246,7 +246,7 @@ function LiveChart({
       {chart.series.length > 0 && !isKpi && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
           {chart.series.map((s, i) => (
-            <span key={s.measureId} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: MUTED }}>
+            <span key={s.measureId} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: SERIES_COLORS[i % SERIES_COLORS.length] }} />
               {s.name}{s.unit ? ` (${s.unit})` : ''}
             </span>
@@ -263,10 +263,10 @@ function KpiReadout({ chart }: { chart: RowsToOptionResult }) {
     <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24, padding: '8px 4px' }}>
       {chart.series.map((s, i) => (
         <div key={s.measureId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ ...MONO, fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: SERIES_COLORS[i % SERIES_COLORS.length] }}>
+          <span style={{ ...MONO, fontSize: 'var(--type-kpi-lg-size)', fontWeight: 600, letterSpacing: '-0.02em', color: SERIES_COLORS[i % SERIES_COLORS.length] }}>
             {formatValue(s.data[0])}
           </span>
-          <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{s.name}{s.unit ? ` (${s.unit})` : ''}</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{s.name}{s.unit ? ` (${s.unit})` : ''}</span>
         </div>
       ))}
     </div>

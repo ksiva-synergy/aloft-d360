@@ -12,6 +12,7 @@ import { runInBatches } from '@/lib/db/run-in-batches';
 
 /** Cap parallel Prisma queries (pool is often connection_limit=10 in dev). */
 const COVERAGE_SUMMARY_DB_CONCURRENCY = 3;
+const SCANNED_LIST_DB_CONCURRENCY = 2;
 
 // ── 1. listObjectsPage ─────────────────────────────────────────────────────────
 
@@ -864,7 +865,9 @@ export async function listScannedObjects(
       )`
     : Prisma.empty;
 
-  const [countRes, vectorTotalsRes, rows] = await Promise.all([
+  const [countRes, vectorTotalsRes, rows] = await runInBatches(
+    [
+    () =>
     prisma.$queryRaw<Array<{ count: number; t0: number; t1: number; t2: number; embed: number; t3: number; t4: number }>>(Prisma.sql`
       SELECT
         COUNT(*)::int AS count,
@@ -877,6 +880,7 @@ export async function listScannedObjects(
       FROM platform_context_objects o
       WHERE ${whereClause}
     `),
+    () =>
     prisma.$queryRaw<Array<{ object_vector_rows: number; column_vector_rows: number }>>(Prisma.sql`
       SELECT
         (SELECT COUNT(*)::int FROM platform_context_embeddings e
@@ -893,6 +897,7 @@ export async function listScannedObjects(
             ${sourceScopeForVectors} ${testScopeForVectors}
         ) AS column_vector_rows
     `),
+    () =>
     prisma.$queryRaw<Array<{
       id: string;
       full_path: string;
@@ -934,7 +939,9 @@ export async function listScannedObjects(
       ORDER BY o.full_path ASC
       LIMIT ${pageSize} OFFSET ${skip}
     `),
-  ]);
+    ] as const,
+    SCANNED_LIST_DB_CONCURRENCY,
+  );
 
   const total = countRes[0]?.count ?? 0;
   const tierCounts: ScannedTierCounts = {

@@ -110,7 +110,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
   return (
     <div className="flex-1 flex flex-col min-height-0 overflow-hidden bg-[var(--background)]">
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-xs transition-colors duration-200">
+        <table className="w-full border-collapse text-size-ui transition-colors duration-200">
           <thead>
             <tr
               className="sticky top-0 z-18 border-b"
@@ -204,7 +204,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
                       <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
                     </span>
-                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
+                    <span className="text-size-body font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
                       No objects match your filters
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                 >
                   {/* full_path */}
                   <td
-                    className="p-3 font-mono text-xs truncate max-w-[200px]"
+                    className="p-3 font-mono text-size-ui truncate max-w-[200px]"
                     style={{ color: inkColor }}
                     title={item.full_path}
                   >
@@ -238,15 +238,15 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                     <KindBadge kind={item.object_kind} />
                   </td>
                   {/* rows */}
-                  <td className="p-3 text-right font-mono text-xs" style={{ color: inkColor }}>
+                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: inkColor }}>
                     {item.row_count_est !== null ? Number(item.row_count_est).toLocaleString() : '—'}
                   </td>
                   {/* columns (always "—") */}
-                  <td className="p-3 text-right font-mono text-xs" style={{ color: mutedColor }}>
+                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: mutedColor }}>
                     —
                   </td>
                   {/* summary */}
-                  <td className="p-3 text-xs truncate max-w-[240px]" style={{ color: labelColor }}>
+                  <td className="p-3 text-size-ui truncate max-w-[240px]" style={{ color: labelColor }}>
                     {getSummary(item)}
                   </td>
                   {/* status */}
@@ -260,7 +260,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                   {/* pii */}
                   <td className="p-3 text-center">
                     {hasPiiFlag(item) && (
-                      <span className="text-red-500 font-semibold text-xs" title="PII Detected">
+                      <span className="text-red-500 font-semibold text-size-ui" title="PII Detected">
                         ⚑
                       </span>
                     )}
@@ -271,7 +271,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       {getTags(item.entity_tags).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="font-mono text-xs font-semibold tracking-wide text-[var(--ink-3)] border rounded px-1.5 py-0.5"
+                          className="font-mono text-size-ui font-semibold tracking-wide text-[var(--ink-3)] border rounded px-1.5 py-0.5"
                           style={{ borderColor: borderColor }}
                         >
                           {tag}

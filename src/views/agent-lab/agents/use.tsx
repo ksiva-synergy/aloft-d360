@@ -184,8 +184,8 @@ export default function UseAgentPage() {
   if (loadError) {
     return (
       <div className="mx-auto max-w-lg px-6 py-16 text-center">
-        <p className="mb-4 text-sm text-red-500">{loadError}</p>
-        <Link href="/agent-lab/agents" className="text-sm text-[var(--brand-a-ink)] hover:underline">Back to agents</Link>
+        <p className="mb-4 text-size-body text-red-500">{loadError}</p>
+        <Link href="/agent-lab/agents" className="text-size-body text-[var(--brand-a-ink)] hover:underline">Back to agents</Link>
       </div>
     );
   }
@@ -203,20 +203,20 @@ export default function UseAgentPage() {
         <Mark name={name} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{name}</h1>
-          <p className="truncate text-xs text-[var(--ink-3)]">{description || 'Saved agent'}</p>
+          <p className="truncate text-size-ui text-[var(--ink-3)]">{description || 'Saved agent'}</p>
         </div>
         <button
           type="button"
           onClick={clearChat}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
         >
           <RotateCcw className="h-3.5 w-3.5" /> New chat
         </button>
-        <Link href={`/docs/agents/${slug}`} className="inline-flex h-8 items-center rounded-lg px-2.5 text-xs font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
+        <Link href={`/docs/agents/${slug}`} className="inline-flex h-8 items-center rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
           View
         </Link>
         {editUrl && (
-          <Link href={editUrl} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
+          <Link href={editUrl} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Link>
         )}
@@ -227,8 +227,8 @@ export default function UseAgentPage() {
           {messages.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center pb-8 text-center">
               <Mark name={name} large />
-              <h2 className="mt-4 text-xl font-semibold text-[var(--ink-1)]">{name}</h2>
-              <p className="mt-1 max-w-md text-sm leading-relaxed text-[var(--ink-3)]">
+              <h2 className="mt-4 text-size-title-section font-semibold text-[var(--ink-1)]">{name}</h2>
+              <p className="mt-1 max-w-md text-size-body leading-relaxed text-[var(--ink-3)]">
                 {description || 'Ask a question. This agent answers with the instructions saved from the Workbench.'}
               </p>
               <div className="mt-6 flex w-full max-w-lg flex-col gap-2">
@@ -237,7 +237,7 @@ export default function UseAgentPage() {
                     key={prompt}
                     type="button"
                     onClick={() => void send(prompt)}
-                    className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-4 py-3 text-left text-sm text-[var(--ink-2)] transition-colors hover:border-[var(--brand-a)] hover:text-[var(--ink-1)]"
+                    className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-4 py-3 text-left text-size-body text-[var(--ink-2)] transition-colors hover:border-[var(--brand-a)] hover:text-[var(--ink-1)]"
                   >
                     {prompt}
                   </button>
@@ -257,7 +257,7 @@ export default function UseAgentPage() {
 
       <div className="shrink-0 px-4 pb-4 pt-2 md:px-6">
         {runError && (
-          <p className="mx-auto mb-2 max-w-3xl rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-500">{runError}</p>
+          <p className="mx-auto mb-2 max-w-3xl rounded-lg bg-red-500/10 px-3 py-2 text-size-body text-red-500">{runError}</p>
         )}
         <form
           className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
@@ -283,7 +283,7 @@ export default function UseAgentPage() {
             rows={1}
             placeholder={`Message ${name}…`}
             disabled={running}
-            className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+            className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
           />
           {running ? (
             <button
@@ -315,8 +315,8 @@ function Mark({ name, large = false }: { name: string; large?: boolean }) {
   return (
     <span
       className={large
-        ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand-a-soft)] text-lg font-semibold text-[var(--brand-a-ink)]'
-        : 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a-soft)] text-xs font-semibold text-[var(--brand-a-ink)]'}
+        ? 'flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--brand-a-soft)] text-size-title-section font-semibold text-[var(--brand-a-ink)]'
+        : 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a-soft)] text-size-ui font-semibold text-[var(--brand-a-ink)]'}
       aria-hidden
     >
       {initials(name) || <Bot className="h-4 w-4" />}
@@ -328,7 +328,7 @@ function MessageRow({ message, name, running }: { message: ChatMessage; name: st
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-sm leading-relaxed text-white">
+        <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
           {message.content}
         </p>
       </div>
@@ -338,9 +338,9 @@ function MessageRow({ message, name, running }: { message: ChatMessage; name: st
     <div className="flex items-start gap-3">
       <Mark name={name} />
       <div className="min-w-0 max-w-[85%] pt-1">
-        <p className="mb-1 text-xs font-medium text-[var(--ink-3)]">{name}</p>
+        <p className="mb-1 text-size-ui font-medium text-[var(--ink-3)]">{name}</p>
         {message.content ? (
-          <div className="text-sm leading-relaxed text-[var(--ink-1)]">
+          <div className="text-size-body leading-relaxed text-[var(--ink-1)]">
             <AssistantContent content={message.content} />
           </div>
         ) : running ? (

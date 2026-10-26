@@ -6,7 +6,7 @@ import { Loader2, X, Sparkles, Layers, Archive, ShieldAlert, ChevronDown, Chevro
 import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface TraceNode {
@@ -483,7 +483,7 @@ export function SessionDetailDrawer({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1rem', background: `${withAlpha(PHANTOM_AMBER, '0a')}` }}>
                       <ShieldAlert size={18} style={{ color: PHANTOM_AMBER, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: PHANTOM_AMBER, letterSpacing: '0.04em', marginBottom: '3px' }}>
+                        <div style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: inkOf(PHANTOM_AMBER), letterSpacing: '0.04em', marginBottom: '3px' }}>
                           {countPhantoms} PHANTOM{countPhantoms !== 1 ? 'S' : ''} REJECTED
                         </div>
                         <div style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)', lineHeight: 1.4 }}>

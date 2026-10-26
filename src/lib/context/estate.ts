@@ -6,6 +6,7 @@ import { DatabricksAdapter } from './databricks-adapter';
 import type { ContextSource } from './types';
 import { buildFullPath } from './types';
 import type { PlatformContextSource } from '@prisma/client';
+import { schemaMatchesIncludePatterns } from './job-scope';
 
 /** Objects not inventoried within this window are flagged stale on the estate overview. */
 export const ESTATE_STALE_SWEEP_DAYS = 7;
@@ -37,9 +38,34 @@ function toContextSource(row: PlatformContextSource): ContextSource {
   };
 }
 
+type InventoryRow = {
+  table_catalog: string;
+  table_schema: string;
+  table_name: string;
+};
+
+function inventoryRowInScope(
+  row: InventoryRow,
+  excludeSchemas: string[],
+  includePatterns: string[],
+): boolean {
+  const key = `${row.table_catalog}.${row.table_schema}`;
+  const excludeSet = new Set(excludeSchemas);
+  if (excludeSet.has(key) || excludeSet.has(row.table_schema)) return false;
+  if (!schemaMatchesIncludePatterns(row.table_catalog, row.table_schema, includePatterns)) {
+    return false;
+  }
+  return true;
+}
+
 export async function runEstateInventory(
   sourceId: string,
   orgId: string,
+  opts?: {
+    existingJobId?: string;
+    includePatterns?: string[];
+    excludeSchemas?: string[];
+  },
 ): Promise<EstateInventoryStats> {
   const sweepStart = new Date();
 
@@ -55,6 +81,20 @@ export async function runEstateInventory(
   const adapter = new DatabricksAdapter(conn);
   const source = toContextSource(sourceRow);
 
+  const includePatterns = opts?.includePatterns ?? [];
+  const excludeSchemas = opts?.excludeSchemas ?? [];
+  if (includePatterns.length > 0) {
+    source.scope_include = includePatterns;
+    console.log(`[estate_inventory] overriding scope_include: ${includePatterns.join(', ')}`);
+  }
+  if (excludeSchemas.length > 0) {
+    const extraExcludes = excludeSchemas.map(s =>
+      s.includes('.') ? `${s}.*` : `*.${s}.*`,
+    );
+    source.scope_exclude = [...(source.scope_exclude ?? []), ...extraExcludes];
+    console.log(`[estate_inventory] applying excludeSchemas: ${excludeSchemas.join(', ')}`);
+  }
+
   const stats: EstateInventoryStats = {
     inserted: 0,
     updated: 0,
@@ -68,11 +108,16 @@ export async function runEstateInventory(
   for await (const batch of adapter.inventoryEstate(source)) {
     if (batch.length === 0) continue;
 
-    for (const row of batch) {
+    const scopedBatch = batch.filter(row =>
+      inventoryRowInScope(row, excludeSchemas, includePatterns),
+    );
+    if (scopedBatch.length === 0) continue;
+
+    for (const row of scopedBatch) {
       catalogsSeen.add(row.table_catalog);
     }
 
-    const { insertCount, updateCount } = await upsertBatch(batch, sourceId, orgId);
+    const { insertCount, updateCount } = await upsertBatch(scopedBatch, sourceId, orgId);
     stats.inserted += insertCount;
     stats.updated += updateCount;
   }
@@ -102,19 +147,30 @@ export async function runEstateInventory(
     stats.removed = removeResult;
   }
 
-  // Audit row
-  await prisma.platformContextJob.create({
-    data: {
-      org_id: orgId,
-      source_id: sourceId,
-      job_kind: 'estate_inventory',
-      trigger: 'on_demand',
-      status: 'succeeded',
-      started_at: sweepStart,
-      finished_at: new Date(),
-      stats: stats as unknown as Prisma.InputJsonValue,
-    },
-  });
+  if (opts?.existingJobId) {
+    await prisma.platformContextJob.update({
+      where: { id: opts.existingJobId },
+      data: {
+        status: 'succeeded',
+        started_at: sweepStart,
+        finished_at: new Date(),
+        stats: stats as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } else {
+    await prisma.platformContextJob.create({
+      data: {
+        org_id: orgId,
+        source_id: sourceId,
+        job_kind: 'estate_inventory',
+        trigger: 'on_demand',
+        status: 'succeeded',
+        started_at: sweepStart,
+        finished_at: new Date(),
+        stats: stats as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
 
   return stats;
 }

@@ -6,7 +6,7 @@ import { useBuilderStore } from '../builder-store';
 import { DisambiguationUnderline } from './DisambiguationUnderline';
 import { prefetchBlueprint } from './blueprint-prefetch';
 import type { ResolvedIntent, IntentDisambiguation } from '@/lib/dashboards/guided-types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -194,7 +194,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color={GOLD} />
-          <span style={{ ...type.label, color: GOLD }}>
+          <span style={{ ...type.label, color: inkOf(GOLD) }}>
             Guided · Step 1 · Intent
           </span>
         </div>
@@ -286,7 +286,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           >
             <Database size={14} color={modelConfirmed ? GREEN : '#93C5FD'} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)' }}>
                 Reads from <strong>{modelName ?? resolved.modelName ?? 'this model'}</strong>
               </span>
               <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>One dashboard = one semantic model.</span>

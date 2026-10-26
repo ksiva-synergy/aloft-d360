@@ -69,7 +69,7 @@ function flattenProperties(
 export function SchemaTable({ schema, title, className }: SchemaTableProps) {
   if (!schema) {
     return (
-      <p className="text-sm text-[var(--ink-3)] italic">No schema defined</p>
+      <p className="text-size-body text-[var(--ink-3)] italic">No schema defined</p>
     );
   }
 
@@ -79,7 +79,7 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
   if (typeof properties !== 'object' || Object.keys(properties).length === 0) {
     return (
       <div className={cn('rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] p-4', className)}>
-        <pre className="text-xs text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] overflow-auto whitespace-pre-wrap">
+        <pre className="text-size-ui text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] overflow-auto whitespace-pre-wrap">
           {JSON.stringify(schema, null, 2)}
         </pre>
       </div>
@@ -92,13 +92,13 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
     <div className={cn('overflow-hidden rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)]', className)}>
       {title && (
         <div className="px-4 py-2 bg-[color:var(--surface-2)] dark:bg-[var(--surface-1)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
-          <h4 className="text-xs font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] uppercase tracking-wide">
+          <h4 className="text-size-ui font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] uppercase tracking-wide">
             {title}
           </h4>
         </div>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-size-ui">
           <thead>
             <tr className="bg-[color:color-mix(in_srgb,var(--surface-2)_50%,transparent)] dark:bg-[var(--background)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
               <th className="text-left px-4 py-2 font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]">Parameter</th>
@@ -132,7 +132,7 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
                 <td className="px-4 py-2 text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)]">
                   {row.description}
                   {row.default && (
-                    <span className="ml-2 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
+                    <span className="ml-2 text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
                       (default: {row.default})
                     </span>
                   )}

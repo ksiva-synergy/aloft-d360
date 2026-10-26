@@ -68,7 +68,12 @@ export interface HarvestResult {
  */
 export async function runT0Harvest(
   sourceId: string,
-  opts?: { excludeSchemas?: string[]; includePatterns?: string[]; forceFullScan?: boolean },
+  opts?: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+    forceFullScan?: boolean;
+    existingJobId?: string;
+  },
 ): Promise<HarvestResult> {
   // ── 1. Load source ──────────────────────────────────────────────────────────
   const sourceRow = await prisma.platformContextSource.findUniqueOrThrow({
@@ -80,18 +85,23 @@ export async function runT0Harvest(
   // It must force resolveScope regardless of last_sweep_at because detectChanges only returns
   // recently-altered refs — it would miss unaltered tables in the targeted subset.
   //
-  // excludeSchemas is a negative filter ("skip these schemas"). It is NOT a reason to force
-  // resolveScope on its own: if last_sweep_at is set, delta mode (detectChanges) is still
-  // correct and excludeSchemas is applied via scope_exclude before the adapter call either way.
-  // Treating excludeSchemas as a resolveScope trigger was causing subsequent runs to do a
-  // re-scan of the full allowed scope on every manual launch, ignoring the delta baseline.
+  // excludeSchemas from the Jobs modal narrows which schemas to harvest. Delta mode only
+  // returns recently altered tables, so exclude-only scope would often sweep 0 rows.
   const hasIncludeOverride = (opts?.includePatterns?.length ?? 0) > 0;
-  const isFirstRun = sourceRow.last_sweep_at === null || (opts?.forceFullScan ?? false) || hasIncludeOverride;
+  const hasExcludeScope = (opts?.excludeSchemas?.length ?? 0) > 0;
+  const isFirstRun =
+    sourceRow.last_sweep_at === null
+    || (opts?.forceFullScan ?? false)
+    || hasIncludeOverride
+    || hasExcludeScope;
   if (opts?.forceFullScan) {
     console.log(`[t0_structural] forceFullScan=true — using resolveScope instead of detectChanges`);
   }
   if (hasIncludeOverride && !opts?.forceFullScan) {
     console.log(`[t0_structural] includePatterns override (${opts!.includePatterns!.join(', ')}) — forcing resolveScope`);
+  }
+  if (hasExcludeScope && !hasIncludeOverride && !opts?.forceFullScan) {
+    console.log(`[t0_structural] excludeSchemas (${opts!.excludeSchemas!.length} schemas) — forcing resolveScope for narrowed scope`);
   }
   const source = toContextSource(sourceRow);
 
@@ -114,17 +124,27 @@ export async function runT0Harvest(
     console.log(`[t0_structural] applying excludeSchemas: ${opts.excludeSchemas.join(', ')}`);
   }
 
-  // ── 2. Create job row (status = running) ────────────────────────────────────
-  const job = await prisma.platformContextJob.create({
-    data: {
-      org_id: orgId,
-      source_id: sourceId,
-      job_kind: 't0_structural',
-      trigger: 'on_demand',
-      status: 'running',
-      started_at: new Date(),
-    },
-  });
+  // ── 2. Reuse orchestrator-claimed job row, or create a new one if standalone ─
+  let jobId: string;
+  if (opts?.existingJobId) {
+    jobId = opts.existingJobId;
+    await prisma.platformContextJob.update({
+      where: { id: jobId },
+      data: { status: 'running', started_at: new Date() },
+    });
+  } else {
+    const job = await prisma.platformContextJob.create({
+      data: {
+        org_id: orgId,
+        source_id: sourceId,
+        job_kind: 't0_structural',
+        trigger: 'on_demand',
+        status: 'running',
+        started_at: new Date(),
+      },
+    });
+    jobId = job.id;
+  }
 
   try {
     // ── 3. Load connection and build adapter ──────────────────────────────────
@@ -155,7 +175,7 @@ export async function runT0Harvest(
     const now = new Date();
     let columnsUpserted = 0;
     let objIdx = 0;
-    const beat = makeHeartbeat(job.id);
+    const beat = makeHeartbeat(jobId);
 
     for (const meta of structuralMeta) {
       await beat();
@@ -296,12 +316,12 @@ export async function runT0Harvest(
     };
 
     await prisma.platformContextJob.update({
-      where: { id: job.id },
+      where: { id: jobId },
       data: { status: 'succeeded', finished_at: new Date(), stats },
     });
 
     return {
-      jobId: job.id,
+      jobId,
       objectsSwept: structuralMeta.length,
       columnsUpserted,
       queriesIssued: adapter.queryCount,
@@ -316,13 +336,13 @@ export async function runT0Harvest(
     // Best-effort: update job to failed; don't throw if this update itself fails
     await prisma.platformContextJob
       .update({
-        where: { id: job.id },
+        where: { id: jobId },
         data: { status: 'failed', finished_at: new Date(), error: errorMsg },
       })
       .catch(() => undefined);
 
     return {
-      jobId: job.id,
+      jobId,
       objectsSwept: 0,
       columnsUpserted: 0,
       queriesIssued: 0,
@@ -350,6 +370,8 @@ export async function runT1Profile(
     excludeSchemas?: string[];
     includePatterns?: string[];
     existingJobId?: string;
+    /** Re-profile every object in scope (default: only where last_t1_at < last_t0_at). */
+    forceReprofile?: boolean;
     /** Auto-split: restrict DB query to a single catalog+schema partition */
     partitionCatalog?: string;
     partitionSchema?: string;
@@ -433,6 +455,43 @@ export async function runT1Profile(
       console.log(`[t1_profile] source=${sourceId} objects=${activeObjects.length}`);
     }
 
+    let profileTargets = activeObjects;
+    if (!opts?.forceReprofile) {
+      const totalInScope = profileTargets.length;
+      profileTargets = profileTargets.filter(o => {
+        if (!o.last_t1_at) return true;
+        if (!o.last_t0_at) return true;
+        return o.last_t1_at < o.last_t0_at;
+      });
+      console.log(
+        `[t1_profile] stale-only: ${profileTargets.length}/${totalInScope} objects need profiling`,
+      );
+    }
+
+    if (profileTargets.length === 0 && activeObjects.length > 0) {
+      const stats = {
+        objects_profiled: 0,
+        objects_failed: 0,
+        queries_issued: 0,
+        objects_degraded: 0,
+        columns_skipped: 0,
+        skipped_stale: activeObjects.length,
+      };
+      await prisma.platformContextJob.update({
+        where: { id: jobId },
+        data: { status: 'succeeded', finished_at: new Date(), stats },
+      });
+      return {
+        jobId,
+        objectsSwept: 0,
+        columnsUpserted: 0,
+        queriesIssued: 0,
+        droppedObjects: 0,
+        isFullSweep: false,
+        status: 'succeeded',
+      };
+    }
+
     if (activeObjects.length === 0) {
       const scopeHint = opts?.includePatterns?.length
         ? `includePatterns=${opts.includePatterns.join(', ')}`
@@ -473,7 +532,7 @@ export async function runT1Profile(
     const profileStatsList: Array<Record<string, unknown>> = [];
     const beat = makeHeartbeat(opts?.existingJobId);
 
-    for (const obj of activeObjects) {
+    for (const obj of profileTargets) {
       await beat();
       console.log(`[T1 Profile] Profiling ${obj.full_path} ...`);
       try {

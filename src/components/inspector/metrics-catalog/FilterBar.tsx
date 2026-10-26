@@ -23,6 +23,7 @@ import {
   tint,
 } from './mc-ui';
 import { selectCoverage } from './catalog-store';
+import { inkOf } from '@/lib/typography/tokens';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,14 +164,14 @@ export function FilterBar() {
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            ...MONO,
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-ui-regular-size)',
             padding: '5px 9px',
             borderRadius: 4,
             cursor: 'pointer',
             border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
             background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
-            color: gapsOnly ? GOLD : MUTED,
+            color: inkOf(gapsOnly ? GOLD : MUTED),
           }}
         >
           <AlertTriangle size={11} />
@@ -196,7 +197,7 @@ export function FilterBar() {
           <button
             onClick={clearFacets}
             style={{
-              ...MONO,
+              fontFamily: 'var(--font-sans)',
               fontSize: 'var(--type-ui-regular-size)',
               color: MUTED,
               background: 'transparent',
@@ -480,7 +481,7 @@ function FacetDropdown({
 
           <div style={{ maxHeight: 260, overflowY: 'auto' }} className="agent-labs-scrollbar">
             {filtered.length === 0 && (
-              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '10px 12px' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '10px 12px' }}>
                 No matches
               </div>
             )}

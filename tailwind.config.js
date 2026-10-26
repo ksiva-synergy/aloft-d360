@@ -139,16 +139,16 @@ module.exports = {
         },
       },
       fontSize: {
-        xs:   ['0.8125rem', { lineHeight: '1.25rem' }],
-        sm:   ['0.9375rem', { lineHeight: '1.4rem' }],
-        base: ['1rem',      { lineHeight: '1.6rem' }],
-        lg:   ['1.25rem',   { lineHeight: '1.625rem' }],   // 20px — on the type scale (was 19)
-        xl:   ['1.25rem',   { lineHeight: '1.625rem' }],   // 20px (was 22)
-        '2xl':['1.75rem',   { lineHeight: '2rem' }],        // 28px (was 26)
-        '3xl':['1.75rem',   { lineHeight: '2rem' }],        // 28px
-        '4xl':['2.5rem',    { lineHeight: '2.75rem' }],     // 40px
+        // Size-only utilities (size + line height, weight/tracking untouched) for places where the
+        // element inherits its weight. Full styles are the token classes below.
+        'size-caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)' }],
+        'size-ui':            ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)' }],
+        'size-body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)' }],
+        'size-body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)' }],
+        'size-title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)' }],
+        'size-kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)' }],
+        'size-display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)' }],
         // Type tokens — values live in src/styles/typography.css (docs/audits/typography-implementation-plan.md).
-        // The xs…2xl keys above are legacy aliases, removed once every screen is migrated.
         'display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)',       fontWeight: 'var(--type-display-weight)',       letterSpacing: 'var(--type-display-ls)' }],
         'title-page':    ['var(--type-title-page-size)',    { lineHeight: 'var(--type-title-page-lh)',    fontWeight: 'var(--type-title-page-weight)',    letterSpacing: 'var(--type-title-page-ls)' }],
         'title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)', fontWeight: 'var(--type-title-section-weight)', letterSpacing: 'var(--type-title-section-ls)' }],
@@ -167,13 +167,9 @@ module.exports = {
         'code':          ['var(--type-code-size)',          { lineHeight: 'var(--type-code-lh)',          fontWeight: 'var(--type-code-weight)',          letterSpacing: 'var(--type-code-ls)' }],
       },
       fontFamily: {
-        // One sans, one mono (values in src/styles/typography.css). serif/display/body stay as aliases of
-        // the sans so existing classes keep working; the serif family is retired.
+        // One sans, one mono (values in src/styles/typography.css).
         sans: ['var(--font-sans)'],
-        serif: ['var(--font-sans)'],
         mono: ['var(--font-mono)'],
-        display: ['var(--font-sans)'],
-        body: ['var(--font-sans)'],
       },
       borderRadius: {
         // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)

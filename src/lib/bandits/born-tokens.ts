@@ -67,6 +67,7 @@ export const MODEL_SHORT_NAMES: Record<string, string> = {
   'gpt-5.4-PBC':                               'GPT-5.4',
   'gpt-6-luna':                                'GPT-6 Luna',
   'openai.gpt-6-luna':                         'GPT-6 Luna',
+  'global.openai.gpt-6-luna':                  'GPT-6 Luna',
   'o3-pro-PBC':                                'o3-pro',
   'o3-mini':                                   'o3-mini',
   'grok-4.3-PBC':                              'Grok 4.3',
@@ -102,6 +103,7 @@ export const MODEL_COLOR_MAP: Record<string, string> = {
   'gpt-5.4-PBC':                               BORN_COLORS[0],  // steel-blue
   'gpt-6-luna':                                BORN_COLORS[0],  // steel-blue
   'openai.gpt-6-luna':                         BORN_COLORS[0],  // steel-blue
+  'global.openai.gpt-6-luna':                  BORN_COLORS[0],  // steel-blue
   'o3-pro-PBC':                                BORN_COLORS[1],  // orange
   'o3-mini':                                   BORN_COLORS[2],  // red
   'grok-4.3-PBC':                              BORN_COLORS[3],  // teal

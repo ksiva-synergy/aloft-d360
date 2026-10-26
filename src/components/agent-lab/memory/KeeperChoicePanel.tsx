@@ -7,7 +7,7 @@ import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/
 import type { KeeperSummaryResponse } from '@/app/api/agent-lab/memory/keeper-summary/route';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_TYPE_ORDER: Record<string, number> = {
@@ -312,7 +312,7 @@ export function KeeperChoicePanel() {
             borderRadius: 6,
             border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
             background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
-            color: RULE_TYPE_COLORS.FAILURE_MODE,
+            color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE),
             fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-caption-size)',
             padding: '1rem',
@@ -473,7 +473,7 @@ export function KeeperChoicePanel() {
               The Keeper weighs
             </span>
             {!isEmpty && (
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: GOLD }}>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: inkOf(GOLD) }}>
                 {bullets.length} rule{bullets.length !== 1 ? 's' : ''}
               </span>
             )}

@@ -34,7 +34,7 @@ function RoleBadge({ role, label }: { role: string; label: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-none',
+        'inline-flex items-center rounded-full px-2 py-0.5 text-size-ui font-semibold leading-none',
         ROLE_STYLES[role] ?? ROLE_STYLES.readonly,
       )}
     >
@@ -68,7 +68,7 @@ function ThemeSwitch() {
           aria-checked={current === id}
           onClick={() => setTheme(id)}
           className={cn(
-            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold transition-colors',
+            'flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-size-ui font-semibold transition-colors',
             current === id
               ? 'bg-[var(--surface-1)] text-[var(--ink-1)] shadow-card'
               : 'text-[var(--ink-3)] hover:text-[var(--ink-1)]',
@@ -156,11 +156,11 @@ export function UserMenu({
         </span>
         {showLabel && (
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-[var(--rail-ink-strong)]">
+            <span className="block truncate text-size-body font-semibold text-[var(--rail-ink-strong)]">
               {isLoading ? 'Loading…' : user?.name || user?.email || 'User'}
             </span>
             {displayRole && (
-              <span className="block truncate text-xs font-medium text-[var(--rail-muted)]">{displayRole}</span>
+              <span className="block truncate text-size-ui font-medium text-[var(--rail-muted)]">{displayRole}</span>
             )}
           </span>
         )}
@@ -175,8 +175,8 @@ export function UserMenu({
           )}
         >
           <div className="border-b border-[var(--line-1)] p-4">
-            <div className="truncate text-base font-semibold">{user.name || 'User'}</div>
-            <div className="truncate text-sm text-[var(--ink-3)]">{user.email}</div>
+            <div className="truncate text-size-body-lg font-semibold">{user.name || 'User'}</div>
+            <div className="truncate text-size-body text-[var(--ink-3)]">{user.email}</div>
             {displayRole && (
               <div className="mt-2">
                 <RoleBadge role={user.role ?? ''} label={displayRole} />
@@ -184,7 +184,7 @@ export function UserMenu({
             )}
           </div>
           <div className="space-y-1 p-3">
-            <div className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
+            <div className="px-1 pb-1 text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
             <ThemeSwitch />
           </div>
           <div className="border-t border-[var(--line-1)] p-3">
@@ -197,7 +197,7 @@ export function UserMenu({
                 setOpen(false);
                 router.push('/settings/profile');
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
             >
               <Settings className="h-4 w-4 text-[var(--ink-3)]" />
               Settings
@@ -208,13 +208,13 @@ export function UserMenu({
                 forgetFirstName(); // signing out also forgets the login page's "Welcome back" name
                 signOut({ callbackUrl: '/login' });
               }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--bad)] transition-colors hover:bg-[var(--bad-bg)]"
             >
               <LogOut className="h-4 w-4" />
               Sign out
             </button>
           </div>
-          <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] px-4 py-2 text-xs text-[var(--ink-3)]">
+          <div className="border-t border-[var(--line-1)] bg-[var(--surface-2)] px-4 py-2 text-size-ui text-[var(--ink-3)]">
             Powered by ALOFT v0.4
           </div>
         </div>

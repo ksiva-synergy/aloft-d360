@@ -10,7 +10,7 @@ import type { DriftStatus } from './builder-store';
 import { useBuilderStore } from './builder-store';
 import { WidgetPreview } from './WidgetPreview';
 import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -189,7 +189,7 @@ function DriftBadge({ drift }: { drift?: { status: DriftStatus; changedMeasures?
           padding: '2px 5px',
           borderRadius: 2,
           background: 'rgba(239,68,68,0.12)',
-          color: '#F87171',
+          color: inkOf('#F87171'),
           border: '1px solid rgba(239,68,68,0.25)',
           display: 'inline-flex',
           alignItems: 'center',

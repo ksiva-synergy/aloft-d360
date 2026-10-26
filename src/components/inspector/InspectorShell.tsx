@@ -2,11 +2,11 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';
-import { X } from 'lucide-react';
-import { History, FlaskConical, SquarePen } from 'lucide-react';
+import { X, ArrowUpRight, Table2 } from 'lucide-react';
+import { History, FlaskConical, SquarePen, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
-import { AloftSigil } from '@/components/workbench/atoms';
+import { Companion } from '@/components/companion/Companion';
 import { DashboardPane } from './DashboardPane';
 import { SemanticChartCard } from './SemanticChartCard';
 import { DisambiguationCard } from './DisambiguationCard';
@@ -17,7 +17,6 @@ import { SemanticGovernancePanel, RightPaneTabBar } from './SemanticGovernancePa
 import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
-import type { QueryResult } from '@/hooks/useInspectorChat';
 import { useSession } from 'next-auth/react';
 import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
@@ -25,214 +24,165 @@ import { AgentHandoffCard } from './AgentHandoffCard';
 import { detectAgentBuildIntent } from '@/lib/construction/handoff';
 import { type } from '@/lib/typography/tokens';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = 'var(--brand-a-ink)';
+// ── Styles ────────────────────────────────────────────────────────────────────
+// Hover / focus / press states live in CSS (not onMouseEnter handlers) so they work
+// with the keyboard, are skipped on touch, and stay in one place. Colors are theme
+// tokens only, so light, dark and the user's accent all flow through.
+const INSPECTOR_CSS = `
+.insp-bar { display:flex; align-items:center; gap:16px; height:48px; padding:0 12px 0 20px; flex-shrink:0;
+  background:var(--wb-canvas); border-bottom:1px solid var(--wb-border-subtle); }
+.insp-status { display:inline-flex; align-items:center; gap:7px; color:var(--ink-2); white-space:nowrap; }
+.insp-status-dot { width:6px; height:6px; border-radius:50%; background:var(--ink-3); flex-shrink:0; }
+.insp-status[data-state="ok"] .insp-status-dot { background:var(--ok); box-shadow:0 0 0 3px var(--ok-bg); }
+.insp-status[data-state="off"] .insp-status-dot { background:var(--warn); box-shadow:0 0 0 3px var(--warn-bg); }
+.insp-seg { display:inline-flex; gap:2px; padding:2px; border-radius:8px; background:var(--surface-2); border:1px solid var(--line-1); }
+.insp-seg button { height:24px; padding:0 10px; border:none; border-radius:6px; background:transparent; color:var(--ink-2);
+  cursor:pointer; white-space:nowrap; transition:background-color 150ms ease, color 150ms ease; }
+.insp-seg button[aria-checked="true"] { background:var(--surface-1); color:var(--ink-1);
+  box-shadow:0 0 0 1px var(--line-1), 0 1px 2px rgba(0,0,0,.08); }
+.insp-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:30px; padding:0 10px;
+  border:1px solid transparent; border-radius:6px; background:transparent; color:var(--ink-2); cursor:pointer; white-space:nowrap;
+  transition:background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 120ms ease-out; }
+.insp-btn--icon { width:30px; padding:0; }
+.insp-btn--outline { border-color:var(--line-2); color:var(--ink-1); }
+.insp-btn:active, .insp-starter:active, .insp-strip:active { transform:scale(0.97); }
+.insp-strip { width:40px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:10px; padding:12px 0 0;
+  border:none; background:var(--wb-canvas); color:var(--ink-2); cursor:pointer;
+  transition:background-color 150ms ease, color 150ms ease; }
+.insp-strip-dot { width:6px; height:6px; border-radius:50%; background:var(--brand-a); }
+.insp-starter { display:flex; align-items:center; gap:10px; width:100%; padding:10px 14px; text-align:left;
+  border:1px solid var(--line-1); border-radius:8px; background:var(--surface-1); color:var(--ink-1); cursor:pointer;
+  transition:border-color 150ms ease, background-color 150ms ease, transform 120ms ease-out; }
+.insp-starter svg { color:var(--ink-3); flex-shrink:0; transition:color 150ms ease; }
+@media (hover:hover) and (pointer:fine) {
+  .insp-btn:hover, .insp-strip:hover, .insp-seg button:not([aria-checked="true"]):hover {
+    background:color-mix(in srgb, var(--ink-1) 7%, transparent); color:var(--ink-1); }
+  .insp-starter:hover { border-color:color-mix(in srgb, var(--brand-a) 45%, transparent);
+    background:color-mix(in srgb, var(--brand-a) 5%, var(--surface-1)); }
+  .insp-starter:hover svg { color:var(--brand-a-ink); }
+}
+.insp-btn:focus-visible, .insp-seg button:focus-visible, .insp-strip:focus-visible, .insp-starter:focus-visible {
+  outline:2px solid var(--brand-a); outline-offset:1px; }
+.insp-welcome { animation:insp-in 260ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes insp-in { from { opacity:0; transform:translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .insp-welcome { animation:none; } }
+`;
 
 // ── Inspector status bar ──────────────────────────────────────────────────────
+// The app header above already shows the "Inspector" breadcrumb, so this bar carries
+// only what belongs to the session: its title, the warehouse status, the context
+// mode and the session actions.
 interface InspectorStatusBarProps {
   sessionTitle: string;
   sessionId: string | null;
-  dbConnected: boolean;
+  /** null while the connection check is in flight. */
+  dbConnected: boolean | null;
   contextMode: 'harvested' | 'warehouse_only';
-  onToggleContextMode: () => void;
+  onContextModeChange: (mode: 'harvested' | 'warehouse_only') => void;
   onOpenHistory: () => void;
   onOpenLab: () => void;
   onNewSession: () => void;
 }
 
-function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onToggleContextMode, onOpenHistory, onOpenLab, onNewSession }: InspectorStatusBarProps) {
-  const shortId = sessionId ? sessionId.slice(-8) : '————————';
-  const isHarvested = contextMode === 'harvested';
+function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onContextModeChange, onOpenHistory, onOpenLab, onNewSession }: InspectorStatusBarProps) {
+  const modes: { id: 'harvested' | 'warehouse_only'; label: string; hint: string }[] = [
+    { id: 'harvested', label: 'Catalog + SQL', hint: 'Answer with harvested catalog context (T0/T1/T2) plus live SQL' },
+    { id: 'warehouse_only', label: 'SQL only', hint: 'Answer with raw Databricks SQL only' },
+  ];
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 20,
-        padding: '0 24px',
-        height: 48,
-        flexShrink: 0,
-        background: 'var(--wb-canvas)',
-        borderBottom: '1px solid var(--wb-border-subtle)',
-        ...type['ui-regular'],
-        overflow: 'hidden',
-      }}
-    >
-      {/* LEFT — breadcrumb */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)', whiteSpace: 'nowrap', minWidth: 0 }}>
-        <AloftSigil size={14} />
-        <span style={{ ...type.label }}>Data 360</span>
-        <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
-        <span style={{ ...type.label, color: GOLD }}>Inspector</span>
-        <span style={{ color: 'var(--wb-muted)', opacity: 0.5 }}>/</span>
-        <span style={{ color: 'var(--wb-ink-dim)', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
-          {sessionTitle || 'New Session'}
-        </span>
-      </div>
-
-      {/* CENTER — DATABRICKS CONNECTED chip + context mode toggle */}
-      <div style={{
-        position: 'absolute',
-        left: '50%',
-        top: '50%',
-        transform: 'translate(-50%, -50%)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        whiteSpace: 'nowrap',
-      }}>
-        {/* Databricks connected chip */}
+    <div className="insp-bar">
+      {/* LEFT — session title */}
+      <div style={{ flex: 1, minWidth: 0 }}>
         <span
+          title={sessionId ? `Session ${sessionId}` : undefined}
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            ...type.label,
-            color: dbConnected ? GOLD : 'var(--wb-muted)',
-            background: dbConnected ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'rgba(74,96,128,0.12)',
-            border: dbConnected ? '1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : '1px solid rgba(74,96,128,0.25)',
-            borderRadius: 4,
-            padding: '3px 8px',
-            pointerEvents: 'none',
+            ...type['ui-lg'], display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            color: sessionTitle ? 'var(--ink-1)' : 'var(--ink-2)',
           }}
         >
-          <span
-            style={{
-              width: 5,
-              height: 5,
-              borderRadius: '50%',
-              background: dbConnected ? GOLD : '#4a6080',
-              boxShadow: dbConnected ? '0 0 8px 1px color-mix(in srgb, var(--brand-a-ink) 70%, transparent)' : 'none',
-              display: 'inline-block',
-              flexShrink: 0,
-              animation: dbConnected ? 'insp-pulse 2s ease-in-out infinite' : 'none',
-            }}
-          />
-          Databricks {dbConnected ? 'connected' : 'checking…'}
+          {sessionTitle || 'New session'}
         </span>
-
-        {/* Divider */}
-        <span style={{ width: 1, height: 12, background: 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)', flexShrink: 0 }} />
-
-        {/* Context mode toggle */}
-        <button
-          onClick={onToggleContextMode}
-          title={isHarvested
-            ? 'Using harvested catalog context (T0/T1/T2). Click to switch to SQL-only mode.'
-            : 'Using raw Databricks SQL only. Click to switch back to catalog context mode.'}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            ...type.label,
-            cursor: 'pointer',
-            border: `1px solid ${isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)' : 'rgba(147,197,253,0.35)'}`,
-            borderRadius: 4,
-            padding: '3px 8px',
-            background: isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)' : 'rgba(147,197,253,0.06)',
-            color: isHarvested ? GOLD : '#93C5FD',
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 20%, transparent)' : 'rgba(147,197,253,0.14)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)' : 'rgba(147,197,253,0.06)';
-          }}
-        >
-          {/* Toggle pill */}
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            width: 24,
-            height: 12,
-            borderRadius: 6,
-            background: isHarvested ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(147,197,253,0.15)',
-            position: 'relative',
-            flexShrink: 0,
-            transition: 'background 0.15s',
-          }}>
-            <span style={{
-              position: 'absolute',
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: isHarvested ? GOLD : '#93C5FD',
-              left: isHarvested ? 2 : 14,
-              transition: 'left 0.15s, background 0.15s',
-            }} />
-          </span>
-          {isHarvested ? 'Catalog + SQL' : 'SQL only'}
-        </button>
       </div>
 
-      {/* RIGHT — new session + lab button + history button + session */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'var(--wb-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-        <button
-          onClick={onNewSession}
-          title="New session"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 5,
-            height: 28, borderRadius: 6,
-            padding: '0 10px',
-            background: 'transparent', border: `1px solid color-mix(in srgb, var(--brand-a-ink) 42%, transparent)`,
-            color: GOLD, cursor: 'pointer', transition: 'all 0.15s',
-            ...type.label,
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+      {/* CENTER — warehouse status + context mode */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+        <span
+          className="insp-status"
+          data-state={dbConnected === null ? 'pending' : dbConnected ? 'ok' : 'off'}
+          style={type['ui-regular']}
+          role="status"
         >
-          <SquarePen size={11} />
-          New
-        </button>
-        <button
-          onClick={onOpenLab}
-          title="Performance Lab — compare model metrics"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
-            color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a-ink) 8%, transparent)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)'; e.currentTarget.style.color = 'var(--wb-muted)'; e.currentTarget.style.background = 'transparent'; }}
-        >
-          <FlaskConical size={13} />
-        </button>
-        <button
-          onClick={onOpenHistory}
-          title="Chat History"
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 6,
-            background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
-            color: 'var(--wb-muted)', cursor: 'pointer', transition: 'all 0.15s',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)'; e.currentTarget.style.color = 'var(--wb-muted)'; }}
-        >
-          <History size={13} />
-        </button>
-        <span style={{ fontSize: 13 }}>
-          Session <span style={{ color: 'var(--wb-ink-dim)' }}>{shortId}</span>
+          <span className="insp-status-dot" />
+          {dbConnected === null ? 'Checking Databricks…' : dbConnected ? 'Databricks connected' : 'Databricks not connected'}
         </span>
-        <span style={{ width: 1, height: 14, background: 'color-mix(in srgb, var(--brand-a-ink) 21%, transparent)', flexShrink: 0 }} />
-        <span style={{ ...type.caption }}>Powered by ALOFT · v0.4</span>
+        <div className="insp-seg" role="radiogroup" aria-label="Context mode">
+          {modes.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="radio"
+              aria-checked={contextMode === m.id}
+              title={m.hint}
+              onClick={() => onContextModeChange(m.id)}
+              style={type.label}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <style>{`
-        @keyframes insp-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.45; }
-        }
-      `}</style>
+      {/* RIGHT — session actions */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+        <button type="button" className="insp-btn insp-btn--outline" onClick={onNewSession} style={type.ui}>
+          <SquarePen size={14} />
+          New session
+        </button>
+        <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenHistory} aria-label="Chat history" title="Chat history">
+          <History size={16} />
+        </button>
+        <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenLab} aria-label="Performance Lab" title="Performance Lab — compare model metrics">
+          <FlaskConical size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Welcome (empty conversation) ──────────────────────────────────────────────
+// One empty state for the whole page: a clear question, one line on what Inspector
+// does, and starter questions. Governed models supply their own prompts.
+const GENERIC_STARTERS = [
+  'What data can I explore here?',
+  'Which tables were updated most recently?',
+  'Show the largest tables by row count',
+];
+
+function InspectorWelcome({ modelId, onPrompt }: { modelId: string | null; onPrompt: (p: string) => void }) {
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', placeItems: 'center', padding: '32px 24px' }}>
+      <div className="insp-welcome" style={{ width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+        <Companion size={56} />
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <h2 style={{ ...type['title-section'], color: 'var(--ink-1)', margin: 0 }}>What do you want to know?</h2>
+          <p style={{ ...type.body, color: 'var(--ink-2)', margin: 0, maxWidth: 440 }}>
+            Ask in plain language. Inspector queries your warehouse, explains the numbers and builds charts.
+          </p>
+        </div>
+        {modelId ? (
+          <EmptyStatePrompts modelId={modelId} includeWhatIsThis showHeading={false} onPromptClick={onPrompt} />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 440 }}>
+            {GENERIC_STARTERS.map((p) => (
+              <button key={p} type="button" className="insp-starter" onClick={() => onPrompt(p)} style={type['ui-regular']}>
+                <ArrowUpRight size={15} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -250,7 +200,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const [historyOpen, setHistoryOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('');
-  const [dbConnected, setDbConnected] = useState(false);
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
   const [contextMode, setContextMode] = useState<'harvested' | 'warehouse_only'>('harvested');
   const expandButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -258,10 +208,11 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   const [hasCandidateModels, setHasCandidateModels] = useState(false);
   const [candidateModelId, setCandidateModelId] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<RightPaneTab>('results');
+  // Results / Developer pane starts minimized and opens itself when new results arrive.
+  const [rightCollapsed, setRightCollapsed] = useState(true);
 
   const { data: authSession } = useSession();
   const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
-  const showRightTabBar = hasCandidateModels || showDeveloperTab;
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
 
@@ -312,7 +263,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         const hasActive = (d.connections ?? []).some((c) => c.status === 'active');
         setDbConnected(hasActive);
       })
-      .catch(() => {});
+      .catch(() => setDbConnected(false));
   }, []);
 
   // Check for candidate semantic models on mount — determines Semantic tab visibility
@@ -362,6 +313,18 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       .catch(() => {});
   }, [insp.isStreaming, insp.messages, insp.sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-open the results pane when something new lands in it ───────────────
+  // Counted, not boolean, so a second chart re-opens a pane the user minimized after
+  // the first. Collapsing again keeps it closed until the next new item.
+  const resultItemCount =
+    insp.queryResults.length + insp.semanticChartMessages.length + insp.disambiguations.length + insp.exportOffers.length;
+  const prevResultCountRef = useRef(resultItemCount);
+  useEffect(() => {
+    if (resultItemCount > prevResultCountRef.current) setRightCollapsed(false);
+    prevResultCountRef.current = resultItemCount;
+  }, [resultItemCount]);
+  const hasResults = resultItemCount > 0;
+
   const handleSubmit = useCallback(() => {
     const text = composer.trim();
     if (!text || insp.isStreaming) return;
@@ -385,10 +348,6 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     insp.reset();
   }, [insp]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Generative empty state (Phase 3B): show starter prompts when a fresh session
-  // has nothing yet — no conversation, cards, results, or in-flight query.
-  const hasConversation = insp.messages.some((m) => m.content || (m.toolCalls && m.toolCalls.length > 0));
-
   // The user's latest question — pre-fills DefineMetricPanel's NL-intent when a
   // chart is saved as a metric (3.5B chat-capture). Strips the invisible
   // "[Refining …]" context block a refinement prepends, so the captured intent
@@ -403,21 +362,17 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
     }
     return undefined;
   })();
-  const showChatEmptyState =
-    !hasConversation &&
-    insp.semanticChartMessages.length === 0 &&
-    insp.disambiguations.length === 0 &&
-    !insp.queryProgress &&
-    insp.queryResults.length === 0;
+  const showResultsEmptyState = !hasResults && !insp.queryProgress;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--wb-canvas)', overflow: 'hidden' }}>
+      <style>{INSPECTOR_CSS}</style>
       <InspectorStatusBar
         sessionTitle={sessionTitle}
         sessionId={insp.sessionId}
         dbConnected={dbConnected}
         contextMode={contextMode}
-        onToggleContextMode={() => setContextMode(m => m === 'harvested' ? 'warehouse_only' : 'harvested')}
+        onContextModeChange={setContextMode}
         onOpenHistory={() => setHistoryOpen(true)}
         onOpenLab={() => {
           router.push('/performance-lab');
@@ -427,28 +382,33 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
 
       {sourceChartNotice && (
         <div
+          role="status"
           style={{
             ...type['ui-regular'], display: 'flex', alignItems: 'center', gap: 8,
-            padding: '6px 24px', flexShrink: 0, color: GOLD,
-            background: 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
+            padding: '8px 20px', flexShrink: 0, color: 'var(--ink-1)',
+            background: 'var(--brand-a-soft)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
           }}
         >
           <span style={{ flex: 1 }}>{sourceChartNotice}</span>
           <button
+            type="button"
+            className="insp-btn insp-btn--icon"
+            aria-label="Dismiss"
             onClick={() => setSourceChartNotice(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brand-a)', display: 'flex' }}
+            style={{ width: 24, height: 24 }}
           >
-            <X size={12} />
+            <X size={14} />
           </button>
         </div>
       )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* LEFT — 60% conversation */}
-        <div style={{ width: '60%', display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', overflow: 'hidden', minHeight: 0 }}>
+        {/* LEFT — conversation (full width while the results pane is minimized) */}
+        <div style={{ flex: rightCollapsed ? 1 : '0 0 60%', minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', overflow: 'hidden', minHeight: 0 }}>
           <PromptCanvas
             chatError={insp.error}
             surface="inspector"
+            emptyState={<InspectorWelcome modelId={candidateModelId} onPrompt={(p) => insp.send(p)} />}
             banner={showAgentHandoff && lastUserMessage ? (
               <AgentHandoffCard
                 inspectorSessionId={insp.sessionId}
@@ -479,37 +439,61 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           />
         </div>
 
-        {/* RIGHT — 40% dashboard / semantic governance */}
-        <div style={{ width: '40%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {showRightTabBar && (
-            <RightPaneTabBar
-              activeTab={rightTab}
-              onChange={setRightTab}
-              showSemantic={hasCandidateModels}
-              showDeveloper={showDeveloperTab}
-            />
-          )}
+        {/* RIGHT — results / semantic governance / developer */}
+        {rightCollapsed && (
+          <button
+            type="button"
+            className="insp-strip"
+            onClick={() => setRightCollapsed(false)}
+            aria-label={showDeveloperTab ? 'Show results and developer panel' : 'Show results panel'}
+            title="Show results"
+            style={type.label}
+          >
+            <PanelRightOpen size={16} />
+            {hasResults && <span className="insp-strip-dot" aria-hidden />}
+            <span style={{ writingMode: 'vertical-rl' }}>Results</span>
+          </button>
+        )}
+        <div style={{ flex: '1 1 40%', minWidth: 0, display: rightCollapsed ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <RightPaneTabBar
+            activeTab={rightTab}
+            onChange={setRightTab}
+            showSemantic={hasCandidateModels}
+            showDeveloper={showDeveloperTab}
+            trailing={
+              <button
+                type="button"
+                className="insp-btn insp-btn--icon"
+                onClick={() => setRightCollapsed(true)}
+                aria-label="Minimize panel"
+                title="Minimize"
+                style={{ width: 28, height: 28 }}
+              >
+                <PanelRightClose size={16} />
+              </button>
+            }
+          />
           {rightTab === 'developer' && showDeveloperTab ? (
             <DeveloperPane
               sessionId={insp.sessionId}
               messages={insp.messages}
               isStreaming={insp.isStreaming}
               selectedModel={insp.selectedModel}
-              dbConnected={dbConnected}
+              dbConnected={dbConnected === true}
               contextMode={contextMode}
               surface="inspector"
             />
           ) : rightTab === 'results' || !hasCandidateModels ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {showChatEmptyState ? (
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <EmptyStatePrompts
-                    modelId={candidateModelId}
-                    title="Start exploring this model"
-                    includeWhatIsThis={!!candidateModelId}
-                    footerHint="Or type your own question in the chat →"
-                    onPromptClick={(p) => insp.send(p)}
-                  />
+              {showResultsEmptyState ? (
+                <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: 24 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, maxWidth: 300, textAlign: 'center' }}>
+                    <Table2 size={20} style={{ color: 'var(--ink-3)' }} />
+                    <span style={{ ...type.ui, color: 'var(--ink-1)' }}>No results yet</span>
+                    <span style={{ ...type['ui-regular'], color: 'var(--ink-2)' }}>
+                      Tables and charts from your questions appear here.
+                    </span>
+                  </div>
                 </div>
               ) : (
               <>
@@ -520,7 +504,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
                     flexShrink: 0,
                     maxHeight: '55%',
                     overflowY: 'auto',
-                    padding: '10px 12px 0',
+                    padding: '12px 12px 0',
                     borderBottom: '1px solid var(--wb-border-subtle)',
                   }}
                 >

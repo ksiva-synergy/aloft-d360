@@ -207,7 +207,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Meaning & Trust</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>STEWARD / ANALYST</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>STEWARD / ANALYST</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -304,7 +304,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Relationships</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>4 SOURCES · CONSOLIDATED</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>4 SOURCES · CONSOLIDATED</span>
           </div>
 
           {/* Graph (pattern spotting) + List (detail + actions) — always co-rendered */}
@@ -385,7 +385,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Operations</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>DATA ENGINEER</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>DATA ENGINEER</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -452,7 +452,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Usage</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>T3 · LAST 30 DAYS</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>T3 · LAST 30 DAYS</span>
           </div>
 
           {usageSnapshot ? (

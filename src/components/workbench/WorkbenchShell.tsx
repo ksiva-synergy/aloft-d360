@@ -14,7 +14,7 @@ import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { canCommissionAgent } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
 import { takeWorkbenchSeed } from '@/lib/construction/handoff';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 import {
   AGENTS_LIST_HREF,
   AGENTS_WORKBENCH_HREF,
@@ -100,7 +100,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
           <AloftSigil size={14} />
           <span style={{ ...type.label }}>Data 360</span>
           <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ ...type.label, color: GOLD }}>Agent Lab</span>
+          <span style={{ ...type.label, color: inkOf(GOLD) }}>Agent Lab</span>
           <span style={{ opacity: 0.5 }}>/</span>
           <span style={{ ...type.label, color: 'var(--wb-ink-dim)' }}>Workbench</span>
           <span style={{ opacity: 0.5 }}>/</span>
@@ -126,7 +126,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
               borderRadius: 6,
               background: 'transparent',
               border: `1px solid rgba(253,181,21,0.30)`,
-              color: GOLD,
+              color: inkOf(GOLD),
               cursor: 'pointer',
               ...type['ui-regular'],
             }}
@@ -213,6 +213,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             isCommissioning={wb.isCommissioning}
             selectedModel={wb.selectedModel}
             onModelChange={wb.setSelectedModel}
+            modelOptions={wb.availableModels}
             attachedToolIds={wb.attachedToolIds}
             onAttachTool={(id) => wb.setAttachedToolIds((prev) => [...prev, id])}
             onDetachTool={(id) => wb.setAttachedToolIds((prev) => prev.filter((x) => x !== id))}

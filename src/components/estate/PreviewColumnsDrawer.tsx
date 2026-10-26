@@ -100,7 +100,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-5 text-base hover:opacity-100 transition-opacity"
+            className="absolute top-4 right-5 text-size-body-lg hover:opacity-100 transition-opacity"
             style={{ color: textDim, opacity: 0.7 }}
           >
             ✕
@@ -121,7 +121,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textDim }}
           >
             {loading ? (
-              <span style={{ opacity: 0.5 }}>loading…</span>
+              <span style={{ color: 'var(--ink-3)', }}>loading…</span>
             ) : (
               <span>{columns.length} columns</span>
             )}
@@ -131,7 +131,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
         {/* Note */}
         <div
           className="px-5 py-2.5 border-b"
-          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: goldDim, letterSpacing: '0.04em', borderColor }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-2)', letterSpacing: '0.04em', borderColor }}
         >
           Live read from information_schema.columns — no harvest, no persistence.
         </div>
@@ -181,7 +181,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               );
             })() : (
             <div className="flex flex-col items-center gap-3 pt-12 text-center px-5">
-              <span className="text-lg opacity-40">⚠</span>
+              <span className="text-size-title-section opacity-40">⚠</span>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
                 Failed to load columns
               </span>
@@ -205,7 +205,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span
-                    className="text-xs tracking-wide uppercase px-1.5 py-0.5 rounded border"
+                    className="text-size-ui tracking-wide uppercase px-1.5 py-0.5 rounded border"
                     style={{
                       fontFamily: 'var(--font-mono)',
                       color: col.is_nullable === 'YES' ? textDim : textMuted,

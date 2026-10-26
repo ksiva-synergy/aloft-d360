@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DatasetRailProps {
@@ -189,7 +189,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                       padding: '1px 4px',
                       borderRadius: 2,
                       border: '1px solid rgba(248,113,113,0.4)',
-                      color: '#f87171',
+                      color: inkOf('#f87171'),
                       letterSpacing: '0.04em',
                     }}
                   >

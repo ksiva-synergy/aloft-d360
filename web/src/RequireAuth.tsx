@@ -33,7 +33,7 @@ export function FullPageMessage({ text }: { text: string }) {
   return (
     <div
       role="status"
-      className="flex h-full min-h-screen items-center justify-center text-sm text-[var(--ink-3)]"
+      className="flex h-full min-h-screen items-center justify-center text-size-body text-[var(--ink-3)]"
       style={{ fontFamily: 'var(--font-mono)' }}
     >
       {text}

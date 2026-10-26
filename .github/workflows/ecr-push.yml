@@ -75,6 +75,10 @@ jobs:
   build-web:
     name: Web → ECR
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: write
     outputs:
       image_uri: ${{ steps.meta.outputs.image_uri }}
     steps:
@@ -105,6 +109,10 @@ jobs:
           file: Dockerfile
           push: true
           platforms: ${{ vars.DOCKER_PLATFORM_WEB || 'linux/arm64' }}
+          # Dockerfile compiles on the runner arch. Cache the deps layer; scope
+          # by platform so an amd64 fallback does not reuse arm64 layers.
+          cache-from: type=gha,scope=${{ vars.DOCKER_PLATFORM_WEB == 'linux/amd64' && 'web-amd64' || 'web-arm64' }}
+          cache-to: type=gha,mode=max,scope=${{ vars.DOCKER_PLATFORM_WEB == 'linux/amd64' && 'web-amd64' || 'web-arm64' }},ignore-error=true
           tags: |
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:latest
             ${{ steps.ecr.outputs.registry }}/${{ env.ECR_WEB }}:${{ github.sha }}

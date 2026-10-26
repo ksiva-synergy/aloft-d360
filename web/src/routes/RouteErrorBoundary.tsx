@@ -8,7 +8,7 @@ export function RouteErrorBoundary() {
   const detail = error instanceof Error ? error.message : isRouteErrorResponse(error) ? `${error.status} ${error.statusText}` : '';
   return (
     <PageMessage text={notFound ? 'Page not found' : 'Something went wrong loading this page'}>
-      {!notFound && detail && <code className="max-w-xl break-words text-xs">{detail}</code>}
+      {!notFound && detail && <code className="max-w-xl break-words text-size-ui">{detail}</code>}
       <Link to="/dashboard" className="text-[var(--brand-a-ink)] underline">
         Back to dashboard
       </Link>

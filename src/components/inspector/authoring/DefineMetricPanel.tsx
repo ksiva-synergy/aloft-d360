@@ -13,7 +13,7 @@ import {
 } from '@/lib/semantic/authoring-draft';
 import { compileSafety } from '@/lib/semantic/compiler';
 import type { WidgetSpec } from '@/lib/dashboards/types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
@@ -633,7 +633,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                   <WidgetPreview widget={previewWidget.widget} definitions={previewWidget.defs} rows={preview!.rows} />
                   {preview!.isDraft && (
                     <span style={{
-                      position: 'absolute', top: 8, right: 8, ...type.label, background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: GOLD,
+                      position: 'absolute', top: 8, right: 8, ...type.label, background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: inkOf(GOLD),
                       border: `1px solid ${BORDER_STRONG}`, borderRadius: 4, padding: '3px 8px',
                     }}>
                       Draft — not governed
@@ -653,7 +653,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 20,
               }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6 }}>
-                  Fill the form, then <span style={{ color: GOLD }}>PREVIEW</span> to see your draft<br />compute live against the warehouse.
+                  Fill the form, then <span style={{ color: inkOf(GOLD) }}>PREVIEW</span> to see your draft<br />compute live against the warehouse.
                 </span>
               </div>
             )}

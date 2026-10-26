@@ -88,13 +88,13 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
           e.currentTarget.style.borderColor = borderColor;
         }}
       >
-        <span style={{ color: labelColor }} className="text-sm select-none">⌕</span>
+        <span style={{ color: labelColor }} className="text-size-body select-none">⌕</span>
         <input
           type="text"
           placeholder="Search objects..."
           value={searchVal}
           onChange={(e) => setSearchVal(e.target.value)}
-          className="flex-1 bg-transparent border-none outline-none text-xs transition-colors duration-200"
+          className="flex-1 bg-transparent border-none outline-none text-size-ui transition-colors duration-200"
           style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
         />
       </div>
@@ -102,7 +102,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
       {/* Semantic Toggle switch */}
       <div className="flex items-center gap-2 select-none shrink-0">
         <span
-          className="text-xs font-medium flex items-center gap-1.5"
+          className="text-size-ui font-medium flex items-center gap-1.5"
           style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}
         >
           {semanticOn && <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-a)]" />}

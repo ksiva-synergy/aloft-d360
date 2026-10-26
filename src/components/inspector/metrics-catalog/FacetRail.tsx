@@ -4,6 +4,7 @@ import React from 'react';
 import { useCatalogStore, selectFacetCounts, type LayerFacet } from './catalog-store';
 import type { DefKind, GovStatus } from './catalog-types';
 import { MONO, MUTED, INK, INK_DIM, BORDER, GOLD, kindLabel, statusLabel, kindColorVar, statusColorVar } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Faceted filter rail: Status · Type · Theme · Source · personal layers, each
@@ -41,7 +42,7 @@ export function FacetRail() {
         {anyActive && (
           <button
             onClick={clearFacets}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: 'none', cursor: 'pointer' }}
           >
             Clear all
           </button>

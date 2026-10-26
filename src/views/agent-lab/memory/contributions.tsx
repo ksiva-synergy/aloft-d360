@@ -11,7 +11,7 @@ export default function MemoryContributionsPage() {
           >
             Memory Contributions
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-size-body text-muted-foreground mt-1">
             Per-domain memory-cred leaderboard — reputation earned through accepted memory contributions.
           </p>
         </div>

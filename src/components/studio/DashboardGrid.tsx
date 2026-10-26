@@ -5,7 +5,7 @@ import { ArrowLeftRight, Settings2 } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
 import StudioChart from './StudioChart';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Surface tokens (direct hex — consistent with spec) ────────────────────────
 const T = {
@@ -260,7 +260,7 @@ function GearMenu({
               background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
               border: `1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)`,
               borderRadius: 3,
-              color: T.gold,
+              color: inkOf(T.gold),
               cursor: 'pointer',
               padding: '4px 8px',
               ...type.label,

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { ExportReadyMessage } from '@/hooks/useInspectorChat';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -63,7 +63,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
       <div
         style={{
           ...type.label,
-          color: GOLD,
+          color: inkOf(GOLD),
           marginBottom: 6,
         }}
       >

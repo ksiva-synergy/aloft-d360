@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -40,7 +41,7 @@ export function RawSqlBadge({
         padding: size === 'xs' ? '1px 5px' : '2px 6px',
         borderRadius: 3,
         background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
-        color: AMBER,
+        color: inkOf(AMBER),
         border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
         whiteSpace: 'nowrap',
         flexShrink: 0,

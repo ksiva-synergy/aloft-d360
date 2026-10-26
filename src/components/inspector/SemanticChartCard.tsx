@@ -9,10 +9,10 @@ import { TrustPanel } from './TrustPanel';
 import { DefineMetricPanel, type DefineMetricPrefill } from './authoring/DefineMetricPanel';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { ChartSpec } from '@/lib/studio/types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a-ink)';
 
@@ -212,7 +212,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             borderRadius: 3,
             padding: '3px 8px',
             background: 'transparent',
-            color: GOLD,
+            color: inkOf(GOLD),
             flexShrink: 0,
             transition: 'all 0.15s',
           }}
@@ -226,8 +226,8 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
           <span
             style={{
               ...MONO,
-              fontSize: 13,
-              color: '#86EFAC',
+              fontSize: 'var(--type-ui-regular-size)',
+              color: inkOf('#86EFAC'),
               display: 'flex',
               alignItems: 'center',
               gap: 4,
@@ -251,7 +251,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               borderRadius: 3,
               padding: '3px 8px',
               background: 'transparent',
-              color: GOLD,
+              color: inkOf(GOLD),
               flexShrink: 0,
               transition: 'all 0.15s',
             }}
@@ -274,7 +274,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             alignItems: 'center',
             gap: 5,
             padding: '4px 12px 0',
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--wb-muted)',
           }}
         >
@@ -314,7 +314,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
               placeholder='Refine this chart — e.g. "break out by region"'
               style={{
                 ...MONO,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 flex: 1,
                 background: 'var(--wb-canvas)',
                 border: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
@@ -361,7 +361,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
                   borderRadius: 3,
                   padding: '4px 9px',
                   background: showDraft ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'transparent',
-                  color: GOLD,
+                  color: inkOf(GOLD),
                   cursor: 'pointer',
                 }}
               >
@@ -417,7 +417,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             placeholder="Chart name"
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               width: '100%',
               background: 'var(--wb-canvas)',
               border: '1px solid color-mix(in srgb, var(--brand-a-ink) 35%, transparent)',
@@ -436,7 +436,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             placeholder="Description (optional)"
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               width: '100%',
               background: 'var(--wb-canvas)',
               border: '1px solid color-mix(in srgb, var(--brand-a-ink) 21%, transparent)',
@@ -449,7 +449,7 @@ export function SemanticChartCard({ message, echartsOption, sourceChartId, onRef
             }}
           />
           {saveError && (
-            <p style={{ ...MONO, fontSize: 13, color: '#F87171', marginBottom: 6 }}>{saveError}</p>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', marginBottom: 6 }}>{saveError}</p>
           )}
           <button
             onClick={handleSave}

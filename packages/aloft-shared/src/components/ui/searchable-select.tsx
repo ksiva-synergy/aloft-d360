@@ -74,7 +74,7 @@ export function SearchableSelect({
           disabled={disabled}
           className={cn(
             'w-full justify-between font-normal',
-            'h-10 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-sm text-gray-900 dark:text-white',
+            'h-10 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-size-body text-gray-900 dark:text-white',
             'hover:border-gray-400 dark:hover:border-slate-500 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2',
             !value && 'text-gray-500 dark:text-slate-400',
             triggerClassName,
@@ -98,7 +98,7 @@ export function SearchableSelect({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className="flex h-10 w-full bg-transparent py-3 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-500 dark:placeholder:text-slate-400"
+            className="flex h-10 w-full bg-transparent py-3 text-size-body text-gray-900 dark:text-white outline-none placeholder:text-gray-500 dark:placeholder:text-slate-400"
           />
           {search && (
             <button
@@ -114,7 +114,7 @@ export function SearchableSelect({
           className="max-h-[300px] overflow-y-auto p-1"
         >
           {filtered.length === 0 ? (
-            <div className="py-6 text-center text-sm text-gray-500 dark:text-slate-400">
+            <div className="py-6 text-center text-size-body text-gray-500 dark:text-slate-400">
               {emptyMessage}
             </div>
           ) : (
@@ -123,7 +123,7 @@ export function SearchableSelect({
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
                 className={cn(
-                  'relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-none',
+                  'relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-8 pr-2 text-size-body outline-none',
                   'hover:bg-orange-50 dark:hover:bg-slate-600 hover:text-orange-900 dark:hover:text-white',
                   'transition-colors',
                   value === option.value && 'bg-orange-50 dark:bg-slate-600'
@@ -139,7 +139,7 @@ export function SearchableSelect({
                     {option.label}
                   </span>
                   {option.sublabel && (
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                    <span className="text-size-ui text-gray-500 dark:text-slate-400">
                       {option.sublabel}
                     </span>
                   )}

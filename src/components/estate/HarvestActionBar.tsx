@@ -18,6 +18,7 @@ import React, { useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
+import { inkOf } from '@/lib/typography/tokens';
 
 interface TierRow {
   tier: string;
@@ -43,6 +44,7 @@ function formatRelativeTime(iso: string | null): string {
 interface HarvestActionBarProps {
   objectId: string;
   sourceId: string;
+  fullPath: string;
   last_t0_at: string | null;
   last_t1_at: string | null;
   last_t2_at: string | null;
@@ -54,6 +56,7 @@ interface HarvestActionBarProps {
 export default function HarvestActionBar({
   objectId,
   sourceId: _sourceId,
+  fullPath,
   last_t0_at,
   last_t1_at,
   last_t2_at,
@@ -110,7 +113,10 @@ export default function HarvestActionBar({
     setOpen(false);
     try {
       const body = row.jobKind
-        ? JSON.stringify({ kind: row.jobKind, scope: { path: undefined } })
+        ? JSON.stringify({
+            kind: row.jobKind,
+            scope: { includePatterns: [fullPath] },
+          })
         : undefined;
       const res = await fetch(row.triggerEndpoint, {
         method: 'POST',
@@ -197,13 +203,13 @@ export default function HarvestActionBar({
               <>{queued.length > 0 ? ' · ' : ''}Kicked stuck: <strong>{kicked.map(t => t.key.toUpperCase()).join(', ')}</strong></>
             )}
             {debounced.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · {debounced.map(t => t.key.toUpperCase()).join(', ')} already running</span>
+              <span style={{  }}> · {debounced.map(t => t.key.toUpperCase()).join(', ')} already running</span>
             )}
             {deferred.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · T4 deferred — re-run after T2 completes</span>
+              <span style={{  }}> · T4 deferred — re-run after T2 completes</span>
             )}
             {errored.length > 0 && (
-              <span style={{ color: '#F87171' }}> · {errored.map(t => t.key.toUpperCase()).join(', ')} failed</span>
+              <span style={{ color: inkOf('#F87171') }}> · {errored.map(t => t.key.toUpperCase()).join(', ')} failed</span>
             )}
             {linkJobId && (
               <>
@@ -218,7 +224,7 @@ export default function HarvestActionBar({
           <span>
             All tiers already running — {debounced.map(t => t.key.toUpperCase()).join(', ')} in progress
             {deferred.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · T4 deferred — re-run after T2 completes</span>
+              <span style={{  }}> · T4 deferred — re-run after T2 completes</span>
             )}
             {linkJobId && (
               <>

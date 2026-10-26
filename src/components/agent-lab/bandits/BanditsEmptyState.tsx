@@ -20,24 +20,24 @@ export function BanditsEmptyState() {
               className="w-10 h-12 rounded-lg border-2 border-dashed border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center justify-center"
               style={{ animationDelay: `${i * 0.15}s` }}
             >
-              <span className="text-lg font-semibold text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)] animate-lab-count-pulse">
+              <span className="text-size-title-section font-semibold text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)] animate-lab-count-pulse">
                 {ch}
               </span>
             </div>
           ))}
         </div>
 
-        <h3 className="text-base font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-2">
+        <h3 className="text-size-body-lg font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-2">
           No pulls yet
         </h3>
-        <p className="text-sm text-[var(--ink-3)] dark:text-[color:var(--ink-3)] leading-relaxed mb-6">
+        <p className="text-size-body text-[var(--ink-3)] dark:text-[color:var(--ink-3)] leading-relaxed mb-6">
           Run your first backfill job to start collecting agent performance data.
           Once model stats accumulate, the bandit will show which arms are winning.
         </p>
 
         <Link
           href="/agent-lab/estate/jobs"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-[var(--brand-a)] to-[var(--brand-a-2)] text-white hover:from-[var(--brand-a)] hover:to-[var(--brand-a-2)] shadow-sm hover:shadow-md transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-size-body font-medium bg-gradient-to-r from-[var(--brand-a)] to-[var(--brand-a-2)] text-white hover:from-[var(--brand-a)] hover:to-[var(--brand-a-2)] shadow-sm hover:shadow-md transition-all"
         >
           Go to Backfill
           <ArrowRight className="h-3.5 w-3.5" />

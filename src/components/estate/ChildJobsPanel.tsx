@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
+import { inkOf } from '@/lib/typography/tokens';
 
 export interface ChildJob {
   id: string;
@@ -87,14 +88,14 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
           className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0"
           style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }}
         />
-        <span className="text-[length:var(--type-caption-size)] font-sans" style={{ color: '#8892A4' }}>Loading child jobs...</span>
+        <span className="text-[length:var(--type-caption-size)] font-sans" style={{ color: inkOf('#8892A4') }}>Loading child jobs...</span>
       </div>
     );
   }
 
   if (children.length === 0) {
     return (
-      <div className="text-[length:var(--type-caption-size)] font-sans py-3 px-4" style={{ color: '#8892A4' }}>
+      <div className="text-[length:var(--type-caption-size)] font-sans py-3 px-4" style={{ color: inkOf('#8892A4') }}>
         No child jobs found.
       </div>
     );
@@ -109,13 +110,13 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
         style={{ borderColor: 'rgba(253,181,21,0.15)', backgroundColor: 'rgba(253,181,21,0.04)' }}
       >
         <div className="flex items-center gap-3 text-[length:var(--type-caption-size)] font-mono">
-          <span className="font-semibold" style={{ color: '#FDB515' }}>{counts?.total ?? children.length} chunks</span>
+          <span className="font-semibold" style={{ color: inkOf('#FDB515') }}>{counts?.total ?? children.length} chunks</span>
           {counts && (
             <>
-              {counts.running > 0 && <span style={{ color: '#FDB515' }}>{counts.running} running</span>}
-              {counts.queued > 0 && <span style={{ color: '#8892A4' }}>{counts.queued} queued</span>}
-              {counts.succeeded > 0 && <span style={{ color: '#2DD4A0' }}>{counts.succeeded} done</span>}
-              {counts.failed > 0 && <span style={{ color: '#EF4444' }}>{counts.failed} failed</span>}
+              {counts.running > 0 && <span style={{ color: inkOf('#FDB515') }}>{counts.running} running</span>}
+              {counts.queued > 0 && <span style={{ color: inkOf('#8892A4') }}>{counts.queued} queued</span>}
+              {counts.succeeded > 0 && <span style={{ color: inkOf('#2DD4A0') }}>{counts.succeeded} done</span>}
+              {counts.failed > 0 && <span style={{ color: inkOf('#EF4444') }}>{counts.failed} failed</span>}
             </>
           )}
         </div>
@@ -125,7 +126,7 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
             onClick={retryFailed}
             disabled={retrying}
       className="text-label inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[length:var(--type-caption-size)] transition-colors disabled:opacity-50"
-            style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' }}
+            style={{ borderColor: 'rgba(239,68,68,0.4)', color: inkOf('#EF4444'), backgroundColor: 'rgba(239,68,68,0.08)' }}
           >
             Retry {failedCount} failed
           </button>

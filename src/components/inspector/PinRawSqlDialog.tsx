@@ -11,7 +11,7 @@ import {
   type RawSqlChartDsl,
 } from '@/lib/dashboards/raw-sql-chart';
 import { RawSqlBadge } from './RawSqlBadge';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const GOLD = 'var(--brand-a)';
@@ -195,7 +195,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <Pin size={13} style={{ color: GOLD }} />
-          <span style={{ ...type.label, color: GOLD, flex: 1 }}>
+          <span style={{ ...type.label, color: inkOf(GOLD), flex: 1 }}>
             PIN RAW-SQL CHART
           </span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--wb-muted)', display: 'flex' }}>

@@ -15,16 +15,16 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
     <div className="bandit-card overflow-hidden">
       <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <Trophy className="h-4 w-4 text-amber-500" />
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Leaderboard
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
+        <span className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           {models.length} arms
         </span>
       </div>
 
       <div className="overflow-x-auto bandit-scrollbar">
-        <table className="w-full text-xs">
+        <table className="w-full text-size-ui">
           <thead>
             <tr className="border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
               <th className="px-4 py-2.5 text-left font-medium text-[var(--ink-3)] dark:text-[color:var(--ink-3)] w-10">#</th>
@@ -54,7 +54,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                     onClick={() => setExpandedModel(isExpanded ? null : model.model_name)}
                   >
                     <td className="px-4 py-3">
-                      <span className={cn('text-sm font-semibold', medalClass || 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]')}>
+                      <span className={cn('text-size-body font-semibold', medalClass || 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]')}>
                         {idx + 1}
                       </span>
                     </td>
@@ -70,7 +70,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={cn('inline-flex px-1.5 py-0.5 rounded text-xs font-medium border', provColors.bg, provColors.text, provColors.border)}>
+                      <span className={cn('inline-flex px-1.5 py-0.5 rounded text-size-ui font-medium border', provColors.bg, provColors.text, provColors.border)}>
                         {model.provider}
                       </span>
                     </td>
@@ -112,7 +112,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span className={cn(
-                        'inline-flex px-1.5 py-0.5 rounded text-xs font-medium',
+                        'inline-flex px-1.5 py-0.5 rounded text-size-ui font-medium',
                         model.phase === 'exploring'
                           ? 'bg-[color:var(--brand-a-soft)] text-[color:var(--brand-a-ink)] dark:bg-[color:color-mix(in_srgb,var(--brand-a)_30%,transparent)] dark:text-[color:var(--brand-a-ink)]'
                           : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'

@@ -28,7 +28,7 @@ export interface AppearanceVars { light: Vars; dark: Vars }
 
 export const ACCENT_PRESETS: { name: string; hex: string }[] = [
   { name: 'Terracotta', hex: '#A8481F' },
-  { name: 'Sapphire', hex: '#1F5FD6' },
+  { name: 'Sapphire', hex: '#3B78FF' },
   { name: 'Steel',    hex: '#5B8DB8' },
   { name: 'Teal',     hex: '#0F9488' },
   { name: 'Emerald',  hex: '#16A34A' },
@@ -132,7 +132,7 @@ const DARK_SURFACE = "#1A1B1D";
 /** The defaults in globals.css, per mode. */
 export const MODE_DEFAULTS = {
   light: { accent: "#A8481F", rail: "#ECEFE6" }, // Sage Studio shell-bg
-  dark:  { accent: "#1F5FD6", rail: "#16171A" }, // Data 360 Night sidebar (graphite)
+  dark:  { accent: "#3B78FF", rail: "#16171A" }, // Data 360 Night sidebar (graphite)
 } as const;
 
 type Mode = "light" | "dark";
@@ -155,8 +155,8 @@ function buildForMode(mode: Mode, appearance: Appearance): Vars {
   const baseAccent = isHex(accent) ? accent : MODE_DEFAULTS[mode].accent;
 
   if (isHex(accent)) {
-    // Solid brand color: always carries white text at AA.
-    const brand = shiftUntil(accent, "#FFFFFF", 4.5, -1);
+    // Solid brand color carries white text: AA in light mode; dark mode allows 3.8:1 so picks stay vivid.
+    const brand = shiftUntil(accent, "#FFFFFF", mode === "dark" ? 3.8 : 4.5, -1);
     vars["--brand-a"] = brand;
     vars["--brand-a-2"] = withLightness(brand, Math.min(0.72, rgbToHsl(toRgb(brand))[2] + 0.1));
     if (mode === "light") {

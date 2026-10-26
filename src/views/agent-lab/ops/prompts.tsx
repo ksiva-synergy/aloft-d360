@@ -37,7 +37,7 @@ export default function AgentOpsPromptsPage() {
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: 8 }} />
         <textarea placeholder="Template" value={template} onChange={(e) => setTemplate(e.target.value)} rows={6} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: 8 }} />
-        <button type="button" onClick={onCreate} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: '8px 12px', alignSelf: 'flex-start' }}>Save prompt</button>
+        <button type="button" onClick={onCreate} style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', padding: '8px 12px', alignSelf: 'flex-start' }}>Save prompt</button>
       </div>
       <ul style={{ marginTop: 24, listStyle: 'none', padding: 0 }}>
         {prompts.map((p) => (

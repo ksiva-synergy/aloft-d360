@@ -5,6 +5,7 @@ import { RotateCcw } from 'lucide-react';
 import { useBuilderStore } from './builder-store';
 import { computeVersionDiff, type VersionDiffSummary } from './version-diff';
 import type { WidgetSpec } from '@/lib/dashboards/types';
+import { inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -134,7 +135,7 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
               <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span>v{v.version_number}</span>
                 {isCurrent && (
-                  <span style={{ fontSize: 'var(--type-ui-regular-size)', padding: '1px 4px', borderRadius: 2, background: 'rgba(134,239,172,0.1)', color: '#86EFAC', border: '1px solid rgba(134,239,172,0.2)' }}>
+                  <span style={{ fontSize: 'var(--type-ui-regular-size)', padding: '1px 4px', borderRadius: 2, background: 'rgba(134,239,172,0.1)', color: inkOf('#86EFAC'), border: '1px solid rgba(134,239,172,0.2)' }}>
                     CURRENT
                   </span>
                 )}

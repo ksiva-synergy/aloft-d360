@@ -53,10 +53,10 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
     <div className="bandit-card overflow-hidden">
       <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <Grid3X3 className="h-4 w-4 text-[color:var(--brand-a-ink)]" />
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Agent Performance Heatmap
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
+        <span className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           {agents.length} agents
         </span>
       </div>
@@ -68,7 +68,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             <div className="px-2 py-1.5" />
             {METRICS.map(m => (
               <div key={m.key} className="px-2 py-1.5 text-center">
-                <span className="text-xs uppercase tracking-wide font-semibold text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
+                <span className="text-size-ui uppercase tracking-wide font-semibold text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
                   {m.label}
                 </span>
               </div>
@@ -78,7 +78,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             {agents.map((agent, rowIdx) => (
               <React.Fragment key={agent.sheet_id}>
                 <div className="px-2 py-2 flex items-center gap-1.5">
-                  <span className="text-xs font-medium text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] truncate">
+                  <span className="text-size-ui font-medium text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] truncate">
                     {agent.sheet_id}
                   </span>
                   {agent.trend > 0.05 && <TrendingUp className="h-3 w-3 text-emerald-500 shrink-0" />}
@@ -102,7 +102,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
                       onMouseLeave={() => setHoveredCell(null)}
                       title={`${agent.sheet_id} - ${m.label}: ${m.format(val)}`}
                     >
-                      <span className="text-xs font-mono font-medium">
+                      <span className="text-size-ui font-mono font-medium">
                         {m.format(val)}
                       </span>
                     </div>
@@ -116,18 +116,18 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
 
       {/* Legend */}
       <div className="px-5 py-2 border-t border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-4">
-        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Performance:</span>
+        <span className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">Performance:</span>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-red-100 dark:bg-red-950/30" />
-          <span className="text-xs text-[var(--ink-3)]">Low</span>
+          <span className="text-size-ui text-[var(--ink-3)]">Low</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-amber-50 dark:bg-amber-950/20" />
-          <span className="text-xs text-[var(--ink-3)]">Mid</span>
+          <span className="text-size-ui text-[var(--ink-3)]">Mid</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 rounded-sm bg-emerald-100 dark:bg-emerald-950/40" />
-          <span className="text-xs text-[var(--ink-3)]">High</span>
+          <span className="text-size-ui text-[var(--ink-3)]">High</span>
         </div>
       </div>
     </div>

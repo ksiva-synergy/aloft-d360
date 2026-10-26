@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { type } from '@/lib/typography/tokens';
 
 export interface EstateFilterState {
+  sourceId?: string;
   catalog?: string;
   schema?: string;
   kind?: string;

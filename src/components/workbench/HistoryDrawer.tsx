@@ -5,7 +5,7 @@ import { useRouter } from '@/lib/navigation';
 import { useSession } from 'next-auth/react';
 import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User, Activity } from 'lucide-react';
 import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 interface Session {
   id: string;
@@ -215,7 +215,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 8,
               background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
-              color: GOLD, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, cursor: 'pointer',
+              color: inkOf(GOLD), fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
           >
@@ -235,7 +235,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
             <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--wb-muted)' }}>
               <FileText size={28} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No past sessions yet.</p>
-              <p style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, opacity: 0.6 }}>Start a new chat to get going.</p>
+              <p style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, color: 'var(--ink-3)', }}>Start a new chat to get going.</p>
             </div>
           ) : (
             <>
@@ -380,7 +380,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                 </span>
                 {s.pinned && <span style={{ fontSize: 'var(--type-ui-regular-size)', color: GOLD, ...mono }}>★</span>}
                 {isCurrent && (
-                  <span style={{ fontSize: 'var(--type-ui-regular-size)', color: '#86EFAC', ...mono, letterSpacing: '0.04em' }}>ACTIVE</span>
+                  <span style={{ fontSize: 'var(--type-ui-regular-size)', color: inkOf('#86EFAC'), ...mono, letterSpacing: '0.04em' }}>ACTIVE</span>
                 )}
               </div>
               <div style={{
@@ -409,7 +409,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                   </span>
                 )}
                 {s.surface === 'inspector' && (s.query_result_count ?? 0) > 0 && (
-                  <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: GOLD, opacity: 0.7 }}>
+                  <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),  }}>
                     · {s.query_result_count} quer{(s.query_result_count ?? 0) !== 1 ? 'ies' : 'y'}
                   </span>
                 )}

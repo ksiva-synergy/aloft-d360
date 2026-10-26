@@ -15,6 +15,7 @@ interface FacetSchema {
 }
 
 interface EstateFacetTreeProps {
+  sourceId?: string;
   selectedCatalog?: string;
   selectedSchema?: string;
   onSelect: (catalog?: string, schema?: string) => void;
@@ -23,7 +24,7 @@ interface EstateFacetTreeProps {
   showTestSources?: boolean;
 }
 
-export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSelect, total, refreshKey = 0, showTestSources = false }: EstateFacetTreeProps) {
+export default function EstateFacetTree({ sourceId, selectedCatalog, selectedSchema, onSelect, total, refreshKey = 0, showTestSources = false }: EstateFacetTreeProps) {
   const [catalogs, setCatalogs] = useState<FacetCatalog[]>([]);
   const [schemas, setSchemas] = useState<FacetSchema[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -34,6 +35,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
     try {
       const params = new URLSearchParams();
       if (!showTestSources) params.append('excludeTestSources', 'true');
+      if (sourceId) params.append('sourceId', sourceId);
       const res = await fetch(`/api/agent-lab/context/estate/facets?${params}`);
       if (!res.ok) return;
       const data = await res.json();
@@ -44,7 +46,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
     } finally {
       setLoading(false);
     }
-  }, [showTestSources]);
+  }, [showTestSources, sourceId]);
 
   useEffect(() => { void fetchFacets(); }, [fetchFacets, refreshKey]);
 

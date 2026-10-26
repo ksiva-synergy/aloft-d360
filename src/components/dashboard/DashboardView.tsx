@@ -110,7 +110,7 @@ function MiniStat({
 function Sparkline({ data, color, height = 52 }: { data: number[]; color: string; height?: number }) {
   const width = 220;
   if (!data || data.length < 2) {
-    return <div className="flex items-center text-sm text-[var(--ink-3)]" style={{ height }}>Not enough history yet</div>;
+    return <div className="flex items-center text-size-body text-[var(--ink-3)]" style={{ height }}>Not enough history yet</div>;
   }
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -165,7 +165,7 @@ function MiniBars({ data, color, height = 52 }: { data: number[]; color: string;
 function CoverageRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const p = pct(count, total);
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-3 text-size-body">
       <span className="w-[74px] font-semibold text-[var(--ink-2)]">{label}</span>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${p}%`, background: color }} />
@@ -199,13 +199,13 @@ function ModuleCard({
             <Icon size={22} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold tracking-tight text-[var(--ink-1)]">{title}</h2>
-            <p className="truncate text-sm text-[var(--ink-3)]">{subtitle}</p>
+            <h2 className="truncate text-size-title-section font-semibold tracking-tight text-[var(--ink-1)]">{title}</h2>
+            <p className="truncate text-size-body text-[var(--ink-3)]">{subtitle}</p>
           </div>
         </div>
         <Link
           href={href}
-          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold no-underline transition-colors hover:bg-[var(--surface-2)]"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-size-body font-semibold no-underline transition-colors hover:bg-[var(--surface-2)]"
           style={{ color: inkOf(accent), borderColor: `color-mix(in srgb, ${accent} 40%, transparent)` }}
         >
           {linkLabel}
@@ -228,7 +228,7 @@ function EmptyState({ text }: { text: string }) {
 function FootStat({ icon: Icon, text, tone }: { icon: React.ElementType; text: string; tone?: string }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]"
+      className="inline-flex items-center gap-1.5 text-size-body font-semibold text-[var(--ink-2)]"
       style={tone ? { color: tone } : undefined}
     >
       <Icon size={16} className={tone ? undefined : 'text-[var(--ink-3)]'} />
@@ -279,7 +279,7 @@ function MemoryBody({ m }: { m: MemorySummary | null }) {
       <div>
         <div className="mb-2 flex justify-between">
           <Label>Store growth · 30 days</Label>
-          <span className="text-sm text-[var(--ink-3)]">{m.injectEnabled ? 'Injection on' : 'Injection off'}</span>
+          <span className="text-size-body text-[var(--ink-3)]">{m.injectEnabled ? 'Injection on' : 'Injection off'}</span>
         </div>
         <Sparkline data={m.storeSeries} color={ACCENT.memory} />
       </div>
@@ -325,7 +325,7 @@ function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {l.roleDistribution.map((r, i) => (
-              <span key={r.role} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]">
+              <span key={r.role} className="inline-flex items-center gap-1.5 text-size-body font-semibold text-[var(--ink-2)]">
                 <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: ROLE_COLORS[i % ROLE_COLORS.length] }} />
                 {roleLabelFor(r.role)} · {r.count}
               </span>
@@ -343,8 +343,8 @@ function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers
                 ? <ShieldCheck size={17} className="shrink-0 text-[var(--ok)]" />
                 : <ShieldAlert size={17} className="shrink-0 text-[var(--warn)]" />}
               <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.name || r.email}</span>
-              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-xs font-semibold uppercase text-[var(--ink-2)]">{r.provider}</span>
-              <span className="w-[70px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
+              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-size-ui font-semibold uppercase text-[var(--ink-2)]">{r.provider}</span>
+              <span className="w-[70px] text-right text-size-body text-[var(--ink-3)]">{relativeTime(r.at)}</span>
             </div>
           ))}
         </div>
@@ -368,7 +368,7 @@ function InspectorBody({ s, canReadUsers }: { s: InspectorSummary | null; canRea
       <div>
         <div className="mb-2 flex justify-between">
           <Label>Sessions · 7 days</Label>
-          <span className="text-sm text-[var(--ink-3)]">{fmt(s.sessions7d)} total</span>
+          <span className="text-size-body text-[var(--ink-3)]">{fmt(s.sessions7d)} total</span>
         </div>
         <MiniBars data={s.dailyCounts} color={ACCENT.inspector} />
       </div>
@@ -381,10 +381,10 @@ function InspectorBody({ s, canReadUsers }: { s: InspectorSummary | null; canRea
               <MessageSquare size={17} className="shrink-0 text-[var(--ink-3)]" />
               <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.title}</span>
               {canReadUsers && r.user && (
-                <span className="max-w-[110px] truncate text-sm text-[var(--ink-3)]">{r.user}</span>
+                <span className="max-w-[110px] truncate text-size-body text-[var(--ink-3)]">{r.user}</span>
               )}
-              <span className="text-sm text-[var(--ink-3)]">{r.messageCount} msg</span>
-              <span className="w-[60px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
+              <span className="text-size-body text-[var(--ink-3)]">{r.messageCount} msg</span>
+              <span className="w-[60px] text-right text-size-body text-[var(--ink-3)]">{relativeTime(r.at)}</span>
             </div>
           ))}
         </div>
@@ -427,7 +427,7 @@ function KpiTile({
           {value}
         </div>
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="truncate text-sm text-[var(--ink-3)]">{sub}</span>
+          <span className="truncate text-size-body text-[var(--ink-3)]">{sub}</span>
           <ArrowUpRight
             size={17}
             className="shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-70"
@@ -485,18 +485,18 @@ export function DashboardView({
           className="mb-8 flex flex-wrap items-end justify-between gap-4"
         >
           <div>
-            <h1 className="text-[length:var(--type-display-size)] font-semibold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">
+            <h1 className="text-[length:var(--type-display-size)] font-semibold leading-tight tracking-tight text-[var(--ink-1)] sm:text-size-display">
               {greeting}, {displayName} <span aria-hidden>👋</span>
             </h1>
-            <p className="mt-1.5 text-base text-[var(--ink-3)]">
+            <p className="mt-1.5 text-size-body-lg text-[var(--ink-3)]">
               Here&rsquo;s what&rsquo;s happening across your ALOFT platform.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-sm font-semibold text-[var(--brand-a-ink)]">
+            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-size-body font-semibold text-[var(--brand-a-ink)]">
               {roleLabel}
             </span>
-            {mounted && <span className="text-sm font-semibold text-[var(--ink-3)]">{dateStr}</span>}
+            {mounted && <span className="text-size-body font-semibold text-[var(--ink-3)]">{dateStr}</span>}
           </div>
         </motion.header>
 
@@ -537,7 +537,7 @@ export function DashboardView({
         </div>
 
         {/* ── Footer ─────────────────────────────────── */}
-        <p className="mt-6 text-sm text-[var(--ink-3)]">
+        <p className="mt-6 text-size-body text-[var(--ink-3)]">
           ALOFT platform overview{mounted ? ` · refreshed ${relativeTime(summary.generatedAt)}` : ''}
         </p>
       </div>

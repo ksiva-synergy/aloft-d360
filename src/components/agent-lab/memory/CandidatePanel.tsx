@@ -47,7 +47,7 @@ export function CandidatePanel({
     <div className="flex flex-col gap-6 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface)] p-5">
       {/* Header and Discard Summaries */}
       <div className="flex flex-col gap-4 border-b border-[var(--foer-border-dim)] pb-4">
-        <h3 className="font-mono text-xs font-semibold tracking-wide text-[var(--foer-text-sec)]">
+        <h3 className="font-mono text-size-ui font-semibold tracking-wide text-[var(--foer-text-sec)]">
           KEEPER'S VERDICT METRICS
         </h3>
         
@@ -63,22 +63,22 @@ export function CandidatePanel({
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="font-sans text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+              <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
                 Captain Track Sparrow Sieved
               </span>
               <HelpCircle size={10} className="text-[var(--foer-text-mut)] cursor-help" />
             </div>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span
-                className="font-mono text-2xl font-semibold"
+                className="font-mono text-size-kpi-lg font-semibold"
                 style={{ color: RULE_TYPE_COLORS.FAILURE_MODE }}
               >
                 {marcusSieved}
               </span>
-              <span className="text-xs text-[var(--foer-text-mut)] font-mono">candidates</span>
+              <span className="text-size-ui text-[var(--foer-text-mut)] font-mono">candidates</span>
             </div>
             {/* Tooltip */}
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-size-ui text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
               Transient noise (typos, retry loops, timeouts) discarded by the filter sieve.
             </div>
           </div>
@@ -93,22 +93,22 @@ export function CandidatePanel({
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+              <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
                 Rama Blocked
               </span>
               <ShieldAlert size={10} className="text-[var(--foer-text-mut)] cursor-help" />
             </div>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span
-                className="font-mono text-2xl font-semibold"
+                className="font-mono text-size-kpi-lg font-semibold"
                 style={{ color: GOLD }}
               >
                 {phantomsBlocked}
               </span>
-              <span className="text-xs text-[var(--foer-text-mut)] font-mono">phantoms</span>
+              <span className="text-size-ui text-[var(--foer-text-mut)] font-mono">phantoms</span>
             </div>
             {/* Tooltip */}
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-size-ui text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
               Phantom references blocked (referenced entities not found in the trace outcome).
             </div>
           </div>
@@ -118,17 +118,17 @@ export function CandidatePanel({
       {/* Kept Playbook Rules */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-mono text-xs font-semibold text-[var(--foer-text-sec)]">
+          <h4 className="font-mono text-size-ui font-semibold text-[var(--foer-text-sec)]">
             KEPT MEMORIES ({bullets.length})
           </h4>
-          <span className="font-mono text-xs text-[var(--foer-text-mut)]">
+          <span className="font-sans text-size-ui text-[var(--foer-text-mut)]">
             Total Produced: {candidatesProduced}
           </span>
         </div>
 
         {bullets.length === 0 ? (
           <div className="flex h-32 flex-col items-center justify-center rounded bg-[var(--foer-surface2)] border border-dashed border-[var(--foer-border-dim)] p-4 text-center">
-            <span className="font-sans text-xs text-[var(--foer-text-mut)]">
+            <span className="font-sans text-size-ui text-[var(--foer-text-mut)]">
               No memory bullets retained from this session.
             </span>
           </div>
@@ -145,7 +145,7 @@ export function CandidatePanel({
                   {/* Type and Confidence row */}
                   <div className="flex items-center justify-between">
                     <span
-                      className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded"
+                      className="font-mono text-size-ui font-semibold px-1.5 py-0.5 rounded"
                       style={{
                         backgroundColor: `${withAlpha(accentColor, '15')}`,
                         color: accentColor,
@@ -153,23 +153,23 @@ export function CandidatePanel({
                     >
                       {bullet.ruleType.replace('_', ' ')}
                     </span>
-                    <span className="font-mono text-xs text-[var(--foer-text-mut)]">
+                    <span className="font-mono text-size-ui text-[var(--foer-text-mut)]">
                       Confidence: {(bullet.confidence * 100).toFixed(0)}%
                     </span>
                   </div>
 
                   {/* Rule Text */}
-                  <p className="text-xs text-[var(--foer-text-pri)] leading-relaxed font-medium">
+                  <p className="text-size-ui text-[var(--foer-text-pri)] leading-relaxed font-medium">
                     {bullet.ruleText}
                   </p>
 
                   {/* Rationale */}
                   {bullet.rationale && (
                     <div className="border-t border-[var(--foer-border-dim)] pt-1.5 mt-0.5">
-                      <span className="font-mono text-xs text-[var(--foer-text-mut)] block mb-0.5">
+                      <span className="font-mono text-size-ui text-[var(--foer-text-mut)] block mb-0.5">
                         RATIONALE:
                       </span>
-                      <p className="text-xs text-[var(--foer-text-sec)] italic">
+                      <p className="text-size-ui text-[var(--foer-text-sec)] italic">
                         {bullet.rationale}
                       </p>
                     </div>
@@ -183,7 +183,7 @@ export function CandidatePanel({
 
       {/* Decorative Caption */}
       <div className="border-t border-[var(--foer-border-dim)] pt-4 text-center">
-        <p className="text-xs italic text-[var(--foer-text-mut)] leading-relaxed px-4">
+        <p className="text-size-ui italic text-[var(--foer-text-mut)] leading-relaxed px-4">
           "Failures become rules in the imperative. A retry loop becomes nothing."
         </p>
       </div>

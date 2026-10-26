@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import LogStreamPanel from './LogStreamPanel';
 import ChildJobsPanel from './ChildJobsPanel';
 import { mapJobStatus, isKickableJob, isOrchestratingParent } from '@/lib/estate/job-ui';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
 
@@ -67,7 +67,7 @@ function EmbedJobStatsNote({ stats }: { stats: Record<string, unknown> }) {
   return (
     <p className="font-mono text-[length:var(--type-caption-size)] leading-relaxed px-1 text-[var(--text-muted)]">
       Counts below are for this run only (new or changed vectors). Unchanged rows are in{' '}
-      <span style={{ color: '#93C5FD' }}>skipped</span>
+      <span style={{ color: inkOf('#93C5FD') }}>skipped</span>
       {typeof skipped === 'number' ? ` (${skipped.toLocaleString()})` : ''}. Estate totals are on
       Catalog → Scanned &amp; Beyond (Embed tier).
       {typeof objects === 'number' || typeof columns === 'number' ? (
@@ -93,14 +93,14 @@ function JsonDisplay({ data }: { data: unknown }) {
           {data.map((item, i) => (
             <span
               key={i}
-              className="inline-flex items-center px-2 py-1 rounded text-xs font-mono border"
+              className="inline-flex items-center px-2 py-1 rounded text-size-ui font-mono border"
               style={{ color: '#93C5FD', backgroundColor: 'rgba(147,197,253,0.06)', borderColor: 'rgba(147,197,253,0.2)' }}
             >
               {String(item)}
             </span>
           ))}
         </div>
-        <div className="px-3 py-1.5 border-t text-xs font-mono" style={{ borderColor: 'var(--line-1)', color: 'var(--ink-3)' }}>
+        <div className="px-3 py-1.5 border-t text-size-ui font-mono" style={{ borderColor: 'var(--line-1)', color: 'var(--ink-3)' }}>
           {data.length} item{data.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -117,27 +117,27 @@ function JsonDisplay({ data }: { data: unknown }) {
             className="flex gap-3 px-4 py-2.5 items-start"
             style={{ borderTop: idx > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined }}
           >
-            <span className="font-mono text-xs font-semibold shrink-0 pt-0.5 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>
+            <span className="font-mono text-size-ui font-semibold shrink-0 pt-0.5 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>
               {key}
             </span>
-            <div className="flex-1 min-w-0 font-mono text-xs leading-relaxed">
+            <div className="flex-1 min-w-0 font-mono text-size-ui leading-relaxed">
               {Array.isArray(val) ? (
                 <div className="flex flex-wrap gap-1.5">
                   {(val as unknown[]).map((item, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border"
+                      className="inline-flex items-center px-2 py-0.5 rounded text-size-ui font-mono border"
                       style={{ color: '#93C5FD', backgroundColor: 'rgba(147,197,253,0.06)', borderColor: 'rgba(147,197,253,0.15)' }}
                     >
                       {typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item)}
                     </span>
                   ))}
-                  <span className="text-xs self-center" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-size-ui self-center" style={{ color: 'var(--ink-3)' }}>
                     ({(val as unknown[]).length})
                   </span>
                 </div>
               ) : typeof val === 'object' && val !== null ? (
-                <pre className="text-xs leading-relaxed whitespace-pre-wrap break-all" style={{ color: '#b0b8c4' }}>
+                <pre className="text-size-ui leading-relaxed whitespace-pre-wrap break-all" style={{ color: '#b0b8c4' }}>
                   {JSON.stringify(val, null, 2)}
                 </pre>
               ) : (
@@ -151,7 +151,7 @@ function JsonDisplay({ data }: { data: unknown }) {
   }
 
   return (
-    <div className="rounded-lg border p-4 font-mono text-xs" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)', color: '#b0b8c4' }}>
+    <div className="rounded-lg border p-4 font-mono text-size-ui" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)', color: '#b0b8c4' }}>
       <JsonValue value={data} />
     </div>
   );
@@ -163,13 +163,13 @@ function CopyableId({ value }: { value: string }) {
   return (
     <span
       onClick={() => { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="font-mono text-xs cursor-pointer hover:underline relative"
+      className="font-mono text-size-ui cursor-pointer hover:underline relative"
       style={{ color: '#93C5FD' }}
       title={`Click to copy: ${value}`}
     >
       {short}
       {copied && (
-        <span className="absolute -top-6 left-0 bg-black/85 text-xs text-white px-2 py-1 rounded shadow-sm z-10 whitespace-nowrap">
+        <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded shadow-sm z-10 whitespace-nowrap">
           Copied!
         </span>
       )}
@@ -236,7 +236,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         toast.success(
           <span>
             Fargate container launched.{' '}
-            <span className="font-mono text-xs opacity-70">{json.task_id?.slice(0, 12)}</span>
+            <span className="font-mono text-size-ui opacity-70">{json.task_id?.slice(0, 12)}</span>
           </span>
         );
         // Optimistically update status so button disappears
@@ -286,7 +286,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
      className="inline-flex items-center gap-2 px-2 py-1 rounded text-label border"
           style={{
             borderColor: 'rgba(147, 197, 253, 0.35)',
-            color: '#93C5FD',
+            color: inkOf('#93C5FD'),
             backgroundColor: 'rgba(147, 197, 253, 0.08)',
           }}
         >
@@ -381,20 +381,20 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         {/* Drawer Header */}
         <div className="flex items-center justify-between px-7 py-5 border-b shrink-0" style={{ borderColor: 'var(--line-1)', backgroundColor: 'rgba(0,0,0,0.15)' }}>
           <div className="flex flex-col gap-1.5">
-            <h3 className="text-lg font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
+            <h3 className="text-size-title-section font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
               Job Details
             </h3>
             {/* Copyable ID */}
             <div className="relative select-none">
               <span
                 onClick={handleCopy}
-                className="font-mono text-xs text-[var(--text-muted)] cursor-pointer hover:underline"
+                className="font-mono text-size-ui text-[var(--text-muted)] cursor-pointer hover:underline"
                 title="Click to copy full ID"
               >
                 ID: {activeJob.id.slice(0, 8)}...
               </span>
               {copied && (
-                <span className="absolute -top-6 left-0 bg-black/85 text-xs text-white px-2 py-1 rounded font-mono shadow-sm z-10">
+                <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded font-mono shadow-sm z-10">
                   Copied!
                 </span>
               )}
@@ -407,7 +407,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 {getKindLabelAndStyle(activeJob.job_kind)}
                 {renderStatusChip(activeJob.status)}
               </div>
-              <span className="font-mono text-xs text-[var(--text-muted)] lowercase">
+              <span className="font-mono text-size-ui text-[var(--text-muted)] lowercase">
                 trigger: {activeJob.trigger || '—'}
               </span>
             </div>
@@ -445,7 +445,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150 ml-3 text-2xl font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150 ml-3 text-size-kpi-lg font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               aria-label="Close drawer"
             >
               &times;
@@ -458,7 +458,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           <Link
             href={`/agent-lab/estate/jobs/${activeJob.id}`}
             onClick={onClose}
-            className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold transition-colors hover:underline"
+            className="inline-flex items-center gap-1.5 font-mono text-size-ui font-semibold transition-colors hover:underline"
             style={{ color: 'var(--brand-a-ink)' }}
           >
             <ExternalLink size={11} />
@@ -472,7 +472,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           {/* Timing Section */}
           <div className="space-y-4">
       <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}>Timings</h4>
-            <div className="flex flex-col gap-2.5 font-mono text-sm select-none">
+            <div className="flex flex-col gap-2.5 font-mono text-size-body select-none">
               {/* Created Step */}
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 rounded-full border-2 border-emerald-500 bg-[var(--card,#1c2128)] flex items-center justify-center shrink-0">
@@ -490,11 +490,11 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <div className="w-[2px] bg-emerald-500/30 dark:bg-emerald-500/20 shrink-0" />
                 <div className="pl-4 py-1 flex items-center">
                   {startedDate ? (
-                    <span className="text-xs text-[var(--text-secondary)]">
+                    <span className="text-size-ui text-[var(--text-secondary)]">
                       Queued for <span className="font-semibold text-[var(--text-primary)]">{getQueueDuration(activeJob.created_at, activeJob.started_at)}</span>
                     </span>
                   ) : (
-                    <span className="text-xs text-[var(--text-muted)] italic">Not yet started</span>
+                    <span className="text-size-ui text-[var(--text-muted)] italic">Not yet started</span>
                   )}
                 </div>
               </div>
@@ -526,11 +526,11 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                   <div className="w-[2px] bg-sky-500/30 dark:bg-sky-500/20 shrink-0" />
                   <div className="pl-4 py-1 flex items-center">
                     {finishedDate ? (
-                      <span className="text-xs text-[var(--text-secondary)]">
+                      <span className="text-size-ui text-[var(--text-secondary)]">
                         Ran for <span className="font-semibold text-[var(--text-primary)]">{getRunDuration(activeJob.started_at, activeJob.finished_at)}</span>
                       </span>
                     ) : (
-                      <span className="text-xs text-amber-500 flex items-center gap-1.5">
+                      <span className="text-size-ui text-amber-500 flex items-center gap-1.5">
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
@@ -586,14 +586,14 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
                   {fargateTaskId && (
                     <div className="flex gap-3 px-4 py-2.5 items-center" style={{ borderBottom: (since || until) ? '1px solid rgba(255,255,255,0.06)' : undefined }}>
-                      <span className="font-mono text-xs font-semibold shrink-0 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>fargate_task</span>
+                      <span className="font-mono text-size-ui font-semibold shrink-0 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>fargate_task</span>
                       <CopyableId value={fargateTaskId} />
                     </div>
                   )}
                   {(since || until) && (
                     <div className="flex gap-3 px-4 py-2.5 items-center">
-                      <span className="font-mono text-xs font-semibold shrink-0 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>scan window</span>
-                      <span className="font-mono text-xs" style={{ color: '#93C5FD' }}>
+                      <span className="font-sans text-size-ui font-semibold shrink-0 min-w-[100px]" style={{ color: 'var(--brand-a-ink)' }}>scan window</span>
+                      <span className="font-mono text-size-ui" style={{ color: '#93C5FD' }}>
                         {since ? fmtWindow(since) : '—'}
                         <span className="mx-1.5 opacity-40">→</span>
                         {until ? fmtWindow(until) : 'now'}
@@ -607,10 +607,10 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {isOrchestratingParent(activeJob) && (
             <div className="space-y-3">
-       <h4 className="text-label text-[length:var(--type-caption-size)] " style={{ color: '#8892A4', letterSpacing: '0.08em' }}>
+       <h4 className="text-label text-[length:var(--type-caption-size)] " style={{ color: inkOf('#8892A4'), letterSpacing: '0.08em' }}>
                 Child chunks
               </h4>
-              <p className="text-[length:var(--type-caption-size)] font-sans" style={{ color: '#8892A4' }}>
+              <p className="text-[length:var(--type-caption-size)] font-sans" style={{ color: inkOf('#8892A4') }}>
                 This parent coordinates Fargate workers — logs live on each child row below.
               </p>
               <ChildJobsPanel jobId={activeJob.id} />
@@ -638,7 +638,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           {mapJobStatus(activeJob.status) === 'failed' && (
             <div className="border rounded-lg p-4 flex flex-col gap-2" style={{ backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
        <h4 className="text-label text-red-500 ">Error</h4>
-              <div className="font-mono text-xs text-red-400 select-text break-words whitespace-pre-wrap leading-relaxed">
+              <div className="font-mono text-size-ui text-red-400 select-text break-words whitespace-pre-wrap leading-relaxed">
                 {activeJob.error || 'No error details recorded'}
               </div>
             </div>
@@ -652,7 +652,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             {activeJob.scope ? (
               <JsonDisplay data={activeJob.scope} />
             ) : (
-              <div className="font-sans text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
+              <div className="font-sans text-size-body italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No scope defined
               </div>
             )}
@@ -671,7 +671,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <JsonDisplay data={activeJob.stats} />
               </>
             ) : (
-              <div className="font-sans text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
+              <div className="font-sans text-size-body italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No stats recorded
               </div>
             )}

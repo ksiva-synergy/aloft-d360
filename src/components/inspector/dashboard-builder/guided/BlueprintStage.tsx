@@ -18,6 +18,7 @@ import {
   UI_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
   CANVAS, CARD, BORDER,
 } from '@/lib/dashboards/inspector-viz-tokens';
+import { inkOf } from '@/lib/typography/tokens';
 
 const GOLD = ACCENT_AMBER;
 const GREEN = GOVERNED;
@@ -179,7 +180,7 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color={GOLD} />
-          <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, fontWeight: 600 }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: inkOf(GOLD), fontWeight: 600 }}>
             Guided · Step 2 · Blueprint
           </span>
         </div>

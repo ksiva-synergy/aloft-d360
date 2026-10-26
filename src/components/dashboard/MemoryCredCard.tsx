@@ -22,7 +22,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Trophy, ArrowRight } from 'lucide-react';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types (mirror the API's wire shape — note: no userId) ──────────────────────
 
@@ -127,7 +127,7 @@ function YouTag() {
     <span
       style={{
         ...type.label,
-        color: TEAL, border: `1px solid color-mix(in srgb, ${TEAL} 55%, transparent)`,
+        color: inkOf(TEAL), border: `1px solid color-mix(in srgb, ${TEAL} 55%, transparent)`,
         borderRadius: 4, padding: '1px 4px', marginLeft: 6,
       }}
     >

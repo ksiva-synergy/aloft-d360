@@ -63,6 +63,13 @@ describe('typography guard', () => {
     expect(bad).toEqual([]);
   });
 
+  it('does not use the retired Tailwind text sizes or font aliases', () => {
+    const bad = files
+      .filter(({ rel, text }) => !rel.startsWith('lib/typography/') && /(?<![\w-])text-(xs|sm|base|lg|xl|[2-9]xl)(?![\w-])|(?<![\w-])font-(serif|display|body)(?![\w-])/.test(text))
+      .map((f) => f.rel);
+    expect(bad, 'Use a type token (text-title-card, text-ui, …) or a size-only utility (text-size-ui, …)').toEqual([]);
+  });
+
   it('does not grow hardcoded typography', () => {
     const count = (re: RegExp) => files.reduce((n, { text }) => n + (text.match(re) ?? []).length, 0);
     const current = {

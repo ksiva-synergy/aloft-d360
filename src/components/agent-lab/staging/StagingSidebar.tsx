@@ -139,7 +139,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
             <div className="-mx-2.5 mb-2.5 flex h-[var(--shell-header-h)] shrink-0 items-center gap-2 border-b border-[var(--header-border)] px-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
-                <h2 className="mt-1 truncate text-sm font-semibold tracking-tight text-[var(--ink-1)]">
+                <h2 className="mt-1 truncate text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
                   {isHome ? 'Home' : area.label}
                 </h2>
               </div>
@@ -158,7 +158,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                 {mobileOpen ? <XIcon size={16} /> : pinned ? <PushPinSlashIcon size={16} weight="fill" /> : <PushPinIcon size={16} />}
               </button>
             </div>
-            <p className="mb-2 truncate px-2 text-xs text-[var(--ink-3)]">
+            <p className="mb-2 truncate px-2 text-size-ui text-[var(--ink-3)]">
               {isHome ? 'Your workspace overview' : area.description}
             </p>
 

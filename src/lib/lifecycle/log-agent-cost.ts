@@ -9,7 +9,8 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Azure AI Foundry new deployments
   'gpt-5.4':          { input: 5 / 1_000_000,   output: 15 / 1_000_000 },
   'gpt-6-luna':              { input: 0.125 / 1_000_000, output: 0.50 / 1_000_000 },
-  'openai.gpt-6-luna':       { input: 0.125 / 1_000_000, output: 0.50 / 1_000_000 },
+  'openai.gpt-6-luna':         { input: 0.125 / 1_000_000, output: 0.50 / 1_000_000 },
+  'global.openai.gpt-6-luna':  { input: 0.125 / 1_000_000, output: 0.50 / 1_000_000 },
   'grok-4.3':         { input: 3 / 1_000_000,   output: 15 / 1_000_000 },
   'grok-4.7':         { input: 3 / 1_000_000,   output: 15 / 1_000_000 },
   'kimi-k2':          { input: 2 / 1_000_000,   output: 10 / 1_000_000 },

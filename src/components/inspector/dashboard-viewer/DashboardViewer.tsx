@@ -13,10 +13,10 @@ import { TrustPanel } from '@/components/inspector/TrustPanel';
 import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import { EmptyStatePrompts } from '@/components/inspector/EmptyStatePrompts';
 import { ScopedInspectorPanel } from '@/components/inspector/dashboard-builder/ScopedInspectorPanel';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 const GRID_COLS = 12;
@@ -216,14 +216,14 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <ArrowLeft size={16} />
         </button>
 
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0' }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0' }}>
           {meta.name || 'Dashboard'}
         </span>
 
         <div style={{ flex: 1 }} />
 
         {fetchedAt && (
-          <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', letterSpacing: '0.04em' }}>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', letterSpacing: '0.04em' }}>
             LAST UPDATED {formatTime(fetchedAt)}
           </span>
         )}
@@ -273,7 +273,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
       {anyCandidate && (
         <div
           style={{
-            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '8px 16px', flexShrink: 0,
             background: 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a-ink) 28%, transparent)',
             color: 'var(--brand-a-ink)', display: 'flex', alignItems: 'center', gap: 8,
           }}
@@ -287,7 +287,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
       {error && (
         <div
           style={{
-            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '8px 16px', flexShrink: 0,
             background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)',
             color: '#F87171', display: 'flex', alignItems: 'center', gap: 8,
           }}
@@ -295,7 +295,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Failed to load widget data: {error}</span>
           <button
             onClick={() => refetch()}
-            style={{ ...MONO, fontSize: 13, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: inkOf('#F87171'), cursor: 'pointer', padding: '3px 8px' }}
           >
             RETRY
           </button>
@@ -352,7 +352,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                       {result?.status === 'ok' && (
                         <span
                           title={`Last updated ${formatTime(result.executedAt)}`}
-                          style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: result.cached ? 'var(--brand-a-ink)' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: result.cached ? 'var(--brand-a-ink)' : 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
                           {result.cached ? 'CACHED · ' : ''}{formatTime(result.executedAt)}
                         </span>
@@ -377,7 +377,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
                         ) : (
                           <span
                             title="Source chart unavailable"
-                            style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
+                            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}
                           >
                             SOURCE N/A
                           </span>
@@ -437,12 +437,12 @@ function WidgetBody({
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12 }}>
         <AlertCircle size={16} color="#F87171" />
-        <span style={{ ...MONO, fontSize: 13, color: '#F87171', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', textAlign: 'center', maxWidth: 220 }}>
           {result.message}
         </span>
         <button
           onClick={onRetry}
-          style={{ ...MONO, fontSize: 13, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: '#F87171', cursor: 'pointer', padding: '2px 8px' }}
+          style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: inkOf('#F87171'), cursor: 'pointer', padding: '2px 8px' }}
         >
           RETRY
         </button>
@@ -453,7 +453,7 @@ function WidgetBody({
   if (result.status === 'model_not_governed') {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--brand-a-ink)', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', textAlign: 'center', maxWidth: 220 }}>
           Model not yet published
         </span>
       </div>

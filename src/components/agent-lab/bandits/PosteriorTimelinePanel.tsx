@@ -238,7 +238,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 4 }}>
           Model allocation share over time · {granularityLabel[activeGranularity]} buckets
           {granularity === 'auto' && (
-            <span style={{ opacity: 0.5 }}> (auto)</span>
+            <span style={{ color: 'var(--ink-3)', }}> (auto)</span>
           )}
         </div>
       </div>
@@ -246,7 +246,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
       {emptyState ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 100, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.5,
+          height: 100, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, 
         }}>
           Insufficient data for timeline — need ≥ 2 days of observations.
         </div>

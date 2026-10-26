@@ -286,7 +286,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
         justifyContent: 'space-between',
       }}>
         <span>Key Columns</span>
-        <span style={{ fontWeight: 400, opacity: 0.6 }}>top {displayCols.length}</span>
+        <span style={{ fontWeight: 400, color: 'var(--ink-3)', }}>top {displayCols.length}</span>
       </div>
 
       {/* Column rows */}
@@ -431,7 +431,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
         color: 'var(--estate-text-secondary, var(--ink-3))',
       }}>
         Filter Patterns
-        <span style={{ fontWeight: 400, marginLeft: 8, opacity: 0.6 }}>
+        <span style={{ fontWeight: 400, marginLeft: 8, color: 'var(--ink-3)', }}>
           {patterns.length} total
         </span>
       </div>
@@ -550,7 +550,7 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--estate-text-muted)',
           }}>

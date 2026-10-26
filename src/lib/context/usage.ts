@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { DatabricksAdapter } from './databricks-adapter';
 import type { RawHistoryRow } from './databricks-adapter';
 import { getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
+import { pathExcludedBySchemas, pathMatchesIncludePatterns, statementReferencesObject } from './job-scope';
 
 // ── Usage narrative prompt ────────────────────────────────────────────────────
 
@@ -457,7 +458,16 @@ export async function getUsageSignalsForEnrich(
 export async function runT3Usage(
   orgId: string,
   sourceId: string,
-  opts?: { since?: Date; until?: Date; windowDays?: number; rowCap?: number; lineageRowCap?: number; narrativeTopN?: number },
+  opts?: {
+    since?: Date;
+    until?: Date;
+    windowDays?: number;
+    rowCap?: number;
+    lineageRowCap?: number;
+    narrativeTopN?: number;
+    includePatterns?: string[];
+    excludeSchemas?: string[];
+  },
 ): Promise<T3UsageResult> {
   // `until` is explicit for continuation jobs, otherwise current time
   const until = opts?.until ?? new Date();
@@ -520,13 +530,22 @@ export async function runT3Usage(
   console.log(`[t3_usage] column_lineage rows: ${columnLineageRows.length}${columnLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
 
   // ── STEP B: per-object attribution ──────────────────────────────────────────
-  const objects = await prisma.platformContextObject.findMany({
+  const objectsRaw = await prisma.platformContextObject.findMany({
     where: { org_id: orgId, source_id: sourceId },
     include: {
       columns: { where: { lifecycle: 'active' }, select: { name: true } },
     },
   });
-  console.log(`[t3_usage] objects to process: ${objects.length}`);
+  const scopePatterns = opts?.includePatterns ?? [];
+  const excludeSchemas = opts?.excludeSchemas ?? [];
+  const objects = objectsRaw.filter(o => {
+    if (excludeSchemas.length > 0 && pathExcludedBySchemas(o.full_path, excludeSchemas)) return false;
+    if (scopePatterns.length > 0 && !pathMatchesIncludePatterns(o.full_path, scopePatterns)) return false;
+    return true;
+  });
+  const scopeNote =
+    scopePatterns.length > 0 || excludeSchemas.length > 0 ? ' (scoped)' : '';
+  console.log(`[t3_usage] objects to process: ${objects.length}${scopeNote}`);
 
   const now = until;
   const windowStart = since;
@@ -544,12 +563,10 @@ export async function runT3Usage(
   }> = [];
 
   for (const obj of objects) {
-    const objectNameLower = (obj.object_name ?? '').toLowerCase();
-    if (!objectNameLower) { skipped++; continue; }
+    if (!obj.object_name) { skipped++; continue; }
 
-    // Case-insensitive plain includes (not regex) against statement_text
     const matched = historyRows.filter(r =>
-      (r.statement_text ?? '').toLowerCase().includes(objectNameLower)
+      statementReferencesObject(r.statement_text ?? '', obj),
     );
 
     if (matched.length === 0) {

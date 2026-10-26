@@ -120,7 +120,7 @@ export function Modal({
                   </h2>
                 )}
                 {description && (
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-size-body text-gray-500 dark:text-gray-400">
                     {description}
                   </p>
                 )}

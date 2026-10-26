@@ -36,12 +36,12 @@ export default function StubPage({ title, phase }: StubPageProps) {
         </span>
 
         {/* Title */}
-        <h2 className="text-xl font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: 'var(--font-sans)' }}>
+        <h2 className="text-size-title-section font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: 'var(--font-sans)' }}>
           {title}
         </h2>
 
         {/* Description */}
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: 'var(--font-sans)' }}>
+        <p className="text-size-ui leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: 'var(--font-sans)' }}>
           This view is scheduled for a future integration phase. The database models, schemas, and API endpoints are already live in the substrate layer.
         </p>
       </div>

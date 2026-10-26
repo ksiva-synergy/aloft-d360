@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Plus, Eye, Pencil, Send, Trash2 } from 'lucide-react';
 import { DefineMetricPanel, type DefineMetricEdit } from './DefineMetricPanel';
 import type { AuthoringScope } from './scope';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirror SemanticGovernancePanel) ────────────────────────────
 const GOLD = 'var(--brand-a)';
@@ -174,7 +174,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
           fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', padding: '16px 8px',
           border: `1px dashed ${DRAFT_BD}`, borderRadius: 6, lineHeight: 1.6,
         }}>
-          No drafts yet. Click <span style={{ color: GOLD }}>Define a Metric</span> to author one.
+          No drafts yet. Click <span style={{ color: inkOf(GOLD) }}>Define a Metric</span> to author one.
         </div>
       )}
 

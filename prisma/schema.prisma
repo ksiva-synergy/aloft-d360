@@ -2,7 +2,10 @@ generator client {
   provider        = "prisma-client-js"
   output          = "../node_modules/.prisma/client"
   previewFeatures = ["postgresqlExtensions"]
-  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+  // linux-musl-arm64-openssl-3.0.x: web image is compiled on x86 (Dockerfile
+  // BUILDPLATFORM) and runs on t4g. Generate the Graviton engine here so the
+  // arm64 image does not run prisma generate under QEMU.
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -2107,6 +2110,7 @@ model PlatformMarcusReflection {
 model PlatformEstateObject {
   id                   String    @id
   org_id               String
+  /// Postgres TEXT (UUID string). Do not use `source_id = $n::uuid` in raw SQL — see `estate-source-sql.ts`.
   source_id            String?
   connection_ref       String?
   full_path            String

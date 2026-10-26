@@ -3,6 +3,7 @@
 import React from 'react';
 import { Sprout, DownloadCloud, HelpCircle } from 'lucide-react';
 import { MONO, SANS, SERIF, MUTED, INK, INK_DIM, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Empty-model state — shown when the org has no model, or the active model has
@@ -39,7 +40,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
             padding: '9px 16px', borderRadius: 5, cursor: 'not-allowed', opacity: 0.5,
-            border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD,
+            border: `1px solid ${GOLD}`, background: 'transparent', color: inkOf(GOLD),
           }}
         >
           <DownloadCloud size={15} /> Scan a source schema

@@ -30,7 +30,8 @@ import {
 import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib/memory/attribution';
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
-import { guardInspectorChat } from '@/lib/inspector/session-auth';
+import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
+import { chatModelKeyForRole, getSessionUserRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { fromLlmLiteModelKey } from '@/lib/llmlite/keys';
 import {
@@ -78,7 +79,7 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
   'qwen3-32b':        { bedrockId: 'qwen.qwen3-32b-v1:0',                           supportsTools: true,  supportsThinking: false },
   // ── Azure AI Foundry ────────────────────────────────────────────────────────
   'gpt-5-4':          { bedrockId: '', foundryDeployment: 'gpt-5.4-PBC',   supportsTools: true,  supportsThinking: false },
-  'gpt-6-luna':       { bedrockId: '', foundryDeployment: 'openai.gpt-6-luna', supportsTools: true,  supportsThinking: false },
+  'gpt-6-luna':       { bedrockId: '', foundryDeployment: 'global.openai.gpt-6-luna', supportsTools: true,  supportsThinking: false },
   'grok-4-3':         { bedrockId: '', foundryDeployment: 'grok-4.3-PBC',  supportsTools: true,  supportsThinking: false },
   'kimi-k2-6':        { bedrockId: '', foundryDeployment: 'kimi-k2-6-PBC', supportsTools: true,  supportsThinking: false },
   'deepseek-v4':      { bedrockId: '', foundryDeployment: 'DeepSeek-V4-Pro', supportsTools: true, supportsThinking: true  },
@@ -177,16 +178,23 @@ export async function POST(request: NextRequest) {
   const authBlock = await guardInspectorChat(request, body.sessionId);
   if (authBlock) return authBlock;
 
+  const principal = await resolveInspectorPrincipal(request);
+  const role = await getSessionUserRole();
+  const effectiveModelKey =
+    principal?.kind === 'service' || isPlatformAdminRole(role)
+      ? (body.model ?? DEFAULT_MODEL_KEY)
+      : chatModelKeyForRole(body.model, role);
+
   if (!inspectorLlmConfigured()) {
     return cannedResponse(request);
   }
 
   const contextMode: 'harvested' | 'warehouse_only' = body.contextMode === 'warehouse_only' ? 'warehouse_only' : 'harvested';
 
-  const modelConfig = resolveModel(body.model);
+  const modelConfig = resolveModel(effectiveModelKey);
   const isFoundryModel = !!modelConfig.foundryDeployment;
   const modelId = modelConfig.bedrockId;
-  let effectiveModelId = modelConfig.foundryDeployment || modelConfig.bedrockId || (body.model === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '');
+  let effectiveModelId = modelConfig.foundryDeployment || modelConfig.bedrockId || (effectiveModelKey === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '');
 
   const filteredMessages: Message[] = (body.messages || [])
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
@@ -392,31 +400,31 @@ export async function POST(request: NextRequest) {
       const maxInspectorLoops = getInspectorMaxLoops();
 
       try {
-        emit({ type: 'stream_start', model: effectiveModelId, modelKey: body.model || DEFAULT_MODEL_KEY, supportsThinking: modelConfig.supportsThinking, maxLoops: maxInspectorLoops, contextMode });
+        emit({ type: 'stream_start', model: effectiveModelId, modelKey: effectiveModelKey || DEFAULT_MODEL_KEY, supportsThinking: modelConfig.supportsThinking, maxLoops: maxInspectorLoops, contextMode });
 
         // Resolve BoostModel for Foundry dispatch
         let boostModel = isFoundryModel
           ? BOOST_MODELS.find(m => m.modelId === modelConfig.foundryDeployment)
           : undefined;
 
-        const llmLiteGatewayId = body.model ? fromLlmLiteModelKey(body.model) : null;
-        if (!boostModel && llmLiteGatewayId && body.model) {
-          boostModel = boostModelFromLlmLiteKey(body.model, llmLiteGatewayId);
+        const llmLiteGatewayId = effectiveModelKey ? fromLlmLiteModelKey(effectiveModelKey) : null;
+        if (!boostModel && llmLiteGatewayId && effectiveModelKey) {
+          boostModel = boostModelFromLlmLiteKey(effectiveModelKey, llmLiteGatewayId);
         }
 
         // Special handling for direct xAI (grok-xai) — match by key if not found by modelId
-        if (!boostModel && body.model === 'grok-xai') {
+        if (!boostModel && effectiveModelKey === 'grok-xai') {
           boostModel = BOOST_MODELS.find(m => m.key === 'grok-xai');
         }
         // Ensure we use the live XAI_MODEL value
-        if (boostModel && body.model === 'grok-xai' && process.env.XAI_MODEL) {
+        if (boostModel && effectiveModelKey === 'grok-xai' && process.env.XAI_MODEL) {
           boostModel = { ...boostModel, modelId: process.env.XAI_MODEL };
         }
 
         let currentAgentLoop = 1;
         const effectiveModelForOps = effectiveModelId || modelId || modelConfig.bedrockId;
         const loopParams = {
-          modelId: isFoundryModel ? (modelConfig.foundryDeployment || (body.model === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '')) : modelId,
+          modelId: isFoundryModel ? (modelConfig.foundryDeployment || (effectiveModelKey === 'grok-xai' ? (process.env.XAI_MODEL || 'grok-4.7') : '')) : modelId,
           systemPrompt: finalSystemPrompt,
           messages: userMessages,
           tools: toolConfig,
@@ -617,7 +625,7 @@ export async function POST(request: NextRequest) {
               source: 'inspector',
               sourceRunId: body.sessionId,
               modelId: effectiveModelId,
-              provider: inferProvider(body.model, effectiveModelId),
+              provider: inferProvider(effectiveModelKey, effectiveModelId),
               sheetType: 'inspector_chat',
               answerFull: result.finalText ?? null,
               toolTrajectory: result.toolCalls,
@@ -682,7 +690,7 @@ export async function POST(request: NextRequest) {
               source: 'inspector',
               sourceRunId: `${body.sessionId}_trunc`,
               modelId: effectiveModelId,
-              provider: inferProvider(body.model, effectiveModelId),
+              provider: inferProvider(effectiveModelKey, effectiveModelId),
               sheetType: 'inspector_chat',
               answerFull: result.finalText ?? null,
               toolTrajectory: result.toolCalls,

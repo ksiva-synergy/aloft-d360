@@ -79,6 +79,21 @@ export async function getOrCreateOrg(
 // Determined by DEFAULT_ORG_SLUG env var — required in all environments.
 // When real multi-tenant auth is added, org comes from session membership instead.
 export async function getDefaultOrg() {
+  const id = process.env.DEFAULT_ORG_ID?.trim();
+  if (id) {
+    const slug = process.env.DEFAULT_ORG_SLUG?.trim();
+    if (slug) {
+      const row = await prisma.platformOrg.findUnique({
+        where: { id },
+        select: { id: true, slug: true, name: true, clerk_org_id: true, created_at: true, updated_at: true },
+      });
+      if (row) return row;
+    }
+    return prisma.platformOrg.findUniqueOrThrow({
+      where: { id },
+    });
+  }
+
   const slug = process.env.DEFAULT_ORG_SLUG;
   if (!slug) {
     throw new Error(
@@ -87,6 +102,29 @@ export async function getDefaultOrg() {
     );
   }
   return prisma.platformOrg.findFirstOrThrow({ where: { slug } });
+}
+
+/**
+ * Resolve operating org for workers (orchestrator, backfills).
+ * Prefers ORG_ID, then DEFAULT_ORG_ID when that row exists, then DEFAULT_ORG_SLUG.
+ */
+export async function resolveDefaultOrgId(): Promise<string> {
+  const explicit = process.env.ORG_ID?.trim();
+  if (explicit) return explicit;
+
+  const byId = process.env.DEFAULT_ORG_ID?.trim();
+  if (byId) {
+    const found = await prisma.platformOrg.findUnique({
+      where: { id: byId },
+      select: { id: true },
+    });
+    if (found) return found.id;
+    console.warn(
+      `[resolveDefaultOrgId] DEFAULT_ORG_ID=${byId} not found in platform_orgs; trying DEFAULT_ORG_SLUG`,
+    );
+  }
+
+  return (await getDefaultOrg()).id;
 }
 
 // ─── Agent queries ────────────────────────────────────────────────────────────

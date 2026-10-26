@@ -105,7 +105,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbPr
       className={className}
     >
       <Breadcrumb>
-        <BreadcrumbList className="text-xs sm:text-sm">
+        <BreadcrumbList className="text-size-ui sm:text-size-body">
           {/* Home icon anchor */}
           <BreadcrumbItem>
             <BreadcrumbLink asChild>

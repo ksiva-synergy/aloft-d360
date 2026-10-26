@@ -25,8 +25,9 @@ const RESOURCE_CONFIG = {
     getDefaultQuery: (): Record<string, string> => ({}),
   },
   'bedrock-mantle': {
+    // Global cross-region profile. In-region Mantle (us-east-1 only) is not available in ap-south-1.
     getBaseURL: (_: string) =>
-      `https://bedrock-mantle.${process.env.BEDROCK_MANTLE_REGION ?? 'us-east-1'}.api.aws/openai/v1`,
+      `https://bedrock-runtime.${process.env.BEDROCK_MANTLE_REGION ?? 'us-east-1'}.amazonaws.com/openai/v1`,
     getApiKey: () => process.env.BEDROCK_MANTLE_API_KEY!,
     getDefaultQuery: (): Record<string, string> => ({}),
   },

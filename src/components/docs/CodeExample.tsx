@@ -25,17 +25,17 @@ export function CodeExample({ code, language = 'json', title, className }: CodeE
       <div className="flex items-center justify-between px-4 py-2 bg-[color:var(--surface-2)] dark:bg-[var(--surface-1)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
         <div className="flex items-center gap-2">
           {title && (
-            <span className="text-xs font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)]">
+            <span className="text-size-ui font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)]">
               {title}
             </span>
           )}
-          <span className="text-xs font-mono text-[var(--ink-3)] bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] px-1.5 py-0.5 rounded">
+          <span className="text-size-ui font-mono text-[var(--ink-3)] bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] px-1.5 py-0.5 rounded">
             {language}
           </span>
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1 text-xs text-[var(--ink-3)] hover:text-[color:var(--ink-2)] dark:hover:text-[color:var(--ink-2)] transition-colors"
+          className="flex items-center gap-1 text-size-ui text-[var(--ink-3)] hover:text-[color:var(--ink-2)] dark:hover:text-[color:var(--ink-2)] transition-colors"
         >
           {copied ? (
             <>
@@ -51,7 +51,7 @@ export function CodeExample({ code, language = 'json', title, className }: CodeE
         </button>
       </div>
       <pre className="p-4 overflow-x-auto bg-[color:var(--surface-1)] dark:bg-[var(--background)]">
-        <code className="text-xs text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] font-mono leading-relaxed whitespace-pre-wrap">
+        <code className="text-size-ui text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] font-mono leading-relaxed whitespace-pre-wrap">
           {code}
         </code>
       </pre>

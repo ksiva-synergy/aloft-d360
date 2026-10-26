@@ -184,7 +184,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   { key: 'qwen3-32b',   label: 'Qwen3 32B',         provider: 'qwen',      bedrockId: 'qwen.qwen3-32b-v1:0',                             supportsTools: true,  supportsThinking: false, description: 'Alibaba Qwen3, 131K context' },
   // Azure Foundry
   { key: 'gpt-5-4',     label: 'GPT-5.4',           provider: 'openai',    bedrockId: 'gpt-5.4-PBC',                                     supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-5.4 via Foundry' },
-  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'openai.gpt-6-luna',                               supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-6 Luna via Bedrock Mantle (us-east-1)' },
+  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'global.openai.gpt-6-luna',                        supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-6 Luna via Bedrock global runtime' },
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'xai',       bedrockId: 'grok-4.3-PBC',                                    supportsTools: true,  supportsThinking: false, description: 'xAI Grok 4.3 via Foundry' },
   // Direct xAI (when XAI_API_KEY is set in backend)
   { key: 'grok-xai',    label: 'Grok 4.7 (xAI direct)', provider: 'xai',       bedrockId: 'grok-4.7',                                        supportsTools: true,  supportsThinking: false, description: 'Native xAI via XAI_API_KEY + XAI_MODEL (grok-4.7)' },

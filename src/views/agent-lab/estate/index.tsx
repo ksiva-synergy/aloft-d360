@@ -149,13 +149,13 @@ export default function EstateOverviewPage() {
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h1
-              className="text-3xl font-semibold tracking-tight"
+              className="text-size-kpi-lg font-semibold tracking-tight"
               style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
             >
               Data Estate
             </h1>
             <p
-              className="text-sm mt-1.5"
+              className="text-size-body mt-1.5"
               style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
             >
               Mendeleev context harness — what ALOFT knows about your data
@@ -226,7 +226,7 @@ export default function EstateOverviewPage() {
 
               {/* Title */}
               <h2
-                className="text-xl font-semibold"
+                className="text-size-title-section font-semibold"
                 style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
               >
                 No sources configured
@@ -234,7 +234,7 @@ export default function EstateOverviewPage() {
 
               {/* Description */}
               <p
-                className="text-xs leading-relaxed"
+                className="text-size-ui leading-relaxed"
                 style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
               >
                 Connect a data source to begin cataloging your data estate.
@@ -243,7 +243,7 @@ export default function EstateOverviewPage() {
               {/* Action Link */}
               <Link
                 href="/agent-lab/estate/catalog"
-                className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline"
+                className="font-mono text-size-ui text-[var(--brand-a-ink)] hover:underline"
               >
                 Go to Connections &rarr;
               </Link>

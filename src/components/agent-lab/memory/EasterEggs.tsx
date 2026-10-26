@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GOLD, MONO, SERIF, BODY } from '@/lib/foer/foer-tokens';
+import { inkOf } from '@/lib/typography/tokens';
 
 export function EasterEggs() {
   const [isMounted, setIsMounted] = useState(false);
@@ -627,7 +628,7 @@ export function EasterEggs() {
             transform: 'translateX(-50%)',
             fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-ui-regular-size)',
-            color: GOLD,
+            color: inkOf(GOLD),
             zIndex: 200,
             pointerEvents: 'none',
             animation: prefersReducedMotion ? 'none' : 'fade-in-out 1.5s ease forwards',
@@ -666,8 +667,8 @@ export function EasterEggs() {
           }}
         >
           A single rewrite collapsed{' '}
-          <span style={{ fontFamily: MONO, color: GOLD, fontWeight: 500 }}>18,282</span> tokens to{' '}
-          <span style={{ fontFamily: MONO, color: GOLD, fontWeight: 500 }}>122</span>. We don&apos;t do that
+          <span style={{ fontFamily: MONO, color: inkOf(GOLD), fontWeight: 500 }}>18,282</span> tokens to{' '}
+          <span style={{ fontFamily: MONO, color: inkOf(GOLD), fontWeight: 500 }}>122</span>. We don&apos;t do that
           here.
         </div>,
         shelvesEl

@@ -19,7 +19,7 @@ import { PosteriorTimelinePanel } from './bandits/PosteriorTimelinePanel';
 import { LiveFeedPanel } from './bandits/LiveFeedPanel';
 import { BornVerdict } from './bandits/BornVerdict';
 import { ArmDetailDrawer } from './bandits/ArmDetailDrawer';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ?? Constants ????????????????????????????????????????????????????????????????
 
@@ -224,13 +224,13 @@ export function BanditsDashboard() {
           background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6,
           padding: '32px 40px', textAlign: 'center', maxWidth: 400,
         }}>
-          <p style={{ color: '#e15759', fontWeight: 600, marginBottom: 8 }}>Failed to load</p>
+          <p style={{ color: inkOf('#e15759'), fontWeight: 600, marginBottom: 8 }}>Failed to load</p>
           <p style={{ color: TEXT_MUT, fontSize: 'var(--type-ui-regular-size)', marginBottom: 20 }}>{error}</p>
           <button
             onClick={fetchData}
             style={{
               padding: '8px 20px', borderRadius: 6, border: `1px solid ${GOLD}`,
-              background: 'transparent', color: GOLD, fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
+              background: 'transparent', color: inkOf(GOLD), fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
               cursor: 'pointer',
             }}
           >
@@ -285,7 +285,7 @@ export function BanditsDashboard() {
           <span style={{ opacity: 0.4 }}>/</span>
           <span>ALOFT · AGENT LAB</span>
           <span style={{ opacity: 0.4 }}>/</span>
-          <span style={{ color: GOLD }}>BORN</span>
+          <span style={{ color: inkOf(GOLD) }}>BORN</span>
         </div>
 
         {/* ?? 2. HERO ?????????????????????????????????????????????????????? */}
@@ -295,7 +295,7 @@ export function BanditsDashboard() {
             <div
               style={{
                 fontFamily: SERIF, fontSize: 'var(--type-display-size)', fontWeight: 600,
-                color: GOLD, lineHeight: 1, marginBottom: 12,
+                color: inkOf(GOLD), lineHeight: 1, marginBottom: 12,
                 cursor: 'default',
               }}
               onMouseEnter={() => {
@@ -650,7 +650,7 @@ export function BanditsDashboard() {
                       </span>
                       {model.model_id === favId && (
                         <span style={{
-                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD,
+                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),
                           border: `1px solid ${GOLD}`, borderRadius: 3,
                           padding: '1px 5px', letterSpacing: '0.04em',
                         }}>
@@ -660,7 +660,7 @@ export function BanditsDashboard() {
                     </div>
 
                     {allNull ? (
-                      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
                         Pending judge
                       </div>
                     ) : (

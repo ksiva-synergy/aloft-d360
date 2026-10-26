@@ -21,16 +21,20 @@ function resolveTokenParam(modelId: string): 'max_tokens' | 'max_completion_toke
   return registered?.tokenParam ?? 'max_completion_tokens';
 }
 
+function isLunaModel(model: string): boolean {
+  return model === 'gpt-6-luna' || model.includes('gpt-6-luna');
+}
+
 export function getScorerClient(): OpenAI | null {
   const model = getScorerModelId();
+  const lunaClient = getLunaOpenAIChatClient();
+  if (lunaClient && isLunaModel(model)) {
+    return lunaClient;
+  }
+
   const mantle = getBedrockMantleOpenAIClient();
   if (mantle && model.startsWith('openai.')) {
     return mantle;
-  }
-
-  const lunaClient = getLunaOpenAIChatClient();
-  if (lunaClient && (model === 'gpt-6-luna' || model.startsWith('openai.gpt-6-luna'))) {
-    return lunaClient;
   }
 
   const foundryEndpoint = process.env.FOUNDRY_ENDPOINT;

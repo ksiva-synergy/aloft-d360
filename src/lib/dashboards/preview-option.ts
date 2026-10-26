@@ -24,6 +24,7 @@ import {
   UI_FONT,
   INK_MUTED,
 } from './inspector-viz-tokens';
+import { CHART_TEXT } from '@/lib/typography/tokens';
 
 /** Superset of ChartKindGuess and WidgetSpec['chartKind'] — normalised by canon(). */
 export type PreviewChartKind =
@@ -77,8 +78,8 @@ export function buildPreviewOption(
       animation: false,
       graphic: {
         elements: [
-          { type: 'text', left: 'center', top: '42%', style: { text: formatValue(value), fontSize: 34, fontFamily: UI_FONT, fill: seriesColors[0] ?? inkColor, fontWeight: 700 } },
-          { type: 'text', left: 'center', top: '62%', style: { text: label, fontSize: 11, fontFamily: UI_FONT, fill: INK_MUTED } },
+          { type: 'text', left: 'center', top: '42%', style: { text: formatValue(value), fontSize: CHART_TEXT.kpi, fontFamily: UI_FONT, fill: seriesColors[0] ?? inkColor, fontWeight: 700 } },
+          { type: 'text', left: 'center', top: '62%', style: { text: label, fontSize: CHART_TEXT.axis, fontFamily: UI_FONT, fill: INK_MUTED } },
         ],
       },
     };
@@ -98,7 +99,7 @@ export function buildPreviewOption(
         // No external labels — they overflow small tiles; tooltip/hover reveals detail.
         label: { show: false },
         labelLine: { show: false },
-        emphasis: { label: { show: true, color: inkColor, fontFamily: UI_FONT, fontSize: 11 } },
+        emphasis: { label: { show: true, color: inkColor, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis } },
       }],
     };
   }
@@ -116,8 +117,8 @@ export function buildPreviewOption(
     return {
       animation: false,
       grid: { containLabel: true, left: 12, right: 80, top: 28, bottom: 8 },
-      xAxis: { type: 'category', data: categories.map(String), axisLabel: { fontSize: 10, interval: 0, overflow: 'truncate', width: 60 } },
-      yAxis: { type: 'category', data: series.map((s) => s.name), axisLabel: { fontSize: 10 } },
+      xAxis: { type: 'category', data: categories.map(String), axisLabel: { fontSize: CHART_TEXT.axis, interval: 0, overflow: 'truncate', width: 60 } },
+      yAxis: { type: 'category', data: series.map((s) => s.name), axisLabel: { fontSize: CHART_TEXT.axis } },
       visualMap: {
         min: Number.isFinite(min) ? min : 0,
         max: Number.isFinite(max) ? max : 1,
@@ -140,8 +141,8 @@ export function buildPreviewOption(
     return {
       animation: false,
       grid: { containLabel: true, left: 12, right: 12, top: 28, bottom: 8 },
-      xAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: compactNum } },
-      yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: compactNum } },
+      xAxis: { type: 'value', axisLabel: { fontSize: CHART_TEXT.axis, formatter: compactNum } },
+      yAxis: { type: 'value', axisLabel: { fontSize: CHART_TEXT.axis, formatter: compactNum } },
       series: seriesArr,
     };
   }
@@ -160,14 +161,14 @@ export function buildPreviewOption(
       bottom: 8,
     },
     legend: series.length > 1
-      ? { show: true, bottom: 0, textStyle: { color: INK_MUTED, fontFamily: UI_FONT, fontSize: 10 } }
+      ? { show: true, bottom: 0, textStyle: { color: INK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis } }
       : { show: false },
     tooltip: { trigger: 'axis' },
     xAxis: {
       type: 'category',
       data: categories.map(String),
       axisLabel: {
-        fontSize: 10,
+        fontSize: CHART_TEXT.axis,
         interval: 0,
         rotate: catCount > 5 ? 35 : 0,
         overflow: 'truncate',
@@ -176,7 +177,7 @@ export function buildPreviewOption(
     },
     yAxis: {
       type: 'value',
-      axisLabel: { fontSize: 10, formatter: compactNum },
+      axisLabel: { fontSize: CHART_TEXT.axis, formatter: compactNum },
     },
     series: series.map((s) => ({
       name: s.name,

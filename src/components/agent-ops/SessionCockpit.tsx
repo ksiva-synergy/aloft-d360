@@ -144,7 +144,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
               padding: '9px 16px',
               borderRadius: 8,
               background: 'var(--brand-a)',
-              color: '#fff',
+              color: 'var(--on-brand)',
               textDecoration: 'none',
               whiteSpace: 'nowrap',
             }}

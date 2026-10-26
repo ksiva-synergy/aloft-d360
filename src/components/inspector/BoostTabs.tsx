@@ -6,7 +6,7 @@ import { BOOST_SUITE_V1, BOOST_SUITE_V2, type BoostCase } from '@/lib/boost/suit
 import type { ToolKind } from '@/lib/boost/classify';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 // Accent colors stay literal (concatenated with hex-opacity suffixes; readable on
 // both themes). Surface/text/border tokens resolve from the `--pl-*` CSS custom
 // properties defined in globals.css (`:root` light + `.dark` override), so the
@@ -40,7 +40,7 @@ function JoinPathBlock({ joinPath }: { joinPath: NonNullable<BoostCase['joinPath
     <div style={{ marginTop: 14 }}>
       <div style={{
         ...type.label,
-        color: GOLD, marginBottom: 7, fontWeight: 600,
+        color: inkOf(GOLD), marginBottom: 7, fontWeight: 600,
       }}>
         JOIN PATH
       </div>
@@ -387,7 +387,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
       </div>
 
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 14, padding: '10px 13px', borderLeft: `2px solid ${'var(--brand-a)'}`, background: SURF }}>
-        🟡 <strong style={{ color: GOLD }}>Why outcome must gate efficiency:</strong> a truncated run may show fewer tokens — it spent its budget on schema discovery and never answered. We only compare tokens, latency, and loops <strong style={{ color: TXT }}>among completed runs</strong>. A truncated run scores zero on efficiency regardless of how few tokens it burned.
+        🟡 <strong style={{ color: inkOf(GOLD) }}>Why outcome must gate efficiency:</strong> a truncated run may show fewer tokens — it spent its budget on schema discovery and never answered. We only compare tokens, latency, and loops <strong style={{ color: TXT }}>among completed runs</strong>. A truncated run scores zero on efficiency regardless of how few tokens it burned.
       </div>
     </div>
   );
@@ -579,7 +579,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
                                       {hasLift ? (<>
                                         {outFlip && <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-ui-regular-size)', color: GREEN, marginBottom: 3 }}>OUTCOME FLIP</div>}
                                         {callDelta !== null && <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: GOLD }}>{callDelta >= 0 ? `−${fmt(callDelta, 0)}%` : `+${fmt(-callDelta, 0)}%`}</div>}
-                                        <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 4 }}>call reduction</div>
+                                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 4 }}>call reduction</div>
                                       </>) : (
                                         <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Run both modes</div>
                                       )}
@@ -911,7 +911,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
           Score = 1.0 minus severity-weighted penalty.
         </p>
         <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Scored: <span style={statInline}>{groundedRuns.length}</span> runs</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Scored: <span style={statInline}>{groundedRuns.length}</span> runs</span>
           <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Mean: <span style={{ ...statInline, color: meanGroundedness !== null && meanGroundedness >= 0.8 ? GREEN : GOLD }}>{meanGroundedness !== null ? meanGroundedness.toFixed(3) : '—'}</span></span>
         </div>
       </div>
@@ -926,7 +926,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
           regardless of groundedness.
         </p>
         <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Scored: <span style={statInline}>{semanticRuns.length}</span> runs</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Scored: <span style={statInline}>{semanticRuns.length}</span> runs</span>
           <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Mean: <span style={{ ...statInline, color: meanSemantic !== null && meanSemantic >= 0.8 ? GREEN : GOLD }}>{meanSemantic !== null ? meanSemantic.toFixed(3) : '—'}</span></span>
           {lowestSemantic && (
             <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Lowest: <span style={{ ...statInline, color: RED }}>{Number(lowestSemantic.semantic_score).toFixed(3)}</span> ({lowestSemantic.model_key} / {lowestSemantic.context_mode})</span>
@@ -940,7 +940,7 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
         background: 'var(--pl-grad)',
         border: `1px solid ${BORDER2}`,
       }}>
-        <div style={{ ...type.label, color: GOLD, marginBottom: 10 }}>Composite Ranking</div>
+        <div style={{ ...type.label, color: inkOf(GOLD), marginBottom: 10 }}>Composite Ranking</div>
         <p style={{ fontSize: 'var(--type-ui-regular-size)', color: TXT, lineHeight: 1.6, margin: 0 }}>
           <strong>Lexicographic:</strong> outcome first, then groundedness, then efficiency, then semantic.
           A completed-but-slow run always beats a truncated-but-lean one. A grounded answer always beats an

@@ -15,7 +15,7 @@ import { useReflections } from './marcus/useReflections';
 import type { Reflection } from './marcus/useReflections';
 import { ReflectionCard } from './marcus/ReflectionCard';
 import { DismissedReflection } from './marcus/DismissedReflection';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Constants ─────────────────────────────────────────────────
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
@@ -98,7 +98,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
           {surface === 'workbench' && (
           <button
             onClick={() => setTemplatesOpen(o => !o)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...type['ui-regular'], color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...type['ui-regular'], color: inkOf(templatesOpen ? GOLD : MUTED), letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.color = templatesOpen ? GOLD : MUTED; }}
           >
@@ -106,7 +106,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
           </button>
           )}
         </div>
-        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
+        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase',  }}>ALOFT</div>
         <AnimatePresence>
           {templatesOpen && (
             <motion.div
@@ -160,7 +160,7 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       <button
         onClick={onContinue}
         style={{
-          ...type['ui-regular'], color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+          ...type['ui-regular'], color: inkOf(GOLD), background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
           border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'background 0.15s',
         }}
@@ -547,7 +547,7 @@ function ConversationThread({
         {chatError && !isStreaming && messages.at(-1)?.role !== 'assistant' && (
           <div className="rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)]">
             <CaptainStatus isStreaming={false} error={chatError} />
-            <p role="alert" className="px-4 pb-3 text-sm text-[var(--ink-2)]">{chatError}</p>
+            <p role="alert" className="px-4 pb-3 text-size-body text-[var(--ink-2)]">{chatError}</p>
           </div>
         )}
         <AnimatePresence>
@@ -603,6 +603,8 @@ export interface PromptCanvasProps {
   surface?: PromptCanvasSurface;
   /** Rendered between the thread and the composer, e.g. the Inspector → Agent Lab handoff card. */
   banner?: React.ReactNode;
+  /** Replaces the default empty state (mascot + mission templates) before the first message. */
+  emptyState?: React.ReactNode;
   messages: WorkbenchMessage[];
   isStreaming: boolean;
   readiness?: 'interview' | 'plan' | 'build' | null;
@@ -641,6 +643,7 @@ export function PromptCanvas({
   chatError,
   surface = 'workbench',
   banner,
+  emptyState,
   messages,
   isStreaming,
   readiness = null,
@@ -724,7 +727,7 @@ export function PromptCanvas({
 
       {/* Canvas body */}
       {!hasMessages ? (
-        <EmptyState onTemplateSelect={handleTemplateSelect} surface={surface} />
+        emptyState ?? <EmptyState onTemplateSelect={handleTemplateSelect} surface={surface} />
       ) : (
         <ConversationThread
           chatError={chatError}
@@ -821,7 +824,8 @@ export function PromptCanvas({
         canCommission={canCommission}
         modelOptions={modelOptions}
         placeholder={SURFACE_COPY[surface].placeholder}
-        minLength={10}
+        /* Agent missions need substance; data questions can be short ("revenue by month"). */
+        minLength={surface === 'inspector' ? 1 : 10}
       />
 
       <style>{`

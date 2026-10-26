@@ -18,7 +18,8 @@ import {
   ScoringMethodologyTab,
 } from '@/components/inspector/BoostTabs';
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
-import { type } from '@/lib/typography/tokens';
+import { type, FONT_MONO, inkOf } from '@/lib/typography/tokens';
+import { CHART_TEXT } from '@/lib/typography/tokens';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 const GOLD   = 'var(--brand-a-ink)';
@@ -33,8 +34,8 @@ const TXT2   = 'var(--ink-3)';
 const GREEN  = '#22c55e';
 const BLUE   = '#3A7BD5';
 const RED    = '#f43f5e';
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const axisTick = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 13, fill: TXT2 };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const axisTick = { fontFamily: FONT_MONO, fontSize: CHART_TEXT.tooltip, fill: TXT2 };
 
 // Model provider colours
 const PROVIDER_COLORS: Record<string, string> = {
@@ -74,7 +75,7 @@ function SectionHeader({ label, sub }: { label: string; sub?: string }) {
         {label}
       </span>
       {sub && (
-        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>{sub}</span>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>{sub}</span>
       )}
     </div>
   );
@@ -91,8 +92,8 @@ const heroCardOuter: React.CSSProperties = {
   padding: '16px 18px',
 };
 const heroStat: React.CSSProperties = {
-  fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
-  fontSize: 26,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--type-kpi-lg-size)',
   fontWeight: 600,
   color: TXT,
   lineHeight: 1.1,
@@ -105,8 +106,8 @@ const heroLabel: React.CSSProperties = {
   fontWeight: 600,
 };
 const heroSub: React.CSSProperties = {
-  fontFamily: "'Inter Variable', sans-serif",
-  fontSize: 13,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--type-ui-regular-size)',
   color: TXT2,
   lineHeight: 1.45,
 };
@@ -118,7 +119,7 @@ function ValueSummaryHero() {
       <div style={{ ...type.label, color: TXT2, marginBottom: 6 }}>
         CONTEXT HARNESS — VALUE SUMMARY
       </div>
-      <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TXT, marginBottom: 16 }}>
         {S.totalRuns} runs · {S.models} models · {S.cases} cases
       </div>
 
@@ -162,8 +163,8 @@ function ValueSummaryHero() {
 
       {/* Takeaway line */}
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${'var(--brand-a)'}`, background: SURF }}>
-        <span style={{ ...type.label, color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
-        <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
+        <span style={{ ...type.label, color: inkOf(GOLD), marginRight: 8 }}>TAKEAWAY</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier). The advantage is that the harness lets answers exist at all.
         </span>
       </div>
@@ -182,8 +183,8 @@ function StatTile({ label, value, sub, color = TXT }: { label: string; value: st
       minWidth: 110,
     }}>
       <div style={{ ...type.label, marginBottom: 6 }}>{label}</div>
-      <div style={{ ...mono, fontSize: 18, color, fontWeight: 600, lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 4 }}>{sub}</div>}
+      <div style={{ ...mono, fontSize: 'var(--type-title-section-size)', color, fontWeight: 600, lineHeight: 1 }}>{value}</div>
+      {sub && <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -202,10 +203,10 @@ function BoostBadge({ pct, label }: { pct: number; label: string }) {
     }}>
       <Icon size={15} style={{ color, flexShrink: 0 }} />
       <div>
-        <div style={{ ...mono, fontSize: 18, color, fontWeight: 600, lineHeight: 1 }}>
+        <div style={{ ...mono, fontSize: 'var(--type-title-section-size)', color, fontWeight: 600, lineHeight: 1 }}>
           {positive ? '+' : ''}{fmt(pct, 1)}%
         </div>
-        <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 3 }}>{label}</div>
+        <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 3 }}>{label}</div>
       </div>
     </div>
   );
@@ -215,7 +216,7 @@ function BoostBadge({ pct, label }: { pct: number; label: string }) {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: SURF, border: `1px solid ${BORDER2}`, borderRadius: 6, padding: '8px 12px', ...mono, fontSize: 13 }}>
+    <div style={{ background: SURF, border: `1px solid ${BORDER2}`, borderRadius: 6, padding: '8px 12px', ...mono, fontSize: 'var(--type-ui-regular-size)' }}>
       {label && <div style={{ color: TXT2, marginBottom: 6 }}>Turn {label}</div>}
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, marginBottom: 2 }}>
@@ -344,7 +345,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
             <Tooltip content={<ChartTooltip />} />
             <Bar dataKey="Input" fill={GOLD} opacity={0.7} radius={[2, 2, 0, 0]} />
             <Bar dataKey="Output" fill={BLUE} opacity={0.85} radius={[2, 2, 0, 0]} />
-            <Legend wrapperStyle={{ ...mono, fontSize: 13, color: TXT2 }} />
+            <Legend wrapperStyle={{ ...mono, fontSize: CHART_TEXT.tooltip, color: TXT2 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -366,7 +367,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
                 <Line key={g.key} type="monotone" dataKey={label} stroke={seriesColors[i]} dot={{ r: 3 }} strokeWidth={2} />
               );
             })}
-            <Legend wrapperStyle={{ ...mono, fontSize: 13, color: TXT2 }} />
+            <Legend wrapperStyle={{ ...mono, fontSize: CHART_TEXT.tooltip, color: TXT2 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -384,7 +385,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
             <Tooltip content={<ChartTooltip />} />
             <Bar dataKey="Catalog Hits" fill={GOLD} opacity={0.85} radius={[0, 2, 2, 0]} />
             <Bar dataKey="Warehouse Calls" fill={RED} opacity={0.75} radius={[0, 2, 2, 0]} />
-            <Legend wrapperStyle={{ ...mono, fontSize: 13, color: TXT2 }} />
+            <Legend wrapperStyle={{ ...mono, fontSize: CHART_TEXT.tooltip, color: TXT2 }} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -394,7 +395,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
 function SummaryTable({ groups }: { groups: GroupStats[] }) {
   if (!groups.length) {
     return (
-      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, padding: '24px 0', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, padding: '24px 0', textAlign: 'center' }}>
         No data yet — send a message to start collecting metrics.
       </div>
     );
@@ -416,14 +417,14 @@ function SummaryTable({ groups }: { groups: GroupStats[] }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 13 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 'var(--type-ui-regular-size)' }}>
         <thead>
           <tr>
-            <th style={{ width: '30%', textAlign: 'left', padding: '6px 10px', color: TXT2, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: `1px solid ${BORDER}` }}>Metric</th>
+            <th style={{ width: '30%', textAlign: 'left', padding: '6px 10px', color: TXT2, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: `1px solid ${BORDER}` }}>Metric</th>
             {groups.map(g => (
               <th key={g.key} style={{ width: colW, textAlign: 'right', padding: '6px 10px', borderBottom: `1px solid ${BORDER}` }}>
-                <div style={{ color: g.color, fontWeight: 600, fontSize: 13 }}>{g.modelLabel}</div>
-                <div style={{ fontSize: 13, color: TXT2, marginTop: 2 }}>
+                <div style={{ color: g.color, fontWeight: 600, fontSize: 'var(--type-ui-regular-size)' }}>{g.modelLabel}</div>
+                <div style={{ fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 2 }}>
                   {g.contextMode === 'harvested' ? 'CTX + SQL' : 'SQL ONLY'}
                 </div>
               </th>
@@ -433,7 +434,7 @@ function SummaryTable({ groups }: { groups: GroupStats[] }) {
         <tbody>
           {rows.map((row, ri) => (
             <tr key={row.label} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-              <td style={{ padding: '7px 10px', color: TXT2, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <td style={{ padding: '7px 10px', color: TXT2, fontSize: 'var(--type-ui-regular-size)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                 {row.label}
               </td>
               {groups.map(g => (
@@ -485,8 +486,8 @@ function ContextBoostScore({ groups }: { groups: GroupStats[] }) {
         <div key={c.modelKey} style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
-            <span style={{ ...mono, fontSize: 13, color: c.color, fontWeight: 600 }}>{c.modelLabel}</span>
-            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2 }}>— context harness impact</span>
+            <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: c.color, fontWeight: 600 }}>{c.modelLabel}</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>— context harness impact</span>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
             <BoostBadge pct={c.tokenBoost} label="Token Reduction" />
@@ -496,7 +497,7 @@ function ContextBoostScore({ groups }: { groups: GroupStats[] }) {
         </div>
       ))}
       {withoutBoth.length > 0 && (
-        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, padding: '10px 0', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, padding: '10px 0', borderTop: `1px solid ${BORDER}` }}>
           Run same model with both CTX and SQL-only modes to see boost scores for:
           {withoutBoth.map(c => (
             <span key={c.modelKey} style={{ color: c.color, marginLeft: 8 }}>{c.modelLabel}</span>
@@ -517,14 +518,14 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
   return (
     <div>
       <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 'var(--type-ui-regular-size)' }}>
           <thead>
             <tr>
               {['#', 'Model', 'Mode', 'In Tok', 'Out Tok', 'Total', 'Latency', 'TTFT', 'Loops', 'Tools'].map(h => (
                 <th key={h} style={{
                   textAlign: 'right',
                   padding: '5px 8px',
-                  color: TXT2, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                  color: TXT2, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase' as const,
                   borderBottom: `1px solid ${BORDER}`,
                 }}>
                   {h}
@@ -546,7 +547,7 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
                   </td>
                   <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                     <span style={{
-                      display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
+                      display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
                       background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                       color: isCtx ? GOLD : BLUE,
                       border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -575,7 +576,7 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
           style={{
             marginTop: 8, display: 'flex', alignItems: 'center', gap: 4,
             background: 'transparent', border: 'none', cursor: 'pointer',
-            ...mono, fontSize: 13, color: TXT2,
+            ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2,
           }}
         >
           {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -590,13 +591,13 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
 function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 13 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 'var(--type-ui-regular-size)' }}>
         <thead>
           <tr>
             {['Model', 'Mode', 'Sessions', 'Avg Tokens', 'Avg Latency', 'Avg Loops', 'Avg WH Calls'].map(h => (
               <th key={h} style={{
                 textAlign: 'right', padding: '5px 8px',
-                color: TXT2, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                color: TXT2, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase' as const,
                 borderBottom: `1px solid ${BORDER}`,
               }}>
                 {h}
@@ -613,7 +614,7 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', color, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{s.modelLabel}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                   <span style={{
-                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
+                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
                     background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
                     border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -683,7 +684,7 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
 
   if (!latest || latest.toolCalls.length === 0) {
     return (
-      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px 0' }}>
         No tool calls recorded yet — send a message to start.
       </div>
     );
@@ -695,7 +696,7 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
 
   return (
     <div>
-      <div style={{ ...mono, fontSize: 13, color: TXT2, marginBottom: 14 }}>
+      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginBottom: 14 }}>
         Turn {latest.turnIndex} · {latest.contextMode === 'harvested' ? 'CTX' : 'SQL'} ·{' '}
         {AVAILABLE_MODELS.find(m => m.key === latest.modelKey)?.label ?? latest.modelKey}
       </div>
@@ -724,14 +725,14 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
             borderBottom: i < calls.length - 1 ? '1px solid rgba(28,44,63,0.5)' : 'none',
             alignItems: 'center',
           }}>
-            <span style={{ ...mono, fontSize: 13, color: TXT2, width: 18, flexShrink: 0, textAlign: 'right' }}>
+            <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, width: 18, flexShrink: 0, textAlign: 'right' }}>
               {i + 1}
             </span>
             <KindBadge kind={c.kind} />
-            <span style={{ ...mono, fontSize: 13, color: TXT2, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {c.name}{c.sqlExcerpt ? ` · ${c.sqlExcerpt}` : ''}
             </span>
-            <span style={{ ...mono, fontSize: 13, color: TXT2, flexShrink: 0 }}>
+            <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, flexShrink: 0 }}>
               {c.durationMs >= 1000 ? `${(c.durationMs / 1000).toFixed(1)}s` : `${c.durationMs}ms`}
             </span>
           </div>
@@ -741,7 +742,7 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
         <div style={{
           padding: '11px 15px',
           ...mono,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           letterSpacing: '0.04em',
           color: latest.outcome === 'completed' ? GREEN : RED,
           background: latest.outcome === 'completed' ? 'rgba(34,197,94,0.08)' : 'rgba(244,63,94,0.08)',
@@ -816,7 +817,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
               background: 'transparent', border: `1px solid ${BORDER}`,
               borderRadius: 6, padding: '6px 12px',
               color: TXT2, cursor: 'pointer', transition: 'all 0.15s',
-              fontFamily: 'var(--font-sans)', fontSize: 13, letterSpacing: '0.04em',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TXT2; }}
@@ -826,10 +827,10 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
           </button>
           <div style={{ width: 1, height: 24, background: BORDER, marginLeft: 4 }} />
           <FlaskConical size={16} style={{ color: GOLD }} />
-          <span style={{ ...mono, fontSize: 13, color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
+          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
             — context harness research
           </span>
         </div>
@@ -885,7 +886,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
               <button key={t.id} onClick={() => handleTabClick(t.id)} style={{
                 padding: '12px 18px', background: 'transparent', border: 'none',
                 borderBottom: `2px solid ${activeTab === t.id ? GOLD : 'transparent'}`,
-                cursor: 'pointer', ...mono, fontSize: 13, letterSpacing: '0.08em',
+                cursor: 'pointer', ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em',
                 color: activeTab === t.id ? GOLD : TXT2, transition: 'all 0.15s',
                 whiteSpace: 'nowrap',
               }}>
@@ -953,7 +954,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
               {historicalStats.length > 0 ? (
                 <HistoricalSection stats={historicalStats} />
               ) : (
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px 0' }}>
                   No historical data yet. Complete inspector sessions to populate this view.
                 </div>
               )}
@@ -974,10 +975,10 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: SURF,
       }}>
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, letterSpacing: '0.04em' }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, letterSpacing: '0.04em' }}>
           ALOFT PERFORMANCE LAB · v0.1 · metrics are session-local unless marked historical
         </span>
-        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.04em' }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.04em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

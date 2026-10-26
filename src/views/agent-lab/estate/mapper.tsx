@@ -503,20 +503,20 @@ export default function EstateMapperPage() {
 
           {/* Warnings & identical guard */}
           {isIdenticalPair && (
-            <div className="text-red-500 text-xs font-sans font-semibold">
+            <div className="text-red-500 text-size-ui font-sans font-semibold">
               Cannot map a schema to itself
             </div>
           )}
 
           {jobError && (
-            <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-xs font-mono">
+            <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono">
               Error: {jobError}
             </div>
           )}
 
           {/* Run config row */}
           <div className="flex items-center gap-3 py-4 border-t border-dashed" style={{ borderColor }}>
-            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-size-ui cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={includeRejected}
@@ -553,7 +553,7 @@ export default function EstateMapperPage() {
      <h2 className="text-label ">Job Execution</h2>
           
           <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
-            <div className="flex flex-col gap-3 font-mono text-xs">
+            <div className="flex flex-col gap-3 font-mono text-size-ui">
               {stages.map((stage, idx) => {
                 const status = getStageStatus(stage.key, idx);
                 const duration = jobData?.stats?.[stage.durKey];
@@ -573,7 +573,7 @@ export default function EstateMapperPage() {
                       </span>
                     </div>
                     {duration !== undefined && (
-                      <span style={{ color: labelColor }} className="text-xs">
+                      <span style={{ color: labelColor }} className="text-size-ui">
                         {(duration / 1000).toFixed(1)}s
                       </span>
                     )}
@@ -585,7 +585,7 @@ export default function EstateMapperPage() {
 
           {jobError && (
             <div className="flex flex-col gap-3">
-              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-xs font-mono">
+              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono">
                 Error: {jobError}
               </div>
               <button
@@ -620,11 +620,11 @@ export default function EstateMapperPage() {
           </div>
 
           {loadingMappings ? (
-            <div className="text-xs font-sans animate-pulse" style={{ color: labelColor }}>
+            <div className="text-size-ui font-sans animate-pulse" style={{ color: labelColor }}>
               Loading mappings results...
             </div>
           ) : groupedPairs.length === 0 ? (
-            <div className="text-xs font-sans" style={{ color: labelColor }}>
+            <div className="text-size-ui font-sans" style={{ color: labelColor }}>
               No proposed mappings found between the selected schemas.
             </div>
           ) : (
@@ -650,12 +650,12 @@ export default function EstateMapperPage() {
                       }
                     >
                       <div className="flex items-center gap-4">
-                        <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
+                        <span className="text-size-ui">{isExpanded ? '▼' : '▶'}</span>
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-xs font-semibold">
+                          <span className="font-mono text-size-ui font-semibold">
                             {group.leftObjectPath} ↔ {group.rightObjectPath}
                           </span>
-                          <span className="text-xs font-sans" style={{ color: labelColor }}>
+                          <span className="text-size-ui font-sans" style={{ color: labelColor }}>
                             avg confidence: {avgConf} · {group.mappings.length} column mappings
                           </span>
                         </div>
@@ -664,7 +664,7 @@ export default function EstateMapperPage() {
                       {/* Bulk actions */}
                       <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-mono" style={{ color: labelColor }}>
+                          <span className="text-size-ui font-mono" style={{ color: labelColor }}>
                             Bulk confirm ≥
                           </span>
                           <input
@@ -676,7 +676,7 @@ export default function EstateMapperPage() {
                             onChange={(e) =>
                               setThresholds((prev) => ({ ...prev, [group.key]: e.target.value }))
                             }
-                            className="w-12 h-6 border rounded px-1 text-xs font-mono outline-none text-center bg-transparent"
+                            className="w-12 h-6 border rounded px-1 text-size-ui font-mono outline-none text-center bg-transparent"
                             style={{ borderColor, color: inkColor }}
                           />
                         </div>
@@ -711,7 +711,7 @@ export default function EstateMapperPage() {
                             return (
                               <div
                                 key={m.id}
-                                className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-4 py-3 items-center text-xs transition-all duration-200 ${
+                                className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-4 py-3 items-center text-size-ui transition-all duration-200 ${
                                   isConfirmed ? 'bg-green-500/5' : isRejected ? 'opacity-40' : ''
                                 }`}
                               >
@@ -725,7 +725,7 @@ export default function EstateMapperPage() {
                                 {/* Signals bars */}
                                 <div className="col-span-3 flex items-center gap-3">
                                   <div className="flex flex-col gap-1 w-full">
-                                    <div className="grid grid-cols-4 gap-1 text-xs font-mono text-center" style={{ color: labelColor }}>
+                                    <div className="grid grid-cols-4 gap-1 text-size-ui font-mono text-center" style={{ color: labelColor }}>
                                       <div>EMB</div>
                                       <div>NAM</div>
                                       <div>TYP</div>
@@ -754,7 +754,7 @@ export default function EstateMapperPage() {
 
                                 {/* Rationale */}
                                 <div
-                                  className="col-span-3 text-xs truncate select-none"
+                                  className="col-span-3 text-size-ui truncate select-none"
                                   style={{ color: labelColor }}
                                   title={rationale}
                                 >
@@ -808,7 +808,7 @@ export default function EstateMapperPage() {
                           </div>
 
                           {isRemainderExpanded && (
-                            <div className="mt-2.5 flex flex-col gap-2 pl-4 text-xs font-mono">
+                            <div className="mt-2.5 flex flex-col gap-2 pl-4 text-size-ui font-mono">
                               {(() => {
                                 const leftAll = objectColumns[group.leftObjectId]?.map((c) => c.name) || [];
                                 const leftMapped = new Set(group.mappings.map((m) => m.leftColName));
@@ -1079,7 +1079,7 @@ function SchemaPicker({
 
       {/* Coverage summaries */}
       {value?.sourceId && value?.catalogName && value?.schemaName && (
-        <div className="mt-2 pt-2 border-t text-xs font-mono" style={{ borderColor }}>
+        <div className="mt-2 pt-2 border-t text-size-ui font-mono" style={{ borderColor }}>
           {loadingCoverage ? (
             <span style={{ color: labelColor }} className="animate-pulse">Loading coverage stats...</span>
           ) : (

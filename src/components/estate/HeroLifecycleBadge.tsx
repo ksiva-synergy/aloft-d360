@@ -14,6 +14,7 @@
 // If no last_t0_at exists, renders nothing (object is not yet inventoried).
 
 import React from 'react';
+import { inkOf } from '@/lib/typography/tokens';
 
 export type LifecycleState = 'discovered' | 'harvested' | 'published';
 
@@ -129,7 +130,7 @@ export default function LifecycleBadge({
             padding: '2px 6px',
             borderRadius: 3,
             backgroundColor: STALE_STYLE.bg,
-            color: STALE_STYLE.color,
+            color: inkOf(STALE_STYLE.color),
             border: `1px solid ${STALE_STYLE.border}`,
             textTransform: 'uppercase',
           }}

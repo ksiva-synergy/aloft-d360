@@ -151,14 +151,14 @@ export default function EstateObjectDetailPage() {
           </span>
 
           <h2
-            className="text-xl font-semibold"
+            className="text-size-title-section font-semibold"
             style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
           >
             Object not found
           </h2>
 
           <p
-            className="text-xs leading-relaxed"
+            className="text-size-ui leading-relaxed"
             style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
           >
             The object you are looking for does not exist in this data source or has been removed.
@@ -166,7 +166,7 @@ export default function EstateObjectDetailPage() {
 
           <button
             onClick={() => router.push('/agent-lab/estate/catalog')}
-            className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
+            className="font-mono text-size-ui text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
           >
             &larr; back to catalog
           </button>
@@ -184,16 +184,16 @@ export default function EstateObjectDetailPage() {
             backgroundColor: cardBg,
           }}
         >
-          <span className="text-red-500 font-semibold text-3xl">⚠</span>
-          <h2 className="text-lg font-semibold" style={{ color: inkColor }}>
+          <span className="text-red-500 font-semibold text-size-kpi-lg">⚠</span>
+          <h2 className="text-size-title-section font-semibold" style={{ color: inkColor }}>
             Failed to load object
           </h2>
-          <p className="text-xs" style={{ color: mutedColor }}>
+          <p className="text-size-ui" style={{ color: mutedColor }}>
             {error}
           </p>
           <button
             onClick={() => router.push('/agent-lab/estate/catalog')}
-            className="font-mono text-xs text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
+            className="font-mono text-size-ui text-[var(--brand-a-ink)] hover:underline cursor-pointer border-none bg-transparent"
           >
             &larr; back to catalog
           </button>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { inkOf } from '@/lib/typography/tokens';
 
 export interface ColumnItem {
   id: string;
@@ -69,7 +70,7 @@ function RoleBadge({ role }: { role: string }) {
   const style = roleColors[role] || roleColors.other;
   return (
     <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium tracking-wide whitespace-nowrap"
+      className="inline-flex items-center px-1.5 py-0.5 rounded text-size-ui font-mono font-medium tracking-wide whitespace-nowrap"
       style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}` }}
     >
       {role}
@@ -127,11 +128,11 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
         role={isLongDesc ? 'button' : undefined}
       >
         {/* Name */}
-        <td className="px-4 py-2.5 font-mono text-xs font-semibold whitespace-nowrap align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 font-mono text-size-ui font-semibold whitespace-nowrap align-middle" style={{ color: inkColor }}>
           <div className="flex items-center gap-2">
             {isLongDesc && (
               <span
-                className="inline-flex w-4 h-4 items-center justify-center text-xs transition-transform duration-150 select-none opacity-50 group-hover:opacity-100"
+                className="inline-flex w-4 h-4 items-center justify-center text-size-ui transition-transform duration-150 select-none opacity-50 group-hover:opacity-100"
                 style={{ color: labelColor, transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
               >
                 ▶
@@ -143,25 +144,25 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
           </div>
         </td>
         {/* Type */}
-        <td className="px-4 py-2.5 font-mono text-xs whitespace-nowrap align-middle" style={{ color: mutedColor }}>
+        <td className="px-4 py-2.5 font-mono text-size-ui whitespace-nowrap align-middle" style={{ color: mutedColor }}>
           {col.data_type || '—'}
         </td>
         {/* Role */}
         <td className="px-4 py-2.5 align-middle">
-          {role !== '—' ? <RoleBadge role={role} /> : <span className="text-xs" style={{ color: mutedColor }}>—</span>}
+          {role !== '—' ? <RoleBadge role={role} /> : <span className="text-size-ui" style={{ color: mutedColor }}>—</span>}
         </td>
         {/* Null% */}
-        <td className="px-4 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 text-right font-mono text-size-ui whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
           {formatNullRate(profile.null_rate)}
         </td>
         {/* Distinct */}
-        <td className="px-4 py-2.5 text-right font-mono text-xs whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
+        <td className="px-4 py-2.5 text-right font-mono text-size-ui whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
           {formatDistinct(profile.distinct_est)}
         </td>
         {/* Top Values */}
         <td className="px-4 py-2.5 align-middle">
           {isPii ? (
-            <span className="text-red-500/80 dark:text-red-400/80 text-xs font-medium select-none inline-flex items-center gap-1">
+            <span className="text-red-500/80 dark:text-red-400/80 text-size-ui font-medium select-none inline-flex items-center gap-1">
               <span>⚑</span> PII
             </span>
           ) : topValues.length > 0 ? (
@@ -169,7 +170,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               {topValues.slice(0, 3).map((v, i) => (
                 <span
                   key={i}
-                  className="inline-block px-1.5 py-0.5 rounded text-xs font-mono truncate max-w-[90px]"
+                  className="inline-block px-1.5 py-0.5 rounded text-size-ui font-mono truncate max-w-[90px]"
                   style={{ backgroundColor: 'rgba(136,146,164,0.08)', color: mutedColor, border: '1px solid rgba(136,146,164,0.12)' }}
                   title={v}
                 >
@@ -177,17 +178,17 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
                 </span>
               ))}
               {topValues.length > 3 && (
-                <span className="text-xs font-mono" style={{ color: mutedColor }}>
+                <span className="text-size-ui font-mono" style={{ color: mutedColor }}>
                   +{topValues.length - 3}
                 </span>
               )}
             </div>
           ) : (
-            <span className="text-xs" style={{ color: mutedColor }}>—</span>
+            <span className="text-size-ui" style={{ color: mutedColor }}>—</span>
           )}
         </td>
         {/* Description */}
-        <td className="px-4 py-2.5 font-sans text-xs leading-relaxed align-middle" style={{ color: labelColor }}>
+        <td className="px-4 py-2.5 font-sans text-size-ui leading-relaxed align-middle" style={{ color: labelColor }}>
           {hasDescription ? (
             <span className={isLongDesc && !expanded ? 'line-clamp-2' : ''}>
               {descriptionIsNative && (
@@ -200,7 +201,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
                     padding: '1px 4px',
                     borderRadius: 2,
                     background: 'rgba(224,178,60,0.12)',
-                    color: '#e0b23c',
+                    color: inkOf('#e0b23c'),
                     border: '1px solid rgba(224,178,60,0.3)',
                     marginRight: 5,
                     letterSpacing: '0.08em',
@@ -213,7 +214,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               <Highlight text={description} query={searchQuery} />
             </span>
           ) : (
-            <span className="italic text-xs" style={{ color: mutedColor }}>No description</span>
+            <span className="italic text-size-ui" style={{ color: mutedColor }}>No description</span>
           )}
         </td>
         {/* Confidence */}
@@ -250,7 +251,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               </span>
             </div>
           ) : (
-            <span className="text-xs" style={{ color: mutedColor }}>—</span>
+            <span className="text-size-ui" style={{ color: mutedColor }}>—</span>
           )}
         </td>
       </tr>
@@ -262,7 +263,7 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
             style={{ borderBottom: `1px solid ${borderColor}` }}
           >
             <div
-              className="ml-6 pl-4 py-3 rounded font-sans text-xs leading-relaxed"
+              className="ml-6 pl-4 py-3 rounded font-sans text-size-ui leading-relaxed"
               style={{
                 color: labelColor,
                 backgroundColor: 'rgba(136,146,164,0.04)',
@@ -460,7 +461,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
           </span>
         </div>
         <div className="border-dashed rounded p-8 text-center" style={{ borderColor }}>
-          <p className="text-xs italic font-sans" style={{ color: labelColor }}>
+          <p className="text-size-ui italic font-sans" style={{ color: labelColor }}>
             No column metadata available yet. Run a profile to populate.
           </p>
         </div>
@@ -491,21 +492,21 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
           onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--brand-a)'; }}
           onBlurCapture={(e) => { e.currentTarget.style.borderColor = borderColor; }}
         >
-          <span className="select-none text-xs" style={{ color: mutedColor }}>⌕</span>
+          <span className="select-none text-size-ui" style={{ color: mutedColor }}>⌕</span>
           <input
             ref={searchRef}
             type="text"
             placeholder={`Search ${columns.length} columns… (/)`}
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="flex-1 bg-transparent border-none outline-none text-xs"
+            className="flex-1 bg-transparent border-none outline-none text-size-ui"
             style={{ color: inkColor, fontFamily: 'var(--font-sans)', minWidth: 0 }}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
-              className="text-xs opacity-60 hover:opacity-100 transition-opacity leading-none"
+              className="text-size-ui opacity-60 hover:opacity-100 transition-opacity leading-none"
               style={{ color: mutedColor }}
               aria-label="Clear search"
             >
@@ -544,7 +545,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
 
       {/* ── Table ───────────────────────────────────────────── */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs text-left" style={{ tableLayout: 'fixed' }}>
+        <table className="w-full border-collapse text-size-ui text-left" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '16%' }} />
             <col style={{ width: '9%' }} />
@@ -596,7 +597,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               <tr>
                 <td
                   colSpan={8}
-                  className="px-4 py-10 text-center font-sans text-xs italic"
+                  className="px-4 py-10 text-center font-sans text-size-ui italic"
                   style={{ color: mutedColor }}
                 >
                   No columns match your search{roleFilter ? ` with role "${roleFilter}"` : ''}{piiFilter !== 'all' ? ` (${piiFilter})` : ''}.
@@ -625,7 +626,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
       >
         {/* Left: count info */}
         <span
-          className="font-mono text-xs"
+          className="font-mono text-size-ui"
           style={{ color: isFiltered ? 'var(--brand-a)' : labelColor }}
         >
           {footerLabel}{sortLabel}
@@ -638,7 +639,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(1)}
               disabled={safeCurrentPage <= 1}
-              className="font-mono text-xs px-2 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-size-ui px-2 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -653,7 +654,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={safeCurrentPage <= 1}
-              className="font-mono text-xs px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-size-ui px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -677,7 +678,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
                 key={page}
                 type="button"
                 onClick={() => setCurrentPage(page)}
-                className="font-mono text-xs w-7 h-7 rounded border transition-colors"
+                className="font-mono text-size-ui w-7 h-7 rounded border transition-colors"
                 style={{
                   backgroundColor: page === safeCurrentPage ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
                   borderColor: page === safeCurrentPage ? 'var(--brand-a)' : borderColor,
@@ -693,7 +694,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-xs px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-size-ui px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -708,7 +709,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               type="button"
               onClick={() => setCurrentPage(totalPages)}
               disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-xs px-2 py-1 rounded border transition-colors disabled:opacity-30"
+              className="font-mono text-size-ui px-2 py-1 rounded border transition-colors disabled:opacity-30"
               style={{
                 backgroundColor: 'transparent',
                 borderColor,
@@ -725,7 +726,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         {/* Right: page size selector + keyboard hint */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-xs" style={{ color: mutedColor }}>Rows:</span>
+            <span className="font-mono text-size-ui" style={{ color: mutedColor }}>Rows:</span>
             <select
               style={{ ...selectStyle, fontSize: 'var(--type-ui-regular-size)', padding: '3px 22px 3px 6px' }}
               value={pageSize}
@@ -736,7 +737,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               ))}
             </select>
           </div>
-          <span className="font-mono text-xs opacity-50" style={{ color: mutedColor }}>
+          <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
             / to search
           </span>
         </div>

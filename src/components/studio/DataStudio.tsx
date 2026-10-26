@@ -13,7 +13,7 @@ import { InsightRail } from './InsightRail';
 import type { InsightCacheEntry, InsightResult } from './InsightRail';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { EXPORT_MAX_ROWS } from '@/lib/databricks/export-limits';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 export interface DataStudioProps {
   open: boolean;
@@ -45,7 +45,7 @@ function NoResultsState() {
       >
         NO RESULTS YET
         <br />
-        <span style={{ opacity: 0.6, fontSize: 'var(--type-ui-regular-size)' }}>RUN A QUERY IN THE INSPECTOR</span>
+        <span style={{ color: 'var(--ink-3)', fontSize: 'var(--type-ui-regular-size)' }}>RUN A QUERY IN THE INSPECTOR</span>
       </span>
     </div>
   );
@@ -413,7 +413,7 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
             color: 'var(--builder-text-label)',
           }}
         >
-          <span style={{ opacity: 0.6 }}>INSPECTOR DATA STUDIO · V5</span>
+          <span style={{ color: 'var(--ink-3)', }}>INSPECTOR DATA STUDIO · V5</span>
           <span style={{ opacity: 0.6 }}>
             {selectedResult?.rowCount === 47 ? 'THE GAME IS 47-0.' : 'POWERED BY ALOFT'}
           </span>
@@ -578,7 +578,7 @@ function StudioMainCanvas({
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 'var(--type-ui-regular-size)',
-            color: '#f87171',
+            color: inkOf('#f87171'),
             background: 'rgba(248,113,113,0.08)',
             borderBottom: '1px solid var(--builder-border)',
             padding: '6px 16px',
@@ -657,7 +657,7 @@ function StudioMainCanvas({
         {result.truncated ? (
           <span>
             FIRST {result.rows.length.toLocaleString()} OF {result.rowCount.toLocaleString()} ROWS
-            <span style={{ color: '#f87171', marginLeft: 8 }}>· TRUNCATED</span>
+            <span style={{ color: inkOf('#f87171'), marginLeft: 8 }}>· TRUNCATED</span>
           </span>
         ) : (
           <span>{result.rowCount.toLocaleString()} ROWS · {result.columns.length} COLUMNS</span>

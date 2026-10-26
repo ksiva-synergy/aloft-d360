@@ -22,6 +22,7 @@ import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { getDefaultOrg } from '@/lib/platform/agents';
+import { getSessionUserRole } from '@/lib/inspector/model-access';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -44,7 +45,8 @@ export async function POST(request: NextRequest) {
     return new Response('Workbench chat requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
   }
 
-  const resolved = resolveWorkbenchModel(body.model);
+  const role = await getSessionUserRole();
+  const resolved = resolveWorkbenchModel(body.model, role);
   if (!resolved) {
     return new Response('Model not available for workbench', { status: 400 });
   }

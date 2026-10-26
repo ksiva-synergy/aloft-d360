@@ -47,7 +47,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
   if (!lastJobs || lastJobs.length === 0) {
     return (
       <div
-        className="p-8 border border-dashed rounded text-center text-xs font-sans shadow-sm select-none"
+        className="p-8 border border-dashed rounded text-center text-size-ui font-sans shadow-sm select-none"
         style={{ borderColor, color: labelColor }}
       >
         No recent jobs
@@ -58,7 +58,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
   return (
     <div className="border rounded overflow-hidden shadow-sm" style={{ borderColor }}>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs text-left">
+        <table className="w-full border-collapse text-size-ui text-left">
           <thead>
             <tr
               className="sticky top-0 z-10 border-b select-none"
@@ -82,7 +82,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                 className="transition-colors duration-150 font-sans"
               >
                 {/* Kind — links to job detail */}
-                <td className="p-2.5 font-mono text-xs font-semibold" style={{ color: inkColor }}>
+                <td className="p-2.5 font-mono text-size-ui font-semibold" style={{ color: inkColor }}>
                   <Link
                     href={`/agent-lab/estate/jobs/${job.id}`}
                     className="px-1.5 py-0.5 rounded border bg-black/5 dark:bg-white/5 hover:underline"
@@ -92,7 +92,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                   </Link>
                 </td>
                 {/* Trigger */}
-                <td className="p-2.5 text-xs" style={{ color: labelColor }}>
+                <td className="p-2.5 text-size-ui" style={{ color: labelColor }}>
                   {job.trigger || '—'}
                 </td>
                 {/* Status */}
@@ -100,11 +100,11 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
                   <StatusChip status={job.status} />
                 </td>
                 {/* Started */}
-                <td className="p-2.5 text-xs" style={{ color: labelColor }}>
+                <td className="p-2.5 text-size-ui" style={{ color: labelColor }}>
                   {relativeTime(job.started_at)}
                 </td>
                 {/* Duration */}
-                <td className="p-2.5 text-right font-mono text-xs" style={{ color: inkColor }}>
+                <td className="p-2.5 text-right font-mono text-size-ui" style={{ color: inkColor }}>
                   {getDuration(job.started_at, job.finished_at)}
                 </td>
               </tr>

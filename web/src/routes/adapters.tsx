@@ -32,7 +32,7 @@ const MONO = { fontFamily: 'var(--font-mono)' } as const;
 
 export function PageMessage({ text, children }: { text: string; children?: ReactNode }) {
   return (
-    <div role="status" className="flex h-full min-h-[40vh] flex-col items-center justify-center gap-3 p-8 text-sm text-[var(--ink-3)]" style={MONO}>
+    <div role="status" className="flex h-full min-h-[40vh] flex-col items-center justify-center gap-3 p-8 text-size-body text-[var(--ink-3)]" style={MONO}>
       <span>{text}</span>
       {children}
     </div>

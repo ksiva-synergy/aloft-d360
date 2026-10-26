@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
-import { enqueue } from '@/lib/context/queue';
+import { pathToIncludePattern } from '@/lib/context/job-scope';
+import { enqueueAndLaunchHarvest } from '@/lib/context/enqueue-and-launch';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,6 @@ export async function POST(req: NextRequest) {
 
     const enqueued: string[] = [];
     const skipped: { path: string; reason: string }[] = [];
-
     for (const path of paths) {
       const estateRow = await prisma.$queryRawUnsafe<any[]>(
         `SELECT id, source_id, harvest_state
@@ -57,7 +57,13 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      await enqueue('t0_structural', sourceId, { path }, 'on_demand', orgId);
+      const scope = { includePatterns: [pathToIncludePattern(path)] };
+      await enqueueAndLaunchHarvest(
+        't0_structural',
+        sourceId,
+        scope,
+        orgId,
+      );
 
       await prisma.$executeRawUnsafe(
         `UPDATE platform_estate_objects SET harvest_state = 'queued'

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { Database, Ruler, Tag, LayoutDashboard, AlertTriangle, Info } from 'lucide-react';
+import { inkOf } from '@/lib/typography/tokens';
 
 // ── Response shape (mirrors /api/inspector/semantic/lineage) ───────────────────
 interface ResolvesTo { fullPath: string; column: string | null; expression: string | null; resultAlias: string }
@@ -116,22 +117,22 @@ export default function LineagePage() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
-          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>Lineage</h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
+          <h1 className="text-size-kpi-lg font-semibold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>Lineage</h1>
+          <p className="text-size-body mt-1.5" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
             One graph, two lenses — estate table → definition → consumers. Pick a metric (forward) or an entity (reverse).
           </p>
         </div>
 
         {err && (
-          <div className="border border-dashed rounded-lg p-6 text-sm" style={{ backgroundColor: raised, borderColor: borderGold, color: muted }}>{err}</div>
+          <div className="border border-dashed rounded-lg p-6 text-size-body" style={{ backgroundColor: raised, borderColor: borderGold, color: muted }}>{err}</div>
         )}
 
         {!err && noModel && (
           <div className="flex justify-center py-12">
             <div className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-4" style={{ backgroundColor: raised, borderColor: borderGold }}>
-              <h2 className="text-xl font-semibold" style={{ color: ink }}>No governed model yet</h2>
-              <p className="text-xs" style={{ color: muted }}>Lineage traces a governed semantic model. Promote one to see its graph.</p>
-              <Link href="/agent-lab/estate/catalog" className="font-mono text-xs hover:underline" style={{ color: GOLD }}>Go to Catalog &rarr;</Link>
+              <h2 className="text-size-title-section font-semibold" style={{ color: ink }}>No governed model yet</h2>
+              <p className="text-size-ui" style={{ color: muted }}>Lineage traces a governed semantic model. Promote one to see its graph.</p>
+              <Link href="/agent-lab/estate/catalog" className="font-mono text-size-ui hover:underline" style={{ color: inkOf(GOLD) }}>Go to Catalog &rarr;</Link>
             </div>
           </div>
         )}
@@ -147,7 +148,7 @@ export default function LineagePage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search metrics &amp; entities…"
-                className="w-full mb-2 rounded-lg px-3 py-2 text-xs font-mono outline-none border"
+                className="w-full mb-2 rounded-lg px-3 py-2 text-size-ui font-mono outline-none border"
                 style={{ background: 'rgba(0,0,0,0.02)', borderColor: softBorder, color: ink }}
               />
               <div className="flex flex-wrap gap-2 max-h-[132px] overflow-y-auto scrollbar-thin">
@@ -157,22 +158,22 @@ export default function LineagePage() {
                     <button
                       key={f.id}
                       onClick={() => { void fetchGraph(f.id, ''); }}
-                      className="inline-flex items-center gap-2 font-mono text-xs rounded-lg px-2.5 py-1.5 border transition-colors"
+                      className="inline-flex items-center gap-2 font-mono text-size-ui rounded-lg px-2.5 py-1.5 border transition-colors"
                       style={on ? { borderColor: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: ink } : { borderColor: softBorder, background: 'transparent', color: muted }}
                     >
                       {nodeIcon(f)}
                       <span className="max-w-[220px] truncate">{f.label}</span>
-                      <span className="text-xs uppercase tracking-wide" style={{ color: muted }}>{f.kind === 'measure' ? 'metric' : 'entity'}</span>
+                      <span className="text-size-ui uppercase tracking-wide" style={{ color: muted }}>{f.kind === 'measure' ? 'metric' : 'entity'}</span>
                     </button>
                   );
                 })}
-                {options && options.hasMore && <span className="text-xs self-center" style={{ color: muted }}>+{options.total - options.options.length} more — refine search</span>}
+                {options && options.hasMore && <span className="text-size-ui self-center" style={{ color: muted }}>+{options.total - options.options.length} more — refine search</span>}
               </div>
             </div>
 
             {/* Estate-wide bootstrap context — attaches the WHY to a heavily-capped view */}
             {governance?.note && (
-              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-xs leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: 'var(--font-sans)' }}>
+              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-size-ui leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: 'var(--font-sans)' }}>
                 <b style={{ color: ink }}>{governance.candidate} of {governance.total}</b> definitions are candidate ({governance.pctCandidate}%). {governance.note}
               </div>
             )}
@@ -185,8 +186,8 @@ export default function LineagePage() {
                 {focusNode.kind === 'measure' && (focusNode as DefNode).capped && (
                   <div className="border rounded-lg p-3.5 mb-4 flex gap-3" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', borderColor: GOLD }}>
                     <AlertTriangle size={16} style={{ color: GOLD, flex: 'none', marginTop: 1 }} />
-                    <div className="text-xs leading-relaxed" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
-                      <b style={{ color: ink }}>Governance ceiling.</b> <b style={{ color: ink }}>{focusNode.label}</b> touches a <b style={{ color: GOLD }}>candidate</b> definition
+                    <div className="text-size-ui leading-relaxed" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
+                      <b style={{ color: ink }}>Governance ceiling.</b> <b style={{ color: ink }}>{focusNode.label}</b> touches a <b style={{ color: inkOf(GOLD) }}>candidate</b> definition
                       {(focusNode as DefNode).cappedBy?.length ? <> ({(focusNode as DefNode).cappedBy!.map((id) => nodeById.get(id)?.label ?? id.replace(/^\w+:/, '')).join(', ')})</> : null}.
                       This is a governance-lens ceiling computed over per-definition status — <i>not</i> an execution block (a governed model still executes candidate defs). Honest, never a crash.
                     </div>
@@ -194,7 +195,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.truncated && (
-                  <div className="text-xs font-sans mb-3" style={{ color: GOLD }}>Neighborhood truncated — this entity has more definitions than shown.</div>
+                  <div className="text-size-ui font-sans mb-3" style={{ color: inkOf(GOLD) }}>Neighborhood truncated — this entity has more definitions than shown.</div>
                 )}
 
                 {/* 3-column graph */}
@@ -206,7 +207,7 @@ export default function LineagePage() {
                       <div key={colKey}>
             <div className="text-label text-center pb-2 mb-2 border-b" style={{ color: muted, borderColor: softBorder }}>{heads[colKey]}</div>
                         <div className="flex flex-col gap-2">
-                          {list.length === 0 && <div className="text-xs text-center py-3" style={{ color: muted }}>—</div>}
+                          {list.length === 0 && <div className="text-size-ui text-center py-3" style={{ color: muted }}>—</div>}
                           {list.map((n) => {
                             const isFocus = n.id === focus.focusId;
                             const isSel = n.id === (selected ?? focus.focusId);
@@ -227,12 +228,12 @@ export default function LineagePage() {
                               >
                                 <div className="flex items-center gap-2">
                                   {nodeIcon(n)}
-                                  <span className="text-xs truncate" style={{ color: ink }}>{n.label}</span>
+                                  <span className="text-size-ui truncate" style={{ color: ink }}>{n.label}</span>
                                   {def && <span className="ml-auto"><StatusDot status={def.status} /></span>}
                                 </div>
-                                {n.kind === 'estate' && <div className="font-mono text-xs mt-1 truncate" style={{ color: '#5B9DFF' }}>{(n as EstateNode).fullPath}</div>}
-                                {def && <div className="font-mono text-xs mt-1" style={{ color: muted }}>{def.resolvesTo.column ?? 'expression'}{capped ? ' · capped' : ''}</div>}
-                                {n.kind === 'consumer' && <div className="text-xs mt-1" style={{ color: muted }}>{(n as ConsumerNode).visibility}{(n as ConsumerNode).modelGoverned ? '' : ' · model not governed'}</div>}
+                                {n.kind === 'estate' && <div className="font-mono text-size-ui mt-1 truncate" style={{ color: '#5B9DFF' }}>{(n as EstateNode).fullPath}</div>}
+                                {def && <div className="font-mono text-size-ui mt-1" style={{ color: muted }}>{def.resolvesTo.column ?? 'expression'}{capped ? ' · capped' : ''}</div>}
+                                {n.kind === 'consumer' && <div className="text-size-ui mt-1" style={{ color: muted }}>{(n as ConsumerNode).visibility}{(n as ConsumerNode).modelGoverned ? '' : ' · model not governed'}</div>}
                               </button>
                             );
                           })}
@@ -244,7 +245,7 @@ export default function LineagePage() {
 
                 {/* Join keys (Pin #2) */}
                 {focus.edges.some((e) => e.kind === 'join') && (
-                  <div className="text-xs font-mono mb-4" style={{ color: muted }}>
+                  <div className="text-size-ui font-mono mb-4" style={{ color: muted }}>
                     {focus.edges.filter((e) => e.kind === 'join').map((e, i) => (
                       <div key={i}>join: <span style={{ color: '#5B9DFF' }}>{nodeById.get(e.from)?.label ?? e.from}</span> ↔ <span style={{ color: '#5B9DFF' }}>{nodeById.get(e.to)?.label ?? e.to}</span> on <span style={{ color: ink }}>{e.joinKeys}</span></div>
                     ))}
@@ -256,30 +257,30 @@ export default function LineagePage() {
                   <div className="border rounded-xl p-5" style={{ backgroundColor: raised, borderColor: borderGold }}>
                     <div className="flex items-center gap-2 mb-3">
                       {nodeIcon(detailNode)}
-                      <span className="text-lg" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>{detailNode.label}</span>
+                      <span className="text-size-title-section" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>{detailNode.label}</span>
            <span className="text-label ml-1" style={{ color: muted }}>{detailNode.kind}</span>
                     </div>
 
                     {detailNode.kind === 'estate' && (
-                      <div className="font-mono text-xs" style={{ color: '#5B9DFF' }}>{(detailNode as EstateNode).fullPath}</div>
+                      <div className="font-mono text-size-ui" style={{ color: '#5B9DFF' }}>{(detailNode as EstateNode).fullPath}</div>
                     )}
 
                     {(detailNode.kind === 'dimension' || detailNode.kind === 'measure') && (() => {
                       const d = detailNode as DefNode;
                       return (
-                        <div className="flex flex-col gap-2 text-xs" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
+                        <div className="flex flex-col gap-2 text-size-ui" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
              <div><span className="text-label " style={{ color: muted }}>resolves to</span>{' '}
-                            <span className="font-mono text-xs"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: GOLD }}> · expression</span>}</span>
+                            <span className="font-mono text-size-ui"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: inkOf(GOLD) }}> · expression</span>}</span>
                           </div>
              <div><span className="text-label " style={{ color: muted }}>result key</span>{' '}
-                            <span className="font-mono text-xs" style={{ color: ink }}>{d.resolvesTo.resultAlias}</span>
-                            <span className="text-xs"> (rows come back keyed by this, not the label)</span>
+                            <span className="font-mono text-size-ui" style={{ color: ink }}>{d.resolvesTo.resultAlias}</span>
+                            <span className="text-size-ui"> (rows come back keyed by this, not the label)</span>
                           </div>
-                          {d.resolvesTo.expression && <div className="font-mono text-xs p-2 rounded" style={{ background: 'rgba(0,0,0,0.03)', color: ink }}>{d.resolvesTo.expression}</div>}
+                          {d.resolvesTo.expression && <div className="font-mono text-size-ui p-2 rounded" style={{ background: 'rgba(0,0,0,0.03)', color: ink }}>{d.resolvesTo.expression}</div>}
                           {d.classification.synonyms.length > 0 && <div>synonyms: {d.classification.synonyms.join(', ')}</div>}
                           {d.classification.description && <div>{d.classification.description}</div>}
                           {d.capped && (
-                            <div className="text-xs p-2 rounded" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: GOLD }}>
+                            <div className="text-size-ui p-2 rounded" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: inkOf(GOLD) }}>
                               Capped by candidate: {d.cappedBy?.map((id) => nodeById.get(id)?.label ?? id.replace(/^\w+:/, '')).join(', ')}
                             </div>
                           )}
@@ -288,7 +289,7 @@ export default function LineagePage() {
                <div className="flex items-center gap-1.5 text-label mb-1" style={{ color: muted }}>
                                 <Info size={11} /> Compiled SQL — read-only trust-spine peek
                               </div>
-                              <pre className="font-mono text-xs leading-relaxed p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.04)', color: ink }}>{d.compiledSql}</pre>
+                              <pre className="font-mono text-size-ui leading-relaxed p-3 rounded overflow-x-auto" style={{ background: 'rgba(0,0,0,0.04)', color: ink }}>{d.compiledSql}</pre>
                             </div>
                           )}
                         </div>
@@ -296,7 +297,7 @@ export default function LineagePage() {
                     })()}
 
                     {detailNode.kind === 'consumer' && (
-                      <div className="text-xs" style={{ color: muted }}>
+                      <div className="text-size-ui" style={{ color: muted }}>
                         Dashboard · {(detailNode as ConsumerNode).visibility}
                         {!(detailNode as ConsumerNode).modelGoverned && <span> · this dashboard&apos;s model is not governed</span>}
                       </div>
@@ -305,7 +306,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.omissions.length > 0 && (
-                  <div className="mt-4 text-xs font-sans" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
+                  <div className="mt-4 text-size-ui font-sans" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
                 )}
               </>
             )}

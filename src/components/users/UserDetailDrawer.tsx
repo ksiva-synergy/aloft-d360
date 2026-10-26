@@ -54,8 +54,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
     <div className="flex items-start gap-3 py-2.5 border-b border-[var(--estate-border)] last:border-b-0">
       <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground mb-0.5 font-medium">{label}</div>
-        <div className="text-xs text-[var(--foreground)] break-all">{value}</div>
+        <div className="text-size-ui uppercase tracking-wide text-muted-foreground mb-0.5 font-medium">{label}</div>
+        <div className="text-size-ui text-[var(--foreground)] break-all">{value}</div>
       </div>
     </div>
   );
@@ -68,7 +68,7 @@ function StatTile({
     <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-hover)] px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3 w-3 shrink-0" />
-        <span className="font-mono text-xs uppercase tracking-wide">{label}</span>
+        <span className="font-mono text-size-ui uppercase tracking-wide">{label}</span>
       </div>
       <div className={cn(
         'mt-1 text-[length:var(--type-title-section-size)] font-semibold tabular-nums leading-none',
@@ -76,7 +76,7 @@ function StatTile({
       )}>
         {value}
       </div>
-      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-1 text-size-ui text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -139,7 +139,7 @@ export function UserDetailDrawer({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--estate-border)] shrink-0">
-          <span className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wide">User Profile</span>
+          <span className="text-size-ui font-semibold text-[var(--foreground)] uppercase tracking-wide">User Profile</span>
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] transition-colors"
@@ -154,7 +154,7 @@ export function UserDetailDrawer({
           {user.status === 'SUSPENDED' && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20">
               <Ban className="h-3.5 w-3.5 text-red-500 dark:text-red-400 shrink-0" />
-              <span className="text-xs font-medium text-red-700 dark:text-red-300">
+              <span className="text-size-ui font-medium text-red-700 dark:text-red-300">
                 This account is blocked — login is denied.
               </span>
             </div>
@@ -170,26 +170,26 @@ export function UserDetailDrawer({
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-[var(--foreground)] truncate">
-                  {user.name || <span className="italic text-muted-foreground font-normal text-sm">No display name</span>}
+                <div className="text-size-body font-semibold text-[var(--foreground)] truncate">
+                  {user.name || <span className="italic text-muted-foreground font-normal text-size-body">No display name</span>}
                   {isSelf && (
-                    <span className="ml-2 text-xs font-mono font-semibold uppercase tracking-wide text-[var(--brand-a-ink)]">you</span>
+                    <span className="ml-2 text-size-ui font-mono font-semibold uppercase tracking-wide text-[var(--brand-a-ink)]">you</span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground truncate font-mono mt-0.5">{user.email}</div>
+                <div className="text-size-ui text-muted-foreground truncate font-mono mt-0.5">{user.email}</div>
                 <div className="flex items-center gap-2 mt-2">
                   {/* Role badge */}
                   <span
                     className={cn(
                       'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-                      'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
+                      'font-mono text-size-ui font-semibold uppercase leading-[1.6] tracking-wide',
                       roleBadgeClass,
                     )}
                   >
                     {user.roleLabel}
                   </span>
                   {/* Status badge */}
-                  <span className={cn('inline-flex items-center gap-1 text-xs', status.text)}>
+                  <span className={cn('inline-flex items-center gap-1 text-size-ui', status.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', status.dot)} />
                     {status.label}
                   </span>
@@ -215,7 +215,7 @@ export function UserDetailDrawer({
               }
             />
             {user.aadObjectId && (
-              <InfoRow icon={Building2} label="AAD Object ID" value={<span className="font-mono text-xs break-all">{user.aadObjectId}</span>} />
+              <InfoRow icon={Building2} label="AAD Object ID" value={<span className="font-mono text-size-ui break-all">{user.aadObjectId}</span>} />
             )}
             <InfoRow icon={Clock}    label="Last Login"  value={formatDateFull(user.lastLoginAt)} />
             <InfoRow icon={Calendar} label="Joined"      value={formatDateFull(user.createdAt)} />
@@ -223,7 +223,7 @@ export function UserDetailDrawer({
 
           {/* Activity & contributions */}
           <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3">
+            <div className="flex items-center gap-1.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium mb-3">
               <Activity className="h-3 w-3" />
               Activity &amp; Contributions
             </div>
@@ -240,12 +240,12 @@ export function UserDetailDrawer({
           {/* Actions */}
           {(canAssignRoles || (canUpdateUsers && !isSelf) || (canDeleteUsers && !isSelf)) && (
             <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3">Actions</div>
+              <div className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium mb-3">Actions</div>
               <div className="flex flex-col gap-2">
                 {canAssignRoles && (
                   <button
                     onClick={() => onChangeRole?.(user)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-md text-xs text-[var(--foreground)] bg-[var(--estate-hover)] hover:bg-[var(--estate-active-bg)] border border-[var(--estate-border)] transition-colors"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui text-[var(--foreground)] bg-[var(--estate-hover)] hover:bg-[var(--estate-active-bg)] border border-[var(--estate-border)] transition-colors"
                   >
                     <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                     Change Role
@@ -255,7 +255,7 @@ export function UserDetailDrawer({
                   <button
                     onClick={() => onToggleStatus?.(user)}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs border transition-colors',
+                      'flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui border transition-colors',
                       user.status === 'SUSPENDED'
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
                         : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20',
@@ -274,30 +274,30 @@ export function UserDetailDrawer({
           {/* Danger zone */}
           {canDeleteUsers && !isSelf && (
             <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-xs uppercase tracking-wide text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
+              <div className="text-size-ui uppercase tracking-wide text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
               {!deleteConfirm ? (
                 <button
                   onClick={() => setDeleteConfirm(true)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-md text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove User
                 </button>
               ) : (
                 <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 space-y-2">
-                  <p className="text-xs text-red-700 dark:text-red-300">
+                  <p className="text-size-ui text-red-700 dark:text-red-300">
                     This will permanently remove the account and prevent login. The user&apos;s data is preserved.
                   </p>
                   <div className="flex gap-2 pt-1">
                     <button
                       onClick={() => { setDeleteConfirm(false); onDeleteUser?.(user); }}
-                      className="flex-1 px-3 py-1.5 rounded text-xs font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
+                      className="flex-1 px-3 py-1.5 rounded text-size-ui font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors"
                     >
                       Confirm Remove
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(false)}
-                      className="flex-1 px-3 py-1.5 rounded text-xs font-medium text-[var(--foreground)] bg-[var(--muted)] hover:bg-[var(--estate-active-bg)] transition-colors"
+                      className="flex-1 px-3 py-1.5 rounded text-size-ui font-medium text-[var(--foreground)] bg-[var(--muted)] hover:bg-[var(--estate-active-bg)] transition-colors"
                     >
                       Cancel
                     </button>

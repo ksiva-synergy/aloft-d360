@@ -4,6 +4,7 @@ import React from 'react';
 import { BarChart3, LayoutGrid, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useCatalogStore, selectCoverage, type CoverageBucket } from './catalog-store';
 import { MONO, SERIF, MUTED, INK, INK_DIM, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Coverage — governed / candidate / draft by theme. Collapsed by default to a
@@ -77,7 +78,7 @@ export function CoveragePanel() {
             />
           )}
         </span>
-        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: overallPct < 50 ? GOLD : INK_DIM }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(overallPct < 50 ? GOLD : INK_DIM) }}>
           {overallPct}% governed
         </span>
         <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
@@ -91,7 +92,7 @@ export function CoveragePanel() {
               gap: 4,
               ...MONO,
               fontSize: 'var(--type-ui-regular-size)',
-              color: GOLD,
+              color: inkOf(GOLD),
             }}
           >
             <AlertTriangle size={11} />
@@ -131,14 +132,14 @@ export function CoveragePanel() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 5,
-                  ...MONO,
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 'var(--type-ui-regular-size)',
                   padding: '4px 9px',
                   borderRadius: 4,
                   cursor: 'pointer',
                   border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
                   background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
-                  color: gapsOnly ? GOLD : MUTED,
+                  color: inkOf(gapsOnly ? GOLD : MUTED),
                 }}
               >
                 <AlertTriangle size={11} /> Gaps only {gapCount ? `(${gapCount})` : ''}
@@ -245,7 +246,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         {bucket.candidate > 0 && <span style={{ width: pct(bucket.candidate), background: SEG_CAND }} />}
         {bucket.draft > 0 && <span style={{ width: pct(bucket.draft), background: SEG_DRAFT }} />}
       </span>
-      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: bucket.gap ? GOLD : MUTED, textAlign: 'right' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(bucket.gap ? GOLD : MUTED), textAlign: 'right' }}>
         {Math.round(bucket.govPct * 100)}% gov
       </span>
     </button>

@@ -11,7 +11,7 @@ import {
 } from '@/lib/bandits/born-tokens';
 import { betaPDF } from '@/lib/bandits/born-math';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
@@ -429,7 +429,7 @@ export function ArmDetailDrawer({
               </span>
               {isFav && (
                 <span style={{
-                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),
                   border: `1px solid ${GOLD}`, borderRadius: 3,
                   padding: '1px 5px', letterSpacing: '0.04em',
                 }}>
@@ -514,7 +514,7 @@ export function ArmDetailDrawer({
           <Section>
             <SectionLabel>Recent Runs</SectionLabel>
             {modelRuns.length === 0 ? (
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.6 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,  }}>
                 No runs recorded.
               </div>
             ) : (
@@ -584,7 +584,7 @@ export function ArmDetailDrawer({
                     Showing 15 of {totalRuns} runs ·{' '}
                     <a
                       href="/agent-lab/bandits"
-                      style={{ color: GOLD, textDecoration: 'none' }}
+                      style={{ color: inkOf(GOLD), textDecoration: 'none' }}
                     >
                       View all on dashboard
                     </a>

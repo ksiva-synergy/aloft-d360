@@ -1,6 +1,7 @@
 import { hasXaiCredentials } from '@/lib/inspector/llm-configured';
 import { BOOST_MODELS, type BoostModel } from '@/lib/boost/models';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 
 /** Model resolution shared by the workbench chat and test-run routes. */
@@ -26,8 +27,10 @@ function resolveBedrockModelId(modelKey: string): string {
   return fallback?.bedrockId ?? 'us.anthropic.claude-sonnet-5-5';
 }
 
-export function resolveWorkbenchModel(requestedKey: string | undefined) {
-  const modelKey = requestedKey ?? DEFAULT_WORKBENCH_MODEL;
+export function resolveWorkbenchModel(requestedKey: string | undefined, role?: string | null) {
+  const modelKey = isPlatformAdminRole(role)
+    ? (requestedKey ?? DEFAULT_WORKBENCH_MODEL)
+    : chatModelKeyForRole(requestedKey, role);
   const option = AVAILABLE_MODELS.find((m) => m.key === modelKey)
     ?? AVAILABLE_MODELS.find((m) => m.key === DEFAULT_WORKBENCH_MODEL);
   if (!option) return null;

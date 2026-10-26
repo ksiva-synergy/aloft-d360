@@ -5,6 +5,7 @@ import { Search, X, AlertCircle, HelpCircle, CheckCircle2, PlusCircle } from 'lu
 import { useCatalogStore } from './catalog-store';
 import type { IntentDisambiguation } from '@/lib/dashboards/guided-types';
 import { MONO, SANS, MUTED, INK, INK_DIM, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Search + resolution strip. The input live-filters the table by label/synonym.
@@ -100,12 +101,12 @@ export function SearchStrip({ onDefine }: Props) {
           </span>
         )}
         {!raw && activeModelGoverned && (
-          <button onClick={() => setSearchRaw(DEMO)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}>try demo</button>
+          <button onClick={() => setSearchRaw(DEMO)} style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: 'none', cursor: 'pointer' }}>try demo</button>
         )}
       </div>
 
       {resolveError && (
-        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)', marginTop: 8 }}>Resolution error: {resolveError}</div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)', marginTop: 8 }}>Resolution error: {resolveError}</div>
       )}
 
       {resolvedTerms.length > 0 && (

@@ -44,9 +44,9 @@ export const BOOST_MODELS: BoostModel[] = [
     resource: 'resource1', tokenParam: 'max_completion_tokens',
     tier: 'frontier' },
 
-  // ── Bedrock Mantle (OpenAI-compatible) — GPT-6 Luna in us-east-1 ─
+  // ── Bedrock runtime global profile — GPT-6 Luna from any source region ─
   { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'foundry',
-    apiType: 'foundry',  modelId: 'openai.gpt-6-luna',
+    apiType: 'foundry',  modelId: 'global.openai.gpt-6-luna',
     resource: 'bedrock-mantle', tokenParam: 'max_completion_tokens',
     tier: 'production' },
   // ── Azure Foundry Resource 2 (pb-az-openai) ──────────────────

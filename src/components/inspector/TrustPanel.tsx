@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Copy, Check, ChevronRight } from 'lucide-react';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -116,7 +116,7 @@ export function TrustPanel({
       <div style={{ padding: '2px 8px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {/* Raw-SQL governance notice (Phase 3.5C) — replaces the definitions block */}
         {rawSql && (
-          <div style={{ fontSize: 'var(--type-ui-regular-size)', color: GOLD, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), lineHeight: 1.5 }}>
             Raw SQL — not governed, not drift-checked.
           </div>
         )}

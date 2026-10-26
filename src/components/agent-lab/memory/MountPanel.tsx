@@ -24,7 +24,7 @@ import type { SignatureEntry } from '@/app/api/agent-lab/memory/signatures/route
 import { MONO, SERIF, GOLD, RULE_TYPE_COLORS } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 // -- Types ---------------------------------------------------------------------
 
 interface BrowseBullet {
@@ -298,8 +298,8 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
       {expanded && (
         <div style={{ padding: '0.75rem 0.9rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', minWidth: 0, flex: 1 }}>
           {isEmpty ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', gap: '6px', opacity: 0.5 }}>
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>No bullets</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', gap: '6px' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>No bullets</span>
               <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', fontStyle: 'italic' }}>{phaseTag}</span>
             </div>
           ) : groups && groups.length > 0 ? (
@@ -318,7 +318,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer', padding: '0',
                   display: 'flex', alignItems: 'center', gap: '5px',
-                  fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: accentColor, letterSpacing: '0.04em',
+                  fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: inkOf(accentColor), letterSpacing: '0.04em',
                 }}
               >
                 {previewOpen
@@ -500,12 +500,12 @@ export function MountPanel() {
               <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: row.color }}>{row.label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-pri)', fontWeight: 600 }}>{row.count}</span>
-                {row.over > 0 && <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: '#D9774B' }}>+{row.over} cut</span>}
+                {row.over > 0 && <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: inkOf('#D9774B') }}>+{row.over} cut</span>}
               </div>
             </div>
           ))}
           <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--foer-border)' }}>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>total tokens</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>total tokens</span>
             <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>
               {totalUsed}<span style={{ color: 'var(--foer-text-mut)', fontSize: 'var(--type-caption-size)' }}>/{TOTAL_BUDGET}</span>
             </span>
@@ -533,7 +533,7 @@ export function MountPanel() {
           <div style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', marginTop: '18px' }}>
             <span style={{ color: 'var(--foer-text-sec)' }}>{selectedEntry.topicName}</span>
             {' · '}{selectedEntry.memberCount} member{selectedEntry.memberCount !== 1 ? 's' : ''}
-            {' · '}<span data-testid="honesty-chip" style={{ color: '#C9A04E' }}>AM2.1 preview</span>
+            {' · '}<span data-testid="honesty-chip" style={{ color: inkOf('#C9A04E') }}>AM2.1 preview</span>
           </div>
         )}
       </div>

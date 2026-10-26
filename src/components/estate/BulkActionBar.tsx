@@ -9,11 +9,23 @@ interface BulkActionBarProps {
   onSchedule?: () => void;
   onUnschedule?: () => void;
   onScheduleCatalog?: (action: 'include' | 'exclude') => void;
+  onRunPipeline?: () => void;
+  pipelineRunning?: boolean;
   catalogScope?: string;
   onClear: () => void;
 }
 
-export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedule, onScheduleCatalog, catalogScope, onClear }: BulkActionBarProps) {
+export default function BulkActionBar({
+  count,
+  onHarvest,
+  onSchedule,
+  onUnschedule,
+  onScheduleCatalog,
+  onRunPipeline,
+  pipelineRunning = false,
+  catalogScope,
+  onClear,
+}: BulkActionBarProps) {
   const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
   const blueColor = '#60a5fa';
@@ -62,25 +74,47 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
         </>
       )}
 
-      {catalogScope && count === 0 && onScheduleCatalog && (
+      {catalogScope && count === 0 && (onScheduleCatalog || onRunPipeline) && (
         <>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
             Scope: <strong style={{ color: blueColor }}>{catalogScope}</strong>
           </span>
-          <button
-            type="button"
-            onClick={() => onScheduleCatalog('include')}
-            style={{ ...btnBase, background: 'transparent', color: blueColor, border: `1px solid ${blueDim}` }}
-          >
-            + Schedule all
-          </button>
-          <button
-            type="button"
-            onClick={() => onScheduleCatalog('exclude')}
-            style={{ ...btnBase, background: 'transparent', color: 'var(--estate-text-muted)', border: '1px solid var(--estate-btn-border)' }}
-          >
-            − Unschedule all
-          </button>
+          {onRunPipeline && (
+            <button
+              type="button"
+              disabled={pipelineRunning}
+              onClick={onRunPipeline}
+              title="Runs T0 structural → T1 profile → T2 semantic on Fargate (sequential), scoped with Limit"
+              style={{
+                ...btnBase,
+                background: goldColor,
+                color: 'var(--estate-bg)',
+                border: `1px solid ${goldColor}`,
+                opacity: pipelineRunning ? 0.6 : 1,
+              }}
+            >
+              {pipelineRunning ? 'Launching…' : 'Run pipeline now'}
+            </button>
+          )}
+          {onScheduleCatalog && (
+            <>
+              <button
+                type="button"
+                onClick={() => onScheduleCatalog('include')}
+                style={{ ...btnBase, background: 'transparent', color: blueColor, border: `1px solid ${blueDim}` }}
+                title="Marks discovery rows for scheduled harvest (does not start T0–T2 immediately)"
+              >
+                + Schedule all
+              </button>
+              <button
+                type="button"
+                onClick={() => onScheduleCatalog('exclude')}
+                style={{ ...btnBase, background: 'transparent', color: 'var(--estate-text-muted)', border: '1px solid var(--estate-btn-border)' }}
+              >
+                − Unschedule all
+              </button>
+            </>
+          )}
         </>
       )}
 

@@ -68,7 +68,7 @@ export function BornDistributionPanel({
         background: CARD_BG, border: `1px solid ${BORDER}`,
         borderRadius: 6, padding: '20px 24px',
       }}>
-        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No data.</div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No data.</div>
       </div>
     );
   }

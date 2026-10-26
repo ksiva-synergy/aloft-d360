@@ -16,7 +16,7 @@ import {
 } from '@/lib/foer/foer-tokens';
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { ALL_KNOWLEDGE_KEY as _ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants'; // kept for future sidebar integration
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 function humanizeRuleType(ruleType: string): string {
   const labels: Record<string, string> = {
@@ -378,7 +378,7 @@ export function ShelvesPanel() {
         <span>
           {tooltip.bullet.helpfulCount > 0 && <span style={{ color: 'var(--ok)' }}>{tooltip.bullet.helpfulCount}↑ helpful</span>}
           {tooltip.bullet.helpfulCount > 0 && tooltip.bullet.harmfulCount > 0 && ' · '}
-          {tooltip.bullet.harmfulCount > 0 && <span style={{ color: '#D9774B' }}>{tooltip.bullet.harmfulCount}↓ harmful</span>}
+          {tooltip.bullet.harmfulCount > 0 && <span style={{ color: inkOf('#D9774B') }}>{tooltip.bullet.harmfulCount}↓ harmful</span>}
           {tooltip.bullet.helpfulCount === 0 && tooltip.bullet.harmfulCount === 0 && 'no feedback yet'}
         </span>
         <span>{tooltip.bullet.sourceSessionIds?.length ?? 0} sessions</span>
@@ -529,7 +529,7 @@ export function ShelvesPanel() {
                 cursor:     'pointer',
                 fontSize: 'var(--type-caption-size)',
                 color:      'var(--foer-text-sec)',
-                fontFamily: MONO,
+                fontFamily: 'var(--font-sans)',
                 userSelect: 'none',
                 flexShrink: 0,
               }}
@@ -564,9 +564,9 @@ export function ShelvesPanel() {
         )}
         {reclassifyMutation.isError && (
           <div style={{
-            fontFamily:  MONO,
+            fontFamily:  'var(--font-sans)',
             fontSize: 'var(--type-caption-size)',
-            color:       '#D9774B',
+            color:       inkOf('#D9774B'),
             background:  'rgba(217,119,75,0.08)',
             border:      '1px solid rgba(217,119,75,0.2)',
             borderRadius: 3,
@@ -596,9 +596,9 @@ export function ShelvesPanel() {
                 background:     'none',
                 border:         'none',
                 padding:        0,
-                color:          GOLD,
+                color:          inkOf(GOLD),
                 cursor:         'pointer',
-                fontFamily:     MONO,
+                fontFamily:     'var(--font-sans)',
                 fontSize: 'var(--type-caption-size)',
                 fontWeight:     600,
                 letterSpacing: '0.04em',
@@ -742,7 +742,7 @@ export function ShelvesPanel() {
               No subgroups found.{' '}
               <button
                 onClick={() => { setActiveGroup(null); setActiveGroupName(''); }}
-                style={{ background: 'none', border: 'none', color: GOLD, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', textDecoration: 'underline' }}
+                style={{ background: 'none', border: 'none', color: inkOf(GOLD), cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', textDecoration: 'underline' }}
               >
                 ← Back to groups
               </button>

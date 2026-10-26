@@ -93,8 +93,8 @@ function AgentStagingTryContent() {
   if (error || !agent) {
     return (
       <div className="mx-auto max-w-lg px-6 py-16 text-center">
-        <p className="mb-4 text-sm text-red-500">{error ?? 'Agent not found'}</p>
-        <Link href="/docs/agents" className="text-sm text-[color:var(--brand-a-ink)] hover:underline">
+        <p className="mb-4 text-size-body text-red-500">{error ?? 'Agent not found'}</p>
+        <Link href="/docs/agents" className="text-size-body text-[color:var(--brand-a-ink)] hover:underline">
           Back to agent catalog
         </Link>
       </div>
@@ -103,7 +103,7 @@ function AgentStagingTryContent() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <nav className="mb-6 flex items-center gap-2 text-xs text-[var(--ink-3)]">
+      <nav className="mb-6 flex items-center gap-2 text-size-ui text-[var(--ink-3)]">
         <Link href="/docs/agents" className="hover:text-[color:var(--brand-a-ink)]">Agents</Link>
         <span>/</span>
         <Link href={`/docs/agents/${agent.slug}`} className="hover:text-[color:var(--brand-a-ink)]">{agent.name}</Link>
@@ -114,23 +114,23 @@ function AgentStagingTryContent() {
       <div className="mb-6 flex items-start gap-3">
         <Bot className="mt-1 h-6 w-6 shrink-0 text-[color:var(--brand-a-ink)]" />
         <div>
-          <h1 className="text-xl font-semibold text-[var(--ink-1)]">{agent.name}</h1>
-          <p className="mt-1 text-sm text-[var(--ink-3)]">
+          <h1 className="text-size-title-section font-semibold text-[var(--ink-1)]">{agent.name}</h1>
+          <p className="mt-1 text-size-body text-[var(--ink-3)]">
             Staging preview — run this agent&apos;s mission in Inspector (data &amp; Databricks chat).
           </p>
         </div>
       </div>
 
       {agent.description && (
-        <p className="mb-6 text-sm leading-relaxed text-[var(--ink-2)]">{agent.description}</p>
+        <p className="mb-6 text-size-body leading-relaxed text-[var(--ink-2)]">{agent.description}</p>
       )}
 
       {systemPrompt && (
         <section className="mb-8 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] p-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">
+          <h2 className="mb-2 text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">
             Mission (from catalog)
           </h2>
-          <p className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--ink-2)] font-mono">
+          <p className="whitespace-pre-wrap text-size-ui leading-relaxed text-[var(--ink-2)] font-mono">
             {systemPrompt.length > 1200 ? `${systemPrompt.slice(0, 1200)}…` : systemPrompt}
           </p>
         </section>
@@ -140,21 +140,21 @@ function AgentStagingTryContent() {
         <button
           type="button"
           onClick={openInspector}
-          className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--brand-a)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[color:var(--brand-a-2)]"
+          className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--brand-a)] px-4 py-2.5 text-size-body font-medium text-white hover:bg-[color:var(--brand-a-2)]"
         >
           <ExternalLink className="h-4 w-4" />
           Open in Inspector
         </button>
         <Link
           href={`/docs/agents/${agent.slug}`}
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--ink-3)] hover:text-[var(--ink-1)]"
+          className="inline-flex items-center gap-1.5 text-size-body text-[var(--ink-3)] hover:text-[var(--ink-1)]"
         >
           <ArrowLeft className="h-4 w-4" />
           Agent docs
         </Link>
       </div>
 
-      <p className="mt-8 text-xs text-[var(--ink-3)] leading-relaxed">
+      <p className="mt-8 text-size-ui text-[var(--ink-3)] leading-relaxed">
         A dedicated runtime chat per catalog agent is not wired yet. Inspector is the supported way to
         exercise domain behavior today; your mission text is saved locally so we can pre-fill prompts in a
         future release.

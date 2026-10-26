@@ -1649,9 +1649,9 @@ body {
 }
 
 .dark {
-  --brand-a:#1F5FD6; --brand-a-2:#447CE4; --brand-a-soft:rgba(31,95,214,.20); --brand-a-ink:#8AB4FF;
+  --brand-a:#3B78FF; --brand-a-2:#6B9BFF; --brand-a-soft:rgba(59,120,255,.26); --brand-a-ink:#A9C7FF;
   /* Sidebar (dark): graphite nav surface */
-  --rail-bg:#16171A; --rail-bg-top:#1B1C1F; --rail-accent:#7CA3EC;
+  --rail-bg:#16171A; --rail-bg-top:#1B1C1F; --rail-accent:#9DBAFF;
   --rail-ink:#C3CDE0; --rail-ink-strong:#FFFFFF; --rail-muted:#8D9AB4; --rail-line:var(--line-1);
   --rail-hover:color-mix(in srgb, var(--ink-1) 6%, transparent);
   --rail-active:color-mix(in srgb, var(--ink-1) 12%, transparent);

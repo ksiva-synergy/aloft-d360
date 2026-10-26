@@ -43,8 +43,8 @@ function PickerRow({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">{title}</span>
-        <span className="font-mono text-xs text-[var(--ink-3)]">{value.toUpperCase()}</span>
+        <span className="text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">{title}</span>
+        <span className="font-mono text-size-ui text-[var(--ink-3)]">{value.toUpperCase()}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 px-1">
         {presets.map((p) => (
@@ -109,12 +109,12 @@ export function AppearanceControls() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Colors</span>
+        <span className="text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Colors</span>
         {customised && (
           <button
             type="button"
             onClick={() => update({ accent: null, rail: null, railLight: null, railDark: null })}
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
+            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-size-ui font-semibold text-[var(--brand-a-ink)] transition-colors hover:bg-[var(--brand-a-soft)]"
           >
             <RotateCcw className="h-3 w-3" />
             Reset

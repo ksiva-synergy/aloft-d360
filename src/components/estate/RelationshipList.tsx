@@ -23,7 +23,7 @@ import React, { useState } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import type { FkCandidate, ObjectLinkItem, EntityGroupObject } from './RelationshipGraph';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 interface MappingItem {
   id: string;
@@ -467,7 +467,7 @@ export default function RelationshipList({
                   padding: '1px 5px',
                   borderRadius: 2,
                   background: 'rgba(138,130,113,.16)',
-                  color: '#8a8271',
+                  color: inkOf('#8a8271'),
                   border: '1px solid rgba(138,130,113,.3)',
                   flexShrink: 0,
                 }}
@@ -499,7 +499,7 @@ export default function RelationshipList({
                 </div>
                 <div
                   style={{
-                    fontFamily: 'var(--font-mono)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 'var(--type-ui-regular-size)',
                     color: mutedColor,
                     overflow: 'hidden',
@@ -543,7 +543,7 @@ export default function RelationshipList({
                 padding: '1px 5px',
                 borderRadius: 2,
                 background: 'rgba(138,130,113,.12)',
-                color: '#8a8271',
+                color: inkOf('#8a8271'),
                 border: '1px solid rgba(138,130,113,.25)',
                 flexShrink: 0,
               }}
@@ -572,7 +572,7 @@ export default function RelationshipList({
               >
                 {co.full_path}
                 {!co.object_id && (
-                  <span style={{ marginLeft: 5, opacity: 0.5 }}>(unresolved)</span>
+                  <span style={{ marginLeft: 5, color: 'var(--ink-3)', }}>(unresolved)</span>
                 )}
               </div>
             </div>

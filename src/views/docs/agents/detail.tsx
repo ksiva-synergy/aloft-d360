@@ -63,8 +63,8 @@ export default function AgentDetailPage() {
   if (error || !agent) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-        <p className="text-sm text-red-500 mb-2">{error || 'Agent not found'}</p>
-        <Link href="/docs/agents" className="text-xs text-[color:var(--brand-a-ink)] hover:underline">
+        <p className="text-size-body text-red-500 mb-2">{error || 'Agent not found'}</p>
+        <Link href="/docs/agents" className="text-size-ui text-[color:var(--brand-a-ink)] hover:underline">
           Back to Agents
         </Link>
       </div>

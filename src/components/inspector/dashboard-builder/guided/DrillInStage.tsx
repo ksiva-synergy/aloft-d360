@@ -29,6 +29,7 @@ import {
   UI_FONT, MONO_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
   CANVAS, OKABE_ITO,
 } from '@/lib/dashboards/inspector-viz-tokens';
+import { CHART_TEXT, inkOf } from '@/lib/typography/tokens';
 
 // Inter for ALL UI; mono ONLY inside the SQL trust panel (spec §1).
 const UI: React.CSSProperties = { fontFamily: UI_FONT };
@@ -265,7 +266,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
   if (!blueprint || items.length === 0) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: CANVAS }}>
-        <span style={{ ...UI, fontSize: 13, color: MUTED }}>No blueprint to refine — go back and propose one.</span>
+        <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No blueprint to refine — go back and propose one.</span>
       </div>
     );
   }
@@ -286,11 +287,11 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
         <div style={{ padding: '16px 14px 8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <Sparkles size={13} color={GOLD} />
-            <span style={{ ...UI, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, fontWeight: 600 }}>
+            <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: inkOf(GOLD), fontWeight: 600 }}>
               Guided · Step 3 · Refine
             </span>
           </div>
-          <span style={{ ...UI, fontSize: 13, color: MUTED }}>
+          <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
             {confirmedCount}/{items.filter(isConfirmable).length} charts added · jump to any
           </span>
         </div>
@@ -307,7 +308,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
                 aria-current={active ? 'true' : undefined}
                 data-confirmed={confirmed ? 'true' : 'false'}
                 style={{
-                  ...UI, fontSize: 13, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
+                  ...UI, fontSize: 'var(--type-ui-regular-size)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8,
                   padding: '9px 10px', borderRadius: 6, cursor: 'pointer', color: INK,
                   border: `1px solid ${active ? tint(GOLD, 45) : 'transparent'}`,
                   background: active ? tint(GOLD, 8) : 'transparent',
@@ -328,7 +329,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
             <FastForward size={12} /> Accept the rest as-is
           </button>
           {onBackToBlueprint && (
-            <button onClick={onBackToBlueprint} style={{ ...UI, fontSize: 13, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={onBackToBlueprint} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <ArrowLeft size={12} /> Back to blueprint
             </button>
           )}
@@ -338,9 +339,9 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
       {/* ── Chart canvas (sample → live) + NL-refine bar ──────────────────────── */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', padding: '20px 22px', overflowY: 'auto', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ ...UI, fontSize: 15, fontWeight: 600, color: INK }}>{draft?.title}</span>
+          <span style={{ ...UI, fontSize: 'var(--type-body-size)', fontWeight: 600, color: INK }}>{draft?.title}</span>
           {current && drillIn.widgetIdByItemId[current.id] && (
-            <span style={{ ...UI, fontSize: 13, color: GREEN, border: `1px solid ${tint(GREEN, 45)}`, borderRadius: 4, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: GREEN, border: `1px solid ${tint(GREEN, 45)}`, borderRadius: 4, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Check size={11} /> Added to dashboard
             </span>
           )}
@@ -369,7 +370,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
               onKeyDown={(e) => { if (e.key === 'Enter' && canRefine && !loading) refetch(); }}
               placeholder="Refine in words — e.g. “break out by vessel type”, “last quarter only”"
               aria-label="Refine this chart in natural language"
-              style={{ ...UI, fontSize: 13, flex: 1, background: 'transparent', border: 'none', outline: 'none', color: INK }}
+              style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'transparent', border: 'none', outline: 'none', color: INK }}
             />
           </div>
           <button
@@ -377,7 +378,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
             disabled={!canRefine || loading}
             title={canRefine ? 'Re-run this chart’s query' : 'Add the chart first — refine then re-runs its query'}
             style={{
-              ...UI, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6,
+              ...UI, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '0 14px', borderRadius: 8,
               border: canRefine ? `1px solid ${tint(GOLD, 45)}` : `1px dashed ${tint(MUTED, 40)}`,
               background: canRefine ? tint(GOLD, 10) : 'transparent',
@@ -409,7 +410,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
                   <ChevronRight size={13} />
                 </button>
                 {cursor < items.length - 1 && (
-                  <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 13, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                  <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                     <SkipForward size={11} /> Skip for now
                   </button>
                 )}
@@ -418,12 +419,12 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <AlertTriangle size={12} color={VIOLET} />
-                  <span style={{ ...UI, fontSize: 13, color: VIOLET }}>Not defined yet — can’t add</span>
+                  <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: VIOLET }}>Not defined yet — can’t add</span>
                 </div>
-                <span style={{ ...UI, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+                <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.5 }}>
                   This chart needs a metric that isn’t governed. Define it back on the blueprint, then it becomes addable — we won’t fabricate a chart with no data.
                 </span>
-                <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 13, color: MUTED, background: 'transparent', border: `1px solid ${tint(MUTED, 25)}`, borderRadius: 6, padding: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                <button onClick={() => goTo(cursor + 1)} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: `1px solid ${tint(MUTED, 25)}`, borderRadius: 6, padding: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                   <SkipForward size={11} /> Skip this one
                 </button>
               </div>
@@ -452,7 +453,7 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
       {modelStatus === 'candidate' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', borderRadius: 6, border: `1px solid ${tint(VIOLET, 40)}`, background: tint(VIOLET, 8), marginBottom: 8 }}>
           <AlertTriangle size={11} color={VIOLET} />
-          <span style={{ ...UI, fontSize: 13, color: INK, lineHeight: 1.4 }}>Model isn’t governed — renders in draft (owner-only) until published.</span>
+          <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: INK, lineHeight: 1.4 }}>Model isn’t governed — renders in draft (owner-only) until published.</span>
         </div>
       )}
       {/* Governed LABELS only — never raw definition IDs (spec §3). */}
@@ -460,7 +461,7 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
       <FieldList label="Dimensions" labels={item.dimensionLabels} color={BLUE} />
 
       {/* Read-only SQL trust-panel slot — the ONLY place mono type is used. */}
-      <button onClick={() => setSqlOpen((o) => !o)} style={{ ...UI, fontSize: 13, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 0 0' }}>
+      <button onClick={() => setSqlOpen((o) => !o)} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 0 0' }}>
         <ChevronDown size={11} style={{ transform: sqlOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.1s' }} />
         Compiled SQL
       </button>
@@ -469,7 +470,7 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
           <pre
             data-testid="sql-trust-panel"
             style={{
-              ...MONO, fontSize: 13, color: INK, padding: '8px 10px', borderRadius: 6,
+              ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK, padding: '8px 10px', borderRadius: 6,
               border: `1px solid ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.3)', marginTop: 4,
               lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowX: 'auto', maxHeight: 200, margin: '4px 0 0',
             }}
@@ -477,7 +478,7 @@ function SourceSection({ item, modelStatus, sql }: { item: ChartBlueprint; model
             {sql}
           </pre>
         ) : (
-          <div data-testid="sql-trust-panel" style={{ ...UI, fontSize: 13, color: MUTED, padding: '8px 10px', borderRadius: 6, border: `1px dashed ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
+          <div data-testid="sql-trust-panel" style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '8px 10px', borderRadius: 6, border: `1px dashed ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.2)', marginTop: 4, lineHeight: 1.5 }}>
             SQL appears here once the chart is added and its query runs — the read-only trust panel shows the compiled query.
           </div>
         )
@@ -515,7 +516,7 @@ function FiltersSection({ item, draft, onChange }: { item: ChartBlueprint; draft
   return (
     <PanelSection icon={<FilterIcon size={12} color={GOLD} />} label="Filters">
       {draft.filters.length === 0 && (
-        <span style={{ ...UI, fontSize: 13, color: MUTED }}>No filters — the chart uses every row the metric returns.</span>
+        <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No filters — the chart uses every row the metric returns.</span>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {draft.filters.map((f, i) => (
@@ -539,7 +540,7 @@ function FiltersSection({ item, draft, onChange }: { item: ChartBlueprint; draft
         ))}
       </div>
       {fields.length > 0 && (
-        <button onClick={addFilter} style={{ ...UI, fontSize: 13, color: MUTED, background: 'transparent', border: `1px dashed ${tint(MUTED, 35)}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
+        <button onClick={addFilter} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: `1px dashed ${tint(MUTED, 35)}`, borderRadius: 6, padding: '6px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 8 }}>
           <Plus size={11} /> Add filter
         </button>
       )}
@@ -567,7 +568,7 @@ function VisualSection({
 
   return (
     <PanelSection icon={<BarChart3 size={12} color={GREEN} />} label="Visual">
-      <p style={{ ...UI, fontSize: 13, color: MUTED, margin: '0 0 8px', lineHeight: 1.5 }}>
+      <p style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: '0 0 8px', lineHeight: 1.5 }}>
         Recommended: <strong style={{ color: INK }}>{rec.chartKind}</strong> — {rec.rationale}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -581,7 +582,7 @@ function VisualSection({
               aria-pressed={selected}
               title={k === rec.chartKind ? 'Recommended' : `Alternative: ${k}`}
               style={{
-                ...UI, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 9px', borderRadius: 6, cursor: 'pointer',
+                ...UI, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 9px', borderRadius: 6, cursor: 'pointer',
                 border: `1px solid ${selected ? GREEN : tint(MUTED, 25)}`,
                 background: selected ? tint(GREEN, 12) : 'transparent', color: selected ? GREEN : INK,
               }}
@@ -601,10 +602,10 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
   const swatches = ['', OKABE_ITO[0], OKABE_ITO[1], OKABE_ITO[2], OKABE_ITO[4], OKABE_ITO[6]];
   return (
     <PanelSection icon={<Palette size={12} color={VIOLET} />} label="Polish">
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Title</label>
+      <label style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Title</label>
       <input value={draft.title} onChange={(e) => onChange({ title: e.target.value })} aria-label="Chart title" style={{ ...selectStyle(), width: '100%', marginTop: 4, marginBottom: 12 }} />
 
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
+      <label style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
       <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12 }}>
         {swatches.map((c) => (
           <button
@@ -616,7 +617,7 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
               width: 22, height: 22, borderRadius: 5, cursor: 'pointer',
               border: `2px solid ${draft.color === c ? INK : 'transparent'}`,
               background: c || 'transparent',
-              ...(c ? {} : { ...UI, fontSize: 13, color: MUTED, borderColor: tint(MUTED, 40) }),
+              ...(c ? {} : { ...UI, fontSize: CHART_TEXT.tooltip, color: MUTED, borderColor: tint(MUTED, 40) }),
             }}
           >
             {c ? '' : 'A'}
@@ -624,14 +625,14 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
         ))}
       </div>
 
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
+      <label style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
       <select value={draft.format} onChange={(e) => onChange({ format: e.target.value as NumFmt })} aria-label="Number format" style={{ ...selectStyle(), width: '100%', marginTop: 4 }}>
         <option value="auto">Auto</option>
         <option value="compact">Compact (1.2k)</option>
         <option value="percent">Percent</option>
         <option value="currency">Currency</option>
       </select>
-      <span style={{ ...UI, fontSize: 13, color: MUTED, display: 'block', marginTop: 5, lineHeight: 1.4 }}>
+      <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'block', marginTop: 5, lineHeight: 1.4 }}>
         Applied to the chart once it renders with data.
       </span>
     </PanelSection>
@@ -645,7 +646,7 @@ function PanelSection({ icon, label, children }: { icon: React.ReactNode; label:
     <div style={{ padding: '14px 16px', borderBottom: `1px solid ${tint(MUTED, 12)}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
         {icon}
-        <span style={{ ...UI, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: INK, fontWeight: 600 }}>{label}</span>
+        <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: INK, fontWeight: 600 }}>{label}</span>
       </div>
       {children}
     </div>
@@ -657,10 +658,10 @@ function FieldList({ label, labels, color }: { label: string; labels: string[]; 
   if (labels.length === 0) return null;
   return (
     <div style={{ marginBottom: 8 }}>
-      <span style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
+      <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
         {labels.map((l, i) => (
-          <span key={i} style={{ ...UI, fontSize: 13, color, border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), borderRadius: 12, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+          <span key={i} style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color, border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), borderRadius: 12, padding: '3px 9px', whiteSpace: 'nowrap' }}>
             {l}
           </span>
         ))}
@@ -703,21 +704,21 @@ function extractColor(config: SemanticWidgetSpec['chartConfig']): string {
 
 function railBtn(color: string): React.CSSProperties {
   return {
-    ...UI, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+    ...UI, fontSize: CHART_TEXT.tooltip, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
     padding: '8px 10px', borderRadius: 6, border: `1px solid ${tint(color, 45)}`, background: tint(color, 12), color, cursor: 'pointer',
   };
 }
 
 function primaryBtn(): React.CSSProperties {
   return {
-    ...UI, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+    ...UI, fontSize: CHART_TEXT.tooltip, display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
     padding: '11px 14px', borderRadius: 8, border: 'none', background: GOLD, color: 'var(--on-brand)', cursor: 'pointer', fontWeight: 600,
   };
 }
 
 function selectStyle(): React.CSSProperties {
   return {
-    ...UI, fontSize: 13, flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 5,
+    ...UI, fontSize: CHART_TEXT.tooltip, flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 5,
     border: `1px solid ${tint(MUTED, 30)}`, background: 'rgba(0,0,0,0.25)', color: INK, outline: 'none',
   };
 }

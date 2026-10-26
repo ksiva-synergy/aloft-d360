@@ -14,7 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
@@ -125,7 +125,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
             alignItems: 'center',
             gap: 4,
             ...type['ui-regular'],
-            color: open ? GOLD : MUTED,
+            color: inkOf(open ? GOLD : MUTED),
             background: 'transparent',
             border: `1px solid ${open ? BORDER_GOLD : 'rgba(74,96,128,0.35)'}`,
             borderRadius: 5,
@@ -241,6 +241,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
   const options = models ?? AVAILABLE_MODELS;
   const current = options.find(m => m.key === selectedModel) ?? options[1] ?? options[0];
   const providerColor = PROVIDER_COLORS[current.provider] ?? MUTED;
+  const canPickModel = options.length > 1;
 
   useEffect(() => {
     if (!open) return;
@@ -259,32 +260,33 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
-        onClick={() => !disabled && setOpen(o => !o)}
-        disabled={disabled}
+        type="button"
+        onClick={() => canPickModel && !disabled && setOpen(o => !o)}
+        disabled={disabled || !canPickModel}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: 5,
           background: 'transparent',
           border: 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
+          cursor: disabled || !canPickModel ? 'default' : 'pointer',
           padding: '4px 6px',
           borderRadius: 5,
           opacity: disabled ? 0.5 : 1,
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
+        onMouseEnter={e => { if (!disabled && canPickModel) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
       >
         <Zap size={11} style={{ color: providerColor, flexShrink: 0 }} />
         <span style={{ ...type['ui-regular'], color: INK_DIM, whiteSpace: 'nowrap' }}>
           {current.label}
         </span>
-        <ChevronDown size={10} style={{ color: MUTED, flexShrink: 0 }} />
+        {canPickModel && <ChevronDown size={10} style={{ color: MUTED, flexShrink: 0 }} />}
       </button>
 
       <AnimatePresence>
-        {open && (
+        {open && canPickModel && (
           <motion.div
             initial={{ opacity: 0, y: 6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -340,7 +342,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
                           <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
                             {m.label}
                             {m.supportsThinking && (
-                              <span style={{ ...type['ui-regular'], color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.04em' }}>thinking</span>
+                              <span style={{ ...type['ui-regular'], color: inkOf('#8b5cf6'), marginLeft: 6, letterSpacing: '0.04em' }}>thinking</span>
                             )}
                           </div>
                           <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 1 }}>{m.description}</div>
@@ -514,7 +516,7 @@ export function InputComposer({
         {/* Right: hint + send/stop */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           {!busy && (
-            <span style={{ ...type['ui-regular'], color: MUTED, whiteSpace: 'nowrap', opacity: focused ? 1 : 0.5, transition: 'opacity 0.2s' }}>
+            <span style={{ ...type['ui-regular'], color: MUTED, whiteSpace: 'nowrap' }}>
               ↵ send · ⇧↵ newline
             </span>
           )}

@@ -10,7 +10,7 @@ import {
   ScoringMethodologyTab,
 } from '@/components/inspector/BoostTabs';
 import { BOOST_V2_SUMMARY } from '@/lib/boost/v2-summary';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 // Accent colors are literal (they're concatenated with hex-opacity suffixes and
@@ -105,7 +105,7 @@ function ValueSummaryHero() {
       </div>
 
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${GOLD}`, background: SURF }}>
-        <span style={{ ...type.label, color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
+        <span style={{ ...type.label, color: inkOf(GOLD), marginRight: 8 }}>TAKEAWAY</span>
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete
           (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier).
@@ -241,7 +241,7 @@ export default function PerformanceLabPage() {
       }}>
         <FlaskConical size={20} style={{ color: GOLD }} />
         <div>
-          <div style={{ ...mono, fontSize: 'var(--type-body-size)', color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
+          <div style={{ ...mono, fontSize: 'var(--type-body-size)', color: inkOf(GOLD), fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </div>
           <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 2 }}>
@@ -346,7 +346,7 @@ export default function PerformanceLabPage() {
         <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, letterSpacing: '0.04em' }}>
           ALOFT PERFORMANCE LAB · v0.2 · context harness research
         </span>
-        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', letterSpacing: '0.04em' }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', letterSpacing: '0.04em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

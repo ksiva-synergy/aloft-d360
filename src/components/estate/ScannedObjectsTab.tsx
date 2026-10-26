@@ -377,7 +377,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
 
         {/* Table */}
         <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse text-xs text-left">
+          <table className="w-full border-collapse text-size-ui text-left">
             <thead>
               <tr
                 className="sticky top-0 z-10 border-b select-none"
@@ -407,11 +407,11 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 <tr>
                   <td colSpan={6} className="p-16 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <span className="text-xl opacity-40 font-mono">◆</span>
+                      <span className="text-size-title-section opacity-40 font-mono">◆</span>
            <span className="text-label " style={{ color: labelColor }}>
                         No Scanned Objects
                       </span>
-                      <p className="text-xs max-w-sm text-center" style={{ color: mutedColor }}>
+                      <p className="text-size-ui max-w-sm text-center" style={{ color: mutedColor }}>
                         {filters.q
                           ? `No objects matching "${filters.q}" found.`
                           : filters.tier
@@ -430,7 +430,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150"
                   onClick={() => router.push(`/agent-lab/estate/object/${obj.id}`)}
                 >
-                  <td className="p-3 font-mono text-xs max-w-[280px]">
+                  <td className="p-3 font-mono text-size-ui max-w-[280px]">
                     <span
                       style={{ color: inkColor }}
                       title={obj.full_path}
@@ -451,13 +451,13 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                       {obj.object_kind}
                     </span>
                   </td>
-                  <td className="p-3 text-xs truncate max-w-[120px]" style={{ color: labelColor }}>
+                  <td className="p-3 text-size-ui truncate max-w-[120px]" style={{ color: labelColor }}>
                     {obj.source_name ?? '—'}
                   </td>
-                  <td className="p-3 text-right font-mono text-xs" style={{ color: mutedColor }}>
+                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: mutedColor }}>
                     {formatRowCount(obj.row_count_est)}
                   </td>
-                  <td className="p-3 font-mono text-xs" title={obj.last_t0_at ? new Date(obj.last_t0_at).toLocaleString() : '—'} style={{ color: labelColor }}>
+                  <td className="p-3 font-mono text-size-ui" title={obj.last_t0_at ? new Date(obj.last_t0_at).toLocaleString() : '—'} style={{ color: labelColor }}>
                     {relativeTime(obj.last_t0_at)}
                   </td>
                   <td className="p-3 text-center">

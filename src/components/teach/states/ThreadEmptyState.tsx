@@ -9,7 +9,7 @@
  */
 import React from 'react';
 import { FONT_BODY, FONT_DISPLAY, FONT_MONO } from '../teach-tokens';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const STARTERS = [
   "Here's what actually counts as ‘the fleet’.",
@@ -73,7 +73,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         }}
       >
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
-        <span style={{ ...type.label, color: 'var(--primary)' }}>
+        <span style={{ ...type.label, color: inkOf('var(--primary)', 70) }}>
           Reflect Mode · Captain Track Sparrow is listening
         </span>
       </span>

@@ -29,7 +29,7 @@ import { ALL_KNOWLEDGE_KEY } from '@/lib/foer/constants';
 import { SessionDetailDrawer } from './SessionDetailDrawer';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 interface BrowseBullet {
   id: string;
   agentClass?: string;
@@ -414,7 +414,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
   if (!stats || !runsData) {
     return (
-      <div style={{ color: RULE_TYPE_COLORS.FAILURE_MODE, fontFamily: 'var(--font-sans)', padding: '2rem' }}>
+      <div style={{ color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE), fontFamily: 'var(--font-sans)', padding: '2rem' }}>
         Failed to fetch Operations stats.
       </div>
     );
@@ -486,7 +486,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
               <span className="foer-dot" style={{ background: 'var(--foer-green)' }}></span>
               updated <span style={{ color: 'var(--foer-text-sec)' }}>{secondsAgo}s</span> ago
             </span>
@@ -541,7 +541,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     alignItems: 'center',
                     gap: '5px',
                     background: 'var(--foer-gold)',
-                    color: '#1B2532',
+                    color: 'var(--on-brand, #fff)',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 9px',
@@ -588,11 +588,11 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)' }}>MEMORY CANARY · FULLPOOL + λ STATUS</span>
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b', background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.04em' }}>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : inkOf('#d9774b'), background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.04em' }}>
                 FULLPOOL {canaryData.fullPoolEnabled ? 'ON' : 'OFF'}
               </span>
               {canaryData.fullPoolOrgs.length > 0 && (
-                <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
                   canary orgs: {canaryData.fullPoolOrgs.map((o) => o.slice(0, 8)).join(', ')}
                 </span>
               )}
@@ -629,7 +629,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             </div>
 
             {!canaryData.volumeSufficient && (
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: '#d9774b', letterSpacing: '0.04em' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf('#d9774b'), letterSpacing: '0.04em' }}>
                 Run <span style={{ color: 'var(--foer-text-sec)' }}>scripts/memory/calibrate-lambda.ts</span> once attributed runs ≥ 30 to get a λ recommendation.
               </div>
             )}
@@ -648,7 +648,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Sense</div>
-                <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Trace capture</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Trace capture</div>
               </div>
               <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                 <span style={{ color: 'var(--foer-text-pri)' }}>{stats.tracedSessions.toLocaleString()}</span> sessions · <span style={{ color: 'var(--foer-text-pri)' }}>{stats.totalTraceNodes.toLocaleString()}</span> nodes
@@ -710,7 +710,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     <span style={{ color: 'var(--foer-text-mut)' }}>{stats.lastRun.reflectorVersion ?? '—'}</span>
                   </div>
                   {stats.lastRun.phantomsBlocked > 0 && (
-                    <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>
+                    <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-gold)', borderRadius: '6px', padding: '4px 9px', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>
                       <span className="foer-dot" style={{ background: 'var(--foer-gold)', width: '5px', height: '5px' }}></span> phantoms blocked: {stats.lastRun.phantomsBlocked}
                     </div>
                   )}
@@ -757,7 +757,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
             {/* CONNECTOR 2 */}
             <div style={{ flex: 'none', width: '66px', alignSelf: 'flex-start', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>delta-only<br />merge</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>delta-only<br />merge</span>
               <svg width="66" height="13" viewBox="0 0 66 13" style={{ overflow: 'visible' }}>
                 <line x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-border)" strokeWidth="1"></line>
                 <line className="foer-flow-line" x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.6" style={{ animationDelay: '-1s' }}></line>
@@ -799,7 +799,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '4px 9px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)' }}>
+                <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '4px 9px', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)' }}>
                   <span className="foer-dot" style={{ background: stats.activeBullets > 200 ? RULE_TYPE_COLORS.FAILURE_MODE : 'var(--foer-green)', width: '6px', height: '6px' }}></span>
                   store health: {stats.activeBullets > 200 ? 'dense store' : 'healthy'}
                 </div>
@@ -813,7 +813,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
             {/* CONNECTOR 3 */}
             <div style={{ flex: 'none', width: '66px', alignSelf: 'flex-start', marginTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>two-tier<br />retrieval</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', textAlign: 'center', lineHeight: 1.35 }}>two-tier<br />retrieval</span>
               <svg width="66" height="13" viewBox="0 0 66 13" style={{ overflow: 'visible' }}>
                 <line x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-border)" strokeWidth="1"></line>
                 <line className="foer-flow-line" x1="3" y1="6.5" x2="55" y2="6.5" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.6" style={{ animationDelay: '-2s' }}></line>
@@ -1178,7 +1178,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)' }}>{b.tokens}t</span>
                             {b.overBudget && (
-                              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: RULE_TYPE_COLORS.FAILURE_MODE, background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '18')}`, border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '40')}`, borderRadius: 3, padding: '1px 4px' }}>
+                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE), background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '18')}`, border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '40')}`, borderRadius: 3, padding: '1px 4px' }}>
                                 over budget
                               </span>
                             )}
@@ -1193,7 +1193,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           )}
         </section>
 
-        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textAlign: 'center', opacity: 0.7 }}>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textAlign: 'center',  }}>
           READ-ONLY OBSERVABILITY · FOER · ALOFT WORK-MEMORY
         </div>
       </div>

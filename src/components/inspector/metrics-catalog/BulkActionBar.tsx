@@ -9,6 +9,7 @@ import {
 } from './catalog-store';
 import type { CatalogRow } from './catalog-types';
 import { MONO, MUTED, INK, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Bulk action bar — appears on selection. Replaces the old blind "Promote All
@@ -78,7 +79,7 @@ export function BulkActionBar({ onPromote, onArchive }: Props) {
         padding: '10px 18px', borderTop: `1px solid ${BORDER}`, background: 'color-mix(in srgb, var(--brand-a) 5%, transparent)',
       }}
     >
-      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, fontWeight: 600 }}>{selectedCount} selected</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), fontWeight: 600 }}>{selectedCount} selected</span>
       <button onClick={clearSelection} style={{ display: 'flex', alignItems: 'center', gap: 4, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer' }}>
         <X size={11} /> clear
       </button>

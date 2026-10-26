@@ -39,7 +39,7 @@ export default function AgentsSubNav() {
             role="tab"
             aria-selected={active}
             className={cn(
-              'relative px-4 py-3 text-sm font-medium transition-colors',
+              'relative px-4 py-3 text-size-body font-medium transition-colors',
               active ? 'text-[var(--ink-1)]' : 'text-[var(--ink-3)] hover:text-[var(--ink-2)]',
             )}
           >

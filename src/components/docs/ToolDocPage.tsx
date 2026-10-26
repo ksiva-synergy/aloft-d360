@@ -47,7 +47,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] mb-6">
+      <nav className="flex items-center gap-2 text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] mb-6">
         <Link href="/docs" className="hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors">
           Docs
         </Link>
@@ -62,19 +62,19 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
-          <h1 className="text-2xl font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+          <h1 className="text-size-kpi-lg font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
             {tool.name}
           </h1>
-          <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom}`}>
+          <span className={`text-size-ui font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[tool.type] || TYPE_COLORS.custom}`}>
             {tool.type}
           </span>
         </div>
-        <p className="text-sm text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] leading-relaxed max-w-2xl">
+        <p className="text-size-body text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] leading-relaxed max-w-2xl">
           {tool.description || 'No description available.'}
         </p>
 
         {/* Metadata */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
+        <div className="flex flex-wrap items-center gap-4 mt-4 text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             v{tool.version}
@@ -98,7 +98,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
             {tool.tags.map(tag => (
               <span
                 key={tag}
-                className="text-xs px-2 py-0.5 rounded-full bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]"
+                className="text-size-ui px-2 py-0.5 rounded-full bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)]"
               >
                 {tag}
               </span>
@@ -109,7 +109,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
 
       {/* Input Schema */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Input Parameters
         </h2>
         <SchemaTable schema={tool.input_schema} title="Input Schema" />
@@ -117,7 +117,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
 
       {/* Output Schema */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Output
         </h2>
         <SchemaTable schema={tool.output_schema} title="Output Schema" />
@@ -125,7 +125,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
 
       {/* Usage Example */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Usage Example
         </h2>
         <CodeExample
@@ -139,7 +139,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       <section className="mb-8">
         <Link
           href="/inspector"
-          className="inline-flex items-center gap-2 text-sm font-medium text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)] hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors"
+          className="inline-flex items-center gap-2 text-size-body font-medium text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)] hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
           Try in Inspector
@@ -149,7 +149,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       {/* Configuration */}
       {tool.config && Object.keys(tool.config).length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+          <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Configuration
           </h2>
           <CodeExample
@@ -163,7 +163,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       {/* Related Tools */}
       {relatedTools.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+          <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
             Related Tools
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -175,10 +175,10 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
               >
                 <Wrench className="h-4 w-4 text-[var(--ink-3)] mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] truncate">
+                  <p className="text-size-ui font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] truncate">
                     {related.name}
                   </p>
-                  <p className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] line-clamp-2 mt-0.5">
+                  <p className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] line-clamp-2 mt-0.5">
                     {related.description}
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
       <div className="pt-4 border-t border-[color:var(--line-1)] dark:border-[var(--line-1)]">
         <Link
           href="/docs/tools"
-          className="inline-flex items-center gap-1.5 text-xs text-[var(--ink-3)] hover:text-[color:var(--ink-2)] dark:hover:text-[color:var(--ink-3)] dark:hover:text-[color:var(--ink-1)] transition-colors"
+          className="inline-flex items-center gap-1.5 text-size-ui text-[var(--ink-3)] hover:text-[color:var(--ink-2)] dark:hover:text-[color:var(--ink-3)] dark:hover:text-[color:var(--ink-1)] transition-colors"
         >
           <ArrowLeft className="h-3 w-3" />
           Back to all tools

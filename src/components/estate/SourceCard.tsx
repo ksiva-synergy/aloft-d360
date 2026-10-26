@@ -110,7 +110,7 @@ export default function SourceCard({
       {/* Header Info */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold transition-colors duration-200" style={{ color: inkColor }}>
+          <h3 className="text-size-body-lg font-semibold transition-colors duration-200" style={{ color: inkColor }}>
             {sourceName}
           </h3>
           <span
@@ -124,7 +124,7 @@ export default function SourceCard({
             {sourceKind}
           </span>
         </div>
-        <div className="font-mono text-xs text-right leading-relaxed" style={{ color: mutedColor }}>
+        <div className="font-mono text-size-ui text-right leading-relaxed" style={{ color: mutedColor }}>
           {estateTotal} objects
           <br />
           {catalogName}
@@ -147,7 +147,7 @@ export default function SourceCard({
 
       {/* Stats Row */}
       <div
-        className="flex items-center gap-3.5 mt-5 font-mono text-xs flex-wrap transition-colors duration-200"
+        className="flex items-center gap-3.5 mt-5 font-mono text-size-ui flex-wrap transition-colors duration-200"
         style={{ color: mutedColor }}
       >
         <span title="Most recent estate inventory sweep across all catalog objects">

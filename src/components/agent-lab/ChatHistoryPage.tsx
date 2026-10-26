@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 interface Session {
   id: string;
   title: string | null;
@@ -579,15 +579,15 @@ export default function ChatHistoryPage() {
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 0', minWidth: 0, maxWidth: 'min(520px, 50%)' }}>
               {someSelected ? (
                 <>
-                  <span style={{ color: GOLD }}>{selected.size} SELECTED</span>
+                  <span style={{ color: inkOf(GOLD) }}>{selected.size} SELECTED</span>
                   {!bulkConfirm && (
-                    <button onClick={() => setBulkConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 9px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
+                    <button onClick={() => setBulkConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 9px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', color: inkOf('#f87171'), cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                       <Trash2 size={10} /> Delete {selected.size}
                     </button>
                   )}
                   {bulkConfirm && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ color: '#fca5a5', fontSize: 'var(--type-ui-regular-size)' }}>Confirm delete?</span>
+                      <span style={{ color: inkOf('#fca5a5'), fontSize: 'var(--type-ui-regular-size)' }}>Confirm delete?</span>
                       <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '2px 9px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 3 }}>
                         {bulkDeleting ? <><Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} /> Deleting</> : 'Yes, delete'}
                       </button>
@@ -845,7 +845,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               {displayTitle}
             </span>
             {session.saved_agent_id && (
-              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)', color: '#86EFAC', background: 'rgba(134,239,172,0.08)', padding: '2px 6px', borderRadius: 3, flexShrink: 0 }}>DEPLOYED</span>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)', color: inkOf('#86EFAC'), background: 'rgba(134,239,172,0.08)', padding: '2px 6px', borderRadius: 3, flexShrink: 0 }}>DEPLOYED</span>
             )}
           </div>
         )}
@@ -949,7 +949,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
           <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {confirmDelete ? (
               <>
-                <button onClick={() => { setConfirmDelete(false); onDelete(); }} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Yes</button>
+                <button onClick={() => { setConfirmDelete(false); onDelete(); }} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: '#ef4444', border: 'none', color: '#FFFFFF', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Yes</button>
                 <button onClick={() => setConfirmDelete(false)} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>No</button>
               </>
             ) : (

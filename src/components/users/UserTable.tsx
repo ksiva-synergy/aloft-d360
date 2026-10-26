@@ -91,7 +91,7 @@ function RoleBadge({ role, label }: { role: string; label: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
+        'font-mono text-size-ui font-semibold uppercase leading-[1.6] tracking-wide',
         style,
       )}
     >
@@ -127,7 +127,7 @@ function MetricChip({
         {label}
       </div>
       <div className="mt-0.5 flex items-baseline gap-1 tabular-nums">
-        <span className={cn('text-sm font-semibold leading-none', active ? 'text-[var(--estate-ink)]' : 'text-muted-foreground/40')}>
+        <span className={cn('text-size-body font-semibold leading-none', active ? 'text-[var(--estate-ink)]' : 'text-muted-foreground/40')}>
           {d30}
         </span>
         <span className="text-[length:var(--type-caption-size)] text-muted-foreground">/ {d7}·7d</span>
@@ -236,7 +236,7 @@ function ActionsMenu({
           {canUpdateUsers && (
             <button
               onClick={() => { setOpen(false); onEditUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
               Edit Profile
@@ -245,7 +245,7 @@ function ActionsMenu({
           {canAssignRoles && (
             <button
               onClick={() => { setOpen(false); onChangeRole?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Shield className="h-3.5 w-3.5 text-muted-foreground" />
               Change Role
@@ -255,7 +255,7 @@ function ActionsMenu({
             <button
               onClick={() => { setOpen(false); onToggleStatus?.(user); }}
               className={cn(
-                'flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors',
+                'flex items-center gap-2 w-full px-3 py-2 text-size-ui transition-colors',
                 user.status === 'SUSPENDED'
                   ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
                   : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10',
@@ -270,7 +270,7 @@ function ActionsMenu({
           {canDeleteUsers && !isSelf && (
             <button
               onClick={() => { setOpen(false); onDeleteUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove User
@@ -322,7 +322,7 @@ export function UserTable({
     return (
       <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[1024px] text-sm">
+        <table className="w-full min-w-[1024px] text-size-body">
           <thead>
             <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
               <th className={TH}>User</th>
@@ -349,8 +349,8 @@ export function UserTable({
       <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <User className="h-10 w-10 mb-3 opacity-20" />
-          <p className="text-sm font-medium">No users found</p>
-          <p className="text-xs mt-1 opacity-75">Adjust your search or filters</p>
+          <p className="text-size-body font-medium">No users found</p>
+          <p className="text-size-ui mt-1">Adjust your search or filters</p>
         </div>
       </div>
     );
@@ -359,7 +359,7 @@ export function UserTable({
   return (
     <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-      <table className="w-full min-w-[1024px] text-sm">
+      <table className="w-full min-w-[1024px] text-size-body">
         <thead>
           <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
             <th className={cn(TH, 'min-w-[220px]')}>User</th>
@@ -401,7 +401,7 @@ export function UserTable({
                       {initials}
                     </div>
                     <div className="min-w-0 max-w-[240px]">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-[var(--foreground)]">
+                      <div className="flex items-center gap-1.5 text-size-body font-medium text-[var(--foreground)]">
                         <span className="truncate">
                           {user.name || <span className="italic text-muted-foreground font-normal">No name</span>}
                         </span>
@@ -411,7 +411,7 @@ export function UserTable({
                           </span>
                         )}
                       </div>
-                      <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                      <div className="truncate text-size-ui text-muted-foreground">{user.email}</div>
                     </div>
                   </div>
                 </td>
@@ -423,7 +423,7 @@ export function UserTable({
 
                 {/* Status column */}
                 <td className="px-4 py-3">
-                  <span className={cn('inline-flex items-center gap-1.5 text-xs', status.text)}>
+                  <span className={cn('inline-flex items-center gap-1.5 text-size-ui', status.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.dot)} />
                     {status.label}
                   </span>
@@ -436,14 +436,14 @@ export function UserTable({
 
                 {/* Last Login column */}
                 <td className="px-4 py-3.5 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs text-[var(--estate-ink)]">
+                  <span className="inline-flex items-center gap-1.5 text-size-ui text-[var(--estate-ink)]">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     {formatRelative(user.lastLoginAt)}
                   </span>
                 </td>
 
                 {/* Joined column */}
-                <td className="px-4 py-3.5 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                <td className="px-4 py-3.5 whitespace-nowrap text-size-ui tabular-nums text-muted-foreground">
                   {formatJoinDate(user.createdAt)}
                 </td>
 

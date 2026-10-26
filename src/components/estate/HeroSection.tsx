@@ -23,7 +23,7 @@ import HarvestActionBar from './HarvestActionBar';
 import DataReadinessRing from './DataReadinessRing';
 import type { DataScoreShape } from './DataReadinessRing';
 import type { FreshnessBlock } from './FreshnessCard';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 interface HeroSectionProps {
   object: {
@@ -170,7 +170,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               <div
                 style={{
                   ...type.label,
-                  color: '#e0b23c',
+                  color: inkOf('#e0b23c'),
                   marginBottom: 4,
                 }}
               >
@@ -195,6 +195,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
             <HarvestActionBar
               objectId={object.id}
               sourceId={object.source_id}
+              fullPath={object.full_path}
               last_t0_at={object.last_t0_at}
               last_t1_at={object.last_t1_at}
               last_t2_at={object.last_t2_at}

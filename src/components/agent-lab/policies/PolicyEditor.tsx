@@ -80,7 +80,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">
+        <h3 className="text-size-body font-semibold">
           {initial?.id ? 'Edit Policy' : 'New Policy'}
         </h3>
         <div className="flex gap-2">
@@ -95,7 +95,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+          <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Name
           </label>
           <input
@@ -103,18 +103,18 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. ParserAgent cost ceiling"
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
+            className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           />
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+          <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Type
           </label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
+            className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           >
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
@@ -123,13 +123,13 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+          <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Scope
           </label>
           <select
             value={scope}
             onChange={(e) => setScope(e.target.value)}
-            className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
+            className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           >
             {SCOPES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -139,7 +139,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
         {scope !== 'global' && (
           <div>
-            <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+            <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
               Scope ID
             </label>
             <input
@@ -147,14 +147,14 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
               value={scopeId}
               onChange={(e) => setScopeId(e.target.value)}
               placeholder="Entry/pipeline/env ID"
-              className="w-full px-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
+              className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
             />
           </div>
         )}
       </div>
 
       <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+        <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
           Enforcement
         </label>
         <div className="flex gap-2">
@@ -163,7 +163,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
               key={e.value}
               onClick={() => setEnforcement(e.value)}
               className={cn(
-                'px-3 py-1.5 text-xs rounded-md border transition-colors',
+                'px-3 py-1.5 text-size-ui rounded-md border transition-colors',
                 enforcement === e.value
                   ? 'bg-[color:var(--brand-a-soft)] dark:bg-[color:color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:border-[color:color-mix(in_srgb,var(--brand-a)_30%,transparent)] text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)]'
                   : 'bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] border-[color:var(--line-1)] dark:border-[var(--line-1)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[color:var(--surface-2)] dark:hover:bg-[var(--surface-2)]',
@@ -177,7 +177,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
       </div>
 
       <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
+        <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
           Config (JSON)
         </label>
         <textarea
@@ -185,9 +185,9 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           onChange={(e) => setConfigJson(e.target.value)}
           rows={6}
           spellCheck={false}
-          className="w-full px-3 py-2 text-xs font-mono border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)] resize-y"
+          className="w-full px-3 py-2 text-size-ui font-mono border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)] resize-y"
         />
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-size-ui text-muted-foreground mt-1">
           {type === 'cost_ceiling' && 'e.g. { "max_cost_per_run": 0.50, "currency": "USD" }'}
           {type === 'tool_allowlist' && 'e.g. { "tools": ["search_contracts", "parse_pdf"] }'}
           {type === 'tool_denylist' && 'e.g. { "tools": ["delete_contract"] }'}

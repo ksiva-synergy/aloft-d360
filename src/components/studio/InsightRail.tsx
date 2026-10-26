@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec, ColumnProfile } from '@/lib/studio/types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface InsightItem {
@@ -424,7 +424,7 @@ export function InsightRail({
               cursor: 'pointer',
               ...MONO,
               fontSize: 'var(--type-ui-regular-size)',
-              color: T.gold,
+              color: inkOf(T.gold),
               textDecoration: 'underline',
               letterSpacing: '0.08em',
             }}

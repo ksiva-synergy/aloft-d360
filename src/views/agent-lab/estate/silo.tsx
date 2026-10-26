@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import Link from '@/lib/navigation/link';
+import { inkOf } from '@/lib/typography/tokens';
 
 const truncateText = (text: string, maxLen: number = 60) => {
   if (!text) return '';
@@ -369,7 +370,7 @@ function SiloFinderContent() {
           )}
           <span style={{ color: step === 1 ? inkColor : labelColor }}>Pick object</span>
         </div>
-        <div className="text-xs" style={{ color: borderColor }}>→</div>
+        <div className="text-size-ui" style={{ color: borderColor }}>→</div>
     <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
           {step > 2 ? (
             <span style={{ color: activeColor }}>✓</span>
@@ -383,7 +384,7 @@ function SiloFinderContent() {
           )}
           <span style={{ color: step === 2 ? inkColor : labelColor }}>Scan</span>
         </div>
-        <div className="text-xs" style={{ color: borderColor }}>→</div>
+        <div className="text-size-ui" style={{ color: borderColor }}>→</div>
     <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
           {step === 3 ? (
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeColor }} />
@@ -397,7 +398,7 @@ function SiloFinderContent() {
       {/* 2. Step Views */}
       {step === 1 && (
         <div className="flex flex-col gap-6 max-w-xl">
-     <h2 className="text-label " style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
+     <h2 className="text-label " style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
             Silo Finder
           </h2>
 
@@ -413,7 +414,7 @@ function SiloFinderContent() {
                 }}
                 onFocus={() => setDropdownOpen(true)}
                 placeholder="Search objects by name or description..."
-                className="w-full px-4 py-3 rounded border text-xs outline-none focus:border-[var(--brand-a)] transition-colors bg-transparent font-sans"
+                className="w-full px-4 py-3 rounded border text-size-ui outline-none focus:border-[var(--brand-a)] transition-colors bg-transparent font-sans"
                 style={{ borderColor, color: inkColor }}
               />
 
@@ -423,10 +424,10 @@ function SiloFinderContent() {
                   style={{ backgroundColor: raisedBg, borderColor }}
                 >
                   {searching && (
-                    <div className="p-3 text-xs font-mono" style={{ color: labelColor }}>Searching...</div>
+                    <div className="p-3 text-size-ui font-mono" style={{ color: labelColor }}>Searching...</div>
                   )}
                   {!searching && searchResults.length === 0 && (
-                    <div className="p-3 text-xs font-sans" style={{ color: labelColor }}>No matches found.</div>
+                    <div className="p-3 text-size-ui font-sans" style={{ color: labelColor }}>No matches found.</div>
                   )}
                   {!searching &&
                     searchResults.map((item) => (
@@ -483,7 +484,7 @@ function SiloFinderContent() {
             >
               <button
                 onClick={handleClear}
-                className="absolute top-4 right-4 text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
+                className="absolute top-4 right-4 text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
                 style={{ fontFamily: 'var(--font-mono)' }}
               >
                 [× Clear]
@@ -505,7 +506,7 @@ function SiloFinderContent() {
           <div className="flex flex-col gap-4 py-4 border-t border-dashed" style={{ borderColor }}>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
+                <label className="text-size-ui uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
                   Top N results
                 </label>
                 <input
@@ -521,7 +522,7 @@ function SiloFinderContent() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-mono)' }}>
+                <label className="text-size-ui uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
                   Min similarity
                 </label>
                 <input
@@ -537,7 +538,7 @@ function SiloFinderContent() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-size-ui cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={includeRejected}
@@ -568,7 +569,7 @@ function SiloFinderContent() {
             </button>
 
             {jobError && (
-              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-xs font-mono w-full">
+              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono w-full">
                 Error: {jobError}
               </div>
             )}
@@ -583,7 +584,7 @@ function SiloFinderContent() {
           </h2>
 
           <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
-            <div className="flex flex-col gap-3 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
+            <div className="flex flex-col gap-3 text-size-ui" style={{ fontFamily: 'var(--font-mono)' }}>
               {stages.map((stage, idx) => {
                 const status = getStageStatus(stage.key, idx);
                 const duration = jobData?.stats?.[stage.durKey];
@@ -606,7 +607,7 @@ function SiloFinderContent() {
                       </span>
                     </div>
                     {duration !== undefined && (
-                      <span style={{ color: labelColor }} className="text-xs">
+                      <span style={{ color: labelColor }} className="text-size-ui">
                         {(duration / 1000).toFixed(1)}s
                       </span>
                     )}
@@ -617,19 +618,19 @@ function SiloFinderContent() {
           </div>
 
           {jobData?.status === 'succeeded' && (
-            <div className="text-xs font-sans" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
+            <div className="text-size-ui font-sans" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
               {jobData.stats?.candidates_found ?? 0} candidates found above threshold · {jobData.scope?.topN ?? jobData.stats?.scanned_count ?? 15} scanned
             </div>
           )}
 
           {(jobError || jobData?.status === 'failed') && (
             <div className="flex flex-col gap-3 mt-4">
-              <div className="p-5 rounded border border-red-500/30 bg-red-500/5 text-red-400 text-xs font-mono">
+              <div className="p-5 rounded border border-red-500/30 bg-red-500/5 text-red-400 text-size-ui font-mono">
                 Error: {jobError || jobData?.error || 'Job execution failed.'}
               </div>
               <button
                 onClick={handleReset}
-                className="text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer self-start"
+                className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer self-start"
               >
                 [← Try again]
               </button>
@@ -640,23 +641,23 @@ function SiloFinderContent() {
 
       {step === 3 && (
         <div className="flex flex-col gap-4 max-w-2xl">
-     <h2 className="text-label mb-2" style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
+     <h2 className="text-label mb-2" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
             Scan Results
           </h2>
 
           {loadingLinks ? (
-            <div className="text-xs font-mono animate-pulse" style={{ color: labelColor }}>
+            <div className="text-size-ui font-sans animate-pulse" style={{ color: labelColor }}>
               Loading results...
             </div>
           ) : links.length === 0 ? (
             <div className="flex flex-col gap-4">
-              <div className="text-xs font-sans" style={{ color: labelColor }}>
+              <div className="text-size-ui font-sans" style={{ color: labelColor }}>
                 No candidates found above threshold.
               </div>
               <div>
                 <button
                   onClick={handleScanAnother}
-                  className="text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
+                  className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   [← Scan another object]
@@ -811,11 +812,11 @@ function SiloFinderContent() {
               <span className="text-label " style={{ color: labelColor }}>
                               LLM Verdict:
                             </span>
-                            <span className="text-xs font-mono px-2 py-0.5 rounded border font-semibold" style={badgeStyle}>
+                            <span className="text-size-ui font-mono px-2 py-0.5 rounded border font-semibold" style={badgeStyle}>
                               {badgeText}
                             </span>
                             {link.llm_verdict.confidence !== undefined && (
-                              <span className="text-xs font-mono" style={{ color: labelColor }}>
+                              <span className="text-size-ui font-mono" style={{ color: labelColor }}>
                                 (confidence: {Number(link.llm_verdict.confidence).toFixed(2)})
                               </span>
                             )}
@@ -831,22 +832,22 @@ function SiloFinderContent() {
                       {/* Action / State Row */}
                       <div className="flex justify-end items-center mt-2 pt-2 border-t border-dashed" style={{ borderColor }}>
                         {linkState === 'confirmed' && (
-                          <span className="text-xs font-mono font-semibold" style={{ color: '#10B981' }}>
+                          <span className="text-size-ui font-mono font-semibold" style={{ color: inkOf('#10B981') }}>
                             Confirmed ✓
                           </span>
                         )}
                         {linkState === 'confirmed_loading' && (
-                          <span className="text-xs font-mono font-semibold animate-pulse" style={{ color: '#10B981' }}>
+                          <span className="text-size-ui font-mono font-semibold animate-pulse" style={{ color: inkOf('#10B981') }}>
                             Confirming...
                           </span>
                         )}
                         {linkState === 'rejected' && (
-                          <span className="text-xs font-mono font-semibold" style={{ color: labelColor }}>
+                          <span className="text-size-ui font-sans font-semibold" style={{ color: labelColor }}>
                             Not related
                           </span>
                         )}
                         {linkState === 'rejected_loading' && (
-                          <span className="text-xs font-mono font-semibold animate-pulse" style={{ color: labelColor }}>
+                          <span className="text-size-ui font-mono font-semibold animate-pulse" style={{ color: labelColor }}>
                             Rejecting...
                           </span>
                         )}
@@ -854,15 +855,15 @@ function SiloFinderContent() {
                           <div className="flex items-center gap-3">
                             <button
                               onClick={() => handleRejectSilo(link.id)}
-                              className="px-3 py-1.5 rounded border text-xs font-mono hover:bg-[color:color-mix(in_srgb,var(--surface-3)_10%,transparent)] transition-all cursor-pointer bg-transparent"
+                              className="px-3 py-1.5 rounded border text-size-ui font-mono hover:bg-[color:color-mix(in_srgb,var(--surface-3)_10%,transparent)] transition-all cursor-pointer bg-transparent"
                               style={{ borderColor, color: labelColor }}
                             >
                               [✗ Not Related]
                             </button>
                             <button
                               onClick={() => handleConfirmSilo(link.id)}
-                              className="px-3 py-1.5 rounded border text-xs font-mono hover:bg-green-500/10 transition-all cursor-pointer bg-transparent"
-                              style={{ borderColor: 'rgba(16, 185, 129, 0.5)', color: '#10B981' }}
+                              className="px-3 py-1.5 rounded border text-size-ui font-mono hover:bg-green-500/10 transition-all cursor-pointer bg-transparent"
+                              style={{ borderColor: 'rgba(16, 185, 129, 0.5)', color: inkOf('#10B981') }}
                             >
                               [✓ Confirm Silo]
                             </button>
@@ -878,7 +879,7 @@ function SiloFinderContent() {
               <div className="mt-6">
                 <button
                   onClick={handleScanAnother}
-                  className="text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
+                  className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   [← Scan another object]
@@ -894,7 +895,7 @@ function SiloFinderContent() {
 
 export default function EstateSiloPage() {
   return (
-    <Suspense fallback={<div className="p-6 font-sans text-xs text-muted-foreground">Loading Silo Finder...</div>}>
+    <Suspense fallback={<div className="p-6 font-sans text-size-ui text-muted-foreground">Loading Silo Finder...</div>}>
       <SiloFinderContent />
     </Suspense>
   );

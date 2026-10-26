@@ -1,10 +1,28 @@
 import { prisma } from '@/lib/prisma';
+import { runInBatches } from '@/lib/db/run-in-batches';
 import { getTopicPeriods } from '@/lib/foer/topics';
 import type { StatsResponse, FoerTopic, LastRunInfo } from '@/lib/foer/types';
 
+/** Cap parallel Prisma calls (remote dev RDS + large FOER tables). */
+const FOER_STATS_DB_CONCURRENCY = 4;
+
+const lastRunSelect = {
+  id: true,
+  sessionsScanned: true,
+  sessionsReflected: true,
+  sessionsSkipped: true,
+  bulletsInserted: true,
+  bulletsDeduped: true,
+  bulletsSuperseded: true,
+  phantomsBlocked: true,
+  bulletsQuarantined: true,
+  reflectorVersion: true,
+  completedAt: true,
+} as const;
+
 /**
  * Compute the full FOER stats payload for a given org in one pass.
- * All DB queries run concurrently; topic lookup is sequential (needs latest period first).
+ * Queries run in small batches to avoid connection spikes on remote Postgres.
  */
 export async function computeMemoryStats(orgId: string): Promise<StatsResponse> {
   const now = new Date();
@@ -12,7 +30,7 @@ export async function computeMemoryStats(orgId: string): Promise<StatsResponse> 
   const oneDayAgo   = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   const [
-    sessionGroups,
+    tracedSessionsRow,
     totalTraceNodes,
     nodeTypeGroups,
     lastTraceNode,
@@ -28,96 +46,94 @@ export async function computeMemoryStats(orgId: string): Promise<StatsResponse> 
     lastNRunsDb,
     watermarkRows,
     processedRows,
-  ] = await Promise.all([
-    prisma.platformTraceNode.groupBy({
-      by: ['sessionId'],
-      where: { orgId },
-    }),
-    prisma.platformTraceNode.count({ where: { orgId } }),
-    prisma.platformTraceNode.groupBy({
-      by: ['nodeType'],
-      where: { orgId },
-      _count: { _all: true },
-    }),
-    prisma.platformTraceNode.findFirst({
-      where: { orgId },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true },
-    }),
-    prisma.platformAgentMemory.count({ where: { orgId, status: 'ACTIVE' } }),
-    prisma.platformAgentMemory.count({ where: { orgId, status: 'ACTIVE', ruleType: 'HARD_RULE' } }),
-    prisma.platformAgentMemory.groupBy({
-      by: ['ruleType'],
-      where: { orgId, status: 'ACTIVE' },
-      _count: { _all: true },
-    }),
-    prisma.platformAgentMemory.aggregate({
-      where: { orgId, status: 'ACTIVE' },
-      _sum: { helpfulCount: true, harmfulCount: true },
-    }),
-    prisma.platformMemorySynthesisRun.findFirst({
-      where: { orgId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      select: {
-        id: true,
-        sessionsScanned: true,
-        sessionsReflected: true,
-        sessionsSkipped: true,
-        bulletsInserted: true,
-        bulletsDeduped: true,
-        bulletsSuperseded: true,
-        phantomsBlocked: true,
-        bulletsQuarantined: true,
-        reflectorVersion: true,
-        completedAt: true,
-      },
-    }),
-    prisma.platformMemorySynthesisRun.aggregate({
-      where: { orgId, completedAt: { gte: sevenDaysAgo } },
-      _sum: { phantomsBlocked: true },
-    }),
-    prisma.platformAgentMemory.count({
-      where: { orgId, status: 'ACTIVE', lastUsedAt: { gte: oneDayAgo } },
-    }),
-    prisma.platformAgentMemory.groupBy({
-      by: ['status'],
-      where: { orgId },
-      _count: { _all: true },
-    }),
-    prisma.platformAgentMemory.findMany({
-      where: { orgId, status: 'ACTIVE' },
-      select: { createdAt: true },
-      orderBy: { createdAt: 'asc' },
-    }),
-    prisma.platformMemorySynthesisRun.findMany({
-      where: { orgId, completedAt: { not: null } },
-      orderBy: { completedAt: 'desc' },
-      take: 7,
-      select: {
-        id: true,
-        sessionsScanned: true,
-        sessionsReflected: true,
-        sessionsSkipped: true,
-        bulletsInserted: true,
-        bulletsDeduped: true,
-        bulletsSuperseded: true,
-        phantomsBlocked: true,
-        bulletsQuarantined: true,
-        reflectorVersion: true,
-        completedAt: true,
-      },
-    }),
-    prisma.$queryRaw<{ max_ts: Date | null }[]>`
-      SELECT MAX(created_at) AS max_ts
-      FROM platform_agent_memory
-      WHERE org_id = ${orgId} AND status = 'ACTIVE'
-    `,
-    prisma.$queryRaw<{ source_session_ids: string[] }[]>`
-      SELECT source_session_ids
-      FROM platform_agent_memory
-      WHERE org_id = ${orgId} AND status = 'ACTIVE'
-    `,
-  ]);
+  ] = await runInBatches(
+    [
+      () =>
+        prisma.$queryRaw<{ n: number }[]>`
+          SELECT COUNT(DISTINCT session_id)::int AS n
+          FROM platform_trace_nodes
+          WHERE org_id = ${orgId}
+        `,
+      () => prisma.platformTraceNode.count({ where: { orgId } }),
+      () =>
+        prisma.platformTraceNode.groupBy({
+          by: ['nodeType'],
+          where: { orgId },
+          _count: { _all: true },
+        }),
+      () =>
+        prisma.platformTraceNode.findFirst({
+          where: { orgId },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+      () => prisma.platformAgentMemory.count({ where: { orgId, status: 'ACTIVE' } }),
+      () =>
+        prisma.platformAgentMemory.count({
+          where: { orgId, status: 'ACTIVE', ruleType: 'HARD_RULE' },
+        }),
+      () =>
+        prisma.platformAgentMemory.groupBy({
+          by: ['ruleType'],
+          where: { orgId, status: 'ACTIVE' },
+          _count: { _all: true },
+        }),
+      () =>
+        prisma.platformAgentMemory.aggregate({
+          where: { orgId, status: 'ACTIVE' },
+          _sum: { helpfulCount: true, harmfulCount: true },
+        }),
+      () =>
+        prisma.platformMemorySynthesisRun.findFirst({
+          where: { orgId, completedAt: { not: null } },
+          orderBy: { completedAt: 'desc' },
+          select: lastRunSelect,
+        }),
+      () =>
+        prisma.platformMemorySynthesisRun.aggregate({
+          where: { orgId, completedAt: { gte: sevenDaysAgo } },
+          _sum: { phantomsBlocked: true },
+        }),
+      () =>
+        prisma.platformAgentMemory.count({
+          where: { orgId, status: 'ACTIVE', lastUsedAt: { gte: oneDayAgo } },
+        }),
+      () =>
+        prisma.platformAgentMemory.groupBy({
+          by: ['status'],
+          where: { orgId },
+          _count: { _all: true },
+        }),
+      () =>
+        prisma.platformAgentMemory.findMany({
+          where: { orgId, status: 'ACTIVE' },
+          select: { createdAt: true },
+          orderBy: { createdAt: 'asc' },
+        }),
+      () =>
+        prisma.platformMemorySynthesisRun.findMany({
+          where: { orgId, completedAt: { not: null } },
+          orderBy: { completedAt: 'desc' },
+          take: 7,
+          select: lastRunSelect,
+        }),
+      () =>
+        prisma.$queryRaw<{ max_ts: Date | null }[]>`
+          SELECT MAX(created_at) AS max_ts
+          FROM platform_agent_memory
+          WHERE org_id = ${orgId} AND status = 'ACTIVE'
+        `,
+      () =>
+        prisma.$queryRaw<{ source_session_ids: string[] }[]>`
+          SELECT source_session_ids
+          FROM platform_agent_memory
+          WHERE org_id = ${orgId} AND status = 'ACTIVE'
+        `,
+    ] as const,
+    FOER_STATS_DB_CONCURRENCY,
+  );
+
+  const tracedSessions = tracedSessionsRow[0]?.n ?? 0;
 
   // Unprocessed sessions — mirrors findUnprocessedSessions() in run-sweep.ts exactly:
   // sessions with at least one trace node newer than the watermark that haven't yet
@@ -146,28 +162,35 @@ export async function computeMemoryStats(orgId: string): Promise<StatsResponse> 
   let assignedSigs = 0;
 
   if (latestPeriod) {
-    const [topicRows, lastTopicRow, totalSigsRows, assignedSigsRows] = await Promise.all([
-      prisma.platformMemoryTopic.findMany({
-        where:   { orgId, period: latestPeriod },
-        select:  { topicKey: true, topicName: true, topicRank: true, memberCount: true },
-        orderBy: { topicRank: 'asc' },
-      }),
-      prisma.platformMemoryTopic.findFirst({
-        where:   { orgId, period: latestPeriod },
-        orderBy: { createdAt: 'desc' },
-        select:  { createdAt: true },
-      }),
-      prisma.platformAgentMemory.findMany({
-        where:   { orgId, status: 'ACTIVE', taskSignature: { not: null } },
-        select:  { taskSignature: true },
-        distinct: ['taskSignature'],
-      }),
-      prisma.platformMemoryTopic.findMany({
-        where:  { orgId, period: latestPeriod, taskSignature: { not: '' } },
-        select: { taskSignature: true },
-        distinct: ['taskSignature'],
-      }),
-    ]);
+    const [topicRows, lastTopicRow, totalSigsRows, assignedSigsRows] = await runInBatches(
+      [
+        () =>
+          prisma.platformMemoryTopic.findMany({
+            where: { orgId, period: latestPeriod },
+            select: { topicKey: true, topicName: true, topicRank: true, memberCount: true },
+            orderBy: { topicRank: 'asc' },
+          }),
+        () =>
+          prisma.platformMemoryTopic.findFirst({
+            where: { orgId, period: latestPeriod },
+            orderBy: { createdAt: 'desc' },
+            select: { createdAt: true },
+          }),
+        () =>
+          prisma.platformAgentMemory.findMany({
+            where: { orgId, status: 'ACTIVE', taskSignature: { not: null } },
+            select: { taskSignature: true },
+            distinct: ['taskSignature'],
+          }),
+        () =>
+          prisma.platformMemoryTopic.findMany({
+            where: { orgId, period: latestPeriod, taskSignature: { not: '' } },
+            select: { taskSignature: true },
+            distinct: ['taskSignature'],
+          }),
+      ] as const,
+      FOER_STATS_DB_CONCURRENCY,
+    );
 
     const seen = new Map<string, FoerTopic>();
     for (const r of topicRows) {
@@ -241,7 +264,7 @@ export async function computeMemoryStats(orgId: string): Promise<StatsResponse> 
   }
 
   return {
-    tracedSessions:       sessionGroups.length,
+    tracedSessions,
     unprocessedSessions,
     totalTraceNodes,
     nodeTypeDistribution,

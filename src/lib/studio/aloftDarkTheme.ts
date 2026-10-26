@@ -1,3 +1,4 @@
+import { CHART_TEXT, FONT_SANS, FONT_MONO } from '@/lib/typography/tokens';
 // aloft-dark ECharts theme — hardcoded hex/font names (CSS vars not readable in SSR).
 // Source of record: globals.css lines 37-38, tailwind.config.js lines 107-109, 132-140.
 // backgroundColor is 'transparent' in-app (inherits card surface);
@@ -18,27 +19,27 @@ export const aloftDarkTheme = {
   color: DARK_PALETTE,
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 11,
+    fontFamily: FONT_SANS,
+    fontSize: CHART_TEXT.axis,
     color: '#F0F4F8',
   },
   title: {
     textStyle: {
       color: '#F0F4F8',
-      fontFamily: "'Inter', sans-serif",
-      fontSize: 13,
+      fontFamily: FONT_SANS,
+      fontSize: CHART_TEXT.tooltip,
     },
     subtextStyle: {
       color: '#8BAFC8',
-      fontFamily: "'Inter', sans-serif",
-      fontSize: 11,
+      fontFamily: FONT_SANS,
+      fontSize: CHART_TEXT.axis,
     },
   },
   legend: {
     textStyle: {
       color: '#8BAFC8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 10,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     pageTextStyle: { color: '#8BAFC8' },
   },
@@ -49,8 +50,8 @@ export const aloftDarkTheme = {
     borderRadius: 6,
     textStyle: {
       color: '#F0F4F8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     axisPointer: {
       lineStyle: { color: 'rgba(253,181,21,0.3)' },
@@ -63,8 +64,8 @@ export const aloftDarkTheme = {
     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)', type: 'solid' } },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   valueAxis: {
@@ -73,8 +74,8 @@ export const aloftDarkTheme = {
     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)', type: 'solid' } },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   timeAxis: {
@@ -82,8 +83,8 @@ export const aloftDarkTheme = {
     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   logAxis: {
@@ -91,8 +92,8 @@ export const aloftDarkTheme = {
     splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   line: {
@@ -132,27 +133,27 @@ export const aloftLightTheme = {
   color: LIGHT_PALETTE,
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: "'Inter', sans-serif",
-    fontSize: 11,
+    fontFamily: FONT_SANS,
+    fontSize: CHART_TEXT.axis,
     color: '#0f172a',
   },
   title: {
     textStyle: {
       color: '#0f172a',
-      fontFamily: "'Inter', sans-serif",
-      fontSize: 13,
+      fontFamily: FONT_SANS,
+      fontSize: CHART_TEXT.tooltip,
     },
     subtextStyle: {
       color: '#475569',
-      fontFamily: "'Inter', sans-serif",
-      fontSize: 11,
+      fontFamily: FONT_SANS,
+      fontSize: CHART_TEXT.axis,
     },
   },
   legend: {
     textStyle: {
       color: '#475569',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 10,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     pageTextStyle: { color: '#475569' },
   },
@@ -163,8 +164,8 @@ export const aloftLightTheme = {
     borderRadius: 6,
     textStyle: {
       color: '#374151',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     axisPointer: {
       lineStyle: { color: 'rgba(0,50,98,0.2)' },
@@ -177,8 +178,8 @@ export const aloftLightTheme = {
     splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)', type: 'solid' } },
     axisLabel: {
       color: '#475569',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   valueAxis: {
@@ -187,8 +188,8 @@ export const aloftLightTheme = {
     splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)', type: 'solid' } },
     axisLabel: {
       color: '#475569',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   timeAxis: {
@@ -196,8 +197,8 @@ export const aloftLightTheme = {
     splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
     axisLabel: {
       color: '#475569',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   logAxis: {
@@ -205,8 +206,8 @@ export const aloftLightTheme = {
     splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
     axisLabel: {
       color: '#475569',
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   line: {

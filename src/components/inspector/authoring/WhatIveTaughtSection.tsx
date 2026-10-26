@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GraduationCap, Plus, ArrowUpCircle, X, Tag, Ruler, MessageSquareText, Code2, ChevronDown } from 'lucide-react';
 import type { AuthoringScope } from './scope';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const SANS: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
@@ -152,7 +152,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <MessageSquareText size={11} color={GOLD} />
-        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: GOLD }}>RULES TAUGHT ({rules.length})</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: inkOf(GOLD) }}>RULES TAUGHT ({rules.length})</span>
       </div>
 
       {/* Teach a rule */}
@@ -210,7 +210,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
                     onClick={() => promote(r.id)}
                     disabled={busy}
                     title="Promote to org-wide (reputation-gated)"
-                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: GOLD, border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 3, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
+                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: inkOf(GOLD), border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 3, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
                   >
                     <ArrowUpCircle size={10} /> PROMOTE
                   </button>
@@ -242,7 +242,7 @@ function Subsection({ icon, title, count, children }: { icon: React.ReactNode; t
         <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: MUTED }}>{title} ({count})</span>
       </div>
       {count === 0 ? (
-        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic', paddingLeft: 16 }}>none yet</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic', paddingLeft: 16 }}>none yet</span>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 16 }}>{children}</div>
       )}

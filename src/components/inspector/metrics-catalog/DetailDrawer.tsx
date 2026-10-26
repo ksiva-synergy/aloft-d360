@@ -11,6 +11,7 @@ import {
   MONO, SANS, SERIF, MUTED, INK, INK_DIM, BORDER, GOLD,
   kindLabel, kindColorVar, statusLabel, statusColorVar, tint,
 } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Per-item detail drawer. Row data comes from the store (review/drafts); the
@@ -185,7 +186,7 @@ export function DetailDrawer({ onRowAction }: Props) {
             ) : lineage.loading ? (
               <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Loading lineage…</span>
             ) : lineage.error ? (
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>Lineage error: {lineage.error}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>Lineage error: {lineage.error}</span>
             ) : lineage.graph ? (
               <CatalogLineageGraph graph={lineage.graph} focusId={focusNodeId ?? row.nodeId} onRefocus={refocus} />
             ) : (
@@ -202,7 +203,7 @@ export function DetailDrawer({ onRowAction }: Props) {
           {/* Compiled SQL — read-only trust view */}
           {activeModelGoverned && lineage.compiledSql && (
             <Section title="Compiled SQL (read-only trust view)">
-              <button onClick={() => setSqlOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <button onClick={() => setSqlOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
                 <ChevronRight size={12} style={{ transform: sqlOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
                 {sqlOpen ? 'Hide' : 'Show'} SQL
               </button>
@@ -256,7 +257,7 @@ function UnlockNote() {
   return (
     <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '10px 12px' }}>
       <Lock size={12} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-      Lineage, compiled SQL, and consumers unlock once this model is <span style={{ color: GOLD }}>governed</span>.
+      Lineage, compiled SQL, and consumers unlock once this model is <span style={{ color: inkOf(GOLD) }}>governed</span>.
     </div>
   );
 }

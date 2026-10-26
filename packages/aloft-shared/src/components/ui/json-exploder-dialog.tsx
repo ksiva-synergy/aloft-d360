@@ -76,7 +76,7 @@ export function JsonExploderDialog({ value, fieldName }: JsonExploderDialogProps
           <DialogTitle>{fieldName}</DialogTitle>
         </DialogHeader>
         <div className="mt-4">
-          <pre className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md overflow-auto text-xs font-mono max-h-[70vh] border border-slate-200 dark:border-slate-700">
+          <pre className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md overflow-auto text-size-ui font-mono max-h-[70vh] border border-slate-200 dark:border-slate-700">
             {jsonString}
           </pre>
         </div>

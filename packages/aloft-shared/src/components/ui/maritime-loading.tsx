@@ -103,7 +103,7 @@ export function MaritimeLoading({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-6xl mb-2 animate-bounce">🐬</div>
-                <div className="text-sm text-white font-medium">Dolphin Dance</div>
+                <div className="text-size-body text-white font-medium">Dolphin Dance</div>
               </div>
             </div>
           </div>
@@ -115,7 +115,7 @@ export function MaritimeLoading({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-6xl mb-2 animate-spin" style={{ animationDuration: '3s' }}>⚓</div>
-                <div className="text-sm text-white font-medium">Ship Wheel</div>
+                <div className="text-size-body text-white font-medium">Ship Wheel</div>
               </div>
             </div>
           </div>
@@ -127,7 +127,7 @@ export function MaritimeLoading({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-6xl mb-2 animate-spin" style={{ animationDuration: '2s' }}>🧭</div>
-                <div className="text-sm text-white font-medium">Compass Navigation</div>
+                <div className="text-size-body text-white font-medium">Compass Navigation</div>
               </div>
             </div>
           </div>
@@ -139,7 +139,7 @@ export function MaritimeLoading({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-6xl mb-2 animate-bounce" style={{ animationDuration: '2s' }}>💎</div>
-                <div className="text-sm text-white font-medium">Treasure Chest</div>
+                <div className="text-size-body text-white font-medium">Treasure Chest</div>
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@ export function MaritimeLoading({
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="text-6xl mb-2 animate-bounce" style={{ animationDuration: '2.5s' }}>⛵</div>
-                <div className="text-sm text-white font-medium">Sailboat Regatta</div>
+                <div className="text-size-body text-white font-medium">Sailboat Regatta</div>
               </div>
             </div>
           </div>
@@ -177,11 +177,11 @@ export function MaritimeLoading({
 
       {/* Main message */}
       <div className="text-center space-y-2">
-        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+        <h3 className="text-size-title-section font-semibold text-gray-800 dark:text-gray-200">
           {message}
         </h3>
         {subMessage && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-size-body text-gray-600 dark:text-gray-400">
             {subMessage}
           </p>
         )}
@@ -190,7 +190,7 @@ export function MaritimeLoading({
       {/* Progress bar */}
       {showProgress && (
         <div className="w-full max-w-md">
-          <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
+          <div className="flex justify-between text-size-ui text-gray-600 dark:text-gray-400 mb-2">
             <span>Progress</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -205,7 +205,7 @@ export function MaritimeLoading({
 
       {/* Rotating tips */}
       <div className="text-center min-h-[2rem] flex items-center">
-        <p className="text-sm text-gray-500 dark:text-gray-500 italic transition-opacity duration-500">
+        <p className="text-size-body text-gray-500 dark:text-gray-500 italic transition-opacity duration-500">
           {maritimeTips[currentTip]}
         </p>
       </div>

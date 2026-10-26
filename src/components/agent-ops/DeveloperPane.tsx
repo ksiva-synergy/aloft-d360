@@ -6,6 +6,7 @@ import { buildLiveTimeline, toolCallsFromMessages } from '@/lib/agent-ops/build-
 import type { TraceLoopGroup } from '@/lib/agent-ops/types';
 import type { SessionAnalytics } from '@/lib/agent-ops/session-cockpit';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
+import { inkOf } from '@/lib/typography/tokens';
 
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
@@ -99,7 +100,7 @@ export function DeveloperPane({
         {selectedModel && <span>MODEL {selectedModel}</span>}
         {contextMode && <span>CTX {contextMode}</span>}
         <span>DB {dbConnected ? 'ON' : 'OFF'}</span>
-        {errorCount > 0 && <span style={{ color: '#D9774B' }}>LIVE ERR {errorCount}</span>}
+        {errorCount > 0 && <span style={{ color: inkOf('#D9774B') }}>LIVE ERR {errorCount}</span>}
         {analytics && (
           <>
             <span>TOOLS {analytics.totalToolCalls}</span>
@@ -107,7 +108,7 @@ export function DeveloperPane({
             <span>TOOL {analytics.avgToolDurationMs}ms avg</span>
           </>
         )}
-        {isStreaming && <span style={{ color: '#f59e0b' }}>STREAMING</span>}
+        {isStreaming && <span style={{ color: inkOf('#f59e0b') }}>STREAMING</span>}
       </div>
       {stuckWarning && (
         <div
@@ -117,7 +118,7 @@ export function DeveloperPane({
             padding: '8px 12px',
             background: 'rgba(217,119,75,0.12)',
             borderBottom: '1px solid rgba(217,119,75,0.35)',
-            color: '#D9774B',
+            color: inkOf('#D9774B'),
           }}
         >
           A tool has been running for over 60s — check Databricks auth or server logs.

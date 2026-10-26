@@ -5,7 +5,7 @@ import { MyDraftsSection } from './authoring/MyDraftsSection';
 import { SynonymEditor } from './authoring/SynonymEditor';
 import { WhatIveTaughtSection } from './authoring/WhatIveTaughtSection';
 import type { AuthoringScope } from './authoring/scope';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = 'var(--brand-a)';
@@ -364,7 +364,7 @@ function EntityCard({
           {/* Dimensions */}
           {entity.dimensions.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 DIMENSIONS ({entity.dimensions.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -395,7 +395,7 @@ function EntityCard({
           {/* Measures */}
           {entity.measures.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 MEASURES ({entity.measures.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -428,7 +428,7 @@ function EntityCard({
           {/* Joins */}
           {entity.joins.length > 0 && (
             <div>
-              <div style={{ ...type['ui-regular'], color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 JOINS ({entity.joins.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -557,7 +557,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
   if (error) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--wb-canvas)' }}>
-        <span style={{ ...type['ui-regular'], color: '#f43f5e' }}>ERROR: {error}</span>
+        <span style={{ ...type['ui-regular'], color: inkOf('#f43f5e') }}>ERROR: {error}</span>
       </div>
     );
   }
@@ -588,7 +588,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
               {data.model.name}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <span style={{ ...type['ui-regular'], color: GOLD }}>{candidateCount} CANDIDATE</span>
+              <span style={{ ...type['ui-regular'], color: inkOf(GOLD) }}>{candidateCount} CANDIDATE</span>
               <span style={{ ...type['ui-regular'], color: GREEN }}>{governedCount} GOVERNED</span>
               {archivedCount > 0 && <span style={{ ...type['ui-regular'], color: MUTED }}>{archivedCount} ARCHIVED</span>}
             </div>
@@ -667,9 +667,11 @@ interface RightPaneTabBarProps {
   onChange: (tab: RightPaneTab) => void;
   showSemantic?: boolean;
   showDeveloper?: boolean;
+  /** Right-aligned actions (e.g. the Inspector's minimize button). */
+  trailing?: React.ReactNode;
 }
 
-export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false }: RightPaneTabBarProps) {
+export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false, trailing }: RightPaneTabBarProps) {
   const tabs: { id: RightPaneTab; label: string }[] = [
     { id: 'results', label: 'Results' },
     ...(showSemantic ? [{ id: 'semantic' as const, label: 'Semantic' }] : []),
@@ -711,6 +713,7 @@ export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, show
           </button>
         );
       })}
+      {trailing && <div style={{ marginLeft: 'auto', paddingRight: 8, display: 'flex', alignItems: 'center' }}>{trailing}</div>}
     </div>
   );
 }

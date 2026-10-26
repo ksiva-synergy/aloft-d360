@@ -27,6 +27,8 @@ interface EmptyStatePromptsProps {
   includeWhatIsThis?: boolean;
   /** Trailing hint under the prompts, e.g. "Or ask Inspector anything →". */
   footerHint?: string;
+  /** Hide the heading when the caller renders its own (Inspector welcome). */
+  showHeading?: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export function EmptyStatePrompts({
   onPromptClick,
   includeWhatIsThis = false,
   footerHint,
+  showHeading = true,
 }: EmptyStatePromptsProps) {
   const [prompts, setPrompts] = useState<string[]>([]);
   // Governed nl_intents the org has actually answered — surfaced ABOVE templates
@@ -132,7 +135,7 @@ export function EmptyStatePrompts({
 
   return (
     <Frame>
-      <Heading title={title} />
+      {showHeading && <Heading title={title} />}
       {loading ? (
         <span style={{ ...type['ui-regular'], color: MUTED }}>Reading the model…</span>
       ) : finalPrompts.length === 0 ? (

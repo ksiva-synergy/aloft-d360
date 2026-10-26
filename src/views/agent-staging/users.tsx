@@ -62,7 +62,7 @@ function StatCard({
     <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-2xl font-semibold tabular-nums tracking-tight text-[var(--estate-ink)]">{value}</div>
+          <div className="text-size-kpi-lg font-semibold tabular-nums tracking-tight text-[var(--estate-ink)]">{value}</div>
           <div className="mt-1 font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--estate-text-dim)]">
             {label}
           </div>
@@ -238,7 +238,7 @@ export default function UsersPage() {
             <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           </button>
           {perms.canCreateUsers && (
-            <Button size="sm" onClick={() => setInviteOpen(true)} className="gap-1.5 text-xs">
+            <Button size="sm" onClick={() => setInviteOpen(true)} className="gap-1.5 text-size-ui">
               <UserPlus className="h-3.5 w-3.5" />
               Invite User
             </Button>
@@ -277,7 +277,7 @@ export default function UsersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={cn(
-              'w-full pl-8 pr-3 py-1.5 text-xs rounded-md border',
+              'w-full pl-8 pr-3 py-1.5 text-size-ui rounded-md border',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
               'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
               'placeholder:text-muted-foreground',
@@ -291,7 +291,7 @@ export default function UsersPage() {
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
             className={cn(
-              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
+              'pl-3 pr-7 py-1.5 text-size-ui rounded-md border appearance-none',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
               'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
             )}
@@ -307,7 +307,7 @@ export default function UsersPage() {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className={cn(
-              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
+              'pl-3 pr-7 py-1.5 text-size-ui rounded-md border appearance-none',
               'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
               'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
             )}
@@ -326,7 +326,7 @@ export default function UsersPage() {
         {(search || roleFilter || statusFilter) && (
           <button
             onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
-            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+            className="text-size-ui text-muted-foreground hover:text-foreground underline transition-colors"
           >
             Clear
           </button>
@@ -335,11 +335,11 @@ export default function UsersPage() {
 
       {/* Error state */}
       {error && (
-        <div className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-lg px-4 py-3 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+        <div className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-lg px-4 py-3 text-size-ui text-red-600 dark:text-red-400 flex items-center gap-2">
           <span>{error}</span>
           <button
             onClick={loadUsers}
-            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-xs"
+            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-size-ui"
           >
             Retry
           </button>
@@ -394,7 +394,7 @@ export default function UsersPage() {
       {toast && (
         <div
           className={cn(
-            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium transition-all',
+            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-size-ui font-medium transition-all',
             toast.type === 'success'
               ? 'bg-emerald-600 dark:bg-emerald-700 text-white'
               : 'bg-red-600 dark:bg-red-700 text-white',

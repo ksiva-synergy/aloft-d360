@@ -12,7 +12,7 @@ import {
   type ChartRecommendation,
 } from '@/lib/dashboards/chart-defaults';
 import { useBuilderStore } from './builder-store';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -115,7 +115,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                 ...type.label,
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
                 border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
-                color: '#F87171', cursor: 'pointer', width: '100%', justifyContent: 'center',
+                color: inkOf('#F87171'), cursor: 'pointer', width: '100%', justifyContent: 'center',
               }}
             >
               <Trash2 size={12} />
@@ -424,7 +424,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         </div>
         {widget.freshness?.mode === 'cached' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
               Refresh every
             </span>
             <input
@@ -499,7 +499,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             borderRadius: 4,
             border: '1px solid rgba(239,68,68,0.3)',
             background: 'rgba(239,68,68,0.06)',
-            color: '#F87171',
+            color: inkOf('#F87171'),
             cursor: 'pointer',
             width: '100%',
             justifyContent: 'center',

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const SERIF: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const SANS: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
@@ -186,7 +186,7 @@ export default function DashboardsListPage() {
       {error && (
         <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 4, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
           {error}
-          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: '#F87171', cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>dismiss</button>
+          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: inkOf('#F87171'), cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>dismiss</button>
         </div>
       )}
 
@@ -239,7 +239,7 @@ export default function DashboardsListPage() {
             <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', marginBottom: 20 }}>This action cannot be undone. All versions and widget configs will be removed.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Delete</button>
+              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#FFFFFF', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Delete</button>
             </div>
           </div>
         </div>

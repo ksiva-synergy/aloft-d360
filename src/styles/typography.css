@@ -119,7 +119,7 @@
   .type-kpi-md { font-family: var(--font-sans); font-size: var(--type-kpi-md-size); font-weight: var(--type-kpi-md-weight); line-height: var(--type-kpi-md-lh); letter-spacing: var(--type-kpi-md-ls); font-variant-numeric: tabular-nums; }
   .type-kpi-sm { font-family: var(--font-sans); font-size: var(--type-kpi-sm-size); font-weight: var(--type-kpi-sm-weight); line-height: var(--type-kpi-sm-lh); letter-spacing: var(--type-kpi-sm-ls); font-variant-numeric: tabular-nums; }
   .type-code { font-family: var(--font-mono); font-size: var(--type-code-size); font-weight: var(--type-code-weight); line-height: var(--type-code-lh); letter-spacing: var(--type-code-ls); }
-  .type-code-inline { font-family: var(--font-mono); font-size: var(--type-code-inline-size); font-weight: var(--type-code-inline-weight); letter-spacing: var(--type-code-inline-ls); }
+  .type-code-inline { overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--type-code-inline-size); font-weight: var(--type-code-inline-weight); letter-spacing: var(--type-code-inline-ls); }
   .tnum { font-variant-numeric: tabular-nums; }
 }
 

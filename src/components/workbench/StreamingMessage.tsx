@@ -536,7 +536,8 @@ function MarkdownLine({
     return (
       <div
         style={{
-          ...type['title-card'],
+          ...type['body-lg'],
+          fontWeight: 600,
           color: INK,
           marginTop: 18,
           marginBottom: 6,
@@ -548,7 +549,7 @@ function MarkdownLine({
       </div>
     );
   }
-  if (isH3) return <div style={{ ...type.ui, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
+  if (isH3) return <div style={{ ...type['body-lg'], fontWeight: 600, color: INK_DIM, marginTop: 12, marginBottom: 4 }}>{inline}</div>;
   if (isH4) return <div style={{ ...type.label, color: MUTED, marginTop: 10, marginBottom: 3 }}>{inline}</div>;
   if (isBullet) return (
     <div style={{ display: 'flex', gap: 8, marginLeft: 2, marginTop: 3, marginBottom: 3, ...type['body-lg'] }}>
@@ -795,7 +796,7 @@ export function StreamingMessage({
           toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
           needsClarification={readiness === 'interview'} />
         {content && <div style={{ padding: '0 20px 16px' }}><AssistantContent content={content} /></div>}
-        {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-sm text-[var(--ink-2)]">{error}</p>}
+        {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
 
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}
         {(!isStreaming || readiness || ts) && (content || interrupted) && (

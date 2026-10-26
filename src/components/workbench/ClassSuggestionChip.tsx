@@ -158,7 +158,7 @@ export function ClassSuggestionChip({
           onClick={handleKeepClassless}
           disabled={applying}
           style={{
-            ...mono, fontSize: 'var(--type-ui-regular-size)',
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)',
             background: 'transparent',
             color: TXT2,
             border: 0,

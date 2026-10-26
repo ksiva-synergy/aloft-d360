@@ -18,6 +18,7 @@ import { BulkActionBar } from './BulkActionBar';
 import { DetailDrawer } from './DetailDrawer';
 import { EmptyModelState } from './EmptyModelState';
 import { MONO, MUTED, INK_DIM, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * The Metrics catalog surface — the layered catalog that replaces the flat
@@ -175,7 +176,7 @@ export function MetricsCatalog() {
         <Centered>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
             <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>ERROR: {error}</span>
-            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
+            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
           </div>
         </Centered>
       ) : noModel ? (

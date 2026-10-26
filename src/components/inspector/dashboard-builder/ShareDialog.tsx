@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Share2, Lock, Building2, Users, UserPlus, Trash2, ChevronDown, Check, Link2 } from 'lucide-react';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const SERIF: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
@@ -155,7 +155,7 @@ export function ShareDialog({
           {/* Visibility */}
           <section>
             <p style={{ ...type.label, color: 'var(--text-muted)', margin: '0 0 10px' }}>
-              ACCESS LEVEL {savingVisibility && <span style={{ color: GOLD, marginLeft: 8 }}>SAVING…</span>}
+              ACCESS LEVEL {savingVisibility && <span style={{ color: inkOf(GOLD), marginLeft: 8 }}>SAVING…</span>}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {VISIBILITY_OPTIONS.map((opt) => (
@@ -235,7 +235,7 @@ export function ShareDialog({
                         {email && <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
                       </div>
                       {isOwner ? (
-                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.04em', flexShrink: 0 }}>OWNER</span>
+                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.04em', flexShrink: 0 }}>OWNER</span>
                       ) : canShare ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <RoleSelect value={c.role as CollabRole} onChange={(r) => handleRoleChange(c.user_id, r, email)} small />

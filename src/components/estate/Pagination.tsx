@@ -37,7 +37,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
       style={{ borderColor }}
     >
       {/* Range Info */}
-      <span className="font-sans text-xs" style={{ color: mutedColor }}>
+      <span className="font-sans text-size-ui" style={{ color: mutedColor }}>
         Showing <span style={{ color: inkColor }}>{from}–{to}</span> of{' '}
         <span style={{ color: inkColor }}>{total}</span> objects
       </span>
@@ -54,7 +54,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
           &lsaquo; Prev
         </button>
 
-        <span className="font-mono text-xs px-2" style={{ color: inkColor }}>
+        <span className="font-mono text-size-ui px-2" style={{ color: inkColor }}>
           Page <span className="font-semibold">{page}</span> of {totalPages}
         </span>
 

@@ -27,7 +27,7 @@ import {
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { DashboardVisibility } from '@/lib/dashboards/types';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
   fontFamily: 'var(--font-mono)',
@@ -776,7 +776,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Unsaved changes restored — pick up where you left off. Save to commit them as a version.</span>
           <button
             onClick={handleDiscardDraft}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: inkOf('#93C5FD'), cursor: 'pointer', padding: '3px 8px' }}
           >
             DISCARD
           </button>
@@ -797,7 +797,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </span>
             <button
               onClick={handleKeepDraft}
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: '#FFFFFF', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: 'var(--on-brand)', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
             >
               KEEP DRAFT
             </button>
@@ -815,7 +815,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </button>
           </div>
           {showDraftDiff && draftDiff && (
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)',  }}>
               Your draft vs. the current version — {draftDiff.added} added · {draftDiff.removed} removed · {draftDiff.modified} modified widget(s).
             </div>
           )}

@@ -69,7 +69,7 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
             placeholder="Search policies..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-sm border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
+            className="w-full pl-8 pr-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
           />
         </div>
         {onCreateNew && (
@@ -88,18 +88,18 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Shield className="h-8 w-8 mb-2 opacity-20" />
-          <p className="text-sm">No policies found</p>
+          <p className="text-size-body">No policies found</p>
         </div>
       ) : (
         <div className="border rounded-lg dark:border-[var(--line-1)] overflow-hidden">
-          <table className="w-full text-sm">
+          <table className="w-full text-size-body">
             <thead>
               <tr className="border-b dark:border-[var(--line-1)] bg-[color:var(--surface-2)] dark:bg-[var(--background)]">
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Name</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Type</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Scope</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Enforcement</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Status</th>
+                <th className="text-left px-4 py-2.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium">Name</th>
+                <th className="text-left px-4 py-2.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium">Type</th>
+                <th className="text-left px-4 py-2.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium">Scope</th>
+                <th className="text-left px-4 py-2.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium">Enforcement</th>
+                <th className="text-left px-4 py-2.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -111,21 +111,21 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
                 >
                   <td className="px-4 py-3 font-medium">{policy.name}</td>
                   <td className="px-4 py-3">
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-size-ui">
                       {TYPE_LABELS[policy.type] || policy.type}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                  <td className="px-4 py-3 text-muted-foreground text-size-ui font-mono">
                     {SCOPE_LABELS[policy.scope] || policy.scope}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', ENFORCEMENT_STYLES[policy.enforcement])}>
+                    <span className={cn('text-size-ui px-2 py-0.5 rounded-full font-medium', ENFORCEMENT_STYLES[policy.enforcement])}>
                       {policy.enforcement}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn(
-                      'inline-flex items-center gap-1 text-xs',
+                      'inline-flex items-center gap-1 text-size-ui',
                       policy.status === 'active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-[var(--ink-3)]'
                     )}>
                       <span className={cn('w-1.5 h-1.5 rounded-full', policy.status === 'active' ? 'bg-emerald-500' : 'bg-[color:var(--line-2)]')} />

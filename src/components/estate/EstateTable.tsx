@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { EstateFilterState } from './EstateFilterBar';
 import LifecycleBadge, { computeLifecycle } from './LifecycleBadge';
-import { type } from '@/lib/typography/tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 interface EstateTableProps {
   filters: EstateFilterState;
@@ -50,6 +50,7 @@ export default function EstateTable({
         if (filters.lifecycle) params.append('harvest', filters.lifecycle);
         if (filters.q) params.append('q', filters.q);
         if (!showTestSources) params.append('excludeTestSources', 'true');
+        if (filters.sourceId) params.append('sourceId', filters.sourceId);
         params.append('page', String(filters.page));
         params.append('pageSize', String(filters.pageSize));
 
@@ -128,7 +129,7 @@ export default function EstateTable({
       case 'inaccessible':
         return (
           <span
-            style={{ ...type.label, padding: '4px 10px', border: `1px dashed rgba(248, 113, 113, 0.35)`, color: '#f87171', borderRadius: '6px', opacity: 0.6, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px dashed rgba(248, 113, 113, 0.35)`, color: inkOf('#f87171'), borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             🔒 Locked
           </span>
@@ -152,7 +153,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onScheduleChange?.('exclude', { paths: [item.full_path] }); }}
             className="miniact"
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(96, 165, 250, 0.4)`, color: '#60a5fa', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(96, 165, 250, 0.4)`, color: inkOf('#60a5fa'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#f87171'; e.currentTarget.style.color = '#f87171'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.4)'; e.currentTarget.style.color = '#60a5fa'; }}
           >
@@ -162,7 +163,7 @@ export default function EstateTable({
       case 'queued':
         return (
           <span
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px', opacity: 0.5, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             In queue
           </span>
@@ -173,7 +174,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onHarvest([item.full_path]); }}
             className="miniact"
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(52, 211, 153, 0.35)`, color: '#34d399', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(52, 211, 153, 0.35)`, color: inkOf('#34d399'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#34d399'; e.currentTarget.style.backgroundColor = 'rgba(52,211,153,0.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.35)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
@@ -186,7 +187,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onHarvest([item.full_path]); }}
             className="miniact"
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(167, 139, 250, 0.35)`, color: '#a78bfa', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(167, 139, 250, 0.35)`, color: inkOf('#a78bfa'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#a78bfa'; e.currentTarget.style.backgroundColor = 'rgba(167,139,250,0.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.35)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
@@ -209,7 +210,7 @@ export default function EstateTable({
       case 'connected':
         return (
           <span
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(245,158,11,0.3)`, color: '#F59E0B', borderRadius: '6px', opacity: 0.8, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(245,158,11,0.3)`, color: inkOf('#F59E0B'), borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             ✓ Connected
           </span>
@@ -230,7 +231,7 @@ export default function EstateTable({
       case 'published':
         return (
           <span
-            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px', opacity: 0.5, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             ✓ Published
           </span>
@@ -308,7 +309,7 @@ export default function EstateTable({
               <tr>
                 <td colSpan={7} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <span className="text-lg opacity-30 font-mono">◆</span>
+                    <span className="text-size-title-section opacity-30 font-mono">◆</span>
                     <span
                       style={{ ...type.label, color: textMuted }}
                     >

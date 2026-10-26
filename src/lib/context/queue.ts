@@ -8,19 +8,8 @@ import {
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
-
-const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
-
-function schemaMatchesIncludePatterns(catalog: string, schema: string, patterns: string[]): boolean {
-  if (!patterns.length) return true;
-  const qualified = `${catalog}.${schema}`;
-  const wildcard = `${qualified}.*`;
-  return patterns.some(
-    pat =>
-      minimatch(wildcard, pat, { dot: true }) ||
-      minimatch(qualified, pat, { dot: true }),
-  );
-}
+import { ESTATE_OBJECTS_BY_SOURCE_SQL } from './estate-source-sql';
+import { catalogSchemaMatchesIncludePatterns, usesEstateObjectPlan } from './job-scope';
 
 export type JobKind =
   | 'change_detect'
@@ -334,6 +323,13 @@ export interface SplitPartition {
   objectCount: number;
 }
 
+export interface DiscoverySchemaGroups {
+  /** Distinct catalog.schema groups in discovery for this source */
+  total: number;
+  /** Groups that match the exclude list */
+  excluded: number;
+}
+
 export interface SplitPlan {
   /** whether a split is needed at all */
   needsSplit: boolean;
@@ -343,6 +339,8 @@ export interface SplitPlan {
   estimatedWallClockMinutes: number;
   estimatedCostUsd: number;
   totalObjects: number;
+  /** Set for estate-backed plans (T0 / inventory) */
+  discoverySchemaGroups?: DiscoverySchemaGroups;
 }
 
 /**
@@ -386,7 +384,7 @@ export async function planSplit(
   const filtered = rows.filter(r => {
     const key = `${r.catalog_name}.${r.schema_name}`;
     if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
-    if (!schemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
+    if (!catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
     return true;
   });
 
@@ -461,6 +459,140 @@ export async function planSplit(
     estimatedCostUsd: totalObjects * costPerObject,
     totalObjects,
   };
+}
+
+/**
+ * Plan split/count against discovery registry (`platform_estate_objects`).
+ * Used for T0 / estate_inventory so first-time structural harvest is not blocked
+ * when Scanned rows do not exist yet (P0-3).
+ */
+export async function planEstateSplit(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  opts: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+  },
+): Promise<SplitPlan> {
+  const rate = RATE_PER_MINUTE[kind] ?? 25;
+  const maxObjectsPerChild = Math.floor(rate * TIME_BUDGET_MINUTES);
+  const costPerObject = 0;
+
+  const rows = await prisma.$queryRawUnsafe<Array<{ catalog_name: string; schema_name: string; cnt: bigint }>>(
+    `SELECT catalog_name, schema_name, COUNT(*) AS cnt
+     FROM platform_estate_objects
+     WHERE org_id = $1
+       AND ${ESTATE_OBJECTS_BY_SOURCE_SQL}
+       AND lifecycle = 'active'
+     GROUP BY catalog_name, schema_name
+     ORDER BY catalog_name, schema_name`,
+    orgId,
+    sourceId,
+  );
+
+  const excludeSet = new Set(opts.excludeSchemas ?? []);
+  const includePatterns = opts.includePatterns ?? [];
+  const discoverySchemaGroups: DiscoverySchemaGroups = {
+    total: rows.length,
+    excluded: rows.filter(r => {
+      const key = `${r.catalog_name}.${r.schema_name}`;
+      return excludeSet.has(key) || excludeSet.has(r.schema_name);
+    }).length,
+  };
+  const filtered = rows.filter(r => {
+    const key = `${r.catalog_name}.${r.schema_name}`;
+    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
+    if (!catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
+    return true;
+  });
+
+  const totalObjects = filtered.reduce((s, r) => s + Number(r.cnt), 0);
+
+  if (totalObjects <= maxObjectsPerChild) {
+    return {
+      needsSplit: false,
+      partitions: [],
+      maxObjectsPerChild,
+      estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
+      estimatedWallClockMinutes: Math.ceil(totalObjects / rate) || 0,
+      estimatedCostUsd: totalObjects * costPerObject,
+      totalObjects,
+      discoverySchemaGroups,
+    };
+  }
+
+  const partitions: SplitPartition[] = [];
+
+  for (const row of filtered) {
+    const cnt = Number(row.cnt);
+    const schemaKey = `${row.catalog_name}.${row.schema_name}`;
+
+    if (cnt <= maxObjectsPerChild) {
+      partitions.push({
+        schemaKey,
+        catalog: row.catalog_name,
+        schema: row.schema_name,
+        objectNames: [],
+        objectCount: cnt,
+      });
+    } else {
+      const objects = await prisma.platformEstateObject.findMany({
+        where: {
+          org_id: orgId,
+          source_id: sourceId,
+          catalog_name: row.catalog_name,
+          schema_name: row.schema_name,
+          lifecycle: 'active',
+        },
+        select: { object_name: true },
+        orderBy: { object_name: 'asc' },
+      });
+
+      const names = objects.map(o => o.object_name ?? '').filter(Boolean);
+      for (let i = 0; i < names.length; i += maxObjectsPerChild) {
+        const slice = names.slice(i, i + maxObjectsPerChild);
+        partitions.push({
+          schemaKey: `${schemaKey}[${i / maxObjectsPerChild}]`,
+          catalog: row.catalog_name,
+          schema: row.schema_name,
+          objectNames: slice,
+          objectCount: slice.length,
+        });
+      }
+    }
+  }
+
+  const maxConcurrent = MAX_CONCURRENT_BY_KIND[kind] ?? MAX_CONCURRENT_TASKS;
+  const waves = Math.ceil(partitions.length / maxConcurrent);
+  const estimatedWallClockMinutes = waves * TIME_BUDGET_MINUTES;
+
+  return {
+    needsSplit: true,
+    partitions,
+    maxObjectsPerChild,
+    estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
+    estimatedWallClockMinutes,
+    estimatedCostUsd: totalObjects * costPerObject,
+    totalObjects,
+    discoverySchemaGroups,
+  };
+}
+
+/** Kind-aware planner: discovery registry for T0/inventory, Scanned for T1/T2. */
+export async function planForKind(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  opts: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+  },
+): Promise<SplitPlan> {
+  if (usesEstateObjectPlan(kind)) {
+    return planEstateSplit(orgId, kind, sourceId, opts);
+  }
+  return planSplit(orgId, kind, sourceId, opts);
 }
 
 // ── Auto-split: enqueue parent + children ────────────────────────────────────

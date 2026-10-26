@@ -137,12 +137,12 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
           }} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.04em' }}>
             Last {recentRuns.length} runs
           </span>
           <span style={{
             fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
-            color: TEXT_MUT, opacity: 0.7,
+            color: TEXT_MUT, 
             background: 'var(--born-overlay)',
             padding: '2px 8px', borderRadius: 3,
             border: '1px solid var(--born-border)',
@@ -184,7 +184,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
         {recentRuns.length === 0 ? (
           <div style={{
             padding: '40px 0', textAlign: 'center',
-            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.5,
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, 
           }}>
             No runs recorded yet.
           </div>
