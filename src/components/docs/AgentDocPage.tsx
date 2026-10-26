@@ -75,7 +75,7 @@ export function AgentDocPage({ agent, relatedAgents = [] }: AgentDocPageProps) {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-3">
-          <h1 className="text-2xl font-bold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+          <h1 className="text-2xl font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
             {agent.name}
           </h1>
           <span className={`text-xs font-semibold uppercase px-2 py-0.5 rounded-full ${TYPE_COLORS[agent.type] || 'bg-[color:var(--surface-2)] text-[color:var(--ink-2)] dark:bg-[color:color-mix(in_srgb,var(--surface-1)_30%,transparent)] dark:text-[color:var(--ink-2)]'}`}>

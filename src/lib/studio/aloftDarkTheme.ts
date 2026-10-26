@@ -18,19 +18,19 @@ export const aloftDarkTheme = {
   color: DARK_PALETTE,
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: "'Inter Tight', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     fontSize: 11,
     color: '#F0F4F8',
   },
   title: {
     textStyle: {
       color: '#F0F4F8',
-      fontFamily: "'Inter Tight', sans-serif",
+      fontFamily: "'Inter', sans-serif",
       fontSize: 13,
     },
     subtextStyle: {
       color: '#8BAFC8',
-      fontFamily: "'Inter Tight', sans-serif",
+      fontFamily: "'Inter', sans-serif",
       fontSize: 11,
     },
   },
@@ -132,19 +132,19 @@ export const aloftLightTheme = {
   color: LIGHT_PALETTE,
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: "'Inter Tight', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     fontSize: 11,
     color: '#0f172a',
   },
   title: {
     textStyle: {
       color: '#0f172a',
-      fontFamily: "'Inter Tight', sans-serif",
+      fontFamily: "'Inter', sans-serif",
       fontSize: 13,
     },
     subtextStyle: {
       color: '#475569',
-      fontFamily: "'Inter Tight', sans-serif",
+      fontFamily: "'Inter', sans-serif",
       fontSize: 11,
     },
   },

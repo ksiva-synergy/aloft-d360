@@ -22,7 +22,7 @@ import {
   isAgentsWorkbenchBasePath,
 } from '@/lib/navigation/agents-routes';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const GOLD = '#FDB515';
 
 export default function WorkbenchShell({ sessionId: initialSessionId }: { sessionId?: string } = {}) {
@@ -104,7 +104,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
           <span style={{ opacity: 0.5 }}>/</span>
           <span style={{ ...type.label, color: 'var(--wb-ink-dim)' }}>Workbench</span>
           <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ color: 'var(--wb-ink-dim)', fontSize: 10, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ color: 'var(--wb-ink-dim)', fontSize: 'var(--type-caption-size)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {sessionTitle}
           </span>
         </div>

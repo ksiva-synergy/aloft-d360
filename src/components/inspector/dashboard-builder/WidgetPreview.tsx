@@ -8,7 +8,7 @@ import { widgetToChartSpec, type DefinitionMap } from './widget-option';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 interface WidgetPreviewProps {
@@ -54,7 +54,7 @@ export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps)
         <span style={{ ...type.label, }}>
           {widget.chartKind.toUpperCase()}
         </span>
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', textAlign: 'center' }}>
           Assign dimensions & measures
         </span>
       </div>
@@ -75,7 +75,7 @@ export function WidgetPreview({ widget, definitions, rows }: WidgetPreviewProps)
           padding: 12,
         }}
       >
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', textAlign: 'center' }}>
           Configure chart axes to see preview
         </span>
       </div>

@@ -37,11 +37,11 @@ export function FacetRail() {
       className="agent-labs-scrollbar"
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
         {anyActive && (
           <button
             onClick={clearFacets}
-            style={{ ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
           >
             Clear all
           </button>
@@ -125,7 +125,7 @@ export function FacetRail() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ ...MONO, fontSize: 13, color: INK_DIM, letterSpacing: '0.06em', marginBottom: 5 }}>{title.toUpperCase()}</div>
+      <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, letterSpacing: '0.04em', marginBottom: 5 }}>{title.toUpperCase()}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>{children}</div>
     </div>
   );
@@ -163,7 +163,7 @@ function Row({
       >
         {label}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: MUTED, flexShrink: 0 }}>{count}</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>{count}</span>
     </button>
   );
 }

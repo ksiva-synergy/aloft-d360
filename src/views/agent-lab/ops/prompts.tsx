@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 type PromptRow = { id: string; name: string; category: string | null; template: string | null; description: string | null };
 
@@ -33,15 +33,15 @@ export default function AgentOpsPromptsPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
-      <h1 style={{ ...mono, fontSize: 14, letterSpacing: '0.1em', color: 'var(--brand-a)' }}>PROMPT REGISTRY</h1>
+      <h1 className="type-title-page" style={{ color: 'var(--ink-1)' }}>Prompt registry</h1>
       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={{ ...mono, fontSize: 12, padding: 8 }} />
-        <textarea placeholder="Template" value={template} onChange={(e) => setTemplate(e.target.value)} rows={6} style={{ ...mono, fontSize: 12, padding: 8 }} />
-        <button type="button" onClick={onCreate} style={{ ...mono, fontSize: 11, padding: '8px 12px', alignSelf: 'flex-start' }}>Save prompt</button>
+        <input placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: 8 }} />
+        <textarea placeholder="Template" value={template} onChange={(e) => setTemplate(e.target.value)} rows={6} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: 8 }} />
+        <button type="button" onClick={onCreate} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: '8px 12px', alignSelf: 'flex-start' }}>Save prompt</button>
       </div>
       <ul style={{ marginTop: 24, listStyle: 'none', padding: 0 }}>
         {prompts.map((p) => (
-          <li key={p.id} style={{ ...mono, fontSize: 12, padding: '10px 0', borderBottom: '1px solid var(--wb-border-subtle)' }}>
+          <li key={p.id} style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: '10px 0', borderBottom: '1px solid var(--wb-border-subtle)' }}>
             <strong>{p.name}</strong> {p.category && <span style={{ color: 'var(--ink-3)' }}>({p.category})</span>}
             {p.description && <div style={{ color: 'var(--ink-3)', marginTop: 4 }}>{p.description}</div>}
           </li>

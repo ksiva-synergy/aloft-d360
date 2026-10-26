@@ -5,7 +5,7 @@ import { useRouter } from '@/lib/navigation';
 import { ArrowRight, Bot, Loader2, X } from 'lucide-react';
 import { stashWorkbenchSeed } from '@/lib/construction/handoff';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 /**
  * Shown in Inspector when the user asks to build an agent. Opens Agent Lab with a
@@ -71,8 +71,8 @@ export function AgentHandoffCard({
         <Bot size={16} />
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink-1)' }}>Build this agent in Agent Lab</div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)', marginTop: 2 }}>
+        <div style={{ fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--ink-1)' }}>Build this agent in Agent Lab</div>
+        <div style={{ fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.5, color: 'var(--ink-2)', marginTop: 2 }}>
           Describe it in plain words there and watch the blueprint fill in: name, instructions, data and tools, all editable.
           Tables you confirmed in this session come with it.
         </div>
@@ -82,7 +82,7 @@ export function AgentHandoffCard({
             onClick={() => void open()}
             disabled={busy}
             style={{
-              ...mono, fontSize: 12, letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 6,
+              ...mono, fontSize: 'var(--type-caption-size)', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 6,
               height: 30, padding: '0 12px', borderRadius: 6, border: 'none', cursor: busy ? 'default' : 'pointer',
               background: 'var(--brand-a)', color: '#fff', opacity: busy ? 0.7 : 1,
             }}
@@ -93,12 +93,12 @@ export function AgentHandoffCard({
           <button
             type="button"
             onClick={onDismiss}
-            style={{ ...mono, fontSize: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)' }}
+            style={{ ...mono, fontSize: 'var(--type-caption-size)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)' }}
           >
             Keep exploring data
           </button>
         </div>
-        {error && <div role="alert" style={{ fontSize: 12, color: 'var(--bad)', marginTop: 6 }}>{error}</div>}
+        {error && <div role="alert" style={{ fontSize: 'var(--type-caption-size)', color: 'var(--bad)', marginTop: 6 }}>{error}</div>}
       </div>
       <button
         type="button"

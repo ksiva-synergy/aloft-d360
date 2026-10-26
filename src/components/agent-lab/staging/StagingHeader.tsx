@@ -39,7 +39,7 @@ export function StagingHeader() {
 
       <span aria-hidden className="mx-1 h-5 w-px bg-[var(--line-1)]" />
 
-      <div className="min-w-0 flex-1 text-[15px]">
+      <div className="min-w-0 flex-1 text-[length:var(--type-body-size)]">
         <AppBreadcrumb />
       </div>
     </header>

@@ -34,7 +34,7 @@ export function FullPageMessage({ text }: { text: string }) {
     <div
       role="status"
       className="flex h-full min-h-screen items-center justify-center text-sm text-[var(--ink-3)]"
-      style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}
+      style={{ fontFamily: 'var(--font-mono)' }}
     >
       {text}
     </div>

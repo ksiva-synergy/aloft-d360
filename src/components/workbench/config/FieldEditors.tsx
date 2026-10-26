@@ -37,7 +37,7 @@ function Badge({ tone, title, children }: { tone: 'ok' | 'warn' | 'brand' | 'neu
     neutral: 'bg-[var(--surface-3)] text-[var(--ink-2)]',
   }[tone];
   return (
-    <span title={title} className={cn('shrink-0 rounded-full px-2 py-px text-[10.5px] font-semibold', cls)}>
+    <span title={title} className={cn('shrink-0 rounded-full px-2 py-px text-[length:var(--type-caption-size)] font-semibold', cls)}>
       {children}
     </span>
   );
@@ -133,7 +133,7 @@ export function InlineText({
   }
 
   const inputCls =
-    'w-full rounded-lg border border-[var(--brand-a)] bg-[var(--surface-1)] px-3 py-2 text-[13px] leading-relaxed text-[var(--ink-1)] outline-none focus:ring-2 focus:ring-[var(--brand-a-soft)]';
+    'w-full rounded-lg border border-[var(--brand-a)] bg-[var(--surface-1)] px-3 py-2 text-[length:var(--type-ui-regular-size)] leading-relaxed text-[var(--ink-1)] outline-none focus:ring-2 focus:ring-[var(--brand-a-soft)]';
 
   return (
     <div>
@@ -164,14 +164,14 @@ export function InlineText({
           type="button"
           onClick={() => void commit()}
           disabled={saving}
-          className="inline-flex h-7 items-center gap-1 rounded-md bg-[var(--brand-a)] px-2.5 text-[12px] font-semibold text-white disabled:opacity-60"
+          className="inline-flex h-7 items-center gap-1 rounded-md bg-[var(--brand-a)] px-2.5 text-[length:var(--type-caption-size)] font-semibold text-white disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Save
         </button>
-        <button type="button" onClick={cancel} className="h-7 rounded-md px-2 text-[12px] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
+        <button type="button" onClick={cancel} className="h-7 rounded-md px-2 text-[length:var(--type-caption-size)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
           Cancel
         </button>
-        <span className="ml-auto text-[11px] text-[var(--ink-3)]">
+        <span className="ml-auto text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
           {minLength !== undefined && (
             <span className={cn('tabular-nums', draft.trim().length >= minLength ? 'text-[var(--ok)]' : 'text-[var(--warn)]')}>
               {draft.trim().length}/{minLength}+ ·{' '}
@@ -180,7 +180,7 @@ export function InlineText({
           {multiline ? 'Ctrl+Enter to save' : 'Enter to save'} · Esc to cancel
         </span>
       </div>
-      {error && <p role="alert" className="mt-1 text-[12px] text-[var(--bad)]">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-[length:var(--type-caption-size)] text-[var(--bad)]">{error}</p>}
     </div>
   );
 }
@@ -215,7 +215,7 @@ export function ClassPicker({ value, onSave, disabled }: { value: string | null;
             setError(await onSave(e.target.value));
             setSaving(false);
           }}
-          className="h-8 min-w-0 flex-1 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-2 text-[13px] text-[var(--ink-1)] disabled:opacity-70"
+          className="h-8 min-w-0 flex-1 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-2 text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] disabled:opacity-70"
         >
           {!value && <option value="">Choose a class…</option>}
           {options.map((o) => (
@@ -224,8 +224,8 @@ export function ClassPicker({ value, onSave, disabled }: { value: string | null;
         </select>
         {saving && <Loader2 className="h-4 w-4 animate-spin text-[var(--ink-3)]" />}
       </div>
-      {current && <p className="mt-1 text-[12px] text-[var(--ink-3)]">{current.hint}</p>}
-      {error && <p role="alert" className="mt-1 text-[12px] text-[var(--bad)]">{error}</p>}
+      {current && <p className="mt-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{current.hint}</p>}
+      {error && <p role="alert" className="mt-1 text-[length:var(--type-caption-size)] text-[var(--bad)]">{error}</p>}
     </div>
   );
 }
@@ -290,17 +290,17 @@ export function DatasourceEditor({ items, onSave, disabled }: { items: Datasourc
   return (
     <div>
       {items.length === 0 ? (
-        <p className="text-[13px] italic text-[var(--ink-3)]">None yet. Add the tables this agent should answer from.</p>
+        <p className="text-[length:var(--type-ui-regular-size)] italic text-[var(--ink-3)]">None yet. Add the tables this agent should answer from.</p>
       ) : (
         <ul className="space-y-1.5">
           {items.map((d, i) => (
             <li key={`${d.kind}-${d.ref}-${i}`} className="flex items-center gap-2.5 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2">
               <Database className="h-4 w-4 shrink-0 text-[var(--ink-3)]" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium" title={d.ref}>{d.ref}</p>
-                {d.scope && <p className="truncate text-[11.5px] text-[var(--ink-3)]">{d.scope}</p>}
+                <p className="truncate text-[length:var(--type-ui-regular-size)] font-medium" title={d.ref}>{d.ref}</p>
+                {d.scope && <p className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{d.scope}</p>}
               </div>
-              <span className="shrink-0 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--ink-2)]">{d.kind}</span>
+              <span className="shrink-0 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-2)]">{d.kind}</span>
               {!disabled && (
                 <button
                   type="button"
@@ -331,7 +331,7 @@ export function DatasourceEditor({ items, onSave, disabled }: { items: Datasourc
               }}
               placeholder="Search harvested tables, e.g. bunker"
               aria-label="Search tables"
-              className="h-8 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+              className="h-8 min-w-0 flex-1 bg-transparent text-[length:var(--type-ui-regular-size)] outline-none"
             />
             {(searching || busy) && <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--ink-3)]" />}
             <button type="button" onClick={() => setAdding(false)} aria-label="Close search" className="text-[var(--ink-3)] hover:text-[var(--ink-1)]">
@@ -347,15 +347,15 @@ export function DatasourceEditor({ items, onSave, disabled }: { items: Datasourc
                     onClick={() => void add(h.full_path)}
                     className="w-full rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
                   >
-                    <p className="truncate text-[12.5px] font-medium">{h.full_path}</p>
-                    {h.semantic_summary && <p className="line-clamp-1 text-[11.5px] text-[var(--ink-3)]">{h.semantic_summary}</p>}
+                    <p className="truncate text-[length:var(--type-caption-size)] font-medium">{h.full_path}</p>
+                    {h.semantic_summary && <p className="line-clamp-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{h.semantic_summary}</p>}
                   </button>
                 </li>
               ))}
             </ul>
           )}
           {!searching && query.trim().length >= 2 && hits.length === 0 && (
-            <p className="px-1 pt-1.5 text-[12px] text-[var(--ink-3)]">
+            <p className="px-1 pt-1.5 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
               No harvested table matches. Type a full <code>catalog.schema.table</code> path and press Enter to add it anyway.
             </p>
           )}
@@ -364,12 +364,12 @@ export function DatasourceEditor({ items, onSave, disabled }: { items: Datasourc
         <button
           type="button"
           onClick={() => { setAdding(true); setError(null); }}
-          className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--brand-a-ink)] hover:underline"
+          className="mt-2 inline-flex items-center gap-1 text-[length:var(--type-caption-size)] font-medium text-[var(--brand-a-ink)] hover:underline"
         >
           <Plus className="h-3.5 w-3.5" /> Add table
         </button>
       ))}
-      {error && <p role="alert" className="mt-1 text-[12px] text-[var(--bad)]">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-[length:var(--type-caption-size)] text-[var(--bad)]">{error}</p>}
     </div>
   );
 }
@@ -410,7 +410,7 @@ export function ToolEditor({ items, onSave, disabled }: { items: Action[]; onSav
 
   return (
     <div>
-      <p className="mb-2 text-[12px] text-[var(--ink-3)]">
+      <p className="mb-2 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
         The builder researches harvested data while planning; test runs use read-only Databricks access. Add active catalog tools the agent needs below.
       </p>
       {items.length > 0 && (
@@ -418,8 +418,8 @@ export function ToolEditor({ items, onSave, disabled }: { items: Action[]; onSav
           {items.map((a) => (
             <li key={a.toolId} className="flex items-center gap-2.5 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2">
               <Wrench className="h-4 w-4 shrink-0 text-[var(--ink-3)]" />
-              <p className="min-w-0 flex-1 truncate text-[13px] font-medium">{names.get(a.toolId) ?? a.toolId}</p>
-              <span className="shrink-0 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--ink-2)]">{a.tier}</span>
+              <p className="min-w-0 flex-1 truncate text-[length:var(--type-ui-regular-size)] font-medium">{names.get(a.toolId) ?? a.toolId}</p>
+              <span className="shrink-0 rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-2)]">{a.tier}</span>
               {!disabled && (
                 <button
                   type="button"
@@ -438,9 +438,9 @@ export function ToolEditor({ items, onSave, disabled }: { items: Action[]; onSav
       {!disabled && (open ? (
         <div className="mt-2 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] p-1.5">
           {catalog === null ? (
-            <p className="flex items-center gap-2 px-2 py-1.5 text-[12px] text-[var(--ink-3)]"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tools…</p>
+            <p className="flex items-center gap-2 px-2 py-1.5 text-[length:var(--type-caption-size)] text-[var(--ink-3)]"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading tools…</p>
           ) : available.length === 0 ? (
-            <p className="px-2 py-1.5 text-[12px] text-[var(--ink-3)]">No more active tools in the catalog.</p>
+            <p className="px-2 py-1.5 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">No more active tools in the catalog.</p>
           ) : (
             <ul className="max-h-56 overflow-y-auto">
               {available.map((t) => (
@@ -451,25 +451,25 @@ export function ToolEditor({ items, onSave, disabled }: { items: Action[]; onSav
                     onClick={() => { void save([...items, { toolId: t.id, tier: tierFor(t.type) }]); setOpen(false); }}
                     className="w-full rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)]"
                   >
-                    <p className="truncate text-[12.5px] font-medium">{t.name}</p>
-                    {t.description && <p className="line-clamp-1 text-[11.5px] text-[var(--ink-3)]">{t.description}</p>}
+                    <p className="truncate text-[length:var(--type-caption-size)] font-medium">{t.name}</p>
+                    {t.description && <p className="line-clamp-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{t.description}</p>}
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          <button type="button" onClick={() => setOpen(false)} className="mt-1 w-full rounded-md py-1 text-[12px] text-[var(--ink-3)] hover:bg-[var(--surface-2)]">Close</button>
+          <button type="button" onClick={() => setOpen(false)} className="mt-1 w-full rounded-md py-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)] hover:bg-[var(--surface-2)]">Close</button>
         </div>
       ) : (
         <button
           type="button"
           onClick={() => { setOpen(true); setError(null); }}
-          className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--brand-a-ink)] hover:underline"
+          className="mt-2 inline-flex items-center gap-1 text-[length:var(--type-caption-size)] font-medium text-[var(--brand-a-ink)] hover:underline"
         >
           <Plus className="h-3.5 w-3.5" /> Add tool
         </button>
       ))}
-      {error && <p role="alert" className="mt-1 text-[12px] text-[var(--bad)]">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-[length:var(--type-caption-size)] text-[var(--bad)]">{error}</p>}
     </div>
   );
 }

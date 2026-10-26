@@ -16,7 +16,7 @@ import {
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--ink-3)';
@@ -221,25 +221,25 @@ export function DraftChangeCard({
 
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {phase === 'loading' && (
-          <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Locating the source widget…</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Locating the source widget…</span>
         )}
 
         {phase === 'no_match' && (
-          <div style={{ ...MONO, fontSize: 13, color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             No dashboard widget references this chart, so there is nothing to update. Use “Pin to dashboard” to add it as a new widget instead.
           </div>
         )}
 
         {phase === 'error' && (
-          <div style={{ ...MONO, fontSize: 13, color: RED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: RED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             {error ?? 'Something went wrong.'}
           </div>
         )}
 
         {phase === 'applied' && (
-          <div style={{ ...MONO, fontSize: 13, color: GREEN, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GREEN, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Check size={12} />
             Updated “{target?.widget.title}” on {target?.dashboardName}.
           </div>
@@ -259,12 +259,12 @@ export function DraftChangeCard({
 
             {/* What changed */}
             {nothingChanged ? (
-              <span style={{ ...MONO, fontSize: 13, color: MUTED }}>No differences — the widget already matches this chart.</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No differences — the widget already matches this chart.</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ ...type.label, color: MUTED }}>What changed</span>
                 {diffLines.map((line, i) => (
-                  <span key={i} style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>• {line}</span>
+                  <span key={i} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>• {line}</span>
                 ))}
               </div>
             )}
@@ -333,13 +333,13 @@ function WidgetFacet({
       }}
     >
       <span style={{ ...type.label, color: accent }}>{label}</span>
-      <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>
         <span style={{ color: MUTED }}>Kind: </span>{widget.chartKind}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
         <span style={{ color: MUTED }}>Dims: </span>{dims.length ? dims.join(', ') : '—'}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
         <span style={{ color: MUTED }}>Measures: </span>{measures.length ? measures.join(', ') : '—'}
       </span>
     </div>

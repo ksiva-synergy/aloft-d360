@@ -45,7 +45,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
           alignItems: 'center',
           justifyContent: 'center',
           fontFamily: FONT_DISPLAY,
-          fontSize: 26,
+          fontSize: 'var(--type-kpi-lg-size)',
           fontWeight: 600,
           boxShadow: '0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent)',
         }}
@@ -82,7 +82,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
       <h1
         style={{
           fontFamily: FONT_DISPLAY,
-          fontSize: 40,
+          fontSize: 'var(--type-display-size)',
           fontWeight: 400,
           lineHeight: 1.12,
           letterSpacing: '-0.01em',
@@ -94,7 +94,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         What should Captain Track Sparrow <span style={{ fontStyle: 'italic', color: 'var(--primary)' }}>understand</span> today?
       </h1>
 
-      <p style={{ fontFamily: FONT_BODY, fontSize: 14.5, lineHeight: 1.6, color: 'var(--muted-foreground)', margin: '14px 0 0', maxWidth: 500 }}>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 'var(--type-body-size)', lineHeight: 1.6, color: 'var(--muted-foreground)', margin: '14px 0 0', maxWidth: 500 }}>
         Teach him a definition, a convention, or a piece of vocabulary. He&rsquo;ll ask questions,
         check the estate, and write down what he learns.
       </p>
@@ -114,7 +114,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
               style={{
                 fontFamily: FONT_DISPLAY,
                 fontStyle: 'italic',
-                fontSize: 16,
+                fontSize: 'var(--type-body-lg-size)',
                 textAlign: 'left',
                 padding: '14px 16px',
                 borderRadius: 12,

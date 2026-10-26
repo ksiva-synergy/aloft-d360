@@ -84,31 +84,31 @@ function BulletCard({ bullet, dimmed = false }: { bullet: TraceBullet; dimmed?: 
         <span style={{ ...type.label, letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
           {ruleTypeLabel(bullet.ruleType)}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: 'var(--foer-text-mut)' }}>
+        <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
           {(bullet.confidence * 100).toFixed(0)}% conf
         </span>
         {bullet.version > 1 && (
-          <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: LEARNED_STEEL, background: `${withAlpha(LEARNED_STEEL, '14')}`, border: `1px solid ${withAlpha(LEARNED_STEEL, '35')}`, borderRadius: 3, padding: '1px 4px' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: LEARNED_STEEL, background: `${withAlpha(LEARNED_STEEL, '14')}`, border: `1px solid ${withAlpha(LEARNED_STEEL, '35')}`, borderRadius: 3, padding: '1px 4px' }}>
             v{bullet.version}
           </span>
         )}
         <span style={{ flex: 1 }} />
         {bullet.helpfulCount > 0 && (
-          <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: LEARNED_GREEN }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: LEARNED_GREEN }}>
             ↑{bullet.helpfulCount}
           </span>
         )}
         {(bullet.harmfulCount ?? 0) > 0 && (
-          <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: RULE_TYPE_COLORS.FAILURE_MODE }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: RULE_TYPE_COLORS.FAILURE_MODE }}>
             ↓{bullet.harmfulCount}
           </span>
         )}
       </div>
-      <p style={{ fontFamily: BODY, fontSize: '0.78rem', color: 'var(--foer-text-pri)', lineHeight: 1.5, margin: 0 }}>
+      <p style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-pri)', lineHeight: 1.5, margin: 0 }}>
         {open ? bullet.ruleText : (bullet.ruleText.length > 110 ? bullet.ruleText.slice(0, 110) + '…' : bullet.ruleText)}
       </p>
       {open && bullet.rationale && (
-        <p style={{ fontFamily: SERIF, fontSize: '0.70rem', fontStyle: 'italic', color: 'var(--foer-text-sec)', lineHeight: 1.45, margin: '0.4rem 0 0', paddingTop: '0.4rem', borderTop: '1px solid var(--foer-border-dim)' }}>
+        <p style={{ fontFamily: SERIF, fontSize: 'var(--type-caption-size)', fontStyle: 'italic', color: 'var(--foer-text-sec)', lineHeight: 1.45, margin: '0.4rem 0 0', paddingTop: '0.4rem', borderTop: '1px solid var(--foer-border-dim)' }}>
           {bullet.rationale}
         </p>
       )}
@@ -156,10 +156,10 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
         <span style={{ ...type.label, }}>
           {label}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: '1.1rem', fontWeight: 700, color: accent, marginLeft: '2px', lineHeight: 1 }}>
+        <span style={{ fontFamily: MONO, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: accent, marginLeft: '2px', lineHeight: 1 }}>
           {count}
         </span>
-        <span style={{ flex: 1, fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-mut)', letterSpacing: '0.02em' }}>
+        <span style={{ flex: 1, fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', letterSpacing: '0' }}>
           {description}
         </span>
         {bullets.length > 0 && (
@@ -176,7 +176,7 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
       )}
 
       {open && bullets.length === 0 && count > 0 && (
-        <div style={{ padding: '0.6rem 1rem', fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)', borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
+        <div style={{ padding: '0.6rem 1rem', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
           {count} {count === 1 ? 'memory' : 'memories'} — detail records not retained in this view
         </div>
       )}
@@ -224,17 +224,17 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
         onClick={() => summary && setOpen(v => !v)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.58rem', fontWeight: 600, color: c, background: `${withAlpha(c, '14')}`, border: `1px solid ${withAlpha(c, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: c, background: `${withAlpha(c, '14')}`, border: `1px solid ${withAlpha(c, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
             {node.nodeType}
           </span>
           {node.edgeType && (
-            <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: 'var(--foer-text-mut)' }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               via {node.edgeType.replace(/_/g, ' ').toLowerCase()}
             </span>
           )}
           <span style={{ flex: 1 }} />
           {tokTotal > 0 && (
-            <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: 'var(--foer-text-mut)' }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               {tokTotal}t
             </span>
           )}
@@ -245,7 +245,7 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
           )}
         </div>
         {summary && (
-          <p style={{ fontFamily: BODY, fontSize: '0.72rem', color: open ? 'var(--foer-text-pri)' : 'var(--foer-text-sec)', lineHeight: 1.45, margin: '0.25rem 0 0', wordBreak: 'break-word' }}>
+          <p style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', color: open ? 'var(--foer-text-pri)' : 'var(--foer-text-sec)', lineHeight: 1.45, margin: '0.25rem 0 0', wordBreak: 'break-word' }}>
             {open
               ? String(
                   node.payload?.responseSummary ?? node.payload?.toolName ?? node.payload?.errorMessage ?? node.payload?.notes ?? ''
@@ -254,7 +254,7 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
           </p>
         )}
         {open && node.nodeType === 'ACTION' && node.payload?.toolParams != null ? (
-          <pre style={{ fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)', borderRadius: 4, padding: '0.4rem', marginTop: '0.35rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          <pre style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)', borderRadius: 4, padding: '0.4rem', marginTop: '0.35rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
             {JSON.stringify(node.payload.toolParams, null, 2)}
           </pre>
         ) : null}
@@ -374,17 +374,17 @@ export function SessionDetailDrawer({
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: MONO, fontSize: '0.75rem', color: 'var(--foer-text-pri)', fontWeight: 600, letterSpacing: '0.04em' }}>
+                <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-pri)', fontWeight: 600, letterSpacing: '0.04em' }}>
                   {sessionLabel ?? sessionId?.slice(0, 8) ?? '—'}
                 </span>
                 {topicName && (
-                  <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: GOLD, background: `color-mix(in srgb, ${GOLD} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`, borderRadius: 3, padding: '1px 6px' }}>
+                  <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: GOLD, background: `color-mix(in srgb, ${GOLD} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`, borderRadius: 3, padding: '1px 6px' }}>
                     {topicName}
                   </span>
                 )}
               </div>
               {/* Stat chips */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap', fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)' }}>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
                 {candidatesProduced !== undefined && (
                   <span><span style={{ color: 'var(--foer-text-sec)' }}>{candidatesProduced}</span> candidates</span>
                 )}
@@ -416,7 +416,7 @@ export function SessionDetailDrawer({
         {/* ── SCROLLABLE BODY ── */}
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {isLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3.5rem', gap: '0.6rem', fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-sec)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3.5rem', gap: '0.6rem', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)' }}>
               <Loader2 size={15} style={{ animation: 'spin 1s linear infinite', color: GOLD }} />
               Loading session…
             </div>
@@ -426,7 +426,7 @@ export function SessionDetailDrawer({
               {/* ── SECTION: WHAT WAS LEARNED ── */}
               <div style={{ marginBottom: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                  <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '15px', color: 'var(--foer-text-pri)' }}>What Was Learned</span>
+                  <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-body-size)', color: 'var(--foer-text-pri)' }}>What Was Learned</span>
                   <div style={{ flex: 1, height: 1, background: 'var(--foer-border-dim)' }} />
                 </div>
 
@@ -466,7 +466,7 @@ export function SessionDetailDrawer({
 
                 {/* Empty state — nothing learned */}
                 {countNew === 0 && countReinforced === 0 && countForgotten === 0 && (
-                  <div style={{ padding: '1.5rem', textAlign: 'center', fontFamily: MONO, fontSize: '0.68rem', color: 'var(--foer-text-mut)', border: '1px dashed var(--foer-border-dim)', borderRadius: 6 }}>
+                  <div style={{ padding: '1.5rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', border: '1px dashed var(--foer-border-dim)', borderRadius: 6 }}>
                     No memories were written for this session.
                   </div>
                 )}
@@ -476,17 +476,17 @@ export function SessionDetailDrawer({
               {countPhantoms > 0 && (
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                    <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '15px', color: 'var(--foer-text-pri)' }}>Phantoms Blocked</span>
+                    <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-body-size)', color: 'var(--foer-text-pri)' }}>Phantoms Blocked</span>
                     <div style={{ flex: 1, height: 1, background: 'var(--foer-border-dim)' }} />
                   </div>
                   <div style={{ border: `1px solid ${withAlpha(PHANTOM_AMBER, '35')}`, borderRadius: 6, overflow: 'hidden' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.9rem 1rem', background: `${withAlpha(PHANTOM_AMBER, '0a')}` }}>
                       <ShieldAlert size={18} style={{ color: PHANTOM_AMBER, flexShrink: 0 }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: MONO, fontSize: '0.68rem', fontWeight: 600, color: PHANTOM_AMBER, letterSpacing: '0.05em', marginBottom: '3px' }}>
+                        <div style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: PHANTOM_AMBER, letterSpacing: '0.04em', marginBottom: '3px' }}>
                           {countPhantoms} PHANTOM{countPhantoms !== 1 ? 'S' : ''} REJECTED
                         </div>
-                        <div style={{ fontFamily: BODY, fontSize: '0.72rem', color: 'var(--foer-text-sec)', lineHeight: 1.4 }}>
+                        <div style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)', lineHeight: 1.4 }}>
                           Candidate memories blocked — low confidence, contradictory evidence, or already superseded by a stronger rule.
                         </div>
                       </div>
@@ -514,12 +514,12 @@ export function SessionDetailDrawer({
                       outline: 'none',
                     }}
                   >
-                    <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: '15px', color: 'var(--foer-text-pri)' }}>Session Trace</span>
-                    <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
+                    <span style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-body-size)', color: 'var(--foer-text-pri)' }}>Session Trace</span>
+                    <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>
                       {trace.length} nodes
                     </span>
                     <div style={{ flex: 1, height: 1, background: 'var(--foer-border-dim)' }} />
-                    <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       {traceOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                       {traceOpen ? 'hide' : 'show'}
                     </span>
@@ -537,7 +537,7 @@ export function SessionDetailDrawer({
 
               {/* Empty state */}
               {trace.length === 0 && countNew === 0 && countReinforced === 0 && countForgotten === 0 && !isLoading && (
-                <div style={{ padding: '3rem', textAlign: 'center', fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-mut)' }}>
+                <div style={{ padding: '3rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
                   No trace data for this session.
                 </div>
               )}

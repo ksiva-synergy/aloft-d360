@@ -47,7 +47,7 @@ export function CandidatePanel({
     <div className="flex flex-col gap-6 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface)] p-5">
       {/* Header and Discard Summaries */}
       <div className="flex flex-col gap-4 border-b border-[var(--foer-border-dim)] pb-4">
-        <h3 className="font-mono text-xs font-semibold tracking-wider text-[var(--foer-text-sec)]">
+        <h3 className="font-mono text-xs font-semibold tracking-wide text-[var(--foer-text-sec)]">
           KEEPER'S VERDICT METRICS
         </h3>
         
@@ -63,7 +63,7 @@ export function CandidatePanel({
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+              <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
                 Captain Track Sparrow Sieved
               </span>
               <HelpCircle size={10} className="text-[var(--foer-text-mut)] cursor-help" />
@@ -93,7 +93,7 @@ export function CandidatePanel({
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+              <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
                 Rama Blocked
               </span>
               <ShieldAlert size={10} className="text-[var(--foer-text-mut)] cursor-help" />

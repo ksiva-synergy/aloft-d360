@@ -138,8 +138,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <div className="flex h-full flex-col p-2.5" style={{ width: PANEL_W }}>
             <div className="-mx-2.5 mb-2.5 flex h-[var(--shell-header-h)] shrink-0 items-center gap-2 border-b border-[var(--header-border)] px-2.5">
               <div className="min-w-0 flex-1">
-                <p className="text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--ink-3)]">Agent Lab</p>
-                <h2 className="mt-1 truncate text-sm font-semibold tracking-[-0.015em] text-[var(--ink-1)]">
+                <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
+                <h2 className="mt-1 truncate text-sm font-semibold tracking-tight text-[var(--ink-1)]">
                   {isHome ? 'Home' : area.label}
                 </h2>
               </div>
@@ -170,7 +170,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder={`Filter ${area.label.toLowerCase()}`}
                   aria-label={`Filter ${area.label}`}
-                  className="w-full bg-transparent text-[13px] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+                  className="w-full bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
                 />
               </label>
             )}
@@ -179,7 +179,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               {isHome ? (
                 <HomePanel pathname={pathname} />
               ) : items.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] text-[var(--ink-3)]">No pages match “{filter}”.</p>
+                <p className="px-3 py-6 text-center text-[length:var(--type-ui-regular-size)] text-[var(--ink-3)]">No pages match “{filter}”.</p>
               ) : (
                 <ul className="space-y-0.5">
                   {items.map((item) => (
@@ -194,8 +194,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
             <div className="mt-2.5 flex items-center gap-2.5 rounded-[18px] bg-[var(--surface-2)] p-2">
               <BrandMark size={28} className="!rounded-full" />
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[12.5px] font-semibold text-[var(--ink-1)]">Synergy Group</p>
-                <p className="truncate text-[11px] text-[var(--ink-3)]">Data 360 · Agent Lab</p>
+                <p className="truncate text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]">Synergy Group</p>
+                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Data 360 · Agent Lab</p>
               </div>
               <NavStyleToggle
                 current="rail"
@@ -231,7 +231,7 @@ function RailItem({
       </span>
       <span
         className={cn(
-          'text-[10.5px] leading-none tracking-[0.01em] transition-colors',
+          'text-[length:var(--type-caption-size)] leading-none tracking-normal transition-colors',
           active ? 'font-semibold text-[var(--rail-ink-strong)]' : 'font-medium text-[var(--rail-muted)] group-hover:text-[var(--rail-ink)]',
         )}
       >
@@ -273,7 +273,7 @@ function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
       href={item.href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-9 items-center gap-2.5 rounded-full pl-1 pr-3 text-[13px] transition-colors duration-150',
+        'group flex h-9 items-center gap-2.5 rounded-full pl-1 pr-3 text-[length:var(--type-ui-regular-size)] transition-colors duration-150',
         active
           ? 'bg-[var(--brand-a-soft)] font-semibold text-[var(--brand-a-ink)]'
           : 'font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]',
@@ -297,7 +297,7 @@ function HomePanel({ pathname }: { pathname: string }) {
     <div className="space-y-2.5">
       {NAV_GROUPS.map((g) => (
         <section key={g.id}>
-          <h3 className="px-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">{g.label}</h3>
+          <h3 className="px-3 pb-1 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-3)]">{g.label}</h3>
           <ul className="space-y-0.5">
             {g.items.slice(0, 3).map((item) => (
               <li key={item.href}>

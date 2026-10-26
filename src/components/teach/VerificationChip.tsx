@@ -73,7 +73,7 @@ export function VerificationChip({ v, compact = false }: { v: VerificationResult
         >
           {caption}
         </span>
-        <span style={{ display: 'block', fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
+        <span style={{ display: 'block', fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
           {detail}
         </span>
       </span>

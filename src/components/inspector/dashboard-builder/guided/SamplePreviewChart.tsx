@@ -343,7 +343,7 @@ function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult;
         </tbody>
       </table>
       {remaining > 0 && (
-        <div style={{ fontFamily: UI_FONT, fontSize: 13, color: INK_MUTED, padding: '4px 0 8px', letterSpacing: '0.02em' }}>
+        <div style={{ fontFamily: UI_FONT, fontSize: 13, color: INK_MUTED, padding: '4px 0 8px', letterSpacing: '0' }}>
           +{remaining} more row{remaining === 1 ? '' : 's'}
         </div>
       )}

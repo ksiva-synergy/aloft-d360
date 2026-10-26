@@ -30,7 +30,7 @@ import type { DashboardVisibility } from '@/lib/dashboards/types';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 interface PickerEntity {
@@ -613,7 +613,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <ArrowLeft size={16} />
         </button>
 
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0' }}>
           {dashboardName || 'Dashboard Builder'}
         </span>
 
@@ -735,7 +735,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
         <div
           style={{
             ...MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             padding: '8px 16px',
             background: saveErrorType === 'conflict' ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(239,68,68,0.08)',
             borderBottom: `1px solid ${saveErrorType === 'conflict' ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'rgba(239,68,68,0.2)'}`,
@@ -750,14 +750,14 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           {saveErrorType === 'conflict' && (
             <button
               onClick={() => window.location.reload()}
-              style={{ ...MONO, fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               RELOAD
             </button>
           )}
           <button
             onClick={() => setSaveError(null)}
-            style={{ background: 'transparent', border: 'none', color: saveErrorType === 'conflict' ? 'var(--brand-a)' : '#F87171', cursor: 'pointer', textDecoration: 'underline', ...MONO, fontSize: 13 }}
+            style={{ background: 'transparent', border: 'none', color: saveErrorType === 'conflict' ? 'var(--brand-a)' : '#F87171', cursor: 'pointer', textDecoration: 'underline', ...MONO, fontSize: 'var(--type-ui-regular-size)' }}
           >
             dismiss
           </button>
@@ -768,7 +768,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {draftBanner === 'fresh' && (
         <div
           style={{
-            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '8px 16px', flexShrink: 0,
             display: 'flex', alignItems: 'center', gap: 8,
             background: 'rgba(96,165,250,0.08)', borderBottom: '1px solid rgba(96,165,250,0.2)', color: '#93C5FD',
           }}
@@ -776,7 +776,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Unsaved changes restored — pick up where you left off. Save to commit them as a version.</span>
           <button
             onClick={handleDiscardDraft}
-            style={{ ...MONO, fontSize: 13, background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: '#93C5FD', cursor: 'pointer', padding: '3px 8px' }}
           >
             DISCARD
           </button>
@@ -786,7 +786,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
       {draftBanner === 'stale' && (
         <div
           style={{
-            ...MONO, fontSize: 13, padding: '8px 16px', flexShrink: 0,
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '8px 16px', flexShrink: 0,
             display: 'flex', flexDirection: 'column', gap: 6,
             background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)', color: 'var(--brand-a-ink)',
           }}
@@ -797,25 +797,25 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </span>
             <button
               onClick={handleKeepDraft}
-              style={{ ...MONO, fontSize: 13, background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: '#FFFFFF', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: '#FFFFFF', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
             >
               KEEP DRAFT
             </button>
             <button
               onClick={() => setShowDraftDiff((v) => !v)}
-              style={{ ...MONO, fontSize: 13, background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               {showDraftDiff ? 'HIDE DIFF' : 'VIEW DIFF'}
             </button>
             <button
               onClick={handleDiscardDraft}
-              style={{ ...MONO, fontSize: 13, background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               DISCARD
             </button>
           </div>
           {showDraftDiff && draftDiff && (
-            <div style={{ ...MONO, fontSize: 13, opacity: 0.85 }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>
               Your draft vs. the current version — {draftDiff.added} added · {draftDiff.removed} removed · {draftDiff.modified} modified widget(s).
             </div>
           )}
@@ -829,7 +829,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {!modelId ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
               </div>
             ) : !intentCaptured ? (
               <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -841,7 +841,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               </div>
             ) : !guidedIntent ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
               </div>
             ) : !blueprintAccepted ? (
               // Stage 2 — Blueprint. Accepting hands off to Stage 3 (no widgets built here).
@@ -884,7 +884,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   LIBRARY
                 </div>
                 {pickerHint && (
-                  <div style={{ ...MONO, fontSize: 13, padding: '4px 12px', color: 'var(--brand-a-ink)', background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)', flexShrink: 0 }}>
+                  <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '4px 12px', color: 'var(--brand-a-ink)', background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)', flexShrink: 0 }}>
                     {pickerHint}
                   </div>
                 )}
@@ -941,7 +941,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               )}
               {rightPanel === 'config' && !selectedWidget && (
                 <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                  <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', textAlign: 'center' }}>
+                  <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', textAlign: 'center' }}>
                     {isReadOnly ? 'Click a widget to inspect it' : 'Select a widget to configure it'}
                   </span>
                 </div>

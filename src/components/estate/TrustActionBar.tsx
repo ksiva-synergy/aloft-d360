@@ -119,8 +119,8 @@ export default function TrustActionBar({
       {/* Current status chip */}
       <span
         style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           fontWeight: 600,
           letterSpacing: '0.08em',
           padding: '3px 8px',
@@ -137,8 +137,8 @@ export default function TrustActionBar({
         <>
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: 'var(--estate-text-muted, var(--ink-3))',
             }}
           >
@@ -168,8 +168,8 @@ export default function TrustActionBar({
       {localStatus === 'certified' && (
         <span
           style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'rgba(59,122,75,0.7)',
             letterSpacing: '0.08em',
           }}

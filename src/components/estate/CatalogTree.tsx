@@ -297,7 +297,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="font-bold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
+                    className="font-semibold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
                     style={{ transform: node.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                   >
                     &rsaquo;
@@ -335,7 +335,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className="font-bold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
+                              className="font-semibold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
                               style={{ transform: cat.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                             >
                               &rsaquo;

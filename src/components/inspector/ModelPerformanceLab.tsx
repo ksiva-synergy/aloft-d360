@@ -93,7 +93,7 @@ const heroCardOuter: React.CSSProperties = {
 const heroStat: React.CSSProperties = {
   fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
   fontSize: 26,
-  fontWeight: 700,
+  fontWeight: 600,
   color: TXT,
   lineHeight: 1.1,
   marginBottom: 6,
@@ -202,7 +202,7 @@ function BoostBadge({ pct, label }: { pct: number; label: string }) {
     }}>
       <Icon size={15} style={{ color, flexShrink: 0 }} />
       <div>
-        <div style={{ ...mono, fontSize: 18, color, fontWeight: 700, lineHeight: 1 }}>
+        <div style={{ ...mono, fontSize: 18, color, fontWeight: 600, lineHeight: 1 }}>
           {positive ? '+' : ''}{fmt(pct, 1)}%
         </div>
         <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 3 }}>{label}</div>
@@ -433,7 +433,7 @@ function SummaryTable({ groups }: { groups: GroupStats[] }) {
         <tbody>
           {rows.map((row, ri) => (
             <tr key={row.label} style={{ background: ri % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-              <td style={{ padding: '7px 10px', color: TXT2, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+              <td style={{ padding: '7px 10px', color: TXT2, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                 {row.label}
               </td>
               {groups.map(g => (
@@ -826,7 +826,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
           </button>
           <div style={{ width: 1, height: 24, background: BORDER, marginLeft: 4 }} />
           <FlaskConical size={16} style={{ color: GOLD }} />
-          <span style={{ ...mono, fontSize: 13, color: GOLD, fontWeight: 700, letterSpacing: '0.08em' }}>
+          <span style={{ ...mono, fontSize: 13, color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </span>
           <span style={{ ...mono, fontSize: 13, color: TXT2 }}>
@@ -974,10 +974,10 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: SURF,
       }}>
-        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.04em' }}>
           ALOFT PERFORMANCE LAB · v0.1 · metrics are session-local unless marked historical
         </span>
-        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.04em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

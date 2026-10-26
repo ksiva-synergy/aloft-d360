@@ -6,7 +6,7 @@ import type { IntentDisambiguation } from '@/lib/dashboards/guided-types';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 // Four visibly-distinct states — deliberately NOT one red underline.
@@ -118,7 +118,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                 onClick={() => { onChoose(d.term, c.id); setOpen(false); }}
                 style={{
                   ...MONO,
-                  fontSize: 13,
+                  fontSize: 'var(--type-ui-regular-size)',
                   textAlign: 'left',
                   display: 'flex',
                   flexDirection: 'column',
@@ -136,7 +136,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                   {c.label}
                 </span>
                 {c.description && (
-                  <span style={{ fontSize: 13, color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
+                  <span style={{ fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
                 )}
               </button>
             ))}

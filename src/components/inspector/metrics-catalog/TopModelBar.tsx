@@ -56,7 +56,7 @@ export function TopModelBar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Ruler size={16} color={GOLD} />
-          <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>ALOFT v0.4</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>ALOFT v0.4</span>
         </div>
 
         <div style={{ position: 'relative' }}>
@@ -75,7 +75,7 @@ export function TopModelBar() {
               maxWidth: 360,
             }}
           >
-            <span style={{ ...SANS, fontSize: 13, fontWeight: 600, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {active?.name ?? 'No model'}
             </span>
             {active && (
@@ -105,7 +105,7 @@ export function TopModelBar() {
                   padding: 4,
                 }}
               >
-                <div style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em', padding: '6px 8px 4px' }}>
+                <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', padding: '6px 8px 4px' }}>
                   SEMANTIC MODELS
                 </div>
                 {sorted.map((m) => (
@@ -128,7 +128,7 @@ export function TopModelBar() {
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ ...SANS, fontSize: 13, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.name}
                     </span>
                     <span style={{ ...type.label, }}>{m.status}</span>
@@ -152,7 +152,7 @@ export function TopModelBar() {
                     }}
                   >
                     <Plus size={13} color={MUTED} />
-                    <span style={{ ...SANS, fontSize: 13, color: MUTED }}>New Model</span>
+                    <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>New Model</span>
                   </button>
                 </div>
               </div>
@@ -161,7 +161,7 @@ export function TopModelBar() {
         </div>
 
         {active && (
-          <div style={{ ...MONO, fontSize: 13, color: MUTED, display: 'flex', gap: 12 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', gap: 12 }}>
             <span><span style={{ color: 'var(--mc-status-governed)' }}>{governed}</span> governed</span>
             <span><span style={{ color: 'var(--mc-status-candidate)' }}>{candidate}</span> candidate</span>
           </div>
@@ -193,7 +193,7 @@ function LensButton({ active, onClick, icon, label }: { active: boolean; onClick
         background: active ? GOLD : 'transparent',
         color: active ? '#1A1206' : MUTED,
         ...MONO,
-        fontSize: 13,
+        fontSize: 'var(--type-ui-regular-size)',
         fontWeight: 600,
         letterSpacing: '0.04em',
       }}

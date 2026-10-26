@@ -2,6 +2,26 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-26 — Typography implementation: scale snap across the app, charts/exports, contrast, lock-down
+
+Plan: `docs/audits/typography-implementation-plan.md`. Closes TYP-05, 06, 08, 09, 10, 14 and most of TYP-07; partly TYP-16.
+
+- **Scale snap (codemod over `src/components`, `src/views`, `packages/aloft-shared`, `web/src`, ~190 files):** 1,265 inline `fontSize` literals now use the type-scale variables (caption 12, ui 13, body 15, body-lg 16, title-section 20, kpi 28, display); 299 `letterSpacing` values snapped to −0.02 / −0.01 / 0 / 0.04 / 0.08 em; 44 inline `fontWeight` 700/800/bold and 87 `font-bold`/`font-extrabold` classes became 600; 371 `fontFamily` literals now use `var(--font-mono)` / `var(--font-sans)`; 144 Tailwind `text-[Npx]` classes became `text-[length:var(--type-…)]` (size only, inherited weight kept); `tracking-wider/widest` → `tracking-wide`. Files that pass literal numbers and fonts to ECharts, Recharts or canvas were excluded.
+- **Tailwind legacy sizes:** `lg`/`xl`/`2xl` moved onto the scale (20 / 20 / 28 px, was 19 / 22 / 26); `3xl` 28 px, `4xl` 40 px added.
+- **`globals.css`:** removed the `!important` font overrides on `.wb-terminal-headline`, `.wb-config-label` and `aside .agent-nav-section` (now sans tokens, no `!important`); `.lab-kbd`, `.wb-mono` use `--font-mono`; removed the duplicate scoped `--font-mono`.
+- **Charts and exports:** server-side chart rendering now uses Inter. Added `assets/fonts/inter-400.ttf` and `inter-600.ttf` (Latin static instances made from the installed Inter variable font with fontTools), `ssr-render.ts` loads them and defaults to `Inter`, `aloftDarkTheme.ts` uses `'Inter'`, and `assets/fonts/inter-tight-400.ttf` was deleted. Verified by rendering an SVG with both weights through `renderSvgToPng`.
+- **Contrast:** Estate job-card titles use `--estate-ink` instead of the orange accent (was 2.26:1); FOER KPI numbers use primary ink instead of translucent accents (was 1.74:1).
+- **Monospace chrome:** Estate filter selects, scanned-objects chips and captions moved to sans; Evals and Prompts page titles are now real `type-title-page` headings ("Eval suites", "Prompt registry").
+- **Guards:** `typography-guard.test.ts` now counts literal-valued `fontSize` and non-variable `fontFamily`, and no longer allows `Inter Tight` anywhere. Baseline: inline `fontSize` literals 232 (was 1,895 at the start of the project; remaining ones are chart/canvas option objects and `src/lib`), `fontFamily` literals 52 (519), heavy weights 1 (222).
+- **Measured (Chrome, 25 routes, light and dark, stubbed data):** families Inter 63.0 % / IBM Plex Mono 37.0 % (was five families); distinct font sizes 13 (was 39); text under 12 px 0.8 % (was 10.1 %); weights 400 65.9 %, 500 17.7 %, 600 16.2 %, 700 0.2 % (was 3.9 % at 700 and 0.5 % at 800); page titles are Inter 28 px/600 on Estate, History, Agents, Docs, Login; Dashboard and FOER use the 40 px display size.
+- **Verified:** `tsc --noEmit` and `web:typecheck` clean; root `npx vitest run` 597 passed, `web:test` 63 passed; screenshots of Dashboard, Estate Jobs and FOER in dark and light checked.
+- **Not done / known gaps:**
+  - Mono is still used for secondary data lines (FOER KPI sub-lines, job "no runs yet", cron strings, IDs); table cell and KPI text were snapped to the scale but not re-assigned role by role, and per-screen role review (plan §4) was not done by hand.
+  - Page titles on Audit, Users, Settings and Inspector dashboards are 20 px/600 and Teach is 40 px/400 (not yet `title-page`); the default `h1`–`h4` rules in `typography.css` are still off because unclassed headings would change size.
+  - Legacy Tailwind aliases (`xs`…`2xl`, `font-serif`, `font-display`, `font-body`) are kept; 52 `fontFamily` literals and 232 numeric `fontSize` literals remain (chart/canvas and `src/lib`).
+  - Contrast was only fixed in the two cases above; text with `opacity` and other accent-coloured small text were not audited again. Dark-mode contrast and real streamed AI answers were not checked. The 20–40 px sizes snapped from 18–34 px may change wrapping on screens that were not opened.
+  - Remaining plan items to review by eye: Teach, Studio, Performance Lab, dashboard builder, FOER ops, History.
+
 ## 2026-10-26 — Data access control, safety and policy plan
 
 - **What:** Added `docs/data-access-control-design.md`: inventory of 16 data paths with current protection and gaps, Phase 0 holes, target model (platform vs data roles, sensitivity labels, grants, one `authorize()` decision point, per-path enforcement, admin screens), Databricks service principals per tier, label propagation to derived data, AI-specific safety, audit and incident response, retention, written policies, phased build plan, tests, observe-then-enforce rollout, decisions. Items tagged mandatory / should / good to have.

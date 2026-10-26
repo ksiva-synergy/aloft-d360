@@ -108,8 +108,8 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
           <div>
             <h1
               style={{
-                fontFamily: '"Inter Variable", "Inter", system-ui, sans-serif',
-                fontSize: 28,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-kpi-lg-size)',
                 fontWeight: 600,
                 color: inkColor,
                 margin: 0,
@@ -122,8 +122,8 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
             {object.object_name && (
               <div
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: mutedColor,
                   marginTop: 4,
                 }}
@@ -140,8 +140,8 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               flexWrap: 'wrap',
               alignItems: 'center',
               gap: '4px 12px',
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: labelColor,
             }}
           >
@@ -151,7 +151,7 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
             <span style={{ opacity: 0.3 }}>|</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <FreshnessDot stale={freshness.stale} size={7} />
-              <span style={{ textTransform: 'uppercase', fontSize: 13, letterSpacing: '0.08em' }}>
+              <span style={{ textTransform: 'uppercase', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em' }}>
                 {freshness.stale ? 'Stale' : 'Current'}
               </span>
             </div>
@@ -178,8 +178,8 @@ export default function HeroSection({ object, dataScore, freshness, hasEmbedding
               </div>
               <p
                 style={{
-                  fontFamily: '"Inter Variable", sans-serif',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: 'var(--estate-text-secondary)',
                   margin: 0,
                   lineHeight: 1.5,

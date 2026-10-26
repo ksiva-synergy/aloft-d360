@@ -120,8 +120,8 @@ export default function EntityModelCard({
           {/* T4 tier chip — unified card system, ink bg / white text */}
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 600,
               padding: '2px 6px',
               borderRadius: 3,
@@ -146,12 +146,12 @@ export default function EntityModelCard({
           {/* Status chip */}
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 600,
               padding: '2px 7px',
               borderRadius: 3,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.04em',
               textTransform: 'uppercase',
               ...chipStyle,
             }}
@@ -188,8 +188,8 @@ export default function EntityModelCard({
         <div>
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 15,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-body-size)',
               fontWeight: 600,
               color: inkColor,
             }}
@@ -200,8 +200,8 @@ export default function EntityModelCard({
             <div
               style={{
                 marginTop: 4,
-                fontFamily: '"Inter Variable", sans-serif',
-                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: mutedColor,
                 lineHeight: 1.5,
               }}
@@ -224,12 +224,12 @@ export default function EntityModelCard({
               Dimensions ({dimensions.length})
             </div>
             {dimensions.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 13, color: mutedColor }}>None proposed.</div>
+              <div style={{ fontStyle: 'italic', fontSize: 'var(--type-ui-regular-size)', color: mutedColor }}>None proposed.</div>
             ) : (
               dimensions.map((d) => {
                 const typeStyle = DIM_TYPE_STYLES[d.dimension_type] ?? DIM_TYPE_STYLES.attribute;
                 return (
-                  <div key={d.column_name} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
+                  <div key={d.column_name} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 'var(--type-ui-regular-size)' }}>
                     <span
                       style={{
                         flexShrink: 0,
@@ -243,14 +243,14 @@ export default function EntityModelCard({
                       {d.dimension_type}
                     </span>
                     <div>
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600, color: inkColor }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: inkColor }}>
                         {d.dimension_label}
                       </span>
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', marginLeft: 6, color: mutedColor }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 6, color: mutedColor }}>
                         ({d.column_name})
                       </span>
                       {d.description && (
-                        <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Variable", sans-serif', fontSize: 13 }}>
+                        <div style={{ marginTop: 2, color: mutedColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }}>
                           {d.description}
                         </div>
                       )}
@@ -272,10 +272,10 @@ export default function EntityModelCard({
               Measures ({measures.length})
             </div>
             {measures.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 13, color: mutedColor }}>None proposed.</div>
+              <div style={{ fontStyle: 'italic', fontSize: 'var(--type-ui-regular-size)', color: mutedColor }}>None proposed.</div>
             ) : (
               measures.map((m) => (
-                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
+                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 'var(--type-ui-regular-size)' }}>
                   <span
                     style={{
                       flexShrink: 0,
@@ -290,21 +290,21 @@ export default function EntityModelCard({
                     {m.aggregate}
                   </span>
                   <div>
-                    <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontWeight: 600, color: inkColor }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: inkColor }}>
                       {m.measure_label}
                     </span>
                     {m.column_name && (
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', marginLeft: 6, color: mutedColor }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 6, color: mutedColor }}>
                         ({m.column_name})
                       </span>
                     )}
                     {m.unit && (
-                      <span style={{ fontFamily: '"IBM Plex Mono", monospace', marginLeft: 4, color: '#B4801A' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 4, color: '#B4801A' }}>
                         [{m.unit}]
                       </span>
                     )}
                     {m.description && (
-                      <div style={{ marginTop: 2, color: mutedColor, fontFamily: '"Inter Variable", sans-serif', fontSize: 13 }}>
+                      <div style={{ marginTop: 2, color: mutedColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }}>
                         {m.description}
                       </div>
                     )}

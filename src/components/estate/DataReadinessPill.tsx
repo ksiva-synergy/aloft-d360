@@ -76,11 +76,11 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
     >
       {/* Level badge — levelColor, not scoreColor */}
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
-        fontWeight: 700,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
+        fontWeight: 600,
         color: badgeColor,
-        letterSpacing: '0.06em',
+        letterSpacing: '0.04em',
         backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
         border: `1px solid ${withAlpha(badgeColor, '40')}`,
         borderRadius: 3,
@@ -91,25 +91,25 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
 
       {/* Composite score */}
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color: 'var(--estate-text-muted, #8892A4)',
       }}>
         {Math.round(dataScore.composite * 100)}%
       </span>
 
-      <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 13 }}>|</span>
+      <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 'var(--type-ui-regular-size)' }}>|</span>
 
       {/* Gating dimension — scoreColor on its own score */}
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color: gatingDimColor,
         display: 'flex',
         alignItems: 'center',
         gap: 5,
       }}>
-        <span style={{ fontSize: 13 }}>◆</span>
+        <span style={{ fontSize: 'var(--type-ui-regular-size)' }}>◆</span>
         {DIMENSION_LABELS[gatingDim]} gating
       </span>
     </div>

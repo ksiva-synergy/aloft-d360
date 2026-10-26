@@ -63,8 +63,8 @@ function renderUsagePattern(pat: string | { intent?: string; sql?: string; patte
           style={{
             padding: '10px 12px',
             borderRadius: 4,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             overflowX: 'auto',
             borderLeft: '2px solid var(--brand-a)',
             background: innerBg,
@@ -77,7 +77,7 @@ function renderUsagePattern(pat: string | { intent?: string; sql?: string; patte
           <code>{trimmed}</code>
         </pre>
         {!looksLikeSql && (
-          <div style={{ fontFamily: '"Inter Variable", sans-serif', fontSize: 13, color: mutedColor, paddingLeft: 4 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: mutedColor, paddingLeft: 4 }}>
             {trimmed}
           </div>
         )}
@@ -93,8 +93,8 @@ function renderUsagePattern(pat: string | { intent?: string; sql?: string; patte
       {intent && (
         <div
           style={{
-            fontFamily: '"Inter Variable", sans-serif',
-            fontSize: 13,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-ui-regular-size)',
             fontWeight: 500,
             color: inkColor,
             paddingLeft: 2,
@@ -108,8 +108,8 @@ function renderUsagePattern(pat: string | { intent?: string; sql?: string; patte
           style={{
             padding: '10px 12px',
             borderRadius: 4,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             overflowX: 'auto',
             borderLeft: '2px solid var(--brand-a)',
             background: innerBg,
@@ -187,8 +187,8 @@ export default function SemanticCard({
           {/* T2 tier chip — unified card system */}
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 600,
               padding: '2px 6px',
               borderRadius: 3,
@@ -218,8 +218,8 @@ export default function SemanticCard({
         {card.summary && (
           <p
             style={{
-              fontFamily: '"Inter Variable", sans-serif',
-              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               lineHeight: 1.6,
               color: inkColor,
               margin: 0,
@@ -242,8 +242,8 @@ export default function SemanticCard({
             </div>
             <div
               style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-ui-regular-size)',
                 fontWeight: 600,
                 color: inkColor,
               }}
@@ -276,8 +276,8 @@ export default function SemanticCard({
                 </div>
                 <div
                   style={{
-                    fontFamily: '"Inter Variable", sans-serif',
-                    fontSize: 13,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     fontWeight: 600,
                     color: inkColor,
                   }}
@@ -305,8 +305,8 @@ export default function SemanticCard({
                         type="button"
                         onClick={() => onColumnClick(col)}
                         style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 13,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'var(--type-ui-regular-size)',
                           padding: '2px 6px',
                           borderRadius: 3,
                           border: `1px solid ${borderColor}`,
@@ -321,8 +321,8 @@ export default function SemanticCard({
                       <span
                         key={idx}
                         style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 13,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'var(--type-ui-regular-size)',
                           padding: '2px 6px',
                           borderRadius: 3,
                           border: `1px solid ${borderColor}`,
@@ -368,8 +368,8 @@ export default function SemanticCard({
                     <span
                       key={i}
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         padding: '2px 5px',
                         borderRadius: 3,
                         border: '1px solid rgba(47,109,176,0.3)',
@@ -399,8 +399,8 @@ export default function SemanticCard({
                     <span
                       key={i}
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         padding: '2px 5px',
                         borderRadius: 3,
                         border: '1px solid rgba(59,122,75,0.3)',
@@ -430,8 +430,8 @@ export default function SemanticCard({
                     <span
                       key={i}
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         padding: '2px 5px',
                         borderRadius: 3,
                         border: '1px solid rgba(180,128,26,0.3)',
@@ -503,11 +503,11 @@ export default function SemanticCard({
                   border: '1px solid rgba(180,128,26,0.15)',
                 }}
               >
-                <span style={{ fontSize: 13, color: '#B4801A', flexShrink: 0 }}>⚠</span>
+                <span style={{ fontSize: 'var(--type-ui-regular-size)', color: '#B4801A', flexShrink: 0 }}>⚠</span>
                 <span
                   style={{
-                    fontFamily: '"Inter Variable", sans-serif',
-                    fontSize: 13,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: '#B4801A',
                     lineHeight: 1.5,
                   }}
@@ -585,7 +585,7 @@ export default function SemanticCard({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, color: allResolved ? '#3B7A4B' : '#B23A32', flexShrink: 0 }}>⚑</span>
+                <span style={{ fontSize: 'var(--type-body-size)', color: allResolved ? '#3B7A4B' : '#B23A32', flexShrink: 0 }}>⚑</span>
                 <div>
                   <span
                     style={{
@@ -602,8 +602,8 @@ export default function SemanticCard({
                   </span>
                   <span
                     style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: allResolved ? '#3B7A4B' : '#B23A32',
                     }}
                   >
@@ -646,8 +646,8 @@ export default function SemanticCard({
         {(modelId || promptVersion || confidence) && (
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               display: 'flex',
               alignItems: 'center',
               gap: 6,

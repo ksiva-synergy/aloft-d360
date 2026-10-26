@@ -43,10 +43,10 @@ const T = {
 } as const;
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const SANS: React.CSSProperties = {
-  fontFamily: "'Inter Variable', 'Inter', ui-sans-serif, sans-serif",
+  fontFamily: 'var(--font-sans)',
 };
 const SERIF: React.CSSProperties = {
   fontFamily: 'var(--font-sans)',
@@ -159,12 +159,12 @@ function InsightCard({
         <span
           style={{
             ...MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             color: T.label,
             border: `1px solid ${T.border}`,
             borderRadius: 3,
             padding: '1px 5px',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.04em',
           }}
         >
           {insight.confidence.toUpperCase()}
@@ -179,7 +179,7 @@ function InsightCard({
         style={{
           ...SERIF,
           fontStyle: 'italic',
-          fontSize: 15,
+          fontSize: 'var(--type-body-size)',
           color: T.text,
           lineHeight: 1.4,
           marginBottom: 8,
@@ -196,7 +196,7 @@ function InsightCard({
       <p
         style={{
           ...SANS,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: T.muted,
           lineHeight: 1.55,
           margin: 0,
@@ -413,7 +413,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...type.label, letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.08em', textAlign: 'center' }}>
             INSIGHTS UNAVAILABLE
           </span>
           <button
@@ -423,7 +423,7 @@ export function InsightRail({
               border: 'none',
               cursor: 'pointer',
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: T.gold,
               textDecoration: 'underline',
               letterSpacing: '0.08em',
@@ -459,7 +459,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...type.label, letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.08em', textAlign: 'center' }}>
             NO INSIGHTS GENERATED
           </span>
         </div>
@@ -481,13 +481,13 @@ export function InsightRail({
             <span
               style={{
                 ...MONO,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: T.gold,
                 background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
                 borderRadius: 3,
                 padding: '1px 5px',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
               }}
             >
               {loadedInsights.length}

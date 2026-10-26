@@ -11,8 +11,8 @@ const TXT        = 'var(--ink-1)';
 const TXT2       = 'var(--ink-2)';
 const TXT3       = 'var(--ink-3)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const body: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const body: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 // ─── Class display names ──────────────────────────────────────────────────────
 
@@ -104,34 +104,34 @@ export function ClassSuggestionChip({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
-          ...mono, fontSize: 13, color: '#1a1205',
+          ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#1a1205',
           background: GOLD,
           borderRadius: 3,
           padding: '2px 8px',
-          letterSpacing: '0.12em',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase' as const,
           flexShrink: 0,
         }}>
           {classId.toUpperCase()}
         </span>
-        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
           {confidencePct}% match
         </span>
       </div>
 
       {/* Question */}
-      <p style={{ ...body, fontSize: 14, color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+      <p style={{ ...body, fontSize: 'var(--type-body-size)', color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
         This reads like <strong style={{ color: GOLD }}>{className}</strong>-class territory. Apply it?
       </p>
 
       {/* Rationale */}
-      <p style={{ ...mono, fontSize: 13, color: TXT3, margin: 0, lineHeight: 1.5 }}>
+      <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT3, margin: 0, lineHeight: 1.5 }}>
         {rationale}
       </p>
 
       {/* Error */}
       {error && (
-        <p style={{ ...mono, fontSize: 13, color: '#ef4444', margin: 0 }}>{error}</p>
+        <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#ef4444', margin: 0 }}>{error}</p>
       )}
 
       {/* Actions */}
@@ -141,7 +141,7 @@ export function ClassSuggestionChip({
           disabled={applying}
           style={{
             ...type.label,
-            letterSpacing: '0.1em',
+            letterSpacing: '0.08em',
             background: NAVY,
             color: '#ffffff',
             border: `1px solid ${NAVY2}`,
@@ -158,7 +158,7 @@ export function ClassSuggestionChip({
           onClick={handleKeepClassless}
           disabled={applying}
           style={{
-            ...mono, fontSize: 13,
+            ...mono, fontSize: 'var(--type-ui-regular-size)',
             background: 'transparent',
             color: TXT2,
             border: 0,

@@ -32,8 +32,8 @@ function MessageBubble({ role, text }: { role: 'user' | 'assistant'; text: strin
           border: isUser ? '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' : BORDER,
         }}
       >
-        <div style={{ ...mono, fontSize: 10, color: isUser ? 'var(--brand-a)' : 'var(--ink-3)', marginBottom: 4 }}>{role}</div>
-        <div style={{ ...sans, fontSize: 13, lineHeight: 1.6, color: 'var(--wb-ink)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '—'}</div>
+        <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: isUser ? 'var(--brand-a)' : 'var(--ink-3)', marginBottom: 4 }}>{role}</div>
+        <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.6, color: 'var(--wb-ink)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{text || '—'}</div>
       </div>
     </div>
   );
@@ -103,7 +103,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
       <header style={{ padding: '18px 24px 0', maxWidth: 1480, margin: '0 auto' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div style={{ minWidth: 0, flex: '1 1 400px' }}>
-            <Link href="/agent-lab/history" style={{ ...sans, fontSize: 12, color: 'var(--brand-a)', textDecoration: 'none' }}>
+            <Link href="/agent-lab/history" style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', textDecoration: 'none' }}>
               ← Back to history
             </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
@@ -111,7 +111,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                 title={healthy ? 'No tool errors' : `${a.toolErrors} tool errors`}
                 style={{
                   ...sans,
-                  fontSize: 11,
+                  fontSize: 'var(--type-caption-size)',
                   fontWeight: 600,
                   padding: '3px 10px',
                   borderRadius: 999,
@@ -122,7 +122,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
               >
                 ● {healthy ? 'Healthy' : `${plural(a.toolErrors, 'error')}`}
               </span>
-              <h1 style={{ ...sans, fontSize: 24, fontWeight: 600, lineHeight: 1.3, margin: 0, color: 'var(--wb-ink)' }}>{title || 'Session intelligence'}</h1>
+              <h1 style={{ ...sans, fontSize: 'var(--type-kpi-lg-size)', fontWeight: 600, lineHeight: 1.3, margin: 0, color: 'var(--wb-ink)' }}>{title || 'Session intelligence'}</h1>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
               <Chip title="Surface">{surface ?? 'session'}</Chip>
@@ -139,7 +139,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
             href={openHref}
             style={{
               ...sans,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 500,
               padding: '9px 16px',
               borderRadius: 8,
@@ -157,7 +157,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
           <div
             style={{
               ...sans,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               marginTop: 14,
               padding: '10px 12px',
               borderRadius: 8,
@@ -288,7 +288,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                   onClick={() => setTab(t.id)}
                   style={{
                     ...sans,
-                    fontSize: 13,
+                    fontSize: 'var(--type-ui-regular-size)',
                     fontWeight: active ? 600 : 500,
                     padding: '12px 14px',
                     border: 'none',
@@ -307,7 +307,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                     <span
                       style={{
                         ...mono,
-                        fontSize: 10,
+                        fontSize: 'var(--type-caption-size)',
                         padding: '1px 6px',
                         borderRadius: 999,
                         background: active ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'var(--wb-border-subtle)',
@@ -322,7 +322,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
             })}
           </div>
           {/* stays visible while scrolling */}
-          <div style={{ ...mono, fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap', display: 'flex', gap: 12 }}>
+          <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', whiteSpace: 'nowrap', display: 'flex', gap: 12 }}>
             <span>{fmtUsd(a.estimatedCostUsd)}</span>
             <span>{fmtTokens(totalTokens)} tok</span>
             <span style={{ color: healthy ? OK : ERR }}>
@@ -370,13 +370,13 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                   <SectionTitle hint="Composite score with correctness / tools / speed / grounding parts.">Quality score</SectionTitle>
                   {cockpit.bandit.map((b) => (
                     <div key={b.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: BORDER }}>
-                      <span style={{ ...mono, fontSize: 20, color: 'var(--wb-ink)', minWidth: 56 }}>{b.compositeScore?.toFixed(2) ?? '—'}</span>
+                      <span style={{ ...mono, fontSize: 'var(--type-title-section-size)', color: 'var(--wb-ink)', minWidth: 56 }}>{b.compositeScore?.toFixed(2) ?? '—'}</span>
                       <Chip>{b.modelId ?? 'model n/a'}</Chip>
                       <Chip color={b.outcome === 'completed' ? OK : undefined}>{b.outcome ?? '—'}</Chip>
                       {(['C', 'T', 'S', 'G'] as const).map((k) => {
                         const v = b[`score${k}` as const];
                         return (
-                          <span key={k} style={{ ...mono, fontSize: 11, color: 'var(--ink-3)' }}>
+                          <span key={k} style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>
                             {k} <span style={{ color: 'var(--wb-ink-dim)' }}>{v != null ? v.toFixed(2) : '—'}</span>
                           </span>
                         );
@@ -420,15 +420,15 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <span style={{ ...mono, fontSize: 11, color: 'var(--brand-a)' }}>Turn {t.turnIndex}</span>
-                    <span style={{ ...mono, fontSize: 10, color: t.errorCount ? ERR : 'var(--ink-3)' }}>
+                    <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)' }}>Turn {t.turnIndex}</span>
+                    <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: t.errorCount ? ERR : 'var(--ink-3)' }}>
                       {t.errorCount ? `${t.errorCount} err` : plural(t.toolCallCount, 'tool')}
                     </span>
                   </div>
                   <div
                     style={{
                       ...sans,
-                      fontSize: 13,
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: 'var(--wb-ink)',
                       marginTop: 4,
                       display: '-webkit-box',
@@ -493,7 +493,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                 </Panel>
               </>
             ) : (
-              <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)' }}>Select a turn on the left.</p>
+              <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)' }}>Select a turn on the left.</p>
             )}
           </div>
         </div>
@@ -509,7 +509,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                 <select
                   value={timelineTurn ?? ''}
                   onChange={(e) => setTimelineTurn(e.target.value === '' ? null : Number(e.target.value))}
-                  style={{ ...sans, fontSize: 12, padding: '5px 8px', borderRadius: 6, border: BORDER, background: 'var(--wb-canvas)', color: 'var(--wb-ink)' }}
+                  style={{ ...sans, fontSize: 'var(--type-caption-size)', padding: '5px 8px', borderRadius: 6, border: BORDER, background: 'var(--wb-canvas)', color: 'var(--wb-ink)' }}
                 >
                   <option value="">All turns</option>
                   {cockpit.turns.map((t) => (
@@ -550,7 +550,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                   <button
                     type="button"
                     onClick={() => setToolFilter(null)}
-                    style={{ ...sans, fontSize: 12, padding: '4px 10px', borderRadius: 6, border: BORDER, background: 'transparent', color: 'var(--wb-ink-dim)', cursor: 'pointer' }}
+                    style={{ ...sans, fontSize: 'var(--type-caption-size)', padding: '4px 10px', borderRadius: 6, border: BORDER, background: 'transparent', color: 'var(--wb-ink-dim)', cursor: 'pointer' }}
                   >
                     Clear filter ✕
                   </button>
@@ -576,10 +576,10 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
           {cockpit.turns.map((t) => (
             <div key={t.turnIndex} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ ...mono, fontSize: 11, color: 'var(--brand-a)' }}>Turn {t.turnIndex}</span>
+                <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)' }}>Turn {t.turnIndex}</span>
                 <span style={{ flex: 1, height: 1, background: 'var(--wb-border-subtle)' }} />
                 {t.toolCallCount > 0 && (
-                  <button type="button" onClick={() => openTurn(t.turnIndex)} style={{ ...mono, fontSize: 10, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <button type="button" onClick={() => openTurn(t.turnIndex)} style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer' }}>
                     {plural(t.toolCallCount, 'tool call')} →
                   </button>
                 )}

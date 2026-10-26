@@ -85,7 +85,7 @@ const card = 'rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] s
 // ── Micro components ─────────────────────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-[13px] font-semibold text-[var(--ink-3)]">{children}</span>;
+  return <span className="text-[length:var(--type-ui-regular-size)] font-semibold text-[var(--ink-3)]">{children}</span>;
 }
 
 /** A small in-card metric: big number + label. */
@@ -95,13 +95,13 @@ function MiniStat({
   return (
     <div className="flex flex-col gap-1">
       <span
-        className="text-[26px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]"
+        className="text-[length:var(--type-kpi-lg-size)] font-semibold leading-none tracking-tight tabular-nums text-[var(--ink-1)]"
         style={color ? { color: inkOf(color) } : undefined}
       >
         {value}
       </span>
       <Label>{label}</Label>
-      {sub && <span className="text-[13px] text-[var(--ink-3)]">{sub}</span>}
+      {sub && <span className="text-[length:var(--type-ui-regular-size)] text-[var(--ink-3)]">{sub}</span>}
     </div>
   );
 }
@@ -171,7 +171,7 @@ function CoverageRow({ label, count, total, color }: { label: string; count: num
         <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${p}%`, background: color }} />
       </div>
       <span className="w-[54px] text-right font-semibold tabular-nums text-[var(--ink-1)]">{fmt(count)}</span>
-      <span className="w-[42px] text-right font-bold tabular-nums" style={{ color: inkOf(color) }}>{p}%</span>
+      <span className="w-[42px] text-right font-semibold tabular-nums" style={{ color: inkOf(color) }}>{p}%</span>
     </div>
   );
 }
@@ -199,13 +199,13 @@ function ModuleCard({
             <Icon size={22} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-extrabold tracking-tight text-[var(--ink-1)]">{title}</h2>
+            <h2 className="truncate text-xl font-semibold tracking-tight text-[var(--ink-1)]">{title}</h2>
             <p className="truncate text-sm text-[var(--ink-3)]">{subtitle}</p>
           </div>
         </div>
         <Link
           href={href}
-          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold no-underline transition-colors hover:bg-[var(--surface-2)]"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold no-underline transition-colors hover:bg-[var(--surface-2)]"
           style={{ color: inkOf(accent), borderColor: `color-mix(in srgb, ${accent} 40%, transparent)` }}
         >
           {linkLabel}
@@ -219,7 +219,7 @@ function ModuleCard({
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[var(--line-2)] px-4 py-6 text-center text-[15px] text-[var(--ink-3)]">
+    <div className="rounded-2xl border border-dashed border-[var(--line-2)] px-4 py-6 text-center text-[length:var(--type-body-size)] text-[var(--ink-3)]">
       {text}
     </div>
   );
@@ -338,12 +338,12 @@ function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers
         <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
           <Label>Recent sign-ins</Label>
           {l.recent.map((r, i) => (
-            <div key={i} className="flex items-center gap-3 text-[15px]">
+            <div key={i} className="flex items-center gap-3 text-[length:var(--type-body-size)]">
               {r.success
                 ? <ShieldCheck size={17} className="shrink-0 text-[var(--ok)]" />
                 : <ShieldAlert size={17} className="shrink-0 text-[var(--warn)]" />}
               <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.name || r.email}</span>
-              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-xs font-bold uppercase text-[var(--ink-2)]">{r.provider}</span>
+              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-xs font-semibold uppercase text-[var(--ink-2)]">{r.provider}</span>
               <span className="w-[70px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
             </div>
           ))}
@@ -377,7 +377,7 @@ function InspectorBody({ s, canReadUsers }: { s: InspectorSummary | null; canRea
         <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
           <Label>Recent sessions</Label>
           {s.recent.map((r, i) => (
-            <div key={i} className="flex items-center gap-3 text-[15px]">
+            <div key={i} className="flex items-center gap-3 text-[length:var(--type-body-size)]">
               <MessageSquare size={17} className="shrink-0 text-[var(--ink-3)]" />
               <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.title}</span>
               {canReadUsers && r.user && (
@@ -423,7 +423,7 @@ function KpiTile({
             <Icon size={19} />
           </span>
         </div>
-        <div className="mt-3 text-[34px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]">
+        <div className="mt-3 text-[length:var(--type-display-size)] font-semibold leading-none tracking-tight tabular-nums text-[var(--ink-1)]">
           {value}
         </div>
         <div className="mt-2 flex items-center justify-between gap-2">
@@ -485,7 +485,7 @@ export function DashboardView({
           className="mb-8 flex flex-wrap items-end justify-between gap-4"
         >
           <div>
-            <h1 className="text-[32px] font-extrabold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">
+            <h1 className="text-[length:var(--type-display-size)] font-semibold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">
               {greeting}, {displayName} <span aria-hidden>👋</span>
             </h1>
             <p className="mt-1.5 text-base text-[var(--ink-3)]">
@@ -493,7 +493,7 @@ export function DashboardView({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-sm font-bold text-[var(--brand-a-ink)]">
+            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-sm font-semibold text-[var(--brand-a-ink)]">
               {roleLabel}
             </span>
             {mounted && <span className="text-sm font-semibold text-[var(--ink-3)]">{dateStr}</span>}

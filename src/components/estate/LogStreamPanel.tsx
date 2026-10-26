@@ -196,7 +196,7 @@ export default function LogStreamPanel({ jobId, isLive, defaultCollapsed }: LogS
 
       {errorMsg && (
         <div className="px-4 py-3 text-red-400">
-          <span className="font-bold">Error: </span>{errorMsg}
+          <span className="font-semibold">Error: </span>{errorMsg}
         </div>
       )}
 

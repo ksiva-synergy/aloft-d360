@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import type { SessionCockpitPayload } from '@/lib/agent-ops/session-cockpit';
 import { SessionCockpit } from './SessionCockpit';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 export default function RunDetailPage({ sessionId }: { sessionId: string }) {
   const [title, setTitle] = useState('');
@@ -43,13 +43,13 @@ export default function RunDetailPage({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   if (loading) {
-    return <div style={{ ...mono, fontSize: 12, padding: 24, color: 'var(--ink-3)' }}>Loading session intelligence…</div>;
+    return <div style={{ ...mono, fontSize: 'var(--type-caption-size)', padding: 24, color: 'var(--ink-3)' }}>Loading session intelligence…</div>;
   }
 
   if (error || !cockpit) {
     return (
       <div style={{ padding: 24 }}>
-        <p style={{ color: '#D9774B', ...mono, fontSize: 12 }}>{error ?? 'No data'}</p>
+        <p style={{ color: '#D9774B', ...mono, fontSize: 'var(--type-caption-size)' }}>{error ?? 'No data'}</p>
       </div>
     );
   }

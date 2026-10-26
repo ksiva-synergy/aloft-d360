@@ -352,7 +352,7 @@ export function ShelvesPanel() {
         gap:            8,
       }}
     >
-      <p style={{ fontFamily: SERIF, fontSize: '13px', color: 'var(--ink-1)', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
+      <p style={{ fontFamily: SERIF, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', lineHeight: 1.5, margin: 0, fontWeight: 500 }}>
         {tooltip.bullet.ruleText}
       </p>
       <div style={{ height: '1px', background: 'var(--line-1)' }} />
@@ -360,7 +360,7 @@ export function ShelvesPanel() {
         <span
           style={{
             ...type.label,
-            letterSpacing: '0.05em',
+            letterSpacing: '0.04em',
             color:         ruleTypeColor(tooltip.bullet.ruleType),
             border:        `1px solid ${ruleTypeColor(tooltip.bullet.ruleType)}50`,
             padding:       '1px 5px',
@@ -370,11 +370,11 @@ export function ShelvesPanel() {
         >
           {tooltip.bullet.ruleType.replace(/_/g, ' ')}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: '13px', color: 'var(--ink-2)' }}>
+        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-2)' }}>
           v{tooltip.bullet.version} · {(tooltip.bullet.confidence * 100).toFixed(0)}% conf
         </span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: '13px', color: 'var(--ink-3)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)' }}>
         <span>
           {tooltip.bullet.helpfulCount > 0 && <span style={{ color: 'var(--ok)' }}>{tooltip.bullet.helpfulCount}↑ helpful</span>}
           {tooltip.bullet.helpfulCount > 0 && tooltip.bullet.harmfulCount > 0 && ' · '}
@@ -443,7 +443,7 @@ export function ShelvesPanel() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h2 style={{ fontFamily: SERIF, fontSize: '1.25rem', fontWeight: 600, color: 'var(--foer-text-pri)', margin: 0 }}>
+              <h2 style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: 'var(--foer-text-pri)', margin: 0 }}>
                 The Shelves
               </h2>
               {/* Coverage badge */}
@@ -451,8 +451,8 @@ export function ShelvesPanel() {
                 <span
                   style={{
                     fontFamily:    MONO,
-                    fontSize:      '0.6rem',
-                    letterSpacing: '0.05em',
+                    fontSize: 'var(--type-caption-size)',
+                    letterSpacing: '0.04em',
                     padding:       '2px 7px',
                     borderRadius:  3,
                     border:        `1px solid ${
@@ -489,7 +489,7 @@ export function ShelvesPanel() {
                       opacity:      0.9,
                     }}
                   />
-                  <span style={{ ...type.label, letterSpacing: '0.05em' }}>
+                  <span style={{ ...type.label, letterSpacing: '0.04em' }}>
                     {rt.replace(/_/g, ' ')}
                   </span>
                 </div>
@@ -505,8 +505,8 @@ export function ShelvesPanel() {
               title="Run k-means topic classification sweep"
               style={{
                 fontFamily:      MONO,
-                fontSize:        '0.65rem',
-                letterSpacing:   '0.05em',
+                fontSize: 'var(--type-caption-size)',
+                letterSpacing: '0.04em',
                 padding:         '4px 10px',
                 borderRadius:    3,
                 border:          '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
@@ -527,7 +527,7 @@ export function ShelvesPanel() {
                 alignItems: 'center',
                 gap:        '0.5rem',
                 cursor:     'pointer',
-                fontSize:   '0.75rem',
+                fontSize: 'var(--type-caption-size)',
                 color:      'var(--foer-text-sec)',
                 fontFamily: MONO,
                 userSelect: 'none',
@@ -549,7 +549,7 @@ export function ShelvesPanel() {
         {reclassifyMutation.isSuccess && reclassifyMutation.data && (
           <div style={{
             fontFamily:  MONO,
-            fontSize:    '0.65rem',
+            fontSize: 'var(--type-caption-size)',
             color:       'var(--ok)',
             background:  'var(--ok-bg)',
             border:      '1px solid color-mix(in srgb, var(--ok) 25%, transparent)',
@@ -565,7 +565,7 @@ export function ShelvesPanel() {
         {reclassifyMutation.isError && (
           <div style={{
             fontFamily:  MONO,
-            fontSize:    '0.65rem',
+            fontSize: 'var(--type-caption-size)',
             color:       '#D9774B',
             background:  'rgba(217,119,75,0.08)',
             border:      '1px solid rgba(217,119,75,0.2)',
@@ -599,16 +599,16 @@ export function ShelvesPanel() {
                 color:          GOLD,
                 cursor:         'pointer',
                 fontFamily:     MONO,
-                fontSize:       '0.7rem',
+                fontSize: 'var(--type-caption-size)',
                 fontWeight:     600,
-                letterSpacing:  '0.03em',
+                letterSpacing: '0.04em',
               }}
             >
-              <span style={{ fontSize: '1rem', lineHeight: 1 }}>←</span>
+              <span style={{ fontSize: 'var(--type-body-lg-size)', lineHeight: 1 }}>←</span>
               All Groups
             </button>
-            <span style={{ color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', fontFamily: MONO, fontSize: '0.7rem' }}>›</span>
-            <span style={{ fontFamily: MONO, fontSize: '0.7rem', color: 'var(--foer-text-pri)', fontWeight: 500 }}>
+            <span style={{ color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', fontFamily: MONO, fontSize: 'var(--type-caption-size)' }}>›</span>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-pri)', fontWeight: 500 }}>
               {activeGroupName}
             </span>
           </div>
@@ -616,13 +616,13 @@ export function ShelvesPanel() {
 
         {/* Body */}
         {isLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: 'var(--foer-text-sec)', fontFamily: MONO, fontSize: '0.8rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: 'var(--foer-text-sec)', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)' }}>
             Loading shelves…
           </div>
         ) : !activeGroup ? (
           /* ── TOP-LEVEL GROUP GRID ── */
           lanes.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', border: '1px dashed var(--foer-border-dim)', borderRadius: 6, color: 'var(--foer-text-mut)', fontFamily: BODY, fontSize: '0.9rem' }}>
+            <div style={{ padding: '3rem', textAlign: 'center', border: '1px dashed var(--foer-border-dim)', borderRadius: 6, color: 'var(--foer-text-mut)', fontFamily: BODY, fontSize: 'var(--type-body-size)' }}>
               No memories match the active filters.
             </div>
           ) : (
@@ -638,7 +638,7 @@ export function ShelvesPanel() {
                   border:       '1px solid rgba(217,119,75,0.2)',
                   borderRadius: 4,
                   fontFamily:   MONO,
-                  fontSize:     '0.65rem',
+                  fontSize: 'var(--type-caption-size)',
                   color:        '#D9774B',
                 }}>
                   <span>All memories are unclassified — run</span>
@@ -653,7 +653,7 @@ export function ShelvesPanel() {
                       color:         '#D9774B',
                       cursor:        reclassifyMutation.isPending ? 'not-allowed' : 'pointer',
                       fontFamily:    MONO,
-                      fontSize:      '0.65rem',
+                      fontSize: 'var(--type-caption-size)',
                       whiteSpace:    'nowrap',
                     }}
                   >
@@ -689,11 +689,11 @@ export function ShelvesPanel() {
                     <div style={{ marginBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
                         <div style={{ width: 3, height: '1.1em', background: accentColor, borderRadius: 2, flexShrink: 0, alignSelf: 'center' }} />
-                        <span style={{ fontFamily: BODY, fontSize: '0.78rem', fontWeight: 600, color: 'var(--foer-text-pri)', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                        <span style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: 'var(--foer-text-pri)', lineHeight: 1.3, wordBreak: 'break-word' }}>
                           {lane.topicName || 'Unassigned'}
                         </span>
                       </div>
-                      <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-mut)', paddingLeft: '10px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', paddingLeft: '10px' }}>
                         {lane.bullets.length} {lane.bullets.length === 1 ? 'memory' : 'memories'}
                         {' · '}
                         {new Set(lane.bullets.map((b) => b.taskSignature ?? 'no-sig')).size} subgroups
@@ -726,7 +726,7 @@ export function ShelvesPanel() {
                         );
                       })}
                       {lane.bullets.length > 18 && (
-                        <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: 'var(--foer-text-mut)' }}>+{lane.bullets.length - 18}</span>
+                        <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>+{lane.bullets.length - 18}</span>
                       )}
                     </div>
                   </button>
@@ -738,11 +738,11 @@ export function ShelvesPanel() {
         ) : (
           /* ── SUBGROUP GRID (drilled into a group) ── */
           subLanes.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', border: '1px dashed var(--foer-border-dim)', borderRadius: 6, color: 'var(--foer-text-mut)', fontFamily: BODY, fontSize: '0.9rem' }}>
+            <div style={{ padding: '3rem', textAlign: 'center', border: '1px dashed var(--foer-border-dim)', borderRadius: 6, color: 'var(--foer-text-mut)', fontFamily: BODY, fontSize: 'var(--type-body-size)' }}>
               No subgroups found.{' '}
               <button
                 onClick={() => { setActiveGroup(null); setActiveGroupName(''); }}
-                style={{ background: 'none', border: 'none', color: GOLD, cursor: 'pointer', fontFamily: MONO, fontSize: '0.8rem', textDecoration: 'underline' }}
+                style={{ background: 'none', border: 'none', color: GOLD, cursor: 'pointer', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', textDecoration: 'underline' }}
               >
                 ← Back to groups
               </button>
@@ -760,23 +760,23 @@ export function ShelvesPanel() {
                   <div style={{ marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '4px' }}>
                       <div style={{ width: 3, height: '1.1em', background: GOLD, borderRadius: 2, flexShrink: 0, alignSelf: 'center', opacity: 0.6 }} />
-                      <span style={{ fontFamily: BODY, fontSize: '0.75rem', fontWeight: 600, color: 'var(--foer-text-pri)', lineHeight: 1.3, wordBreak: 'break-word' }}>
+                      <span style={{ fontFamily: BODY, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: 'var(--foer-text-pri)', lineHeight: 1.3, wordBreak: 'break-word' }}>
                         {sub.label}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingLeft: '10px' }}>
-                      <span style={{ fontFamily: MONO, fontSize: '0.6rem', color: 'var(--foer-text-mut)' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
                         {sub.bullets.length} {sub.bullets.length === 1 ? 'memory' : 'memories'}
                       </span>
                       {agentClassBadge && (
                         <span style={{
                           fontFamily:    MONO,
-                          fontSize:      '0.55rem',
+                          fontSize: 'var(--type-caption-size)',
                           color:         'var(--foer-text-mut)',
                           border:        '1px solid var(--foer-border-dim)',
                           borderRadius:  2,
                           padding:       '0px 4px',
-                          letterSpacing: '0.03em',
+                          letterSpacing: '0.04em',
                           opacity:       0.7,
                         }}>
                           {agentClassBadge}
@@ -831,7 +831,7 @@ export function ShelvesPanel() {
               borderTop:   '1px solid var(--foer-border-dim)',
               paddingTop:  '0.75rem',
               fontFamily:  MONO,
-              fontSize:    '0.65rem',
+              fontSize: 'var(--type-caption-size)',
               color:       'var(--foer-text-mut)',
               display:     'flex',
               gap:         '1.5rem',

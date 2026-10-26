@@ -703,7 +703,7 @@ export function SuperpositionPanel({
               background: CARD_BG,
               color: GOLD,
               cursor: 'pointer',
-              letterSpacing: '0.02em',
+              letterSpacing: '0',
               transition: 'background 0.15s, color 0.15s',
             }}
             onMouseEnter={e => {

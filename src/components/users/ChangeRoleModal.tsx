@@ -51,7 +51,7 @@ function RoleBadge({ role }: { role: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
         ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
       )}
     >
@@ -162,7 +162,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
                   <div className="flex items-center gap-2">
                     <RoleBadge role={role} />
                     {isCurrent && (
-                      <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">current</span>
+                      <span className="text-xs font-mono font-semibold uppercase tracking-wide text-muted-foreground">current</span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{d.description}</p>

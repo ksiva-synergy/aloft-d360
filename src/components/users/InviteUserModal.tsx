@@ -43,7 +43,7 @@ function RoleBadge({ role, label }: { role: string; label?: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-1.5 py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
         ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
       )}
     >

@@ -14,8 +14,8 @@ const RED = '#f43f5e';
 const BORDER_SUBTLE = 'color-mix(in srgb, var(--brand-a) 15%, transparent)';
 const DRAFT_BG = 'rgba(136,146,164,0.06)';
 const DRAFT_BD = 'rgba(136,146,164,0.30)';
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 interface DraftMeasure {
   id: string; column_name: string | null; measure_label: string; aggregate: string;
@@ -143,8 +143,8 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
       {/* Section header + New Metric */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: MUTED }}>MY DRAFTS</span>
-          {totalDrafts > 0 && <span style={{ ...mono, fontSize: 13, color: MUTED }}>({totalDrafts})</span>}
+          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: MUTED }}>MY DRAFTS</span>
+          {totalDrafts > 0 && <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>({totalDrafts})</span>}
         </div>
         <button
           onClick={() => { if (authorModelId) setPanel({ mode: 'new', modelId: authorModelId }); }}
@@ -162,16 +162,16 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
         </button>
       </div>
 
-      <div style={{ ...mono, fontSize: 13, color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
+      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
         Drafts are private to you until you submit them for governance.
       </div>
 
-      {loading && <div style={{ ...mono, fontSize: 13, color: MUTED }}>LOADING DRAFTS…</div>}
-      {error && <div style={{ ...mono, fontSize: 13, color: RED, marginBottom: 6 }}>{error}</div>}
+      {loading && <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>LOADING DRAFTS…</div>}
+      {error && <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: RED, marginBottom: 6 }}>{error}</div>}
 
       {!loading && totalDrafts === 0 && (
         <div style={{
-          ...mono, fontSize: 13, color: MUTED, textAlign: 'center', padding: '16px 8px',
+          ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', padding: '16px 8px',
           border: `1px dashed ${DRAFT_BD}`, borderRadius: 6, lineHeight: 1.6,
         }}>
           No drafts yet. Click <span style={{ color: GOLD }}>Define a Metric</span> to author one.
@@ -180,7 +180,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
 
       {groups.map((g) => (
         <div key={g.entityId} style={{ marginBottom: 8 }}>
-          <div style={{ ...mono, fontSize: 13, color: MUTED, marginBottom: 4 }}>
+          <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginBottom: 4 }}>
             {g.entityLabel}
             {isOrg && <span style={{ opacity: 0.6 }}> · {g.modelName}</span>}
           </div>
@@ -245,13 +245,13 @@ function DraftRow({
         }}>
           DRAFT
         </span>
-        <span style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {label}
         </span>
-        <span style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0 }}>{typeTag}</span>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>{typeTag}</span>
       </div>
       {subtitle && (
-        <div style={{ ...sans, fontSize: 13, color: MUTED, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginBottom: 5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {subtitle}
         </div>
       )}

@@ -11,7 +11,7 @@ import {
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--ink-3)';
@@ -173,7 +173,7 @@ export function EmptyStatePrompts({
         </div>
       )}
       {footerHint && (
-        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.02em' }}>{footerHint}</span>
+        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0' }}>{footerHint}</span>
       )}
     </Frame>
   );

@@ -48,7 +48,7 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
         <h1
           style={{
             fontFamily: FONT_DISPLAY,
-            fontSize: 25,
+            fontSize: 'var(--type-kpi-lg-size)',
             fontWeight: 500,
             letterSpacing: '-0.01em',
             color: 'var(--foreground)',
@@ -74,7 +74,7 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
               minWidth: 64,
             }}
           >
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, lineHeight: 1, color: t.color }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 'var(--type-title-section-size)', fontWeight: 600, lineHeight: 1, color: t.color }}>
               {t.n}
             </div>
             <div style={{ ...type.label, color: 'var(--text-tertiary)', marginTop: 5 }}>

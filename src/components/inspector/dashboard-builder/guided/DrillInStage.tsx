@@ -601,10 +601,10 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
   const swatches = ['', OKABE_ITO[0], OKABE_ITO[1], OKABE_ITO[2], OKABE_ITO[4], OKABE_ITO[6]];
   return (
     <PanelSection icon={<Palette size={12} color={VIOLET} />} label="Polish">
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Title</label>
+      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Title</label>
       <input value={draft.title} onChange={(e) => onChange({ title: e.target.value })} aria-label="Chart title" style={{ ...selectStyle(), width: '100%', marginTop: 4, marginBottom: 12 }} />
 
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
+      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Colour</label>
       <div style={{ display: 'flex', gap: 6, marginTop: 4, marginBottom: 12 }}>
         {swatches.map((c) => (
           <button
@@ -624,7 +624,7 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
         ))}
       </div>
 
-      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
+      <label style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
       <select value={draft.format} onChange={(e) => onChange({ format: e.target.value as NumFmt })} aria-label="Number format" style={{ ...selectStyle(), width: '100%', marginTop: 4 }}>
         <option value="auto">Auto</option>
         <option value="compact">Compact (1.2k)</option>
@@ -657,7 +657,7 @@ function FieldList({ label, labels, color }: { label: string; labels: string[]; 
   if (labels.length === 0) return null;
   return (
     <div style={{ marginBottom: 8 }}>
-      <span style={{ ...UI, fontSize: 13, letterSpacing: '0.05em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
+      <span style={{ ...UI, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>{label}</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
         {labels.map((l, i) => (
           <span key={i} style={{ ...UI, fontSize: 13, color, border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), borderRadius: 12, padding: '3px 9px', whiteSpace: 'nowrap' }}>

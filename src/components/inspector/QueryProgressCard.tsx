@@ -7,7 +7,7 @@ import type { QueryProgress } from '@/hooks/useInspectorChat';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 
@@ -83,7 +83,7 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
 
         {/* Selected definitions */}
         {progress.definitionsSelected && progress.definitionsSelected.length > 0 && (
-          <div style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>
             <span style={{ color: 'var(--wb-muted, var(--ink-3))' }}>Using: </span>
             {progress.definitionsSelected.join(', ')}
           </div>

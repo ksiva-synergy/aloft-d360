@@ -7,7 +7,7 @@ import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--ink-3)';
@@ -69,9 +69,9 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
       >
         CSV export ready
       </div>
-      <div style={{ fontSize: 13, color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
+      <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
         Download up to <strong>{message.maxRows.toLocaleString()}</strong> rows
-        as <code style={{ ...MONO, fontSize: 13 }}>{message.filename}</code>.
+        as <code style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>{message.filename}</code>.
         This re-runs the query on the warehouse (not the preview slice).
       </div>
       <button
@@ -95,7 +95,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
         {busy ? 'Preparing…' : done ? 'Download again' : 'Download CSV'}
       </button>
       {error && (
-        <div style={{ ...MONO, fontSize: 13, color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
+        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
           {error}
         </div>
       )}

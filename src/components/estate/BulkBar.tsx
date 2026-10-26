@@ -26,7 +26,7 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
       }}
     >
       <span
-        style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: goldColor, letterSpacing: '0.04em' }}
+        style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: goldColor, letterSpacing: '0.04em' }}
       >
         {count} selected
       </span>
@@ -54,8 +54,8 @@ export default function BulkBar({ count, onHarvest, onClear }: BulkBarProps) {
         onClick={onClear}
         className="ml-auto transition-colors"
         style={{
-          fontFamily: "'IBM Plex Mono', monospace",
-          fontSize: '13px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: textMuted,
           cursor: 'pointer',
           textTransform: 'uppercase',

@@ -122,13 +122,13 @@ export function DetailDrawer({ onRowAction }: Props) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ ...MONO, fontSize: 13, color: kindC, background: tint(kindC), border: `1px solid ${tint(kindC, 40)}`, borderRadius: 3, padding: '2px 6px' }}>{kindLabel(row.kind)}</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: statusC }}>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: kindC, background: tint(kindC), border: `1px solid ${tint(kindC, 40)}`, borderRadius: 3, padding: '2px 6px' }}>{kindLabel(row.kind)}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: statusC }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusC }} /> {statusLabel(row.status)}
                 </span>
               </div>
-              <div style={{ ...SERIF, fontSize: 19, fontWeight: 600, color: INK, lineHeight: 1.2 }}>{row.label}</div>
-              <div style={{ ...MONO, fontSize: 13, color: MUTED, marginTop: 5, display: 'flex', gap: 12 }}>
+              <div style={{ ...SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: INK, lineHeight: 1.2 }}>{row.label}</div>
+              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginTop: 5, display: 'flex', gap: 12 }}>
                 {row.kind === 'entity' && <span>{row.dCount ?? 0}D · {row.mCount ?? 0}M · {row.jCount ?? 0}J</span>}
                 <span>Updated {fmtDate(row.updatedAt)}</span>
               </div>
@@ -142,11 +142,11 @@ export function DetailDrawer({ onRowAction }: Props) {
         {/* Body */}
         <div style={{ padding: '16px 18px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Section title="Definition">
-            <p style={{ ...SANS, fontSize: 13, color: INK_DIM, lineHeight: 1.55, margin: 0 }}>
+            <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, lineHeight: 1.55, margin: 0 }}>
               {row.description || row.expression || <span style={{ color: MUTED }}>No description yet.</span>}
             </p>
             {row.kind === 'measure' && (row.aggregate || row.expression) && (
-              <div style={{ ...MONO, fontSize: 13, color: 'var(--mc-kind-measure)', marginTop: 8, background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '6px 9px' }}>
+              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-kind-measure)', marginTop: 8, background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '6px 9px' }}>
                 {row.expression ? row.expression : `${row.aggregate}(${row.column ?? ''})`}{row.unit ? ` · ${row.unit}` : ''}
               </div>
             )}
@@ -163,8 +163,8 @@ export function DetailDrawer({ onRowAction }: Props) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {entityDims.slice(0, 24).map((d) => (
                   <button key={d.rowKey} onClick={() => openDrawer(d.rowKey)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'transparent', border: 'none', borderRadius: 3, padding: '4px 2px', cursor: 'pointer', textAlign: 'left' }}>
-                    <span style={{ ...SANS, fontSize: 13, color: INK }}>{d.label}</span>
-                    <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{d.dimensionType ?? 'categorical'} · {d.column ?? '—'}</span>
+                    <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK }}>{d.label}</span>
+                    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{d.dimensionType ?? 'categorical'} · {d.column ?? '—'}</span>
                   </button>
                 ))}
               </div>
@@ -172,7 +172,7 @@ export function DetailDrawer({ onRowAction }: Props) {
           )}
 
           <Section title="Where it lives">
-            <div style={{ ...MONO, fontSize: 13, color: INK_DIM, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Database size={13} color={MUTED} />
               <span style={{ wordBreak: 'break-all' }}>{row.fullPath}{row.column ? ` · ${row.column}` : ''}</span>
             </div>
@@ -183,13 +183,13 @@ export function DetailDrawer({ onRowAction }: Props) {
             {!activeModelGoverned ? (
               <UnlockNote />
             ) : lineage.loading ? (
-              <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Loading lineage…</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Loading lineage…</span>
             ) : lineage.error ? (
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--mc-res-unrecognized)' }}>Lineage error: {lineage.error}</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>Lineage error: {lineage.error}</span>
             ) : lineage.graph ? (
               <CatalogLineageGraph graph={lineage.graph} focusId={focusNodeId ?? row.nodeId} onRefocus={refocus} />
             ) : (
-              <span style={{ ...MONO, fontSize: 13, color: MUTED }}>No lineage for this definition.</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No lineage for this definition.</span>
             )}
           </Section>
 
@@ -202,12 +202,12 @@ export function DetailDrawer({ onRowAction }: Props) {
           {/* Compiled SQL — read-only trust view */}
           {activeModelGoverned && lineage.compiledSql && (
             <Section title="Compiled SQL (read-only trust view)">
-              <button onClick={() => setSqlOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <button onClick={() => setSqlOpen((v) => !v)} style={{ display: 'flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
                 <ChevronRight size={12} style={{ transform: sqlOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
                 {sqlOpen ? 'Hide' : 'Show'} SQL
               </button>
               {sqlOpen && (
-                <pre style={{ ...MONO, fontSize: 13, color: INK_DIM, background: 'var(--terminal-bg, #0d1117)', border: `1px solid ${BORDER}`, borderRadius: 5, padding: 10, marginTop: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                <pre style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, background: 'var(--terminal-bg, #0d1117)', border: `1px solid ${BORDER}`, borderRadius: 5, padding: 10, marginTop: 8, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {lineage.compiledSql}
                 </pre>
               )}
@@ -226,7 +226,7 @@ export function DetailDrawer({ onRowAction }: Props) {
                 <FooterBtn icon={<Archive size={14} />} label="Archive" onClick={() => onRowAction('archive', row)} />
               )}
               {!canAct && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 13, color: MUTED }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
                   <Lock size={12} /> View only — you didn&apos;t author this
                 </span>
               )}
@@ -246,7 +246,7 @@ export function DetailDrawer({ onRowAction }: Props) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em', marginBottom: 8 }}>{title.toUpperCase()}</div>
+      <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', marginBottom: 8 }}>{title.toUpperCase()}</div>
       {children}
     </div>
   );
@@ -254,7 +254,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function UnlockNote() {
   return (
-    <div style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.6, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '10px 12px' }}>
+    <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '10px 12px' }}>
       <Lock size={12} style={{ verticalAlign: '-2px', marginRight: 6 }} />
       Lineage, compiled SQL, and consumers unlock once this model is <span style={{ color: GOLD }}>governed</span>.
     </div>
@@ -263,7 +263,7 @@ function UnlockNote() {
 
 function OmissionNote({ reason }: { reason: string }) {
   return (
-    <div style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.55, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '9px 11px' }}>
+    <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.55, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '9px 11px' }}>
       Not loaded — {reason}
     </div>
   );
@@ -274,7 +274,7 @@ function FooterBtn({ label, icon, onClick, primary }: { label: string; icon: Rea
     <button
       onClick={onClick}
       style={{
-        display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 13, fontWeight: 600,
+        display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
         padding: '7px 13px', borderRadius: 4, cursor: 'pointer',
         border: `1px solid ${primary ? GOLD : BORDER}`,
         background: primary ? GOLD : 'transparent',

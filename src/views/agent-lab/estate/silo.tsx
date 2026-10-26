@@ -350,8 +350,8 @@ function SiloFinderContent() {
   const chipStyle = {
     backgroundColor: 'var(--estate-hover)',
     border: `1px solid ${borderColor}`,
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 'var(--type-ui-regular-size)',
     borderRadius: '4px',
     padding: '4px 8px',
     color: labelColor,
@@ -361,7 +361,7 @@ function SiloFinderContent() {
     <div className="h-full flex flex-col overflow-y-auto p-6 bg-[var(--background)]" style={{ color: inkColor }}>
       {/* 1. Step Indicator strip */}
       <div className="flex items-center gap-4 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
           {step > 1 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : (
@@ -370,7 +370,7 @@ function SiloFinderContent() {
           <span style={{ color: step === 1 ? inkColor : labelColor }}>Pick object</span>
         </div>
         <div className="text-xs" style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
           {step > 2 ? (
             <span style={{ color: activeColor }}>✓</span>
           ) : step === 2 ? (
@@ -384,7 +384,7 @@ function SiloFinderContent() {
           <span style={{ color: step === 2 ? inkColor : labelColor }}>Scan</span>
         </div>
         <div className="text-xs" style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
           {step === 3 ? (
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeColor }} />
           ) : (
@@ -397,7 +397,7 @@ function SiloFinderContent() {
       {/* 2. Step Views */}
       {step === 1 && (
         <div className="flex flex-col gap-6 max-w-xl">
-     <h2 className="text-label " style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
+     <h2 className="text-label " style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
             Silo Finder
           </h2>
 
@@ -462,10 +462,10 @@ function SiloFinderContent() {
                         className="flex items-center justify-between p-3 border-b last:border-b-0 cursor-pointer hover:bg-amber-500/5 transition-all duration-100"
                         style={{ borderColor }}
                       >
-                        <span className="truncate pr-4" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: inkColor }}>
+                        <span className="truncate pr-4" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
                           {item.full_path}
                         </span>
-                        <span className="truncate flex-shrink-0" style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: '13px', color: labelColor }}>
+                        <span className="truncate flex-shrink-0" style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }}>
                           {truncateText(item.semantic_summary || 'No summary available.', 60)}
                         </span>
                       </div>
@@ -484,18 +484,18 @@ function SiloFinderContent() {
               <button
                 onClick={handleClear}
                 className="absolute top-4 right-4 text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                style={{ fontFamily: 'var(--font-mono)' }}
               >
                 [× Clear]
               </button>
 
-              <div className="pr-16" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px', fontWeight: 'bold', color: inkColor }}>
+              <div className="pr-16" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-body-size)', fontWeight: 600, color: inkColor }}>
                 {selectedObject.full_path}
               </div>
-              <div style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: '13px', color: labelColor, lineHeight: '1.5' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor, lineHeight: '1.5' }}>
                 {selectedObject.summary}
               </div>
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: labelColor }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }}>
                 Rows: {selectedObject.row_count_est !== null ? Number(selectedObject.row_count_est).toLocaleString() : '—'}
               </div>
             </div>
@@ -505,7 +505,7 @@ function SiloFinderContent() {
           <div className="flex flex-col gap-4 py-4 border-t border-dashed" style={{ borderColor }}>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs uppercase tracking-wider" style={{ color: labelColor, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-mono)' }}>
                   Top N results
                 </label>
                 <input
@@ -516,12 +516,12 @@ function SiloFinderContent() {
                   value={topN}
                   onChange={(e) => setTopN(Math.min(50, Math.max(5, Number(e.target.value) || 5)))}
                   className="px-3 py-2 rounded border outline-none bg-transparent"
-                  style={{ borderColor, color: inkColor, fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px' }}
+                  style={{ borderColor, color: inkColor, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)' }}
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs uppercase tracking-wider" style={{ color: labelColor, fontFamily: "'IBM Plex Mono', monospace" }}>
+                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-mono)' }}>
                   Min similarity
                 </label>
                 <input
@@ -532,7 +532,7 @@ function SiloFinderContent() {
                   value={minScore}
                   onChange={(e) => setMinScore(Math.min(1.0, Math.max(0.0, Number(e.target.value) || 0.0)))}
                   className="px-3 py-2 rounded border outline-none bg-transparent"
-                  style={{ borderColor, color: inkColor, fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px' }}
+                  style={{ borderColor, color: inkColor, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)' }}
                 />
               </div>
             </div>
@@ -545,7 +545,7 @@ function SiloFinderContent() {
                 className="w-3.5 h-3.5 rounded border outline-none cursor-pointer accent-[var(--brand-a)]"
                 style={{ borderColor }}
               />
-              <span style={{ color: labelColor, fontFamily: "'Inter Variable', sans-serif" }}>Include previously rejected</span>
+              <span style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>Include previously rejected</span>
             </label>
           </div>
 
@@ -556,7 +556,7 @@ function SiloFinderContent() {
               disabled={!selectedObject || submitting}
        className="px-6 py-2.5 rounded text-label transition-all duration-200"
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: 'var(--font-mono)',
                 backgroundColor: selectedObject && !submitting ? activeColor : raisedBg,
                 color: selectedObject && !submitting ? 'var(--on-brand)' : labelColor,
                 border: selectedObject && !submitting ? 'none' : `1px solid ${borderColor}`,
@@ -578,12 +578,12 @@ function SiloFinderContent() {
 
       {step === 2 && (
         <div className="flex flex-col gap-6 max-w-xl">
-          <h2 className="tracking-wider uppercase" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: activeColor }}>
+          <h2 className="tracking-wide uppercase" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: activeColor }}>
             Scanning {selectedObject?.full_path}...
           </h2>
 
           <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
-            <div className="flex flex-col gap-3 text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+            <div className="flex flex-col gap-3 text-xs" style={{ fontFamily: 'var(--font-mono)' }}>
               {stages.map((stage, idx) => {
                 const status = getStageStatus(stage.key, idx);
                 const duration = jobData?.stats?.[stage.durKey];
@@ -592,7 +592,7 @@ function SiloFinderContent() {
                   <div key={stage.key} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {status === 'checked' ? (
-                        <span style={{ color: activeColor }} className="font-bold">✓</span>
+                        <span style={{ color: activeColor }} className="font-semibold">✓</span>
                       ) : status === 'current' ? (
                         <span className="relative flex h-2 w-2">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: activeColor }}></span>
@@ -617,7 +617,7 @@ function SiloFinderContent() {
           </div>
 
           {jobData?.status === 'succeeded' && (
-            <div className="text-xs font-mono" style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
+            <div className="text-xs font-mono" style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
               {jobData.stats?.candidates_found ?? 0} candidates found above threshold · {jobData.scope?.topN ?? jobData.stats?.scanned_count ?? 15} scanned
             </div>
           )}
@@ -640,7 +640,7 @@ function SiloFinderContent() {
 
       {step === 3 && (
         <div className="flex flex-col gap-4 max-w-2xl">
-     <h2 className="text-label mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: labelColor }}>
+     <h2 className="text-label mb-2" style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
             Scan Results
           </h2>
 
@@ -657,7 +657,7 @@ function SiloFinderContent() {
                 <button
                   onClick={handleScanAnother}
                   className="text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   [← Scan another object]
                 </button>
@@ -666,7 +666,7 @@ function SiloFinderContent() {
           ) : (
             <div className="flex flex-col gap-4">
               {/* Summary line */}
-              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: labelColor }} className="mb-2">
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }} className="mb-2">
                 {links.length} results found · {jobData?.scope?.topN ?? topN} scanned
               </div>
 
@@ -708,7 +708,7 @@ function SiloFinderContent() {
                       Same schema: {candidateObj?.schema_name || 'default'}
                     </span>
                   ) : (
-                    <span style={{ ...chipStyle, backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', borderColor: activeColor, color: activeColor, fontWeight: 'bold' }}>
+                    <span style={{ ...chipStyle, backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', borderColor: activeColor, color: activeColor, fontWeight: 600 }}>
                       ⚠ {candidateObj?.schema_name || 'default'}
                     </span>
                   );
@@ -750,25 +750,25 @@ function SiloFinderContent() {
                       {/* Top Row */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 truncate">
-                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px', color: activeColor }} className="font-bold shrink-0">
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-body-size)', color: activeColor }} className="font-semibold shrink-0">
                             #{index + 1}
                           </span>
                           <Link
                             href={`/agent-lab/estate/object/${candidateId}`}
                             className={`hover:underline hover:text-[var(--brand-a-ink)] transition-colors truncate font-semibold ${isRejected ? 'line-through opacity-70' : ''}`}
-                            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: inkColor }}
+                            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}
                           >
                             {candidatePath}
                           </Link>
                         </div>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: inkColor }} className="font-bold shrink-0">
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }} className="font-semibold shrink-0">
                           Score: {Number(compositeScore ?? 0).toFixed(2)}
                         </span>
                       </div>
 
                       {/* Candidate Description */}
                       {candidateSummary && (
-                        <div style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: '13px', color: labelColor, lineHeight: '1.5' }}>
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor, lineHeight: '1.5' }}>
                           {candidateSummary}
                         </div>
                       )}
@@ -821,7 +821,7 @@ function SiloFinderContent() {
                             )}
                           </div>
                           {reasoning && (
-                            <p style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: '13px', color: inkColor, lineHeight: '1.5' }}>
+                            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, lineHeight: '1.5' }}>
                               {reasoning}
                             </p>
                           )}
@@ -879,7 +879,7 @@ function SiloFinderContent() {
                 <button
                   onClick={handleScanAnother}
                   className="text-xs font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   [← Scan another object]
                 </button>

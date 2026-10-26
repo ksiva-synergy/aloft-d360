@@ -33,7 +33,7 @@ export function CompanionSettings() {
   const customColor = !COMPANION_COLORS.some(c => c.value.toLowerCase() === preferences.color.toLowerCase());
   return <section id="companion" className="scroll-mt-6 rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
     <div className="flex items-start justify-between gap-4">
-      <div><h2 className="text-sm font-bold text-[var(--ink-1)]">Your AI companion</h2>
+      <div><h2 className="text-sm font-semibold text-[var(--ink-1)]">Your AI companion</h2>
         <p className="mt-1 text-sm text-[var(--ink-3)]">The familiar face beside your agent&apos;s responses. Preferences are saved in this browser.</p></div>
       <button type="button" onClick={() => saveCompanionPreferences(DEFAULT_COMPANION)} className="shrink-0 rounded-md px-2 py-1 text-xs text-[var(--brand-a-ink)]">Reset companion</button>
     </div>

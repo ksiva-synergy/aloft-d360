@@ -197,7 +197,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
     <div className="p-8 space-y-10">
       {parent && (
         <section>
-     <h3 className="text-label text-[11px] mb-4" style={{ color: '#8892A4' }}>
+     <h3 className="text-label text-[length:var(--type-caption-size)] mb-4" style={{ color: '#8892A4' }}>
             Child chunks
           </h3>
           <p className="text-xs font-mono mb-4" style={{ color: '#8892A4' }}>
@@ -473,7 +473,7 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
     >
       <div className="flex items-center justify-between">
         <span style={{ color: 'var(--ink-3)' }}>{icon}</span>
-        <span className="font-mono text-2xl font-bold" style={{ color: accentColor }}>
+        <span className="font-mono text-2xl font-semibold" style={{ color: accentColor }}>
           {typeof value === 'number' && !isNaN(value)
             ? value % 1 === 0 ? value.toLocaleString() : value.toFixed(4)
             : String(value)}
@@ -668,9 +668,9 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
   const warnCount = lines.filter(l => isWarnLine(l.message)).length;
 
   const logBody = (
-    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0, fontFamily: 'IBM Plex Mono, monospace' }}>
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0, fontFamily: 'var(--font-mono)' }}>
       {isLoading && (
-        <div className="flex items-center gap-2 px-5 py-4" style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+        <div className="flex items-center gap-2 px-5 py-4" style={{ color: 'var(--ink-3)', fontSize: 'var(--type-ui-regular-size)' }}>
           <Loader2 size={12} className="animate-spin" /> Loading logs…
         </div>
       )}
@@ -742,7 +742,7 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
           <div key={i} className="flex gap-3 px-4 py-0.5 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] group text-xs leading-relaxed"
             style={{ backgroundColor: isErr ? 'rgba(239,68,68,0.08)' : isWarn ? 'rgba(234,179,8,0.05)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
             <span className="shrink-0 select-none tabular-nums w-[7ch]" style={{ color: '#4a5568' }}>{formatTs(line.ts)}</span>
-            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'transparent', fontSize: 13 }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
+            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'transparent', fontSize: 'var(--type-ui-regular-size)' }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
             <span className="flex-1 break-all whitespace-pre-wrap" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'var(--ink-1)' }}>{line.message.replace(/\n$/, '')}</span>
           </div>
         );
@@ -878,11 +878,11 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
         <table className="w-full text-xs font-mono border-collapse">
           <thead>
             <tr style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Object</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Schema</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Kind</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Tiers</th>
-              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}></th>
+              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Object</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Schema</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Kind</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Tiers</th>
+              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wide text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}></th>
             </tr>
           </thead>
           <tbody>
@@ -906,7 +906,7 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
                     {obj.tiers_touched.map(tier => {
                       const tc = TIER_COLORS[tier] ?? { color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.1)' };
                       return (
-                        <span key={tier} className="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                        <span key={tier} className="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide"
                           style={{ color: tc.color, backgroundColor: tc.bg }}>
                           {tier.replace('_', ' ')}
                         </span>
@@ -1104,7 +1104,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
         toast.success(
           <span>
             Fargate container launched.{' '}
-            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, opacity: 0.7 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', opacity: 0.7 }}>
               {json.task_id?.slice(0, 12)}
             </span>
           </span>
@@ -1225,7 +1225,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                 {tab.icon}
                 {tab.label}
                 {tab.badge !== undefined && (
-                  <span className="px-1.5 py-0.5 rounded-full text-xs font-bold"
+                  <span className="px-1.5 py-0.5 rounded-full text-xs font-semibold"
                     style={{
                       backgroundColor: tab.badge === 'live' ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 10%, transparent)',
                       color: tab.badge === 'live' ? 'var(--brand-a-ink)' : 'var(--ink-1)',

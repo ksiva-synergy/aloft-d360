@@ -60,10 +60,10 @@ export function InsightsPanel({ insights, onOpen }: { insights: Insight[]; onOpe
               <Icon size={16} />
             </span>
             <span style={{ minWidth: 0 }}>
-              <span style={{ ...sans, display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)', lineHeight: 1.35 }}>{ins.title}</span>
-              <span style={{ ...sans, display: 'block', fontSize: 12, color: 'var(--wb-ink-dim)', marginTop: 4, lineHeight: 1.5 }}>{ins.detail}</span>
+              <span style={{ ...sans, display: 'block', fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)', lineHeight: 1.35 }}>{ins.title}</span>
+              <span style={{ ...sans, display: 'block', fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink-dim)', marginTop: 4, lineHeight: 1.5 }}>{ins.detail}</span>
               {clickable && (
-                <span style={{ ...sans, display: 'block', fontSize: 11, color: 'var(--brand-a)', marginTop: 6 }}>
+                <span style={{ ...sans, display: 'block', fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', marginTop: 6 }}>
                   Inspect {ins.calls!.length === 1 ? 'call' : `${ins.calls!.length} calls`} →
                 </span>
               )}

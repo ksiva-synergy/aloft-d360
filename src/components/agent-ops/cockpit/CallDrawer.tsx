@@ -155,7 +155,7 @@ function Detail({
     <>
       <header style={{ padding: '16px 20px', borderBottom: BORDER, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ ...sans, fontSize: 12, color: 'var(--ink-3)' }}>
+          <span style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>
             {state.title ?? 'Tool call'} · {state.index + 1} of {state.items.length}
           </span>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -178,7 +178,7 @@ function Detail({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
           <span style={{ width: 12, height: 12, borderRadius: 4, background: colorOf(inv.toolName) }} />
-          <h3 style={{ ...mono, fontSize: 18, fontWeight: 500, margin: 0, color: 'var(--wb-ink)' }}>{inv.toolName}</h3>
+          <h3 style={{ ...mono, fontSize: 'var(--type-title-section-size)', fontWeight: 500, margin: 0, color: 'var(--wb-ink)' }}>{inv.toolName}</h3>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
           <Chip color={ok ? OK : ERR}>{inv.status}</Chip>
@@ -195,7 +195,7 @@ function Detail({
           <div
             style={{
               ...mono,
-              fontSize: 12,
+              fontSize: 'var(--type-caption-size)',
               color: ERR,
               padding: 12,
               marginTop: 16,
@@ -217,12 +217,12 @@ function Detail({
         {outputText ? (
           <CodeBlock label="Output" text={outputText} />
         ) : (
-          <p style={{ ...sans, fontSize: 12, color: 'var(--ink-3)', marginTop: 16 }}>No output was recorded for this call.</p>
+          <p style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', marginTop: 16 }}>No output was recorded for this call.</p>
         )}
         {inputText && sql && <CodeBlock label="Raw input" text={inputText} />}
       </div>
 
-      <footer style={{ ...sans, fontSize: 11, color: 'var(--ink-3)', padding: '10px 20px', borderTop: BORDER }}>
+      <footer style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', padding: '10px 20px', borderTop: BORDER }}>
         <kbd style={{ ...mono }}>↑</kbd> <kbd style={{ ...mono }}>↓</kbd> to step through calls · <kbd style={{ ...mono }}>Esc</kbd> to close
       </footer>
     </>

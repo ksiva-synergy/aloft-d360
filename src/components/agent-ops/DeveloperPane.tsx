@@ -7,7 +7,7 @@ import type { TraceLoopGroup } from '@/lib/agent-ops/types';
 import type { SessionAnalytics } from '@/lib/agent-ops/session-cockpit';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 interface DeveloperPaneProps {
   sessionId: string | null;
@@ -86,7 +86,7 @@ export function DeveloperPane({
       <div
         style={{
           ...mono,
-          fontSize: 10,
+          fontSize: 'var(--type-caption-size)',
           padding: '10px 12px',
           borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
           display: 'flex',
@@ -113,7 +113,7 @@ export function DeveloperPane({
         <div
           style={{
             ...mono,
-            fontSize: 11,
+            fontSize: 'var(--type-caption-size)',
             padding: '8px 12px',
             background: 'rgba(217,119,75,0.12)',
             borderBottom: '1px solid rgba(217,119,75,0.35)',
@@ -124,7 +124,7 @@ export function DeveloperPane({
         </div>
       )}
       {loadError && !liveSpans.length && (
-        <div style={{ ...mono, fontSize: 11, color: 'var(--ink-3)', padding: 12 }}>{loadError}</div>
+        <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', padding: 12 }}>{loadError}</div>
       )}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <AgentTraceTimeline loops={loops} />
@@ -133,7 +133,7 @@ export function DeveloperPane({
         <div style={{ padding: '8px 12px', borderTop: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <a
             href={`/agent-lab/runs/${sessionId}`}
-            style={{ ...mono, fontSize: 10, color: 'var(--brand-a)', textDecoration: 'none' }}
+            style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', textDecoration: 'none' }}
           >
             Full session intelligence →
           </a>

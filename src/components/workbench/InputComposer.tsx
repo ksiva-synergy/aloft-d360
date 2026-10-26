@@ -16,8 +16,8 @@ import {
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
 import { type } from '@/lib/typography/tokens';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--wb-muted)';
@@ -161,7 +161,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
               }}
             >
               <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-                <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>
+                <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   Attach tool
                 </span>
               </div>
@@ -187,7 +187,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
                   >
                     <Database size={13} style={{ color: GOLD, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ ...sans, fontSize: 13, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {displayName(tool.name)}
                       </div>
                       <div style={{ ...type['ui-regular'], color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -196,7 +196,7 @@ function ToolChips({ attachedToolIds, onAttach, onDetach }: ToolChipsProps) {
                     </div>
                     <span style={{
                       ...type['ui-regular'],
-                      fontWeight: 700,
+                      fontWeight: 600,
                       padding: '2px 6px',
                       borderRadius: 4,
                       color: tool.status === 'active' ? GREEN : MUTED,
@@ -304,12 +304,12 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
             }}
           >
             <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-              <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.10em', textTransform: 'uppercase' }}>Model</span>
+              <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Model</span>
             </div>
             <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
               {Object.entries(grouped).map(([provider, models]) => (
                 <div key={provider}>
-                  <div style={{ padding: '6px 12px 3px', ...type['ui-regular'], color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+                  <div style={{ padding: '6px 12px 3px', ...type['ui-regular'], color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
                     {provider === 'llmlite' ? 'LLM Lite' : provider}
                   </div>
                   {models.map(m => {
@@ -337,10 +337,10 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
                           {isActive && <CheckCircle2 size={12} style={{ color: GOLD }} />}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ ...sans, fontSize: 13, color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
+                          <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
                             {m.label}
                             {m.supportsThinking && (
-                              <span style={{ ...type['ui-regular'], color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.06em' }}>thinking</span>
+                              <span style={{ ...type['ui-regular'], color: '#8b5cf6', marginLeft: 6, letterSpacing: '0.04em' }}>thinking</span>
                             )}
                           </div>
                           <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 1 }}>{m.description}</div>

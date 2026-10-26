@@ -103,8 +103,8 @@ export default function InPageNav({ sectionRefs }: InPageNavProps) {
               gap: 7,
               borderBottom: isActive ? '2px solid var(--brand-a)' : '2px solid transparent',
               color: isActive ? 'var(--brand-a)' : 'var(--estate-text-secondary, var(--ink-3))',
-              fontFamily: '"Inter Variable", sans-serif',
-              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: isActive ? 600 : 400,
               transition: 'color 0.15s ease, border-color 0.15s ease',
               whiteSpace: 'nowrap',
@@ -114,8 +114,8 @@ export default function InPageNav({ sectionRefs }: InPageNavProps) {
             {subtitle && (
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: isActive ? 'color-mix(in srgb, var(--brand-a) 60%, transparent)' : 'rgba(136,146,164,0.5)',
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',

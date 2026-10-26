@@ -60,7 +60,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--warning) 26%, transparent)',
               color: 'var(--warning)',
               fontFamily: FONT_MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.04em',
             }}
           >
@@ -79,7 +79,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--destructive) 26%, transparent)',
               color: 'var(--destructive)',
               fontFamily: FONT_MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.04em',
             }}
           >

@@ -43,7 +43,7 @@ function PickerRow({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink-3)]">{title}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">{title}</span>
         <span className="font-mono text-xs text-[var(--ink-3)]">{value.toUpperCase()}</span>
       </div>
       <div className="flex flex-wrap items-center gap-2 px-1">
@@ -109,7 +109,7 @@ export function AppearanceControls() {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink-3)]">Colors</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Colors</span>
         {customised && (
           <button
             type="button"

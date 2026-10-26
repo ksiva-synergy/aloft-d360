@@ -216,7 +216,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <ArrowLeft size={16} />
         </button>
 
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0.02em' }}>
+        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text)', fontWeight: 600, letterSpacing: '0' }}>
           {meta.name || 'Dashboard'}
         </span>
 

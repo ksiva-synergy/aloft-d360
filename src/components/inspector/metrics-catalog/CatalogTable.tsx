@@ -145,7 +145,7 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
   if (!view.length) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>No definitions match these filters.</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No definitions match these filters.</span>
       </div>
     );
   }
@@ -175,16 +175,16 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
             <Th label="Source" col="source" sort={sort} onSort={setSort} />
             <Th label="D/M/J" col="composition" sort={sort} onSort={setSort} />
             <Th label="Updated" col="updated" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'right' }}>ACTIONS</span>
           </>
         ) : (
           <>
             <Th label="Name" col="label" sort={sort} onSort={setSort} />
             <Th label="Type" col="kind" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 13, color: MUTED }}>DEFINITION</span>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>DEFINITION</span>
             <Th label="Theme" col="theme" sort={sort} onSort={setSort} />
             <Th label="Source" col="source" sort={sort} onSort={setSort} />
-            <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'right' }}>ACTIONS</span>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'right' }}>ACTIONS</span>
           </>
         )}
       </div>
@@ -339,7 +339,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...SANS,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: GOLD,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -352,7 +352,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...MONO,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: MUTED,
                 background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
                 border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
@@ -370,7 +370,7 @@ function ClusterParentRow({
           <span
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: r.themeOverridden ? GOLD : INK_DIM,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -383,7 +383,7 @@ function ClusterParentRow({
             title={r.fullPath}
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: MUTED,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -413,7 +413,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...SANS,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: GOLD,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
@@ -426,7 +426,7 @@ function ClusterParentRow({
             <span
               style={{
                 ...MONO,
-                fontSize: 13,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: MUTED,
                 background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
                 border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
@@ -443,7 +443,7 @@ function ClusterParentRow({
           <span
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: INK_DIM,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -456,7 +456,7 @@ function ClusterParentRow({
             title={r.fullPath}
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: MUTED,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -505,7 +505,7 @@ function Th({
       <span
         style={{
           ...MONO,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: active ? GOLD : MUTED,
           letterSpacing: '0.04em',
         }}
@@ -530,7 +530,7 @@ function KindChip({ r }: { r: CatalogRow }) {
     <span
       style={{
         ...MONO,
-        fontSize: 13,
+        fontSize: 'var(--type-ui-regular-size)',
         color: c,
         background: tint(c),
         border: `1px solid ${tint(c, 40)}`,
@@ -547,7 +547,7 @@ function KindChip({ r }: { r: CatalogRow }) {
 function StatusChip({ r }: { r: CatalogRow }) {
   const c = statusColorVar(r.status);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 13, color: c }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: c }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: c }} />
       {statusLabel(r.status)}
     </span>
@@ -560,7 +560,7 @@ function NameCell({ r }: { r: CatalogRow }) {
       <span
         style={{
           ...SANS,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: INK,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -622,7 +622,7 @@ function GovernRow({
       <span
         style={{
           ...MONO,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: r.themeOverridden ? GOLD : INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -635,7 +635,7 @@ function GovernRow({
         title={r.fullPath}
         style={{
           ...MONO,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: MUTED,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -644,10 +644,10 @@ function GovernRow({
       >
         {shortPath(r.fullPath)}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: MUTED }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
         {r.kind === 'entity' ? `${r.dCount ?? 0}D ${r.mCount ?? 0}M ${r.jCount ?? 0}J` : '—'}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{fmtDate(r.updatedAt)}</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{fmtDate(r.updatedAt)}</span>
       <span
         onClick={(e) => e.stopPropagation()}
         style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}
@@ -691,7 +691,7 @@ function ExploreRow({
       <span
         style={{
           ...SANS,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -703,7 +703,7 @@ function ExploreRow({
       <span
         style={{
           ...MONO,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: INK_DIM,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -716,7 +716,7 @@ function ExploreRow({
         title={r.fullPath}
         style={{
           ...MONO,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: MUTED,
           whiteSpace: 'nowrap',
           overflow: 'hidden',

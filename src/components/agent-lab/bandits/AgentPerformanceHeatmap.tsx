@@ -68,7 +68,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
             <div className="px-2 py-1.5" />
             {METRICS.map(m => (
               <div key={m.key} className="px-2 py-1.5 text-center">
-                <span className="text-xs uppercase tracking-wider font-semibold text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
+                <span className="text-xs uppercase tracking-wide font-semibold text-[var(--ink-3)] dark:text-[color:var(--ink-3)]">
                   {m.label}
                 </span>
               </div>

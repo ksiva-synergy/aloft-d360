@@ -204,7 +204,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
                       <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
                     </span>
-                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: "'Inter Variable', sans-serif" }}>
+                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
                       No objects match your filters
                     </span>
                   </div>
@@ -260,7 +260,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                   {/* pii */}
                   <td className="p-3 text-center">
                     {hasPiiFlag(item) && (
-                      <span className="text-red-500 font-bold text-xs" title="PII Detected">
+                      <span className="text-red-500 font-semibold text-xs" title="PII Detected">
                         ⚑
                       </span>
                     )}
@@ -271,7 +271,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       {getTags(item.entity_tags).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="font-mono text-xs font-semibold tracking-wider text-[var(--ink-3)] border rounded px-1.5 py-0.5"
+                          className="font-mono text-xs font-semibold tracking-wide text-[var(--ink-3)] border rounded px-1.5 py-0.5"
                           style={{ borderColor: borderColor }}
                         >
                           {tag}

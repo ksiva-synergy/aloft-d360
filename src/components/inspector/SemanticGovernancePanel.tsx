@@ -22,8 +22,8 @@ const GREEN_BD  = 'rgba(34,197,94,0.30)';
 const ARCH_BG   = 'rgba(136,146,164,0.08)';
 const ARCH_BD   = 'rgba(136,146,164,0.25)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ function EditableField({
           cursor: 'text', minHeight: 20,
           borderBottom: `1px dashed ${BORDER_SUBTLE}`,
           padding: '2px 0', color: 'var(--wb-ink)',
-          ...sans, fontSize: 13,
+          ...sans, fontSize: 'var(--type-ui-regular-size)',
         }}
       >
         <span style={{ ...type['ui-regular'], color: MUTED, marginRight: 6 }}>{label}</span>
@@ -156,7 +156,7 @@ function EditableField({
           onChange={e => setDraft(e.target.value)}
           rows={3}
           style={{
-            ...sans, fontSize: 13,
+            ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
             borderRadius: 4, color: 'var(--wb-ink)', padding: '4px 6px',
             resize: 'vertical', width: '100%',
@@ -169,7 +169,7 @@ function EditableField({
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
           style={{
-            ...sans, fontSize: 13,
+            ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
             borderRadius: 4, color: 'var(--wb-ink)', padding: '3px 6px',
           }}
@@ -282,7 +282,7 @@ function EntityCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-            <span style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)' }}>
+            <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)' }}>
               {entity.entity_label}
             </span>
             <StatusBadge status={entity.status} />
@@ -371,7 +371,7 @@ function EntityCard({
                 {entity.dimensions.map(d => (
                   <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
+                      <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{d.dimension_type}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{d.column_name}</span>
@@ -402,7 +402,7 @@ function EntityCard({
                 {entity.measures.map(m => (
                   <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
-                      <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
+                      <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{m.aggregate}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{m.metric_type}</span>
@@ -584,7 +584,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div>
-            <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)' }}>
+            <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)' }}>
               {data.model.name}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -650,7 +650,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
         borderTop: `1px solid ${BORDER_SUBTLE}`,
         flexShrink: 0,
       }}>
-        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.06em' }}>
+        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.04em' }}>
           SEMANTIC GOVERNANCE · ALOFT v0.4
         </span>
       </div>

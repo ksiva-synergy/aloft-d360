@@ -39,7 +39,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
       {count > 0 && (
         <>
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: goldColor, letterSpacing: '0.04em' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: goldColor, letterSpacing: '0.04em' }}
           >
             {count} selected
           </span>
@@ -64,7 +64,7 @@ export default function BulkActionBar({ count, onHarvest, onSchedule, onUnschedu
 
       {catalogScope && count === 0 && onScheduleCatalog && (
         <>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
             Scope: <strong style={{ color: blueColor }}>{catalogScope}</strong>
           </span>
           <button

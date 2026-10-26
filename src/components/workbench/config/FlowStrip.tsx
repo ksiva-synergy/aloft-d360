@@ -89,9 +89,9 @@ export function FlowStrip({ state }: { state: ConstructionState }) {
           >
             <span className="flex w-full items-center gap-1">
               <n.icon className={cn('h-3.5 w-3.5 shrink-0', n.status === 'done' ? 'text-[var(--ok)]' : 'text-[var(--ink-3)]')} />
-              <span className="truncate text-[11px] font-semibold text-[var(--ink-1)]">{n.label}</span>
+              <span className="truncate text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]">{n.label}</span>
             </span>
-            <span className="w-full truncate text-[10.5px] text-[var(--ink-3)]">{n.detail}</span>
+            <span className="w-full truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{n.detail}</span>
           </button>
         </React.Fragment>
       ))}

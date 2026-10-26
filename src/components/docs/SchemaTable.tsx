@@ -92,7 +92,7 @@ export function SchemaTable({ schema, title, className }: SchemaTableProps) {
     <div className={cn('overflow-hidden rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)]', className)}>
       {title && (
         <div className="px-4 py-2 bg-[color:var(--surface-2)] dark:bg-[var(--surface-1)] border-b border-[color:var(--line-1)] dark:border-[var(--line-1)]">
-          <h4 className="text-xs font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] uppercase tracking-wider">
+          <h4 className="text-xs font-semibold text-[color:var(--ink-2)] dark:text-[color:var(--ink-1)] uppercase tracking-wide">
             {title}
           </h4>
         </div>

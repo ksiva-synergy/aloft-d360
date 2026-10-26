@@ -560,7 +560,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           }}
         >
           {sweepState === 'running' && (
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '13px' }}>⟳</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 'var(--type-ui-regular-size)' }}>⟳</span>
           )}
           {sweepState === 'running'
             ? 'Distilling…'
@@ -576,7 +576,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       <h2 style={{
         fontFamily:    SERIF,
         fontWeight:    600,
-        fontSize:      '30px',
+        fontSize: 'var(--type-kpi-lg-size)',
         color:         'var(--foer-text-pri)',
         letterSpacing: '-0.01em',
         margin:        '0 0 8px',
@@ -587,7 +587,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       {/* ── Section description ───────────────────────────────────────────── */}
       <p style={{
         color:      'var(--foer-text-sec)',
-        fontSize:   '15px',
+        fontSize: 'var(--type-body-size)',
         maxWidth:   '680px',
         margin:     '0 0 0',
         lineHeight: 1.5,
@@ -1002,7 +1002,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
         {/* ── Recon counters (inline text) ─────────────────────────────────── */}
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '13px',
+          fontSize: 'var(--type-ui-regular-size)',
           letterSpacing: '0.04em',
           color:         'var(--foer-text-sec)',
           marginTop:     '14px',
@@ -1028,7 +1028,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       <p style={{
         fontFamily: SERIF,
         fontStyle:  'italic',
-        fontSize:   '16px',
+        fontSize: 'var(--type-body-lg-size)',
         color:      'var(--foer-text-sec)',
         marginTop:  '22px',
         maxWidth:   '720px',

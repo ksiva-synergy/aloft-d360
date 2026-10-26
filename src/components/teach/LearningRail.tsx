@@ -65,7 +65,7 @@ export function LearningRail({
             What Captain Track Sparrow is learning
           </span>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
           Live-extracted learnings from this session. Reviewable now; committed to memory later.
         </p>
       </div>
@@ -109,7 +109,7 @@ function RailEmpty() {
       >
         <Pencil size={16} />
       </div>
-      <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
         Nothing yet. As you teach Captain Track Sparrow, each learning appears here — tagged, tracked, and checked
         against the estate.
       </p>

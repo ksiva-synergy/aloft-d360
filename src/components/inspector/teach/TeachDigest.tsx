@@ -93,7 +93,7 @@ export function TeachDigest({ sessionId }: { sessionId?: string }) {
     <div className="max-w-3xl mx-auto" style={{ fontFamily: SANS }}>
       {/* Header + the boundary invariant, stated in the interface's voice */}
       <header className="mb-5">
-        <h1 className="text-[1.4rem] font-semibold tracking-tight">Candidate hand-off</h1>
+        <h1 className="text-[length:var(--type-title-section-size)] font-semibold tracking-tight">Candidate hand-off</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Teach captures candidates. Reviewing, resolving, and committing them to governed
           memory happens in <span className="font-medium text-foreground">Build</span> — a separate step.

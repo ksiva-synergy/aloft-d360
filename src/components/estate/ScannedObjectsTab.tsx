@@ -6,6 +6,7 @@ import ScannedFacetTree from './ScannedFacetTree';
 import Pagination from './Pagination';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 interface ScannedObjectItem {
   id: string;
   full_path: string;
@@ -139,7 +140,7 @@ function TierLegendPill({
       type="button"
       title={`${label}${active ? ' — click to clear filter' : ' — click to filter'}`}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-xs tracking-wide transition-all duration-150"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-ui transition-all duration-150"
       style={{
         color,
         backgroundColor: active ? `${withAlpha(color, '28')}` : `${withAlpha(color, '14')}`,
@@ -267,9 +268,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
   }, []);
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
-    letterSpacing: '0.04em',
+    ...type.ui,
     backgroundColor: surfaceBg,
     border: `1px solid var(--estate-border)`,
     borderRadius: '6px',
@@ -313,7 +312,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
             onFocusCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-btn-border)'; }}
             onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-border)'; }}
           >
-            <span style={{ color: textDim, fontSize: '14px' }}>⌕</span>
+            <span style={{ color: textDim, fontSize: 'var(--type-body-size)' }}>⌕</span>
             <input
               type="text"
               placeholder={`Search ${total} scanned objects…`}
@@ -322,8 +321,8 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
               className="flex-1 bg-transparent border-none outline-none"
               style={{
                 color: inkColor,
-                fontFamily: "'Inter Variable', sans-serif",
-                fontSize: '13px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-ui-regular-size)',
               }}
             />
           </div>
@@ -349,7 +348,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
             borderColor: 'var(--estate-border)',
           }}
         >
-          <span className="font-mono text-xs tracking-wide" style={{ color: mutedColor }}>
+          <span className="text-caption" style={{ color: mutedColor }}>
             {loading && total === 0 ? '—' : `${total.toLocaleString()} scanned object${total !== 1 ? 's' : ''}`}
             {filters.tier && (
               <span style={{ color: TIER_COLORS[filters.tier], marginLeft: 6 }}>

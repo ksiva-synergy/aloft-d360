@@ -13,7 +13,7 @@ import { RawSqlBadge } from '@/components/inspector/RawSqlBadge';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 const GRID_COLS = 12;
@@ -78,7 +78,7 @@ export function BuilderGrid({ widgets, definitions, readOnly }: BuilderGridProps
         <span style={{ ...type.label, }}>
           NO WIDGETS YET
         </span>
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', maxWidth: 260, textAlign: 'center' }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', maxWidth: 260, textAlign: 'center' }}>
           Add a widget using the toolbar, then assign dimensions and measures from the picker.
         </span>
       </div>

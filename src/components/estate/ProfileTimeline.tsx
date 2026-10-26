@@ -228,7 +228,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-[var(--brand-a-ink)]">
+                    <span className="font-mono text-sm font-semibold text-[var(--brand-a-ink)]">
                       v{item.version}
                     </span>
                     {hasDrift && (

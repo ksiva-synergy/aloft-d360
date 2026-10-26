@@ -388,10 +388,10 @@ export default function ChatHistoryPage() {
       <div style={{ padding: '24px 32px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 26, fontWeight: 700, color: H1_COLOR, margin: 0, lineHeight: 1.2 }}>
+            <h1 style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-kpi-lg-size)', fontWeight: 600, color: H1_COLOR, margin: 0, lineHeight: 1.2 }}>
               Chat History
             </h1>
-            <p style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: MUTED, marginTop: 5, marginBottom: 0 }}>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginTop: 5, marginBottom: 0 }}>
               Browse and resume your past Agent Lab conversations.
             </p>
           </div>
@@ -403,8 +403,8 @@ export default function ChatHistoryPage() {
                   return (
                     <button key={key} onClick={() => { if ((key === 'all') !== scopeAll) toggleScopeAll(); }} style={{
                       display: 'flex', alignItems: 'center', gap: 4,
-                      padding: '4px 10px', borderRadius: 5, fontSize: 13, fontWeight: 600,
-                      fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', cursor: 'pointer', border: 'none',
+                      padding: '4px 10px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                      fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', cursor: 'pointer', border: 'none',
                       background: active ? 'color-mix(in srgb, var(--brand-a) 18%, transparent)' : 'transparent',
                       color: active ? GOLD : MUTED, transition: 'all 0.12s', whiteSpace: 'nowrap',
                     }}>
@@ -419,11 +419,11 @@ export default function ChatHistoryPage() {
               <button onClick={toggleHideDrafts} style={{
                 display: 'flex', alignItems: 'center', gap: 5, padding: '7px 13px', borderRadius: 7,
                 background: hideDrafts ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--brand-a) 18%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: GOLD, fontSize: 13, fontWeight: 600,
-                fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em',
+                border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: GOLD, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                fontFamily: 'var(--font-mono)', cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em',
               }}>
                 {hideDrafts ? 'SHOW DRAFTS' : 'HIDE DRAFTS'}
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, background: 'color-mix(in srgb, var(--brand-a) 20%, transparent)', borderRadius: 3, padding: '1px 5px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 20%, transparent)', borderRadius: 3, padding: '1px 5px' }}>
                   {draftCount}
                 </span>
               </button>
@@ -444,8 +444,8 @@ export default function ChatHistoryPage() {
               onClick={() => router.push('/agent-lab/agents/workbench')}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 7,
-                background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600,
-                fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer',
+                background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                fontFamily: 'var(--font-sans)', cursor: 'pointer',
               }}
             >
               <Plus size={13} /> New Chat
@@ -463,7 +463,7 @@ export default function ChatHistoryPage() {
               style={{
                 width: '100%', paddingLeft: 30, paddingRight: query ? 28 : 10, paddingTop: 7, paddingBottom: 7,
                 background: BG, border: `1px solid ${BORDER}`,
-                borderRadius: 7, color: INPUT_COLOR, fontSize: 13, fontFamily: "'Inter Variable', sans-serif",
+                borderRadius: 7, color: INPUT_COLOR, fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-sans)',
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
@@ -477,8 +477,8 @@ export default function ChatHistoryPage() {
           <div style={{ display: 'flex', alignItems: 'center', background: BG, borderRadius: 7, border: `1px solid ${BORDER}`, padding: '2px' }}>
             {FILTERS.map(f => (
               <button key={f.key} onClick={() => setTypeFilter(f.key)} style={{
-                padding: '4px 10px', borderRadius: 5, fontSize: 13, fontWeight: 600,
-                fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', cursor: 'pointer', border: 'none',
+                padding: '4px 10px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', cursor: 'pointer', border: 'none',
                 background: typeFilter === f.key ? 'color-mix(in srgb, var(--brand-a) 18%, transparent)' : 'transparent',
                 color: typeFilter === f.key ? GOLD : MUTED, transition: 'all 0.12s',
               }}>
@@ -492,8 +492,8 @@ export default function ChatHistoryPage() {
             {(['all', 'workbench', 'inspector'] as SurfaceFilter[]).map(sf => (
               <button key={sf} onClick={() => setSurfaceFilter(sf)} style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                padding: '4px 10px', borderRadius: 5, fontSize: 13, fontWeight: 600,
-                fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', cursor: 'pointer', border: 'none',
+                padding: '4px 10px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', cursor: 'pointer', border: 'none',
                 background: surfaceFilter === sf ? 'color-mix(in srgb, var(--brand-a) 18%, transparent)' : 'transparent',
                 color: surfaceFilter === sf ? GOLD : MUTED, transition: 'all 0.12s',
                 whiteSpace: 'nowrap',
@@ -506,7 +506,7 @@ export default function ChatHistoryPage() {
           </div>
 
           <select value={sort} onChange={e => setSort(e.target.value as SortKey)} style={{
-            padding: '6px 10px', borderRadius: 7, fontSize: 13, fontFamily: "'IBM Plex Mono', monospace",
+            padding: '6px 10px', borderRadius: 7, fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-mono)',
             background: BG, border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', outline: 'none',
           }}>
             <option value="recent">Recent first</option>
@@ -518,7 +518,7 @@ export default function ChatHistoryPage() {
           {/* User filter — only useful when viewing all users' sessions */}
           {canReadAll && scopeAll && userOptions.length > 1 && (
             <select value={userFilter} onChange={e => setUserFilter(e.target.value)} title="Filter by user" style={{
-              padding: '6px 10px', borderRadius: 7, fontSize: 13, fontFamily: "'IBM Plex Mono', monospace",
+              padding: '6px 10px', borderRadius: 7, fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-mono)',
               background: BG, border: `1px solid ${userFilter !== 'all' ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : BORDER}`,
               color: userFilter !== 'all' ? GOLD : MUTED, cursor: 'pointer', outline: 'none', maxWidth: 170,
             }}>
@@ -530,7 +530,7 @@ export default function ChatHistoryPage() {
           {/* Model filter */}
           {modelOptions.length > 1 && (
             <select value={modelFilter} onChange={e => setModelFilter(e.target.value)} title="Filter by model" style={{
-              padding: '6px 10px', borderRadius: 7, fontSize: 13, fontFamily: "'IBM Plex Mono', monospace",
+              padding: '6px 10px', borderRadius: 7, fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-mono)',
               background: BG, border: `1px solid ${modelFilter !== 'all' ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : BORDER}`,
               color: modelFilter !== 'all' ? GOLD : MUTED, cursor: 'pointer', outline: 'none', maxWidth: 150,
             }}>
@@ -543,19 +543,19 @@ export default function ChatHistoryPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: BG, borderRadius: 7, border: `1px solid ${(fromDate || toDate) ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : BORDER}`, padding: '2px 8px' }} title="Filter by created date">
             <input type="date" value={fromDate} max={toDate || undefined} onChange={e => setFromDate(e.target.value)} style={{
               background: 'transparent', border: 'none', outline: 'none', color: fromDate ? 'var(--brand-a)' : MUTED,
-              fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
+              fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-mono)', cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
             }} />
-            <span style={{ color: MUTED, fontSize: 13 }}>→</span>
+            <span style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>→</span>
             <input type="date" value={toDate} min={fromDate || undefined} onChange={e => setToDate(e.target.value)} style={{
               background: 'transparent', border: 'none', outline: 'none', color: toDate ? 'var(--brand-a)' : MUTED,
-              fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
+              fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-mono)', cursor: 'pointer', colorScheme: dark ? 'dark' : 'light',
             }} />
           </div>
 
           {(userFilter !== 'all' || modelFilter !== 'all' || fromDate || toDate) && (
             <button onClick={() => { setUserFilter('all'); setModelFilter('all'); setFromDate(''); setToDate(''); }} title="Clear filters" style={{
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, fontSize: 13, fontWeight: 600,
-              fontFamily: "'IBM Plex Mono', monospace", letterSpacing: '0.05em', background: 'transparent',
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+              fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', background: 'transparent',
               border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', whiteSpace: 'nowrap',
             }}>
               <X size={11} /> CLEAR
@@ -576,22 +576,22 @@ export default function ChatHistoryPage() {
             <button onClick={toggleSelectAll} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: allVisibleSelected ? 'var(--brand-a)' : MUTED, display: 'flex', alignItems: 'center', flexShrink: 0, width: 28 }}>
               {allVisibleSelected ? <CheckSquare size={13} /> : <Square size={13} />}
             </button>
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 0', minWidth: 0, maxWidth: 'min(520px, 50%)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 0', minWidth: 0, maxWidth: 'min(520px, 50%)' }}>
               {someSelected ? (
                 <>
                   <span style={{ color: GOLD }}>{selected.size} SELECTED</span>
                   {!bulkConfirm && (
-                    <button onClick={() => setBulkConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 9px', borderRadius: 5, fontSize: 13, fontWeight: 600, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif" }}>
+                    <button onClick={() => setBulkConfirm(true)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 9px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>
                       <Trash2 size={10} /> Delete {selected.size}
                     </button>
                   )}
                   {bulkConfirm && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ color: '#fca5a5', fontSize: 13 }}>Confirm delete?</span>
-                      <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '2px 9px', borderRadius: 4, fontSize: 13, fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif", display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span style={{ color: '#fca5a5', fontSize: 'var(--type-ui-regular-size)' }}>Confirm delete?</span>
+                      <button onClick={handleBulkDelete} disabled={bulkDeleting} style={{ padding: '2px 9px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)', display: 'flex', alignItems: 'center', gap: 3 }}>
                         {bulkDeleting ? <><Loader2 size={9} style={{ animation: 'spin 1s linear infinite' }} /> Deleting</> : 'Yes, delete'}
                       </button>
-                      <button onClick={() => setBulkConfirm(false)} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 13, background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif" }}>Cancel</button>
+                      <button onClick={() => setBulkConfirm(false)} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Cancel</button>
                     </span>
                   )}
                   <button onClick={() => { setSelected(new Set()); setBulkConfirm(false); }} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: MUTED, display: 'flex', alignItems: 'center' }}><X size={11} /></button>
@@ -602,13 +602,13 @@ export default function ChatHistoryPage() {
             </span>
             <div style={{ flex: 1, minWidth: 16 }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: META_GAP, flexShrink: 0 }}>
-              <span style={{ width: COL.type, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>TYPE</span>
-              <span style={{ width: COL.model, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>MODEL</span>
-              <span style={{ width: COL.ctx, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>CTX</span>
-              <span style={{ width: COL.msgs, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>MSGS</span>
-              <span style={{ width: COL.user, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>USER</span>
-              <span style={{ width: COL.created, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>CREATED</span>
-              <span style={{ minWidth: COL.lastUsed, fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>LAST USED</span>
+              <span style={{ width: COL.type, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>TYPE</span>
+              <span style={{ width: COL.model, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>MODEL</span>
+              <span style={{ width: COL.ctx, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>CTX</span>
+              <span style={{ width: COL.msgs, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>MSGS</span>
+              <span style={{ width: COL.user, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>USER</span>
+              <span style={{ width: COL.created, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>CREATED</span>
+              <span style={{ minWidth: COL.lastUsed, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', textAlign: 'right' }}>LAST USED</span>
             </div>
           </div>
         )}
@@ -625,12 +625,12 @@ export default function ChatHistoryPage() {
         {loading ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '80px 0', color: MUTED, justifyContent: 'center' }}>
             <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13 }}>Loading history…</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)' }}>Loading history…</span>
           </div>
         ) : error ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '60px 0', color: '#f87171', justifyContent: 'center' }}>
             <AlertCircle size={16} />
-            <span style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13 }}>{error}</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }}>{error}</span>
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState query={query} onNewChat={() => router.push('/agent-lab/agents/workbench')} MUTED={MUTED} dark={dark} />
@@ -713,18 +713,18 @@ function EmptyState({ query, onNewChat, MUTED, dark }: { query: string; onNewCha
       <MessageSquare size={36} style={{ margin: '0 auto 14px', color: MUTED, display: 'block', opacity: 0.5 }} />
       {query ? (
         <>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: MUTED, fontWeight: 600, margin: '0 0 6px' }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-body-lg-size)', color: MUTED, fontWeight: 600, margin: '0 0 6px' }}>
             No sessions match
           </p>
-          <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: MUTED, margin: 0 }}>
+          <p style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0 }}>
             &ldquo;{query}&rdquo;
           </p>
         </>
       ) : (
         <>
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 18, color: MUTED, fontWeight: 600, margin: '0 0 8px' }}>No chat history yet</p>
-          <p style={{ fontSize: 13, color: MUTED, margin: '0 0 20px', fontFamily: "'Inter Variable', sans-serif" }}>Start a conversation in the Agent Workbench.</p>
-          <button onClick={onNewChat} style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 13, fontWeight: 600, fontFamily: "'Inter Variable', sans-serif", cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-title-section-size)', color: MUTED, fontWeight: 600, margin: '0 0 8px' }}>No chat history yet</p>
+          <p style={{ fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: '0 0 20px', fontFamily: 'var(--font-sans)' }}>Start a conversation in the Agent Workbench.</p>
+          <button onClick={onNewChat} style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--brand-a)', border: 'none', color: NAV, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, fontFamily: 'var(--font-sans)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Plus size={14} /> Start first chat
           </button>
         </>
@@ -819,8 +819,8 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               onBlur={commitEdit}
               style={{
                 flex: 1, background: dark ? 'rgba(255,255,255,0.07)' : '#E2E8F0', border: `1px solid ${'var(--brand-a)'}`,
-                borderRadius: 5, padding: '3px 8px', color: dark ? '#e8eef5' : '#111322', fontSize: 13,
-                fontFamily: "'Inter Variable', sans-serif", fontWeight: 600, outline: 'none',
+                borderRadius: 5, padding: '3px 8px', color: dark ? '#e8eef5' : '#111322', fontSize: 'var(--type-ui-regular-size)',
+                fontFamily: 'var(--font-sans)', fontWeight: 600, outline: 'none',
               }}
             />
             <button onClick={commitEdit} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#86EFAC', display: 'flex' }}><Check size={12} /></button>
@@ -828,7 +828,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', lineHeight: 1.35 }}>
-            {session.pinned && <span style={{ color: GOLD, fontSize: 13, flexShrink: 0 }}>★</span>}
+            {session.pinned && <span style={{ color: GOLD, fontSize: 'var(--type-ui-regular-size)', flexShrink: 0 }}>★</span>}
             {session.surface === 'inspector'
               ? <Database size={11} style={{ color: GOLD, flexShrink: 0, opacity: 0.85 }} />
               : <Layers size={11} style={{ color: MUTED, flexShrink: 0, opacity: 0.7 }} />}
@@ -841,16 +841,16 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
             }}>
               {session.surface === 'inspector' ? 'INSPECTOR' : 'WORKBENCH'}
             </span>
-            <span style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, fontWeight: 600, color: TITLE_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: TITLE_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {displayTitle}
             </span>
             {session.saved_agent_id && (
-              <span style={{ fontSize: 13, letterSpacing: '0.06em', fontFamily: "'IBM Plex Mono', monospace", color: '#86EFAC', background: 'rgba(134,239,172,0.08)', padding: '2px 6px', borderRadius: 3, flexShrink: 0 }}>DEPLOYED</span>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)', color: '#86EFAC', background: 'rgba(134,239,172,0.08)', padding: '2px 6px', borderRadius: 3, flexShrink: 0 }}>DEPLOYED</span>
             )}
           </div>
         )}
         {!editing && (
-          <div style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: PREVIEW_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3, lineHeight: 1.35 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: PREVIEW_COLOR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3, lineHeight: 1.35 }}>
             {session.last_message || <span style={{ color: META_COLOR, fontStyle: 'italic' }}>No messages yet</span>}
           </div>
         )}
@@ -863,7 +863,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
       <div style={{ display: 'flex', alignItems: 'center', gap: META_GAP, flexShrink: 0 }}>
         {/* Type badge */}
         <div style={{ width: COL.type, display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', fontFamily: "'IBM Plex Mono', monospace", color: meta.color, background: meta.bg, padding: '3px 7px', borderRadius: 3 }}>
+          <span style={{ fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, letterSpacing: '0.08em', fontFamily: 'var(--font-mono)', color: meta.color, background: meta.bg, padding: '3px 7px', borderRadius: 3 }}>
             {meta.label}
           </span>
         </div>
@@ -871,11 +871,11 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
         {/* Model badge */}
         <div style={{ width: COL.model, display: 'flex', alignItems: 'center' }}>
           {model ? (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 600, letterSpacing: '0.04em', color: model.color, background: `${withAlpha(model.color, '18')}`, border: `1px solid ${withAlpha(model.color, '28')}`, padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COL.model }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, letterSpacing: '0.04em', color: model.color, background: `${withAlpha(model.color, '18')}`, border: `1px solid ${withAlpha(model.color, '28')}`, padding: '3px 7px', borderRadius: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: COL.model }}>
               {model.short}
             </span>
           ) : (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR }}>—</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR }}>—</span>
           )}
         </div>
 
@@ -895,7 +895,7 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
               {session.context_mode === 'warehouse_only' ? 'SQL' : 'CTX'}
             </span>
           ) : (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR }}>—</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR }}>—</span>
           )}
         </div>
 
@@ -904,10 +904,10 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
           {(session.message_count ?? 0) > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <MessageSquare size={10} style={{ color: META_COLOR }} />
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR }}>{session.message_count}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR }}>{session.message_count}</span>
             </div>
           ) : (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR }}>—</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR }}>—</span>
           )}
         </div>
 
@@ -923,38 +923,38 @@ function SessionRow({ session, isLast, isSelected, isPinning, onToggleSelect, on
                 <User size={9} style={{ color: 'var(--brand-a-ink)' }} />
               </div>
               <span title={session.user_email ?? undefined} style={{
-                fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: META_COLOR,
+                fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR,
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {session.user_name ?? session.user_email}
               </span>
             </>
           ) : (
-            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR }}>—</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR }}>—</span>
           )}
         </div>
 
         {/* Created date */}
         <div style={{ width: COL.created, display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR, whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR, whiteSpace: 'nowrap' }}>
             {shortDate(session.created_at)}
           </span>
         </div>
 
         {/* Last used + actions */}
         <div style={{ minWidth: COL.lastUsed, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: META_COLOR, whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: META_COLOR, whiteSpace: 'nowrap' }}>
             {relativeTime(session.updated_at)}
           </span>
           <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {confirmDelete ? (
               <>
-                <button onClick={() => { setConfirmDelete(false); onDelete(); }} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 13, fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif" }}>Yes</button>
-                <button onClick={() => setConfirmDelete(false)} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 13, background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif" }}>No</button>
+                <button onClick={() => { setConfirmDelete(false); onDelete(); }} style={{ padding: '2px 7px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: '#ef4444', border: 'none', color: '#fff', cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>Yes</button>
+                <button onClick={() => setConfirmDelete(false)} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, cursor: 'pointer', fontFamily: 'var(--font-sans)' }}>No</button>
               </>
             ) : (
               <>
-                <button onClick={onContinue} title="Open" style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 5, fontSize: 13, fontWeight: 600, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: 'var(--brand-a)', cursor: 'pointer', fontFamily: "'Inter Variable', sans-serif", whiteSpace: 'nowrap' }}>
+                <button onClick={onContinue} title="Open" style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 5, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', color: 'var(--brand-a)', cursor: 'pointer', fontFamily: 'var(--font-sans)', whiteSpace: 'nowrap' }}>
                   <ChevronRight size={11} /> Open
                 </button>
                 {onDebugTrace && (

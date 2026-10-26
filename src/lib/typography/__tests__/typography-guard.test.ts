@@ -20,8 +20,8 @@ const BASELINE = join(HERE, 'typography-baseline.json');
 const LOADED = ['Inter Variable', 'Inter', 'IBM Plex Mono'];
 const GENERIC = ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Arial', 'sans-serif', 'serif', 'monospace', 'ui-monospace', 'SF Mono', 'Menlo', 'Consolas', 'SFMono-Regular', 'ui-serif', 'ui-sans-serif', 'Helvetica'];
 /** Server-side PNG rendering loads its own TTFs from assets/fonts (resvg), not the browser bundle. */
-const SERVER_RENDER_FILES = ['lib/studio/aloftDarkTheme.ts', 'lib/studio/ssr-render.ts'];
-const SERVER_RENDER_FONTS = ['Inter Tight'];
+const SERVER_RENDER_FILES: string[] = [];
+const SERVER_RENDER_FONTS: string[] = [];
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -66,9 +66,9 @@ describe('typography guard', () => {
   it('does not grow hardcoded typography', () => {
     const count = (re: RegExp) => files.reduce((n, { text }) => n + (text.match(re) ?? []).length, 0);
     const current = {
-      inlineFontSize: count(/fontSize\s*:/g),
+      inlineFontSize: count(/fontSize\s*:\s*['"]?[0-9]/g),
       arbitraryTextSize: count(/\btext-\[[0-9.]+(px|rem)\]/g),
-      inlineFontFamilyLiteral: count(/fontFamily\s*:\s*['"`]/g),
+      inlineFontFamilyLiteral: count(/fontFamily\s*:\s*['"`](?!var\()/g),
       inlineLetterSpacing: count(/letterSpacing\s*:/g),
       heavyWeights: count(/fontWeight\s*:\s*[78]00|\bfont-(bold|extrabold)\b/g),
     };

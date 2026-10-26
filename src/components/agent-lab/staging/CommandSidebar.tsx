@@ -121,8 +121,8 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               <BrandMark size={40} className="!rounded-xl" />
             </Link>
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[14px] font-semibold text-[var(--rail-ink-strong)]">Data 360</p>
-              <p className="truncate text-[11.5px] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
+              <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">Data 360</p>
+              <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
             </div>
             <button
               onClick={() => (mobileOpen ? shell.setMobileOpen(false) : shell.togglePin())}
@@ -162,9 +162,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               }}
               placeholder="Search or jump to…"
               aria-label="Search pages"
-              className={cn('w-full min-w-0 bg-transparent text-[13px] text-[var(--rail-ink-strong)] outline-none placeholder:text-[var(--rail-muted)]', fade)}
+              className={cn('w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--rail-ink-strong)] outline-none placeholder:text-[var(--rail-muted)]', fade)}
             />
-            <kbd className={cn('mr-2 shrink-0 rounded-md bg-[var(--rail-hover)] px-1.5 py-0.5 font-sans text-[10.5px] font-semibold text-[var(--rail-ink)]', fade)}>
+            <kbd className={cn('mr-2 shrink-0 rounded-md bg-[var(--rail-hover)] px-1.5 py-0.5 font-sans text-[length:var(--type-caption-size)] font-semibold text-[var(--rail-ink)]', fade)}>
               Ctrl K
             </kbd>
           </label>
@@ -206,7 +206,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                     tabIndex={expanded ? 0 : -1}
                     onClick={() => setAreaId(g.id)}
                     className={cn(
-                      'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[10.5px] font-medium transition-colors',
+                      'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[length:var(--type-caption-size)] font-medium transition-colors',
                       selected ? 'text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:text-[var(--rail-ink-strong)]',
                     )}
                   >
@@ -227,7 +227,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               <>
                 <SectionLabel expanded={expanded}>Results</SectionLabel>
                 {results.length === 0 ? (
-                  <p className={cn('px-2 py-4 text-[13px] text-[var(--rail-muted)]', fade)}>No pages match “{query}”.</p>
+                  <p className={cn('px-2 py-4 text-[length:var(--type-ui-regular-size)] text-[var(--rail-muted)]', fade)}>No pages match “{query}”.</p>
                 ) : (
                   <ul className="space-y-0.5">
                     {results.map((item, i) => (
@@ -266,9 +266,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
           >
             <UserMenu initialSession={initialSession} placement="top" />
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[13px] font-semibold text-[var(--rail-ink-strong)]">{user?.name || user?.email || 'User'}</p>
+              <p className="truncate text-[length:var(--type-ui-regular-size)] font-semibold text-[var(--rail-ink-strong)]">{user?.name || user?.email || 'User'}</p>
               {(user?.roleLabel ?? user?.role) && (
-                <p className="truncate text-[11.5px] text-[var(--rail-muted)]">{user?.roleLabel ?? user?.role}</p>
+                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">{user?.roleLabel ?? user?.role}</p>
               )}
             </div>
             <NavStyleToggle
@@ -291,7 +291,7 @@ function SectionLabel({ expanded, children }: { expanded: boolean; children: Rea
       />
       <span
         className={cn(
-          'whitespace-nowrap px-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--rail-muted)] transition-opacity',
+          'whitespace-nowrap px-2 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--rail-muted)] transition-opacity',
           expanded ? 'opacity-100' : 'opacity-0',
         )}
       >
@@ -309,7 +309,7 @@ function Row({ item, active, hint, expanded }: { item: NavItem; active: boolean;
       aria-current={active ? 'page' : undefined}
       title={expanded ? undefined : item.label}
       className={cn(
-        'group relative flex h-10 items-center whitespace-nowrap rounded-xl text-[13.5px] font-medium outline-none transition-colors',
+        'group relative flex h-10 items-center whitespace-nowrap rounded-xl text-[length:var(--type-ui-regular-size)] font-medium outline-none transition-colors',
         'focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]',
         active ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)]' : 'text-[var(--rail-ink)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)]',
       )}
@@ -326,7 +326,7 @@ function Row({ item, active, hint, expanded }: { item: NavItem; active: boolean;
       <span className={cn('min-w-0 flex-1 truncate pr-3 transition-opacity duration-200', expanded ? 'opacity-100' : 'opacity-0')}>
         {item.label}
       </span>
-      {hint && expanded && <span className="mr-3 shrink-0 text-[11px] text-[var(--rail-muted)]">{hint}</span>}
+      {hint && expanded && <span className="mr-3 shrink-0 text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">{hint}</span>}
     </Link>
   );
 }

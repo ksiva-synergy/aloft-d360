@@ -76,10 +76,10 @@ function LineageNode({ data }: NodeProps) {
         opacity: d.candidate ? 0.85 : 1,
       }}
     >
-      <span style={{ ...MONO, fontSize: 13, color: c, letterSpacing: '0.04em' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: c, letterSpacing: '0.04em' }}>
         {kindGlyph[d.kind]} {d.kind.toUpperCase()}{d.candidate ? ' · CAND' : ''}
       </span>
-      <span style={{ fontFamily: "'Inter Variable', sans-serif", fontSize: 13, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {d.label}
       </span>
     </div>
@@ -132,7 +132,7 @@ export function CatalogLineageGraph({ graph, focusId, onRefocus }: Props) {
   const { nodes, edges } = React.useMemo(() => layout(graph, focusId), [graph, focusId]);
 
   if (!graph.nodes.length) {
-    return <div style={{ ...MONO, fontSize: 13, color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
+    return <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
   }
 
   return (

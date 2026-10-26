@@ -54,7 +54,7 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
     <div className="flex items-start gap-3 py-2.5 border-b border-[var(--estate-border)] last:border-b-0">
       <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5 font-medium">{label}</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground mb-0.5 font-medium">{label}</div>
         <div className="text-xs text-[var(--foreground)] break-all">{value}</div>
       </div>
     </div>
@@ -68,10 +68,10 @@ function StatTile({
     <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-hover)] px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3 w-3 shrink-0" />
-        <span className="font-mono text-xs uppercase tracking-[0.1em]">{label}</span>
+        <span className="font-mono text-xs uppercase tracking-wide">{label}</span>
       </div>
       <div className={cn(
-        'mt-1 text-[18px] font-bold tabular-nums leading-none',
+        'mt-1 text-[length:var(--type-title-section-size)] font-semibold tabular-nums leading-none',
         value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50',
       )}>
         {value}
@@ -139,7 +139,7 @@ export function UserDetailDrawer({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--estate-border)] shrink-0">
-          <span className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wider">User Profile</span>
+          <span className="text-xs font-semibold text-[var(--foreground)] uppercase tracking-wide">User Profile</span>
           <button
             onClick={onClose}
             className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] transition-colors"
@@ -164,7 +164,7 @@ export function UserDetailDrawer({
           <div className="px-5 py-5 border-b border-[var(--estate-border)]">
             <div className="flex items-center gap-3.5">
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-bold shrink-0 select-none"
+                className="w-12 h-12 rounded-full flex items-center justify-center text-[length:var(--type-body-lg-size)] font-semibold shrink-0 select-none"
                 style={{ background: 'var(--brand-a-ink)', color: 'var(--brand-a-ink)' }}
               >
                 {initials}
@@ -173,7 +173,7 @@ export function UserDetailDrawer({
                 <div className="text-sm font-semibold text-[var(--foreground)] truncate">
                   {user.name || <span className="italic text-muted-foreground font-normal text-sm">No display name</span>}
                   {isSelf && (
-                    <span className="ml-2 text-xs font-mono font-bold uppercase tracking-wider text-[var(--brand-a-ink)]">you</span>
+                    <span className="ml-2 text-xs font-mono font-semibold uppercase tracking-wide text-[var(--brand-a-ink)]">you</span>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground truncate font-mono mt-0.5">{user.email}</div>
@@ -182,7 +182,7 @@ export function UserDetailDrawer({
                   <span
                     className={cn(
                       'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-                      'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+                      'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
                       roleBadgeClass,
                     )}
                   >
@@ -223,7 +223,7 @@ export function UserDetailDrawer({
 
           {/* Activity & contributions */}
           <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground font-medium mb-3">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3">
               <Activity className="h-3 w-3" />
               Activity &amp; Contributions
             </div>
@@ -240,7 +240,7 @@ export function UserDetailDrawer({
           {/* Actions */}
           {(canAssignRoles || (canUpdateUsers && !isSelf) || (canDeleteUsers && !isSelf)) && (
             <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-3">Actions</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium mb-3">Actions</div>
               <div className="flex flex-col gap-2">
                 {canAssignRoles && (
                   <button
@@ -274,7 +274,7 @@ export function UserDetailDrawer({
           {/* Danger zone */}
           {canDeleteUsers && !isSelf && (
             <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-xs uppercase tracking-wider text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
+              <div className="text-xs uppercase tracking-wide text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
               {!deleteConfirm ? (
                 <button
                   onClick={() => setDeleteConfirm(true)}

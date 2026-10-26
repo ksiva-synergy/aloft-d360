@@ -100,15 +100,15 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
           onClick={() => onSelect(undefined, undefined)}
           className="w-full flex items-center gap-2 px-5 py-1.5 text-left transition-colors"
           style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: '13px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: !selectedCatalog ? goldColor : textSecondary,
             backgroundColor: !selectedCatalog ? activeBg : 'transparent',
           }}
         >
-          <span style={{ color: textDim, fontSize: '13px', width: 8 }}>▾</span>
+          <span style={{ color: textDim, fontSize: 'var(--type-ui-regular-size)', width: 8 }}>▾</span>
           <span className="flex-1">All databases</span>
-          <span style={{ fontSize: '13px', color: textDim, fontVariantNumeric: 'tabular-nums' }}>{total}</span>
+          <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim, fontVariantNumeric: 'tabular-nums' }}>{total}</span>
         </button>
 
         {loading ? (
@@ -129,8 +129,8 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                   <div
                     className="flex items-center gap-2 px-5 py-[7px] cursor-pointer transition-colors"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '13px',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: isActive ? goldColor : textSecondary,
                       backgroundColor: isActive ? activeBg : 'transparent',
                     }}
@@ -142,7 +142,7 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                     }}
                   >
                     <span
-                      style={{ color: textDim, fontSize: '13px', width: 8, cursor: 'pointer', transition: 'transform 150ms ease' }}
+                      style={{ color: textDim, fontSize: 'var(--type-ui-regular-size)', width: 8, cursor: 'pointer', transition: 'transform 150ms ease' }}
                     >
                       {isExpanded ? '▾' : '▸'}
                     </span>
@@ -152,7 +152,7 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                     >
                       {cat.name}
                     </span>
-                    <span style={{ fontSize: '13px', color: textDim, fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim, fontVariantNumeric: 'tabular-nums' }}>
                       {cat.count}
                     </span>
                   </div>
@@ -168,8 +168,8 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                             onClick={() => onSelect(cat.name, sch.name)}
                             className="w-full flex items-center gap-2 text-left px-3 py-[5px] truncate transition-colors"
                             style={{
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '13px',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 'var(--type-ui-regular-size)',
                               color: schActive ? goldColor : textMuted,
                               backgroundColor: schActive ? activeBg : 'transparent',
                             }}
@@ -178,7 +178,7 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                             title={sch.name}
                           >
                             <span className="truncate flex-1">{sch.name}</span>
-                            <span style={{ fontSize: '13px', color: textDim }}>{sch.count}</span>
+                            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim }}>{sch.count}</span>
                           </button>
                         );
                       })}
@@ -194,8 +194,8 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                 onClick={() => setShowAll(true)}
                 className="w-full text-left px-5 py-2 transition-colors"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: '13px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: textDim,
                   letterSpacing: '0.04em',
                 }}

@@ -93,7 +93,7 @@ export default function DocsHubPage() {
           <BookOpen className="h-3.5 w-3.5" />
           Documentation
         </div>
-        <h1 className="text-3xl font-bold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
+        <h1 className="text-3xl font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] mb-3">
           Tools & Agents Library
         </h1>
         <p className="text-sm text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] max-w-lg mx-auto">

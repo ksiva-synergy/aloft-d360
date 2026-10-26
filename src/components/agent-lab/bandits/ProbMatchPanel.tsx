@@ -71,7 +71,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
         background: CARD_BG, border: `1px solid ${BORDER}`,
         borderRadius: 6, padding: '20px 24px',
       }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No data.</div>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No data.</div>
       </div>
     );
   }
@@ -86,10 +86,10 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
+          <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
             Probability Matching Check
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
+          <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
             Born rule: allocation should track belief
           </div>
         </div>
@@ -97,7 +97,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
           <button
             onClick={() => setShowAll(v => !v)}
             style={{
-              fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
+              fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
               background: 'transparent', border: `1px solid ${BORDER}`,
               borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
               letterSpacing: '0.04em', flexShrink: 0,
@@ -120,7 +120,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
             <div key={row.modelId}>
               {/* Model label */}
               <div style={{
-                fontFamily: MONO, fontSize: 13,
+                fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                 color: isFav ? GOLD : TEXT_SEC,
                 marginBottom: 5,
                 display: 'flex', alignItems: 'center', gap: 6,
@@ -135,7 +135,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
               {/* Belief bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                   color: TEXT_MUT, width: 52, flexShrink: 0,
                   letterSpacing: '0.04em',
                 }}>
@@ -155,7 +155,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
                   }} />
                 </div>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                   color: isFav ? GOLD : TEXT_SEC,
                   width: 42, textAlign: 'right', flexShrink: 0,
                 }}>
@@ -166,7 +166,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
               {/* Allocation bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                   color: TEXT_MUT, width: 52, flexShrink: 0,
                   letterSpacing: '0.04em',
                 }}>
@@ -186,7 +186,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
                   }} />
                 </div>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                   color: TEXT_MUT,
                   width: 42, textAlign: 'right', flexShrink: 0,
                 }}>

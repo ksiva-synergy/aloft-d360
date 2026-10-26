@@ -18,8 +18,8 @@ import { DismissedReflection } from './marcus/DismissedReflection';
 import { type } from '@/lib/typography/tokens';
 
 // ── Constants ─────────────────────────────────────────────────
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
@@ -106,7 +106,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
           </button>
           )}
         </div>
-        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
+        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
         <AnimatePresence>
           {templatesOpen && (
             <motion.div
@@ -123,8 +123,8 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
-                    <span style={{ ...type['ui-regular'], color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
-                    <span style={{ ...sans, fontSize: 13, color: INK }}>{t.name}</span>
+                    <span style={{ ...type['ui-regular'], color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.08em' }}>{t.cls}</span>
+                    <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK }}>{t.name}</span>
                   </div>
                   <div style={{ ...type['ui-regular'], color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
                 </button>

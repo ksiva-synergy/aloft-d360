@@ -9,7 +9,7 @@ import type { ResolvedIntent, IntentDisambiguation } from '@/lib/dashboards/guid
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const GREEN = '#34D399';
@@ -198,10 +198,10 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             Guided · Step 1 · Intent
           </span>
         </div>
-        <h2 style={{ ...MONO, fontSize: 17, lineHeight: 1.4, color: 'var(--wb-ink, #E6ECF5)', margin: 0, fontWeight: 600 }}>
+        <h2 style={{ ...MONO, fontSize: 'var(--type-body-lg-size)', lineHeight: 1.4, color: 'var(--wb-ink, #E6ECF5)', margin: 0, fontWeight: 600 }}>
           What should this dashboard help you understand or decide?
         </h2>
-        <p style={{ ...MONO, fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
           Describe the decision — not the chart. We’ll ground it in your governed metrics.
         </p>
       </div>
@@ -213,7 +213,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
         placeholder="e.g. Which vessels and root causes drive most accidents this year?"
         rows={3}
         style={{
-          ...MONO, fontSize: 13, lineHeight: 1.5, padding: '12px 14px', borderRadius: 8,
+          ...MONO, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.5, padding: '12px 14px', borderRadius: 8,
           border: '1px solid rgba(136,146,164,0.3)', background: 'rgba(0,0,0,0.2)',
           color: 'var(--wb-ink, #E6ECF5)', resize: 'vertical', outline: 'none',
         }}
@@ -226,9 +226,9 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           Starter topics — questions your org has governed
         </span>
         {startersLoading ? (
-          <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Reading the model…</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Reading the model…</span>
         ) : starters.length === 0 ? (
-          <p style={{ ...MONO, fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.5 }}>
+          <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
             No governed questions yet for this model. Type your own above — or govern one in Teach so it seeds the next person’s blank canvas.
           </p>
         ) : (
@@ -243,7 +243,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
                 data-intent-source-id={st.sourceId}
                 title={`Governed question · ${st.label} · ${st.sourceType}:${st.sourceId}`}
                 style={{
-                  ...MONO, fontSize: 13, textAlign: 'left', display: 'flex', alignItems: 'center', gap: 6,
+                  ...MONO, fontSize: 'var(--type-ui-regular-size)', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 6,
                   padding: '7px 11px', borderRadius: 16, border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
                   background: 'color-mix(in srgb, var(--brand-a) 5%, transparent)', color: 'var(--wb-ink, #E6ECF5)', cursor: 'pointer',
                 }}
@@ -286,10 +286,10 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
           >
             <Database size={14} color={modelConfirmed ? GREEN : '#93C5FD'} />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-ink, #E6ECF5)' }}>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)' }}>
                 Reads from <strong>{modelName ?? resolved.modelName ?? 'this model'}</strong>
               </span>
-              <span style={{ ...MONO, fontSize: 13, color: MUTED }}>One dashboard = one semantic model.</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>One dashboard = one semantic model.</span>
             </div>
             <button
               onClick={() => setModelConfirmed((c) => !c)}
@@ -311,7 +311,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
               <span style={{ ...type.label, color: MUTED }}>
                 How your terms resolved
               </span>
-              <div style={{ ...MONO, fontSize: 13, lineHeight: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', lineHeight: 2, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {mergedTerms.map((d, i) => (
                   <DisambiguationUnderline
                     key={`${d.term}:${i}`}
@@ -325,7 +325,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             </div>
           )}
           {mergedTerms.length === 0 && (
-            <p style={{ ...MONO, fontSize: 13, color: MUTED, margin: 0 }}>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0 }}>
               No specific governed terms detected in your topic — that’s fine, Stage 2 will still propose from the governed catalog.
             </p>
           )}
@@ -352,7 +352,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             {onCancel && (
               <button
                 onClick={onCancel}
-                style={{ ...MONO, fontSize: 13, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
               >
                 Switch to manual
               </button>
@@ -375,7 +375,7 @@ function Legend() {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 2 }}>
       {items.map((it) => (
-        <span key={it.label} style={{ ...MONO, fontSize: 13, color: MUTED, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        <span key={it.label} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <span style={{ textDecoration: it.deco, textDecorationColor: it.c, color: it.c }}>abc</span>
           {it.label}
         </span>

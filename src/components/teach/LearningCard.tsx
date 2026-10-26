@@ -53,7 +53,7 @@ export function LearningCard({
       </div>
 
       {/* Statement */}
-      <p style={{ fontFamily: FONT_BODY, fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--foreground)', margin: 0 }}>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, lineHeight: 1.5, color: 'var(--foreground)', margin: 0 }}>
         {learning.statement}
       </p>
 
@@ -66,7 +66,7 @@ export function LearningCard({
             borderRadius: 9,
             background: mix('var(--warning)', 9),
             boxShadow: `inset 0 0 0 1px ${mix('var(--warning)', 26)}`,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--foreground)',
             lineHeight: 1.45,
           }}

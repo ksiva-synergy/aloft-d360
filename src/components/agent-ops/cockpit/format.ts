@@ -2,7 +2,7 @@ import type React from 'react';
 import { FONT_SANS } from '@/lib/typography/tokens';
 import { extractSqlFromInput } from '../SqlPreview';
 
-export const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+export const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 export const sans: React.CSSProperties = { fontFamily: FONT_SANS };
 
 export const OK = '#22c55e';

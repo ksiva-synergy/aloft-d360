@@ -91,7 +91,7 @@ function RoleBadge({ role, label }: { role: string; label: string }) {
     <span
       className={cn(
         'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
+        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-wide',
         style,
       )}
     >
@@ -123,14 +123,14 @@ function MetricChip({
           : 'border-[var(--estate-border)] bg-[var(--estate-hover)]/50',
       )}
     >
-      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--estate-text-dim)]">
+      <div className="font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--estate-text-dim)]">
         {label}
       </div>
       <div className="mt-0.5 flex items-baseline gap-1 tabular-nums">
         <span className={cn('text-sm font-semibold leading-none', active ? 'text-[var(--estate-ink)]' : 'text-muted-foreground/40')}>
           {d30}
         </span>
-        <span className="text-[10px] text-muted-foreground">/ {d7}·7d</span>
+        <span className="text-[length:var(--type-caption-size)] text-muted-foreground">/ {d7}·7d</span>
       </div>
     </div>
   );
@@ -150,13 +150,13 @@ function ActivityCell({ user }: { user: UserRow }) {
       {(insp > 0 || mem > 0) && (
         <div className="flex flex-col gap-0.5 pl-1" title={`${insp} inspector chats · ${mem} memories`}>
           {insp > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[length:var(--type-caption-size)] text-muted-foreground">
               <MessagesSquare className="h-3 w-3 shrink-0 opacity-70" />
               <span className="tabular-nums font-medium text-[var(--foreground)]">{insp}</span>
             </span>
           )}
           {mem > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[length:var(--type-caption-size)] text-muted-foreground">
               <Brain className="h-3 w-3 shrink-0 opacity-70" />
               <span className="tabular-nums font-medium text-[var(--foreground)]">{mem}</span>
             </span>
@@ -168,14 +168,14 @@ function ActivityCell({ user }: { user: UserRow }) {
 }
 
 const TH =
-  'text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--estate-text-dim)] whitespace-nowrap';
+  'text-left px-4 py-3 font-mono text-[length:var(--type-caption-size)] uppercase tracking-wide font-semibold text-[var(--estate-text-dim)] whitespace-nowrap';
 
 function ProviderBadge({ provider }: { provider: string }) {
   const isAad = provider === 'aad';
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide',
+        'inline-flex items-center rounded border px-2 py-0.5 font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide',
         isAad
           ? 'border-[color-mix(in_srgb,var(--brand-a)_25%,transparent)] bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)] text-[var(--brand-a-ink)]'
           : 'border-[var(--estate-border)] bg-[var(--estate-hover)] text-muted-foreground',
@@ -392,7 +392,7 @@ export function UserTable({
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full text-[11px] font-bold ring-1 ring-[color-mix(in_srgb,var(--brand-a)_28%,transparent)]"
+                      className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full text-[length:var(--type-caption-size)] font-semibold ring-1 ring-[color-mix(in_srgb,var(--brand-a)_28%,transparent)]"
                       style={{
                         background: 'color-mix(in srgb, var(--brand-a) 16%, transparent)',
                         color: 'var(--brand-a-ink)',
@@ -406,7 +406,7 @@ export function UserTable({
                           {user.name || <span className="italic text-muted-foreground font-normal">No name</span>}
                         </span>
                         {isSelf && (
-                          <span className="shrink-0 rounded px-1.5 py-px font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
+                          <span className="shrink-0 rounded px-1.5 py-px font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
                             you
                           </span>
                         )}

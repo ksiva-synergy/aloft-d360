@@ -126,7 +126,7 @@ export default function SavedAgentsPage() {
                     {initials(agent.name)}
                   </span>
                   <div className="min-w-0">
-                    <h2 className="truncate text-[15px] font-semibold text-[var(--ink-1)]">{agent.name}</h2>
+                    <h2 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{agent.name}</h2>
                     <p className="mt-0.5 truncate text-xs text-[var(--ink-3)]">
                       {[agent.agentClass, agent.status].filter(Boolean).join(' · ') || 'Agent'}
                       {agent.updatedAt ? ` · ${when(agent.updatedAt)}` : ''}
@@ -139,20 +139,20 @@ export default function SavedAgentsPage() {
                 <div className="mt-4 flex items-center gap-2">
                   <Link
                     href={agent.useUrl}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--brand-a)] px-3 text-[13px] font-semibold text-white"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--brand-a)] px-3 text-[length:var(--type-ui-regular-size)] font-semibold text-white"
                   >
                     <MessageCircle className="h-3.5 w-3.5" /> Chat
                   </Link>
                   <Link
                     href={agent.catalogUrl}
-                    className="inline-flex h-8 items-center rounded-full px-2.5 text-[13px] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+                    className="inline-flex h-8 items-center rounded-full px-2.5 text-[length:var(--type-ui-regular-size)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
                   >
                     View
                   </Link>
                   {agent.editUrl && (
                     <Link
                       href={agent.editUrl}
-                      className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+                      className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[length:var(--type-ui-regular-size)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
                     >
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </Link>

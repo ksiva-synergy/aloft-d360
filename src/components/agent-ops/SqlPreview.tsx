@@ -3,7 +3,7 @@
 import React, { useCallback } from 'react';
 import { type } from '@/lib/typography/tokens';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 export function extractSqlFromInput(input?: Record<string, unknown>): string | null {
   if (!input) return null;
@@ -34,7 +34,7 @@ export function SqlPreview({ sql, maxLen = 280 }: { sql: string; maxLen?: number
           onClick={onCopy}
           style={{
             ...mono,
-            fontSize: 9,
+            fontSize: 'var(--type-caption-size)',
             background: 'transparent',
             border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
             color: 'var(--brand-a)',
@@ -49,7 +49,7 @@ export function SqlPreview({ sql, maxLen = 280 }: { sql: string; maxLen?: number
       <pre
         style={{
           ...mono,
-          fontSize: 11,
+          fontSize: 'var(--type-caption-size)',
           lineHeight: 1.45,
           margin: '4px 0 0',
           padding: 8,

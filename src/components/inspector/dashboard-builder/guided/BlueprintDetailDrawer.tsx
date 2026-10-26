@@ -163,7 +163,7 @@ export function BlueprintDetailDrawer({
         display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px',
         borderBottom: `1px solid ${tint(MUTED, 20)}`, flexShrink: 0,
       }}>
-        <span style={{ fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, fontWeight: 600, flex: 1 }}>
+        <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: MUTED, fontWeight: 600, flex: 1 }}>
           Chart Details
         </span>
         <button
@@ -180,7 +180,7 @@ export function BlueprintDetailDrawer({
 
         {/* Title */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
+          <label style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
             Title
           </label>
           <input
@@ -188,7 +188,7 @@ export function BlueprintDetailDrawer({
             onChange={(e) => onRename(e.target.value)}
             aria-label="Chart title"
             style={{
-              fontFamily: UI_FONT, fontSize: 13, fontWeight: 600, color: INK,
+              fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: INK,
               background: tint(MUTED, 8), border: `1px solid ${tint(MUTED, 25)}`,
               borderRadius: 6, padding: '8px 10px', outline: 'none', width: '100%',
             }}
@@ -199,7 +199,7 @@ export function BlueprintDetailDrawer({
 
         {/* Chart kind selector */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
+          <label style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
             Chart Type
           </label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -208,7 +208,7 @@ export function BlueprintDetailDrawer({
                 key={kind}
                 onClick={() => onUpdate({ chartKindGuess: kind })}
                 style={{
-                  fontFamily: UI_FONT, fontSize: 13, letterSpacing: '0.04em',
+                  fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
                   textTransform: 'uppercase', fontWeight: 600,
                   padding: '4px 10px', borderRadius: 5,
                   border: `1px solid ${item.chartKindGuess === kind ? tint(GOLD, 60) : tint(MUTED, 30)}`,
@@ -229,7 +229,7 @@ export function BlueprintDetailDrawer({
             <button
               onClick={() => setSummaryOpen((o) => !o)}
               style={{
-                fontFamily: UI_FONT, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase',
                 color: MUTED, fontWeight: 600, background: 'transparent', border: 'none',
                 cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, marginBottom: 6,
               }}
@@ -242,7 +242,7 @@ export function BlueprintDetailDrawer({
                 {item.measureLabels.map((label, i) => (
                   <span key={`m${i}`} style={fieldChip(GREEN)}>{label}</span>
                 ))}
-                {dimCount > 0 && <span style={{ fontFamily: UI_FONT, fontSize: 13, color: MUTED, alignSelf: 'center' }}>by</span>}
+                {dimCount > 0 && <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, alignSelf: 'center' }}>by</span>}
                 {item.dimensionLabels.map((label, i) => (
                   <span key={`d${i}`} style={fieldChip(BLUE)}>{label}</span>
                 ))}
@@ -254,10 +254,10 @@ export function BlueprintDetailDrawer({
         {/* Rationale */}
         {item.rationale && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
+            <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
               Why this chart
             </span>
-            <p style={{ fontFamily: UI_FONT, fontSize: 13, color: MUTED, margin: 0, lineHeight: 1.6, padding: '8px 10px', background: tint(MUTED, 6), borderRadius: 6 }}>
+            <p style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.6, padding: '8px 10px', background: tint(MUTED, 6), borderRadius: 6 }}>
               {item.rationale}
             </p>
           </div>
@@ -269,13 +269,13 @@ export function BlueprintDetailDrawer({
             padding: '12px 14px', borderRadius: 8, border: `1px dashed ${tint(VIOLET, 40)}`,
             background: tint(VIOLET, 6), display: 'flex', flexDirection: 'column', gap: 8,
           }}>
-            <span style={{ fontSize: 13, color: VIOLET }}>
+            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: VIOLET }}>
               "{item.undefinedTerm ?? item.title}" isn't in the governed catalog yet.
             </span>
             <button
               onClick={onOpenDefine}
               style={{
-                fontFamily: UI_FONT, fontSize: 13, color: VIOLET, background: tint(VIOLET, 12),
+                fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: VIOLET, background: tint(VIOLET, 12),
                 border: `1px solid ${tint(VIOLET, 40)}`, borderRadius: 6, padding: '6px 12px',
                 cursor: 'pointer', alignSelf: 'flex-start',
               }}
@@ -289,10 +289,10 @@ export function BlueprintDetailDrawer({
         {pd && (
           <div style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${tint(GOLD, 28)}`, background: tint(GOLD, 6), display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, border: `1px solid ${tint(MUTED, 40)}`, borderRadius: 3, padding: '1px 6px' }}>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, border: `1px solid ${tint(MUTED, 40)}`, borderRadius: 3, padding: '1px 6px' }}>
                 {pd.tier}
               </span>
-              <span style={{ fontSize: 13, color: INK }}>{pd.label}</span>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', color: INK }}>{pd.label}</span>
               <span style={{ flex: 1 }} />
               {pd.tier === 'draft' && (
                 <button onClick={handleSubmitForGovernance} disabled={ladderBusy} style={ladderBtnStyle(GOLD, ladderBusy)}>
@@ -305,23 +305,23 @@ export function BlueprintDetailDrawer({
                 </button>
               )}
               {pd.tier === 'governed' && (
-                <span style={{ fontSize: 13, color: GREEN, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'var(--type-ui-regular-size)', color: GREEN, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <Check size={12} /> Governed
                 </span>
               )}
             </div>
             {pd.tier === 'draft' && (
-              <span style={{ fontSize: 13, color: MUTED, lineHeight: 1.4 }}>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.4 }}>
                 Draft is private to you — submit it so this chart can use it.
               </span>
             )}
-            {ladderError && <span style={{ fontSize: 13, color: '#F87171' }}>{ladderError}</span>}
+            {ladderError && <span style={{ fontSize: 'var(--type-ui-regular-size)', color: '#F87171' }}>{ladderError}</span>}
           </div>
         )}
 
         {/* NL feedback → regenerate */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
+          <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, fontWeight: 600 }}>
             <MessageSquare size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
             Refine this chart
           </span>
@@ -332,7 +332,7 @@ export function BlueprintDetailDrawer({
             rows={3}
             placeholder='e.g. "wrong metric — use lost-time injuries", "make it a line by month"'
             style={{
-              fontFamily: UI_FONT, fontSize: 13, resize: 'vertical', color: INK, lineHeight: 1.5,
+              fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', resize: 'vertical', color: INK, lineHeight: 1.5,
               background: tint(MUTED, 8), border: `1px solid ${tint(MUTED, 25)}`, borderRadius: 6,
               padding: '8px 10px', outline: 'none', width: '100%',
             }}
@@ -344,7 +344,7 @@ export function BlueprintDetailDrawer({
               onClick={handleRegenerate}
               disabled={!feedback.trim() || regenerating}
               style={{
-                fontFamily: UI_FONT, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '7px 13px', borderRadius: 6,
                 border: feedback.trim() ? `1px solid ${tint(GOLD, 60)}` : `1px dashed ${tint(MUTED, 40)}`,
                 background: feedback.trim() ? tint(GOLD, 10) : 'transparent',
@@ -355,7 +355,7 @@ export function BlueprintDetailDrawer({
               {regenerating ? <Loader2 size={12} className="spin" /> : <CornerDownLeft size={12} />}
               {regenerating ? 'Regenerating…' : 'Regenerate'}
             </button>
-            {regenError && <span style={{ fontSize: 13, color: '#F87171' }}>{regenError}</span>}
+            {regenError && <span style={{ fontSize: 'var(--type-ui-regular-size)', color: '#F87171' }}>{regenError}</span>}
           </div>
         </div>
       </div>
@@ -365,14 +365,14 @@ export function BlueprintDetailDrawer({
 
 function fieldChip(color: string): React.CSSProperties {
   return {
-    fontFamily: UI_FONT, fontSize: 13, padding: '3px 9px', borderRadius: 12,
+    fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', padding: '3px 9px', borderRadius: 12,
     border: `1px solid ${tint(color, 34)}`, background: tint(color, 10), color, whiteSpace: 'nowrap',
   };
 }
 
 function ladderBtnStyle(color: string, disabled: boolean): React.CSSProperties {
   return {
-    fontFamily: UI_FONT, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 5,
+    fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 5,
     padding: '5px 9px', borderRadius: 5, border: `1px solid ${tint(color, 55)}`,
     background: tint(color, 12), color, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.6 : 1,
   };

@@ -194,8 +194,8 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
                 <span
                   title="Fallback to native column comment — no semantic description yet"
                   style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     fontWeight: 600,
                     padding: '1px 4px',
                     borderRadius: 2,
@@ -241,8 +241,8 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
               </div>
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: mutedColor,
                 }}
               >
@@ -413,8 +413,8 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
   };
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'Inter Variable', sans-serif",
-    fontSize: '13px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--type-ui-regular-size)',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '4px',
@@ -499,7 +499,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             className="flex-1 bg-transparent border-none outline-none text-xs"
-            style={{ color: inkColor, fontFamily: "'Inter Variable', sans-serif", minWidth: 0 }}
+            style={{ color: inkColor, fontFamily: 'var(--font-sans)', minWidth: 0 }}
           />
           {searchQuery && (
             <button
@@ -727,7 +727,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-xs" style={{ color: mutedColor }}>Rows:</span>
             <select
-              style={{ ...selectStyle, fontSize: '13px', padding: '3px 22px 3px 6px' }}
+              style={{ ...selectStyle, fontSize: 'var(--type-ui-regular-size)', padding: '3px 22px 3px 6px' }}
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
             >

@@ -149,14 +149,14 @@ export default function EstateOverviewPage() {
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h1
-              className="text-3xl font-bold tracking-tight"
+              className="text-3xl font-semibold tracking-tight"
               style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
             >
               Data Estate
             </h1>
             <p
               className="text-sm mt-1.5"
-              style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
+              style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
             >
               Mendeleev context harness — what ALOFT knows about your data
             </p>
@@ -235,7 +235,7 @@ export default function EstateOverviewPage() {
               {/* Description */}
               <p
                 className="text-xs leading-relaxed"
-                style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
+                style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
               >
                 Connect a data source to begin cataloging your data estate.
               </p>

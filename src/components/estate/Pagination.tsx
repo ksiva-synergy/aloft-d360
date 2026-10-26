@@ -19,8 +19,8 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   const borderColor = 'var(--estate-border-gold)';
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 'var(--type-ui-regular-size)',
     color: disabled ? 'var(--estate-text-muted)' : inkColor,
     backgroundColor: 'transparent',
     border: `1px solid ${borderColor}`,
@@ -55,7 +55,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
         </button>
 
         <span className="font-mono text-xs px-2" style={{ color: inkColor }}>
-          Page <span className="font-bold">{page}</span> of {totalPages}
+          Page <span className="font-semibold">{page}</span> of {totalPages}
         </span>
 
         <button

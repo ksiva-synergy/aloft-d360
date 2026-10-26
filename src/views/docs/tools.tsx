@@ -82,7 +82,7 @@ export default function ToolsListPage() {
         </Link>
         <div className="flex items-center gap-3">
           <Wrench className="h-6 w-6 text-[color:var(--brand-a-ink)]" />
-          <h1 className="text-2xl font-bold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+          <h1 className="text-2xl font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
             Tools Library
           </h1>
           <span className="text-xs text-[var(--ink-3)] bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] px-2.5 py-1 rounded-full">

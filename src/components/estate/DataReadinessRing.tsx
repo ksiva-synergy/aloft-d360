@@ -76,8 +76,8 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         fontWeight: 600,
         color,
         width: 20,
@@ -90,8 +90,8 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.4s ease' }} />
       </div>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 13,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color,
         width: 32,
         textAlign: 'right',
@@ -129,7 +129,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             ) : null;
           })}
           <text x={cx} y={cy + 5} textAnchor="middle" dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 18, fill: TRACK_COLOR, fontWeight: 700 }}>
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: TRACK_COLOR, fontWeight: 600 }}>
             —
           </text>
         </svg>
@@ -179,7 +179,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             x={cx} y={cy - 8}
             textAnchor="middle"
             dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 22, fill: centerColor, fontWeight: 700 }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: centerColor, fontWeight: 600 }}
           >
             {dataScore.level}
           </text>
@@ -188,7 +188,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             x={cx} y={cy + 16}
             textAnchor="middle"
             dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, fill: 'var(--estate-text-muted, var(--ink-3))' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fill: 'var(--estate-text-muted, var(--ink-3))' }}
           >
             {Math.round(dataScore.composite * 100)}%
           </text>
@@ -238,24 +238,24 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
 
         {/* Gating statement */}
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: gatingDimColor,
           marginBottom: 8,
           lineHeight: 1.5,
         }}>
           <span style={{ marginRight: 5 }}>◆</span>
-          <span style={{ fontWeight: 700 }}>{DIMENSION_LABELS[gatingDim]}</span>
+          <span style={{ fontWeight: 600 }}>{DIMENSION_LABELS[gatingDim]}</span>
           {' '}is holding this object at{' '}
-          <span style={{ fontWeight: 700 }}>{dataScore.level}</span>
+          <span style={{ fontWeight: 600 }}>{dataScore.level}</span>
         </div>
 
         {/* Gating reasons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {gatingReasons.slice(0, 5).map((reason, i) => (
             <div key={i} style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: 'var(--estate-text-muted, var(--ink-3))',
               lineHeight: 1.5,
               paddingLeft: 14,
@@ -275,8 +275,8 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
         {/* Level label */}
         <div style={{
           marginTop: 10,
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted, var(--ink-3))',
           letterSpacing: '0.04em',
         }}>

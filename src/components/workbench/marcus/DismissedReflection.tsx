@@ -38,8 +38,8 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
           <span style={{ color: 'color-mix(in srgb, var(--brand-a) 45%, transparent)' }}>CAPTAIN TRACK SPARROW</span> · {technique.replace(/_/g, ' ')}
         </div>
         <div style={{
-          fontFamily: "'Inter Variable', system-ui, sans-serif",
-          fontSize: '13px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: '#5a6a82',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -50,8 +50,8 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
       </div>
       
       <div style={{
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        fontSize: '13px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color: '#5a6a82',
         opacity: hovered ? 1 : 0,
         transition: 'opacity 0.15s',

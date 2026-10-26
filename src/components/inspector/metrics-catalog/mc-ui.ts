@@ -6,9 +6,9 @@
 import type { CSSProperties } from 'react';
 import type { DefKind, GovStatus } from './catalog-types';
 
-export const MONO: CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-export const SANS: CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
-export const SERIF: CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
+export const MONO: CSSProperties = { fontFamily: 'var(--font-mono)' };
+export const SANS: CSSProperties = { fontFamily: 'var(--font-sans)' };
+export const SERIF: CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 export const kindColorVar = (kind: DefKind): string =>
   kind === 'entity'

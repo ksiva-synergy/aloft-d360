@@ -110,7 +110,7 @@ export default function SourceCard({
       {/* Header Info */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold transition-colors duration-200" style={{ color: inkColor }}>
+          <h3 className="text-base font-semibold transition-colors duration-200" style={{ color: inkColor }}>
             {sourceName}
           </h3>
           <span

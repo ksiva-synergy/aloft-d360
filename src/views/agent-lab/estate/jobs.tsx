@@ -549,7 +549,7 @@ function RunJobConfirmModal({
             </div>
 
             {confirm.kinds.length === 1 && confirm.kinds[0] === 'estate_inventory' && (
-              <p className="text-[10px] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+              <p className="text-[length:var(--type-caption-size)] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                 Discovery snapshot from the database (not live Databricks). Estate Inventory uses the source&apos;s{' '}
                 <code className="opacity-80">scope_include</code> in settings — not this tree or Focus. Refresh by running inventory, then reopen this dialog.
               </p>
@@ -576,7 +576,7 @@ function RunJobConfirmModal({
                   {confirm.scopeInclude && confirm.scopeInclude.length > 0 && (
                     <div className="flex items-center gap-2 w-full">
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Source scope:</span>
-                      <span className="text-[11px] font-mono truncate" style={{ color: '#FDB515' }} title={confirm.scopeInclude.join(', ')}>
+                      <span className="text-[length:var(--type-caption-size)] font-mono truncate" style={{ color: '#FDB515' }} title={confirm.scopeInclude.join(', ')}>
                         {confirm.scopeInclude.join(', ')}
                       </span>
                     </div>
@@ -584,7 +584,7 @@ function RunJobConfirmModal({
                   {confirm.tree && confirm.tree.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Catalogs in discovery:</span>
-                      <span className="text-[13px] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.tree.length}</span>
+                      <span className="text-[length:var(--type-ui-regular-size)] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.tree.length}</span>
                     </div>
                   )}
                   {includedCount !== null && (
@@ -593,7 +593,7 @@ function RunJobConfirmModal({
                         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                       </svg>
                       <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Objects in scope:</span>
-                      <span className="text-xs font-mono font-bold" style={{ color: 'var(--brand-a-ink)' }}>{includedCount.toLocaleString()}</span>
+                      <span className="text-xs font-mono font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{includedCount.toLocaleString()}</span>
                       {confirm.excludeSchemas.size > 0 && confirm.objectCount !== null && (
                         <span className="text-xs font-mono" style={{ color: '#EF4444' }}>
                           ({"-"}{(confirm.objectCount - (includedCount ?? 0)).toLocaleString()} excluded)
@@ -691,7 +691,7 @@ function RunJobConfirmModal({
             )}
             </>
             ) : (
-              <p className="text-[10px] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+              <p className="text-[length:var(--type-caption-size)] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                 These job types run on <span style={{ color: '#FDB515' }}>Scanned &amp; beyond</span> objects (T0 registry).
                 Use <span style={{ color: '#FDB515' }}>Focus</span> below — the estate exclude tree is only for Inventory / T0.
               </p>
@@ -742,20 +742,20 @@ function RunJobConfirmModal({
               </div>
 
               {!splitPlansLoading && activePlan && (
-                <div className="text-[11px] font-mono pl-1" style={{ color: activePlan.emptyScope ? '#FCA5A5' : '#93C5FD' }}>
+                <div className="text-[length:var(--type-caption-size)] font-mono pl-1" style={{ color: activePlan.emptyScope ? '#FCA5A5' : '#93C5FD' }}>
                   {activePlan.totalObjects.toLocaleString()} scanned object(s) match this plan
                   {confirm.includePatterns.trim() ? ' (Focus applied)' : ''}
                 </div>
               )}
 
               {!splitPlansLoading && activePlan?.scopeWarning && (
-                <div className="text-[11px] font-mono px-3 py-2 rounded border" style={{ color: '#FCA5A5', borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
+                <div className="text-[length:var(--type-caption-size)] font-mono px-3 py-2 rounded border" style={{ color: '#FCA5A5', borderColor: 'rgba(239,68,68,0.35)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
                   {activePlan.scopeWarning}
                 </div>
               )}
 
               {!splitPlansLoading && activePlan?.harvestModelId && confirm.kinds.includes('t2_semantic') && (
-                <div className="text-[10px] font-mono pl-1" style={{ color: '#8892A4' }}>
+                <div className="text-[length:var(--type-caption-size)] font-mono pl-1" style={{ color: '#8892A4' }}>
                   Harvest LLM model: <span style={{ color: '#e8ecf0' }}>{activePlan.harvestModelId}</span>
                   <span className="opacity-80"> — runs on Fargate (xAI direct when XAI_API_KEY is set)</span>
                 </div>
@@ -764,19 +764,19 @@ function RunJobConfirmModal({
               {!splitPlansLoading && activePlan?.needsSplit && (
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 pl-1 pt-1">
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-mono font-bold" style={{ color: 'var(--brand-a-ink)' }}>{activePlan.chunks}</span>
+                    <span className="text-lg font-mono font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{activePlan.chunks}</span>
                     <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>chunks ({activePlan.maxObjectsPerChunk} obj each)</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-mono font-bold" style={{ color: 'var(--ink-1)' }}>{activePlan.timeBudgetMinutes} min</span>
+                    <span className="text-lg font-mono font-semibold" style={{ color: 'var(--ink-1)' }}>{activePlan.timeBudgetMinutes} min</span>
                     <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>budget per chunk</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-mono font-bold" style={{ color: '#93C5FD' }}>~{activePlan.estimatedWallClockMinutes} min</span>
+                    <span className="text-lg font-mono font-semibold" style={{ color: '#93C5FD' }}>~{activePlan.estimatedWallClockMinutes} min</span>
                     <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>wall-clock ({activePlan.maxConcurrent} concurrent)</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-mono font-bold" style={{ color: activePlan.estimatedCostUsd > 0 ? '#F59E0B' : '#2DD4A0' }}>
+                    <span className="text-lg font-mono font-semibold" style={{ color: activePlan.estimatedCostUsd > 0 ? '#F59E0B' : '#2DD4A0' }}>
                       {activePlan.estimatedCostUsd > 0 ? `~$${activePlan.estimatedCostUsd.toFixed(2)}` : '$0'}
                     </span>
                     <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>est. LLM cost</span>
@@ -858,12 +858,12 @@ function RunJobConfirmModal({
                 ? `${confirm.excludeSchemas.size} schema${confirm.excludeSchemas.size !== 1 ? 's' : ''} excluded`
                 : 'Full source scope'}
             {confirm.kinds.length > 1 && (
-              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-bold uppercase" style={{ backgroundColor: confirm.sequential ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)', color: confirm.sequential ? 'var(--brand-a-ink)' : 'var(--text-tertiary, #8892A4)' }}>
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-semibold uppercase" style={{ backgroundColor: confirm.sequential ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)', color: confirm.sequential ? 'var(--brand-a-ink)' : 'var(--text-tertiary, #8892A4)' }}>
                 {confirm.sequential ? 'sequential' : 'parallel'}
               </span>
             )}
             {activePlan?.needsSplit && (
-              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-bold uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', color: 'var(--brand-a-ink)' }}>
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-semibold uppercase" style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', color: 'var(--brand-a-ink)' }}>
                 {activePlan.chunks} chunks
               </span>
             )}
@@ -1206,7 +1206,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           </svg>
           Run Job
           {selectedKinds.size > 0 && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ backgroundColor: '#FFFFFF', color: 'var(--brand-a)' }}>
+            <span className="px-1.5 py-0.5 rounded text-xs font-semibold" style={{ backgroundColor: '#FFFFFF', color: 'var(--brand-a)' }}>
               {selectedKinds.size}
             </span>
           )}
@@ -1252,7 +1252,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                       }}
                     >
                       <span
-                        className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs font-mono font-bold"
+                        className="shrink-0 w-5 h-5 rounded flex items-center justify-center text-xs font-mono font-semibold"
                         style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}
                       >
                         {group.step}
@@ -1411,23 +1411,23 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
         style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
         <SuccessRing rate={overallRate} color={rateColor} />
         <div>
-          <div className="text-lg font-mono font-bold" style={{ color: rateColor }}>{overallRate}%</div>
+          <div className="text-lg font-mono font-semibold" style={{ color: rateColor }}>{overallRate}%</div>
      <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Success</div>
         </div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
-        <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{totalRuns.toLocaleString()}</div>
+        <div className="text-lg font-mono font-semibold" style={{ color: 'var(--estate-ink)' }}>{totalRuns.toLocaleString()}</div>
     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'rgba(45,212,160,0.15)', backgroundColor: 'rgba(45,212,160,0.04)' }}>
-        <div className="text-lg font-mono font-bold" style={{ color: '#2DD4A0' }}>{totalSuccess.toLocaleString()}</div>
+        <div className="text-lg font-mono font-semibold" style={{ color: '#2DD4A0' }}>{totalSuccess.toLocaleString()}</div>
     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: totalFailed > 0 ? 'rgba(239,68,68,0.2)' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)', backgroundColor: totalFailed > 0 ? 'rgba(239,68,68,0.04)' : 'var(--estate-raised)' }}>
-        <div className="text-lg font-mono font-bold" style={{ color: totalFailed > 0 ? '#EF4444' : 'var(--estate-text-muted)' }}>{totalFailed}</div>
+        <div className="text-lg font-mono font-semibold" style={{ color: totalFailed > 0 ? '#EF4444' : 'var(--estate-text-muted)' }}>{totalFailed}</div>
     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
@@ -1439,13 +1439,13 @@ function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
             </span>
           )}
-          <span className="text-lg font-mono font-bold" style={{ color: totalRunning > 0 ? 'var(--brand-a-ink)' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
+          <span className="text-lg font-mono font-semibold" style={{ color: totalRunning > 0 ? 'var(--brand-a-ink)' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
         </div>
     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Active</div>
       </div>
       <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
         style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
-        <div className="text-lg font-mono font-bold" style={{ color: 'var(--estate-ink)' }}>{activeKinds}/{ALL_KINDS.length}</div>
+        <div className="text-lg font-mono font-semibold" style={{ color: 'var(--estate-ink)' }}>{activeKinds}/{ALL_KINDS.length}</div>
     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
       </div>
     </div>
@@ -1456,7 +1456,7 @@ function JobKindGroupHeader({ group, isFirst }: { group: JobKindGroup; isFirst?:
   return (
     <div className={cn('col-span-full flex items-center gap-3', isFirst ? 'mb-1' : 'mt-6 mb-1')}>
       <span
-        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-mono font-bold"
+        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-xs font-mono font-semibold"
         style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }}
       >
         {group.step}
@@ -1509,7 +1509,7 @@ function JobKindCard({
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: meta.color, opacity: s ? 1 : 0.3 }} />
           <div className="min-w-0">
-      <div className="text-label truncate" style={{ color: meta.color }}>
+      <div className="text-label truncate" style={{ color: 'var(--estate-ink)' }}>
               {meta.label}
             </div>
             <div className="text-xs leading-snug mt-0.5 line-clamp-1" style={{ color: 'var(--estate-text-secondary)' }}>
@@ -1529,7 +1529,7 @@ function JobKindCard({
             </span>
           )}
           {hasFailures && (
-            <span className="px-2 py-1 rounded-md text-xs font-mono font-bold"
+            <span className="px-2 py-1 rounded-md text-xs font-mono font-semibold"
               style={{ color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.1)' }}>
               {s!.failed} failed
             </span>
@@ -2393,14 +2393,14 @@ function EstateJobsPageContent() {
                     <span className="font-semibold text-[var(--foreground)]">{sched.label}</span>
                     <span className="text-[var(--text-tertiary)]">|</span>
                     {isManual ? (
-                      <span className="font-bold uppercase tracking-wider text-xs text-[var(--text-tertiary)]">
+                      <span className="font-semibold uppercase tracking-wide text-xs text-[var(--text-tertiary)]">
                         manual · not scheduled
                       </span>
                     ) : (
                       <>
                         <span className="text-xs text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
                         <span className="text-[var(--text-tertiary)]">|</span>
-                        <span className={`font-bold ${isImminent ? 'text-[var(--brand-a-ink)]' : 'text-[var(--text-secondary)]'}`}>
+                        <span className={`font-semibold ${isImminent ? 'text-[var(--brand-a-ink)]' : 'text-[var(--text-secondary)]'}`}>
                           {relative}
                         </span>
                       </>
@@ -2448,7 +2448,7 @@ function EstateJobsPageContent() {
                   key={tab}
                   onClick={() => pushParams({ tab: tab === 'jobs' ? null : tab })}
                   className={cn(
-                    'relative px-5 py-2.5 text-xs font-mono font-bold uppercase tracking-widest transition-colors duration-150 rounded-t cursor-pointer border-none',
+                    'relative px-5 py-2.5 text-xs font-mono font-semibold uppercase tracking-wide transition-colors duration-150 rounded-t cursor-pointer border-none',
                     isActive
                       ? 'text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]'
                       : 'text-[var(--nav-item-text)] bg-transparent hover:text-[var(--nav-text)] hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)]',

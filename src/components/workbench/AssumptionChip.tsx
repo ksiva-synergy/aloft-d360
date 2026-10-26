@@ -13,7 +13,7 @@ const TXT2    = 'var(--ink-2)';
 const TXT3    = 'var(--ink-3)';
 const LINE2   = 'var(--line-2)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 // ─── Field label translation map ─────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
       transition: 'border-color 0.2s',
     }}>
       {/* Label */}
-      <span style={{ ...mono, fontSize: 13, color: TXT2, flex: 1, lineHeight: 1.4 }}>
+      <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, flex: 1, lineHeight: 1.4 }}>
         {isConfirmed ? (
           <>assumed <span style={{ color: TXT, fontWeight: 500 }}>{valStr}</span> for {label}</>
         ) : editing ? null : (
@@ -103,7 +103,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               if (e.key === 'Escape') { setEditing(false); setEditValue(String(entry.value ?? '')); }
             }}
             style={{
-              ...mono, fontSize: 13, color: TXT,
+              ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT,
               background: 'transparent',
               border: 'none',
               borderBottom: `1px solid ${GOLD}`,
@@ -132,7 +132,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              ...mono, fontSize: 13, color: GOLD,
+              ...mono, fontSize: 'var(--type-ui-regular-size)', color: GOLD,
               padding: '0 4px',
               borderRadius: 3,
               lineHeight: 1,
@@ -150,7 +150,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              ...mono, fontSize: 13, color: TXT3,
+              ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT3,
               padding: '0 4px',
               transition: 'color 0.15s',
             }}

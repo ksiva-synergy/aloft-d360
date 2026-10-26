@@ -6,8 +6,8 @@ export default function MemoryContributionsPage() {
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
           <h1
-            className="text-[1.4rem] font-semibold tracking-tight"
-            style={{ fontFamily: '"Inter Variable", Inter, sans-serif' }}
+            className="text-[length:var(--type-title-section-size)] font-semibold tracking-tight"
+            style={{ fontFamily: 'var(--font-sans)' }}
           >
             Memory Contributions
           </h1>

@@ -37,14 +37,14 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
     return { bars: out, span: Math.max(...out.map((b) => b.end), 1), wallClock: stamped };
   }, [calls]);
 
-  if (calls.length === 0) return <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No tool calls to plot.</p>;
+  if (calls.length === 0) return <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', margin: 0 }}>No tool calls to plot.</p>;
 
   const ticks = [0, 0.25, 0.5, 0.75, 1];
   const LABEL_W = 190;
 
   return (
     <div>
-      <p style={{ ...sans, fontSize: 11, color: 'var(--ink-3)', margin: '0 0 10px' }}>
+      <p style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', margin: '0 0 10px' }}>
         {wallClock
           ? 'Real clock time. Gaps between bars are time spent by the model thinking between calls.'
           : 'This run has no timestamps, so calls are laid end to end in order. Bar length is the call’s duration.'}
@@ -62,7 +62,7 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
                 position: 'absolute',
                 left: `${f * 100}%`,
                 transform: f === 0 ? 'none' : f === 1 ? 'translateX(-100%)' : 'translateX(-50%)',
-                fontSize: 10,
+                fontSize: 'var(--type-caption-size)',
                 color: 'var(--ink-3)',
               }}
             >
@@ -81,7 +81,7 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
           return (
             <React.Fragment key={b.inv.id}>
               {newTurn && (
-                <div style={{ ...sans, fontSize: 11, fontWeight: 600, color: 'var(--wb-ink-dim)', padding: '8px 0 4px', borderBottom: BORDER }}>
+                <div style={{ ...sans, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: 'var(--wb-ink-dim)', padding: '8px 0 4px', borderBottom: BORDER }}>
                   Turn {b.inv.turnIndex || '—'}
                 </div>
               )}
@@ -104,7 +104,7 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
                   textAlign: 'left',
                 }}
               >
-                <span style={{ ...mono, fontSize: 11, color: active ? 'var(--wb-ink)' : 'var(--wb-ink-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>
+                <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: active ? 'var(--wb-ink)' : 'var(--wb-ink-dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 4 }}>
                   <span style={{ color: 'var(--ink-3)' }}>{String(b.index + 1).padStart(2, '0')}</span> {b.inv.toolName}
                 </span>
                 <span style={{ position: 'relative', height: '100%' }}>
@@ -131,7 +131,7 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
                         position: 'absolute',
                         top: 6,
                         left: `calc(${(b.end / span) * 100}% + 6px)`,
-                        fontSize: 10,
+                        fontSize: 'var(--type-caption-size)',
                         color: 'var(--wb-ink)',
                         whiteSpace: 'nowrap',
                         transform: b.end / span > 0.8 ? 'translateX(calc(-100% - 12px))' : 'none',

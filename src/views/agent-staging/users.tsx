@@ -62,11 +62,11 @@ function StatCard({
     <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-2xl font-bold tabular-nums tracking-tight text-[var(--estate-ink)]">{value}</div>
-          <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
+          <div className="text-2xl font-semibold tabular-nums tracking-tight text-[var(--estate-ink)]">{value}</div>
+          <div className="mt-1 font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--estate-text-dim)]">
             {label}
           </div>
-          {sub && <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>}
+          {sub && <div className="mt-1 text-[length:var(--type-caption-size)] text-muted-foreground">{sub}</div>}
         </div>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--brand-a-ink)]">
           <Icon className="h-4 w-4" />
@@ -224,7 +224,7 @@ export default function UsersPage() {
             </span>
             Users
           </h1>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
+          <p className="mt-2 font-mono text-[length:var(--type-caption-size)] uppercase tracking-wide text-[var(--estate-text-dim)]">
             Platform directory · Roles & access control
           </p>
         </div>
@@ -319,7 +319,7 @@ export default function UsersPage() {
 
         {/* Active filter count */}
         {(search || roleFilter || statusFilter) && (
-          <span className="rounded-full bg-[var(--estate-hover)] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="rounded-full bg-[var(--estate-hover)] px-2.5 py-1 font-mono text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-muted-foreground">
             {filtered.length} / {users.length}
           </span>
         )}

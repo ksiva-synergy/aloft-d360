@@ -20,7 +20,7 @@ const T = {
 } as const;
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
@@ -47,8 +47,8 @@ function KpiCard({ spec }: { spec: ChartSpec }) {
       <span
         style={{
           ...MONO,
-          fontSize: 32,
-          fontWeight: 700,
+          fontSize: 'var(--type-display-size)',
+          fontWeight: 600,
           color: T.text,
           lineHeight: 1,
           letterSpacing: '-0.02em',
@@ -74,7 +74,7 @@ function ColChip({ col }: { col: string }) {
     <span
       style={{
         ...MONO,
-        fontSize: 13,
+        fontSize: 'var(--type-ui-regular-size)',
         border: `1px solid ${T.border}`,
         borderRadius: 3,
         padding: '1px 5px',
@@ -195,7 +195,7 @@ function GearMenu({
     color: T.text,
     padding: '3px 6px',
     ...MONO,
-    fontSize: 13,
+    fontSize: 'var(--type-ui-regular-size)',
     width: '100%',
     marginTop: 3,
   };
@@ -401,7 +401,7 @@ function ChartCard({
       >
         {shownChips.map(col => <ColChip key={col} col={col} />)}
         {extraCount > 0 && (
-          <span style={{ ...MONO, fontSize: 13, color: T.label, letterSpacing: '0.06em' }}>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: T.label, letterSpacing: '0.04em' }}>
             +{extraCount} more
           </span>
         )}

@@ -75,7 +75,7 @@ export default function ProfileSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6 md:p-8">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-[var(--ink-1)]">Profile &amp; appearance</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-[var(--ink-1)]">Profile &amp; appearance</h1>
         <p className="mt-1 text-sm text-[var(--ink-3)]">
           Your account details and how ALOFT looks in this browser.
         </p>
@@ -98,7 +98,7 @@ export default function ProfileSettingsPage() {
               <p className="mt-2 text-sm text-[var(--ink-3)]">Loading session…</p>
             ) : (
               <>
-                <p className="mt-2 truncate text-lg font-bold text-[var(--ink-1)]">{user?.name || 'User'}</p>
+                <p className="mt-2 truncate text-lg font-semibold text-[var(--ink-1)]">{user?.name || 'User'}</p>
                 <p className="truncate text-sm text-[var(--ink-3)]">{user?.email}</p>
                 {displayRole && (
                   <p className="mt-2 inline-flex rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ink-2)]">
@@ -112,7 +112,7 @@ export default function ProfileSettingsPage() {
       </section>
 
       <section className="rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-[var(--ink-1)]">Theme</h2>
+        <h2 className="text-sm font-semibold text-[var(--ink-1)]">Theme</h2>
         <p className="mt-1 text-sm text-[var(--ink-3)]">Light, dark, or follow your system preference.</p>
         <div className="mt-4">
           <ThemeSwitch />
@@ -120,7 +120,7 @@ export default function ProfileSettingsPage() {
       </section>
 
       <section className="rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-[var(--ink-1)]">Colors</h2>
+        <h2 className="text-sm font-semibold text-[var(--ink-1)]">Colors</h2>
         <p className="mt-1 text-sm text-[var(--ink-3)]">Accent and sidebar colors are saved locally in this browser.</p>
         <div className="mt-4 border-t border-[var(--line-1)] pt-4">
           <AppearanceControls />

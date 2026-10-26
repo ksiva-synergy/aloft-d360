@@ -162,7 +162,7 @@ export function TestRunSection({
 
   return (
     <div>
-      <p className="mb-2 text-[12px] text-[var(--ink-3)]">
+      <p className="mb-2 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
         Ask one question this agent should handle. It runs with the draft instructions and read-only access to live data.
       </p>
       <div className="flex items-start gap-2">
@@ -179,13 +179,13 @@ export function TestRunSection({
           disabled={running}
           aria-label="Test question"
           placeholder={lastRun?.question ?? 'e.g. Which vessels had the largest bunker variance last week?'}
-          className="min-w-0 flex-1 resize-none rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2 text-[13px] leading-relaxed outline-none focus:border-[var(--brand-a)] disabled:opacity-70"
+          className="min-w-0 flex-1 resize-none rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2 text-[length:var(--type-ui-regular-size)] leading-relaxed outline-none focus:border-[var(--brand-a)] disabled:opacity-70"
         />
         {running ? (
           <button
             type="button"
             onClick={() => ctrlRef.current?.abort()}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line-2)] px-3 text-[12.5px] font-semibold text-[var(--ink-1)]"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line-2)] px-3 text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]"
           >
             <Square className="h-3.5 w-3.5" /> Stop
           </button>
@@ -194,18 +194,18 @@ export function TestRunSection({
             type="button"
             onClick={() => void run()}
             disabled={blocked || !(question.trim() || lastRun?.question)}
-            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--brand-a)] px-3 text-[12.5px] font-semibold text-white disabled:opacity-50"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-[var(--brand-a)] px-3 text-[length:var(--type-caption-size)] font-semibold text-white disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5" /> Run
           </button>
         )}
       </div>
-      {tooShort && <p className="mt-1.5 text-[12px] text-[var(--ink-3)]">Write the instructions first, then test them.</p>}
+      {tooShort && <p className="mt-1.5 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Write the instructions first, then test them.</p>}
 
       {steps.length > 0 && (
         <ol className="mt-3 space-y-1">
           {steps.map((s) => (
-            <li key={s.callId} className="flex items-start gap-2 text-[12px]">
+            <li key={s.callId} className="flex items-start gap-2 text-[length:var(--type-caption-size)]">
               {s.status === 'running' ? (
                 <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-[var(--ink-3)]" />
               ) : s.status === 'ok' ? (
@@ -215,8 +215,8 @@ export function TestRunSection({
               )}
               <div className="min-w-0 flex-1">
                 <span className="font-semibold text-[var(--ink-2)]">{s.toolName === 'execute_tool' ? 'SQL' : 'Catalog'}</span>{' '}
-                <span className="break-all font-mono text-[11.5px] text-[var(--ink-3)]">{s.detail}</span>
-                {s.error && <p className="text-[11.5px] text-[var(--bad)]">{s.error}</p>}
+                <span className="break-all font-mono text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{s.detail}</span>
+                {s.error && <p className="text-[length:var(--type-caption-size)] text-[var(--bad)]">{s.error}</p>}
               </div>
             </li>
           ))}
@@ -225,7 +225,7 @@ export function TestRunSection({
 
       {preview && preview.columns.length > 0 && (
         <div className="mt-3 overflow-x-auto rounded-lg border border-[var(--line-1)]">
-          <table className="w-full text-[11.5px]">
+          <table className="w-full text-[length:var(--type-caption-size)]">
             <thead className="bg-[var(--surface-2)] text-left text-[var(--ink-2)]">
               <tr>
                 {preview.columns.slice(0, MAX_PREVIEW_COLS).map((c) => (
@@ -243,7 +243,7 @@ export function TestRunSection({
               ))}
             </tbody>
           </table>
-          <p className="border-t border-[var(--line-1)] px-2 py-1 text-[11px] text-[var(--ink-3)]">
+          <p className="border-t border-[var(--line-1)] px-2 py-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
             {preview.rowCount} row{preview.rowCount === 1 ? '' : 's'}
             {preview.columns.length > MAX_PREVIEW_COLS && ` · ${preview.columns.length - MAX_PREVIEW_COLS} more columns`}
           </p>
@@ -251,16 +251,16 @@ export function TestRunSection({
       )}
 
       {(answer || running) && (
-        <div className={cn('mt-3 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3.5 py-3', running && !answer && 'text-[13px] text-[var(--ink-3)]')}>
+        <div className={cn('mt-3 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3.5 py-3', running && !answer && 'text-[length:var(--type-ui-regular-size)] text-[var(--ink-3)]')}>
           {answer ? <AssistantContent content={answer} /> : 'Running…'}
         </div>
       )}
 
-      {error && <p role="alert" className="mt-2 text-[12px] text-[var(--bad)]">{error}</p>}
+      {error && <p role="alert" className="mt-2 text-[length:var(--type-caption-size)] text-[var(--bad)]">{error}</p>}
 
       {status === 'idle' && lastRun && (
         <div className="mt-3 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-3 py-2.5">
-          <div className="flex items-center gap-2 text-[12px]">
+          <div className="flex items-center gap-2 text-[length:var(--type-caption-size)]">
             {lastRun.outcome === 'completed' && lastRun.toolErrors === 0 ? (
               <CheckCircle2 className="h-3.5 w-3.5 text-[var(--ok)]" />
             ) : (
@@ -272,8 +272,8 @@ export function TestRunSection({
               {lastRun.toolErrors > 0 && `, ${lastRun.toolErrors} failed`}
             </span>
           </div>
-          <p className="mt-1 text-[12.5px] font-medium">{lastRun.question}</p>
-          {lastRun.answerPreview && <p className="mt-1 line-clamp-3 text-[12px] leading-relaxed text-[var(--ink-2)]">{lastRun.answerPreview}</p>}
+          <p className="mt-1 text-[length:var(--type-caption-size)] font-medium">{lastRun.question}</p>
+          {lastRun.answerPreview && <p className="mt-1 line-clamp-3 text-[length:var(--type-caption-size)] leading-relaxed text-[var(--ink-2)]">{lastRun.answerPreview}</p>}
         </div>
       )}
     </div>

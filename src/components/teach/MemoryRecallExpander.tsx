@@ -92,7 +92,7 @@ export function MemoryRecallExpander({
                     }}
                   />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, lineHeight: 1.45, color: 'var(--foreground)' }}>{h.ruleText}</div>
+                    <div style={{ fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.45, color: 'var(--foreground)' }}>{h.ruleText}</div>
                     <div
                       style={{
                         ...type.label,

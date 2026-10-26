@@ -49,8 +49,8 @@ export const mix = (colorVar: string, pct: number) =>
 /** Uppercase mono micro-label — the recurring caption style. */
 export const microLabel: React.CSSProperties = {
   fontFamily: FONT_MONO,
-  fontSize: 13,
-  letterSpacing: '0.12em',
+  fontSize: 'var(--type-ui-regular-size)',
+  letterSpacing: '0.08em',
   textTransform: 'uppercase',
   color: 'var(--text-tertiary)',
 };
@@ -67,9 +67,9 @@ export function statePill(colorVar: string): React.CSSProperties {
     boxShadow: `inset 0 0 0 1px ${mix(colorVar, 32)}`,
     color: colorVar,
     fontFamily: FONT_MONO,
-    fontSize: 13,
+    fontSize: 'var(--type-ui-regular-size)',
     fontWeight: 600,
-    letterSpacing: '0.1em',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
   };
 }

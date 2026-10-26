@@ -23,7 +23,7 @@ export function CollapseGuardrail() {
     >
       <div
         style={{
-          fontSize: '0.8rem',
+          fontSize: 'var(--type-ui-regular-size)',
           lineHeight: '1.4',
           color: 'var(--foer-text-sec)',
         }}

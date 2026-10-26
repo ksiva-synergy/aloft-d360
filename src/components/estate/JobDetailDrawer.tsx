@@ -65,7 +65,7 @@ function EmbedJobStatsNote({ stats }: { stats: Record<string, unknown> }) {
   const skipped = stats.skipped;
   if (objects === undefined && columns === undefined) return null;
   return (
-    <p className="font-mono text-[11px] leading-relaxed px-1 text-[var(--text-muted)]">
+    <p className="font-mono text-[length:var(--type-caption-size)] leading-relaxed px-1 text-[var(--text-muted)]">
       Counts below are for this run only (new or changed vectors). Unchanged rows are in{' '}
       <span style={{ color: '#93C5FD' }}>skipped</span>
       {typeof skipped === 'number' ? ` (${skipped.toLocaleString()})` : ''}. Estate totals are on
@@ -471,7 +471,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
           
           {/* Timing Section */}
           <div className="space-y-4">
-      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Timings</h4>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}>Timings</h4>
             <div className="flex flex-col gap-2.5 font-mono text-sm select-none">
               {/* Created Step */}
               <div className="flex items-center gap-3">
@@ -479,7 +479,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 </div>
                 <div>
-                  <span className="font-bold uppercase tracking-wider text-emerald-500">Created</span>
+                  <span className="font-semibold uppercase tracking-wide text-emerald-500">Created</span>
                   <span className="mx-2 text-[var(--text-muted)]">|</span>
                   <span style={{ color: inkColor }}>{createdDate.toLocaleString()}</span>
                 </div>
@@ -491,7 +491,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <div className="pl-4 py-1 flex items-center">
                   {startedDate ? (
                     <span className="text-xs text-[var(--text-secondary)]">
-                      Queued for <span className="font-bold text-[var(--text-primary)]">{getQueueDuration(activeJob.created_at, activeJob.started_at)}</span>
+                      Queued for <span className="font-semibold text-[var(--text-primary)]">{getQueueDuration(activeJob.created_at, activeJob.started_at)}</span>
                     </span>
                   ) : (
                     <span className="text-xs text-[var(--text-muted)] italic">Not yet started</span>
@@ -507,7 +507,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                       <div className="w-2 h-2 rounded-full bg-sky-500" />
                     </div>
                     <div>
-                      <span className="font-bold uppercase tracking-wider text-sky-500">Started</span>
+                      <span className="font-semibold uppercase tracking-wide text-sky-500">Started</span>
                       <span className="mx-2 text-[var(--text-muted)]">|</span>
                       <span style={{ color: inkColor }}>{startedDate.toLocaleString()}</span>
                     </div>
@@ -527,7 +527,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                   <div className="pl-4 py-1 flex items-center">
                     {finishedDate ? (
                       <span className="text-xs text-[var(--text-secondary)]">
-                        Ran for <span className="font-bold text-[var(--text-primary)]">{getRunDuration(activeJob.started_at, activeJob.finished_at)}</span>
+                        Ran for <span className="font-semibold text-[var(--text-primary)]">{getRunDuration(activeJob.started_at, activeJob.finished_at)}</span>
                       </span>
                     ) : (
                       <span className="text-xs text-amber-500 flex items-center gap-1.5">
@@ -551,7 +551,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                         <div className="w-2 h-2 rounded-full bg-[color:var(--brand-a)]" />
                       </div>
                       <div>
-                        <span className="font-bold uppercase tracking-wider text-[color:var(--brand-a-ink)]">Finished</span>
+                        <span className="font-semibold uppercase tracking-wide text-[color:var(--brand-a-ink)]">Finished</span>
                         <span className="mx-2 text-[var(--text-muted)]">|</span>
                         <span style={{ color: inkColor }}>{finishedDate.toLocaleString()}</span>
                       </div>
@@ -582,7 +582,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
             return (
               <div className="space-y-3">
-        <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>Execution</h4>
+        <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}>Execution</h4>
                 <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised, #131d2a)' }}>
                   {fargateTaskId && (
                     <div className="flex gap-3 px-4 py-2.5 items-center" style={{ borderBottom: (since || until) ? '1px solid rgba(255,255,255,0.06)' : undefined }}>
@@ -607,10 +607,10 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {isOrchestratingParent(activeJob) && (
             <div className="space-y-3">
-       <h4 className="text-label text-[11px] " style={{ color: '#8892A4', letterSpacing: '0.1em' }}>
+       <h4 className="text-label text-[length:var(--type-caption-size)] " style={{ color: '#8892A4', letterSpacing: '0.08em' }}>
                 Child chunks
               </h4>
-              <p className="text-[11px] font-mono" style={{ color: '#8892A4' }}>
+              <p className="text-[length:var(--type-caption-size)] font-mono" style={{ color: '#8892A4' }}>
                 This parent coordinates Fargate workers — logs live on each child row below.
               </p>
               <ChildJobsPanel jobId={activeJob.id} />
@@ -646,7 +646,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {/* Scope Section */}
           <div className="flex flex-col gap-3">
-      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}>
               Scope
             </h4>
             {activeJob.scope ? (
@@ -660,7 +660,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
 
           {/* Stats Section */}
           <div className="flex flex-col gap-3">
-      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.1em' }}>
+      <h4 className="text-label " style={{ color: 'var(--ink-3)', letterSpacing: '0.08em' }}>
               Stats
             </h4>
             {activeJob.stats ? (

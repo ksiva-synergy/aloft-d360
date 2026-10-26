@@ -16,7 +16,7 @@ export function ToolTimeBreakdown({
   onSelect?: (name: string) => void;
   selected?: string | null;
 }) {
-  if (rows.length === 0) return <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No tool calls recorded yet.</p>;
+  if (rows.length === 0) return <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', margin: 0 }}>No tool calls recorded yet.</p>;
   const totalTime = rows.reduce((s, r) => s + r.totalDurationMs, 0) || 1;
   const sorted = [...rows].sort((x, y) => y.totalDurationMs - x.totalDurationMs);
   return (
@@ -52,9 +52,9 @@ export function ToolTimeBreakdown({
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 3, background: colorOf(r.toolName), flexShrink: 0 }} />
-                <span style={{ ...mono, fontSize: 12, color: 'var(--wb-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.toolName}</span>
+                <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.toolName}</span>
               </div>
-              <div style={{ ...mono, fontSize: 10, color: 'var(--ink-3)', marginTop: 3, paddingLeft: 18 }}>
+              <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', marginTop: 3, paddingLeft: 18 }}>
                 {plural(r.calls, 'call')} · avg {fmtMs(r.avgDurationMs)} · max {fmtMs(r.maxDurationMs)}
               </div>
             </div>
@@ -62,8 +62,8 @@ export function ToolTimeBreakdown({
               <div style={{ width: `${Math.max(share * 100, 2)}%`, height: '100%', background: colorOf(r.toolName), borderRadius: 4 }} />
             </div>
             <div style={{ textAlign: 'right', minWidth: 92 }}>
-              <div style={{ ...mono, fontSize: 12, color: 'var(--wb-ink)' }}>{fmtMs(r.totalDurationMs)}</div>
-              <div style={{ ...mono, fontSize: 10, color: r.errors > 0 ? ERR : 'var(--ink-3)', marginTop: 3 }}>
+              <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)' }}>{fmtMs(r.totalDurationMs)}</div>
+              <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: r.errors > 0 ? ERR : 'var(--ink-3)', marginTop: 3 }}>
                 {(share * 100).toFixed(0)}% · {r.errors > 0 ? `${r.errors} err` : `${(r.successRate * 100).toFixed(0)}% ok`}
               </div>
             </div>
@@ -75,14 +75,14 @@ export function ToolTimeBreakdown({
 }
 
 export function ToolTable({ rows, onSelect, selected }: { rows: ToolAnalyticsRow[]; onSelect?: (name: string) => void; selected?: string | null }) {
-  if (rows.length === 0) return <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No tool calls recorded yet.</p>;
+  if (rows.length === 0) return <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', margin: 0 }}>No tool calls recorded yet.</p>;
   const th: React.CSSProperties = { padding: '8px 10px', fontWeight: 500, textAlign: 'right' };
   const td: React.CSSProperties = { padding: '9px 10px', textAlign: 'right' };
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 'var(--type-caption-size)' }}>
         <thead>
-          <tr style={{ ...sans, fontSize: 12, color: 'var(--ink-3)', borderBottom: BORDER }}>
+          <tr style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', borderBottom: BORDER }}>
             <th style={{ ...th, textAlign: 'left' }}>Tool</th>
             <th style={th}>Calls</th>
             <th style={th}>Errors</th>

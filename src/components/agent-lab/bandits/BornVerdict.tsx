@@ -154,13 +154,13 @@ export function BornVerdict({
 
         {/* LEFT: label + model name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.04em' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.04em' }}>
             BORN measured →
           </span>
           <span style={{
-            fontFamily: BODY, fontSize: 13, fontWeight: 600,
+            fontFamily: BODY, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
             color: GOLD,
-            letterSpacing: '0.01em',
+            letterSpacing: '0',
           }}>
             {name}
           </span>
@@ -168,11 +168,11 @@ export function BornVerdict({
 
         {/* MIDDLE: P=x% · phase */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 auto', minWidth: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_SEC, whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC, whiteSpace: 'nowrap' }}>
             P={pct(bornProb)} best for {stripSheetType(sheetType)}
           </span>
           <span style={{
-            fontFamily: MONO, fontSize: 13,
+            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
             color: phase === 'exploiting' ? TEXT_SEC : TEXT_MUT,
             opacity: 0.8,
             whiteSpace: 'nowrap',
@@ -201,7 +201,7 @@ export function BornVerdict({
         transition: 'max-height 200ms ease',
         marginTop: hovered ? 4 : 0,
       }}>
-        <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
+        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
           α={posteriorAlpha.toFixed(1)} β={posteriorBeta.toFixed(1)}
           {' · '}95% CI: {pct(ciLow)}–{pct(ciHigh)}
         </span>

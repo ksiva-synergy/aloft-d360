@@ -77,7 +77,7 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
         className="text-xs leading-relaxed border-t pt-3"
         style={{
           color: labelColor,
-          fontFamily: "'Inter Variable', sans-serif",
+          fontFamily: 'var(--font-sans)',
           borderColor: 'var(--estate-border-gold)'
         }}
       >

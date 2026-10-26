@@ -562,7 +562,7 @@ export default function EstateMapperPage() {
                   <div key={stage.key} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {status === 'checked' ? (
-                        <span style={{ color: activeColor }} className="font-bold">✓</span>
+                        <span style={{ color: activeColor }} className="font-semibold">✓</span>
                       ) : status === 'current' ? (
                         <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: activeColor }} />
                       ) : (
@@ -652,7 +652,7 @@ export default function EstateMapperPage() {
                       <div className="flex items-center gap-4">
                         <span className="text-xs">{isExpanded ? '▼' : '▶'}</span>
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-xs font-bold">
+                          <span className="font-mono text-xs font-semibold">
                             {group.leftObjectPath} ↔ {group.rightObjectPath}
                           </span>
                           <span className="text-xs font-mono" style={{ color: labelColor }}>
@@ -762,7 +762,7 @@ export default function EstateMapperPage() {
                                 </div>
 
                                 {/* Confidence */}
-                                <div className="col-span-1 font-mono text-center font-bold">
+                                <div className="col-span-1 font-mono text-center font-semibold">
                                   {(m.confidence ?? 0).toFixed(3)}
                                 </div>
 
@@ -821,11 +821,11 @@ export default function EstateMapperPage() {
                                 return (
                                   <>
                                     <div>
-                                      <span className="font-bold">Left unmapped ({leftUnmapped.length}):</span>{' '}
+                                      <span className="font-semibold">Left unmapped ({leftUnmapped.length}):</span>{' '}
                                       {leftUnmapped.length > 0 ? leftUnmapped.join(', ') : 'none'}
                                     </div>
                                     <div>
-                                      <span className="font-bold">Right unmapped ({rightUnmapped.length}):</span>{' '}
+                                      <span className="font-semibold">Right unmapped ({rightUnmapped.length}):</span>{' '}
                                       {rightUnmapped.length > 0 ? rightUnmapped.join(', ') : 'none'}
                                     </div>
                                   </>
@@ -882,8 +882,8 @@ function SchemaPicker({
 
   // Dropdown style
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'Inter Variable', sans-serif",
-    fontSize: '13px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--type-ui-regular-size)',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '4px',
@@ -1087,9 +1087,9 @@ function SchemaPicker({
               <div>
                 {totalObjects ?? 0} objects · {enrichedObjects ?? 0} enriched{' '}
                 {enrichedObjects === totalObjects ? (
-                  <span className="text-green-500 font-bold">✓</span>
+                  <span className="text-green-500 font-semibold">✓</span>
                 ) : (
-                  <span className="text-amber-500 font-bold">⚠</span>
+                  <span className="text-amber-500 font-semibold">⚠</span>
                 )}
               </div>
               {totalObjects !== null && enrichedObjects !== null && enrichedObjects < totalObjects && (

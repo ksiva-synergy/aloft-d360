@@ -12,7 +12,8 @@ import type { ProfileResult } from './types';
 const FONT_DIR = resolve(process.cwd(), 'assets/fonts');
 const FONT_FILES = [
   resolve(FONT_DIR, 'ibm-plex-mono-400.ttf'),
-  resolve(FONT_DIR, 'inter-tight-400.ttf'),
+  resolve(FONT_DIR, 'inter-400.ttf'),
+  resolve(FONT_DIR, 'inter-600.ttf'),
 ];
 
 // Validate fonts exist at init time — fail loud rather than silent fallback
@@ -63,7 +64,7 @@ export function renderSpecToPng(
     font: {
       fontFiles: FONT_FILES,
       loadSystemFonts: false,
-      defaultFontFamily: 'Inter Tight',
+      defaultFontFamily: 'Inter',
     },
     fitTo: { mode: 'width', value: width * pixelRatio },
   });
@@ -87,7 +88,7 @@ export function renderSvgToPng(
     font: {
       fontFiles: FONT_FILES,
       loadSystemFonts: false,
-      defaultFontFamily: 'Inter Tight',
+      defaultFontFamily: 'Inter',
     },
     fitTo: { mode: 'width', value: width * pixelRatio },
   });

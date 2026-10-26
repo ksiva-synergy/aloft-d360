@@ -68,7 +68,7 @@ export function BornDistributionPanel({
         background: CARD_BG, border: `1px solid ${BORDER}`,
         borderRadius: 6, padding: '20px 24px',
       }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No data.</div>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No data.</div>
       </div>
     );
   }
@@ -82,10 +82,10 @@ export function BornDistributionPanel({
     }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
+        <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
           The Born Distribution
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
           {measuring ? 'Sampling…' : 'Probability matching · P(selected on next draw)'}
         </div>
       </div>
@@ -106,7 +106,7 @@ export function BornDistributionPanel({
                 marginBottom: 6,
               }}>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                   color: isFav ? GOLD : TEXT_SEC,
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
@@ -114,7 +114,7 @@ export function BornDistributionPanel({
                   {shortName(row.modelId)}
                 </span>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13, fontWeight: 700,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
                   color: isFav ? GOLD : TEXT_PRI,
                 }}>
                   {(row.p * 100).toFixed(1)}%

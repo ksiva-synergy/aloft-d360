@@ -315,7 +315,7 @@ function FoerStoryInner() {
           href="/agent-lab/memory/ops"
           style={{
             fontFamily:     BODY,
-            fontSize:       '13px',
+            fontSize: 'var(--type-ui-regular-size)',
             color:          'var(--foer-text-mut)',
             textDecoration: 'none',
             transition:     'color 0.15s',
@@ -354,10 +354,10 @@ function FoerStoryInner() {
           id="foer-wordmark"
           style={{
             fontFamily:   SERIF,
-            fontSize:     '64px',
+            fontSize: 'var(--type-display-size)',
             fontWeight:   600,
             color:        'var(--foer-wordmark)',
-            letterSpacing: '0.01em',
+            letterSpacing: '0',
             lineHeight:   1,
             margin:       '18px 0 0',
           }}
@@ -370,7 +370,7 @@ function FoerStoryInner() {
           id="foer-narrative"
           style={{
             fontFamily:  SERIF,
-            fontSize:    '20px',
+            fontSize: 'var(--type-title-section-size)',
             fontStyle:   'italic',
             color:       'var(--foer-text-sec)',
             maxWidth:    '640px',
@@ -421,7 +421,7 @@ function FoerStoryInner() {
               background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
               color:        RULE_TYPE_COLORS.FAILURE_MODE,
               fontFamily:   MONO,
-              fontSize:     '0.8rem',
+              fontSize: 'var(--type-ui-regular-size)',
             }}
           >
             Failed to load FOER stats — check network or API.
@@ -455,12 +455,12 @@ function FoerStoryInner() {
                 {/* Value */}
                 <div
                   style={{
-                    fontSize:           '26px',
+                    fontSize: 'var(--type-kpi-lg-size)',
                     fontWeight:         600,
                     fontVariantNumeric: 'tabular-nums',
-                    color:              kpi.accent ?? 'var(--foer-text-pri)',
+                    color:              'var(--foer-text-pri)', // accent colors failed contrast (1.7:1) as small-number text
                     lineHeight:         1,
-                    letterSpacing:      '-0.01em',
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   {kpi.value}
@@ -470,7 +470,7 @@ function FoerStoryInner() {
                   <div
                     style={{
                       fontFamily:    MONO,
-                      fontSize:      '13px',
+                      fontSize: 'var(--type-ui-regular-size)',
                       letterSpacing: '0.04em',
                       color:         'var(--foer-text-sec)',
                       lineHeight:    1.3,
@@ -642,7 +642,7 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily:  SERIF,
-                  fontSize:    '1rem',
+                  fontSize: 'var(--type-body-lg-size)',
                   fontWeight:  600,
                   color:       'var(--foer-text-sec)',
                   marginBottom: '0.2rem',
@@ -653,9 +653,9 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize:   '0.67rem',
+                  fontSize: 'var(--type-caption-size)',
                   color:      'var(--foer-text-mut)',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                 }}
               >
                 PLACEHOLDER · FOER-2+
@@ -680,7 +680,7 @@ function FoerStoryInner() {
             borderRadius: '999px',
             padding:   '0.4rem 0.8rem',
             fontFamily:MONO,
-            fontSize:  '0.7rem',
+            fontSize: 'var(--type-caption-size)',
             color:     'var(--foer-text-sec)',
             boxShadow: 'var(--shadow-card)',
             zIndex:    50,
@@ -710,7 +710,7 @@ export function FoerStoryDashboard() {
               height:         '100%',
               color:          'var(--ink-3)',
               fontFamily:     MONO,
-              fontSize:       '0.8rem',
+              fontSize: 'var(--type-ui-regular-size)',
               gap:            '0.5rem',
             }}
           >

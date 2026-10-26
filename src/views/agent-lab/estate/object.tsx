@@ -159,7 +159,7 @@ export default function EstateObjectDetailPage() {
 
           <p
             className="text-xs leading-relaxed"
-            style={{ color: mutedColor, fontFamily: "'Inter Variable', sans-serif" }}
+            style={{ color: mutedColor, fontFamily: 'var(--font-sans)' }}
           >
             The object you are looking for does not exist in this data source or has been removed.
           </p>
@@ -184,7 +184,7 @@ export default function EstateObjectDetailPage() {
             backgroundColor: cardBg,
           }}
         >
-          <span className="text-red-500 font-bold text-3xl">⚠</span>
+          <span className="text-red-500 font-semibold text-3xl">⚠</span>
           <h2 className="text-lg font-semibold" style={{ color: inkColor }}>
             Failed to load object
           </h2>

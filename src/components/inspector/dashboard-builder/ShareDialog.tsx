@@ -4,9 +4,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Share2, Lock, Building2, Users, UserPlus, Trash2, ChevronDown, Check, Link2 } from 'lucide-react';
 import { type } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
-const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const SERIF: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
+const SANS: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const GOLD = 'var(--brand-a)';
 
 type Visibility = 'private' | 'org' | 'shared';
@@ -143,8 +143,8 @@ export function ShareDialog({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 20px', borderBottom: '1px solid var(--border-default)', flexShrink: 0 }}>
           <Share2 size={15} style={{ color: GOLD }} />
           <div style={{ flex: 1 }}>
-            <p style={{ ...SERIF, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Share Dashboard</p>
-            <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{dashboardName}</p>
+            <p style={{ ...SERIF, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>Share Dashboard</p>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{dashboardName}</p>
           </div>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }}>
             <X size={16} />
@@ -173,8 +173,8 @@ export function ShareDialog({
                 >
                   <span style={{ color: visibility === opt.value ? GOLD : 'var(--text-muted)', flexShrink: 0 }}>{opt.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <p style={{ ...SANS, fontSize: 13, fontWeight: 500, color: visibility === opt.value ? GOLD : 'var(--text-primary)', margin: 0 }}>{opt.label}</p>
-                    <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0.02em' }}>{opt.desc}</p>
+                    <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: visibility === opt.value ? GOLD : 'var(--text-primary)', margin: 0 }}>{opt.label}</p>
+                    <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '2px 0 0', letterSpacing: '0' }}>{opt.desc}</p>
                   </div>
                   {visibility === opt.value && <Check size={13} style={{ color: GOLD, flexShrink: 0 }} />}
                 </button>
@@ -192,19 +192,19 @@ export function ShareDialog({
                   onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="Email address…"
-                  style={{ ...SANS, flex: 1, fontSize: 13, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
+                  style={{ ...SANS, flex: 1, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
                 />
                 <RoleSelect value={inviteRole} onChange={setInviteRole} />
                 <button
                   onClick={handleInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
+                  style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
                 >
                   <UserPlus size={12} />{inviting ? '…' : 'Invite'}
                 </button>
               </div>
               {inviteError && (
-                <p style={{ ...MONO, fontSize: 13, color: '#F87171', margin: '6px 0 0' }}>{inviteError}</p>
+                <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', margin: '6px 0 0' }}>{inviteError}</p>
               )}
             </section>
           )}
@@ -215,9 +215,9 @@ export function ShareDialog({
               WHO HAS ACCESS {!loading && `· ${collaborators.length} PEOPLE`}
             </p>
             {loading ? (
-              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)' }}>LOADING…</p>
+              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)' }}>LOADING…</p>
             ) : collaborators.length === 0 ? (
-              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
+              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {collaborators.map((c) => {
@@ -228,14 +228,14 @@ export function ShareDialog({
                     <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--line-1)' }}>
                       {/* Avatar */}
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ ...MONO, fontSize: 13, fontWeight: 700, color: GOLD }}>{displayName[0]?.toUpperCase()}</span>
+                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: GOLD }}>{displayName[0]?.toUpperCase()}</span>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ ...SANS, fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
-                        {email && <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
+                        <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</p>
+                        {email && <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
                       </div>
                       {isOwner ? (
-                        <span style={{ ...MONO, fontSize: 13, color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.05em', flexShrink: 0 }}>OWNER</span>
+                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.04em', flexShrink: 0 }}>OWNER</span>
                       ) : canShare ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <RoleSelect value={c.role as CollabRole} onChange={(r) => handleRoleChange(c.user_id, r, email)} small />
@@ -258,13 +258,13 @@ export function ShareDialog({
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-default)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={handleCopyLink}
-            style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             <Link2 size={12} />{copied ? 'COPIED!' : 'COPY LINK'}
           </button>
           <button
             onClick={onClose}
-            style={{ ...MONO, fontSize: 13, padding: '7px 16px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 16px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             DONE
           </button>
@@ -298,7 +298,7 @@ function RoleSelect({ value, onChange, small }: { value: CollabRole; onChange: (
             <button
               key={r.value}
               onClick={() => { onChange(r.value); setOpen(false); }}
-              style={{ ...MONO, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '7px 10px', background: value === r.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none', color: value === r.value ? GOLD : 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: '7px 10px', background: value === r.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none', color: value === r.value ? GOLD : 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
             >
               {r.label}{value === r.value && <Check size={10} />}
             </button>

@@ -170,12 +170,12 @@ export function MetricsCatalog() {
       <TopModelBar />
 
       {loading && !rows.length ? (
-        <Centered><span style={{ ...MONO, fontSize: 13, color: MUTED }}>LOADING CATALOG…</span></Centered>
+        <Centered><span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>LOADING CATALOG…</span></Centered>
       ) : error ? (
         <Centered>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-            <span style={{ ...MONO, fontSize: 13, color: 'var(--mc-res-unrecognized)' }}>ERROR: {error}</span>
-            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>ERROR: {error}</span>
+            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
           </div>
         </Centered>
       ) : noModel ? (
@@ -189,10 +189,10 @@ export function MetricsCatalog() {
           <FilterBar />
           {/* Result summary + lens hint */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 20px', borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-            <span style={{ ...MONO, fontSize: 13, color: INK_DIM }}>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM }}>
               <span style={{ color: GOLD }}>{filteredCount}</span> definitions · {filterSummary}
             </span>
-            <span style={{ ...MONO, fontSize: 13, color: MUTED }}>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
               {lens === 'govern' ? 'Govern lens — review & promote' : 'Explore lens — browse & ask'}
             </span>
           </div>
@@ -226,7 +226,7 @@ function ToastView({ kind, message, onDone, id }: { kind: 'success' | 'error' | 
       role="status"
       style={{
         position: 'absolute', bottom: 18, right: 18, zIndex: 60, maxWidth: 360,
-        ...MONO, fontSize: 13, color: 'var(--wb-ink, #e6ecf4)',
+        ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #e6ecf4)',
         background: 'var(--card, #0d1520)', border: `1px solid ${color}`, borderLeft: `3px solid ${color}`,
         borderRadius: 5, padding: '10px 14px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
       }}

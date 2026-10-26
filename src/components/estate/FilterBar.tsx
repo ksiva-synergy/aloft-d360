@@ -46,8 +46,8 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
   const labelColor = 'var(--estate-text-secondary)';
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'Inter Variable', sans-serif",
-    fontSize: '13px',
+    fontFamily: 'var(--font-sans)',
+    fontSize: 'var(--type-ui-regular-size)',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '4px',
@@ -95,7 +95,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
           value={searchVal}
           onChange={(e) => setSearchVal(e.target.value)}
           className="flex-1 bg-transparent border-none outline-none text-xs transition-colors duration-200"
-          style={{ color: inkColor, fontFamily: "'Inter Variable', sans-serif" }}
+          style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}
         />
       </div>
 
@@ -103,7 +103,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
       <div className="flex items-center gap-2 select-none shrink-0">
         <span
           className="text-xs font-medium flex items-center gap-1.5"
-          style={{ color: labelColor, fontFamily: "'Inter Variable', sans-serif" }}
+          style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}
         >
           {semanticOn && <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-a)]" />}
           Semantic
@@ -131,7 +131,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
       <div className="flex items-center gap-3 shrink-0">
         {/* Status */}
         <div className="flex items-center gap-1.5">
-          <span style={{ color: labelColor, fontFamily: "'Inter Variable', sans-serif", fontSize: '13px' }} className="select-none font-medium">Status</span>
+          <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">Status</span>
           <select
             style={selectStyle}
             onFocus={handleFocus}
@@ -150,7 +150,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
 
         {/* Freshness */}
         <div className="flex items-center gap-1.5">
-          <span style={{ color: labelColor, fontFamily: "'Inter Variable', sans-serif", fontSize: '13px' }} className="select-none font-medium">Freshness</span>
+          <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">Freshness</span>
           <select
             style={selectStyle}
             onFocus={handleFocus}
@@ -181,7 +181,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
 
         {/* PII */}
         <div className="flex items-center gap-1.5">
-          <span style={{ color: labelColor, fontFamily: "'Inter Variable', sans-serif", fontSize: '13px' }} className="select-none font-medium">PII</span>
+          <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">PII</span>
           <select
             style={selectStyle}
             onFocus={handleFocus}

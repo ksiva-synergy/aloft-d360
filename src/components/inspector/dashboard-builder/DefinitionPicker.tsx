@@ -8,7 +8,7 @@ import type { MeasureSnapshot } from '@/lib/dashboards/types';
 import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 const GOLD = 'var(--brand-a)';
@@ -188,7 +188,7 @@ export function DefinitionPicker({
                 placeholder="Filter definitions…"
                 style={{
                   ...MONO,
-                  fontSize: 13,
+                  fontSize: 'var(--type-ui-regular-size)',
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
@@ -213,7 +213,7 @@ export function DefinitionPicker({
             ))}
             {filteredEntities.length === 0 && (
               <div style={{ padding: 16, textAlign: 'center' }}>
-                <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                   No matching definitions
                 </span>
               </div>
@@ -232,16 +232,16 @@ export function DefinitionPicker({
           )}
           {chartsError && (
             <div style={{ padding: 12 }}>
-              <span style={{ ...MONO, fontSize: 13, color: '#F87171' }}>{chartsError}</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171' }}>{chartsError}</span>
             </div>
           )}
           {!chartsLoading && !chartsError && savedCharts.length === 0 && (
             <div style={{ padding: 16, textAlign: 'center' }}>
               <BarChart2 size={20} style={{ color: 'var(--builder-text-muted)', margin: '0 auto 8px', display: 'block' }} />
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)' }}>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                 No saved charts yet.
               </span>
-              <p style={{ ...MONO, fontSize: 13, color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
                 Use the Inspector to run a semantic query, then click "SAVE TO CHARTS" on the result.
               </p>
             </div>
@@ -297,12 +297,12 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <BarChart3 size={11} style={{ color: GOLD, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 'var(--type-ui-regular-size)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {chart.name}
         </span>
         <span
           style={{
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             padding: '1px 4px',
@@ -317,7 +317,7 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
         </span>
       </div>
       {measureLabels.length > 0 && (
-        <div style={{ fontSize: 13, color: 'var(--builder-text-muted)', paddingLeft: 17 }}>
+        <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', paddingLeft: 17 }}>
           {measureLabels.join(' · ')}
           {(chart.semantic_query.measures ?? []).length > 3 && ` +${(chart.semantic_query.measures ?? []).length - 3}`}
         </div>
@@ -441,7 +441,7 @@ function DefinitionRow({
       title={`Add ${label} to selected widget`}
       style={{
         ...MONO,
-        fontSize: 13,
+        fontSize: 'var(--type-ui-regular-size)',
         display: 'flex',
         alignItems: 'center',
         gap: 6,
@@ -462,7 +462,7 @@ function DefinitionRow({
       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <span style={{ fontSize: 13, color: 'var(--builder-text-label)', flexShrink: 0, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-label)', flexShrink: 0, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {sublabel}
       </span>
       <StatusBadge status={status} />

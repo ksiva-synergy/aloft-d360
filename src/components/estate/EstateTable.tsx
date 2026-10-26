@@ -350,7 +350,7 @@ export default function EstateTable({
                     </td>
                     <td
                       className="py-3 px-3.5 cursor-pointer max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: inkColor }}
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}
                       onClick={() => handleRowClick(item, lc)}
                       title={item.full_path}
                       onMouseEnter={e => { e.currentTarget.style.color = goldColor; }}
@@ -378,10 +378,10 @@ export default function EstateTable({
                         lastKnowledgeSyncAt={item.last_knowledge_sync_at}
                       />
                     </td>
-                    <td className="py-3 px-3.5 text-right" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', fontVariantNumeric: 'tabular-nums', color: rows ? textSecondary : textDim }}>
+                    <td className="py-3 px-3.5 text-right" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fontVariantNumeric: 'tabular-nums', color: rows ? textSecondary : textDim }}>
                       {rows ?? <span style={{ color: textDim }}>—</span>}
                     </td>
-                    <td className="py-3 px-3.5" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: textMuted }}>
+                    <td className="py-3 px-3.5" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted }}>
                       {formatDate(item.last_inventoried_at)}
                     </td>
                     <td className="py-3 px-3.5" style={{ whiteSpace: 'nowrap' }}>

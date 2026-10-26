@@ -20,7 +20,7 @@ export function BanditsEmptyState() {
               className="w-10 h-12 rounded-lg border-2 border-dashed border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center justify-center"
               style={{ animationDelay: `${i * 0.15}s` }}
             >
-              <span className="text-lg font-bold text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)] animate-lab-count-pulse">
+              <span className="text-lg font-semibold text-[color:var(--ink-3)] dark:text-[color:var(--ink-2)] animate-lab-count-pulse">
                 {ch}
               </span>
             </div>

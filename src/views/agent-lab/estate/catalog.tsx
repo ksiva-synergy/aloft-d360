@@ -54,29 +54,29 @@ export default function EstateCatalogPage() {
               borderRight: `1px solid ${borderColor}`,
             }}
           >
-            Discovery <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
+            Discovery <span style={{ fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>●</span>
           </button>
           <button
             type="button"
             onClick={() => setView('scanned')}
             style={segStyle(view === 'scanned')}
           >
-            Scanned &amp; Beyond <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
+            Scanned &amp; Beyond <span style={{ fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>●</span>
           </button>
         </div>
 
         <div
           className="flex items-center gap-3.5"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: textDim, letterSpacing: '0.06em' }}
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textDim, letterSpacing: '0.04em' }}
         >
           {/* Test sources toggle */}
           <button
             type="button"
             onClick={() => setShowTestSources(s => !s)}
             style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: '13px',
-              letterSpacing: '0.06em',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
+              letterSpacing: '0.04em',
               backgroundColor: showTestSources ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
               border: `1px solid ${showTestSources ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : borderStrong}`,
               borderRadius: '6px',

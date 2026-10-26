@@ -27,8 +27,8 @@ interface HistoryDrawerProps {
 }
 
 const GOLD = 'var(--brand-a)';
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 function typeLabel(type: string | null): { label: string; color: string } {
   switch (type) {
@@ -185,7 +185,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
                   background: showAllUsers ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'transparent',
                   border: `1px solid ${showAllUsers ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--wb-border-subtle)'}`,
                   color: showAllUsers ? GOLD : 'var(--wb-muted)',
-                  fontSize: 13, ...type.label,
+                  fontSize: 'var(--type-ui-regular-size)', ...type.label,
                   cursor: 'pointer', transition: 'all 0.15s',
                 }}
               >
@@ -215,7 +215,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               padding: '8px 16px', borderRadius: 8,
               background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
-              color: GOLD, fontSize: 13, fontWeight: 500, cursor: 'pointer',
+              color: GOLD, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, cursor: 'pointer',
               transition: 'all 0.15s',
             }}
           >
@@ -229,13 +229,13 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 40, gap: 8, color: 'var(--wb-muted)' }}>
               <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-              <span style={{ ...mono, fontSize: 13 }}>Loading…</span>
+              <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)' }}>Loading…</span>
             </div>
           ) : sessions.length === 0 ? (
             <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--wb-muted)' }}>
               <FileText size={28} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <p style={{ ...mono, fontSize: 13, letterSpacing: '0.04em' }}>No past sessions yet.</p>
-              <p style={{ fontSize: 13, marginTop: 4, opacity: 0.6 }}>Start a new chat to get going.</p>
+              <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No past sessions yet.</p>
+              <p style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, opacity: 0.6 }}>Start a new chat to get going.</p>
             </div>
           ) : (
             <>
@@ -282,7 +282,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
             href="/agent-lab/history"
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              ...mono, fontSize: 13, letterSpacing: '0.06em', color: 'var(--wb-muted)',
+              ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--wb-muted)',
               textDecoration: 'none',
             }}
             onClick={onClose}
@@ -312,7 +312,7 @@ interface SectionListProps {
 }
 
 function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDelete, onPin, showAgentOpsTrace, onDebugTrace }: SectionListProps) {
-  const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+  const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
   const GOLD = 'var(--brand-a)';
 
   return (
@@ -365,7 +365,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                   ? <Database size={9} style={{ color: GOLD, flexShrink: 0 }} />
                   : <Layers size={9} style={{ color: '#3a5070', flexShrink: 0 }} />}
                 <span style={{
-                  fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', ...mono,
+                  fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, letterSpacing: '0.08em', ...mono,
                   ...(s.surface === 'inspector'
                     ? { color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', padding: '1px 4px', borderRadius: 2, border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }
                     : { color: GOLD, background: 'var(--brand-a-ink)', padding: '1px 4px', borderRadius: 2 }),
@@ -373,43 +373,43 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                   {s.surface === 'inspector' ? 'INSP' : 'WB'}
                 </span>
                 <span style={{
-                  fontSize: 13, fontWeight: 600, letterSpacing: '0.08em',
+                  fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, letterSpacing: '0.08em',
                   color: badge.color, ...mono, opacity: 0.8,
                 }}>
                   {badge.label}
                 </span>
-                {s.pinned && <span style={{ fontSize: 13, color: GOLD, ...mono }}>★</span>}
+                {s.pinned && <span style={{ fontSize: 'var(--type-ui-regular-size)', color: GOLD, ...mono }}>★</span>}
                 {isCurrent && (
-                  <span style={{ fontSize: 13, color: '#86EFAC', ...mono, letterSpacing: '0.06em' }}>ACTIVE</span>
+                  <span style={{ fontSize: 'var(--type-ui-regular-size)', color: '#86EFAC', ...mono, letterSpacing: '0.04em' }}>ACTIVE</span>
                 )}
               </div>
               <div style={{
-                fontSize: 13, fontWeight: 500, color: '#c8d4e3',
+                fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: '#c8d4e3',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                fontFamily: "'Inter Variable', system-ui, sans-serif",
+                fontFamily: 'var(--font-sans)',
               }}>
                 {s.title || 'Untitled session'}
               </div>
               {s.last_message && (
                 <div style={{
-                  fontSize: 13, color: '#4a6080', marginTop: 2,
+                  fontSize: 'var(--type-ui-regular-size)', color: '#4a6080', marginTop: 2,
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  fontFamily: "'Inter Variable', system-ui, sans-serif",
+                  fontFamily: 'var(--font-sans)',
                 }}>
                   {s.last_message}
                 </div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                <span style={{ ...mono, fontSize: 13, color: '#3a5070', letterSpacing: '0.04em' }}>
+                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#3a5070', letterSpacing: '0.04em' }}>
                   {relativeTime(s.updated_at)}
                 </span>
                 {(s.message_count ?? 0) > 0 && (
-                  <span style={{ ...mono, fontSize: 13, color: '#3a5070' }}>
+                  <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#3a5070' }}>
                     · {s.message_count} msg{(s.message_count ?? 0) !== 1 ? 's' : ''}
                   </span>
                 )}
                 {s.surface === 'inspector' && (s.query_result_count ?? 0) > 0 && (
-                  <span style={{ ...mono, fontSize: 13, color: GOLD, opacity: 0.7 }}>
+                  <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: GOLD, opacity: 0.7 }}>
                     · {s.query_result_count} quer{(s.query_result_count ?? 0) !== 1 ? 'ies' : 'y'}
                   </span>
                 )}

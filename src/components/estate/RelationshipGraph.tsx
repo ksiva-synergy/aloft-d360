@@ -321,11 +321,11 @@ function RelationNode({ data }: { data: GraphNodeData }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ fontSize: 13, opacity: 0.55, color: inkColor }}>{kindIcon}</span>
+        <span style={{ fontSize: 'var(--type-ui-regular-size)', opacity: 0.55, color: inkColor }}>{kindIcon}</span>
         <span
           style={{
-            fontFamily: '"Inter Variable", sans-serif',
-            fontSize: 13,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-ui-regular-size)',
             fontWeight: data.isFocus ? 700 : 500,
             color: inkColor,
             overflow: 'hidden',
@@ -393,8 +393,8 @@ function EdgeLegend() {
             />
           </svg>
           <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--estate-text-muted, var(--ink-3))',
           }}>
             {label}
@@ -431,8 +431,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
           Usage Co-objects
         </div>
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted, var(--ink-3))',
           marginTop: 2,
         }}>
@@ -445,8 +445,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
         {coObjects.length === 0 ? (
           <div style={{
             padding: '16px 14px',
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--estate-text-muted, var(--ink-3))',
             textAlign: 'center',
           }}>
@@ -475,8 +475,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                     <Link
                       href={href}
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         color: 'var(--estate-ink, #E8E6E1)',
                         textDecoration: 'none',
                         overflow: 'hidden',
@@ -492,8 +492,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                   ) : (
                     <span
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         color: 'var(--estate-ink, #E8E6E1)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -507,8 +507,8 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
                   )}
                   {n > 0 && (
                     <span style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: 'var(--brand-a-ink)',
                       flexShrink: 0,
                     }}>
@@ -615,8 +615,8 @@ export default function RelationshipGraph(props: RelationshipGraphProps) {
           borderRadius: 8,
           border: '1px dashed color-mix(in srgb, var(--brand-a) 20%, transparent)',
           background: 'var(--estate-raised, rgba(13,27,42,0.4))',
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--ink-3)',
         }}
       >

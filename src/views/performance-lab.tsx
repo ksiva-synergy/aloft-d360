@@ -27,7 +27,7 @@ const TXT    = 'var(--pl-txt)';
 const TXT2   = 'var(--pl-txt2)';
 const GREEN  = '#22c55e';
 const BLUE   = '#3A7BD5';
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 // ── Value Summary Hero ────────────────────────────────────────────────────────
 const heroCardOuter: React.CSSProperties = {
@@ -40,9 +40,9 @@ const heroCardOuter: React.CSSProperties = {
   padding: '16px 18px',
 };
 const heroStat: React.CSSProperties = {
-  fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
-  fontSize: 26,
-  fontWeight: 700,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--type-kpi-lg-size)',
+  fontWeight: 600,
   color: TXT,
   lineHeight: 1.1,
   marginBottom: 6,
@@ -54,8 +54,8 @@ const heroLabel: React.CSSProperties = {
   fontWeight: 600,
 };
 const heroSub: React.CSSProperties = {
-  fontFamily: "'Inter Variable', sans-serif",
-  fontSize: 13,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 'var(--type-ui-regular-size)',
   color: TXT2,
   lineHeight: 1.45,
 };
@@ -67,7 +67,7 @@ function ValueSummaryHero() {
       <div style={{ ...type.label, color: TXT2, marginBottom: 6 }}>
         CONTEXT HARNESS — VALUE SUMMARY
       </div>
-      <div style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 18, fontWeight: 600, color: TXT, marginBottom: 16 }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TXT, marginBottom: 16 }}>
         {S.totalRuns} runs · {S.models} models · {S.cases} cases
       </div>
 
@@ -106,7 +106,7 @@ function ValueSummaryHero() {
 
       <div style={{ marginTop: 16, padding: '14px 18px', borderLeft: `3px solid ${GOLD}`, background: SURF }}>
         <span style={{ ...type.label, color: GOLD, marginRight: 8 }}>TAKEAWAY</span>
-        <span style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontSize: 13.5, color: TXT, lineHeight: 1.55 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT, lineHeight: 1.55 }}>
           The harness solves discovery access, not reasoning — answer quality is at parity when both complete
           (semantic {S.semanticParity.ctxHard.toFixed(2)} vs {S.semanticParity.sqlHard.toFixed(2)} on the hard tier).
           The advantage is that the harness lets answers exist at all.
@@ -140,7 +140,7 @@ function fmt(n: number, decimals = 0): string {
 function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
   if (!stats.length) {
     return (
-      <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px 0' }}>
         No historical data yet. Complete inspector sessions to populate this view.
       </div>
     );
@@ -148,13 +148,13 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 13 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...mono, fontSize: 'var(--type-ui-regular-size)' }}>
         <thead>
           <tr>
             {['Model', 'Mode', 'Sessions', 'Avg Tokens', 'Avg Latency', 'Avg Loops', 'Avg WH Calls'].map(h => (
               <th key={h} style={{
                 textAlign: 'right', padding: '5px 8px',
-                color: TXT2, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+                color: TXT2, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase' as const,
                 borderBottom: `1px solid ${BORDER}`,
               }}>
                 {h}
@@ -170,7 +170,7 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', color: GOLD, borderBottom: `1px solid var(--pl-hair2)` }}>{s.modelLabel}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid var(--pl-hair2)` }}>
                   <span style={{
-                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 13,
+                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
                     background: isCtx ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
                     border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -241,10 +241,10 @@ export default function PerformanceLabPage() {
       }}>
         <FlaskConical size={20} style={{ color: GOLD }} />
         <div>
-          <div style={{ ...mono, fontSize: 15, color: GOLD, fontWeight: 700, letterSpacing: '0.08em' }}>
+          <div style={{ ...mono, fontSize: 'var(--type-body-size)', color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </div>
-          <div style={{ ...mono, fontSize: 13, color: TXT2, marginTop: 2 }}>
+          <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 2 }}>
             context harness research · benchmark suite · scoring methodology
           </div>
         </div>
@@ -285,7 +285,7 @@ export default function PerformanceLabPage() {
                 style={{
                   padding: '12px 18px', background: 'transparent', border: 'none',
                   borderBottom: `2px solid ${activeTab === t.id ? GOLD : 'transparent'}`,
-                  cursor: 'pointer', ...mono, fontSize: 13, letterSpacing: '0.08em',
+                  cursor: 'pointer', ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em',
                   color: activeTab === t.id ? GOLD : TXT2, transition: 'all 0.15s',
                   whiteSpace: 'nowrap',
                 }}
@@ -319,14 +319,14 @@ export default function PerformanceLabPage() {
               <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>
                 Aggregated across all inspector sessions
               </div>
-              <h2 style={{ fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif", fontWeight: 600, fontSize: 21, margin: '0 0 4px', color: TXT }}>
+              <h2 style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-title-section-size)', margin: '0 0 4px', color: TXT }}>
                 Historical Benchmarks
               </h2>
-              <p style={{ color: TXT2, fontSize: 13.5, maxWidth: '70ch', margin: '0 0 24px' }}>
+              <p style={{ color: TXT2, fontSize: 'var(--type-ui-regular-size)', maxWidth: '70ch', margin: '0 0 24px' }}>
                 Per-model, per-context-mode averages across all Inspector sessions pulled from the database.
               </p>
               {histLoading ? (
-                <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px' }}>
+                <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px' }}>
                   Loading historical data…
                 </div>
               ) : (
@@ -343,10 +343,10 @@ export default function PerformanceLabPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: SURF,
       }}>
-        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, letterSpacing: '0.04em' }}>
           ALOFT PERFORMANCE LAB · v0.2 · context harness research
         </span>
-        <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', letterSpacing: '0.06em' }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'color-mix(in srgb, var(--brand-a) 35%, transparent)', letterSpacing: '0.04em' }}>
           POWERED BY ALOFT · v0.4
         </span>
       </footer>

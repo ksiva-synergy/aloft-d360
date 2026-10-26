@@ -149,9 +149,9 @@ function HeadlineStat({ label, value, sub, color }: { label: string; value: stri
         {label}
       </span>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 22,
-        fontWeight: 700,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-title-section-size)',
+        fontWeight: 600,
         color: color ?? 'var(--brand-a)',
         lineHeight: 1.1,
         letterSpacing: '-0.02em',
@@ -160,8 +160,8 @@ function HeadlineStat({ label, value, sub, color }: { label: string; value: stri
       </span>
       {sub && (
         <span style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted, var(--ink-3))',
         }}>
           {sub}
@@ -232,8 +232,8 @@ function SourceBreakdownPanel({ breakdown }: { breakdown: SourceBreakdown }) {
                 display: 'inline-block',
               }} />
               <span style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: 'var(--estate-ink, #E8E6E1)',
                 flex: 1,
                 textTransform: 'capitalize',
@@ -244,8 +244,8 @@ function SourceBreakdownPanel({ breakdown }: { breakdown: SourceBreakdown }) {
                 <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 2 }} />
               </div>
               <span style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color,
                 width: 34,
                 textAlign: 'right',
@@ -270,7 +270,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
   const maxScore = Math.max(...displayCols.map(c => c.score), 1);
 
   if (displayCols.length === 0) return (
-    <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: 'var(--estate-text-muted)' }}>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
       No key columns recorded.
     </div>
   );
@@ -319,8 +319,8 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                 className="hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)] transition-colors"
               >
                 <span style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: 'var(--estate-ink)',
                   width: 140,
                   textAlign: 'left',
@@ -347,8 +347,8 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                 </div>
 
                 <span style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: 'var(--brand-a-ink)',
                   width: 40,
                   textAlign: 'right',
@@ -356,7 +356,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                 }}>
                   {col.score.toFixed(0)}
                 </span>
-                <span style={{ fontSize: 13, color: 'var(--estate-text-muted)', flexShrink: 0 }}>
+                <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)', flexShrink: 0 }}>
                   {isExpanded ? '▾' : '▸'}
                 </span>
               </button>
@@ -370,22 +370,22 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                   gap: '3px 12px',
                 }}>
                   {f > 0 && (
-                    <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: SIGNAL_COLORS.filtered }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.filtered }}>
                       ● Filter ×{col.filtered_n}
                     </span>
                   )}
                   {j > 0 && (
-                    <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: SIGNAL_COLORS.joined }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.joined }}>
                       ● Join ×{col.joined_n}
                     </span>
                   )}
                   {l > 0 && (
-                    <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: SIGNAL_COLORS.lineage }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.lineage }}>
                       ● Lineage ×{col.lineage_out_n}
                     </span>
                   )}
                   {p > 0 && (
-                    <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: SIGNAL_COLORS.projected }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.projected }}>
                       ● Select ×{col.projected_n}
                     </span>
                   )}
@@ -401,7 +401,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
         {Object.entries(SIGNAL_COLORS).map(([key, color]) => (
           <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />
-            <span style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: 'var(--estate-text-muted)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
               {key}
             </span>
           </span>
@@ -419,7 +419,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
   const displayPatterns = expanded ? patterns : patterns.slice(0, SHOW_N);
 
   if (patterns.length === 0) return (
-    <div style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: 'var(--estate-text-muted)' }}>
+    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
       No filter patterns recorded.
     </div>
   );
@@ -451,8 +451,8 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
             }}
           >
             <code style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: 'var(--estate-ink)',
               flex: 1,
               overflow: 'hidden',
@@ -463,8 +463,8 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
             </code>
             {p.op && (
               <span style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: 'var(--estate-text-muted)',
                 background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
                 padding: '1px 4px',
@@ -475,8 +475,8 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
               </span>
             )}
             <span style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: 'var(--brand-a-ink)',
               flexShrink: 0,
             }}>
@@ -490,7 +490,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
         <button
           type="button"
           onClick={() => setExpanded(o => !o)}
-          style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 13, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
           className="hover:underline"
         >
           {expanded ? '↑ Show fewer' : `↓ Show ${patterns.length - SHOW_N} more patterns`}
@@ -534,8 +534,8 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
         style={{
           borderColor: 'var(--estate-border-gold)',
           background: 'var(--estate-raised)',
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted)',
         }}
       >
@@ -550,16 +550,16 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--estate-text-muted)',
           }}>
             last harvested {relativeTime(usage.last_t3_at)}
           </span>
           {freshness.window_days > 0 && (
             <span style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: 'var(--estate-text-muted)',
             }}>
               · {freshness.window_days}d window
@@ -568,9 +568,9 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
         </div>
         {stale && (
           <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            letterSpacing: '0.06em',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
+            letterSpacing: '0.04em',
             color: 'var(--brand-a-ink)',
             border: '1px solid var(--brand-a)',
             borderRadius: 4,
@@ -584,8 +584,8 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
       {/* ── Stale guidance ─────────────────────────── */}
       {stale && (
         <p style={{
-          fontFamily: '"Inter Variable", sans-serif',
-          fontSize: 13,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted)',
           lineHeight: 1.5,
           margin: 0,
@@ -602,8 +602,8 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
           borderLeft: '3px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
           borderRadius: '0 6px 6px 0',
           background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)',
-          fontFamily: '"Inter Variable", sans-serif',
-          fontSize: 13,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           lineHeight: 1.6,
           color: 'var(--estate-text-secondary)',
         }}>

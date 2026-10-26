@@ -142,9 +142,11 @@ module.exports = {
         xs:   ['0.8125rem', { lineHeight: '1.25rem' }],
         sm:   ['0.9375rem', { lineHeight: '1.4rem' }],
         base: ['1rem',      { lineHeight: '1.6rem' }],
-        lg:   ['1.1875rem', { lineHeight: '1.75rem' }],
-        xl:   ['1.375rem',  { lineHeight: '1.9rem' }],
-        '2xl':['1.625rem',  { lineHeight: '2.1rem' }],
+        lg:   ['1.25rem',   { lineHeight: '1.625rem' }],   // 20px — on the type scale (was 19)
+        xl:   ['1.25rem',   { lineHeight: '1.625rem' }],   // 20px (was 22)
+        '2xl':['1.75rem',   { lineHeight: '2rem' }],        // 28px (was 26)
+        '3xl':['1.75rem',   { lineHeight: '2rem' }],        // 28px
+        '4xl':['2.5rem',    { lineHeight: '2.75rem' }],     // 40px
         // Type tokens — values live in src/styles/typography.css (docs/audits/typography-implementation-plan.md).
         // The xs…2xl keys above are legacy aliases, removed once every screen is migrated.
         'display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)',       fontWeight: 'var(--type-display-weight)',       letterSpacing: 'var(--type-display-ls)' }],

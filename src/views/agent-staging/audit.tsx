@@ -31,11 +31,11 @@ export default function AuditLogPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b dark:border-[var(--line-1)] bg-[color:var(--surface-2)] dark:bg-[var(--background)]">
-              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Timestamp</th>
-              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Actor</th>
-              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Action</th>
-              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Target</th>
-              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Detail</th>
+              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Timestamp</th>
+              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Actor</th>
+              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Action</th>
+              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Target</th>
+              <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Detail</th>
             </tr>
           </thead>
           <tbody>

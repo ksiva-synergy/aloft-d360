@@ -95,7 +95,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Name
           </label>
           <input
@@ -108,7 +108,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Type
           </label>
           <select
@@ -123,7 +123,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+          <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Scope
           </label>
           <select
@@ -139,7 +139,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
 
         {scope !== 'global' && (
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+            <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
               Scope ID
             </label>
             <input
@@ -154,7 +154,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
       </div>
 
       <div>
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+        <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
           Enforcement
         </label>
         <div className="flex gap-2">
@@ -177,7 +177,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
       </div>
 
       <div>
-        <label className="text-xs uppercase tracking-wider text-muted-foreground font-medium block mb-1.5">
+        <label className="text-xs uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
           Config (JSON)
         </label>
         <textarea

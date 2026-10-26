@@ -102,8 +102,8 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
   if (stats.length === 0) {
     return (
       <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>Where Each Arm Wins</div>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 8 }}>No data</div>
+        <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>Where Each Arm Wins</div>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 8 }}>No data</div>
       </div>
     );
   }
@@ -118,10 +118,10 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
     <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
+        <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
           Where Each Arm Wins
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 4 }}>
+        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 4 }}>
           Task-type × model · success rate
         </div>
       </div>
@@ -148,7 +148,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
                 <span
                   style={{
                     fontFamily: MONO,
-                    fontSize: 13,
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: TEXT_MUT,
                     display: 'inline-block',
                     transform: 'rotate(-45deg)',
@@ -195,7 +195,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
                     background: isFav ? GOLD : modelColor, flexShrink: 0,
                   }} />
                   <span style={{
-                    fontFamily: MONO, fontSize: 13,
+                    fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                     color: isFav ? GOLD : TEXT_PRI,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
@@ -260,15 +260,15 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             alignItems: 'center',
             gap: 8,
           }}>
-            <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>0%</span>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>0%</span>
             <div style={{
               height: 6,
               width: 160,
               borderRadius: 3,
               background: `linear-gradient(to right, #1a1a2e, ${TEAL}, ${GOLD})`,
             }} />
-            <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>100%</span>
-            <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginLeft: 12 }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>100%</span>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginLeft: 12 }}>
               gold border = column winner
             </span>
           </div>
@@ -291,7 +291,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             pointerEvents: 'none',
             zIndex: 9999,
             fontFamily: MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             color: TEXT_PRI,
             whiteSpace: 'nowrap',
             boxShadow: '0 4px 16px rgba(0,0,0,0.5)',

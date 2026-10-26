@@ -136,7 +136,7 @@ export default function LoginPage() {
   }
 
   const field =
-    'h-11 w-full rounded-xl border border-[rgb(var(--ink)/0.1)] bg-[var(--field)] px-4 text-[15px] text-[rgb(var(--ink))] outline-none transition placeholder:text-[rgb(var(--ink)/0.35)] hover:border-[rgb(var(--ink)/0.2)] focus:border-[rgb(var(--focus))] focus:bg-[var(--field-focus)] focus:ring-4 focus:ring-[rgb(var(--focus)/0.15)]';
+    'h-11 w-full rounded-xl border border-[rgb(var(--ink)/0.1)] bg-[var(--field)] px-4 text-[length:var(--type-body-size)] text-[rgb(var(--ink))] outline-none transition placeholder:text-[rgb(var(--ink)/0.35)] hover:border-[rgb(var(--ink)/0.2)] focus:border-[rgb(var(--focus))] focus:bg-[var(--field-focus)] focus:ring-4 focus:ring-[rgb(var(--focus)/0.15)]';
 
   return (
     <main
@@ -166,10 +166,10 @@ export default function LoginPage() {
               ambient={false}
               theme={theme}
             />
-            <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.02em]">
+            <h1 className="mt-2 text-[length:var(--type-kpi-lg-size)] font-semibold tracking-tight">
               Welcome to Agent Lab
             </h1>
-            <p className="mt-2 text-[15px] text-[rgb(var(--ink)/0.55)]">Design, stage and operate AI agent pipelines.</p>
+            <p className="mt-2 text-[length:var(--type-body-size)] text-[rgb(var(--ink)/0.55)]">Design, stage and operate AI agent pipelines.</p>
           </div>
 
           <div className="mt-9">
@@ -179,7 +179,7 @@ export default function LoginPage() {
               onMouseEnter={() => setHoverSignIn(true)}
               onMouseLeave={() => setHoverSignIn(false)}
               disabled={ssoLoading || loading}
-              className="flex h-11 w-full items-center justify-center gap-3 rounded-xl bg-[var(--ms-bg)] text-[15px] font-semibold text-[var(--ms-ink)] transition hover:bg-[var(--ms-hover)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-11 w-full items-center justify-center gap-3 rounded-xl bg-[var(--ms-bg)] text-[length:var(--type-body-size)] font-semibold text-[var(--ms-ink)] transition hover:bg-[var(--ms-hover)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {ssoLoading ? (
                 <Loader2 className="h-[18px] w-[18px] animate-spin" />
@@ -259,7 +259,7 @@ export default function LoginPage() {
                   onMouseEnter={() => setHoverSignIn(true)}
                   onMouseLeave={() => setHoverSignIn(false)}
                   disabled={loading}
-                  className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5b6cff] text-[15px] font-semibold text-white shadow-[0_10px_30px_-12px_#5b6cff] transition hover:bg-[#6b7bff] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#5b6cff] text-[length:var(--type-body-size)] font-semibold text-white shadow-[0_10px_30px_-12px_#5b6cff] transition hover:bg-[#6b7bff] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   {loading ? 'Signing in…' : 'Sign in'}

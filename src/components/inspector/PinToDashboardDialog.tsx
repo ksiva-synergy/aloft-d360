@@ -9,7 +9,7 @@ import type { WidgetSpec } from '@/lib/dashboards/types';
 import { buildWidgetSpecFromChart } from './dashboard-builder/chart-mapping';
 import { type } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const GOLD = 'var(--brand-a)';
 
 const NEW_DASHBOARD = '__new__';
@@ -239,7 +239,7 @@ export function PinToDashboardDialog({
           {/* Destination */}
           <Field label="DESTINATION">
             {dashLoading ? (
-              <span style={{ ...MONO, fontSize: 13, color: 'var(--wb-muted)' }}>Loading dashboards…</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-muted)' }}>Loading dashboards…</span>
             ) : (
               <select
                 value={destination}
@@ -268,7 +268,7 @@ export function PinToDashboardDialog({
           )}
 
           {error && (
-            <p style={{ ...MONO, fontSize: 13, color: '#F87171', margin: 0 }}>{error}</p>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', margin: 0 }}>{error}</p>
           )}
 
           {/* Confirm */}
@@ -293,7 +293,7 @@ export function PinToDashboardDialog({
 }
 
 const inputStyle: React.CSSProperties = {
-  ...MONO, fontSize: 13, width: '100%', boxSizing: 'border-box',
+  ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
   background: 'var(--wb-canvas)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
   borderRadius: 4, padding: '6px 8px', color: 'var(--wb-text)', outline: 'none',
 };

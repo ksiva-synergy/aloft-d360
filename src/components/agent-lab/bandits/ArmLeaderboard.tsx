@@ -54,7 +54,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                     onClick={() => setExpandedModel(isExpanded ? null : model.model_name)}
                   >
                     <td className="px-4 py-3">
-                      <span className={cn('text-sm font-bold', medalClass || 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]')}>
+                      <span className={cn('text-sm font-semibold', medalClass || 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]')}>
                         {idx + 1}
                       </span>
                     </td>

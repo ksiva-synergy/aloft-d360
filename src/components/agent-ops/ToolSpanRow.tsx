@@ -5,7 +5,7 @@ import type { TraceToolSpan } from '@/lib/agent-ops/types';
 import { SqlPreview, extractSqlFromInput } from './SqlPreview';
 import { type } from '@/lib/typography/tokens';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 const STATUS_COLOR: Record<string, string> = {
   suggested: 'var(--ink-3)',
@@ -46,12 +46,12 @@ export function ToolSpanRow({ span }: { span: TraceToolSpan }) {
             textAlign: 'left',
           }}
         >
-          <span style={{ ...mono, fontSize: 12, color: 'var(--wb-ink)', flex: 1 }}>{span.toolName}</span>
+          <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)', flex: 1 }}>{span.toolName}</span>
           {span.durationMs != null && span.durationMs > 0 && (
             <span
               style={{
                 ...mono,
-                fontSize: 10,
+                fontSize: 'var(--type-caption-size)',
                 padding: '2px 6px',
                 borderRadius: 999,
                 background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
@@ -64,7 +64,7 @@ export function ToolSpanRow({ span }: { span: TraceToolSpan }) {
           <span style={{ ...type.label, }}>{span.status}</span>
         </button>
         {span.error && (
-          <div style={{ ...mono, fontSize: 11, color: '#D9774B', marginTop: 4 }}>{span.error}</div>
+          <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: '#D9774B', marginTop: 4 }}>{span.error}</div>
         )}
         {open && (
           <div style={{ marginTop: 6 }}>
@@ -73,7 +73,7 @@ export function ToolSpanRow({ span }: { span: TraceToolSpan }) {
               <pre
                 style={{
                   ...mono,
-                  fontSize: 10,
+                  fontSize: 'var(--type-caption-size)',
                   margin: 0,
                   padding: 8,
                   borderRadius: 6,

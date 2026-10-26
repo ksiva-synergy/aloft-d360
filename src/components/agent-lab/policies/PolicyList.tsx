@@ -95,11 +95,11 @@ export function PolicyList({ policies, loading, onSelect, onCreateNew }: PolicyL
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b dark:border-[var(--line-1)] bg-[color:var(--surface-2)] dark:bg-[var(--background)]">
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Name</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Type</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Scope</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Enforcement</th>
-                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground font-medium">Status</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Name</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Type</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Scope</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Enforcement</th>
+                <th className="text-left px-4 py-2.5 text-xs uppercase tracking-wide text-muted-foreground font-medium">Status</th>
               </tr>
             </thead>
             <tbody>

@@ -202,7 +202,7 @@ export default function UseAgentPage() {
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line-1)] px-4 md:px-6">
         <Mark name={name} />
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[15px] font-semibold text-[var(--ink-1)]">{name}</h1>
+          <h1 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{name}</h1>
           <p className="truncate text-xs text-[var(--ink-3)]">{description || 'Saved agent'}</p>
         </div>
         <button
@@ -305,7 +305,7 @@ export default function UseAgentPage() {
             </button>
           )}
         </form>
-        <p className="mx-auto mt-2 max-w-3xl text-center text-[11px] text-[var(--ink-3)]">Enter to send · Shift+Enter for a new line</p>
+        <p className="mx-auto mt-2 max-w-3xl text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Enter to send · Shift+Enter for a new line</p>
       </div>
     </div>
   );

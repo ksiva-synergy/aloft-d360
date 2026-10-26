@@ -116,8 +116,8 @@ export default function LineagePage() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>Lineage</h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>Lineage</h1>
+          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
             One graph, two lenses — estate table → definition → consumers. Pick a metric (forward) or an entity (reverse).
           </p>
         </div>
@@ -172,7 +172,7 @@ export default function LineagePage() {
 
             {/* Estate-wide bootstrap context — attaches the WHY to a heavily-capped view */}
             {governance?.note && (
-              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-xs leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+              <div className="border border-dashed rounded-lg px-3.5 py-2.5 mb-4 text-xs leading-relaxed" style={{ borderColor: softBorder, color: muted, fontFamily: 'var(--font-sans)' }}>
                 <b style={{ color: ink }}>{governance.candidate} of {governance.total}</b> definitions are candidate ({governance.pctCandidate}%). {governance.note}
               </div>
             )}
@@ -185,7 +185,7 @@ export default function LineagePage() {
                 {focusNode.kind === 'measure' && (focusNode as DefNode).capped && (
                   <div className="border rounded-lg p-3.5 mb-4 flex gap-3" style={{ background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', borderColor: GOLD }}>
                     <AlertTriangle size={16} style={{ color: GOLD, flex: 'none', marginTop: 1 }} />
-                    <div className="text-xs leading-relaxed" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+                    <div className="text-xs leading-relaxed" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
                       <b style={{ color: ink }}>Governance ceiling.</b> <b style={{ color: ink }}>{focusNode.label}</b> touches a <b style={{ color: GOLD }}>candidate</b> definition
                       {(focusNode as DefNode).cappedBy?.length ? <> ({(focusNode as DefNode).cappedBy!.map((id) => nodeById.get(id)?.label ?? id.replace(/^\w+:/, '')).join(', ')})</> : null}.
                       This is a governance-lens ceiling computed over per-definition status — <i>not</i> an execution block (a governed model still executes candidate defs). Honest, never a crash.
@@ -267,7 +267,7 @@ export default function LineagePage() {
                     {(detailNode.kind === 'dimension' || detailNode.kind === 'measure') && (() => {
                       const d = detailNode as DefNode;
                       return (
-                        <div className="flex flex-col gap-2 text-xs" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+                        <div className="flex flex-col gap-2 text-xs" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
              <div><span className="text-label " style={{ color: muted }}>resolves to</span>{' '}
                             <span className="font-mono text-xs"><span style={{ color: '#5B9DFF' }}>{d.resolvesTo.fullPath}</span>{d.resolvesTo.column ? <span style={{ color: ink }}>.{d.resolvesTo.column}</span> : <span style={{ color: GOLD }}> · expression</span>}</span>
                           </div>

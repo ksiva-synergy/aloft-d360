@@ -45,7 +45,7 @@ function NoResultsState() {
       >
         NO RESULTS YET
         <br />
-        <span style={{ opacity: 0.6, fontSize: 13 }}>RUN A QUERY IN THE INSPECTOR</span>
+        <span style={{ opacity: 0.6, fontSize: 'var(--type-ui-regular-size)' }}>RUN A QUERY IN THE INSPECTOR</span>
       </span>
     </div>
   );
@@ -306,8 +306,8 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
               <span style={{ color: 'var(--builder-text-label)', opacity: 0.4, marginLeft: 4 }}>·</span>
               <span
                 style={{
-                  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   letterSpacing: '0.08em',
                   color: 'var(--builder-gold)',
                   background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
@@ -337,8 +337,8 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '13px',
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+              fontSize: 'var(--type-ui-regular-size)',
+              fontFamily: 'var(--font-mono)',
               cursor: 'pointer',
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
@@ -527,9 +527,9 @@ function StudioMainCanvas({
           <span
             style={{
               marginLeft: 8,
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: 13,
-              letterSpacing: '0.06em',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
+              letterSpacing: '0.04em',
               color: 'var(--builder-gold)',
               background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
               border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
@@ -576,8 +576,8 @@ function StudioMainCanvas({
       {exportError && (
         <div
           style={{
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: '#f87171',
             background: 'rgba(248,113,113,0.08)',
             borderBottom: '1px solid var(--builder-border)',
@@ -593,13 +593,13 @@ function StudioMainCanvas({
       {result.truncated && (
         <div
           style={{
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: 13,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--builder-text-label)',
             background: 'var(--builder-surface)',
             borderBottom: '1px solid var(--builder-border)',
             padding: '6px 16px',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.04em',
             textTransform: 'uppercase',
             flexShrink: 0,
           }}
@@ -704,8 +704,8 @@ function StudioDataTable({ result }: { result: QueryResult }) {
         style={{
           width: '100%',
           borderCollapse: 'collapse',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
         }}
       >
         <thead
@@ -728,26 +728,26 @@ function StudioDataTable({ result }: { result: QueryResult }) {
                     textAlign: isNum ? 'right' : 'left',
                     fontWeight: 500,
                     color: 'var(--builder-text)',
-                    fontSize: 13,
+                    fontSize: 'var(--type-ui-regular-size)',
                     whiteSpace: 'nowrap',
                     borderRight: '1px solid var(--builder-border)',
                   }}
                 >
-                  <span style={{ color: 'var(--builder-text)', fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}>
+                  <span style={{ color: 'var(--builder-text)', fontFamily: 'var(--font-mono)' }}>
                     {col.name}
                   </span>
                   {' '}
                   <span
                     style={{
-                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 13,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: 'var(--builder-text-label)',
                       border: '1px solid var(--builder-border)',
                       borderRadius: 2,
                       padding: '1px 4px',
                       marginLeft: 4,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
+                      letterSpacing: '0.04em',
                     }}
                   >
                     {col.type_name}
@@ -780,8 +780,8 @@ function StudioDataTable({ result }: { result: QueryResult }) {
                       padding: '5px 12px',
                       textAlign: isNum ? 'right' : 'left',
                       color: 'var(--builder-text-muted)',
-                      fontSize: 13,
-                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                      fontSize: 'var(--type-ui-regular-size)',
+                      fontFamily: 'var(--font-mono)',
                       borderRight: '1px solid rgba(30,58,82,0.4)',
                       whiteSpace: 'nowrap',
                       maxWidth: 240,
@@ -836,8 +836,8 @@ function VirtualTable({
         style={{
           width: '100%',
           borderCollapse: 'collapse',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
         }}
       >
         <thead
@@ -860,24 +860,24 @@ function VirtualTable({
                     textAlign: isNum ? 'right' : 'left',
                     fontWeight: 500,
                     color: 'var(--builder-text)',
-                    fontSize: 13,
+                    fontSize: 'var(--type-ui-regular-size)',
                     whiteSpace: 'nowrap',
                     borderRight: '1px solid var(--builder-border)',
                   }}
                 >
-                  <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}>{col.name}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{col.name}</span>
                   {' '}
                   <span
                     style={{
-                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 13,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: 'var(--builder-text-label)',
                       border: '1px solid var(--builder-border)',
                       borderRadius: 2,
                       padding: '1px 4px',
                       marginLeft: 4,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
+                      letterSpacing: '0.04em',
                     }}
                   >
                     {col.type_name}
@@ -920,8 +920,8 @@ function VirtualTable({
                         padding: '5px 12px',
                         textAlign: isNum ? 'right' : 'left',
                         color: 'var(--builder-text-muted)',
-                        fontSize: 13,
-                        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                        fontSize: 'var(--type-ui-regular-size)',
+                        fontFamily: 'var(--font-mono)',
                         borderRight: '1px solid rgba(30,58,82,0.4)',
                         whiteSpace: 'nowrap',
                         maxWidth: 240,

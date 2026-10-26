@@ -8,8 +8,8 @@ export function SectionTitle({ children, hint, right }: { children: React.ReactN
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
       <div style={{ minWidth: 0 }}>
-        <h2 style={{ ...sans, fontSize: 15, fontWeight: 600, color: 'var(--wb-ink)', margin: 0 }}>{children}</h2>
-        {hint && <p style={{ ...sans, fontSize: 12, color: 'var(--ink-3)', margin: '3px 0 0' }}>{hint}</p>}
+        <h2 style={{ ...sans, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--wb-ink)', margin: 0 }}>{children}</h2>
+        {hint && <p style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', margin: '3px 0 0' }}>{hint}</p>}
       </div>
       {right}
     </div>
@@ -29,7 +29,7 @@ export function Chip({ children, color, title }: { children: React.ReactNode; co
       title={title}
       style={{
         ...mono,
-        fontSize: 10,
+        fontSize: 'var(--type-caption-size)',
         padding: '2px 8px',
         borderRadius: 999,
         border: `1px solid color-mix(in srgb, ${c} 35%, transparent)`,
@@ -80,9 +80,9 @@ export function KpiCard({
   return (
     <div style={{ position: 'relative', padding: '14px 16px', borderRadius: 12, border: BORDER, background: CARD_BG, minWidth: 0, overflow: 'hidden' }}>
       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: accent ?? 'var(--brand-a)', opacity: 0.8 }} />
-      <div style={{ ...sans, fontSize: 12, color: 'var(--ink-3)' }}>{label}</div>
-      <div style={{ ...mono, fontSize: 22, fontWeight: 500, color: 'var(--wb-ink)', marginTop: 4, lineHeight: 1.2 }}>{value}</div>
-      {sub && <div style={{ ...mono, fontSize: 11, color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>}
+      <div style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>{label}</div>
+      <div style={{ ...mono, fontSize: 'var(--type-title-section-size)', fontWeight: 500, color: 'var(--wb-ink)', marginTop: 4, lineHeight: 1.2 }}>{value}</div>
+      {sub && <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>}
       {footer}
     </div>
   );
@@ -102,7 +102,7 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
       onClick={onCopy}
       style={{
         ...sans,
-        fontSize: 11,
+        fontSize: 'var(--type-caption-size)',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
@@ -126,13 +126,13 @@ export function CodeBlock({ label, text, children }: { label: string; text: stri
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span style={{ ...sans, fontSize: 12, fontWeight: 600, color: 'var(--wb-ink-dim)' }}>{label}</span>
+        <span style={{ ...sans, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: 'var(--wb-ink-dim)' }}>{label}</span>
         <CopyButton text={text} />
       </div>
       <pre
         style={{
           ...mono,
-          fontSize: 12,
+          fontSize: 'var(--type-caption-size)',
           lineHeight: 1.55,
           margin: 0,
           padding: 12,

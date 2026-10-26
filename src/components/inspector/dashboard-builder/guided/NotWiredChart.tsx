@@ -263,7 +263,7 @@ function KpiReadout({ chart }: { chart: RowsToOptionResult }) {
     <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24, padding: '8px 4px' }}>
       {chart.series.map((s, i) => (
         <div key={s.measureId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ ...MONO, fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', color: SERIES_COLORS[i % SERIES_COLORS.length] }}>
+          <span style={{ ...MONO, fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: SERIES_COLORS[i % SERIES_COLORS.length] }}>
             {formatValue(s.data[0])}
           </span>
           <span style={{ ...MONO, fontSize: 13, color: MUTED }}>{s.name}{s.unit ? ` (${s.unit})` : ''}</span>

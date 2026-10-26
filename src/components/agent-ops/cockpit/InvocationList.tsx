@@ -22,7 +22,7 @@ export function InvocationList({
   const filtered = highlightTool ? items.filter((i) => i.toolName === highlightTool) : items;
   const maxDuration = filtered.reduce((m, i) => Math.max(m, i.durationMs), 0);
   if (filtered.length === 0) {
-    return <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)', padding: '12px 4px', margin: 0 }}>No invocations.</p>;
+    return <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', padding: '12px 4px', margin: 0 }}>No invocations.</p>;
   }
 
   const row = (inv: InvocationRow, idx: number) => {
@@ -50,16 +50,16 @@ export function InvocationList({
         onMouseEnter={(e) => (e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 6%, transparent)')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        <span style={{ ...mono, fontSize: 10, color: 'var(--ink-3)' }}>T{inv.turnIndex || '—'}</span>
+        <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>T{inv.turnIndex || '—'}</span>
         <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           <StatusDot ok={ok} />
-          <span style={{ ...mono, fontSize: 12, color: 'var(--wb-ink)', flexShrink: 0 }}>{inv.toolName}</span>
-          {hint && <span style={{ ...mono, fontSize: 11, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hint}</span>}
+          <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)', flexShrink: 0 }}>{inv.toolName}</span>
+          {hint && <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hint}</span>}
         </span>
         <span style={{ height: 6, borderRadius: 3, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
           <span style={{ display: 'block', height: '100%', width: `${Math.max((inv.durationMs / (maxDuration || 1)) * 100, 3)}%`, background: ok ? colorOf(inv.toolName) : ERR }} />
         </span>
-        <span style={{ ...mono, fontSize: 11, color: 'var(--wb-ink-dim)', textAlign: 'right' }}>{fmtMs(inv.durationMs)}</span>
+        <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink-dim)', textAlign: 'right' }}>{fmtMs(inv.durationMs)}</span>
       </button>
     );
   };
@@ -76,7 +76,7 @@ export function InvocationList({
     <div>
       {groups.map((g) => (
         <div key={`${g.turn}-${g.start}`} style={{ marginBottom: 14 }}>
-          <div style={{ ...sans, fontSize: 12, fontWeight: 600, color: 'var(--wb-ink-dim)', padding: '6px 4px' }}>
+          <div style={{ ...sans, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: 'var(--wb-ink-dim)', padding: '6px 4px' }}>
             Turn {g.turn || '—'} <span style={{ ...mono, fontWeight: 400, color: 'var(--ink-3)' }}>· {plural(g.items.length, 'call')}</span>
           </div>
           <div style={{ borderTop: BORDER }}>{g.items.map((inv, j) => row(inv, g.start + j))}</div>

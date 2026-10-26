@@ -28,7 +28,7 @@ const FoerOpsDashboard = lazy(() =>
   import('@/components/agent-lab/memory/FoerOpsDashboard').then((m) => ({ default: m.FoerOpsDashboard })),
 );
 
-const MONO = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" } as const;
+const MONO = { fontFamily: 'var(--font-mono)' } as const;
 
 export function PageMessage({ text, children }: { text: string; children?: ReactNode }) {
   return (

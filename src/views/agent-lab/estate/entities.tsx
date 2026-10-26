@@ -107,10 +107,10 @@ export default function EntitiesPage() {
     <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
       <div className="max-w-[1180px] mx-auto">
         <div className="mb-5">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>
+          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: ink, fontFamily: 'var(--font-sans)' }}>
             Entities
           </h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
+          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: 'var(--font-sans)' }}>
             Governed semantic model — entities (physical tables), their dimensions &amp; measures, and what consumes them.
           </p>
         </div>

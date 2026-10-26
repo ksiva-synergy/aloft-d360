@@ -5,8 +5,8 @@ import { GraduationCap, Plus, ArrowUpCircle, X, Tag, Ruler, MessageSquareText, C
 import type { AuthoringScope } from './scope';
 import { type } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const SANS: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const GOLD = 'var(--brand-a)';
 const GREEN = '#22c55e';
 const NAVY = 'var(--on-brand)';
@@ -68,7 +68,7 @@ export function WhatIveTaughtSection({ scope }: { scope: AuthoringScope }) {
         }}
       >
         <GraduationCap size={14} color={GOLD} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: 'var(--wb-ink, #E6ECF5)', flex: 1 }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--wb-ink, #E6ECF5)', flex: 1 }}>
           WHAT I&apos;VE TAUGHT{open && data ? ` (${total})` : ''}
         </span>
         <ChevronDown size={13} color={MUTED} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
@@ -76,7 +76,7 @@ export function WhatIveTaughtSection({ scope }: { scope: AuthoringScope }) {
 
       {open && (
         <div style={{ padding: '4px 12px 12px', borderTop: `1px solid ${BORDER}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {loading && <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Loading…</span>}
+          {loading && <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Loading…</span>}
 
           {/* Coaching — teach a standing rule (deliverable 4) */}
           <RulesSubsection rules={data?.rules ?? []} onChanged={load} />
@@ -152,7 +152,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <MessageSquareText size={11} color={GOLD} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', color: GOLD }}>RULES TAUGHT ({rules.length})</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: GOLD }}>RULES TAUGHT ({rules.length})</span>
       </div>
 
       {/* Teach a rule */}
@@ -164,7 +164,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
           rows={2}
           disabled={busy}
           style={{
-            ...MONO, fontSize: 13, flex: 1, minWidth: 0, resize: 'vertical',
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, minWidth: 0, resize: 'vertical',
             background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(74,96,128,0.35)',
             borderRadius: 4, color: 'var(--wb-ink, #E6ECF5)', padding: '5px 8px', outline: 'none',
           }}
@@ -174,7 +174,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
           disabled={busy || !input.trim()}
           title="Teach this as a personal rule"
           style={{
-            ...MONO, fontSize: 13, letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3,
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3,
             background: input.trim() && !busy ? GOLD : 'transparent', color: input.trim() && !busy ? NAVY : MUTED,
             border: `1px solid ${input.trim() && !busy ? GOLD : 'rgba(136,146,164,0.35)'}`,
             borderRadius: 4, padding: '5px 9px', cursor: input.trim() && !busy ? 'pointer' : 'default', flexShrink: 0,
@@ -183,19 +183,19 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
           <Plus size={10} /> TEACH
         </button>
       </div>
-      {error && <span style={{ ...MONO, fontSize: 13, color: '#f43f5e' }}>{error}</span>}
+      {error && <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#f43f5e' }}>{error}</span>}
 
       {/* Rules list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {rules.length === 0 && (
-          <span style={{ ...MONO, fontSize: 13, color: MUTED, fontStyle: 'italic' }}>No rules yet — teach one above.</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>No rules yet — teach one above.</span>
         )}
         {rules.map((r) => {
           const isOrg = r.visibility === 'org';
           return (
             <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 8px', border: `1px solid ${BORDER}`, borderRadius: 4, background: SURFACE }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ ...SANS, fontSize: 13, color: 'var(--wb-ink, #E6ECF5)', lineHeight: 1.4 }}>{r.ruleText}</div>
+                <div style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)', lineHeight: 1.4 }}>{r.ruleText}</div>
                 <span style={{
                   ...type.label,
                   color: isOrg ? GREEN : MUTED, border: `1px solid ${isOrg ? 'rgba(34,197,94,0.3)' : 'rgba(136,146,164,0.3)'}`,
@@ -210,7 +210,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
                     onClick={() => promote(r.id)}
                     disabled={busy}
                     title="Promote to org-wide (reputation-gated)"
-                    style={{ ...MONO, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: GOLD, border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 3, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
+                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: GOLD, border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 3, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
                   >
                     <ArrowUpCircle size={10} /> PROMOTE
                   </button>
@@ -239,10 +239,10 @@ function Subsection({ icon, title, count, children }: { icon: React.ReactNode; t
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         {icon}
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.10em', color: MUTED }}>{title} ({count})</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: MUTED }}>{title} ({count})</span>
       </div>
       {count === 0 ? (
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, fontStyle: 'italic', paddingLeft: 16 }}>none yet</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic', paddingLeft: 16 }}>none yet</span>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 16 }}>{children}</div>
       )}
@@ -254,8 +254,8 @@ function Row({ label, sub, badge, badgeColor }: { label: string; sub?: string; b
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...SANS, fontSize: 13, color: 'var(--wb-ink, #E6ECF5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
-        {sub && <div style={{ ...MONO, fontSize: 13, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
+        <div style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+        {sub && <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>}
       </div>
       {badge && (
         <span style={{ ...type.label, color: badgeColor ?? MUTED, flexShrink: 0 }}>{badge}</span>

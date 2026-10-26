@@ -472,7 +472,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         
         <div>
           <span
-            className="rounded border px-2.5 py-1 text-xs font-semibold tracking-wider uppercase"
+            className="rounded border px-2.5 py-1 text-xs font-semibold tracking-wide uppercase"
             style={{
               fontFamily: MONO,
               borderColor: `color-mix(in srgb, ${GOLD} 38%, transparent)`,
@@ -496,7 +496,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <circle cx="15" cy="12" r="5" className="circle-collapse-2" stroke="var(--foer-text-sec)" opacity="0.6" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               DEDUP
             </h3>
           </div>
@@ -520,7 +520,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <polyline points="12 6 12 12 16 14" stroke={GOLD} className="clock-spin" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               DECAY TTL
             </h3>
           </div>
@@ -539,7 +539,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <path d="m15 9-6 6" stroke="var(--foer-text-sec)" opacity="0.7" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               CONFLICT GC
             </h3>
           </div>
@@ -553,7 +553,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Status Buckets (Left, span 2 columns) */}
         <div className="flex flex-col gap-3 lg:col-span-2">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+          <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
             Bi-Temporal Memory Partition Status
           </span>
           <div className="grid grid-cols-3 gap-3">
@@ -565,10 +565,10 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 backgroundColor: 'var(--foer-surface2)',
               }}
             >
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+              <span className="text-xs font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 ACTIVE
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: GOLD }}>
+              <span className="text-2xl font-semibold font-mono" style={{ color: GOLD }}>
                 {statusBuckets.ACTIVE.toLocaleString()}
               </span>
               <span className="text-xs" style={{ color: 'var(--foer-text-sec)' }}>
@@ -578,10 +578,10 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
 
             {/* SUPERSEDED Bucket */}
             <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1 opacity-80">
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+              <span className="text-xs font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 SUPERSEDED
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: 'var(--foer-text-pri)' }}>
+              <span className="text-2xl font-semibold font-mono" style={{ color: 'var(--foer-text-pri)' }}>
                 {statusBuckets.SUPERSEDED.toLocaleString()}
               </span>
               <span className="text-xs" style={{ color: 'var(--foer-text-mut)' }}>
@@ -591,10 +591,10 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
 
             {/* EXPIRED Bucket */}
             <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1 opacity-60">
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+              <span className="text-xs font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 EXPIRED
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: 'var(--foer-text-mut)' }}>
+              <span className="text-2xl font-semibold font-mono" style={{ color: 'var(--foer-text-mut)' }}>
                 {statusBuckets.EXPIRED.toLocaleString()}
               </span>
               <span className="text-xs" style={{ color: 'var(--foer-text-mut)' }}>
@@ -607,7 +607,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         {/* Store-Size Sparkline (Right, span 1 column) */}
         <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded p-4 h-full min-h-[140px] justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+            <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
               Store Growth Series (30d)
             </span>
             <span className="font-mono text-xs text-[var(--foer-text-sec)]">
@@ -642,7 +642,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── E. RULE LIFECYCLE WATERLINE ── */}
       <div className="flex flex-col gap-4 border-t border-[var(--foer-border-dim)] pt-5 -mx-6 px-6">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+          <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
             Rule Lifecycle — Retention Waterline
           </span>
           <div className="flex items-center gap-3">
@@ -796,7 +796,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                     }}
                   >
                     <span
-                      className="block text-xs uppercase tracking-wider font-semibold mb-0.5"
+                      className="block text-xs uppercase tracking-wide font-semibold mb-0.5"
                       style={{
                         fontFamily: MONO,
                         color: orb.zone === 'active' ? RULE_TYPE_COLORS[orb.type] : `${withAlpha(RULE_TYPE_COLORS[orb.type], '90')}`,

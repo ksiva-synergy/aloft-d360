@@ -4,7 +4,7 @@ import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 /** Amber, muted. The visible line between governed and escape-hatch. */
@@ -32,7 +32,7 @@ export function RawSqlBadge({
       style={{
         ...MONO,
         fontSize,
-        letterSpacing: '0.06em',
+        letterSpacing: '0.04em',
         textTransform: 'uppercase',
         display: 'inline-flex',
         alignItems: 'center',

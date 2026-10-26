@@ -206,7 +206,7 @@ export function BanditsDashboard() {
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <Loader2 style={{ width: 28, height: 28, color: GOLD }} className="animate-spin" />
-          <span style={{ color: TEXT_MUT, fontSize: 13, fontFamily: MONO }}>
+          <span style={{ color: TEXT_MUT, fontSize: 'var(--type-ui-regular-size)', fontFamily: MONO }}>
             Collapsing belief state?
           </span>
         </div>
@@ -225,12 +225,12 @@ export function BanditsDashboard() {
           padding: '32px 40px', textAlign: 'center', maxWidth: 400,
         }}>
           <p style={{ color: '#e15759', fontWeight: 600, marginBottom: 8 }}>Failed to load</p>
-          <p style={{ color: TEXT_MUT, fontSize: 13, marginBottom: 20 }}>{error}</p>
+          <p style={{ color: TEXT_MUT, fontSize: 'var(--type-ui-regular-size)', marginBottom: 20 }}>{error}</p>
           <button
             onClick={fetchData}
             style={{
               padding: '8px 20px', borderRadius: 6, border: `1px solid ${GOLD}`,
-              background: 'transparent', color: GOLD, fontFamily: MONO, fontSize: 13,
+              background: 'transparent', color: GOLD, fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
               cursor: 'pointer',
             }}
           >
@@ -252,7 +252,7 @@ export function BanditsDashboard() {
 
   const sectionTitleStyle: React.CSSProperties = {
     fontFamily: SERIF,
-    fontSize: 18,
+    fontSize: 'var(--type-title-section-size)',
     fontWeight: 600,
     color: TEXT_PRI,
     marginBottom: 4,
@@ -278,7 +278,7 @@ export function BanditsDashboard() {
 
         {/* ?? 1. BREADCRUMB ???????????????????????????????????????????????? */}
         <div style={{
-          fontFamily: MONO, fontSize: 13, letterSpacing: '0.08em',
+          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em',
           color: TEXT_MUT, display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span>DATA 360</span>
@@ -294,7 +294,7 @@ export function BanditsDashboard() {
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <div
               style={{
-                fontFamily: SERIF, fontSize: 44, fontWeight: 700,
+                fontFamily: SERIF, fontSize: 'var(--type-display-size)', fontWeight: 600,
                 color: GOLD, lineHeight: 1, marginBottom: 12,
                 cursor: 'default',
               }}
@@ -335,7 +335,7 @@ export function BanditsDashboard() {
                 opacity: bornTooltipFading === 'out' ? 0 : 1,
                 transition: 'opacity 300ms ease',
               }}>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, color: TEXT_SEC, lineHeight: 1.8 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC, lineHeight: 1.8 }}>
                   <div>Max Born &middot; 1882–1970 &middot; Nobel 1954</div>
                   <div style={{ fontStyle: 'italic' }}>The Born rule: outcomes occur in proportion to |&psi;|&sup2;.</div>
                   <div>This system routes LLMs the same way.</div>
@@ -346,7 +346,7 @@ export function BanditsDashboard() {
 
           {/* Narrative */}
           <div style={{
-            fontFamily: SERIF, fontStyle: 'italic', fontSize: 15,
+            fontFamily: SERIF, fontStyle: 'italic', fontSize: 'var(--type-body-size)',
             color: TEXT_MUT, marginBottom: 24, maxWidth: 700, lineHeight: 1.6,
           }}>
             Ten models in superposition. Every run is a measurement; every measurement collapses
@@ -384,7 +384,7 @@ export function BanditsDashboard() {
                   border: `1px solid ${windowDays === w.value ? GOLD : BORDER}`,
                   background: 'transparent',
                   color: windowDays === w.value ? GOLD : TEXT_SEC,
-                  fontFamily: MONO, fontSize: 13, cursor: 'pointer',
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', cursor: 'pointer',
                   letterSpacing: '0.04em',
                 }}
               >
@@ -401,7 +401,7 @@ export function BanditsDashboard() {
                   border: `1px solid ${sourceFilter === s.value ? GOLD : BORDER}`,
                   background: 'transparent',
                   color: sourceFilter === s.value ? GOLD : TEXT_SEC,
-                  fontFamily: MONO, fontSize: 13, cursor: 'pointer',
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', cursor: 'pointer',
                   letterSpacing: '0.04em',
                 }}
               >
@@ -413,7 +413,7 @@ export function BanditsDashboard() {
           {/* BornVerdict demo card — inline component preview */}
           {favId && (
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
                 BORN VERDICT · inline component preview
               </div>
               <BornVerdict
@@ -480,12 +480,12 @@ export function BanditsDashboard() {
           <div style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
               <span style={sectionTitleStyle}>Leaderboard</span>
-              <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
                 {sorted.length} arms
               </span>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--type-ui-regular-size)' }}>
                 <thead>
                   <tr>
                     {['#', 'Model', 'Provider', 'Pulls', 'Success Rate', 'Avg Quality', 'Avg Duration', 'Phase'].map(h => (
@@ -524,7 +524,7 @@ export function BanditsDashboard() {
                         {/* Rank */}
                         <td style={{ padding: '10px 12px', width: 36 }}>
                           <span style={{
-                            fontFamily: MONO, fontSize: 13, fontWeight: 700,
+                            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
                             color: idx === 0 ? GOLD : TEXT_MUT,
                           }}>
                             {idx + 1}
@@ -549,7 +549,7 @@ export function BanditsDashboard() {
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                           <span style={{
                             ...providerPillStyle(model.provider),
-                            fontFamily: MONO, fontSize: 13, letterSpacing: '0.04em',
+                            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
                             padding: '2px 7px', borderRadius: 4, display: 'inline-block',
                           }}>
                             {model.provider}
@@ -558,7 +558,7 @@ export function BanditsDashboard() {
                         {/* Pulls */}
                         <td style={{
                           padding: '10px 12px', textAlign: 'right',
-                          fontFamily: MONO, fontSize: 13, color: TEXT_SEC,
+                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC,
                         }}>
                           {model.total_pulls}
                         </td>
@@ -578,7 +578,7 @@ export function BanditsDashboard() {
                               }} />
                             </div>
                             <span style={{
-                              fontFamily: MONO, fontSize: 13, color: TEXT_PRI,
+                              fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_PRI,
                               minWidth: 44, textAlign: 'right',
                             }}>
                               {formatPct(model.success_rate)}
@@ -587,21 +587,21 @@ export function BanditsDashboard() {
                         </td>
                         {/* Avg quality */}
                         <td style={{ padding: '10px 12px', textAlign: 'right', minWidth: 90 }}>
-                          <span style={{ fontFamily: MONO, fontSize: 13, color: qualColor }}>
+                          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: qualColor }}>
                             {model.avg_composite != null ? formatPct(model.avg_composite) : '--'}
                           </span>
                         </td>
                         {/* Duration */}
                         <td style={{
                           padding: '10px 12px', textAlign: 'right',
-                          fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
+                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
                         }}>
                           {formatMs(model.avg_duration_ms)}
                         </td>
                         {/* Phase */}
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                           <span style={{
-                            fontFamily: MONO, fontSize: 13, letterSpacing: '0.04em',
+                            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
                             color: model.phase === 'exploiting' ? TEAL : TEXT_MUT,
                           }}>
                             {model.phase}
@@ -621,7 +621,7 @@ export function BanditsDashboard() {
           <div style={cardStyle}>
             <div style={{ marginBottom: 16 }}>
               <div style={sectionTitleStyle}>Reward Anatomy</div>
-              <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
+              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
                 CTSGV — 5-axis quality model
               </div>
             </div>
@@ -644,13 +644,13 @@ export function BanditsDashboard() {
                         background: BORN_COLORS[idx % BORN_COLORS.length], flexShrink: 0,
                       }} />
                       <span style={{
-                        fontFamily: BODY, fontSize: 13, fontWeight: 500, color: TEXT_PRI,
+                        fontFamily: BODY, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: TEXT_PRI,
                       }}>
                         {shortName(model.model_id)}
                       </span>
                       {model.model_id === favId && (
                         <span style={{
-                          fontFamily: MONO, fontSize: 13, color: GOLD,
+                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: GOLD,
                           border: `1px solid ${GOLD}`, borderRadius: 3,
                           padding: '1px 5px', letterSpacing: '0.04em',
                         }}>
@@ -660,7 +660,7 @@ export function BanditsDashboard() {
                     </div>
 
                     {allNull ? (
-                      <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
+                      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
                         Pending judge
                       </div>
                     ) : (
@@ -694,7 +694,7 @@ export function BanditsDashboard() {
 
                         {/* Weight labels */}
                         <div style={{
-                          fontFamily: MONO, fontSize: 13,
+                          fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                           display: 'flex', gap: 12, flexWrap: 'wrap',
                         }}>
                           {axes.map(axis => {
@@ -722,7 +722,7 @@ export function BanditsDashboard() {
             {/* V reserved note */}
             <div style={{
               marginTop: 16, paddingTop: 12, borderTop: `1px solid ${BORDER}`,
-              fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
+              fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
             }}>
               V (verify) reserved — Outcome gate: truncated → cap 0.25, errored → cap 0.10
             </div>
@@ -785,13 +785,13 @@ function KpiCard({
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{
-          fontFamily: BODY, fontSize: 28, fontWeight: 700, lineHeight: 1,
+          fontFamily: BODY, fontSize: 'var(--type-kpi-lg-size)', fontWeight: 600, lineHeight: 1,
           color: gold ? GOLD : TEXT_PRI,
         }}>
           {value}
         </span>
         {sub && (
-          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
             {sub}
           </span>
         )}

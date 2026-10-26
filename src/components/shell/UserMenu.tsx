@@ -150,7 +150,7 @@ export function UserMenu({
         aria-label="Account menu"
         className="flex items-center gap-3 rounded-full p-1 text-left outline-none transition-colors hover:bg-[var(--rail-hover)] focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] disabled:cursor-default disabled:opacity-60"
       >
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rail-active)] text-[13px] font-semibold tracking-wide text-[var(--rail-ink-strong)] ring-1 ring-[var(--rail-line)]">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rail-active)] text-[length:var(--type-ui-regular-size)] font-semibold tracking-wide text-[var(--rail-ink-strong)] ring-1 ring-[var(--rail-line)]">
           {isLoading ? '…' : initials}
           <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-2 border-[var(--rail-bg)] bg-emerald-400" />
         </span>
@@ -175,7 +175,7 @@ export function UserMenu({
           )}
         >
           <div className="border-b border-[var(--line-1)] p-4">
-            <div className="truncate text-base font-bold">{user.name || 'User'}</div>
+            <div className="truncate text-base font-semibold">{user.name || 'User'}</div>
             <div className="truncate text-sm text-[var(--ink-3)]">{user.email}</div>
             {displayRole && (
               <div className="mt-2">
@@ -184,7 +184,7 @@ export function UserMenu({
             )}
           </div>
           <div className="space-y-1 p-3">
-            <div className="px-1 pb-1 text-xs font-bold uppercase tracking-wider text-[var(--ink-3)]">Theme</div>
+            <div className="px-1 pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
             <ThemeSwitch />
           </div>
           <div className="border-t border-[var(--line-1)] p-3">

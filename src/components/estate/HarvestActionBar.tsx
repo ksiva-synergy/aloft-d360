@@ -248,7 +248,7 @@ export default function HarvestActionBar({
     background: 'transparent',
     color: 'var(--brand-a-ink)',
     cursor: 'pointer',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.04em',
     textTransform: 'uppercase',
     transition: 'background 0.12s ease, border-color 0.12s ease',
   };
@@ -274,7 +274,7 @@ export default function HarvestActionBar({
       >
         {reharvestingAll ? (
           <>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 13 }}>↻</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 'var(--type-ui-regular-size)' }}>↻</span>
             <span>{reharvestStep ?? 'queuing…'}</span>
           </>
         ) : (
@@ -282,7 +282,7 @@ export default function HarvestActionBar({
             <span>⚡</span>
             <span>Reharvest All</span>
             <span
-              style={{ opacity: 0.5, fontSize: 13 }}
+              style={{ opacity: 0.5, fontSize: 'var(--type-ui-regular-size)' }}
               title={!last_t2_at ? 'T4 will be deferred until T2 completes — re-run Reharvest All after T2 succeeds' : undefined}
             >
               {last_t2_at ? 'T0→T1→T2→T4' : 'T0→T1→T2→T4*'}
@@ -348,8 +348,8 @@ export default function HarvestActionBar({
                     {/* Tier chip */}
                     <span
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         fontWeight: 600,
                         padding: '2px 5px',
                         borderRadius: 3,
@@ -364,8 +364,8 @@ export default function HarvestActionBar({
                     <div>
                       <div
                         style={{
-                          fontFamily: '"Inter Variable", sans-serif',
-                          fontSize: 13,
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--type-ui-regular-size)',
                           fontWeight: 500,
                           color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, var(--ink-3))',
                         }}
@@ -374,8 +374,8 @@ export default function HarvestActionBar({
                       </div>
                       <div
                         style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 13,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'var(--type-ui-regular-size)',
                           color: 'var(--estate-text-muted, var(--ink-3))',
                         }}
                       >
@@ -385,15 +385,15 @@ export default function HarvestActionBar({
                   </div>
                   {row.canTrigger ? (
                     loadingTier === row.tier ? (
-                      <span style={{ fontSize: 13, color: 'var(--brand-a-ink)', fontFamily: '"IBM Plex Mono", monospace' }}>
+                      <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', fontFamily: 'var(--font-mono)' }}>
                         queuing…
                       </span>
                     ) : (
                       <span
                         style={{
-                          fontSize: 13,
+                          fontSize: 'var(--type-ui-regular-size)',
                           color: 'var(--brand-a-ink)',
-                          fontFamily: '"IBM Plex Mono", monospace',
+                          fontFamily: 'var(--font-mono)',
                           fontWeight: 600,
                         }}
                       >
@@ -405,9 +405,9 @@ export default function HarvestActionBar({
                       href="/agent-lab/estate/jobs"
                       onClick={(e) => e.stopPropagation()}
                       style={{
-                        fontSize: 13,
+                        fontSize: 'var(--type-ui-regular-size)',
                         color: 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
-                        fontFamily: '"IBM Plex Mono", monospace',
+                        fontFamily: 'var(--font-mono)',
                         textDecoration: 'none',
                         whiteSpace: 'nowrap',
                       }}
