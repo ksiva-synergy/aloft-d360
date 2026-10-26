@@ -503,7 +503,7 @@ export default function EstateMapperPage() {
 
           {/* Warnings & identical guard */}
           {isIdenticalPair && (
-            <div className="text-red-500 text-xs font-mono font-semibold">
+            <div className="text-red-500 text-xs font-sans font-semibold">
               Cannot map a schema to itself
             </div>
           )}
@@ -620,11 +620,11 @@ export default function EstateMapperPage() {
           </div>
 
           {loadingMappings ? (
-            <div className="text-xs font-mono animate-pulse" style={{ color: labelColor }}>
+            <div className="text-xs font-sans animate-pulse" style={{ color: labelColor }}>
               Loading mappings results...
             </div>
           ) : groupedPairs.length === 0 ? (
-            <div className="text-xs font-mono" style={{ color: labelColor }}>
+            <div className="text-xs font-sans" style={{ color: labelColor }}>
               No proposed mappings found between the selected schemas.
             </div>
           ) : (
@@ -655,7 +655,7 @@ export default function EstateMapperPage() {
                           <span className="font-mono text-xs font-semibold">
                             {group.leftObjectPath} ↔ {group.rightObjectPath}
                           </span>
-                          <span className="text-xs font-mono" style={{ color: labelColor }}>
+                          <span className="text-xs font-sans" style={{ color: labelColor }}>
                             avg confidence: {avgConf} · {group.mappings.length} column mappings
                           </span>
                         </div>

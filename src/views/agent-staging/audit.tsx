@@ -23,7 +23,7 @@ export default function AuditLogPage() {
   return (
     <div className="p-6 max-w-6xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">Audit Log</h1>
+        <h1 className="type-title-page">Audit Log</h1>
         <p className="text-sm text-muted-foreground mt-0.5">All lifecycle actions · Immutable trail</p>
       </div>
 

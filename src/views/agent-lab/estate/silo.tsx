@@ -426,7 +426,7 @@ function SiloFinderContent() {
                     <div className="p-3 text-xs font-mono" style={{ color: labelColor }}>Searching...</div>
                   )}
                   {!searching && searchResults.length === 0 && (
-                    <div className="p-3 text-xs font-mono" style={{ color: labelColor }}>No matches found.</div>
+                    <div className="p-3 text-xs font-sans" style={{ color: labelColor }}>No matches found.</div>
                   )}
                   {!searching &&
                     searchResults.map((item) => (
@@ -505,7 +505,7 @@ function SiloFinderContent() {
           <div className="flex flex-col gap-4 py-4 border-t border-dashed" style={{ borderColor }}>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-mono)' }}>
+                <label className="text-xs uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
                   Top N results
                 </label>
                 <input
@@ -617,7 +617,7 @@ function SiloFinderContent() {
           </div>
 
           {jobData?.status === 'succeeded' && (
-            <div className="text-xs font-mono" style={{ fontFamily: 'var(--font-mono)', color: labelColor }}>
+            <div className="text-xs font-sans" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
               {jobData.stats?.candidates_found ?? 0} candidates found above threshold · {jobData.scope?.topN ?? jobData.stats?.scanned_count ?? 15} scanned
             </div>
           )}
@@ -650,7 +650,7 @@ function SiloFinderContent() {
             </div>
           ) : links.length === 0 ? (
             <div className="flex flex-col gap-4">
-              <div className="text-xs font-mono" style={{ color: labelColor }}>
+              <div className="text-xs font-sans" style={{ color: labelColor }}>
                 No candidates found above threshold.
               </div>
               <div>
@@ -666,7 +666,7 @@ function SiloFinderContent() {
           ) : (
             <div className="flex flex-col gap-4">
               {/* Summary line */}
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }} className="mb-2">
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }} className="mb-2">
                 {links.length} results found · {jobData?.scope?.topN ?? topN} scanned
               </div>
 
@@ -894,7 +894,7 @@ function SiloFinderContent() {
 
 export default function EstateSiloPage() {
   return (
-    <Suspense fallback={<div className="p-6 font-mono text-xs text-muted-foreground">Loading Silo Finder...</div>}>
+    <Suspense fallback={<div className="p-6 font-sans text-xs text-muted-foreground">Loading Silo Finder...</div>}>
       <SiloFinderContent />
     </Suspense>
   );

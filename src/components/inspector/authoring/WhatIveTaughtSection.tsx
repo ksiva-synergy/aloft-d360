@@ -188,7 +188,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
       {/* Rules list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {rules.length === 0 && (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>No rules yet — teach one above.</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>No rules yet — teach one above.</span>
         )}
         {rules.map((r) => {
           const isOrg = r.visibility === 'org';

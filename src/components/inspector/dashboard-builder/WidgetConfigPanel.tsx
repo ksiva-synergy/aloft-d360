@@ -84,7 +84,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         </Section>
         <Section label="GOVERNANCE">
           <RawSqlBadge />
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
             This widget runs frozen raw SQL — it is not governed and not drift-checked.
             Graduate it to a metric in the Inspector to bring it under governance.
           </span>
@@ -311,7 +311,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {/* Assigned Dimensions */}
       <Section label="DIMENSIONS">
         {dimLabels.length === 0 ? (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
             Click a dimension in the picker to assign it
           </span>
         ) : (
@@ -326,7 +326,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {/* Assigned Measures */}
       <Section label="MEASURES">
         {measureLabels.length === 0 ? (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
             Click a measure in the picker to assign it
           </span>
         ) : (
@@ -450,7 +450,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           <a
             href={`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id)}`}
             style={{
-              ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--brand-a-ink)',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--brand-a-ink)',
               textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
             }}
           >

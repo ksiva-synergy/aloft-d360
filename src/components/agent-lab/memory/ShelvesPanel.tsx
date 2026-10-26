@@ -742,7 +742,7 @@ export function ShelvesPanel() {
               No subgroups found.{' '}
               <button
                 onClick={() => { setActiveGroup(null); setActiveGroupName(''); }}
-                style={{ background: 'none', border: 'none', color: GOLD, cursor: 'pointer', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', textDecoration: 'underline' }}
+                style={{ background: 'none', border: 'none', color: GOLD, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', textDecoration: 'underline' }}
               >
                 ← Back to groups
               </button>

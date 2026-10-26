@@ -241,7 +241,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                 <div>
                   <div
                     style={{
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 'var(--type-ui-regular-size)',
                       fontWeight: 600,
                       color: labelColor,
@@ -465,7 +465,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                 padding: '24px',
                 textAlign: 'center',
                 background: cardBg,
-                fontFamily: 'var(--font-mono)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 'var(--type-ui-regular-size)',
                 color: mutedColor,
               }}

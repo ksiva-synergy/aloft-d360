@@ -189,7 +189,7 @@ export function DetailDrawer({ onRowAction }: Props) {
             ) : lineage.graph ? (
               <CatalogLineageGraph graph={lineage.graph} focusId={focusNodeId ?? row.nodeId} onRefocus={refocus} />
             ) : (
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No lineage for this definition.</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No lineage for this definition.</span>
             )}
           </Section>
 
@@ -254,7 +254,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function UnlockNote() {
   return (
-    <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '10px 12px' }}>
+    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6, border: `1px dashed ${BORDER}`, borderRadius: 5, padding: '10px 12px' }}>
       <Lock size={12} style={{ verticalAlign: '-2px', marginRight: 6 }} />
       Lineage, compiled SQL, and consumers unlock once this model is <span style={{ color: GOLD }}>governed</span>.
     </div>

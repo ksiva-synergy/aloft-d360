@@ -31,7 +31,7 @@ export default function AgentOpsEvalsPage() {
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
       <h1 className="type-title-page" style={{ color: 'var(--ink-1)' }}>Eval suites</h1>
-      <p style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>Queued runs execute via Boost / Performance Lab pipeline.</p>
+      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)' }}>Queued runs execute via Boost / Performance Lab pipeline.</p>
       <section style={{ marginTop: 20 }}>
         {suites.map((s) => (
           <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', ...mono, fontSize: 'var(--type-caption-size)', padding: '8px 0' }}>

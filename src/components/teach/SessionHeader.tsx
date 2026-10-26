@@ -46,14 +46,10 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
           <ReflectPill />
         </div>
         <h1
+          className="type-title-page"
           style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 'var(--type-kpi-lg-size)',
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
             color: 'var(--foreground)',
             margin: '6px 0 0',
-            lineHeight: 1.2,
           }}
         >
           {topic || 'What should Captain Track Sparrow understand?'}

@@ -399,7 +399,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
       )}
 
       {chartType !== 'table' && !yCol && (
-        <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '12px 0', opacity: 0.7 }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, textAlign: 'center', padding: '12px 0', opacity: 0.7 }}>
           Select a numeric Y column to render the chart
         </div>
       )}
@@ -736,7 +736,7 @@ export function DashboardPane({
           color: TXT2, textAlign: 'center',
         }}>
           <DataDiamond size={40} opacity={0.15} />
-          <span style={{ ...mono, fontSize: 13, letterSpacing: '0.04em', lineHeight: 1.6 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, letterSpacing: '0.04em', lineHeight: 1.6 }}>
             Run a query to visualize results
           </span>
           <span style={{ ...sans, fontSize: 13, color: TXT2, opacity: 0.6, maxWidth: 220 }}>

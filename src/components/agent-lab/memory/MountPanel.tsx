@@ -318,7 +318,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer', padding: '0',
                   display: 'flex', alignItems: 'center', gap: '5px',
-                  fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: accentColor, letterSpacing: '0.04em',
+                  fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: accentColor, letterSpacing: '0.04em',
                 }}
               >
                 {previewOpen
@@ -457,7 +457,7 @@ export function MountPanel() {
           <h2 style={{ fontFamily: SERIF, fontSize: 'var(--type-display-size)', fontWeight: 600, color: 'var(--foer-text-pri)', margin: '0 0 10px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
             Mounted at Task Start
           </h2>
-          <p style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', margin: '0 0 18px', lineHeight: 1.7 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', margin: '0 0 18px', lineHeight: 1.7 }}>
             Before the agent speaks its first word, three layers of memory are already loaded--in sequence, at the right moment.
           </p>
           {/* Story pipeline */}

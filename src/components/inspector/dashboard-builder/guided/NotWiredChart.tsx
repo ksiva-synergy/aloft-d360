@@ -89,7 +89,7 @@ export function NotWiredChart({
           <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>
             Awaiting data{chartKindGuess ? ` — will render as a ${chartKindGuess}` : ''}
           </span>
-          <span style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
             Add this chart to the dashboard and its live preview loads here. No query has run yet,
             so nothing here is real data.
           </span>
@@ -131,8 +131,8 @@ export function NotWiredChart({
         }}
       >
         <Inbox size={20} color={MUTED} />
-        <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>No rows for this query</span>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>No rows for this query</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
           The query ran and returned zero rows — this is a real empty result, not a chart that failed to load.
           Try loosening a filter.
         </span>
@@ -151,7 +151,7 @@ export function NotWiredChart({
         }}
       >
         <AlertTriangle size={20} color={AMBER} />
-        <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>Publish to see live data</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>Publish to see live data</span>
         <span style={{ ...MONO, fontSize: 13, color: MUTED, textAlign: 'center', maxWidth: 320, lineHeight: 1.5 }}>
           {state.message || "This dashboard's model is still a candidate — publish it to see live data."}
         </span>
@@ -171,7 +171,7 @@ export function NotWiredChart({
       }}
     >
       <AlertTriangle size={20} color={RED} />
-      <span style={{ ...MONO, fontSize: 13, color: INK, fontWeight: 600 }}>Could not load data</span>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: INK, fontWeight: 600 }}>Could not load data</span>
       <span style={{ ...MONO, fontSize: 13, color: RED, textAlign: 'center', maxWidth: 340, lineHeight: 1.5, wordBreak: 'break-word' }}>
         {state.message || 'The query failed to run.'}
       </span>

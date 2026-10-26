@@ -231,11 +231,11 @@ export function MemoryDrawer() {
         </button>
 
         {isFallbackLoading && !bullet ? (
-          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-sec)' }}>
+          <div style={{ padding: '24px', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-sec)' }}>
             Loading memory details...
           </div>
         ) : !bullet ? (
-          <div style={{ padding: '24px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-sec)' }}>
+          <div style={{ padding: '24px', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-sec)' }}>
             Memory not found.
           </div>
         ) : (
@@ -371,7 +371,7 @@ export function MemoryDrawer() {
               >
                 <div
                   style={{
-                    fontFamily: MONO,
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 'var(--type-ui-regular-size)',
                     color: 'var(--foer-text-sec)',
                     marginBottom: 4,

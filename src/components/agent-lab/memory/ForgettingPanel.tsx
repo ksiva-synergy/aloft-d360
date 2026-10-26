@@ -553,7 +553,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Status Buckets (Left, span 2 columns) */}
         <div className="flex flex-col gap-3 lg:col-span-2">
-          <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+          <span className="font-sans text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
             Bi-Temporal Memory Partition Status
           </span>
           <div className="grid grid-cols-3 gap-3">
@@ -607,7 +607,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         {/* Store-Size Sparkline (Right, span 1 column) */}
         <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded p-4 h-full min-h-[140px] justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+            <span className="font-sans text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
               Store Growth Series (30d)
             </span>
             <span className="font-mono text-xs text-[var(--foer-text-sec)]">
@@ -626,7 +626,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
               </Suspense>
             ) : (
               <div className="flex items-center justify-center h-full border border-dashed border-[var(--foer-border-dim)] rounded bg-[var(--foer-bg)] p-2">
-                <span className="font-mono text-xs text-center tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
+                <span className="font-sans text-xs text-center tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
                   store history available after 2+ days of data
                 </span>
               </div>
@@ -642,7 +642,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── E. RULE LIFECYCLE WATERLINE ── */}
       <div className="flex flex-col gap-4 border-t border-[var(--foer-border-dim)] pt-5 -mx-6 px-6">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+          <span className="font-sans text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
             Rule Lifecycle — Retention Waterline
           </span>
           <div className="flex items-center gap-3">
@@ -798,7 +798,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                     <span
                       className="block text-xs uppercase tracking-wide font-semibold mb-0.5"
                       style={{
-                        fontFamily: MONO,
+                        fontFamily: 'var(--font-sans)',
                         color: orb.zone === 'active' ? RULE_TYPE_COLORS[orb.type] : `${withAlpha(RULE_TYPE_COLORS[orb.type], '90')}`,
                       }}
                     >
@@ -807,7 +807,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                     <span
                       className="block text-xs leading-tight"
                       style={{
-                        fontFamily: MONO,
+                        fontFamily: 'var(--font-sans)',
                         color: orb.zone === 'active' ? TOOLTIP_TEXT : `color-mix(in srgb, ${TOOLTIP_TEXT} 67%, transparent)`,
                       }}
                     >

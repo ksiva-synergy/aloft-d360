@@ -167,7 +167,7 @@ export default function EntitiesPage() {
 
             {/* First-class omissions — fields with no backing in the real model, named explicitly */}
             {meta.omissions && meta.omissions.length > 0 && (
-              <div className="border border-dashed rounded-lg px-3 py-2 mb-4 text-xs font-mono" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', color: muted }}>
+              <div className="border border-dashed rounded-lg px-3 py-2 mb-4 text-xs font-sans" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', color: muted }}>
                 Not resolvable from stored metadata: {meta.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}
               </div>
             )}

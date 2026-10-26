@@ -313,7 +313,7 @@ export function KeeperChoicePanel() {
             border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
             background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
             color: RULE_TYPE_COLORS.FAILURE_MODE,
-            fontFamily: MONO,
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-caption-size)',
             padding: '1rem',
           }}
@@ -409,7 +409,7 @@ export function KeeperChoicePanel() {
                 borderRadius:   6,
                 border:         '1px dashed var(--foer-border-dim)',
                 background:     'var(--foer-surface)',
-                fontFamily:     MONO,
+                fontFamily: 'var(--font-sans)',
                 fontSize: 'var(--type-caption-size)',
                 color:          'var(--foer-text-mut)',
               }}
@@ -481,12 +481,12 @@ export function KeeperChoicePanel() {
 
           {/* Empty states */}
           {isEmpty && (
-            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
+            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               No runs in this window.
             </div>
           )}
           {!isEmpty && bullets.length === 0 && (
-            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
+            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               No memory bullets retained.
             </div>
           )}

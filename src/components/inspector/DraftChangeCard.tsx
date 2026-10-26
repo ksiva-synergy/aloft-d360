@@ -221,11 +221,11 @@ export function DraftChangeCard({
 
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {phase === 'loading' && (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Locating the source widget…</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Locating the source widget…</span>
         )}
 
         {phase === 'no_match' && (
-          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             No dashboard widget references this chart, so there is nothing to update. Use “Pin to dashboard” to add it as a new widget instead.
           </div>
@@ -259,7 +259,7 @@ export function DraftChangeCard({
 
             {/* What changed */}
             {nothingChanged ? (
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No differences — the widget already matches this chart.</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No differences — the widget already matches this chart.</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ ...type.label, color: MUTED }}>What changed</span>

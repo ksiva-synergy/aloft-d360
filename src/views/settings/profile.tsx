@@ -75,7 +75,7 @@ export default function ProfileSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6 md:p-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-[var(--ink-1)]">Profile &amp; appearance</h1>
+        <h1 className="type-title-page text-[var(--ink-1)]">Profile &amp; appearance</h1>
         <p className="mt-1 text-sm text-[var(--ink-3)]">
           Your account details and how ALOFT looks in this browser.
         </p>

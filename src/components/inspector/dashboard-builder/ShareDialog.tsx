@@ -217,7 +217,7 @@ export function ShareDialog({
             {loading ? (
               <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)' }}>LOADING…</p>
             ) : collaborators.length === 0 ? (
-              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)' }}>No explicit collaborators yet.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {collaborators.map((c) => {

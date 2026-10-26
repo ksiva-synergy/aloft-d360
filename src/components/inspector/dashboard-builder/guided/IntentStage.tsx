@@ -198,10 +198,10 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             Guided · Step 1 · Intent
           </span>
         </div>
-        <h2 style={{ ...MONO, fontSize: 'var(--type-body-lg-size)', lineHeight: 1.4, color: 'var(--wb-ink, #E6ECF5)', margin: 0, fontWeight: 600 }}>
+        <h2 style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-body-lg-size)', lineHeight: 1.4, color: 'var(--wb-ink, #E6ECF5)', margin: 0, fontWeight: 600 }}>
           What should this dashboard help you understand or decide?
         </h2>
-        <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
           Describe the decision — not the chart. We’ll ground it in your governed metrics.
         </p>
       </div>
@@ -228,7 +228,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
         {startersLoading ? (
           <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Reading the model…</span>
         ) : starters.length === 0 ? (
-          <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5 }}>
             No governed questions yet for this model. Type your own above — or govern one in Teach so it seeds the next person’s blank canvas.
           </p>
         ) : (
@@ -325,7 +325,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             </div>
           )}
           {mergedTerms.length === 0 && (
-            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0 }}>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0 }}>
               No specific governed terms detected in your topic — that’s fine, Stage 2 will still propose from the governed catalog.
             </p>
           )}
@@ -352,7 +352,7 @@ export function IntentStage({ modelId, onProceed, onCancel }: Props) {
             {onCancel && (
               <button
                 onClick={onCancel}
-                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+                style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
               >
                 Switch to manual
               </button>

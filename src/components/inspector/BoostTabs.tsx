@@ -169,7 +169,7 @@ function fmtMs(ms: number) { return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms /
 export function BoostEmptyState() {
   return (
     <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginBottom: 16 }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginBottom: 16 }}>
         No benchmark runs yet. Use the dispatch API to run your first benchmark:
       </div>
       <div style={{
@@ -386,7 +386,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
         </div>
       </div>
 
-      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 14, padding: '10px 13px', borderLeft: `2px solid ${'var(--brand-a)'}`, background: SURF }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 14, padding: '10px 13px', borderLeft: `2px solid ${'var(--brand-a)'}`, background: SURF }}>
         🟡 <strong style={{ color: GOLD }}>Why outcome must gate efficiency:</strong> a truncated run may show fewer tokens — it spent its budget on schema discovery and never answered. We only compare tokens, latency, and loops <strong style={{ color: TXT }}>among completed runs</strong>. A truncated run scores zero on efficiency regardless of how few tokens it burned.
       </div>
     </div>
@@ -581,7 +581,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
                                         {callDelta !== null && <div style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: GOLD }}>{callDelta >= 0 ? `−${fmt(callDelta, 0)}%` : `+${fmt(-callDelta, 0)}%`}</div>}
                                         <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 4 }}>call reduction</div>
                                       </>) : (
-                                        <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Run both modes</div>
+                                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>Run both modes</div>
                                       )}
                                     </div></td>
                                   </tr>
@@ -595,7 +595,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
                   );
                 })}
                 {tierCaseIds.length === 0 && (
-                  <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, padding: '12px 16px' }}>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, padding: '12px 16px' }}>
                     No runs recorded for this difficulty tier yet.
                   </div>
                 )}
@@ -895,8 +895,8 @@ export function ScoringMethodologyTab({ data, loading }: { data: BoostResultsPay
           Discovery calls are the heaviest penalty — blind schema exploration is expensive and unnecessary with context.
         </p>
         <div style={{ marginTop: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>CTX avg discovery: <span style={{ ...statInline, color: avgDiscoveryCTX === 0 ? GREEN : GOLD }}>{avgDiscoveryCTX !== null ? avgDiscoveryCTX.toFixed(1) : '—'}</span></span>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>SQL avg discovery: <span style={{ ...statInline, color: RED }}>{avgDiscoverySQL !== null ? avgDiscoverySQL.toFixed(1) : '—'}</span></span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>CTX avg discovery: <span style={{ ...statInline, color: avgDiscoveryCTX === 0 ? GREEN : GOLD }}>{avgDiscoveryCTX !== null ? avgDiscoveryCTX.toFixed(1) : '—'}</span></span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>SQL avg discovery: <span style={{ ...statInline, color: RED }}>{avgDiscoverySQL !== null ? avgDiscoverySQL.toFixed(1) : '—'}</span></span>
         </div>
       </div>
 

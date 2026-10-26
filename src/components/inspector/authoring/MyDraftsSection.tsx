@@ -162,7 +162,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
         </button>
       </div>
 
-      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginBottom: 8, fontStyle: 'italic' }}>
         Drafts are private to you until you submit them for governance.
       </div>
 
@@ -171,7 +171,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
 
       {!loading && totalDrafts === 0 && (
         <div style={{
-          ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', padding: '16px 8px',
+          fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, textAlign: 'center', padding: '16px 8px',
           border: `1px dashed ${DRAFT_BD}`, borderRadius: 6, lineHeight: 1.6,
         }}>
           No drafts yet. Click <span style={{ color: GOLD }}>Define a Metric</span> to author one.

@@ -610,7 +610,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
        <h4 className="text-label text-[length:var(--type-caption-size)] " style={{ color: '#8892A4', letterSpacing: '0.08em' }}>
                 Child chunks
               </h4>
-              <p className="text-[length:var(--type-caption-size)] font-mono" style={{ color: '#8892A4' }}>
+              <p className="text-[length:var(--type-caption-size)] font-sans" style={{ color: '#8892A4' }}>
                 This parent coordinates Fargate workers — logs live on each child row below.
               </p>
               <ChildJobsPanel jobId={activeJob.id} />
@@ -652,7 +652,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             {activeJob.scope ? (
               <JsonDisplay data={activeJob.scope} />
             ) : (
-              <div className="font-mono text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
+              <div className="font-sans text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No scope defined
               </div>
             )}
@@ -671,7 +671,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 <JsonDisplay data={activeJob.stats} />
               </>
             ) : (
-              <div className="font-mono text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
+              <div className="font-sans text-sm italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No stats recorded
               </div>
             )}

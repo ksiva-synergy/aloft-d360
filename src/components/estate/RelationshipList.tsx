@@ -245,7 +245,7 @@ export default function RelationshipList({
       <div
         style={{
           padding: '24px 14px',
-          fontFamily: 'var(--font-mono)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 'var(--type-ui-regular-size)',
           color: mutedColor,
           textAlign: 'center',

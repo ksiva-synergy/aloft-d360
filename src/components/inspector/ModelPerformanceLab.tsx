@@ -394,7 +394,7 @@ function ComparativeCharts({ groups, metrics }: { groups: GroupStats[]; metrics:
 function SummaryTable({ groups }: { groups: GroupStats[] }) {
   if (!groups.length) {
     return (
-      <div style={{ ...mono, fontSize: 13, color: TXT2, padding: '24px 0', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, padding: '24px 0', textAlign: 'center' }}>
         No data yet — send a message to start collecting metrics.
       </div>
     );
@@ -486,7 +486,7 @@ function ContextBoostScore({ groups }: { groups: GroupStats[] }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
             <span style={{ ...mono, fontSize: 13, color: c.color, fontWeight: 600 }}>{c.modelLabel}</span>
-            <span style={{ ...mono, fontSize: 13, color: TXT2 }}>— context harness impact</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2 }}>— context harness impact</span>
           </div>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
             <BoostBadge pct={c.tokenBoost} label="Token Reduction" />
@@ -496,7 +496,7 @@ function ContextBoostScore({ groups }: { groups: GroupStats[] }) {
         </div>
       ))}
       {withoutBoth.length > 0 && (
-        <div style={{ ...mono, fontSize: 13, color: TXT2, padding: '10px 0', borderTop: `1px solid ${BORDER}` }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, padding: '10px 0', borderTop: `1px solid ${BORDER}` }}>
           Run same model with both CTX and SQL-only modes to see boost scores for:
           {withoutBoth.map(c => (
             <span key={c.modelKey} style={{ color: c.color, marginLeft: 8 }}>{c.modelLabel}</span>
@@ -683,7 +683,7 @@ function ToolTrajectoryTab({ metrics }: { metrics: RunMetric[] }) {
 
   if (!latest || latest.toolCalls.length === 0) {
     return (
-      <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
         No tool calls recorded yet — send a message to start.
       </div>
     );
@@ -816,7 +816,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
               background: 'transparent', border: `1px solid ${BORDER}`,
               borderRadius: 6, padding: '6px 12px',
               color: TXT2, cursor: 'pointer', transition: 'all 0.15s',
-              ...mono, fontSize: 13, letterSpacing: '0.04em',
+              fontFamily: 'var(--font-sans)', fontSize: 13, letterSpacing: '0.04em',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TXT2; }}
@@ -829,7 +829,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
           <span style={{ ...mono, fontSize: 13, color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </span>
-          <span style={{ ...mono, fontSize: 13, color: TXT2 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2 }}>
             — context harness research
           </span>
         </div>
@@ -953,7 +953,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
               {historicalStats.length > 0 ? (
                 <HistoricalSection stats={historicalStats} />
               ) : (
-                <div style={{ ...mono, fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, textAlign: 'center', padding: '32px 0' }}>
                   No historical data yet. Complete inspector sessions to populate this view.
                 </div>
               )}
@@ -974,7 +974,7 @@ export default function ModelPerformanceLab({ open, onClose, runMetrics, histori
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: SURF,
       }}>
-        <span style={{ ...mono, fontSize: 13, color: TXT2, letterSpacing: '0.04em' }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TXT2, letterSpacing: '0.04em' }}>
           ALOFT PERFORMANCE LAB · v0.1 · metrics are session-local unless marked historical
         </span>
         <span style={{ ...mono, fontSize: 13, color: 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)', letterSpacing: '0.04em' }}>

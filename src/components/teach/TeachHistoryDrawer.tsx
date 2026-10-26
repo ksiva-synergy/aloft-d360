@@ -135,7 +135,7 @@ export function TeachHistoryDrawer({
           ) : sessions.length === 0 ? (
             <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--muted-foreground)' }}>
               <MessageSquare size={26} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <p style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No teaching sessions yet.</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No teaching sessions yet.</p>
             </div>
           ) : (
             sessions.map((s) => {

@@ -93,7 +93,7 @@ export function AgentHandoffCard({
           <button
             type="button"
             onClick={onDismiss}
-            style={{ ...mono, fontSize: 'var(--type-caption-size)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)' }}
           >
             Keep exploring data
           </button>

@@ -95,7 +95,7 @@ export function SearchStrip({ onDefine }: Props) {
             {resolving ? 'Resolving…' : 'Resolve'}
           </button>
         ) : (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, maxWidth: 260, lineHeight: 1.4 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, maxWidth: 260, lineHeight: 1.4 }}>
             Term resolution unlocks on a governed model.
           </span>
         )}
@@ -165,7 +165,7 @@ function TermChip({ term, onApply, onChoose, onDefine }: {
       </span>
       <Chip color="var(--mc-res-unrecognized)" outline icon={<PlusCircle size={11} />} onClick={() => onDefine(term.term)}>Define it →</Chip>
       {term.cappedByTopK && (
-        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>(search may be truncated — a match could exist past the cap)</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>(search may be truncated — a match could exist past the cap)</span>
       )}
     </span>
   );

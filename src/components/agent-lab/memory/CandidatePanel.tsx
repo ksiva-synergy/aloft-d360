@@ -63,7 +63,7 @@ export function CandidatePanel({
             }}
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
+              <span className="font-sans text-xs uppercase tracking-wide text-[var(--foer-text-mut)]">
                 Captain Track Sparrow Sieved
               </span>
               <HelpCircle size={10} className="text-[var(--foer-text-mut)] cursor-help" />
@@ -78,7 +78,7 @@ export function CandidatePanel({
               <span className="text-xs text-[var(--foer-text-mut)] font-mono">candidates</span>
             </div>
             {/* Tooltip */}
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-mono text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
               Transient noise (typos, retry loops, timeouts) discarded by the filter sieve.
             </div>
           </div>
@@ -108,7 +108,7 @@ export function CandidatePanel({
               <span className="text-xs text-[var(--foer-text-mut)] font-mono">phantoms</span>
             </div>
             {/* Tooltip */}
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-mono text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-52 -translate-x-1/2 rounded border border-[var(--foer-border)] bg-[var(--foer-card-bg)] p-2 text-center font-sans text-xs text-[var(--foer-text-pri)] shadow-lg opacity-0 transition-opacity group-hover:opacity-100">
               Phantom references blocked (referenced entities not found in the trace outcome).
             </div>
           </div>
@@ -128,7 +128,7 @@ export function CandidatePanel({
 
         {bullets.length === 0 ? (
           <div className="flex h-32 flex-col items-center justify-center rounded bg-[var(--foer-surface2)] border border-dashed border-[var(--foer-border-dim)] p-4 text-center">
-            <span className="font-mono text-xs text-[var(--foer-text-mut)]">
+            <span className="font-sans text-xs text-[var(--foer-text-mut)]">
               No memory bullets retained from this session.
             </span>
           </div>

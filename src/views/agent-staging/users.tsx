@@ -218,13 +218,13 @@ export default function UsersPage() {
       {/* Page header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2.5 text-[var(--estate-ink)]">
+          <h1 className="type-title-page flex items-center gap-2.5 text-[var(--estate-ink)]">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
               <Users className="h-5 w-5 shrink-0 text-[var(--brand-a-ink)]" />
             </span>
             Users
           </h1>
-          <p className="mt-2 font-mono text-[length:var(--type-caption-size)] uppercase tracking-wide text-[var(--estate-text-dim)]">
+          <p className="mt-2 font-sans text-[length:var(--type-caption-size)] uppercase tracking-wide text-[var(--estate-text-dim)]">
             Platform directory · Roles & access control
           </p>
         </div>

@@ -109,7 +109,7 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
 
       {versions.length === 0 && (
         <div style={{ padding: 16, textAlign: 'center' }}>
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
             No saved versions yet
           </span>
         </div>

@@ -514,7 +514,7 @@ export function ArmDetailDrawer({
           <Section>
             <SectionLabel>Recent Runs</SectionLabel>
             {modelRuns.length === 0 ? (
-              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.6 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.6 }}>
                 No runs recorded.
               </div>
             ) : (

@@ -453,7 +453,7 @@ function WidgetBody({
   if (result.status === 'model_not_governed') {
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
-        <span style={{ ...MONO, fontSize: 13, color: 'var(--brand-a-ink)', textAlign: 'center', maxWidth: 220 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--brand-a-ink)', textAlign: 'center', maxWidth: 220 }}>
           Model not yet published
         </span>
       </div>

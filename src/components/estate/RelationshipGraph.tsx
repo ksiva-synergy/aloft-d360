@@ -445,7 +445,7 @@ function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
         {coObjects.length === 0 ? (
           <div style={{
             padding: '16px 14px',
-            fontFamily: 'var(--font-mono)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--estate-text-muted, var(--ink-3))',
             textAlign: 'center',
@@ -615,7 +615,7 @@ export default function RelationshipGraph(props: RelationshipGraphProps) {
           borderRadius: 8,
           border: '1px dashed color-mix(in srgb, var(--brand-a) 20%, transparent)',
           background: 'var(--estate-raised, rgba(13,27,42,0.4))',
-          fontFamily: 'var(--font-mono)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--ink-3)',
         }}

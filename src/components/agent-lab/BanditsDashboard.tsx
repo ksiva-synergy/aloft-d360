@@ -206,7 +206,7 @@ export function BanditsDashboard() {
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <Loader2 style={{ width: 28, height: 28, color: GOLD }} className="animate-spin" />
-          <span style={{ color: TEXT_MUT, fontSize: 'var(--type-ui-regular-size)', fontFamily: MONO }}>
+          <span style={{ color: TEXT_MUT, fontSize: 'var(--type-ui-regular-size)', fontFamily: 'var(--font-sans)' }}>
             Collapsing belief state?
           </span>
         </div>
@@ -413,7 +413,7 @@ export function BanditsDashboard() {
           {/* BornVerdict demo card — inline component preview */}
           {favId && (
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, letterSpacing: '0.08em', marginBottom: 6 }}>
                 BORN VERDICT · inline component preview
               </div>
               <BornVerdict

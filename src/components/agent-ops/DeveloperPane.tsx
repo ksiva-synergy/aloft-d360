@@ -112,7 +112,7 @@ export function DeveloperPane({
       {stuckWarning && (
         <div
           style={{
-            ...mono,
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-caption-size)',
             padding: '8px 12px',
             background: 'rgba(217,119,75,0.12)',
@@ -133,7 +133,7 @@ export function DeveloperPane({
         <div style={{ padding: '8px 12px', borderTop: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <a
             href={`/agent-lab/runs/${sessionId}`}
-            style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', textDecoration: 'none' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', textDecoration: 'none' }}
           >
             Full session intelligence →
           </a>

@@ -214,7 +214,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
             {dashLoading ? (
               <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-muted)' }}>Loading dashboards…</span>
             ) : dashboards.length === 0 ? (
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-muted)' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-muted)' }}>
                 No editable dashboards. Create one first, then pin here.
               </span>
             ) : (

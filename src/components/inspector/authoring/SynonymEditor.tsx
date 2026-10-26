@@ -141,7 +141,7 @@ export function SynonymEditor({
           </span>
         ))}
         {list.length === 0 && (
-          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
         )}
       </div>
       <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>

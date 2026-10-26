@@ -652,7 +652,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 flex: 1, minHeight: 160, border: `1px dashed ${BORDER_SUBTLE}`, borderRadius: 6,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 20,
               }}>
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.6 }}>
                   Fill the form, then <span style={{ color: GOLD }}>PREVIEW</span> to see your draft<br />compute live against the warehouse.
                 </span>
               </div>

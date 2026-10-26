@@ -815,7 +815,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </button>
           </div>
           {showDraftDiff && draftDiff && (
-            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', opacity: 0.85 }}>
               Your draft vs. the current version — {draftDiff.added} added · {draftDiff.removed} removed · {draftDiff.modified} modified widget(s).
             </div>
           )}
@@ -829,7 +829,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {!modelId ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>No semantic model bound — switch to manual.</span>
               </div>
             ) : !intentCaptured ? (
               <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -841,7 +841,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               </div>
             ) : !guidedIntent ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>Intent missing — restart the guided flow.</span>
               </div>
             ) : !blueprintAccepted ? (
               // Stage 2 — Blueprint. Accepting hands off to Stage 3 (no widgets built here).

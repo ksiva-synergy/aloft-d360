@@ -89,7 +89,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
           <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
             Probability Matching Check
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
             Born rule: allocation should track belief
           </div>
         </div>

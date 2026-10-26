@@ -118,7 +118,7 @@ export default function DashboardsListPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <LayoutDashboard size={18} style={{ color: GOLD }} />
             <div>
-              <h1 style={{ ...SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+              <h1 className="type-title-page" style={{ color: 'var(--text-primary)', margin: 0 }}>
                 Dashboards
               </h1>
               <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '3px 0 0', letterSpacing: '0.04em' }}>

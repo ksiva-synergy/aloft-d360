@@ -303,7 +303,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                     <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '4px 2px' }}>Loading fields…</span>
                   )}
                   {!loadingFields && filtered.length === 0 && (
-                    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '4px 2px' }}>No matching fields.</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '4px 2px' }}>No matching fields.</span>
                   )}
                   {filtered.map((f) => (
                     <button

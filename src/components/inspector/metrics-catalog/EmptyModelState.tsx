@@ -37,7 +37,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
           disabled
           title="Schema scan bootstrap is not enabled yet."
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
             padding: '9px 16px', borderRadius: 5, cursor: 'not-allowed', opacity: 0.5,
             border: `1px solid ${GOLD}`, background: 'transparent', color: GOLD,
           }}

@@ -145,7 +145,7 @@ export function CatalogTable({ onRowClick, onRowAction }: Props) {
   if (!view.length) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No definitions match these filters.</span>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No definitions match these filters.</span>
       </div>
     );
   }

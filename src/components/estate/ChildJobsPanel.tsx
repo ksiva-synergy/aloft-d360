@@ -87,14 +87,14 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
           className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0"
           style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }}
         />
-        <span className="text-[length:var(--type-caption-size)] font-mono" style={{ color: '#8892A4' }}>Loading child jobs...</span>
+        <span className="text-[length:var(--type-caption-size)] font-sans" style={{ color: '#8892A4' }}>Loading child jobs...</span>
       </div>
     );
   }
 
   if (children.length === 0) {
     return (
-      <div className="text-[length:var(--type-caption-size)] font-mono py-3 px-4" style={{ color: '#8892A4' }}>
+      <div className="text-[length:var(--type-caption-size)] font-sans py-3 px-4" style={{ color: '#8892A4' }}>
         No child jobs found.
       </div>
     );

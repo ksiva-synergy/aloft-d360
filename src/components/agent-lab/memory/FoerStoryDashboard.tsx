@@ -420,7 +420,7 @@ function FoerStoryInner() {
               border:       `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
               background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
               color:        RULE_TYPE_COLORS.FAILURE_MODE,
-              fontFamily:   MONO,
+              fontFamily:   'var(--font-sans)',
               fontSize: 'var(--type-ui-regular-size)',
             }}
           >
@@ -469,7 +469,7 @@ function FoerStoryInner() {
                 {kpi.sub && (
                   <div
                     style={{
-                      fontFamily:    MONO,
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 'var(--type-ui-regular-size)',
                       letterSpacing: '0.04em',
                       color:         'var(--foer-text-sec)',

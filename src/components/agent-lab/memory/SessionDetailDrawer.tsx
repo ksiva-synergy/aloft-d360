@@ -176,7 +176,7 @@ function LearnedCategory({ icon, label, count, accent, description, bullets, dim
       )}
 
       {open && bullets.length === 0 && count > 0 && (
-        <div style={{ padding: '0.6rem 1rem', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
+        <div style={{ padding: '0.6rem 1rem', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', borderTop: `1px solid ${withAlpha(accent, '20')}` }}>
           {count} {count === 1 ? 'memory' : 'memories'} — detail records not retained in this view
         </div>
       )}
@@ -466,7 +466,7 @@ export function SessionDetailDrawer({
 
                 {/* Empty state — nothing learned */}
                 {countNew === 0 && countReinforced === 0 && countForgotten === 0 && (
-                  <div style={{ padding: '1.5rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', border: '1px dashed var(--foer-border-dim)', borderRadius: 6 }}>
+                  <div style={{ padding: '1.5rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', border: '1px dashed var(--foer-border-dim)', borderRadius: 6 }}>
                     No memories were written for this session.
                   </div>
                 )}
@@ -537,7 +537,7 @@ export function SessionDetailDrawer({
 
               {/* Empty state */}
               {trace.length === 0 && countNew === 0 && countReinforced === 0 && countForgotten === 0 && !isLoading && (
-                <div style={{ padding: '3rem', textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
+                <div style={{ padding: '3rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
                   No trace data for this session.
                 </div>
               )}

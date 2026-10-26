@@ -625,7 +625,7 @@ export function EasterEggs() {
             left: coreLabelPos.left,
             top: coreLabelPos.top,
             transform: 'translateX(-50%)',
-            fontFamily: MONO,
+            fontFamily: 'var(--font-sans)',
             fontSize: 'var(--type-ui-regular-size)',
             color: GOLD,
             zIndex: 200,

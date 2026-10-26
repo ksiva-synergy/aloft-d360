@@ -238,7 +238,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
 
         {/* Gating statement */}
         <div style={{
-          fontFamily: 'var(--font-mono)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 'var(--type-ui-regular-size)',
           color: gatingDimColor,
           marginBottom: 8,

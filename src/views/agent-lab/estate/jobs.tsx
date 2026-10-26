@@ -558,7 +558,7 @@ function RunJobConfirmModal({
             {confirm.loading ? (
               <div className="flex items-center gap-2.5 pt-2">
                 <span className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--brand-a-ink)', borderTopColor: 'transparent' }} />
-                <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Loading estate structure...</span>
+                <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>Loading estate structure...</span>
               </div>
             ) : (
               <>
@@ -583,7 +583,7 @@ function RunJobConfirmModal({
                   )}
                   {confirm.tree && confirm.tree.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Catalogs in discovery:</span>
+                      <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>Catalogs in discovery:</span>
                       <span className="text-[length:var(--type-ui-regular-size)] font-mono font-semibold" style={{ color: 'var(--text-primary, #e8ecf0)' }}>{confirm.tree.length}</span>
                     </div>
                   )}
@@ -592,7 +592,7 @@ function RunJobConfirmModal({
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                       </svg>
-                      <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>Objects in scope:</span>
+                      <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>Objects in scope:</span>
                       <span className="text-xs font-mono font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{includedCount.toLocaleString()}</span>
                       {confirm.excludeSchemas.size > 0 && confirm.objectCount !== null && (
                         <span className="text-xs font-mono" style={{ color: '#EF4444' }}>
@@ -691,7 +691,7 @@ function RunJobConfirmModal({
             )}
             </>
             ) : (
-              <p className="text-[length:var(--type-caption-size)] font-mono leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+              <p className="text-[length:var(--type-caption-size)] font-sans leading-relaxed" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                 These job types run on <span style={{ color: '#FDB515' }}>Scanned &amp; beyond</span> objects (T0 registry).
                 Use <span style={{ color: '#FDB515' }}>Focus</span> below — the estate exclude tree is only for Inventory / T0.
               </p>
@@ -715,7 +715,7 @@ function RunJobConfirmModal({
           )}
 
           {showExcludeTree && confirm.excludeSchemas.size > 0 && (
-            <div className="text-xs font-mono px-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+            <div className="text-xs font-sans px-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
               Excluded schemas are passed as job scope{" - "}the harvester filters them at runtime.
             </div>
           )}
@@ -742,7 +742,7 @@ function RunJobConfirmModal({
               </div>
 
               {!splitPlansLoading && activePlan && (
-                <div className="text-[length:var(--type-caption-size)] font-mono pl-1" style={{ color: activePlan.emptyScope ? '#FCA5A5' : '#93C5FD' }}>
+                <div className="text-[length:var(--type-caption-size)] font-sans pl-1" style={{ color: activePlan.emptyScope ? '#FCA5A5' : '#93C5FD' }}>
                   {activePlan.totalObjects.toLocaleString()} scanned object(s) match this plan
                   {confirm.includePatterns.trim() ? ' (Focus applied)' : ''}
                 </div>
@@ -755,7 +755,7 @@ function RunJobConfirmModal({
               )}
 
               {!splitPlansLoading && activePlan?.harvestModelId && confirm.kinds.includes('t2_semantic') && (
-                <div className="text-[length:var(--type-caption-size)] font-mono pl-1" style={{ color: '#8892A4' }}>
+                <div className="text-[length:var(--type-caption-size)] font-sans pl-1" style={{ color: '#8892A4' }}>
                   Harvest LLM model: <span style={{ color: '#e8ecf0' }}>{activePlan.harvestModelId}</span>
                   <span className="opacity-80"> — runs on Fargate (xAI direct when XAI_API_KEY is set)</span>
                 </div>
@@ -765,11 +765,11 @@ function RunJobConfirmModal({
                 <div className="grid grid-cols-2 gap-x-6 gap-y-2 pl-1 pt-1">
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{activePlan.chunks}</span>
-                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>chunks ({activePlan.maxObjectsPerChunk} obj each)</span>
+                    <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>chunks ({activePlan.maxObjectsPerChunk} obj each)</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-semibold" style={{ color: 'var(--ink-1)' }}>{activePlan.timeBudgetMinutes} min</span>
-                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>budget per chunk</span>
+                    <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>budget per chunk</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-lg font-mono font-semibold" style={{ color: '#93C5FD' }}>~{activePlan.estimatedWallClockMinutes} min</span>
@@ -779,13 +779,13 @@ function RunJobConfirmModal({
                     <span className="text-lg font-mono font-semibold" style={{ color: activePlan.estimatedCostUsd > 0 ? '#F59E0B' : '#2DD4A0' }}>
                       {activePlan.estimatedCostUsd > 0 ? `~$${activePlan.estimatedCostUsd.toFixed(2)}` : '$0'}
                     </span>
-                    <span className="text-xs font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>est. LLM cost</span>
+                    <span className="text-xs font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>est. LLM cost</span>
                   </div>
                 </div>
               )}
 
               {!splitPlansLoading && activePlan?.needsSplit && (
-                <div className="text-xs font-mono pt-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                <div className="text-xs font-sans pt-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   {activePlan.chunks} Fargate tasks will be queued{" | "}{activePlan.maxConcurrent}{" run simultaneously | "}remainder queued and launched as tasks complete
                 </div>
               )}
@@ -816,7 +816,7 @@ function RunJobConfirmModal({
                 '--tw-ring-color': 'var(--brand-a-ink)',
               }}
             />
-            <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+            <p className="text-xs font-sans" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
               One pattern per line or comma-separated. Supports <code className="opacity-70">*</code> wildcards. Leave empty to use full source scope.
             </p>
           </div>
@@ -829,7 +829,7 @@ function RunJobConfirmModal({
                 <div className="text-xs font-mono font-semibold" style={{ color: confirm.sequential ? 'var(--brand-a-ink)' : 'var(--text-primary, #e8ecf0)' }}>
                   Run sequentially (T0{" -> "}T1{" -> "}T2)
                 </div>
-                <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
+                <div className="text-caption mt-0.5" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
                   {confirm.sequential
                     ? 'Each stage waits for the previous to complete before launching'
                     : 'All job types launch simultaneously as independent containers'}
@@ -1465,7 +1465,7 @@ function JobKindGroupHeader({ group, isFirst }: { group: JobKindGroup; isFirst?:
     <div className="text-label " style={{ color: 'var(--estate-text-secondary)' }}>
           {group.label}
         </div>
-        <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
+        <div className="text-caption mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
           {group.subtitle}
         </div>
       </div>
@@ -1565,7 +1565,7 @@ function JobKindCard({
       ) : (
         <div className="flex items-center gap-2 py-2">
           <div className="h-1.5 w-full rounded-full bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)]" />
-          <span className="text-xs font-mono shrink-0" style={{ color: mutedColor }}>no runs yet</span>
+          <span className="text-caption shrink-0" style={{ color: mutedColor }}>no runs yet</span>
         </div>
       )}
 
@@ -2166,7 +2166,7 @@ function JobsDrilldownNav({
       {schedForKind && (
         schedForKind.deployment === 'manual' ? (
           <span
-            className="shrink-0 px-2 py-0.5 rounded border text-xs font-mono font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
+            className="shrink-0 px-2 py-0.5 rounded border text-xs font-sans font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
             title="Manual / on-demand — no EventBridge rule deployed"
           >
             Manual — not scheduled
@@ -2522,7 +2522,7 @@ function EstateJobsPageContent() {
 
 export default function EstateJobsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-xs font-mono text-[var(--text-muted)]">Loading jobs console...</div>}>
+    <Suspense fallback={<div className="p-8 text-xs font-sans text-[var(--text-muted)]">Loading jobs console...</div>}>
       <EstateJobsPageContent />
     </Suspense>
   );

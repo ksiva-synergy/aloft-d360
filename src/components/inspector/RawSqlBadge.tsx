@@ -30,7 +30,7 @@ export function RawSqlBadge({
     <span
       title={title}
       style={{
-        ...MONO,
+        fontFamily: 'var(--font-sans)',
         fontSize,
         letterSpacing: '0.04em',
         textTransform: 'uppercase',

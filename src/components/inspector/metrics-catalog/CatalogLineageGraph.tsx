@@ -132,7 +132,7 @@ export function CatalogLineageGraph({ graph, focusId, onRefocus }: Props) {
   const { nodes, edges } = React.useMemo(() => layout(graph, focusId), [graph, focusId]);
 
   if (!graph.nodes.length) {
-    return <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
+    return <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: 12 }}>No lineage for this definition.</div>;
   }
 
   return (

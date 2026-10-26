@@ -154,7 +154,7 @@ export default function ScanCoverageModal({ isOpen, onClose, data, loading }: Pr
           {/* Summary line */}
           <p
             className="mt-4 text-xs"
-            style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}
+            style={{ color: 'var(--ink-3)', fontFamily: 'var(--font-sans)' }}
           >
             {formatNumber(data.totals.missing)} objects missing from Aurora
             {data.catalogs.some(c => c.is_new) && (

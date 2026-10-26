@@ -157,7 +157,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, fontWeight: 500 }}>
                   No catalog access
                 </span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
                   The service account lacks <code>USE CATALOG</code> on{' '}
                   <span style={{ color: goldColor }}>{error.split(':')[1] || path.split('.')[0]}</span>.
                   <br />Grant the privilege in Databricks Unity Catalog and retry.
@@ -171,7 +171,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
                   <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, fontWeight: 500 }}>
                     External source unreachable
                   </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
                     <span style={{ color: goldColor }}>{cat || path.split('.')[0]}</span> is a federated catalog.
                     <br />Databricks could not connect to the remote source
                     {remote ? <> (<span style={{ color: inkColor }}>{remote}</span>)</> : ''}.

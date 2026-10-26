@@ -184,7 +184,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
         {recentRuns.length === 0 ? (
           <div style={{
             padding: '40px 0', textAlign: 'center',
-            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.5,
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, opacity: 0.5,
           }}>
             No runs recorded yet.
           </div>

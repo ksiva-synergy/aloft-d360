@@ -11,82 +11,82 @@
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  --type-display-size: clamp(28px, 4vw, 40px);
+  --type-display-size: clamp(1.75rem, 4vw, 2.5rem);
   --type-display-weight: 600;
   --type-display-lh: 1.1;
   --type-display-ls: -0.02em;
 
-  --type-title-page-size: clamp(22px, 2.6vw, 28px);
+  --type-title-page-size: clamp(1.375rem, 2.6vw, 1.75rem);
   --type-title-page-weight: 600;
   --type-title-page-lh: 1.2;
   --type-title-page-ls: -0.02em;
 
-  --type-title-section-size: 20px;
+  --type-title-section-size: 1.25rem;
   --type-title-section-weight: 600;
   --type-title-section-lh: 1.3;
   --type-title-section-ls: -0.01em;
 
-  --type-title-card-size: 15px;
+  --type-title-card-size: 0.9375rem;
   --type-title-card-weight: 600;
   --type-title-card-lh: 1.35;
   --type-title-card-ls: 0;
 
-  --type-body-lg-size: 16px;
+  --type-body-lg-size: 1rem;
   --type-body-lg-weight: 400;
   --type-body-lg-lh: 1.6;
   --type-body-lg-ls: 0;
 
-  --type-body-size: 15px;
+  --type-body-size: 0.9375rem;
   --type-body-weight: 400;
   --type-body-lh: 1.55;
   --type-body-ls: 0;
 
-  --type-ui-lg-size: 15px;
+  --type-ui-lg-size: 0.9375rem;
   --type-ui-lg-weight: 500;
   --type-ui-lg-lh: 1.4;
   --type-ui-lg-ls: 0;
 
-  --type-ui-size: 13px;
+  --type-ui-size: 0.8125rem;
   --type-ui-weight: 500;
   --type-ui-lh: 1.4;
   --type-ui-ls: 0;
 
-  --type-ui-regular-size: 13px;
+  --type-ui-regular-size: 0.8125rem;
   --type-ui-regular-weight: 400;
   --type-ui-regular-lh: 1.45;
   --type-ui-regular-ls: 0;
 
-  --type-label-size: 12px;
+  --type-label-size: 0.75rem;
   --type-label-weight: 500;
   --type-label-lh: 1.35;
   --type-label-ls: 0;
 
-  --type-caption-size: 12px;
+  --type-caption-size: 0.75rem;
   --type-caption-weight: 400;
   --type-caption-lh: 1.4;
   --type-caption-ls: 0;
 
-  --type-eyebrow-size: 11px;
+  --type-eyebrow-size: 0.6875rem;
   --type-eyebrow-weight: 600;
   --type-eyebrow-lh: 1.3;
   --type-eyebrow-ls: 0.08em;
 
-  --type-kpi-lg-size: 28px;
+  --type-kpi-lg-size: 1.75rem;
   --type-kpi-lg-weight: 600;
   --type-kpi-lg-lh: 1.1;
   --type-kpi-lg-ls: -0.02em;
 
-  --type-kpi-md-size: 20px;
+  --type-kpi-md-size: 1.25rem;
   --type-kpi-md-weight: 600;
   --type-kpi-md-lh: 1.2;
   --type-kpi-md-ls: -0.01em;
 
-  --type-kpi-sm-size: 15px;
+  --type-kpi-sm-size: 0.9375rem;
   --type-kpi-sm-weight: 600;
   --type-kpi-sm-lh: 1.3;
   --type-kpi-sm-ls: 0;
 
-  --type-code-size: 13px;
+  --type-code-size: 0.8125rem;
   --type-code-weight: 400;
   --type-code-lh: 1.55;
   --type-code-ls: 0;
@@ -98,9 +98,7 @@
 }
 
 @layer base {
-  /* Default heading sizes (h1 → title-page, h2 → title-section, h3/h4 → title-card) are NOT enabled yet:
-     many unclassed headings inherit today's size, so turning this on is a visible change. Enable per
-     docs/audits/typography-implementation-plan.md once each area is migrated. */
+  /* Unclassed heading defaults are defined at the end of this file. */
   code, kbd, samp, pre { font-family: var(--font-mono); }
 }
 
@@ -123,4 +121,12 @@
   .type-code { font-family: var(--font-mono); font-size: var(--type-code-size); font-weight: var(--type-code-weight); line-height: var(--type-code-lh); letter-spacing: var(--type-code-ls); }
   .type-code-inline { font-family: var(--font-mono); font-size: var(--type-code-inline-size); font-weight: var(--type-code-inline-weight); letter-spacing: var(--type-code-inline-ls); }
   .tnum { font-variant-numeric: tabular-nums; }
+}
+
+/* Unclassed, unstyled headings follow the scale. :where() keeps specificity at zero, so any class
+   or inline style still wins and migrated screens are unaffected. */
+@layer base {
+  :where(h1:not([class]):not([style])) { font-size: var(--type-title-page-size); font-weight: var(--type-title-page-weight); line-height: var(--type-title-page-lh); letter-spacing: var(--type-title-page-ls); }
+  :where(h2:not([class]):not([style])) { font-size: var(--type-title-section-size); font-weight: var(--type-title-section-weight); line-height: var(--type-title-section-lh); letter-spacing: var(--type-title-section-ls); }
+  :where(h3:not([class]):not([style]), h4:not([class]):not([style])) { font-size: var(--type-title-card-size); font-weight: var(--type-title-card-weight); line-height: var(--type-title-card-lh); letter-spacing: var(--type-title-card-ls); }
 }

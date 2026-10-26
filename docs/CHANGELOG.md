@@ -2,6 +2,20 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-26 — Typography implementation: prose out of monospace, page titles, heading defaults, rem scale
+
+Plan: `docs/audits/typography-implementation-plan.md`. Follow-up to the scale-snap entry below.
+
+- **Prose out of monospace (AST codemod, `src/components`, `src/views`):** for JSX elements whose own text is a sentence (≥ 3 words, mostly lowercase words, no code characters), `font-mono` class became `font-sans`, and `...mono` spreads or `fontFamily` mono values became `var(--font-sans)`. 168 edits in 65 files (largest: `jobs.tsx` 14, `JobRunPage.tsx` 12, `FoerOpsDashboard.tsx` 10, `ModelPerformanceLab.tsx` 8, `silo.tsx` 7, `BoostTabs.tsx` 6). Hand fixes for text that comes from data or expressions: Estate job descriptions and "no runs yet" (`text-caption`), FOER rule snippets and type labels in `ForgettingPanel.tsx`, FOER KPI sub-lines, Keeper "Awaiting first run".
+- **Page titles on the shared style:** Audit Log, Users, Profile & appearance, Inspector Dashboards and the Teach session header use `type-title-page`; the Teach empty-state hero uses `type-display` (weight 600, was 400).
+- **Default heading rules enabled** at zero specificity: `:where(h1:not([class]):not([style]))` etc. in `typography.css` (h1 `title-page`, h2 `title-section`, h3/h4 `title-card`). Only 2 unclassed headings exist in `src`, so no other screen changes; any class or inline style still wins.
+- **Scale in rem:** sizes in `typography.css` are now rem (`0.75rem`, `0.8125rem`, `0.9375rem`, `1rem`, `1.25rem`, `1.75rem`, `0.6875rem`; display and page title use `clamp()` in rem). This fixes a regression from the previous step: with pixel sizes a 150 % browser text-size setting enlarged text only 1.25×; now 1.50× (measured on Estate Jobs, root 16 → 24 px, average computed size 12.79 → 19.18 px).
+- **Verified:** `tsc --noEmit` clean; root `npx vitest run` 597 passed; `npm run web:test` 63 passed; probe listing monospace sentence-like text re-run (list shrank from ~85 items to ~20, mostly short labels such as "Fatal rules first" and "store health: dense store"); heuristic contrast sample: Estate Jobs light 10 % → 1 %, light overall 12.1 % → 10.0 %, dark 10.8 % → 8.4 %; no horizontal overflow at 390 or 820 px on Dashboard, Estate Jobs, Inspector. Baseline: `inlineLetterSpacing` 294.
+- **Not done:**
+  - Contrast still fails on FOER and BORN where category colors (`#6F9DC4`, `#5FA9AE`, …, in `foer-tokens.ts`, `DistillationStage.tsx`, `SessionDetailDrawer.tsx`) or reduced `opacity` are used as small text (FOER light 13 %, BORN light 25 % / dark 19 % of characters in the heuristic). This is a color-palette decision, not a type change.
+  - About 20 short monospace labels remain, as do cron strings, IDs, paths and SQL (intended). Dashboard-builder, Studio, Performance Lab and Teach screens were converted by the codemods but not reviewed by eye. Real streamed AI answers, long names / large numbers in tables and macOS were not checked.
+  - The legacy Tailwind aliases (`xs`…`2xl`, `font-serif`, `font-display`, `font-body`) and 52 `fontFamily` / 232 numeric `fontSize` literals (chart and canvas option objects, `src/lib`) remain by design.
+
 ## 2026-10-26 — Typography implementation: scale snap across the app, charts/exports, contrast, lock-down
 
 Plan: `docs/audits/typography-implementation-plan.md`. Closes TYP-05, 06, 08, 09, 10, 14 and most of TYP-07; partly TYP-16.

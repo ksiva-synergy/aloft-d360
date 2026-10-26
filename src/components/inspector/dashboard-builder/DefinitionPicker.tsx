@@ -213,7 +213,7 @@ export function DefinitionPicker({
             ))}
             {filteredEntities.length === 0 && (
               <div style={{ padding: 16, textAlign: 'center' }}>
-                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                   No matching definitions
                 </span>
               </div>
@@ -238,10 +238,10 @@ export function DefinitionPicker({
           {!chartsLoading && !chartsError && savedCharts.length === 0 && (
             <div style={{ padding: 16, textAlign: 'center' }}>
               <BarChart2 size={20} style={{ color: 'var(--builder-text-muted)', margin: '0 auto 8px', display: 'block' }} />
-              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                 No saved charts yet.
               </span>
-              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
                 Use the Inspector to run a semantic query, then click "SAVE TO CHARTS" on the result.
               </p>
             </div>

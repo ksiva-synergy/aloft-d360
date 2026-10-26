@@ -234,7 +234,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
           ) : sessions.length === 0 ? (
             <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--wb-muted)' }}>
               <FileText size={28} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No past sessions yet.</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No past sessions yet.</p>
               <p style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, opacity: 0.6 }}>Start a new chat to get going.</p>
             </div>
           ) : (

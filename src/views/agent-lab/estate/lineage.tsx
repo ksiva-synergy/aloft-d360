@@ -194,7 +194,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.truncated && (
-                  <div className="text-xs font-mono mb-3" style={{ color: GOLD }}>Neighborhood truncated — this entity has more definitions than shown.</div>
+                  <div className="text-xs font-sans mb-3" style={{ color: GOLD }}>Neighborhood truncated — this entity has more definitions than shown.</div>
                 )}
 
                 {/* 3-column graph */}
@@ -305,7 +305,7 @@ export default function LineagePage() {
                 )}
 
                 {focus.omissions.length > 0 && (
-                  <div className="mt-4 text-xs font-mono" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
+                  <div className="mt-4 text-xs font-sans" style={{ color: muted }}>Not shown (no backing in the real model): {focus.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}</div>
                 )}
               </>
             )}

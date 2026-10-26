@@ -80,12 +80,8 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
 
       {/* Headline */}
       <h1
+        className="type-display"
         style={{
-          fontFamily: FONT_DISPLAY,
-          fontSize: 'var(--type-display-size)',
-          fontWeight: 400,
-          lineHeight: 1.12,
-          letterSpacing: '-0.01em',
           color: 'var(--foreground)',
           margin: '20px 0 0',
           maxWidth: 560,

@@ -401,7 +401,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           height: '100vh',
           background: 'var(--background)',
           color: 'var(--ink-2)',
-          fontFamily: MONO,
+          fontFamily: 'var(--font-sans)',
           fontSize: 'var(--type-ui-regular-size)',
           gap: '0.75rem',
         }}
@@ -414,7 +414,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
 
   if (!stats || !runsData) {
     return (
-      <div style={{ color: RULE_TYPE_COLORS.FAILURE_MODE, fontFamily: MONO, padding: '2rem' }}>
+      <div style={{ color: RULE_TYPE_COLORS.FAILURE_MODE, fontFamily: 'var(--font-sans)', padding: '2rem' }}>
         Failed to fetch Operations stats.
       </div>
     );
@@ -629,7 +629,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             </div>
 
             {!canaryData.volumeSufficient && (
-              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: '#d9774b', letterSpacing: '0.04em' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: '#d9774b', letterSpacing: '0.04em' }}>
                 Run <span style={{ color: 'var(--foer-text-sec)' }}>scripts/memory/calibrate-lambda.ts</span> once attributed runs ≥ 30 to get a λ recommendation.
               </div>
             )}
@@ -650,7 +650,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Sense</div>
                 <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Trace capture</div>
               </div>
-              <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.7, color: 'var(--foer-text-sec)' }}>
                 <span style={{ color: 'var(--foer-text-pri)' }}>{stats.tracedSessions.toLocaleString()}</span> sessions · <span style={{ color: 'var(--foer-text-pri)' }}>{stats.totalTraceNodes.toLocaleString()}</span> nodes
                 <br />
                 last session <span style={{ color: 'var(--foer-text-pri)' }}>{formatRelativeHours(stats.lastTraceAt)}</span>
@@ -698,7 +698,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Distil</div>
-                <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Captain Track Sparrow</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Reflector · Captain Track Sparrow</div>
               </div>
               {stats.lastRun ? (
                 <>
@@ -716,7 +716,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                   )}
                 </>
               ) : (
-                <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)' }}>No synthesis runs recorded yet.</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)' }}>No synthesis runs recorded yet.</div>
               )}
               {sparklineRuns.length > 0 && (
                 <div>
@@ -825,7 +825,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
             <div className="foer-card">
               <div>
                 <div style={{ fontFamily: SERIF, fontWeight: 600, fontSize: 'var(--type-title-section-size)', color: 'var(--foer-text-pri)', lineHeight: 1.1 }}>Mount</div>
-                <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Injection at task start · two-tier</div>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', marginTop: '3px' }}>Injection at task start · two-tier</div>
               </div>
               <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: '6px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-sec)' }}>
                 <span className="foer-dot" style={{ background: stats.flagStatus.enabled ? 'var(--foer-green)' : RULE_TYPE_COLORS.FAILURE_MODE, width: '6px', height: '6px' }}></span>
@@ -841,7 +841,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 injected last 24h: <span style={{ color: 'var(--foer-text-pri)' }}>{stats.flagStatus.enabled ? (stats.injectedLast24h ?? 0) : '— (injection disabled)'}</span>
               </div>
               <div>
-                <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', marginBottom: '6px' }}>
+                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-text-mut)', marginBottom: '6px' }}>
                   TOPIC COVERAGE · {stats.flagStatus.topicCoverage}/{stats.topicCount} topics with ACTIVE bullets
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -920,7 +920,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
               <path className="foer-flow-line" d="M 88 0 L 88 22 Q 88 32 80 32 L 20 32 Q 12 32 12 22 L 12 9" fill="none" stroke="var(--foer-gold)" strokeWidth="1.6" strokeDasharray="9 24" opacity="0.55" vectorEffect="non-scaling-stroke"></path>
             </svg>
             <div style={{ position: 'absolute', left: '12%', top: 0, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '7px solid var(--foer-gold)', opacity: 0.8 }}></div>
-            <div style={{ position: 'absolute', left: '50%', top: '18px', transform: 'translateX(-50%)', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', background: 'var(--foer-bg)', padding: '0 10px' }}>
+            <div style={{ position: 'absolute', left: '50%', top: '18px', transform: 'translateX(-50%)', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', background: 'var(--foer-bg)', padding: '0 10px' }}>
               MOUNT → SENSE · traces from injected sessions
             </div>
           </div>
@@ -1219,7 +1219,7 @@ export function FoerOpsDashboard({ topicMap }: InnerProps) {
     <QueryClientProvider client={queryClient}>
       <React.Suspense
         fallback={
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#4A6080', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#4A6080', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', gap: '0.5rem' }}>
             <Loader2 size={16} className="animate-spin" />
             Initialising FOER Operations Observer…
           </div>

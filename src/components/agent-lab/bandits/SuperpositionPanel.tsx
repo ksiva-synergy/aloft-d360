@@ -379,7 +379,7 @@ export function SuperpositionPanel({
   if (stats.length === 0) {
     return (
       <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No arm data available.</div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TEXT_MUT }}>No arm data available.</div>
       </div>
     );
   }
@@ -400,7 +400,7 @@ export function SuperpositionPanel({
           <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
             Superposition
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
             Beta distribution beliefs
           </div>
         </div>

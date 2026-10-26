@@ -270,7 +270,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
   const maxScore = Math.max(...displayCols.map(c => c.score), 1);
 
   if (displayCols.length === 0) return (
-    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
+    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
       No key columns recorded.
     </div>
   );
@@ -419,7 +419,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
   const displayPatterns = expanded ? patterns : patterns.slice(0, SHOW_N);
 
   if (patterns.length === 0) return (
-    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
+    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
       No filter patterns recorded.
     </div>
   );
@@ -534,7 +534,7 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
         style={{
           borderColor: 'var(--estate-border-gold)',
           background: 'var(--estate-raised)',
-          fontFamily: 'var(--font-mono)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--estate-text-muted)',
         }}

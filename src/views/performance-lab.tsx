@@ -140,7 +140,7 @@ function fmt(n: number, decimals = 0): string {
 function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
   if (!stats.length) {
     return (
-      <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px 0' }}>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, textAlign: 'center', padding: '32px 0' }}>
         No historical data yet. Complete inspector sessions to populate this view.
       </div>
     );
@@ -244,7 +244,7 @@ export default function PerformanceLabPage() {
           <div style={{ ...mono, fontSize: 'var(--type-body-size)', color: GOLD, fontWeight: 600, letterSpacing: '0.08em' }}>
             PERFORMANCE LAB
           </div>
-          <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TXT2, marginTop: 2 }}>
             context harness research · benchmark suite · scoring methodology
           </div>
         </div>

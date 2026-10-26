@@ -200,7 +200,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
      <h3 className="text-label text-[length:var(--type-caption-size)] mb-4" style={{ color: '#8892A4' }}>
             Child chunks
           </h3>
-          <p className="text-xs font-mono mb-4" style={{ color: '#8892A4' }}>
+          <p className="text-xs font-sans mb-4" style={{ color: '#8892A4' }}>
             This job is a split parent — open a child for logs and per-chunk errors.
           </p>
           <ChildJobsPanel jobId={job.id} />
@@ -251,7 +251,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
             Run Statistics
           </h3>
           {allStatsZero && mapped === 'failed' && (
-            <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg border font-mono text-xs"
+            <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg border font-sans text-xs"
               style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', borderColor: 'var(--line-1)' }}>
               <AlertTriangle size={12} className="shrink-0" style={{ color: '#6b7280' }} />
               Job failed before producing any results — all counters are zero.
@@ -347,7 +347,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
                 <a
                   href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${taskId}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 font-mono text-xs transition-colors"
+                  className="inline-flex items-center gap-1.5 font-sans text-xs transition-colors"
                   style={{ color: '#93C5FD' }}>
                   <ExternalLink size={11} /> Open log stream
                 </a>
@@ -702,7 +702,7 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             <a
               href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${meta.taskId}`}
               target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-mono transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-sans transition-colors"
               style={{ color: '#93C5FD' }}>
               <ExternalLink size={11} /> Open in CloudWatch console
             </a>
@@ -712,9 +712,9 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
       {!isLoading && !errorMsg && filteredLines.length === 0 && (
         <div className="px-5 py-8 space-y-2">
           {lines.length > 0 ? (
-            <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No lines match the current filter.</p>
+            <p className="text-xs font-sans" style={{ color: 'var(--ink-3)' }}>No lines match the current filter.</p>
           ) : isLive ? (
-            <div className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+            <div className="flex items-center gap-1.5 text-xs font-sans" style={{ color: 'var(--ink-3)' }}>
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a)' }} />
                 <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a)' }} />
@@ -723,8 +723,8 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No logs found for this job.</p>
-              <p className="text-xs font-mono" style={{ color: '#4a5568' }}>
+              <p className="text-xs font-sans" style={{ color: 'var(--ink-3)' }}>No logs found for this job.</p>
+              <p className="text-xs font-sans" style={{ color: '#4a5568' }}>
                 This can happen when the Fargate container never started, or when CloudWatch log retention has expired.
               </p>
               <button onClick={loadLogs} className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors mt-1"
@@ -850,14 +850,14 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
   );
 
   if (error) return (
-    <div className="p-8 text-sm font-mono text-red-400">Error loading objects: {error}</div>
+    <div className="p-8 text-sm font-sans text-red-400">Error loading objects: {error}</div>
   );
 
   if (objects.length === 0) return (
     <div className="flex flex-col items-center justify-center p-16 gap-4">
       <Database size={40} style={{ color: '#374151' }} />
-      <p className="font-mono text-sm" style={{ color: 'var(--ink-3)' }}>No objects touched during this run</p>
-      <p className="font-mono text-xs text-center max-w-xs" style={{ color: '#4a5568' }}>
+      <p className="font-sans text-sm" style={{ color: 'var(--ink-3)' }}>No objects touched during this run</p>
+      <p className="font-sans text-xs text-center max-w-xs" style={{ color: '#4a5568' }}>
         Objects are correlated via tier timestamps. This job may not have processed any objects or may still be running.
       </p>
     </div>
@@ -1247,7 +1247,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
           {activeTab === 'logs' && (
             isOrchestratingParent({ status: jobStatus, scope: job.scope })
               ? (
-                <div className="p-8 font-mono text-sm" style={{ color: '#8892A4' }}>
+                <div className="p-8 font-sans text-sm" style={{ color: '#8892A4' }}>
                   Parent orchestrator jobs have no CloudWatch stream. Open a child chunk from Overview.
                 </div>
               )
