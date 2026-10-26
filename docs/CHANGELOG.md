@@ -16,6 +16,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Verified:** Code review; restart dev API.
 - **Not done:** Raise dev `connection_limit` in `.env` if needed.
 
+## 2026-10-26 — Lineage + scanned list: fewer pool slots per request
+
+- **What:** Semantic lineage uses `getOrgId` and skips `getUserByEmail` when `session.user.id` is set; `listScannedObjectsPage` queries run in batches of 2; `getDefaultOrg` prefers `DEFAULT_ORG_ID` lookup.
+- **Why:** P2024 still occurred when Estate polling overlapped heavy scanned-object and lineage routes.
+- **Verified:** Code review; restart dev API.
+- **Not done:** Raise dev `connection_limit` in `.env` if needed.
+
 ## 2026-10-26 — Reduce Prisma pool pressure on Estate / Jobs APIs
 
 - **What:** `getOrgId()` returns `DEFAULT_ORG_ID` without a DB round-trip; `getCoverageSummary` runs six rollup queries via `runInBatches` (concurrency 3); `GET /jobs/summary?coverage=false` skips coverage for pollers; catalog refresh + Jobs L1 use the slim query.
