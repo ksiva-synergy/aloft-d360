@@ -97,9 +97,13 @@ Add `XAI_API_KEY` and `FOUNDRY_API_KEY` to the existing secret JSON if they are 
 
 | Source | Variables |
 |--------|-----------|
-| Plain env in `task-definition.json` | `XAI_MODEL`, `CONTEXT_HARVEST_MODEL`, `BEDROCK_REGION` (`us-east-1` for Titan v2), `FOUNDRY_*` (fallback), `AZURE_OPENAI_API_VERSION` |
+| Plain env in `task-definition.json` | `HARVEST_XAI_MODEL`, `CONTEXT_HARVEST_MODEL`, `XAI_MODEL`, `BEDROCK_REGION`, `FOUNDRY_EMBEDDING_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `DEFAULT_ORG_*` — **do not** duplicate any name also listed under `secrets` |
 | `aloftEcsTaskRole` (task role) | `bedrock:InvokeModel` on `amazon.titan-embed-text-v2:0` in **us-east-1** — no `AWS_ACCESS_KEY_ID` in the task |
-| `ALOFT` secret | `XAI_API_KEY` (Grok T2), `FOUNDRY_API_KEY` (optional embed fallback) |
+| `ALOFT` secret (required JSON keys) | `DATABASE_URL`, `DIRECT_URL`, `DATABRICKS_*`, `XAI_API_KEY`, `FOUNDRY_API_KEY` (embed LLM fallback) |
+
+Optional: add `FOUNDRY_ENDPOINT` / `FOUNDRY_EMBEDDING_ENDPOINT` to the secret **only if** you use Azure embed fallback and register them under `secrets` in the task def. Missing JSON keys in `secrets` block cause **ResourceInitializationError** before the container starts.
+
+`XAI_MODEL` is **not** read from Secrets Manager — use plain env (`grok-4.7`) so the task does not require that JSON key.
 
 **Primary embed:** Bedrock Titan via the Fargate task role. After changing IAM, secrets, or env, run **step 3** (register task definition) and push a new harvester image.
 

@@ -25,14 +25,12 @@
         { "name": "HARVESTER_VERSION", "value": "ch4" },
         { "name": "HARVEST_LLM_PROVIDER", "value": "xai" },
         { "name": "HARVEST_XAI_MODEL", "value": "grok-4.7" },
-        { "name": "XAI_MODEL", "value": "grok-4.7" },
         { "name": "CONTEXT_HARVEST_MODEL", "value": "grok-4.7" },
+        { "name": "XAI_MODEL", "value": "grok-4.7" },
         { "name": "BEDROCK_REGION", "value": "us-east-1" },
-        { "name": "DEFAULT_ORG_SLUG", "value": "spinor-demo" },
+        { "name": "DEFAULT_ORG_SLUG", "value": "synergy" },
         { "name": "DEFAULT_ORG_ID", "value": "cmpm82n5x0000dj0cn3fo9pug" },
-        { "name": "FOUNDRY_ENDPOINT", "value": "https://aif-synde-eastus2.services.ai.azure.com" },
         { "name": "FOUNDRY_EMBEDDING_DEPLOYMENT", "value": "text-embedding-3-large" },
-        { "name": "FOUNDRY_EMBEDDING_ENDPOINT", "value": "https://aif-synde-eastus2.services.ai.azure.com" },
         { "name": "AZURE_OPENAI_API_VERSION", "value": "2024-12-01-preview" }
       ],
       "mountPoints": [],
@@ -67,20 +65,8 @@
           "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:XAI_API_KEY::"
         },
         {
-          "name": "XAI_MODEL",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:XAI_MODEL::"
-        },
-        {
           "name": "FOUNDRY_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_API_KEY::"
-        },
-        {
-          "name": "FOUNDRY_EMBEDDING_ENDPOINT",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_EMBEDDING_ENDPOINT::"
-        },
-        {
-          "name": "FOUNDRY_ENDPOINT",
-          "valueFrom": "arn:aws:secretsmanager:ap-south-1:640012953890:secret:ALOFT-scBxmq:FOUNDRY_ENDPOINT::"
         }
       ],
       "logConfiguration": {
