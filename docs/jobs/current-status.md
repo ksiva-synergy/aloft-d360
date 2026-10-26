@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-10-24 (code review; not re-run against production DB)  
+**Last verified:** 2026-10-26 (jobs summary poll uses `?coverage=false`; `getCoverageSummary` batched; `getOrgId` env fast-path — reduces dev P2024 pool timeouts)  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md)
 
 ---
@@ -13,7 +13,7 @@
 | **Control plane** | `POST /api/agent-lab/context/jobs/launch` enqueues `platform_context_jobs` and starts ECS Fargate (or local orchestrator). |
 | **Workers** | `scripts/context/orchestrator.ts` claims jobs and calls `runT0Harvest`, `runT1Profile`, `runT2Enrich`, etc. |
 
-**Operator intent we are moving toward:** Harvest **one schema per catalog** easily, run **only tiers that need work**, optional **overwrite** when necessary. **Incremental is preferred when we keep versions** (T1/T2 append profile/semantic versions); see [versioning-and-incremental.md](./versioning-and-incremental.md). **Today:** schema scope is possible via Focus globs but UX is confusing and first-time T0 is blocked by plan API (P0-3).
+**Operator intent we are moving toward:** Harvest **one schema per catalog** easily, run **only tiers that need work**, optional **overwrite** when necessary. **Incremental is preferred when we keep versions** (T1/T2 append profile/semantic versions); see [versioning-and-incremental.md](./versioning-and-incremental.md). **Today:** first-time T0 on a focused schema can launch when discovery has rows (P0-3 fixed); modal still uses exclude-tree + Limit textarea (wizard not shipped).
 
 ---
 
@@ -36,7 +36,7 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 |--------|----------|
 | **Input** | Databricks metadata for source `scope_include` / `scope_exclude` |
 | **Modal exclude tree** | Yes |
-| **Modal Focus** | **No** — ignored (P1-11) |
+| **Modal Focus** | **Yes** — Limit globs + exclude tree (P1-11 fixed) |
 | **Incremental** | Re-run refreshes discovery; soft-removes unseen rows per catalog rules (P2-20) |
 | **Overwrite** | N/A |
 
@@ -49,15 +49,15 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | **Subsequent run (no Focus)** | `detectChanges` since `last_sweep_at` — **delta** only |
 | **Focus side effect** | Treated like first run for that subset; may run drop pass within listed schemas (P2-1); may skip updating global `last_sweep_at` (P2-2) |
 | **`forceFullScan`** | Supported in `runT0Harvest` opts; **not exposed in Jobs UI** |
-| **Launch gate** | `planSplit` counts **Scanned** rows only → **blocks first harvest** on new schema (P0-3) |
+| **Launch gate** | T0 plan/assert uses **discovery** (`planEstateSplit`); T1/T2 still use **Scanned** (`planSplit`) |
 
 ### 3.3 `t1_profile`
 
 | Aspect | Behavior |
 |--------|----------|
 | **Input** | Active `platform_context_objects` in scope |
-| **Modal exclude tree** | Shown but **stripped at API** for T1 (P1-6) — use Focus |
-| **Incremental** | **Weak** — profiles **all active objects** matching Focus/partition each run (no `last_t1_at` skip in runner) |
+| **Modal exclude tree** | **Honored at plan/launch** (P1-6 fixed 2026-10-26); Limit still overrides when set |
+| **Incremental** | **Stale-only default** — skips objects where `last_t1_at >= last_t0_at`; opt-in `forceReprofile` for full re-run |
 | **Overwrite** | Re-run re-profiles and **appends** a new `platform_context_profiles.version` (history kept) |
 
 ### 3.4 `t2_semantic`
@@ -72,14 +72,14 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 
 | Aspect | Behavior |
 |--------|----------|
-| **Scope** | **Full source** — Focus **not applied** (P1-2) |
+| **Scope** | **Limit + exclude tree** from job scope (P1-2 fixed 2026-10-26) |
 | **Incremental** | Skips unchanged embed text when semantic card unchanged (P2-18) |
 
 ### 3.6 `t3_usage`
 
 | Aspect | Behavior |
 |--------|----------|
-| **Scope** | **Full source** objects; Focus stored but **not applied** (P0-8) |
+| **Scope** | **Limit + exclude tree** on context objects (P0-8 partial fix 2026-10-26); query history still workspace-wide (P2-5) |
 | **Matching** | Substring on `object_name` in SQL text (P0-7) |
 
 ---
@@ -89,8 +89,9 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | Control | T0 | T1 | T2 | Inventory |
 |---------|----|----|-----|-----------|
 | `catalog.schema.*` Focus | ✅ runtime | ✅ | ✅ | ❌ |
-| Exclude tree | ✅ | ❌ API | ❌ API | ✅ |
-| `scope.path` on job from object APIs | ❌ runtime (P0-1) | ❌ | ❌ | — |
+| Exclude tree | ✅ | ✅ | ✅ | ✅ |
+| `scope.path` on job from object APIs | ✅ via `includePatterns` (refresh/enrich/reharvest-all/estate harvest); **change_detect** fixed 2026-10-26 | ✅ | ✅ | — |
+| T0 exclude-only, 0 discovery rows in kept schemas | ✅ **liveScopeLaunch** (2026-10-26) | — | — | — |
 | Per-schema easy button in UI | ❌ (manual Focus) | ❌ | ❌ | ❌ |
 
 **Canonical single-schema pattern (today):**
@@ -107,7 +108,7 @@ Example: `curated_db.db_smac_prod_navitasai_crewing_dashboard_public.*`
 
 | Endpoint | Role |
 |----------|------|
-| `POST …/jobs/plan` | Split preview; `emptyScope` from Scanned count only |
+| `POST …/jobs/plan` | Split preview; T0 uses discovery count; T1/T2 use Scanned; returns `registry`, `discoveryObjects`, `scannedObjects` |
 | `POST …/jobs/launch` | `assertObjectsInScope` for T0/T1/T2; then enqueue + Fargate |
 | `POST …/jobs/trigger` | Enqueue **only** — no worker (P1-9) |
 
@@ -119,12 +120,8 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 
 | ID | Gap | Impact on schema-only harvest |
 |----|-----|-------------------------------|
-| **P0-3** | Plan/assert uses Scanned count for T0 | Cannot launch first T0 on schema from modal |
-| **P0-1** | `scope.path` ignored | Object-page actions may run full source |
-| **P1-1 / P1-20** | Confusing modal | Operators think tree “selects” schema; Focus separate |
-| **P1-6** | Exclude tree on T1/T2 launch | Misleading when chaining kinds |
-| **P1-2 / P0-8** | embed/T3 ignore Focus | Extra work outside schema after T2 |
-| **T1 full re-profile** | No stale-only default | Running T1 on schema re-queries all tables |
+| **P1-1 / P1-20** | Full cockpit wizard | Interim labels, Limit field, source picker (multi-source); include-tree wizard not shipped |
+| **Overwrite toggles** | No UI for force full T0 / re-profile / re-enrich | Operators use Limit globs; `forceReprofile` exists server-side only |
 
 **Planned UX/engineering:** [remediation charter](../audits/harvest-job-pipeline-remediation-charter.md) — include-tree, recommendations, `planEstateSplit`, `JobScope`, **Overwrite** toggles per tier.
 
@@ -153,7 +150,8 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
-| — | *(none in this workstream yet — log here when Phase 0 lands)* |
+| 2026-10-26 | **P1-11** inventory Limit; **P1-14** `sourceId` on plan/launch + UI picker; **T1 stale-only** (`last_t1_at` &lt; `last_t0_at`); **P1-19** `knowledge_sync` orchestrator + sync-knowledge worker |
+| 2026-10-26 | **P0-3** … (Phase 0 bundle — see prior session log) |
 
 ---
 

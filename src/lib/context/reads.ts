@@ -8,6 +8,10 @@ import { computeDataScore } from './data-score';
 import type { DataScoreResult } from './data-score';
 import { assembleDimensionInput } from './data-score/assemble';
 import { SQL_OBJECT_HAS_EMBEDDING, SQL_PCO_HAS_EMBEDDING } from './embedding-presence';
+import { runInBatches } from '@/lib/db/run-in-batches';
+
+/** Cap parallel Prisma queries (pool is often connection_limit=10 in dev). */
+const COVERAGE_SUMMARY_DB_CONCURRENCY = 3;
 
 // ── 1. listObjectsPage ─────────────────────────────────────────────────────────
 
@@ -1164,6 +1168,7 @@ export async function listEstateObjects(
     harvest?: 'none' | 'discovered' | 'scheduled' | 'queued' | 'harvested' | 'published' | 'stale' | 'inaccessible';
     q?: string;
     excludeTestSources?: boolean;
+    sourceId?: string;
   },
 ): Promise<{ rows: EstateListRow[]; total: number; page: number; pageSize: number }> {
   const page = Math.max(1, opts.page ?? 1);
@@ -1182,6 +1187,12 @@ export async function listEstateObjects(
       SELECT id::text FROM platform_context_sources
       WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
     ))`);
+  }
+
+  if (opts.sourceId) {
+    conditions.push(`peo.source_id = $${paramIdx}`);
+    params.push(opts.sourceId);
+    paramIdx++;
   }
 
   if (opts.catalog) {
@@ -1377,7 +1388,9 @@ export async function getCoverageSummary(
   const srcObj = sourceId ? Prisma.sql`AND o.source_id = ${sourceId}::uuid` : Prisma.empty;
   const srcObjO2 = sourceId ? Prisma.sql`AND o2.source_id = ${sourceId}::uuid` : Prisma.empty;
 
-  const [coverageRows, embeddingRows, statusRows, profileRows, skipRows, deferredRows] = await Promise.all([
+  const [coverageRows, embeddingRows, statusRows, profileRows, skipRows, deferredRows] = await runInBatches(
+    [
+    () =>
     // 1. Active objects + how many have a T2 semantic card (excludes T3 'observed').
     prisma.$queryRaw<Array<{ active_objects: number; objects_with_semantic: number }>>(Prisma.sql`
       SELECT
@@ -1392,6 +1405,7 @@ export async function getCoverageSummary(
       ) sem ON sem.subject_id = o.id
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
     `),
+    () =>
     prisma.$queryRaw<
       Array<{
         objects_with_embedding: number;
@@ -1415,6 +1429,7 @@ export async function getCoverageSummary(
       FROM platform_context_objects o
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
     `),
+    () =>
     // 1b. Distinct active objects by semantic status (decomposes the number above).
     prisma.$queryRaw<Array<{ status: string; objects: number }>>(Prisma.sql`
       SELECT s.status, COUNT(DISTINCT s.subject_id)::int AS objects
@@ -1423,6 +1438,7 @@ export async function getCoverageSummary(
       WHERE s.subject_kind = 'object' AND s.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
       GROUP BY s.status
     `),
+    () =>
     // 2. Object-level degrade from each object's latest profile version.
     prisma.$queryRaw<Array<{ objects_partial: number; objects_view_unqueryable: number; objects_degraded: number }>>(Prisma.sql`
       WITH latest_profile AS (
@@ -1438,6 +1454,7 @@ export async function getCoverageSummary(
         COUNT(*) FILTER (WHERE stats->>'partial' = 'true' OR stats->>'view_unqueryable' = 'true')::int AS objects_degraded
       FROM latest_profile
     `),
+    () =>
     // 3. Per-column skip_reason distribution across active columns.
     prisma.$queryRaw<Array<{ skip_reason: string; cnt: number }>>(Prisma.sql`
       SELECT c.profile->>'skip_reason' AS skip_reason, COUNT(*)::int AS cnt
@@ -1447,6 +1464,7 @@ export async function getCoverageSummary(
         AND c.profile->>'skip_reason' IS NOT NULL ${srcObj}
       GROUP BY c.profile->>'skip_reason'
     `),
+    () =>
     // 4. Columns deferred to a null-only profile (a lighter degrade than a skip).
     prisma.$queryRaw<Array<{ cnt: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS cnt
@@ -1455,7 +1473,9 @@ export async function getCoverageSummary(
       WHERE c.org_id = ${orgId} AND c.lifecycle = 'active' AND o.lifecycle = 'active'
         AND c.profile->>'stats_deferred' = 'true' ${srcObj}
     `),
-  ]);
+    ] as const,
+    COVERAGE_SUMMARY_DB_CONCURRENCY,
+  );
 
   const activeObjects = coverageRows[0]?.active_objects ?? 0;
   const objectsWithSemantic = coverageRows[0]?.objects_with_semantic ?? 0;

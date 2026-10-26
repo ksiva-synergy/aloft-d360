@@ -47,7 +47,7 @@
 
 | Route | Role |
 |-------|------|
-| `GET /jobs/summary` | L1 cards |
+| `GET /jobs/summary` | L1 cards (+ optional estate coverage rollup; pollers use `?coverage=false`) |
 | `GET /jobs/dates?kind=` | L2 |
 | `GET /jobs?kind=&status=&page=` | L3 (hides children; parents only) |
 | `POST /jobs/launch` | Enqueue + Fargate |

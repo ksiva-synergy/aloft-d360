@@ -2,6 +2,209 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-26 — Reduce Prisma pool pressure on Estate / Jobs APIs
+
+- **What:** `getOrgId()` returns `DEFAULT_ORG_ID` without a DB round-trip; `getCoverageSummary` runs six rollup queries via `runInBatches` (concurrency 3); `GET /jobs/summary?coverage=false` skips coverage for pollers; catalog refresh + Jobs L1 use the slim query.
+- **Why:** Dev hit P2024 (`connection_limit=10`) when summary polled in parallel with facets and six-wide coverage SQL.
+- **Verified:** Typecheck on touched modules; manual Estate/Jobs after restart.
+- **Not done:** Split coverage into a dedicated endpoint for dashboards; batch `listScannedObjects` triple `Promise.all`.
+
+## 2026-10-26 — ECS task def: drop missing Secrets Manager JSON keys
+
+- **What:** Removed `XAI_MODEL`, `FOUNDRY_ENDPOINT`, `FOUNDRY_EMBEDDING_ENDPOINT` from `secrets` in `infra/context/task-definition.json`; set `XAI_MODEL` via plain env. Updated `deploy-notes.md`.
+- **Why:** Fargate failed with `retrieved secret from Secrets Manager did not contain json key XAI_MODEL`.
+- **Verified:** JSON review; **must re-register task definition in ECS** (git alone does not update running revision).
+- **Not done:** Add optional Foundry endpoint keys to `ALOFT` secret if Azure embed fallback is required.
+
+## 2026-10-26 — Catalog: Run pipeline now (T0→T1→T2)
+
+- **What:** `Run pipeline now` on Estate Catalog scope bar (`BulkActionBar`, `EstateCatalogTab`); helper `src/lib/estate/catalog-pipeline.ts` calls `POST /jobs/launch` with sequential T0/T1/T2 and `catalog.schema.*` Limit. Schedule buttons unchanged (discovery flag only).
+- **Why:** Operators need immediate Fargate pipeline vs schedule-without-run.
+- **Verified:** `npx vitest run src/lib/estate/catalog-pipeline.test.ts`.
+- **Not done:** Row-level pipeline; embed/T3 toggles on catalog bar.
+
+## 2026-10-26 — Harvest pipeline Phase 0/1 scope fixes (batch)
+
+- **What:** `stripExcludeSchemasForKind` passes excludes to T1/T2 plan/launch; T0 `liveScopeLaunch` for exclude-only narrowed scope (`discoverySchemaGroups` on `planEstateSplit`); `objectMatchesJobScope` + embed/T3 exclude filtering; `change_detect` enqueues scoped T0 via `includePatterns`; launch API rejects disabled kinds (`launch-kinds.ts`); modal copy + removed silo/recompute from trigger list. Files: `job-scope.ts`, `job-ui.ts`, `queue.ts`, `plan/route.ts`, `launch/route.ts`, `orchestrator.ts`, `usage.ts`, `jobs.tsx`, tests.
+- **Why:** Close P0-1 (change_detect path), P1-2 (embed scope), P1-6 (T1/T2 excludes), P1-3/4/18 (block bad launches), exclude-only T0 launch when discovery empty for kept schemas.
+- **Verified:** `npx vitest run src/lib/estate/job-ui.test.ts src/lib/context/job-scope.test.ts`.
+- **Not done:** Phase 2 cockpit wizard; T3 SQL qualified match (P0-7); multi-source picker (P1-14); implement silo_scan/recompute in orchestrator; Fargate harvester deploy for prior T0 `resolveScope` fix.
+
+## 2026-10-26 — Login SSO-only; Grok 4.7 default for non–platform admins
+
+- **What:** Removed credentials “Admin login” from `src/views/login.tsx`. Added `src/lib/inspector/model-access.ts`; `/api/inspector/chat-models` and chat/workbench routes restrict non–`platform_admin` users to `grok-xai` (Grok 4.7). Model picker hidden when only one model is available.
+- **Why:** Production sign-in is Microsoft SSO only; standard users should not switch LLMs.
+- **Verified:** Typecheck via edited modules; manual UI not run.
+- **Not done:** Boost benchmark suite model list (platform tooling).
+
+## 2026-10-26 — T0: resolveScope when Jobs modal sends excludeSchemas
+
+- **What:** `runT0Harvest` sets `isFirstRun` when `excludeSchemas` is non-empty so narrowed exclude-tree scope lists all tables in allowed schemas, not `detectChanges` only.
+- **Why:** Exclude-all-then-include-few ran T0 in delta mode and often swept 0 tables.
+- **Verified:** Code path review; deploy harvester image for Fargate.
+- **Not done:** None.
+
+## 2026-10-26 — Jobs modal: exclude-all + T1 Limit copy
+
+- **What:** `Exclude all schemas` / `Clear all excludes` on discovery tree; note that T1/T2 need Limit (Focus), not exclude tree.
+- **Why:** Operator UX for large estates; clarify profile scope vs T0 subtractive tree.
+- **Verified:** UI change only.
+- **Not done:** Include-first tree wizard (Phase 2).
+
+## 2026-10-26 — ECS task def: no duplicate env + secret names
+
+- **What:** Removed `XAI_MODEL`, `FOUNDRY_ENDPOINT`, `FOUNDRY_EMBEDDING_ENDPOINT` from plain `environment` in `infra/context/task-definition.json` (still injected via Secrets Manager).
+- **Why:** ECS rejects task definitions when the same name appears in both `environment` and `secrets`.
+- **Verified:** JSON review only.
+- **Not done:** Re-register task definition in AWS console/CLI.
+
+## 2026-10-26 — Orchestrator org resolution after synergy slug change
+
+- **What:** `resolveDefaultOrgId()` in `agents.ts`; orchestrator uses ID before slug lookup.
+- **Why:** Fargate failed with `No PlatformOrg found` when ECS had stale `DEFAULT_ORG_SLUG` but valid `DEFAULT_ORG_ID` / prod DB slug not migrated yet.
+- **Verified:** `scripts/context/list-orgs.ts` against dev writer (slug `synergy` → `cmpm82n5x0000dj0cn3fo9pug`).
+- **Not done:** Register updated ECS task definition in AWS if env still missing `DEFAULT_ORG_SLUG=synergy`.
+
+## 2026-10-26 — Estate pipeline hardening (plan errors, source scoping, tests)
+
+- **What:** Jobs modal surfaces failed `/jobs/plan` (toast + inline, blocks launch); `estate-source-sql.ts` + regression tests; `listEstateObjects` / estate catalog tab / facets / scan-coverage filter by `sourceId`; Prisma doc on `PlatformEstateObject.source_id`.
+- **Why:** Silent plan failures looked like empty scope; scan-coverage and catalog browse could mix sources.
+- **Verified:** `npx vitest run src/lib/context/plan-estate-split.test.ts src/lib/context/estate-source-sql.test.ts src/lib/estate/job-ui.test.ts`.
+- **Not done:** Multi-source picker on Estate catalog (auto-picks first production source).
+
+## 2026-10-26 — planEstateSplit: fix source_id type on estate rows
+
+- **What:** `planEstateSplit` SQL uses `source_id = $2` (no `::uuid` cast); `platform_estate_objects.source_id` is text.
+- **Why:** Plan API failed for verify-estate-1; Jobs modal showed "—" for Limit count despite 22k+ estate rows.
+- **Verified:** `planForKind` returns `totalObjects: 123` for `curated_db.db_smac_prod_navitasai_masters_crewing*`.
+- **Not done:** Align Prisma column type with `platform_context_objects` if desired.
+
+## 2026-10-26 — T0 Limit: live Databricks scope when catalog not in discovery
+
+- **What:** `t0AllowsLiveScopeWhenDiscoveryEmpty` in `job-ui.ts`; plan API sets `liveScopeLaunch` and does not mark `emptyScope` for T0+Limit with 0 local discovery rows; launch `assertObjectsInScope` allows that path; `catalogSchemaMatchesIncludePatterns` in `job-scope.ts` / `queue.ts`; Jobs modal shows “Databricks at run” and refetches plan when Limit changes.
+- **Why:** Limit on `curated_db…` showed “—” / blocked launch when that catalog was not in the 14-catalog discovery tree; T0 still resolves via `resolveScope` at run time.
+- **Verified:** `npx vitest run src/lib/estate/job-ui.test.ts src/lib/context/job-scope.test.ts`.
+- **Not done:** Live table count preview without a Databricks query.
+
+## 2026-10-26 — Text contrast: labels on brand fills and pastel accent text
+
+- **What:** Buttons on solid `--brand-a` fills (Jobs "Run Job" / "Review N jobs", DashboardBuilder, SessionCockpit "Open chat") now use `var(--on-brand)` instead of `inkOf('#FFFFFF')`; red "Delete"/"Yes" buttons in `inspector/dashboards.tsx` and `ChatHistoryPage.tsx` use plain white. In `src/views/agent-lab/estate/jobs.tsx`, pastel accent text (selected job label, kind/status badges, sweep window, scope include, warnings, error box, success counts, current-kind label) goes through `inkOf()`; the model-id span uses `var(--ink-1)`. `ScanCoverageModal.tsx` body/footer text changed from `#FFFFFF` to `var(--ink-1)`; unused `inkOf` imports dropped there and in `SessionCockpit.tsx`.
+- **Why:** `inkOf('#FFFFFF')` mixes white 45% toward `--ink-1`, which turns button labels into a murky mid-tone on the brand fill (unreadable in light theme). Raw dark-theme pastels (`#93C5FD`, `#86EFAC`, `#FDB515`, `#e8ecf0`, `#FFFFFF`) are near-invisible on light surfaces.
+- **Verified:** `npx tsc --noEmit` reports no errors in the touched files. Not checked in a browser.
+- **Not done:** App-wide sweep of other raw pastel hex text colors outside these files.
+
+## 2026-10-26 — Jobs modal: Limit wins over exclude tree
+
+- **What:** `resolveLaunchScopeFilters` in `job-ui.ts`; plan/launch APIs; `jobs.tsx` scope count uses plan when Limit is set.
+- **Why:** P1-20 — Limit + mass exclude showed 0 discovery and blocked valid T0.
+- **Verified:** `npx vitest run src/lib/estate/job-ui.test.ts`.
+- **Not done:** Full include-tree wizard (Phase 2).
+
+## 2026-10-26 — Estate Jobs: inventory scope, multi-source launch, T1 stale-only, knowledge_sync
+
+- **What:** `resolve-launch-source.ts`; scoped `runEstateInventory`; T1 stale filter in `harvest.ts`; `knowledge_sync` in orchestrator; plan/launch `sourceId`; Jobs source picker; `sync-knowledge` launches worker.
+- **Why:** P1-11, P1-14, P1-19, incremental T1 policy.
+- **Verified:** `npx vitest run src/lib/context/job-scope.test.ts src/lib/estate/job-ui.test.ts`.
+- **Not done:** Phase 2 cockpit; explicit overwrite toggles in UI.
+
+## 2026-10-26 — Estate Jobs Phase 0/1 remainder (entry points + T3 + chain)
+
+Complete remaining launch-path fixes from the harvest issues register.
+
+- **What:** `src/lib/context/enqueue-and-launch.ts`; `estate/harvest`, `objects/refresh|enrich`, `jobs/trigger` routes; `usage.ts` qualified SQL match; `orchestrator.ts` chain-on-partial + stub failures; `job-ui.ts` T1/T2-only exclude tree; `HarvestActionBar` scoped T0 trigger.
+- **Why:** P0-1, P0-6, P0-7, P1-4, P1-6, P1-9, P1-15, P1-3.
+- **Verified:** `npx vitest run src/lib/context/job-scope.test.ts src/lib/estate/job-ui.test.ts`.
+- **Not done:** Cockpit wizard (Phase 2); inventory Focus (P1-11); multi-source picker (P1-14).
+
+## 2026-10-26 — Estate Jobs Phase 0 (harvest pipeline)
+
+Unblock first-time T0 launch, honest scope, and single job rows per orchestrator run.
+
+- **What:** `src/lib/context/job-scope.ts`, `planEstateSplit` / `planForKind` in `queue.ts`, plan + launch APIs, `harvest.ts` / `estate.ts`, `orchestrator.ts`, `usage.ts`, `reharvest-all` route, Jobs modal copy in `jobs.tsx`; `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** Issues register P0-1–P0-3, P0-4/5/9, P0-8, P1-1/2/7/8/10, charter Phase 0.
+- **Verified:** `npx vitest run src/lib/context/job-scope.test.ts src/lib/estate/job-ui.test.ts`.
+- **Not done:** P0-6 partial chain policy; P0-7 T3 matching; remaining P0-1 entry points (`estate/harvest`, refresh, enrich); cockpit wizard (Phase 2).
+
+## 2026-10-26 — Default org slug: synergy
+
+Single-tenant Synergy: point default org resolution at slug `synergy` instead of `spinor-demo`.
+
+- `.env` — `DEFAULT_ORG_SLUG=synergy`.
+- `infra/context/task-definition.json` — ECS `DEFAULT_ORG_SLUG=synergy`.
+- **DB:** `UPDATE platform_orgs SET slug = 'synergy', name = 'Synergy' WHERE slug = 'spinor-demo';` on dev RDS via `prisma db execute` (exit 0).
+- **Verified:** `.env` + task definition + SQL script executed successfully on dev writer.
+
+## 2026-10-26 — CI: stop emulating the arm64 web build
+
+The web ECR job ran `linux/arm64` on an x86 GitHub runner, so Buildx executed `npm ci`, Vite, and `next build` under QEMU (~25 min). The previous amd64 image was a native build (~3 min).
+
+- `Dockerfile` — `deps` and `builder` use `FROM --platform=$BUILDPLATFORM` so the compile runs natively. The `runner` stage stays on the target platform (arm64 Node for t4g).
+- `prisma/schema.prisma` — `binaryTargets` adds `linux-musl-arm64-openssl-3.0.x` so `prisma generate` during the native install downloads the Graviton query engine. The image already copies `node_modules/.prisma` into the runner stage.
+- `.github/workflows/ecr-push.yml` — `build-web` gets `actions: write` and a platform-scoped GitHub Actions layer cache (`web-arm64` / `web-amd64`).
+- **Verified:** workflow and Dockerfile review only. Not run on GitHub Actions from this session.
+- **Not done:** no ARM hosted runner. Chart PNG SSR (`@resvg/resvg-js`) stays on the amd64 harvester; the web server does not import it. First cached build still compiles; later builds reuse the deps layer when the lockfile is unchanged.
+
+## 2026-10-26 — Dark mode accent: brighter default Sapphire
+
+Dark-mode accent (`#1F5FD6`) looked dull on the near-black surfaces.
+
+- `src/app/globals.css` (`.dark` theme v2) — `--brand-a` `#2F6BFF`, `--brand-a-2` `#5C8DFF`, soft fill alpha .24, `--brand-a-ink` `#9DBEFF`, `--rail-accent` `#8FB0FF`.
+- `src/lib/theme/appearance.ts` — `MODE_DEFAULTS.dark.accent` and the Sapphire preset match the new value.
+- **Verified:** white-on-`#2F6BFF` contrast computed by hand at about 4.5:1; not checked visually in the browser.
+- **Not done:** custom accents picked by users are still darkened to 4.5:1 against white in dark mode, so very light picks stay muted; the unused shadcn `--accent` (`#2DD4BF`) was left alone.
+
+## 2026-10-26 — Inspector page redesign
+
+Design audit of `/inspector` and fixes. Issues found and what changed:
+
+- **Doubled header.** The app header already shows "Inspector"; the status bar repeated "Data 360 / Inspector / New Session" plus a session-id placeholder (`Session ————`) and "Powered by ALOFT · v0.4". The bar now shows the session title only (session id in its tooltip).
+- **Status looked like a button.** "Databricks connected" was an accent-colored pill with an endless glowing pulse. Now a plain status line with a green / amber / grey dot (`--ok`, `--warn`, `--ink-3`), no animation.
+- **Wrong status when not connected.** It said "checking…" forever when no active connection existed or the request failed. Now tri-state: Checking / connected / not connected.
+- **Context toggle.** A 24×12 custom switch, using hard-coded `#93C5FD` in SQL-only mode (off-theme, weak contrast in light mode). Now a segmented control ("Catalog + SQL | SQL only") built from theme tokens, with `role="radiogroup"`.
+- **Buttons.** 28px buttons with 11–13px icons, accent-tinted borders and JS `onMouseEnter` hover handlers (no keyboard focus, no press feedback, `transition: all`). Now CSS classes with hover gated to fine pointers, `:focus-visible` outlines, `scale(0.97)` on press, explicit transition properties. "New" is now "New session".
+- **Two competing empty states.** Left: mascot + muted heading + fake blinking caret + "ALOFT" wordmark. Right: a second "Ask Inspector anything" message. Now one welcome in the chat column (`InspectorWelcome`): heading in `--ink-1`, one line of explanation, starter questions (the model's governed prompts when a candidate model exists, otherwise three generic ones). The right pane shows a quiet "No results yet" placeholder.
+- **Short questions blocked.** The composer required 10 characters before Send worked, so "revenue?" could not be sent. Inspector now allows any non-empty question; the workbench keeps 10.
+- **Faint text.** The composer's "↵ send" hint sat at 50% opacity; slashes in the breadcrumb at 50%. Opacity removed; muted text uses the muted token at full opacity.
+- **Results hidden by default.** With the pane minimized, new results were invisible. The pane now opens itself whenever a new table, chart, disambiguation or export offer arrives; minimizing again keeps it closed until the next one. The collapsed strip shows a dot when results exist.
+- **Minimize button floated over the tabs.** It is now a trailing action inside the tab bar, which is always shown (so the pane always has a header).
+
+Files: `src/components/inspector/InspectorShell.tsx` (status bar, welcome, layout, CSS), `src/components/inspector/SemanticGovernancePanel.tsx` (`RightPaneTabBar` `trailing` prop), `src/components/inspector/EmptyStatePrompts.tsx` (`showHeading` prop), `src/components/workbench/PromptCanvas.tsx` (`emptyState` prop; per-surface `minLength`), `src/components/workbench/InputComposer.tsx` (hint opacity).
+
+- **Verified:** `tsc --noEmit` on the changed files (see session); not checked in the browser.
+- **Not done:** no resizable split (still 60/40 when open); the generic starter questions are my wording and should be checked against what the agent answers well; the app-level header itself was not changed.
+
+## 2026-10-26 — Inspector: Results/Developer pane minimized by default
+
+- `src/components/inspector/InspectorShell.tsx` — new `rightCollapsed` state (default `true`). Collapsed, the chat takes the full width and a 36px edge strip expands the pane; expanded, a minimize button sits at the pane's top right. The pane stays mounted (hidden), so its state is kept.
+- **Verified:** not run; no `tsc` or browser check yet.
+- **Not done:** the pane does not auto-expand when results arrive, and the choice is not remembered across reloads.
+
+## 2026-10-26 — Dark mode accent: a little brighter still
+
+- `src/app/globals.css` (`.dark`) — `--brand-a` `#3B78FF`, `--brand-a-2` `#6B9BFF`, soft alpha .26, ink `#A9C7FF`, `--rail-accent` `#9DBAFF`.
+- `src/lib/theme/appearance.ts` — dark default and Sapphire preset `#3B78FF`; in dark mode user-picked accents are only darkened to 3.8:1 against white (was 4.5:1), so they stay more vivid.
+- **Verified:** contrast by hand (white on `#3B78FF` ≈ 3.95:1); not checked in the browser.
+- **Not done:** small white text on the accent is now below AA in dark mode (bold buttons are fine).
+
+## 2026-10-26 — Dashboard summary: fewer DB connection spikes (P1001)
+
+Remote dev RDS was returning Prisma `P1001` on memory and login KPIs when `/api/dashboard/summary` opened too many parallel connections.
+
+- `src/lib/db/run-in-batches.ts` — cap concurrent async DB tasks.
+- `src/lib/foer/stats.ts` — FOER stats queries run in batches of 4; traced session count uses `COUNT(DISTINCT session_id)` instead of loading all session ids via `groupBy`.
+- `src/lib/dashboard/summary.ts` — dashboard sections load sequentially; login counts batched (3 at a time); 30s in-memory cache per user/scope.
+- **Verified:** `npm run typecheck` (`tsc --noEmit`) exit 0.
+- **Env:** `.env` `DATABASE_URL` / `DIRECT_URL` include `connection_limit=10&connect_timeout=30`.
+
+## 2026-10-26 — GPT-6 Luna uses global bedrock-runtime
+
+Mumbai (`BEDROCK_MANTLE_REGION=ap-south-1`) has no in-region Mantle or geo runtime for GPT-6 Luna. Title generation and session recaps were calling `openai.gpt-6-luna` on `bedrock-mantle.ap-south-1` and getting 404.
+
+- `src/lib/bedrock/mantle-openai.ts` — Luna chat client now posts to `https://bedrock-runtime.{BEDROCK_MANTLE_REGION}.amazonaws.com/openai/v1` with model `global.openai.gpt-6-luna`. Aliases `gpt-6-luna` and `openai.gpt-6-luna` resolve to that profile when a Bedrock API key is set.
+- Same model id on the inspector chat map, Boost model registry, and workbench model list (`src/app/api/inspector/chat/route.ts`, `src/lib/boost/models.ts`, `src/lib/inspector/providers/foundry-chat.ts`, `src/components/agent-lab/workbench/types.ts`). Scorers take the runtime client for any Luna id.
+- **Verified:** `POST https://bedrock-runtime.ap-south-1.amazonaws.com/openai/v1/chat/completions` with `global.openai.gpt-6-luna` returned 200 and the text `OK`. Title and recap routes use that client; the Inspector chat UI was not re-run.
+- **Not done:** in-region Mantle in us-east-1 is unchanged and unused from this environment. Geo profile `us.openai.gpt-6-luna` is not used.
+
 ## 2026-10-26 — Typography implementation: prose out of monospace, page titles, heading defaults, rem scale
 
 Plan: `docs/audits/typography-implementation-plan.md`. Follow-up to the scale-snap entry below.
