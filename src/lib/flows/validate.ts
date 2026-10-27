@@ -9,14 +9,27 @@ export type FlowValidation =
 
 const REF_PATTERN = /\{\{\s*([a-zA-Z0-9_.[\]]+)\s*\}\}/g;
 
+export type FlowRef = { raw: string; scope: string; name: string; path: string[] };
+
+function parseRef(raw: string, inner: string): FlowRef {
+  const [scope = '', name = '', ...path] = inner.split('.');
+  return { raw, scope, name, path };
+}
+
 /** Extracts every `{{steps.x.y}}` / `{{inputs.z}}` ref from a string. Unknown scopes are returned as-is for the validator to reject. */
-export function extractRefs(value: string): { raw: string; scope: string; name: string; path: string[] }[] {
-  const out: { raw: string; scope: string; name: string; path: string[] }[] = [];
-  for (const match of value.matchAll(REF_PATTERN)) {
-    const [scope = '', name = '', ...path] = match[1]!.split('.');
-    out.push({ raw: match[0], scope, name, path });
-  }
-  return out;
+export function extractRefs(value: string): FlowRef[] {
+  return [...value.matchAll(REF_PATTERN)].map((m) => parseRef(m[0], m[1]!));
+}
+
+/** Replaces every ref in a single pass over `value`, so replacement text is never re-scanned for refs. */
+export function mapRefs(value: string, fn: (ref: FlowRef) => string): string {
+  return value.replace(REF_PATTERN, (raw: string, inner: string) => fn(parseRef(raw, inner)));
+}
+
+/** True when `value` is exactly one ref (surrounding whitespace allowed), e.g. a `when.ref`. */
+export function isSingleRef(value: string): boolean {
+  const refs = extractRefs(value);
+  return refs.length === 1 && value.trim() === refs[0]!.raw;
 }
 
 function collectStrings(value: unknown, into: string[]): void {
@@ -25,10 +38,20 @@ function collectStrings(value: unknown, into: string[]): void {
   else if (value && typeof value === 'object') Object.values(value).forEach((v) => collectStrings(v, into));
 }
 
-/** Step ids a step reads from: explicit `dependsOn` plus every `{{steps.<id>…}}` ref in its config. */
-export function stepDependencies(step: FlowStep): string[] {
+/** Every string in a step that may carry refs: its config and its `when` condition. */
+function stepStrings(step: FlowStep): string[] {
   const strings: string[] = [];
   collectStrings(step.config, strings);
+  if (step.when) {
+    strings.push(step.when.ref);
+    if (typeof step.when.value === 'string') strings.push(step.when.value);
+  }
+  return strings;
+}
+
+/** Step ids a step reads from: explicit `dependsOn` plus every `{{steps.<id>…}}` ref in its config or condition. */
+export function stepDependencies(step: FlowStep): string[] {
+  const strings = stepStrings(step);
   const deps = new Set(step.dependsOn);
   for (const s of strings) {
     for (const ref of extractRefs(s)) if (ref.scope === 'steps') deps.add(ref.name);
@@ -80,9 +103,10 @@ export function validateFlow(raw: unknown): FlowValidation {
       if (!ids.has(dep)) issues.push({ path: `steps.${i}.dependsOn`, message: `unknown step "${dep}"` });
       if (dep === step.id) issues.push({ path: `steps.${i}.dependsOn`, message: 'a step cannot depend on itself' });
     }
-    const strings: string[] = [];
-    collectStrings(step.config, strings);
-    for (const s of strings) {
+    if (step.when && !isSingleRef(step.when.ref)) {
+      issues.push({ path: `steps.${i}.when.ref`, message: 'a condition must be exactly one {{ref}}' });
+    }
+    for (const s of stepStrings(step)) {
       for (const ref of extractRefs(s)) {
         if (ref.scope === 'steps') {
           if (!ids.has(ref.name)) issues.push({ path: `steps.${i}.config`, message: `${ref.raw} refers to unknown step "${ref.name}"` });

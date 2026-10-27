@@ -1,5 +1,5 @@
-import { extractRefs } from './validate';
-import type { FlowDefinition } from './schema';
+import { extractRefs, mapRefs, type FlowRef } from './validate';
+import type { FlowDefinition, StepCondition, TransformOperator } from './schema';
 
 export type ResolveContext = {
   inputs: Record<string, unknown>;
@@ -16,7 +16,7 @@ function lookup(root: unknown, path: string[]): unknown {
   return cur;
 }
 
-function resolveRef(ref: { raw: string; scope: string; name: string; path: string[] }, ctx: ResolveContext): unknown {
+function resolveRef(ref: FlowRef, ctx: ResolveContext): unknown {
   const root = ref.scope === 'steps' ? ctx.steps : ref.scope === 'inputs' ? ctx.inputs : undefined;
   const value = lookup(root, [ref.name, ...ref.path]);
   if (value === undefined) throw new Error(`${ref.raw} could not be resolved`);
@@ -31,12 +31,12 @@ export function resolveString(value: string, ctx: ResolveContext): unknown {
   const refs = extractRefs(value);
   if (!refs.length) return value;
   if (refs.length === 1 && value.trim() === refs[0]!.raw) return resolveRef(refs[0]!, ctx);
-  let out = value;
-  for (const ref of refs) {
+  // Single pass over the saved text: a resolved value that itself contains `{{…}}` or `$&` is
+  // inserted verbatim and can never change what else gets substituted.
+  return mapRefs(value, (ref) => {
     const v = resolveRef(ref, ctx);
-    out = out.replace(ref.raw, typeof v === 'string' ? v : JSON.stringify(v));
-  }
-  return out;
+    return typeof v === 'string' ? v : JSON.stringify(v);
+  });
 }
 
 /** Deep-resolves every string in a step config. Throws if any ref cannot be resolved. */
@@ -62,4 +62,37 @@ export function applyInputs(flow: FlowDefinition, provided: Record<string, unkno
     out[def.name] = value;
   }
   return out;
+}
+
+const asNumber = (v: unknown): number => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN);
+
+/**
+ * Comparison shared by `when` conditions and the `filter` transform. Ordering operators compare as
+ * numbers (non-numeric → false). `eq`/`neq` compare numerically when both sides are numeric, else as
+ * strings. `contains` checks array membership or substring.
+ */
+export function compare(left: unknown, operator: TransformOperator, right: unknown): boolean {
+  switch (operator) {
+    case 'gt':
+      return asNumber(left) > asNumber(right);
+    case 'gte':
+      return asNumber(left) >= asNumber(right);
+    case 'lt':
+      return asNumber(left) < asNumber(right);
+    case 'lte':
+      return asNumber(left) <= asNumber(right);
+    case 'eq':
+    case 'neq': {
+      const [a, b] = [asNumber(left), asNumber(right)];
+      const equal = !Number.isNaN(a) && !Number.isNaN(b) ? a === b : String(left) === String(right);
+      return operator === 'eq' ? equal : !equal;
+    }
+    case 'contains':
+      return Array.isArray(left) ? left.some((x) => String(x) === String(right)) : String(left ?? '').includes(String(right));
+  }
+}
+
+/** Resolves a step's `when` and evaluates it. Throws if the ref cannot be resolved. */
+export function evaluateCondition(when: StepCondition, ctx: ResolveContext): boolean {
+  return compare(resolveString(when.ref, ctx), when.operator, resolveConfig(when.value, ctx));
 }

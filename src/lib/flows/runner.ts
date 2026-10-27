@@ -1,5 +1,6 @@
 import type { FlowDefinition, FlowStep, FlowStepType, RunStatus, StepStatus } from './schema';
-import { applyInputs, resolveConfig, type ResolveContext } from './resolve';
+import { applyInputs, evaluateCondition, resolveConfig, type ResolveContext } from './resolve';
+import { stepDependencies } from './validate';
 
 // Framework-free flow runner. It talks to storage through RunStore and to the outside world through
 // StepExecutors, so it can run in a Next route today and in a worker later without changes.
@@ -10,6 +11,8 @@ export type StepRunState = {
   attempt: number;
   output?: unknown;
   error?: string;
+  /** Why a `skipped` step did not run (condition false, upstream skipped, run failed or cancelled). */
+  skipReason?: string;
 };
 
 /** What an executor returns: either a result, or a request to pause the run for a human. */
@@ -44,6 +47,9 @@ export type ExecuteRunOptions = {
   retryBaseDelayMs?: number;
 };
 
+/** Errors that declare `retryable: false` (policy denials, budget stops) fail the step without further attempts. */
+const isNonRetryable = (err: unknown) => (err as { retryable?: unknown } | null)?.retryable === false;
+
 const sleep = (ms: number) => (ms > 0 ? new Promise<void>((r) => setTimeout(r, ms)) : Promise.resolve());
 
 async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -65,7 +71,7 @@ async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T
 
 /**
  * Runs (or resumes) a flow. Steps run one at a time in `order`; each state change is saved before
- * moving on. Returns the final run status: `waiting_approval` means the run paused and should be
+ * moving on. A step whose `when` is false is skipped, and so is every step that depends on it. Returns the final run status: `waiting_approval` means the run paused and should be
  * resumed by calling executeRun again once the approval step has been marked succeeded.
  */
 export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
@@ -86,12 +92,14 @@ export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
 
   await store.setRunStatus('running');
 
-  const skipRest = async (fromIndex: number) => {
+  const skipRest = async (fromIndex: number, skipReason: string) => {
     for (const id of order.slice(fromIndex)) {
       if (saved.get(id)?.status === 'succeeded') continue;
-      await store.saveStepRun({ stepId: id, status: 'skipped', attempt: saved.get(id)?.attempt ?? 0 });
+      await store.saveStepRun({ stepId: id, status: 'skipped', attempt: saved.get(id)?.attempt ?? 0, skipReason });
     }
   };
+  // Steps skipped by a false condition in this pass; anything that reads them is skipped too.
+  const branchSkipped = new Set<string>();
 
   for (let i = 0; i < order.length; i++) {
     const id = order[i]!;
@@ -100,16 +108,40 @@ export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
     if (prior?.status === 'succeeded') continue;
 
     if (await store.isCancelled()) {
-      await skipRest(i);
+      await skipRest(i, 'run cancelled');
       await store.setRunStatus('cancelled');
       return 'cancelled';
+    }
+
+    const skippedUpstream = stepDependencies(step).find((d) => branchSkipped.has(d));
+    if (skippedUpstream) {
+      branchSkipped.add(id);
+      await store.saveStepRun({ stepId: id, status: 'skipped', attempt: 0, skipReason: `upstream step "${skippedUpstream}" was skipped` });
+      continue;
+    }
+    if (step.when) {
+      let pass: boolean;
+      try {
+        pass = evaluateCondition(step.when, ctx);
+      } catch (err) {
+        const error = `condition: ${err instanceof Error ? err.message : String(err)}`;
+        await store.saveStepRun({ stepId: id, status: 'failed', attempt: 0, error });
+        await skipRest(i + 1, `step "${id}" failed`);
+        await store.setRunStatus('failed', `step "${id}" failed: ${error}`);
+        return 'failed';
+      }
+      if (!pass) {
+        branchSkipped.add(id);
+        await store.saveStepRun({ stepId: id, status: 'skipped', attempt: 0, skipReason: 'condition not met' });
+        continue;
+      }
     }
 
     const executor = executors[step.type] as StepExecutor | undefined;
     if (!executor) {
       const error = `no executor registered for step type "${step.type}"`;
       await store.saveStepRun({ stepId: id, status: 'failed', attempt: 1, error });
-      await skipRest(i + 1);
+      await skipRest(i + 1, `step "${id}" failed`);
       await store.setRunStatus('failed', error);
       return 'failed';
     }
@@ -126,13 +158,14 @@ export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
         result = await withTimeout(step.timeoutMs, (signal) => executor(step, resolved, signal));
       } catch (err) {
         lastError = err instanceof Error ? err.message : String(err);
+        if (isNonRetryable(err)) break;
         if (attempt < maxAttempts) await sleep((opts.retryBaseDelayMs ?? 1000) * 2 ** (attempt - 1));
       }
     }
 
     if (!result) {
       await store.saveStepRun({ stepId: id, status: 'failed', attempt: attemptsUsed, error: lastError });
-      await skipRest(i + 1);
+      await skipRest(i + 1, `step "${id}" failed`);
       await store.setRunStatus('failed', `step "${id}" failed: ${lastError}`);
       return 'failed';
     }

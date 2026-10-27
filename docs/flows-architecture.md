@@ -4,6 +4,8 @@ Status: **proposal** (2026-10-25). Companion to [flows-design.md](flows-design.m
 
 Branch: `feature/flows`. Phase 1 foundation (schema, validator, runner core, tables) is committed there; everything else below is not built.
 
+> **Update 2026-10-26 (`feature/ui-redesign`):** this plan is now the workflow layer of Business AI Studio ([docs/business-ai-studio/](business-ai-studio/README.md)). Built since: semantic `query` mode (task 1.2), a generic `tool` step bound to capability contracts with a policy gateway (`src/lib/capabilities`), `when` conditions, `anti_join`, `webhook` trigger, run budgets, the `transform` executor (part of 1.6), a static policy check, simulation with mocked side effects (an in-memory form of the §10 dry run), and a stateless preview API and UI at `/agent-lab/flows`. Still not built: the Prisma store, service, persisted runs, scheduler, approvals and live executors. Current status: [IMPLEMENTATION_STATUS.md](business-ai-studio/IMPLEMENTATION_STATUS.md).
+
 ---
 
 ## 1. Purpose and scope

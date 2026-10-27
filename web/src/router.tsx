@@ -76,6 +76,7 @@ export const routes: RouteObject[] = [
                 },
                 children: estateRoutes,
               },
+              { path: 'agent-lab/flows', lazy: page(() => import('@/views/agent-lab/flows/index')), handle: title('Flows (preview) · ALOFT') },
               { path: 'agent-lab/history', lazy: page(() => import('@/views/agent-lab/history')) },
               {
                 path: 'agent-lab/memory',

@@ -1,0 +1,100 @@
+import { z } from 'zod';
+import { ApiError, handle, ok, parse } from '@/lib/http';
+import { builtinCapabilityRegistry } from '@/lib/capabilities/registry';
+import { analyzeFlow } from '@/lib/flows/analyze';
+import type { PolicyFinding } from '@/lib/flows/policy';
+import { applyOperations, diffFlows, parseOperations } from '@/lib/flows/copilot';
+import type { Def } from '@/lib/flows/edit';
+import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
+import { proposeFlowEdit } from '@/lib/flows-copilot/propose';
+import { assertFlowsEnabled, estimateAgentCostUsd, flowsRequestContext } from '../_shared';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
+const MAX_BODY_CHARS = 256_000;
+
+const body = z.object({
+  definition: z.record(z.unknown()),
+  message: z.string().trim().min(1).max(4000),
+  history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(20).optional(),
+});
+
+/**
+ * One copilot turn: the model proposes typed edits to the draft it is sent; the server applies them
+ * to a copy, validates the result and runs the policy check for this user. Returns a proposal only.
+ * Nothing is saved and nothing runs: the user accepts it in the editor and saves as usual.
+ * One repair attempt is made when the proposed edits cannot be applied or do not validate.
+ */
+export const POST = handle(async (req) => {
+  assertFlowsEnabled();
+  const { policy, actor } = await flowsRequestContext(req);
+  const text = await req.text();
+  if (text.length > MAX_BODY_CHARS) throw new ApiError(413, `Request body is over ${MAX_BODY_CHARS} characters`);
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new ApiError(400, 'Request body is not valid JSON');
+  }
+  const { definition, message, history } = parse(body, json);
+  if (!inspectorLlmConfigured()) throw new ApiError(503, 'The copilot needs a configured model backend on this server', { code: 'copilot_unavailable' });
+
+  const draft = definition as Def;
+  let repairNote: string | undefined;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role }).catch(
+      (e: unknown) => ({ kind: 'error', detail: e instanceof Error ? e.message : String(e) }) as const,
+    );
+    if (proposal.kind === 'error') {
+      console.error('[flows copilot] model call failed:', proposal.detail);
+      throw new ApiError(502, `The copilot could not get an answer from the model: ${proposal.detail.slice(0, 300)}`, { code: 'copilot_model_error' });
+    }
+    if (proposal.kind === 'text') {
+      // The provider answered without the tool. Ask once more; then pass its answer through.
+      if (attempt === 0) {
+        repairNote = 'You answered in plain text. Answer by calling propose_flow_changes (operations may be an empty list).';
+        continue;
+      }
+      return ok({ reply: proposal.reply || 'I could not work out a change from that. Try describing it differently.', proposal: null });
+    }
+
+    const parsed = parseOperations(proposal.operations);
+    if (!parsed.ok) {
+      repairNote = parsed.errors.join('\n');
+      continue;
+    }
+    if (parsed.operations.length === 0) return ok({ reply: proposal.reply, proposal: null });
+
+    const applied = applyOperations(draft, parsed.operations);
+    if (!applied.ok) {
+      repairNote = applied.errors.join('\n');
+      continue;
+    }
+    const check = (d: unknown) => analyzeFlow(d, { registry: builtinCapabilityRegistry, policy, estimateAgentCostUsd, simulate: false });
+    const analysis = await check(applied.definition);
+    if (!analysis.ok) {
+      repairNote = analysis.issues.map((i) => `${i.path || '(root)'} ${i.message}`).join('\n');
+      continue;
+    }
+    // Which findings this change introduces, so the user is not told about problems the draft already had.
+    const before = await check(draft);
+    const key = (f: PolicyFinding) => `${f.code}|${f.stepId ?? ''}|${f.message}`;
+    const existing = new Set(before.ok ? before.findings.map(key) : []);
+    return ok({
+      reply: proposal.reply,
+      proposal: {
+        definition: applied.definition,
+        changes: applied.changes,
+        diff: diffFlows(draft, applied.definition),
+        findings: analysis.findings,
+        introduced: analysis.findings.filter((f) => !existing.has(key(f))),
+      },
+    });
+  }
+  return ok({
+    reply: 'I could not turn that into a valid change to this workflow. Try a smaller, more specific request, or make the change in the step panel.',
+    proposal: null,
+    problems: repairNote?.split('\n').slice(0, 5),
+  });
+});

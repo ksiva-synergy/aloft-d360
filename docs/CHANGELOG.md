@@ -2,6 +2,81 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — Flows: fix "Start building" and Copilot "did not return a proposal"; Copilot uses Grok 4.7
+
+- **What:**
+  - **Copilot model** (`src/lib/flows-copilot/propose.ts`): it now uses **Grok 4.7** (`grok-xai`, `XAI_MODEL`) whenever `XAI_API_KEY` is set (decision 2026-10-27). Otherwise it uses the model the Workbench resolves for the user's role, or `FLOWS_COPILOT_MODEL_ID` when that is set. It falls back to Grok when a non-Grok call fails, as the Workbench does. The old hard-coded `us.anthropic.claude-sonnet-4-6` default is gone.
+  - **Root cause of "did not return a proposal":** `runAgentLoop` reports a failure as `outcome: 'errored'` instead of throwing, and the adapter ignored that, so any model failure showed as "no proposal". The adapter now returns `proposal | text | error`. The route (`copilot/route.ts`) returns 502 `copilot_model_error` with the provider's reason, and re-asks once when the model answers in plain text. If that second answer is also text, the route passes it through as the reply.
+  - **Grok quirks found in live calls:**
+    - Grok sometimes writes the tool arguments as message text instead of calling the tool (the Foundry/xAI path sends no `tool_choice`). These are accepted only when the whole text is one JSON object with a string `reply` (`toolCallWrittenAsText`).
+    - Grok guessed the semantic filter keys, so the prompt now spells out the filter and sort shapes.
+  - **Start building** (`src/views/agent-lab/flows/index.tsx`, `CopilotPanel.tsx`):
+    - With an empty box it now shows "Describe what you want to automate first" and focuses the box; before, it did nothing.
+    - With a goal it opens the closest template, or a blank workflow when none is close (before, only a small hint), and **sends the goal to Copilot at once**. Before, it only pre-filled the chat box, so nothing was built.
+    - It shows a spinner while looking up templates and an error if the lookup fails.
+- **Why:** user report on 2026-10-27: "Start building ... not working", then "The copilot did not return a proposal".
+- **Verified:**
+  - Full gate: `npx vitest run` 93 files / 721 tests pass. Both typechecks exit 0, ESLint is clean on the Flows folders, and `web:check-bundle` is clean.
+  - New `src/lib/flows-copilot/__tests__/propose.test.ts` (5): Grok routing, the real error reported, text passthrough, the Bedrock override with Grok fallback, and a tool call written as text.
+  - Route tests: 7 (2 new, for model errors and plain-text answers). Page tests: 14 (1 new, for the empty goal and building from scratch).
+  - **Live Grok 4.7 calls** through the real adapter and the real apply/validate path. Editing a template: valid in about 6–9 s. Building from scratch: valid after the prompt fix; before it, the filter keys were wrong. A question: answered after the text-JSON fix; before it, raw JSON.
+- **Not done:** no golden-set evaluation of Grok yet (only three live cases), and responses are not streamed (each turn waits about 2–9 s).
+
+## 2026-10-27 — Flows: builder redesign and Copilot chat editing
+
+- **What:**
+  - **Builder UI** (`src/views/agent-lab/flows/`), replacing the single scrolling page:
+    - **Home** (`index.tsx`): "What would you like to automate?" (matches a template and opens it with Copilot ready), Blank workflow, My workflows list, template cards that show their step types.
+    - **Canvas** (`FlowCanvas.tsx`): trigger plus steps laid out top to bottom with `dagre` from `dependsOn` and `{{steps.x}}` references. Edges are drawn as a transitive reduction, so a step that references an early step does not draw a line past the chain. Steps are real buttons (keyboard and screen reader). The canvas has "+" to add a step after another, zoom, fit and drag-to-pan. Policy findings and test results show on their steps, and Copilot proposals are highlighted (New / Changed). I did not use `@xyflow/react`: it hides nodes until it can measure them, which jsdom cannot do, so page tests could not see the steps.
+    - **Side panel** (`FlowForm.tsx`, now `WorkflowSettings` and `StepEditor`): workflow settings, or the selected step's settings, conditions, dependencies, retries, findings and its sample response for tests.
+    - **Copilot tab** (`CopilotPanel.tsx`): chat with suggestions. Each proposal lists its changes and the blocking issues *it introduces*, previews on the canvas, and changes the draft only on Apply.
+    - **Test run drawer** (`TestRunPanel.tsx`): input form generated from the declared inputs (no JSON), failure drill, and Run / Checks / Summary tabs. A result is marked "Out of date" once the draft changes.
+    - **Header**: status (Not saved / Draft vN / Published vN), unsaved changes, Canvas / Code toggle, Test, Save (Ctrl+S), and Publish (disabled while there are unsaved changes, so the published version is always the one shown). Shared pieces are in `ui.tsx`.
+  - **Copilot backend:**
+    - `src/lib/flows/copilot.ts` (framework-free): typed edit operations (`set_name`, `set_description`, `set_trigger`, `set_budget`, `add_input`, `remove_input`, `add_step`, `update_step`, `remove_step`, `rename_step`) applied all or nothing to a copy of the draft. Also `diffFlows`, `draftEdges` and `reduceEdges`.
+    - `src/lib/flows-copilot/propose.ts`: the model adapter. It reuses the Inspector agent loop with a single forced tool, so the model can only propose. The model is `FLOWS_COPILOT_MODEL_ID`, default `us.anthropic.claude-sonnet-4-6`, the same as the dashboard blueprint proposer.
+    - `POST /api/agent-lab/flows/copilot`: flag and always-enforced auth like the other Flows routes; 503 `copilot_unavailable` when no model backend is configured. It applies, validates and policy-checks the proposal for the requesting user, and makes one repair round if the proposal does not apply or validate. It returns `findings` and `introduced`, the findings the draft did not already have. Nothing is saved or run.
+  - **Shared edits:** the form's edit operations moved to `src/lib/flows/edit.ts`, and `editor-model.ts` re-exports them, so the form and Copilot use the same code. `addStep` can insert after a given step.
+- **Why:** the user asked for a redesign to current workflow-builder practice and for editing by chat as well as UI (decision 2026-10-27).
+- **Verified:**
+  - `npx vitest run`: 91 files, 712 tests pass. New tests: `src/lib/flows/__tests__/copilot.test.ts` (7), `src/app/api/agent-lab/flows/__tests__/copilot.routes.test.ts` (5); `FlowsPreviewPage.test.tsx` was rewritten for the new UI (13, through the real flow core).
+  - `npx tsc --noEmit` and `npx tsc -p web/tsconfig.json --noEmit`: exit 0. ESLint on the Flows, flows-store, flows-copilot and capabilities folders: clean. `npm run web:check-bundle`: clean.
+  - Mutation checks: applying a proposal before Apply fails the page test; dropping the policy check on proposals fails the route test.
+  - Screenshots in Chrome against the running SPA (home, builder, step and test drawer, Copilot proposal, dark theme), with the API answered by the real flow core. They led to these fixes: edge reduction, the proposal banner covering the trigger, a misleading "3 checks would block" count (now only issues the change introduces), and duplicate save labels.
+- **Not done:**
+  - Copilot has **not been run against a live model**; its tests mock the model. There is no golden set of goals yet.
+  - Copilot proposals cannot pick real connection, semantic model or agent ids; the prompt tells the model to use placeholders.
+  - No per-user "locked fields" for Copilot. Accept / Discard is the control.
+  - Chat history is not stored, and sample responses are still not saved with a workflow.
+  - No drag-and-drop to rewire steps; dependencies are edited in the step panel.
+  - The canvas is not virtualised (limit 40 steps).
+
+## 2026-10-27 — Flows: save, reopen, version and publish workflows (dev database)
+
+- **What:**
+  - **Database:** applied the create-only migration `prisma/migrations/20261025_flows` to the **dev** database (`aloft-dev-writer…/aloftdb`) with `prisma db execute`, then `prisma migrate resolve --applied 20261025_flows`. Four new empty tables: `platform_flows`, `platform_flow_versions`, `platform_flow_runs`, `platform_flow_step_runs`. Nothing existing was altered. Rollback: drop those four tables.
+  - **Service** `src/lib/flows-store/service.ts` (outside the flow core, so the core stays free of Prisma): create, list, open, save a new immutable version, publish, unpublish, delete. The creator owns a workflow, and a platform admin can see and manage all of them. Anyone else gets 404, the same as for a missing flow. Saving uses optimistic concurrency (`baseVersion`, 409 on conflict). Saving a new version of a published flow returns it to draft. Deleting is refused once a flow has run history.
+  - **Publish gate, server-side:** the server re-runs the policy check and a simulation of the exact saved version, and refuses on any policy error or a failed simulation. A client cannot claim a pass.
+  - **API:** `GET/POST /api/agent-lab/flows`, `GET/DELETE /:id`, `POST /:id/versions`, `POST/DELETE /:id/publish`. Always-enforced auth (`inspector:use`) and `FLOWS_ENABLED`. Platform admins hold every capability permission in code (`connector:write`, `connector:external`, `flow:sql`), so no permission rows need seeding yet.
+  - **UI:** "My workflows" list, Save workflow / Save new version, Publish vN / Unpublish, draft/published status, and an editable "Sample responses" box (sample data is not stored with the workflow).
+- **Why:** users must be able to come back to a workflow, view it, edit it and publish it. Decisions on 2026-10-27: dev database; creators own their workflows and platform admins can do everything.
+- **Verified:** service tests (8) on an in-memory store; route tests (4 + 5 existing); page tests (15). Mutation checks: removing the owner check fails 2 tests, the simulation gate 1, the policy gate 1. Exact query shapes were run against the real dev tables (create, list with version include, duplicate version rejected with P2002, JSON round trip, cascade delete), and the smoke rows were removed. Typechecks clean.
+- **Not done:** chat editing; running published workflows (no runner, scheduler or approvals yet); sharing with other users or teams (a flow is visible only to its owner and platform admins); per-sample-response storage; `flow:*` permission rows (not needed while only the creator and platform admins can access a workflow). `prisma generate` hit a Windows file lock on the engine DLL (a running dev server holds it); the model code regenerated fine. `migrate status` also lists an older unrelated migration, `20260610_r7_drift_cleanup`, as unapplied; it was left alone.
+
+## 2026-10-27 — Flows added to the sidebar
+
+- **What:** added a "Flows" item (`/agent-lab/flows`) to the Build group in `src/components/agent-lab/staging/nav-config.ts`, before Performance Lab.
+- **Why:** the route existed (`web/src/router.tsx`) but no nav entry linked to it.
+- **Verified:** not run. Edit only; sidebar and command palette both read `NAV_GROUPS`.
+- **Not done:** `FLOWS_ENABLED=true` is still not set in `.env`, so the page shows "not enabled" until the API server is restarted with it.
+
+## 2026-10-26 — Flows preview: form editor for workflows
+
+- **What:** `/agent-lab/flows` now has a **Form | JSON** editor. The form covers name, description, budget, trigger (manual, schedule, webhook, event), inputs, and steps. Steps can be added, removed, reordered and renamed (references update). Every step type has its own fields, plus retries, timeout, "runs after" and a "only run if…" condition. New files: `src/views/agent-lab/flows/editor-model.ts` (pure edit operations), `FlowForm.tsx`. `index.tsx` keeps the JSON as the single source of truth, so the two views cannot drift.
+- **Why:** users must be able to view and configure a workflow without writing JSON.
+- **Verified:** `editor-model.test.ts` (6) and two new page tests: editing through the form and seeing the same JSON, and removing an approval so the server-side check blocks publishing. Flows view tests 12/12, both typechecks, ESLint on the folder and the typography guard are clean.
+- **Not done:** saving and reopening (needs the flow tables), chat editing, a visual canvas, and a structured editor for the semantic query and connector inputs (they are JSON fields inside the form).
+
 ## 2026-10-26 — Close auth findings S1–S4; CI verify gate; ESLint config; bundle leak
 
 - **What:**
@@ -16,6 +91,18 @@ Single running log of changes made in this repo, **newest first**.
 - **Verified:** `npx vitest run` 85 files / 667 tests pass, including the new `src/app/api/__tests__/authz-hardening.test.ts` (12 tests). Mutation checks: removing the session-PATCH owner guard fails 2 tests; removing the policy admin check fails 1. `tsc --noEmit` and `web:typecheck` clean. `web:build` + `web:check-bundle` report "bundle clean". ESLint clean on all touched files.
 - **Behaviour changes to review before deploy:** new Entra users get `member` (existing users unchanged). Non-admins can no longer write policies or catalog entries, or add or edit Databricks connections. Readonly users can no longer run warehouse SQL. Non-owners get 403 on another user's workbench session.
 - **Not done:** repo-wide ESLint now runs and reports **147 pre-existing problems (141 errors) in 84 files**, mostly the new `react-hooks` v7 rules such as `set-state-in-effect` (92). Lint is therefore not in the CI gate yet. The CI `verify` job has not run on GitHub yet. `BlueprintStage.refine-define.test.tsx` failed once under heavy parallel load, and passes alone and in a normal full run. S5–S13 (Inspector observe-mode, JWT role staleness, memory purge and studio-results ownership) remain open. Catalog review comments still take `author` from the body.
+
+## 2026-10-26 — Business AI Studio M0 docs + M1/M2 slice: capability contracts, policy gateway, flow simulation, preview UI
+
+- **What:**
+  - **Flow core** (`src/lib/flows/`): `schema.ts` adds a `tool` step bound to capability contracts, `when` conditions, a semantic `query` mode mirroring `SemanticQuery`, `anti_join`, a `webhook` trigger and a per-run `budget`. `validate.ts` treats condition refs as dependencies. `resolve.ts` substitutes refs in a single pass (data containing `{{…}}` or `$&` was previously re-expanded) and adds a shared `compare`. `runner.ts` skips steps whose condition is false, plus their dependents, and stops retrying `retryable:false` errors. New modules: `policy.ts`, `explain.ts`, `simulate.ts`, `memory-store.ts`, `transforms.ts`, `templates.ts` (5 domains), `recommend.ts`, `analyze.ts`.
+  - **Capabilities** (`src/lib/capabilities/`): contract types, a registry, 5 built-ins (REST, email, team notify, S3 list, OCR; simulation mocks only) and `gateway.ts` (input contract, email egress allowlist, SSRF-safe relative paths, budget meter, live permission re-check, no live call without a handler).
+  - **API:** `GET /api/agent-lab/flows/catalog`, `POST /api/agent-lab/flows/simulate`. Always-enforced `resolveAuth` + `inspector:use`. Off unless `FLOWS_ENABLED=true`. `FLOWS_EGRESS_EMAIL_DOMAINS` defaults to `example.com`.
+  - **UI:** `/agent-lab/flows` (`src/views/agent-lab/flows/index.tsx`, route in `web/src/router.tsx`). No nav entry yet.
+  - **Docs:** `docs/business-ai-studio/` (audit 00–10, ADR-001…007, IMPLEMENTATION_STATUS). Status note in `docs/flows-architecture.md`, link in `ARCHITECTURE.md`.
+- **Why:** first evidence-backed slice of Business AI Studio. One generic pipeline proven on procurement, finance, HR, maritime and custom-API scenarios, with policy enforced in code. Stateless: nothing saved, no real data read, nothing external called.
+- **Verified:** `npx vitest run` 84 files / 655 tests pass (was 80 / 617). `npx tsc --noEmit` and `tsc -p web/tsconfig.json` clean. `npm run web:build` OK, and the Flows chunk has no server markers. Mutation checks: disabling egress fails 2 tests; reverting the resolver fix fails 1; dropping condition-value validation fails 1.
+- **Not done:** persistence and publish (needs the `20261025_flows` migration applied plus decisions D1/D2/D4), live executors and handlers, worker, approvals, LLM planner. **Pre-existing, unrelated:** `web:check-bundle` fails (`useInspectorChatModels` → `model-access` imports `next-auth`/Prisma). ESLint crashes loading its config. CI runs no tests. S1–S4 still open.
 
 ## 2026-10-26 — Lineage + scanned list: fewer pool slots per request
 

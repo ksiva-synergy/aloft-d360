@@ -52,6 +52,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },
       { label: 'Teach',           href: '/agent-lab/teach',      icon: MagicWandIcon },
+      { label: 'Flows',           href: '/agent-lab/flows',      icon: PathIcon },
       { label: 'Performance Lab', href: '/performance-lab',      icon: FlaskIcon },
       { label: 'Bandits',         href: '/agent-lab/bandits',    icon: DiceFiveIcon },
       { label: 'History',         href: '/agent-lab/history',    icon: ClockCounterClockwiseIcon },

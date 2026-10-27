@@ -10,22 +10,59 @@ const stepId = z.string().regex(STEP_ID_PATTERN, 'lowercase letters, digits and 
 /** Strings may embed `{{steps.<id>.<path>}}` refs to earlier step outputs, or `{{inputs.<name>}}`. */
 const text = z.string().min(1).max(8000);
 
+export const TRANSFORM_OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains'] as const;
+
+const comparable = z.union([z.string(), z.number(), z.boolean()]);
+
+/** Run the step only when the comparison holds; otherwise it and every step that reads it are skipped. */
+const stepCondition = z.object({
+  /** Exactly one ref, e.g. `{{steps.late.rowCount}}`. */
+  ref: z.string().min(1).max(300),
+  operator: z.enum(TRANSFORM_OPERATORS),
+  value: comparable,
+});
+
 const base = {
   id: stepId,
   name: z.string().max(120).optional(),
   dependsOn: z.array(stepId).default([]),
   retries: z.number().int().min(0).max(5).default(0),
   timeoutMs: z.number().int().min(1000).max(300_000).default(60_000),
+  when: stepCondition.optional(),
 };
+
+/** Mirrors `SemanticQuery` in src/lib/semantic/types.ts so an executor can pass it to executeSemanticQuery unchanged. */
+const semanticQuery = z.object({
+  modelId: z.string().min(1),
+  entityId: z.string().min(1),
+  dimensions: z.array(z.object({ dimensionId: z.string().min(1), timeGrain: z.enum(['day', 'week', 'month', 'quarter', 'year']).optional() })).default([]),
+  measures: z.array(z.object({ measureId: z.string().min(1) })).default([]),
+  filters: z
+    .array(
+      z.object({
+        fieldId: z.string().min(1),
+        fieldKind: z.enum(['dimension', 'measure']),
+        op: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in', 'between', 'is_null', 'is_not_null']),
+        value: z.unknown(),
+      }),
+    )
+    .default([]),
+  sorts: z.array(z.object({ fieldId: z.string().min(1), fieldKind: z.enum(['dimension', 'measure']), direction: z.enum(['asc', 'desc']) })).default([]),
+  limit: z.number().int().min(1).max(10_000).optional(),
+});
 
 const queryStep = z.object({
   ...base,
   type: z.literal('query'),
-  config: z.object({
-    sql: text,
-    connection: z.string().optional(),
-    maxRows: z.number().int().min(1).max(10_000).default(1000),
-  }),
+  // Exactly one of `semantic` (governed, the default the builder should use) or `sql` (raw, read-only).
+  config: z
+    .object({
+      semantic: semanticQuery.optional(),
+      sql: text.optional(),
+      connection: z.string().optional(),
+      maxRows: z.number().int().min(1).max(10_000).default(1000),
+    })
+    .refine((c) => (c.semantic ? 1 : 0) + (c.sql ? 1 : 0) === 1, { message: 'set exactly one of "semantic" or "sql"' }),
 });
 
 const retrieveStep = z.object({
@@ -49,8 +86,6 @@ const agentStep = z.object({
   }),
 });
 
-export const TRANSFORM_OPERATORS = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains'] as const;
-
 const transformStep = z.object({
   ...base,
   type: z.literal('transform'),
@@ -61,10 +96,18 @@ const transformStep = z.object({
       input: text,
       field: z.string().min(1).max(120),
       operator: z.enum(TRANSFORM_OPERATORS),
-      value: z.union([z.string(), z.number(), z.boolean()]),
+      value: comparable,
     }),
     z.object({ op: z.literal('limit'), input: text, count: z.number().int().min(1).max(10_000) }),
     z.object({ op: z.literal('count'), input: text }),
+    z.object({
+      /** Rows of `input` whose `key` has no match in `other` (by `otherKey`, default `key`). Reconciliation. */
+      op: z.literal('anti_join'),
+      input: text,
+      other: text,
+      key: z.string().min(1).max(120),
+      otherKey: z.string().min(1).max(120).optional(),
+    }),
   ]),
 });
 
@@ -91,6 +134,18 @@ const outputStep = z.object({
   ]),
 });
 
+/** Calls one operation from the capability registry (src/lib/capabilities) through the policy gateway. */
+const toolStep = z.object({
+  ...base,
+  type: z.literal('tool'),
+  config: z.object({
+    capability: z.string().regex(/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/, 'capability id such as "http.request"'),
+    /** Exact version; omitted means the registry's current one, which publishing pins. */
+    version: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
+    input: z.record(z.unknown()),
+  }),
+});
+
 export const flowStepSchema = z.discriminatedUnion('type', [
   queryStep,
   retrieveStep,
@@ -98,6 +153,7 @@ export const flowStepSchema = z.discriminatedUnion('type', [
   transformStep,
   approvalStep,
   outputStep,
+  toolStep,
 ]);
 
 export const flowTriggerSchema = z.discriminatedUnion('type', [
@@ -108,6 +164,8 @@ export const flowTriggerSchema = z.discriminatedUnion('type', [
     cron: z.string().min(1).max(100),
   }),
   z.object({ type: z.literal('event'), name: z.string().min(1).max(100) }),
+  /** External HTTP callback. Its payload is untrusted and is accepted only as the declared, typed inputs. */
+  z.object({ type: z.literal('webhook'), name: z.string().regex(/^[a-z][a-z0-9-]{0,62}$/) }),
 ]);
 
 export const flowInputSchema = z.object({
@@ -123,12 +181,16 @@ export const flowDefinitionSchema = z.object({
   description: z.string().max(1000).optional(),
   trigger: flowTriggerSchema.default({ type: 'manual' }),
   inputs: z.array(flowInputSchema).max(20).default([]),
+  /** Per-run spend limit, enforced before each paid call. */
+  budget: z.object({ maxCostUsd: z.number().positive().max(1000) }).optional(),
   steps: z.array(flowStepSchema).min(1).max(40),
 });
 
 export type FlowStep = z.infer<typeof flowStepSchema>;
 export type FlowStepType = FlowStep['type'];
 export type FlowTrigger = z.infer<typeof flowTriggerSchema>;
+export type StepCondition = z.infer<typeof stepCondition>;
+export type TransformOperator = (typeof TRANSFORM_OPERATORS)[number];
 export type FlowDefinition = z.infer<typeof flowDefinitionSchema>;
 
 export const RUN_STATUSES = ['queued', 'running', 'waiting_approval', 'succeeded', 'failed', 'cancelled'] as const;

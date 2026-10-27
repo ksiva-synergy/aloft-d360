@@ -1479,6 +1479,7 @@ npx tsx --require ./scripts/context/noserver.cjs scripts/context/orchestrator.ts
 | [docs/ai-agent-memory-guide.html](docs/ai-agent-memory-guide.html) | Interactive visual guide for AI, Agent & Memory |
 | [docs/context-harvesting-guide.html](docs/context-harvesting-guide.html) | Context harvesting: schedules, pipeline steps, Inspector walkthrough |
 | [architecture-guide.html](architecture-guide.html) | Interactive plain-English architecture overview |
+| [docs/business-ai-studio/](docs/business-ai-studio/README.md) | Business AI Studio: Flows core (`src/lib/flows`), capability contracts and policy gateway (`src/lib/capabilities`), preview API and UI, audit, ADRs and delivery plan |
 
 ---
 
