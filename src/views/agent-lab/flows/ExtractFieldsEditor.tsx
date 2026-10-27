@@ -22,13 +22,26 @@ export function fieldKey(name: string): string {
 
 const TYPE_LABEL: Record<CustomField['type'], string> = { text: 'Text', date: 'Date', number: 'Number' };
 
-export function ExtractFieldsEditor({ id, fields, onChange }: { id: string; fields: CustomField[]; onChange: (fields: CustomField[]) => void }) {
+export function ExtractFieldsEditor({
+  id,
+  fields,
+  onChange,
+  listLabel = 'Fields to read',
+  describePlaceholder = 'What to read, e.g. the date the certificate expires',
+}: {
+  id: string;
+  fields: CustomField[];
+  onChange: (fields: CustomField[]) => void;
+  /** Accessible name of the list; also used for agent answer fields. */
+  listLabel?: string;
+  describePlaceholder?: string;
+}) {
   const problems = checkCustomFields(fields);
   const patch = (i: number, p: Partial<CustomField>) => onChange(fields.map((f, n) => (n === i ? { ...f, ...p } : f)));
 
   return (
     <div className="space-y-2">
-      <ul aria-label="Fields to read" className="space-y-2">
+      <ul aria-label={listLabel} className="space-y-2">
         {fields.map((f, i) => (
           <li key={i} className="rounded-lg border border-[var(--line-1)] p-2">
             <div className="flex items-start gap-2">
@@ -61,7 +74,7 @@ export function ExtractFieldsEditor({ id, fields, onChange }: { id: string; fiel
                 <input
                   id={`${id}-desc-${i}`}
                   className={field}
-                  placeholder="What to read, e.g. the date the certificate expires"
+                  placeholder={describePlaceholder}
                   value={f.description}
                   onChange={(e) => patch(i, { description: e.target.value })}
                 />

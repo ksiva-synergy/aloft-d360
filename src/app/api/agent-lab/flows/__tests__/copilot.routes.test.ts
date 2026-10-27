@@ -6,7 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http';
 import { getFlowTemplate } from '@/lib/flows/templates';
 
-const { resolveAuth, proposeFlowEdit, llmConfigured, listConnections } = vi.hoisted(() => ({ resolveAuth: vi.fn(), proposeFlowEdit: vi.fn(), llmConfigured: vi.fn(), listConnections: vi.fn() }));
+const { resolveAuth, proposeFlowEdit, llmConfigured, listConnections, listCatalogAgents } = vi.hoisted(() => ({
+  resolveAuth: vi.fn(),
+  proposeFlowEdit: vi.fn(),
+  llmConfigured: vi.fn(),
+  listConnections: vi.fn(),
+  listCatalogAgents: vi.fn(),
+}));
 
 vi.mock('@/middleware/auth', () => ({
   resolveAuth,
@@ -18,6 +24,7 @@ vi.mock('@/lib/lifecycle/log-agent-cost', () => ({ computeCostUsd: () => 0.033 }
 vi.mock('@/lib/flows-copilot/propose', () => ({ proposeFlowEdit }));
 vi.mock('@/lib/inspector/llm-configured', () => ({ inspectorLlmConfigured: llmConfigured }));
 vi.mock('@/lib/connections/service', () => ({ listConnections }));
+vi.mock('@/lib/agents/catalog', () => ({ agentStatusMap: async () => new Map([['regulatory-decision-tracer', { name: 'Regulatory Decision Tracer', status: 'live' }]]), listCatalogAgents }));
 
 import { POST } from '../copilot/route';
 
@@ -33,6 +40,7 @@ beforeEach(() => {
   proposeFlowEdit.mockReset();
   llmConfigured.mockReset().mockReturnValue(true);
   listConnections.mockReset().mockResolvedValue([]);
+  listCatalogAgents.mockReset().mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -158,6 +166,26 @@ describe('flows copilot API', () => {
     expect(sent.history).toHaveLength(20);
     expect(sent.history.at(-1).text).toBe('turn 29');
     expect((await call({ definition: definition(), message: 'x'.repeat(12_001) })).status).toBe(400);
+  });
+
+  it('gives the model the saved agents, and flags an agent step whose agent does not exist', async () => {
+    listCatalogAgents.mockResolvedValue([
+      { slug: 'regulatory-decision-tracer', name: 'Regulatory Decision Tracer', description: 'Traces regulatory decisions', status: 'live', runnable: true, tags: [] },
+      { slug: 'invoice-harmonization-analyst-mvduxnpr', name: 'Invoice Harmonization Analyst', description: null, status: 'draft', runnable: false, tags: ['finance'] },
+    ]);
+    const agentStep = (slug: string) => ({ op: 'add_step', step: { id: 'check_rules', type: 'agent', config: { agentSlug: slug, prompt: 'Check this', answer: [{ key: 'compliant', label: 'Compliant', type: 'text', description: 'yes or no' }] } } });
+    proposeFlowEdit.mockResolvedValueOnce({ kind: 'proposal', reply: 'Added.', operations: [agentStep('regulatory-decision-tracer')] });
+    const good = await (await call({ definition: definition(), message: 'check each rule' })).json();
+    expect(proposeFlowEdit.mock.calls[0]![0].agents).toEqual([
+      { slug: 'regulatory-decision-tracer', name: 'Regulatory Decision Tracer', description: 'Traces regulatory decisions', status: 'live', runnable: true },
+      { slug: 'invoice-harmonization-analyst-mvduxnpr', name: 'Invoice Harmonization Analyst', description: null, status: 'draft', runnable: false },
+    ]);
+    type F = { code: string; stepId?: string };
+    expect(good.proposal.introduced.some((f: F) => f.stepId === 'check_rules' && /agent/.test(f.code))).toBe(false);
+
+    proposeFlowEdit.mockResolvedValueOnce({ kind: 'proposal', reply: 'Added.', operations: [agentStep('made-up-agent')] });
+    const bad = await (await call({ definition: definition(), message: 'check each rule' })).json();
+    expect(bad.proposal.introduced).toContainEqual(expect.objectContaining({ code: 'unknown_agent', stepId: 'check_rules' }));
   });
 
   it('asks again when the model answers in plain text, then passes its text through', async () => {

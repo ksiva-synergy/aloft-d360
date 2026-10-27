@@ -25,6 +25,7 @@ import { StepIcon, btn } from './ui';
 import { TryExtraction } from './TryExtraction';
 import { EXTRACTION_SCHEMAS, getExtractionSchema, type CustomField } from '@/lib/extraction/schemas';
 import { ExtractFieldsEditor } from './ExtractFieldsEditor';
+import { AgentPicker, TryAgent } from './AgentStep';
 
 const CUSTOM = '__own_fields';
 
@@ -187,17 +188,35 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
     case 'agent':
       return (
         <div className="space-y-3">
-          <div className="grid gap-3 grid-cols-2">
-            <Field id={k('agentSlug')} label="Agent" hint="Slug of a saved agent. Blank = plain prompt, no tools.">
-              <input id={k('agentSlug')} className={field} value={c.agentSlug ?? ''} onChange={(e) => set({ agentSlug: e.target.value || undefined })} />
-            </Field>
-            <Field id={k('model')} label="Model" hint="Blank = default.">
-              <input id={k('model')} className={field} value={c.model ?? ''} onChange={(e) => set({ model: e.target.value || undefined })} />
-            </Field>
-          </div>
-          <Field id={k('prompt')} label="Prompt" hint="Use {{steps.<id>.<field>}} and {{inputs.<name>}}. Data from steps is treated as data, not instructions.">
+          <Field id={k('agentSlug')} label="Agent">
+            <AgentPicker id={k('agentSlug')} value={c.agentSlug ?? ''} onChange={(slug) => set({ agentSlug: slug })} />
+          </Field>
+          <Field id={k('model')} label="Model" hint="Blank = default.">
+            <input id={k('model')} className={field} value={c.model ?? ''} onChange={(e) => set({ model: e.target.value || undefined })} />
+          </Field>
+          <Field id={k('prompt')} label="Prompt" hint="Use {{steps.<id>.<field>}}, {{inputs.<name>}} or {{item}}. Data from steps is treated as data, not instructions.">
             <textarea id={k('prompt')} rows={5} className={area} value={c.prompt ?? ''} onChange={(e) => set({ prompt: e.target.value })} />
           </Field>
+          <label className="inline-flex items-center gap-2 text-size-ui text-[var(--ink-1)]">
+            <input
+              type="checkbox"
+              checked={Array.isArray(c.answer)}
+              onChange={(e) => set({ answer: e.target.checked ? [{ key: '', label: '', type: 'text', description: '' }] : undefined })}
+            />
+            Get the answer as specific fields
+          </label>
+          {Array.isArray(c.answer) && (
+            <>
+              <p className="text-size-caption text-[var(--ink-3)]">Later steps can filter, compare and approve on these, e.g. {'{{steps.' + step.id + '.values.<field>}}'}.</p>
+              <ExtractFieldsEditor
+                id={k('answer')}
+                fields={c.answer as CustomField[]}
+                onChange={(answer) => set({ answer })}
+                listLabel="Answer fields"
+                describePlaceholder="What this field means, e.g. yes if the cargo documents comply"
+              />
+            </>
+          )}
         </div>
       );
     case 'transform':
@@ -509,6 +528,19 @@ export function StepEditor({
       <Section title="Settings">
         <StepConfig step={step} def={def} onChange={onChange} capabilities={capabilities} />
       </Section>
+
+      {step.type === 'agent' && (
+        <Section title="Try it">
+          <TryAgent
+            stepId={step.id}
+            agentSlug={step.config.agentSlug as string | undefined}
+            prompt={String(step.config.prompt ?? '')}
+            answer={Array.isArray(step.config.answer) ? (step.config.answer as CustomField[]) : undefined}
+            model={step.config.model as string | undefined}
+            onUseAsSample={(output) => onFixture(output)}
+          />
+        </Section>
+      )}
 
       {step.type === 'tool' && step.config.capability === 'document.extract' && (
         <Section title="Try it">

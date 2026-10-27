@@ -21,6 +21,7 @@ vi.mock('@/middleware/auth', () => ({
   },
 }));
 vi.mock('@/lib/lifecycle/log-agent-cost', () => ({ computeCostUsd: () => 0.033 }));
+vi.mock('@/lib/agents/catalog', () => ({ agentStatusMap: async () => new Map(), listCatalogAgents: async () => [] }));
 vi.mock('@/lib/flows-store/service', () => svc);
 
 import { GET as list, POST as create } from '../route';

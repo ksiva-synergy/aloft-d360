@@ -93,4 +93,27 @@ describe('copilot model adapter', () => {
     expect(prompts[1]).toContain('AVAILABLE CONNECTIONS: none yet');
     expect(prompts[2]).toContain('AVAILABLE CONNECTIONS: (could not be loaded');
   });
+
+  it('tells the model which saved agents exist and which can only be tried', async () => {
+    hasXai.mockReturnValue(true);
+    const prompts: string[] = [];
+    dispatchAgentLoop.mockImplementation(async (_m: unknown, loop: Loop & { messages: { content: { text: string }[] }[]; systemPrompt: string }) => {
+      prompts.push(loop.messages.at(-1)!.content[0]!.text);
+      expect(loop.systemPrompt).toMatch(/Use a saved agent from AVAILABLE AGENTS/);
+      expect(loop.systemPrompt).toMatch(/\{\{steps\.<id>\.values\.<key>\}\}/);
+      return done();
+    });
+    await proposeFlowEdit({
+      definition: def,
+      message: 'x',
+      agents: [
+        { slug: 'regulatory-decision-tracer', name: 'Regulatory Decision Tracer', description: 'Traces regulatory decisions', status: 'live', runnable: true },
+        { slug: 'invoice-harmonization-analyst', name: 'Invoice Harmonization Analyst', description: null, status: 'draft', runnable: false },
+      ],
+    });
+    await proposeFlowEdit({ definition: def, message: 'x' });
+    expect(prompts[0]).toContain('- agentSlug "regulatory-decision-tracer": "Regulatory Decision Tracer" (live) — Traces regulatory decisions');
+    expect(prompts[0]).toContain('- agentSlug "invoice-harmonization-analyst": "Invoice Harmonization Analyst" (draft, can be tried but not published)');
+    expect(prompts[1]).toContain('AVAILABLE AGENTS: (could not be loaded');
+  });
 });

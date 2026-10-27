@@ -86,6 +86,27 @@ export function checkCustomFields(raw: unknown): string[] {
 
 const titleCase = (key: string) => key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
+function isRealDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+/**
+ * Types one answered value by its field type. Shared by document extraction and agent answers so
+ * both accept the same things: a real YYYY-MM-DD date, a number (thousands commas allowed), text.
+ */
+export function typeFieldValue(type: ExtractionFieldType, raw: unknown): { value: string | number | null; issue?: string } {
+  const text = typeof raw === 'string' && raw.trim() ? raw.trim() : typeof raw === 'number' && Number.isFinite(raw) ? String(raw) : null;
+  if (text === null) return { value: null };
+  if (type === 'date') return isRealDate(text) ? { value: text } : { value: null, issue: `"${text}" is not a full date (YYYY-MM-DD)` };
+  if (type === 'number') {
+    const n = Number(text.replace(/,/g, ''));
+    return Number.isFinite(n) ? { value: n } : { value: null, issue: `"${text}" is not a number` };
+  }
+  return { value: text };
+}
+
 /** A schema built from a step's own fields. Call checkCustomFields first. */
 export function schemaFromFields(fields: CustomField[]): ExtractionSchema {
   return {

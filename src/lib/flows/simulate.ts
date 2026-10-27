@@ -102,9 +102,13 @@ export async function simulateFlow(opts: SimulateOptions): Promise<SimulationRep
       meter.charge(cost, `agent step "${step.id}"`);
       note(step.id, { costUsd: (trace.get(step.id)?.costUsd ?? 0) + cost });
       injectFault(step.id);
+      // Same shape as a live agent run (src/lib/agents/run-catalog-agent.ts): answer fields come back
+      // as `values`, here all unknown, so later steps can reference them before a real run.
+      const keys = Array.isArray(step.config.answer) ? step.config.answer.map((f) => String((f as { key?: unknown }).key ?? '')).filter(Boolean) : null;
       return done(
         fromFixture(step.id, () => ({
           text: `[Simulated] ${step.config.agentSlug ? `Agent "${step.config.agentSlug}"` : 'The model'} would answer here. Add a fixture for "${step.id}" to preview real wording.`,
+          ...(keys ? { values: Object.fromEntries(keys.map((k) => [k, null])), missing: keys } : {}),
         })),
       );
     },

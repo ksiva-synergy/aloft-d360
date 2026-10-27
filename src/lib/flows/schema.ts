@@ -100,6 +100,11 @@ const agentStep = z.object({
     agentSlug: z.string().optional(),
     prompt: text,
     model: z.string().optional(),
+    /**
+     * Fields the answer must come back in: [{ key, label?, type: text|date|number, description }].
+     * Later steps read them as {{steps.<id>.values.<key>}}. Checked by the policy check.
+     */
+    answer: z.array(z.record(z.unknown())).max(30).optional(),
   }),
 });
 

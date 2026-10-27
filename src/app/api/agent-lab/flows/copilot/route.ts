@@ -6,8 +6,9 @@ import type { PolicyFinding } from '@/lib/flows/policy';
 import { applyOperations, diffFlows, parseOperations } from '@/lib/flows/copilot';
 import type { Def } from '@/lib/flows/edit';
 import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
-import { proposeFlowEdit, type CopilotConnection } from '@/lib/flows-copilot/propose';
+import { proposeFlowEdit, type CopilotAgent, type CopilotConnection } from '@/lib/flows-copilot/propose';
 import { listConnections } from '@/lib/connections/service';
+import { listCatalogAgents } from '@/lib/agents/catalog';
 import { assertFlowsEnabled, estimateAgentCostUsd, flowsRequestContext } from '../_shared';
 
 export const dynamic = 'force-dynamic';
@@ -57,9 +58,15 @@ export const POST = handle(async (req) => {
       console.warn('[flows copilot] connections unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
       return undefined;
     });
+  const agents: CopilotAgent[] | undefined = await listCatalogAgents()
+    .then((list) => list.map(({ slug, name, description, status, runnable, hasInstructions }) => ({ slug, name, description, status, runnable, hasInstructions })))
+    .catch((e: unknown) => {
+      console.warn('[flows copilot] agents unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
+      return undefined;
+    });
   let repairNote: string | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role, connections }).catch(
+    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role, connections, agents }).catch(
       (e: unknown) => ({ kind: 'error', detail: e instanceof Error ? e.message : String(e) }) as const,
     );
     if (proposal.kind === 'error') {

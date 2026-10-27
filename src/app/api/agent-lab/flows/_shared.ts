@@ -7,6 +7,7 @@ import type { PolicyContext } from '@/lib/capabilities/types';
 import { CAPABILITY_PERMISSIONS } from '@/lib/capabilities/builtin';
 import { RAW_SQL_PERMISSION } from '@/lib/flows/policy';
 import type { Actor } from '@/lib/flows-store/service';
+import { agentStatusMap } from '@/lib/agents/catalog';
 
 // Shared by the Flows preview routes. Not a route file: Next only routes `route.ts`.
 
@@ -32,8 +33,13 @@ export async function flowsRequestContext(req: Request): Promise<{ policy: Polic
   const orgId = getDefaultOrg().id;
   const permissions = new Set(auth.permissions);
   if (auth.role === 'platform_admin') PLATFORM_ADMIN_GRANTS.forEach((p) => permissions.add(p));
+  // Saved agents and their status, so agent steps are checked; if they cannot be loaded the check is skipped.
+  const agents = await agentStatusMap().catch((e: unknown) => {
+    console.warn('[flows] agent catalog unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
+    return undefined;
+  });
   return {
-    policy: { actorId: auth.userId, tenantId: orgId, permissions, egress: { emailDomains: emailDomainAllowlist() } },
+    policy: { actorId: auth.userId, tenantId: orgId, permissions, egress: { emailDomains: emailDomainAllowlist() }, agents },
     actor: { userId: auth.userId, role: auth.role, orgId },
   };
 }
