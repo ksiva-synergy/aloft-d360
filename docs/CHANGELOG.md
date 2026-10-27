@@ -2,6 +2,58 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — Connections are self-service: owned by their creator, private unless shared
+
+- **What:**
+  - Any builder (`inspector:use`) can create S3, Blob and SharePoint connections. The creator owns each one, and it is **private** by default.
+  - The owner can share it with the whole organisation. Others can then test it, browse it and use it in their automations, but cannot change, unshare or delete it, and never see the credentials.
+  - A private connection returns 404 to everyone else, org admins included. A `platform_admin` can manage all of them, the same model as automations.
+  - Names are unique per owner. Each person may own 25 connections (`CONNECTIONS_MAX_PER_USER`).
+  - Renaming or sharing keeps the test status; new settings or credentials reset it.
+  - Each connection reports `visibility`, `ownerName`, `mine` and `canManage`; the server decides these.
+- **Files:**
+  - Data model: `prisma/migrations/20261027_connections/migration.sql` (still not applied; edited in place), adding `visibility` (default `'private'`), unique `(org_id, created_by, name)` and index `(org_id, visibility)`. Matching changes in `prisma/schema.prisma`.
+  - Server: `src/lib/connections/types.ts`, `src/lib/connections/service.ts`, `src/app/api/connections/**`. The routes use one `connectionActor` (`inspector:use`), and the service checks owner, shared or platform admin.
+  - Connections page (`src/views/agent-staging/connections.tsx`): anyone can add a connection. There is a "Who can use it" choice (Only me / Everyone in my organisation), separate "Your connections" and "Shared with you" lists, and sharing badges. Edit and delete appear only where allowed. Deleting a shared connection warns first.
+  - Automate (`src/views/agent-lab/flows/FlowForm.tsx`, `index.tsx`): steps whose operation takes a `connection` get a dropdown of the user's own and shared connections. It stores the id, and links to "Manage connections".
+- **Dependency fix:** `@azure/storage-blob` is pinned to **12.32.0**. 12.33 and later require Node 22, and the Docker images run `node:20-alpine`.
+- **Why:** automations are built by users, not admins, so connections must be self-service. Private by default stops one person's credentials being used by everyone; sharing, together with the reuse-first dropdown, keeps the number of duplicate connections down. The user confirmed this model on 2026-10-27.
+- **Verified:**
+  - New and updated tests:
+    - `src/app/api/connections/__tests__/connections.routes.test.ts`: private by default (404 to others and to org admins); sharing allows use but not change; platform admin access; the per-user cap; a 403 without `inspector:use`.
+    - `src/views/agent-staging/__tests__/ConnectionsPage.test.tsx`: the share choice, and a shared row without edit or delete.
+    - `src/views/agent-lab/flows/__tests__/ConnectionPicker.test.tsx`.
+  - Full suite: 98 files, 752 passed, 2 skipped.
+  - Root and web `tsc` are clean, and eslint is clean on the touched folders. Pre-existing errors in `src/views/agent-staging/users.tsx` are untouched.
+- **Not done:**
+  - The dev database migration was **not applied**: the permission system blocked the write to the shared dev database. To apply it: `npx prisma db execute --file prisma/migrations/20261027_connections/migration.sql --schema ./prisma/schema.prisma`, then `npx prisma migrate resolve --applied 20261027_connections`. A read-only check confirmed the table does not exist yet.
+  - Sharing is all-or-nothing (no per-person or per-team sharing).
+  - There is no publish-time check that the automation owner can still use each connection.
+  - Live handlers that read files are still to come.
+
+## 2026-10-27 — Connections: Amazon S3, Azure Blob and SharePoint (configure, test, browse)
+
+- **What:**
+  - **Page:** Govern → **Connections** (`/agent-staging/connections`, `src/views/agent-staging/connections.tsx`). Add, edit, test, browse and delete connections. Credential fields are write-only: they are sent once, and on edit they are replaced only when filled in.
+  - **Data:** new table `platform_connections` (create-only migration `prisma/migrations/20261027_connections`, model `PlatformConnection`). It holds name, kind, settings and status. Credentials are stored only in AWS Secrets Manager at `aloft/connections/<id>`, the same pattern as Databricks. Unlike the Databricks helper, it uses the default AWS credential chain when no static keys are set (ECS task role).
+  - **Library** `src/lib/connections/`:
+    - `types.ts`: per-kind validation, Azure connection-string parsing, endpoint pinning, redaction and root-folder scoping.
+    - `secrets.ts`: Secrets Manager; delete keeps a 7-day recovery window.
+    - Providers in `providers/`: `s3.ts` (`@aws-sdk/client-s3`, access key, secret and region), `azure-blob.ts` (`@azure/storage-blob`, connection string) and `sharepoint.ts` (Microsoft Graph client-credentials flow over `fetch`, with tenant ID, client ID and secret).
+    - `service.ts`: create (removes the row if the secret cannot be stored), update, delete, test and browse, all audited.
+  - **API:** `GET/POST /api/connections`, `GET/PATCH/DELETE /api/connections/:id`, `POST /api/connections/:id/test`, `GET /api/connections/:id/browse?path=`. Reading the list needs `inspector:use`; everything else needs the admin role.
+  - **Dependencies:** `@aws-sdk/client-s3@3.1063.0` (same release as the existing Secrets Manager client) and `@azure/storage-blob@12.34.0`, both pinned. boto3 was considered at the user's suggestion and not used, because the app is Node/TypeScript; the AWS JS SDK is the equivalent official SDK.
+- **Why:** user request, 2026-10-27. Credentials chosen by the user: S3 access key, secret and region; Blob connection string; SharePoint tenant ID with a Graph app.
+- **Verified:**
+  - `src/lib/connections/__tests__/connections.test.ts` (10): validation, endpoint pinning (e.g. a Blob endpoint at 169.254.169.254 or `*.blob.core.windows.net.evil.com` is refused), redaction, scoping, and each provider against a fake client or fake Graph.
+  - `src/app/api/connections/__tests__/connections.routes.test.ts` (8): credentials never in the database or any response; members cannot change, test or browse; cleanup when Secrets Manager fails; redacted test errors; credentials replaced only when sent; `..` refused; duplicate names refused.
+  - `src/views/agent-staging/__tests__/ConnectionsPage.test.tsx` (4). Screenshots of the list, the form and the browse panel in Chrome against the running SPA, with the API stubbed.
+- **Not done:**
+  - **Not tested against real S3, Azure or SharePoint**, and no Secrets Manager secret has been created; all tests use fakes.
+  - The migration is **not applied** to any database yet.
+  - Read-only: no file reading or uploads yet. Flows steps cannot use these connections yet, because there are no live handlers or runner.
+  - Per-connection permissions beyond admin are not built.
+
 ## 2026-10-27 — Flows: fix "Start building" and Copilot "did not return a proposal"; Copilot uses Grok 4.7
 
 - **What:**

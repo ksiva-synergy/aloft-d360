@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
-import { AlertTriangle, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AlertTriangle, ExternalLink, Plus, Trash2, X } from 'lucide-react';
 import {
   OPERATORS,
   STEP_TYPE_LABEL,
@@ -25,7 +25,8 @@ import { StepIcon, btn } from './ui';
 // step at a time. Every change calls `onChange` with a new definition; validity and policy are
 // always decided on the server.
 
-type Capabilities = { id: string; title: string }[];
+type Capabilities = { id: string; title: string; fields?: Record<string, unknown> }[];
+type ConnectionOption = { id: string; name: string; kind: string; status: string; mine?: boolean; ownerName?: string | null };
 
 const field = 'h-8 w-full rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-2 text-size-ui text-[var(--ink-1)] outline-none focus:border-[var(--brand-a)]';
 const area = 'w-full resize-y rounded-lg border border-[var(--line-1)] bg-[var(--surface-2)] p-2 font-mono text-size-caption text-[var(--ink-1)] outline-none focus:border-[var(--brand-a)]';
@@ -75,6 +76,63 @@ function JsonField({ id, value, onCommit, rows = 6 }: { id: string; value: unkno
         className={area}
       />
       {error && <p className="mt-1 text-size-caption text-[var(--bad)]">Not applied: {error}</p>}
+    </>
+  );
+}
+
+/**
+ * Picks one of the user's connections (their own, or one shared with the organisation) for an
+ * operation that takes a `connection`. Stores the connection id. Reuse comes first; adding a new
+ * one opens the Connections page in a new tab, so the draft here is not lost.
+ */
+function ConnectionPicker({ id, value, onChange }: { id: string; value: string; onChange: (id: string) => void }) {
+  const [list, setList] = useState<ConnectionOption[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch('/api/connections');
+      const data = (await res.json().catch(() => ({}))) as { connections?: ConnectionOption[] };
+      if (cancelled) return;
+      setFailed(!res.ok);
+      setList(res.ok ? (data.connections ?? []) : []);
+    })().catch(() => {
+      if (!cancelled) {
+        setFailed(true);
+        setList([]);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const mine = (list ?? []).filter((c) => c.mine !== false);
+  const shared = (list ?? []).filter((c) => c.mine === false);
+  const label = (c: ConnectionOption) => `${c.name}${c.status === 'error' ? ' (failing)' : c.status === 'untested' ? ' (not tested)' : ''}`;
+  const known = (list ?? []).some((c) => c.id === value);
+  return (
+    <>
+      <select id={id} className={field} value={value} disabled={!list} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{list ? 'Choose a connection…' : 'Loading connections…'}</option>
+        {value && list && !known && <option value={value}>{value} (not available to you)</option>}
+        {mine.length > 0 && (
+          <optgroup label="Yours">
+            {mine.map((c) => <option key={c.id} value={c.id}>{label(c)}</option>)}
+          </optgroup>
+        )}
+        {shared.length > 0 && (
+          <optgroup label="Shared with you">
+            {shared.map((c) => <option key={c.id} value={c.id}>{label(c)}{c.ownerName ? ` · ${c.ownerName}` : ''}</option>)}
+          </optgroup>
+        )}
+      </select>
+      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-size-caption text-[var(--ink-3)]">
+        {failed ? 'Could not load your connections.' : list && list.length === 0 ? 'You have no connections yet.' : 'Use one you already have before adding another.'}
+        <a href="/agent-staging/connections" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline">
+          Manage connections <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
+      </p>
     </>
   );
 }
@@ -216,6 +274,11 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
               {capabilities.map((x) => <option key={x.id} value={x.id}>{x.title} ({x.id})</option>)}
             </select>
           </Field>
+          {capabilities.find((x) => x.id === c.capability)?.fields?.connection !== undefined && (
+            <Field id={k('connection')} label="Connection">
+              <ConnectionPicker id={k('connection')} value={typeof c.input?.connection === 'string' ? c.input.connection : ''} onChange={(v) => set({ input: { ...(c.input ?? {}), connection: v } })} />
+            </Field>
+          )}
           <Field id={k('input')} label="Inputs">
             <JsonField id={k('input')} value={c.input ?? {}} onCommit={(v) => set({ input: v })} rows={7} />
           </Field>

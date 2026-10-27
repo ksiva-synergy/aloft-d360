@@ -3173,3 +3173,27 @@ model PlatformFlowStepRun {
   @@unique([run_id, step_id], map: "uq_platform_flow_step_run")
   @@map("platform_flow_step_runs")
 }
+
+/// External storage connections (S3, Azure Blob, SharePoint). Non-secret settings only; credentials
+/// live in AWS Secrets Manager under `secret_ref` (aloft/connections/<id>). Migration 20261027_connections.
+model PlatformConnection {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  name           String
+  kind           String
+  config         Json      @default("{}")
+  secret_ref     String    @default("")
+  status         String    @default("untested")
+  last_tested_at DateTime? @db.Timestamptz(6)
+  last_error     String?
+  created_by     String
+  /// 'private' (owner only) or 'org' (usable by everyone in the organisation)
+  visibility     String    @default("private")
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, created_by, name], map: "uq_platform_connection_owner_name")
+  @@index([org_id, kind], map: "idx_platform_connection_org_kind")
+  @@index([org_id, visibility], map: "idx_platform_connection_org_visibility")
+  @@map("platform_connections")
+}

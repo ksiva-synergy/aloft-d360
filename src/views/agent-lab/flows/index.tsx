@@ -17,7 +17,7 @@ import { Chip, Segmented, StepIcon, btn, pretty } from './ui';
 // drawer below. Every view edits the same JSON draft; checks, simulation and publishing are decided
 // by /api/agent-lab/flows/* on the server.
 
-type Catalog = { capabilities?: { id: string; title: string }[]; templates: FlowTemplate[]; matches: TemplateMatch[]; egress: { emailDomains: string[] }; publishing: Publishing };
+type Catalog = { capabilities?: { id: string; title: string; fields?: Record<string, unknown> }[]; templates: FlowTemplate[]; matches: TemplateMatch[]; egress: { emailDomains: string[] }; publishing: Publishing };
 type FlowSummary = { id: string; name: string; status: string; version?: number; owner: string; updatedAt: string };
 type Saved = { id: string; version: number; status: string };
 type Notice = { tone: 'ok' | 'bad'; text: string };

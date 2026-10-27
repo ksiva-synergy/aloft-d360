@@ -3,7 +3,7 @@ import {
   MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon, ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
-  LightningIcon, PathIcon, HardDrivesIcon,
+  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
@@ -94,6 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Users',     href: '/agent-staging/users',    icon: UsersIcon },
       { label: 'Policies',  href: '/agent-staging/policies', icon: ShieldCheckIcon },
+      { label: 'Connections', href: '/agent-staging/connections', icon: PlugsConnectedIcon },
       { label: 'Audit Log', href: '/agent-staging/audit',    icon: ScrollIcon },
       { label: 'Docs',      href: '/docs',                   icon: BookOpenIcon },
     ],

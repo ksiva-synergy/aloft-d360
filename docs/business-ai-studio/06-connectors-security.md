@@ -11,6 +11,31 @@ provider adapter ──► connection (identity + scope, per org) ──► capa
 - **P0 set** (contracts implemented, handlers not yet): REST/OpenAPI (`http.request`), email (`email.send`), team notification (`notify.message`), object store (`object_store.list`), OCR/document extraction (`document.extract`). Governed PostgreSQL/warehouse reads go through the ALOFT semantic port (`query` step), not a generic SQL connector. SFTP and maritime-vendor adapters wait for verified demand and known APIs.
 - **MCP / OpenAPI:** an OpenAPI operation or MCP tool is imported as a *capability contract* (fields, binding rules, side-effect class, risk), reviewed, then registered. It is never exposed as a pass-through. The MCP client must follow the MCP authorization specification (2025-11-25, handbook §21) for token audience and scope. Not built.
 
+### 1.1 Storage connections (built 2026-10-27)
+
+Self-service at **Govern → Connections** (`/agent-staging/connections`), and picked per step in Automate.
+
+| Kind | Settings (Postgres, `platform_connections.config`) | Credentials (Secrets Manager, `aloft/connections/<id>`) | Endpoint pinning |
+|---|---|---|---|
+| Amazon S3 | region, bucket, optional root folder | access key ID, secret access key | No custom endpoint; AWS only |
+| Azure Blob | container, optional root folder, account name (derived) | connection string | Must be `https`, an Azure blob host (`<account>.blob.core.windows.net`, US Gov or China suffixes); no dev storage |
+| SharePoint | tenant ID, client ID, site URL, optional library and root folder | client secret | Site must be `https://*.sharepoint.com`; calls go only to `login.microsoftonline.com` and `graph.microsoft.com` |
+
+- **Operations:** read-only for now. Test the credentials, and browse one folder level, scoped under the root folder (`..` is refused).
+- **Access (self-service, 2026-10-27):**
+  - Anyone with `inspector:use` (the people who build automations) can create connections. The creator owns each one.
+  - A new connection is **private**: only the owner can see it. Everyone else gets 404, org admins included, so its existence does not leak.
+  - The owner can share it with the organisation (`visibility: 'org'`). Everyone can then test it, browse it and pick it in an automation. Only the owner can rename, reconfigure, unshare or delete it.
+  - A `platform_admin` can see and manage every connection.
+  - Nobody, owner included, ever sees the credentials again.
+  - Names are unique per owner, not per organisation.
+  - Each person may own up to 25 connections (`CONNECTIONS_MAX_PER_USER`).
+  - Every change is audited, including sharing.
+- **In Automate:** a step whose operation has a `connection` field (`object_store.list`, `document.extract`) shows a dropdown of your own and shared connections. It stores the connection id, keeps showing an id you can no longer use, and links to the Connections page so you reuse a connection before adding another.
+- **Errors:** provider errors are redacted (secret values, SAS signatures, `AccountKey`) before they are stored or shown.
+- **Credential choice (2026-10-27):** access keys and connection strings, chosen by the owner. IAM roles and managed identity are still preferred where available (§2).
+- **Not built yet:** reading file contents, uploads, live capability handlers for Automate (`object_store.list` remains a contract with a simulation mock), knowledge indexing from these sources, sharing with specific people or teams (only private or whole organisation), and a publish-time check that the automation owner may still use each connection it names.
+
 ## 2. Credentials and identity (target)
 
 | Rule | Today | Target |
@@ -18,7 +43,7 @@ provider adapter ──► connection (identity + scope, per org) ──► capa
 | Prefer IAM roles / STS and managed identity, then OAuth, then static secrets in a vault | Databricks: client id and secret in Secrets Manager (`aloft/databricks/{id}`), `secret_ref` in the DB | Same pattern for Studio connections. Handlers fetch secrets at call time inside the worker |
 | Credentials never in definitions, prompts, model-visible output or logs | Definitions hold a connection **name** only (`connection` is a `literal` field). Redaction helpers exist (`src/lib/agent-ops/redact.ts`) | Gateway output filter strips headers and tokens. Log redaction tests |
 | Rotation and revocation | Manual | `Connection.status`, `rotatedAt`. A revoked connection fails calls fast with a clear reason |
-| Who may create connections | **Any signed-in user** for Databricks (S4) | New permission `connection:manage` (admin). Studio does not reuse the Databricks connection route |
+| Who may create connections | Databricks: **any signed-in user** (S4). Storage connections: any builder (`inspector:use`), owner-scoped with optional org sharing (§1.1) | Studio does not reuse the Databricks connection route |
 
 ## 3. Controls implemented this session
 

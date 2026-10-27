@@ -124,6 +124,7 @@ export const routes: RouteObject[] = [
               // ── Govern (agent-staging) ─────────────────────────────────────────────
               { path: 'agent-staging', element: <RedirectTo to="/docs/agents" /> },
               { path: 'agent-staging/audit', lazy: page(() => import('@/views/agent-staging/audit')) },
+              { path: 'agent-staging/connections', lazy: page(() => import('@/views/agent-staging/connections')), handle: title('Connections · ALOFT') },
               { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
               { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
               { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
