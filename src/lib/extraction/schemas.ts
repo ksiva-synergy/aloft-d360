@@ -48,11 +48,70 @@ export const EXTRACTION_SCHEMAS: readonly ExtractionSchema[] = [
 
 const BY_NAME = new Map(EXTRACTION_SCHEMAS.map((s) => [s.name, s]));
 
-export function getExtractionSchema(name: string): ExtractionSchema | undefined {
-  return BY_NAME.get(name);
+export function getExtractionSchema(name: unknown): ExtractionSchema | undefined {
+  return typeof name === 'string' ? BY_NAME.get(name) : undefined;
 }
 
 export const extractionSchemaNames = (): string[] => EXTRACTION_SCHEMAS.map((s) => s.name);
+
+// ── Fields defined by the user in the step, instead of a built-in schema ────────────────────────
+
+export const EXTRACTION_FIELD_TYPES = ['text', 'date', 'number'] as const;
+export const MAX_CUSTOM_FIELDS = 30;
+const FIELD_KEY = /^[a-z][a-z0-9_]{0,39}$/;
+
+/** One field as saved in a step: `{ key, type, description, label? }`. */
+export type CustomField = { key: string; type: ExtractionFieldType; description: string; label?: string };
+
+/** Problems with a step's own field list; empty when it can be used. */
+export function checkCustomFields(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return ['fields must be a list of { key, type, description }'];
+  if (raw.length === 0) return ['add at least one field'];
+  if (raw.length > MAX_CUSTOM_FIELDS) return [`at most ${MAX_CUSTOM_FIELDS} fields`];
+  const problems: string[] = [];
+  const seen = new Set<string>();
+  raw.forEach((f, i) => {
+    const n = `field ${i + 1}`;
+    if (!f || typeof f !== 'object') return void problems.push(`${n} must be { key, type, description }`);
+    const { key, type, description, label } = f as Record<string, unknown>;
+    if (typeof key !== 'string' || !FIELD_KEY.test(key)) problems.push(`${n}: key must be lowercase letters, digits and _ (start with a letter, up to 40), e.g. "expiry_date"`);
+    else if (seen.has(key)) problems.push(`${n}: "${key}" is used twice`);
+    else seen.add(key);
+    if (!EXTRACTION_FIELD_TYPES.includes(type as ExtractionFieldType)) problems.push(`${n}: type must be ${EXTRACTION_FIELD_TYPES.join(', ')}`);
+    if (typeof description !== 'string' || !description.trim() || description.length > 300) problems.push(`${n}: describe what to read (1–300 characters)`);
+    if (label !== undefined && (typeof label !== 'string' || label.length > 80)) problems.push(`${n}: label must be text up to 80 characters`);
+  });
+  return problems;
+}
+
+const titleCase = (key: string) => key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+/** A schema built from a step's own fields. Call checkCustomFields first. */
+export function schemaFromFields(fields: CustomField[]): ExtractionSchema {
+  return {
+    name: 'custom',
+    title: 'Fields chosen for this step',
+    description: 'Any document; read only the fields listed.',
+    fields: Object.fromEntries(fields.map((f) => [f.key, { label: f.label?.trim() || titleCase(f.key), type: f.type, description: f.description.trim() }])),
+  };
+}
+
+/**
+ * The schema a `document.extract` input asks for: a built-in `schema` name or the step's own
+ * `fields`, exactly one of them. Returns the schema, or the problems to show.
+ */
+export function resolveExtractionSchema(input: { schema?: unknown; fields?: unknown }): { ok: true; schema: ExtractionSchema } | { ok: false; problems: string[] } {
+  const hasSchema = input.schema !== undefined && input.schema !== '';
+  const hasFields = input.fields !== undefined;
+  if (hasSchema && hasFields) return { ok: false, problems: ['set either a built-in schema or your own fields, not both'] };
+  if (hasFields) {
+    const problems = checkCustomFields(input.fields);
+    return problems.length ? { ok: false, problems } : { ok: true, schema: schemaFromFields(input.fields as CustomField[]) };
+  }
+  if (!hasSchema) return { ok: false, problems: [`choose what to read: a built-in schema (${extractionSchemaNames().join(', ')}) or your own fields`] };
+  const schema = getExtractionSchema(input.schema);
+  return schema ? { ok: true, schema } : { ok: false, problems: [`unknown extraction schema "${String(input.schema)}"; use one of ${extractionSchemaNames().join(', ')}, or your own fields`] };
+}
 
 /**
  * The JSON Schema the model must answer with: every field present, each with a value (or null), the

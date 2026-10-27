@@ -51,6 +51,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
   const [drawerPath, setDrawerPath] = useState('');
   const [drawerContextObjectId, setDrawerContextObjectId] = useState<string | null>(null);
   const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [scheduledRunning, setScheduledRunning] = useState(false);
 
   const handleFilterChange = useCallback((updates: Partial<EstateFilterState>) => {
     setFilters(prev => ({ ...prev, ...updates, page: 1 }));
@@ -192,6 +193,39 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
     }
   }, [filters.catalog, filters.schema, filters.sourceId, pipelineRunning]);
 
+  const handleRunScheduled = useCallback(async () => {
+    if (!filters.sourceId || scheduledRunning) return;
+    setScheduledRunning(true);
+    try {
+      const res = await fetch('/api/agent-lab/context/estate/run-scheduled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: filters.sourceId,
+          ...(filters.catalog ? { catalog: filters.catalog } : {}),
+          ...(filters.schema ? { schema: filters.schema } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error('Scheduled harvest failed', { description: data.error ?? `HTTP ${res.status}` });
+        return;
+      }
+      if ((data.schemasStarted ?? 0) === 0) {
+        toast.message('No scheduled tables in this scope');
+        return;
+      }
+      toast.success(`Started pipeline for ${data.schemasStarted} schema(s)`, {
+        description: `${data.pathsMarkedQueued ?? 0} table(s) marked queued`,
+      });
+    } catch (err) {
+      console.error('[EstateCatalogTab] run-scheduled error:', err);
+      toast.error('Scheduled harvest failed');
+    } finally {
+      setScheduledRunning(false);
+    }
+  }, [filters.sourceId, filters.catalog, filters.schema, scheduledRunning]);
+
   return (
     <div className="flex h-full w-full overflow-hidden">
       <EstateFacetTree
@@ -214,7 +248,9 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
           onUnschedule={handleBulkUnschedule}
           onScheduleCatalog={handleScheduleCatalog}
           onRunPipeline={filters.catalog ? handleRunPipeline : undefined}
+          onRunScheduled={filters.catalog && filters.sourceId ? handleRunScheduled : undefined}
           pipelineRunning={pipelineRunning}
+          scheduledRunning={scheduledRunning}
           catalogScope={filters.catalog ? (filters.schema ? `${filters.catalog}.${filters.schema}` : filters.catalog) : undefined}
           onClear={() => setSelectedPaths(new Set())}
         />

@@ -10,7 +10,9 @@ interface BulkActionBarProps {
   onUnschedule?: () => void;
   onScheduleCatalog?: (action: 'include' | 'exclude') => void;
   onRunPipeline?: () => void;
+  onRunScheduled?: () => void;
   pipelineRunning?: boolean;
+  scheduledRunning?: boolean;
   catalogScope?: string;
   onClear: () => void;
 }
@@ -22,7 +24,9 @@ export default function BulkActionBar({
   onUnschedule,
   onScheduleCatalog,
   onRunPipeline,
+  onRunScheduled,
   pipelineRunning = false,
+  scheduledRunning = false,
   catalogScope,
   onClear,
 }: BulkActionBarProps) {
@@ -74,7 +78,7 @@ export default function BulkActionBar({
         </>
       )}
 
-      {catalogScope && count === 0 && (onScheduleCatalog || onRunPipeline) && (
+      {catalogScope && count === 0 && (onScheduleCatalog || onRunPipeline || onRunScheduled) && (
         <>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
             Scope: <strong style={{ color: blueColor }}>{catalogScope}</strong>
@@ -94,6 +98,23 @@ export default function BulkActionBar({
               }}
             >
               {pipelineRunning ? 'Launching…' : 'Run pipeline now'}
+            </button>
+          )}
+          {onRunScheduled && (
+            <button
+              type="button"
+              disabled={scheduledRunning}
+              onClick={onRunScheduled}
+              title="Start T0→T1→T2 for schemas with scheduled discovery rows in this scope"
+              style={{
+                ...btnBase,
+                background: 'transparent',
+                color: blueColor,
+                border: `1px solid ${blueDim}`,
+                opacity: scheduledRunning ? 0.6 : 1,
+              }}
+            >
+              {scheduledRunning ? 'Starting…' : 'Run scheduled now'}
             </button>
           )}
           {onScheduleCatalog && (

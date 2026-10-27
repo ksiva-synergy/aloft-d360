@@ -221,7 +221,12 @@ export default function CopilotPanel({ def, pendingId, outcomes, onPropose, onAp
       >
         {unavailable && <p className="mb-2 text-size-caption text-[var(--ink-3)]">Copilot is not available on this server. You can still edit everything in the Edit tab.</p>}
         {!def && <p className="mb-2 text-size-caption text-[var(--ink-3)]">Fix the code view first: Copilot needs a readable draft.</p>}
-        <div className={cn('flex items-end gap-2 rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] p-2 focus-within:border-[var(--brand-a)]', (!def || unavailable) && 'opacity-60')}>
+        <div
+          className={cn(
+            'flex items-end gap-2 rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] p-2 transition-[border-color,box-shadow] duration-150 focus-within:border-[color-mix(in_srgb,var(--brand-a)_50%,var(--line-1))] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--brand-a)_12%,transparent)]',
+            (!def || unavailable) && 'opacity-60',
+          )}
+        >
           <label htmlFor="copilot-input" className="sr-only">
             Describe a change
           </label>

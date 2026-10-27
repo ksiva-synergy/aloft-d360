@@ -1,7 +1,7 @@
 # Harvest jobs — remediation charter & cockpit UX plan
 
 **Date:** 2026-10-24  
-**Status:** Plan (not implemented)  
+**Status:** Phase 0–1 done; Phase 2 v1 (cockpit API + include-tree) shipped 2026-10-27 — see [current-status.md](../jobs/current-status.md)  
 **Companion:** [harvest-job-pipeline-issues.md](./harvest-job-pipeline-issues.md) (issues register) · [estate-jobs.md](../estate-jobs.md) (current mental model)
 
 ---

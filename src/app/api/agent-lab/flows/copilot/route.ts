@@ -17,8 +17,15 @@ const MAX_BODY_CHARS = 256_000;
 
 const body = z.object({
   definition: z.record(z.unknown()),
-  message: z.string().trim().min(1).max(4000),
-  history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(20).optional(),
+  // Long enough for a pasted field list or a sample of document text.
+  message: z.string().trim().min(1).max(12_000),
+  // Earlier turns are context only: long ones are shortened and only the latest are kept, so a long
+  // paste or a long conversation never makes the next request fail. The body cap still applies.
+  history: z
+    .array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().transform((t) => t.slice(0, 4000)) }))
+    .max(200)
+    .transform((turns) => turns.slice(-20))
+    .optional(),
 });
 
 /**

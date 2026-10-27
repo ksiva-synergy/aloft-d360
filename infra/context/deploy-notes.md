@@ -109,6 +109,10 @@ Optional: add `FOUNDRY_ENDPOINT` / `FOUNDRY_EMBEDDING_ENDPOINT` to the secret **
 
 **Estate embed jobs:** catalog vectors use Bedrock Titan v2 (`amazon.titan-embed-text-v2:0`, `BEDROCK_EMBED_REGION` → `BEDROCK_REGION` → `us-east-1`) through the task role or a Bedrock API key. Rows are embedded in parallel; `EMBED_BULK_CONCURRENCY` sets the limit (1–16, default 8). There is no OpenAI fallback for catalog vectors because search only compares vectors from the same model.
 
+### Scheduled schema harvest (optional)
+
+Catalog **Schedule all** sets `harvest_state=scheduled` on estate rows. The repo `task-definition.json` includes `--process-scheduled` on the orchestrator command (drains up to 3 schemas per active source each loop). Remove that argv if you prefer UI-only **Run scheduled now**. Web-only deploy does **not** change Fargate behavior — register task def + harvester image.
+
 ## Required Env Vars — Org Resolution
 
 These must be set in **every environment** (local `.env.local`, Vercel, CI).

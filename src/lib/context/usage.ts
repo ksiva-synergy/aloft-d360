@@ -7,7 +7,13 @@ import { Prisma } from '@prisma/client';
 import { DatabricksAdapter } from './databricks-adapter';
 import type { RawHistoryRow } from './databricks-adapter';
 import { getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
-import { pathExcludedBySchemas, pathMatchesIncludePatterns, statementReferencesObject } from './job-scope';
+import {
+  pathExcludedBySchemas,
+  pathMatchesIncludePatterns,
+  buildQueryHistoryStatementSqlFilter,
+  prefilterHistoryRowsForObjects,
+  statementReferencesObject,
+} from './job-scope';
 
 // ── Usage narrative prompt ────────────────────────────────────────────────────
 
@@ -517,19 +523,7 @@ export async function runT3Usage(
     last_sweep_at: sourceRow.last_sweep_at,
   };
 
-  // ── STEP A: windowed query history scan (cursor-paginated, capped) ───────────
-  console.log(`[t3_usage] pulling query history: since=${since.toISOString()} until=${until.toISOString()} rowCap=${rowCap}`);
-  const { rows: historyRows, nextCursor } = await adapter.pullQueryHistoryWindow(source, since, until, rowCap);
-  console.log(`[t3_usage] history rows fetched: ${historyRows.length}${nextCursor ? ` (capped — nextCursor=${nextCursor.toISOString()})` : ''}`);
-
-  // ── STEP A2: lineage scans (before per-object loop — one scan each) ──────────
-  const tableLineageRows = await adapter.pullTableLineage(source, windowDays, lineageRowCap);
-  console.log(`[t3_usage] table_lineage rows: ${tableLineageRows.length}${tableLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
-
-  const columnLineageRows = await adapter.pullColumnLineage(source, windowDays, lineageRowCap);
-  console.log(`[t3_usage] column_lineage rows: ${columnLineageRows.length}${columnLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
-
-  // ── STEP B: per-object attribution ──────────────────────────────────────────
+  // ── STEP B (prep): in-scope scanned objects for attribution + history filter ─
   const objectsRaw = await prisma.platformContextObject.findMany({
     where: { org_id: orgId, source_id: sourceId },
     include: {
@@ -546,6 +540,34 @@ export async function runT3Usage(
   const scopeNote =
     scopePatterns.length > 0 || excludeSchemas.length > 0 ? ' (scoped)' : '';
   console.log(`[t3_usage] objects to process: ${objects.length}${scopeNote}`);
+
+  // ── STEP A: windowed query history scan (cursor-paginated, capped) ───────────
+  const statementTextSqlFilter =
+    scopePatterns.length > 0 || excludeSchemas.length > 0
+      ? buildQueryHistoryStatementSqlFilter(objects)
+      : null;
+  console.log(
+    `[t3_usage] pulling query history: since=${since.toISOString()} until=${until.toISOString()} rowCap=${rowCap}` +
+      (statementTextSqlFilter ? ' (scoped SQL filter)' : ''),
+  );
+  const { rows: historyRowsRaw, nextCursor } = await adapter.pullQueryHistoryWindow(
+    source,
+    since,
+    until,
+    rowCap,
+    { statementTextSqlFilter },
+  );
+  const historyRows = prefilterHistoryRowsForObjects(historyRowsRaw, objects);
+  console.log(
+    `[t3_usage] history rows fetched: ${historyRowsRaw.length}${nextCursor ? ` (capped — nextCursor=${nextCursor.toISOString()})` : ''} → ${historyRows.length} after in-scope table filter`,
+  );
+
+  // ── STEP A2: lineage scans (before per-object loop — one scan each) ──────────
+  const tableLineageRows = await adapter.pullTableLineage(source, windowDays, lineageRowCap);
+  console.log(`[t3_usage] table_lineage rows: ${tableLineageRows.length}${tableLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
+
+  const columnLineageRows = await adapter.pullColumnLineage(source, windowDays, lineageRowCap);
+  console.log(`[t3_usage] column_lineage rows: ${columnLineageRows.length}${columnLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
 
   const now = until;
   const windowStart = since;

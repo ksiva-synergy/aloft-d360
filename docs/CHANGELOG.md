@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — CI: remove orphan Next job pages (SPA-only app shell)
+
+- **What:** Deleted `src/app/(agent)/agent-lab/estate/jobs/**/page.tsx` added during PR #27 merge. This repo’s Next app has **no** `app/layout.tsx`; all UI URLs rewrite to `public/spa` (`next.config.ts`). Estate Jobs stay in `src/views/agent-lab/estate/jobs.tsx` + React Router.
+- **Why:** Docker `next build` failed: “doesn't have a root layout”.
+- **Verified:** No remaining `page.tsx` under `src/app` except API routes; `npm run build` locally recommended after pull.
+
 ## 2026-10-25 — CI: arm64 web image for Beanstalk
 
 - **What:** `.github/workflows/ecr-push.yml` builds the web image as `linux/arm64` (Buildx; override with `DOCKER_PLATFORM_WEB`). Harvester stays amd64 on the runner.
@@ -53,6 +59,32 @@ Single running log of changes made in this repo, **newest first**.
 - Verified: static HTML (open in browser); no app build required.
 
 ## 2026-10-21 — SSO-only authentication
+
+## 2026-10-27 — Automate: read your own fields from documents, set up from the panel or by chat
+
+- **What:**
+  - **Own fields:** an "Extract document fields" step can now read the user's own fields instead of a built-in schema. Its input takes either `schema` or `fields: [{ key, label, type: text|date|number, description }]` (1–30 fields), not both. `src/lib/extraction/schemas.ts` adds `checkCustomFields`, `schemaFromFields` and `resolveExtractionSchema`. Grok gets exactly those fields, with the same rules as before: a value needs its source text, dates must be real dates, numbers must parse.
+  - **Step panel:**
+    - "What to read" now has **My own fields…**, which opens a field editor (`src/views/agent-lab/flows/ExtractFieldsEditor.tsx`).
+    - People type a plain name ("Expiry date"); the reference key (`values.expiry_date`) is derived from it and shown.
+    - Problems such as a missing description or the same name twice are listed under the editor.
+    - **Try on a file** sends the field list.
+  - **Copilot:**
+    - New instructions: when the user names what they want read, pastes a list of fields, or pastes a sample of the document text, Copilot builds the field list, choosing sensible types, and says which fields it added. It doesn't add fields that weren't asked for.
+    - It now sends the complete `input` when changing a tool step, because the editor replaces `input` as a whole.
+  - **Checked while editing:** capability contracts can declare `checkLiteral` (`src/lib/capabilities/types.ts`), and the policy check reports its problems as `invalid_input` errors (`src/lib/flows/policy.ts`). A bad field list, or a step with neither a schema nor fields, is flagged while editing and blocks publishing, without running anything.
+  - **API:** `POST /api/connections/:id/extract` accepts `fields` as well as `schema`, and the audit now records the field count.
+  - **Copilot API:** a message can be up to 12,000 characters, enough to paste a document sample. Earlier turns are shortened to 4,000 characters and only the latest 20 are kept, so a long paste or a long conversation no longer makes the next request fail. Before this, the panel sent the whole history and the server rejected more than 20 turns or any turn over 4,000 characters.
+- **Why:** the user wants new document types without a developer. People define the fields themselves, or say or paste what they need in chat and Copilot does it for them.
+- **Verified:**
+  - New tests:
+    - `src/lib/extraction/__tests__/custom-fields.test.ts`: list rules, schema building, the editing-time error, a simulated run with own fields;
+    - `src/views/agent-lab/flows/__tests__/ExtractFields.test.tsx`: building a list in the panel, key derivation, Try on a file sends the list, problems shown;
+    - an own-fields case in `src/app/api/connections/__tests__/extract.routes.test.ts`, including numbers parsed from "1,204";
+    - Copilot route cases for a proposed field list, a bad list flagged, a long paste and a long history;
+    - prompt checks in `propose.test.ts`.
+  - **Live check with Grok 4.7** (made-up example): from a pasted six-line list of wanted values for "every report listed", Copilot proposed a step that repeats for each listed report, uses the user's real S3 connection, and reads six fields with sensible types (inspection date as date, deficiency count as number, IMO number as text). The proposal passed validation with no errors.
+- **Not done:** the field list is per step, so it can't yet be saved as a reusable named schema for others. There's no per-field date-order hint for ambiguous dates such as `02/07/1985`.
 
 ## 2026-10-27 — ADR-013: document extraction, Grok directly now, the DATA360 OCR gateway later
 
@@ -153,6 +185,20 @@ Single running log of changes made in this repo, **newest first**.
   - There is no publish-time check that the automation owner can still use each connection.
   - Live handlers that read files are still to come.
 
+## 2026-10-27 — Search fields: softer focus (no boxy inner highlight)
+
+- **What:** `globals.css` removes default `outline` on focused inputs/textareas (parent shells show focus); softer `::selection`; Automate goal field + staging sidebar filter use a light outer glow instead of harsh border/ring; `autocomplete="off"` on goal/filter to reduce browser “saved info” overlays.
+- **Files:** `src/app/globals.css`, `src/views/agent-lab/flows/index.tsx`, `ui.tsx`, `CopilotPanel.tsx`, `StagingSidebar.tsx`.
+- **Why:** user report — orange rectangular highlight in search looked wrong.
+- **Verified:** visual/CSS only; refresh Automate home and sidebar filter.
+
+## 2026-10-27 — T4: heuristic vs LLM sample compare (fixtures + script)
+
+- **What:** `scripts/context/compare-t4-samples.ts`, `compare-proposals.test.ts`, shared `object-t2-context.ts`, and fixture `__fixtures__/sample-cluster.ts` (2-table `crew_ops` cluster). Heuristic output mirrors `heuristic-proposal.ts`; LLM path uses `llm-cluster-proposal.ts` + `harvestLlmComplete` when `--llm` or `RUN_T4_LLM_COMPARE=1`.
+- **Why:** user asked to test and compare rules-based T4 vs legacy-style AI on a few samples.
+- **Verified:** `npx vitest run src/lib/context/t4/compare-proposals.test.ts` (2 passed, 2 skipped); `npx tsx ... compare-t4-samples.ts --llm` on fixtures (~90s) — cluster entity labels align; join SQL and dim typing differ (see session notes).
+- **Not done:** refactor production `entity-propose-logic` to import `heuristic-proposal`; live DB `--ids` not run in this session.
+
 ## 2026-10-27 — Connections: Amazon S3, Azure Blob and SharePoint (configure, test, browse)
 
 - **What:**
@@ -196,6 +242,13 @@ Single running log of changes made in this repo, **newest first**.
   - **Live Grok 4.7 calls** through the real adapter and the real apply/validate path. Editing a template: valid in about 6–9 s. Building from scratch: valid after the prompt fix; before it, the filter keys were wrong. A question: answered after the text-JSON fix; before it, raw JSON.
 - **Not done:** no golden-set evaluation of Grok yet (only three live cases), and responses are not streamed (each turn waits about 2–9 s).
 
+## 2026-10-27 — T4 semantic bootstrap handlers (re-implement)
+
+- **What:** `src/lib/context/t4/*` and `scripts/context/t4-handlers.ts` implement `t4_scan` → `t4_entity_propose` → `t4_dim_propose` (T2-card-driven proposals into `platform_sem_*`, `last_t4_at`); orchestrator wired; `t4_scan` enabled in Jobs launch and trigger.
+- **Why:** replace stubbed “not ported” T4 so Inspector digest and metrics bootstrap can run after harvest.
+- **Verified:** vitest `src/lib/context/t4/scan-estate.test.ts`.
+- **Not done:** legacy per-schema Bedrock LLM from `aloft-platform`; harvester image deploy.
+
 ## 2026-10-27 — Flows: builder redesign and Copilot chat editing
 
 - **What:**
@@ -224,6 +277,25 @@ Single running log of changes made in this repo, **newest first**.
   - Chat history is not stored, and sample responses are still not saved with a workflow.
   - No drag-and-drop to rewire steps; dependencies are edited in the step panel.
   - The canvas is not virtualised (limit 40 steps).
+
+## 2026-10-27 — Jobs cockpit v1, T3 SQL scope, estate link, ECS scheduled drain
+
+- **What:**
+  - **Cockpit:** `GET /api/agent-lab/context/jobs/cockpit` (`src/lib/estate/cockpit.ts`) — pipeline health counts + recommended next step; `JobsCockpitPanel` on Estate → Jobs L1.
+  - **Launch modal:** include-first scope mode (“Limit to selected schemas”) via `resolveModalLaunchScope` (`job-ui.ts`); schedules show `scopeNote` (P2-15).
+  - **T3:** `buildQueryHistoryStatementSqlFilter` pushdown in `pullQueryHistoryWindow` when job scope is narrow (`job-scope.ts`, `usage.ts`, `databricks-adapter.ts`).
+  - **P1-16:** T0 upsert sets `platform_estate_objects.context_object_id` (`harvest.ts`).
+  - **ECS:** `infra/context/task-definition.json` orchestrator command includes `--process-scheduled`.
+- **Why:** close Phase 2/3 backlog items from remediation charter (cockpit, honest scope, T3 P2-5 remainder, scheduled schema drain).
+- **Verified:** vitest `job-scope.test.ts`, `job-ui.test.ts` (17 passed).
+- **Not done:** T4/inspector port (still fails in orchestrator); full 4-step intent wizard; production deploy.
+
+## 2026-10-27 — Harvest pipeline audit register refresh
+
+- **What:** `docs/audits/harvest-job-pipeline-issues.md` — §0 remediation snapshot (Fixed/Partial/Open per P0/P1 IDs), updated §8 scope matrix, §9 launch entry points, §10 orchestrator status, §15 open work. `infra/context/deploy-notes.md` — optional `--process-scheduled` on ECS orchestrator command.
+- **Why:** operators and agents were using a stale “findings only” register after Phase 0/1 fixes shipped.
+- **Verified:** Cross-checked against `docs/jobs/current-status.md` and recent session fixes; no code change.
+- **Not done:** Phase 2 cockpit wizard; T3 SQL pushdown; production deploy verification.
 
 ## 2026-10-27 — Flows: save, reopen, version and publish workflows (dev database)
 
@@ -305,6 +377,20 @@ Single running log of changes made in this repo, **newest first**.
 - **Why:** Dev hit P2024 (`connection_limit=10`) when summary polled in parallel with facets and six-wide coverage SQL.
 - **Verified:** Typecheck on touched modules; manual Estate/Jobs after restart.
 - **Not done:** Split coverage into a dedicated endpoint for dashboards; batch `listScannedObjects` triple `Promise.all`.
+
+## 2026-10-27 — T3 history filter, multi-source launch, orchestrator scheduled
+
+- **What:** `prefilterHistoryRowsForObjects` in T3 usage; backtick SQL in `statementReferencesObject`; launch loops **all** resolved sources (P1-14); orchestrator `--process-scheduled` runs scheduled estate pipelines (3 schemas/source max).
+- **Why:** P0-7/P2-5 T3 scope; multi-source org launches; optional auto scheduled harvest on worker start.
+- **Verified:** vitest `job-scope.test.ts`.
+- **Not done:** SQL-side history catalog filter in Databricks; Phase 2 wizard.
+
+## 2026-10-27 — Estate/Jobs remaining gaps batch
+
+- **What:** Source harvest/inventory/refresh routes launch Fargate workers; `run-scheduled` API + Catalog **Run scheduled now**; runner flags (`forceFullScan`, `forceReprofile`, `forceReEnrich`) on launch scope + Jobs modal checkboxes; T2 `forceReEnrich`; chain copies flags; T1/T2 heartbeats on claimed job id; Jobs picker hides disabled kinds.
+- **Why:** Close P1-9-adjacent launch paths, scheduled-vs-run gap, and versioned re-run without separate “overwrite” product.
+- **Verified:** vitest `job-scope-flags`, `catalog-pipeline`, `job-ui`.
+- **Not done:** Phase 2 wizard; T3 SQL match quality (P0-7); T3 history catalog filter (P2-5); full audit doc refresh.
 
 ## 2026-10-26 — ECS task def: drop missing Secrets Manager JSON keys
 

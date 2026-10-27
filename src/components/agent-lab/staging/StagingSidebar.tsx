@@ -163,14 +163,15 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
             </p>
 
             {!isHome && (
-              <label className="mb-2 flex h-9 items-center gap-2 rounded-full border border-[var(--line-1)] bg-[var(--surface-2)] px-3 text-[var(--ink-3)] transition-colors focus-within:border-[var(--brand-a)] focus-within:bg-[var(--surface-1)] focus-within:ring-4 focus-within:ring-[var(--brand-a-soft)]">
+              <label className="mb-2 flex h-9 items-center gap-2 rounded-full border border-[var(--line-1)] bg-[var(--surface-2)] px-3 text-[var(--ink-3)] transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-[color-mix(in_srgb,var(--brand-a)_50%,var(--line-1))] focus-within:bg-[var(--surface-1)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
                 <MagnifyingGlassIcon size={15} className="shrink-0" />
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder={`Filter ${area.label.toLowerCase()}`}
                   aria-label={`Filter ${area.label}`}
-                  className="w-full bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+                  autoComplete="off"
+                  className="w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
                 />
               </label>
             )}

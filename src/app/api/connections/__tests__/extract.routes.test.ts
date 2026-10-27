@@ -81,6 +81,31 @@ describe('document extraction API', () => {
     expect(audited).not.toContain('JOHN SMITH');
   });
 
+  it('reads the caller’s own fields, typed as asked', { timeout: 30_000 }, async () => {
+    h.read.mockResolvedValue({ name: 'report.png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]) });
+    h.vision.mockResolvedValue({
+      content: JSON.stringify({ document_type: 'PSC inspection report', fields: { vessel_name: { value: 'MV EXAMPLE', page: 1, evidence: 'Ship: MV EXAMPLE' }, deficiencies: { value: '1,204', page: 1, evidence: 'Deficiencies: 1,204' } } }),
+      model: 'grok-4.7',
+      inputTokens: 900,
+      outputTokens: 60,
+    });
+    const own = [
+      { key: 'vessel_name', label: 'Vessel name', type: 'text', description: 'Name of the vessel' },
+      { key: 'deficiencies', type: 'number', description: 'Number of deficiencies' },
+    ];
+    const res = await call('c-1', { path: 'report.png', fields: own });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Object.keys(h.vision.mock.calls[0]![0].jsonSchema.properties.fields.properties)).toEqual(['vessel_name', 'deficiencies']);
+    expect(data).toMatchObject({ schema: 'custom', values: { vessel_name: 'MV EXAMPLE', deficiencies: 1204 } });
+    expect(h.audit.mock.calls[0]![0].after).toMatchObject({ schema: 'custom', fields: 2 });
+
+    const bad = await call('c-1', { path: 'report.png', fields: [{ key: 'Bad Key', type: 'text', description: 'x' }] });
+    expect(bad.status).toBe(422);
+    expect((await bad.json()).error).toMatch(/key must be lowercase/);
+    expect(h.vision).toHaveBeenCalledTimes(1);
+  });
+
   it('caps the pages sent', { timeout: 30_000 }, async () => {
     vi.stubEnv('EXTRACTION_MAX_PAGES', '2');
     h.read.mockResolvedValue({ name: 'long.pdf', bytes: makePdf(['1', '2', '3', '4']) });

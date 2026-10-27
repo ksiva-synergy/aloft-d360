@@ -212,6 +212,11 @@ export async function runT0Harvest(
         select: { id: true },
       });
 
+      await prisma.platformEstateObject.updateMany({
+        where: { org_id: orgId, full_path: meta.ref.full_path },
+        data: { context_object_id: obj.id },
+      });
+
       for (const col of meta.columns) {
         await prisma.platformContextColumn.upsert({
           where: { object_id_name: { object_id: obj.id, name: col.name } },
@@ -530,7 +535,7 @@ export async function runT1Profile(
     // objects/columns (partial sweeps, unqueryable views, skipped columns) for
     // the emitted job stats — additive coverage instrumentation (WS4).
     const profileStatsList: Array<Record<string, unknown>> = [];
-    const beat = makeHeartbeat(opts?.existingJobId);
+    const beat = makeHeartbeat(jobId);
 
     for (const obj of profileTargets) {
       await beat();

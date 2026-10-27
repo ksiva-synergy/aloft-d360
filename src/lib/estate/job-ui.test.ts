@@ -5,6 +5,7 @@ import {
   launchUsesEstateExcludeTree,
   resolveDisplayJobStatus,
   resolveLaunchScopeFilters,
+  resolveModalLaunchScope,
   stripExcludeSchemasForKind,
   t0AllowsLiveScopeWhenDiscoveryEmpty,
 } from './job-ui';
@@ -23,6 +24,17 @@ describe('job-ui', () => {
     expect(
       t0AllowsLiveScopeWhenDiscoveryEmpty('t0_structural', [], 0, { total: 10, excluded: 10 }),
     ).toBe(false);
+  });
+
+  it('resolveModalLaunchScope maps include-tree to globs', () => {
+    expect(
+      resolveModalLaunchScope({
+        includePatternsText: '',
+        scopeTreeMode: 'include',
+        excludeSchemas: [],
+        includedSchemas: ['curated_db.foo'],
+      }),
+    ).toEqual({ excludeSchemas: [], includePatterns: ['curated_db.foo.*'] });
   });
 
   it('resolveLaunchScopeFilters prefers Limit over excludes', () => {

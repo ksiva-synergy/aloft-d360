@@ -713,6 +713,8 @@ export async function runT2Enrich(
     partitionSchema?: string;
     /** Auto-split: if set, only enrich these object names within the partition */
     partitionObjects?: string[];
+    /** Re-enrich every profiled object in scope (new semantic versions). */
+    forceReEnrich?: boolean;
   },
 ): Promise<T2EnrichResult> {
   const source = await prisma.platformContextSource.findUniqueOrThrow({
@@ -770,11 +772,17 @@ export async function runT2Enrich(
     console.log(`[t2_semantic] excluding schemas: ${opts.excludeSchemas.join(', ')} — ${candidates.length} candidates`);
   }
 
-  const toEnrich = candidates.filter((o) => {
-    if (!o.last_t1_at) return false;
-    if (!o.last_t2_at) return true;
-    return o.last_t2_at < o.last_t1_at;
-  });
+  const toEnrich = opts?.forceReEnrich
+    ? candidates.filter(o => o.last_t1_at)
+    : candidates.filter((o) => {
+      if (!o.last_t1_at) return false;
+      if (!o.last_t2_at) return true;
+      return o.last_t2_at < o.last_t1_at;
+    });
+
+  if (opts?.forceReEnrich) {
+    console.log(`[t2_semantic] forceReEnrich: ${toEnrich.length}/${candidates.length} objects`);
+  }
 
   let objectsEnriched = 0;
   let objectsSkipped = 0;
@@ -783,7 +791,7 @@ export async function runT2Enrich(
   let outputTokens = 0;
   let costUsd = 0;
   const errors: string[] = [];
-  const beat = makeHeartbeat(existingJobId);
+  const beat = makeHeartbeat(jobId);
 
   for (const obj of toEnrich) {
     await beat();

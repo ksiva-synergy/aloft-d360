@@ -55,6 +55,27 @@ export function resolveLaunchScopeFilters(
   return { excludeSchemas, includePatterns };
 }
 
+/** Modal scope: Limit textarea beats include-tree; include-tree beats exclude-tree. */
+export function resolveModalLaunchScope(input: {
+  includePatternsText: string;
+  scopeTreeMode: 'exclude' | 'include';
+  excludeSchemas: string[];
+  includedSchemas: string[];
+}): { excludeSchemas: string[]; includePatterns: string[] } {
+  const textPatterns = input.includePatternsText
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (textPatterns.length > 0) {
+    return resolveLaunchScopeFilters([], textPatterns);
+  }
+  if (input.scopeTreeMode === 'include' && input.includedSchemas.length > 0) {
+    const includePatterns = input.includedSchemas.map(k => (k.includes('*') ? k : `${k}.*`));
+    return { includePatterns, excludeSchemas: [] };
+  }
+  return resolveLaunchScopeFilters(input.excludeSchemas, []);
+}
+
 /**
  * T0 with Limit can resolve matching tables live from Databricks (resolveScope)
  * even when `platform_estate_objects` has no rows for that catalog yet.

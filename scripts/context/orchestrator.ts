@@ -24,11 +24,7 @@ import type { ContextSource } from '@/lib/context/types';
 import type { PlatformContextSource, PlatformContextJob } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import type { JobKind } from '@/lib/context/queue';
-// NOTE: The T4 tier (scan / entity-propose / dim-propose) depends on
-// scripts/context/t4-handlers.ts → the scripts/inspector/ subsystem, which was
-// not ported to this repo. The T4 cases below are stubbed. To re-enable, port
-// scripts/context/t4-handlers.ts and scripts/inspector/ from aloft-platform and
-// restore this import: import { runT4Scan, runT4EntityPropose, runT4DimPropose } from './t4-handlers';
+import { runT4Scan, runT4EntityPropose, runT4DimPropose } from './t4-handlers';
 import { acquireOrchestratorLock } from '@/lib/memory/lock';
 import { launchHarvesterTask } from '@/lib/context/launch-harvester';
 import {
@@ -36,6 +32,8 @@ import {
   pathToIncludePattern,
   resolveEffectiveScope,
 } from '@/lib/context/job-scope';
+import { copyRunnerFlagsToChildScope, readJobScopeRunnerFlags } from '@/lib/context/job-scope-flags';
+import { runScheduledEstateHarvest } from '@/lib/context/scheduled-estate-harvest';
 
 /**
  * Enqueue the next kind in a sequential chain and launch a worker for it.
@@ -64,8 +62,9 @@ async function advanceChain(
     childScope.includePatterns = parentScope.includePatterns;
   }
   if (remaining.length > 0) childScope.chain = remaining;
+  const childScopeWithFlags = copyRunnerFlagsToChildScope(parentScope, childScope);
 
-  const scopeOrNull = Object.keys(childScope).length > 0 ? childScope : null;
+  const scopeOrNull = Object.keys(childScopeWithFlags).length > 0 ? childScopeWithFlags : null;
   await enqueue(nextKind, sourceId, scopeOrNull, 'on_demand', orgId);
   console.log(`[orchestrator] chain: enqueued ${nextKind} (remaining: ${remaining.join(', ') || 'none'})`);
 
@@ -109,6 +108,7 @@ async function dispatchSingleJob(
 ): Promise<{ status: 'succeeded' | 'failed' | 'partial'; error?: string }> {
   const scope = (job.scope ?? {}) as Record<string, unknown>;
   const pathResolved = resolveEffectiveScope(scope);
+  const runnerFlags = readJobScopeRunnerFlags(scope);
 
   // Extract partition scope injected by auto-split (partition_catalog / partition_schema)
   const partitionCatalog = typeof scope.partition_catalog === 'string' ? scope.partition_catalog : undefined;
@@ -171,6 +171,7 @@ async function dispatchSingleJob(
         excludeSchemas: effectiveExcludeSchemas,
         includePatterns: effectiveIncludePatterns,
         existingJobId: job.id,
+        ...(runnerFlags.forceFullScan ? { forceFullScan: true } : {}),
       });
       await finalize(job.id, result.status, {
         objects_swept: result.objectsSwept,
@@ -192,6 +193,7 @@ async function dispatchSingleJob(
         excludeSchemas: effectiveExcludeSchemas,
         includePatterns: effectiveIncludePatterns,
         existingJobId: job.id,
+        ...(runnerFlags.forceReprofile ? { forceReprofile: true } : {}),
         ...(partitionCatalog ? { partitionCatalog } : {}),
         ...(partitionSchema ? { partitionSchema } : {}),
         ...(partitionObjects ? { partitionObjects } : {}),
@@ -216,6 +218,7 @@ async function dispatchSingleJob(
       const result = await runT2Enrich(job.source_id, job.id, {
         excludeSchemas: effectiveExcludeSchemas,
         includePatterns: effectiveIncludePatterns,
+        ...(runnerFlags.forceReEnrich ? { forceReEnrich: true } : {}),
         ...(partitionCatalog ? { partitionCatalog } : {}),
         ...(partitionSchema ? { partitionSchema } : {}),
         ...(partitionObjects ? { partitionObjects } : {}),
@@ -432,18 +435,48 @@ async function dispatchSingleJob(
       return { status: 'failed', error: 'not implemented' };
     }
 
-    // T4 tier — scan / entity-propose / dim-propose.
-    // These depend on scripts/context/t4-handlers.ts → the scripts/inspector/
-    // subsystem, which was not ported to this repo. Jobs are finalized as
-    // failed with a clear reason rather than silently succeeding, so scheduled
-    // T4 runs surface loudly instead of masquerading as completed work.
-    case 't4_scan':
-    case 't4_entity_propose':
+    case 't4_scan': {
+      const scanStats = await runT4Scan(job, orgId);
+      if (scanStats.clusters_enqueued === 0) {
+        await finalize(job.id, 'succeeded', scanStats as unknown as Record<string, unknown>);
+        console.log(`[t4_scan] no eligible tables — succeeded empty`);
+        return { status: 'succeeded' };
+      }
+      await prisma.platformContextJob.update({
+        where: { id: job.id },
+        data: { stats: scanStats as unknown as Prisma.InputJsonValue },
+      });
+      const { launched } = await advanceChildren(job.id, orgId, 't4_entity_propose');
+      console.log(
+        `[t4_scan] clusters=${scanStats.clusters_enqueued} tables=${scanStats.tables_total} children_launched=${launched}`,
+      );
+      return { status: 'succeeded' };
+    }
+
+    case 't4_entity_propose': {
+      const entityStats = await runT4EntityPropose(job, orgId);
+      if (entityStats.dim_jobs_enqueued === 0) {
+        await finalize(job.id, 'succeeded', entityStats as unknown as Record<string, unknown>);
+        return { status: 'succeeded' };
+      }
+      await prisma.platformContextJob.update({
+        where: { id: job.id },
+        data: { stats: entityStats as unknown as Record<string, unknown> },
+      });
+      const { launched } = await advanceChildren(job.id, orgId, 't4_dim_propose');
+      console.log(
+        `[t4_entity_propose] entities=${entityStats.entities_proposed} dims_queued=${entityStats.dim_jobs_enqueued} launched=${launched}`,
+      );
+      return { status: 'succeeded' };
+    }
+
     case 't4_dim_propose': {
-      const reason = `${job.job_kind}: T4/inspector tier not ported to this repo`;
-      console.warn(`[orchestrator] ${reason}`);
-      await finalize(job.id, 'failed', {}, reason);
-      return { status: 'failed', error: reason };
+      const dimStats = await runT4DimPropose(job, orgId);
+      await finalize(job.id, 'succeeded', dimStats as unknown as Record<string, unknown>);
+      console.log(
+        `[t4_dim_propose] object=${(job.scope as Record<string, unknown>)?.context_object_id} dims=${dimStats.dimensions_written} measures=${dimStats.measures_written}`,
+      );
+      return { status: 'succeeded' };
     }
 
     default: {
@@ -462,11 +495,42 @@ export interface OrchestratorResult {
 
 export async function runOrchestratorLoop(
   orgId: string,
-  opts: { sweep?: boolean; kindFilter?: string; childJobId?: string } = {},
+  opts: {
+    sweep?: boolean;
+    kindFilter?: string;
+    childJobId?: string;
+    processScheduled?: boolean;
+  } = {},
 ): Promise<OrchestratorResult> {
   // 1. Reap stale running jobs from prior crashed containers
   const reaped = await failStale(30);
   if (reaped > 0) console.log(`[orchestrator] reaped ${reaped} stale job(s)`);
+
+  if (opts.processScheduled && !opts.childJobId) {
+    const activeSources = await prisma.platformContextSource.findMany({
+      where: { org_id: orgId, status: 'active' },
+      select: { id: true },
+    });
+    for (const src of activeSources) {
+      try {
+        const r = await runScheduledEstateHarvest({
+          orgId,
+          sourceId: src.id,
+          maxSchemas: 3,
+        });
+        if (r.schemasStarted > 0) {
+          console.log(
+            `[orchestrator] process-scheduled source=${src.id} schemas=${r.schemasStarted} pathsQueued=${r.pathsMarkedQueued}`,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          `[orchestrator] process-scheduled failed source=${src.id}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
+  }
 
   // 2. --child-job mode: process exactly one specific child job then advance the split queue
   if (opts.childJobId) {
@@ -572,6 +636,7 @@ export async function runOrchestratorLoop(
 
 async function main() {
   const sweep = process.argv.includes('--sweep');
+  const processScheduled = process.argv.includes('--process-scheduled');
   const kindIdx = process.argv.indexOf('--kind');
   const kindFilter = kindIdx >= 0 ? process.argv[kindIdx + 1] : undefined;
   const childJobIdx = process.argv.indexOf('--child-job');
@@ -600,7 +665,7 @@ async function main() {
     return;
   }
 
-  await runOrchestratorLoop(orgId, { sweep, kindFilter, childJobId });
+  await runOrchestratorLoop(orgId, { sweep, kindFilter, childJobId, processScheduled });
 }
 
 // Guard so the CLI block doesn't fire when imported by verify-ch4.ts

@@ -3,6 +3,8 @@ import {
   catalogSchemaMatchesIncludePatterns,
   objectMatchesJobScope,
   pathExcludedBySchemas,
+  buildQueryHistoryStatementSqlFilter,
+  prefilterHistoryRowsForObjects,
   pathToIncludePattern,
   resolveEffectiveScope,
   schemaMatchesIncludePatterns,
@@ -44,6 +46,25 @@ describe('job-scope', () => {
     expect(
       statementReferencesObject('select * from orders', obj),
     ).toBe(false);
+    expect(
+      statementReferencesObject('select * from `curated_db`.`sales`.`orders`', obj),
+    ).toBe(true);
+  });
+
+  it('buildQueryHistoryStatementSqlFilter emits schema LIKE clauses', () => {
+    const sql = buildQueryHistoryStatementSqlFilter([
+      { catalog_name: 'Cat', schema_name: 'Sch' },
+    ]);
+    expect(sql).toContain("LOWER(statement_text) LIKE '%cat.sch.%'");
+  });
+
+  it('prefilterHistoryRowsForObjects keeps rows referencing in-scope tables', () => {
+    const obj = { catalog_name: 'c', schema_name: 's', object_name: 't1' };
+    const rows = [
+      { statement_text: 'select * from c.s.t1' },
+      { statement_text: 'select 1' },
+    ];
+    expect(prefilterHistoryRowsForObjects(rows, [obj])).toEqual([rows[0]]);
   });
 
   it('schemaMatchesIncludePatterns accepts catalog.schema.* globs', () => {

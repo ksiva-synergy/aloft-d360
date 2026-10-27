@@ -14,6 +14,8 @@ export interface ScheduleDefinition {
   name: string;
   label: string;
   description: string;
+  /** Operator note: what scope EventBridge jobs use (P2-15). */
+  scopeNote: string;
   /** EventBridge cron expression e.g. "cron(0 4 * * ? *)" */
   scheduleExpression: string;
   /** AWS cron inner string e.g. "0 4 * * ? *" */
@@ -51,6 +53,7 @@ function buildScheduleDef(
   id: string,
   label: string,
   description: string,
+  scopeNote: string,
   rule: { Name: string; ScheduleExpression: string; State: string },
   deployment: ScheduleDeployment,
 ): ScheduleDefinition {
@@ -61,6 +64,7 @@ function buildScheduleDef(
     name: rule.Name,
     label,
     description,
+    scopeNote,
     scheduleExpression: rule.ScheduleExpression,
     cronInner: inner,
     cronStandard,
@@ -76,6 +80,7 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     'change_detect_daily',
     'Daily change-detect',
     'Detects changed tables since last sweep and enqueues T0 structural harvest',
+    'Per changed table ref (not modal Limit / exclude tree)',
     eventBridgeRules.change_detect_daily,
     'live',
   ),
@@ -83,6 +88,7 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     't1_profile_weekly',
     'Weekly full profile',
     'Full T1 statistical profiling of all objects regardless of change',
+    'Full source — all scanned tables (ignores Jobs modal Limit)',
     eventBridgeRules.t1_profile_weekly,
     'live',
   ),
@@ -90,6 +96,7 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     'estate_inventory_weekly',
     'Estate Re-inventory',
     'Weekly full re-inventory of the Databricks estate via information_schema (Monday 06:00 UTC)',
+    'Full source discovery per connection scope_include/exclude',
     eventBridgeRules.estate_inventory_weekly,
     'live',
   ),
@@ -100,6 +107,7 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     't3_usage_weekly',
     'T3 usage',
     'T3 usage harvest — query history + lineage scan. Manual/on-demand; no EventBridge rule deployed.',
+    'Full source when launched from schedule (use Jobs Limit for scoped T3)',
     eventBridgeRules.t3_usage_weekly,
     'manual',
   ),
@@ -107,6 +115,7 @@ export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
     't4_semantic_weekly',
     'T4 semantic bootstrap',
     'T4 semantic bootstrap — proposes entities, dimensions, and measures for newly-enriched tables. Manual/on-demand; no EventBridge rule deployed.',
+    'Source-wide T4 scan coordinator (requires T2-complete tables)',
     eventBridgeRules.t4_semantic_weekly,
     'manual',
   ),

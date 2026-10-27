@@ -5,6 +5,36 @@
 
 ---
 
+### 2026-10-27 — T4 handlers re-implement (Cursor)
+
+- **Issues:** P1-5 T4 stub failures.
+- **Files:** `src/lib/context/t4/*`, `scripts/context/t4-handlers.ts`, `orchestrator.ts`, `launch-kinds.ts`, `jobs/trigger`, `jobs.tsx`, docs.
+- **Before → after:** T4 scan fans out per schema; entity/dim jobs write sem tables + `last_t4_at`; Jobs can launch `t4_scan`.
+- **Verified:** vitest scan-estate grouping.
+- **Not done:** Harvester deploy; optional per-schema LLM upgrade.
+
+---
+
+### 2026-10-27 — Cockpit v1 + T3 pushdown + estate link (Cursor)
+
+- **Issues:** Phase 2 cockpit; P2-5 T3; P1-16; P2-15 schedules; ECS scheduled drain.
+- **Files:** `cockpit.ts`, `jobs/cockpit/route.ts`, `JobsCockpitPanel.tsx`, `jobs.tsx`, `job-ui.ts`, `job-scope.ts`, `usage.ts`, `databricks-adapter.ts`, `harvest.ts`, `schedules.ts`, `task-definition.json`, docs.
+- **Before → after:** Jobs L1 shows pipeline strip + Run recommendation; modal include-tree; T3 scopes warehouse pull; T0 links estate rows; Fargate drains scheduled schemas each loop.
+- **Verified:** vitest job-scope + job-ui.
+- **Not done:** T4 port; deploy web + harvester + register task def.
+
+---
+
+### 2026-10-27 — Audit register + deploy notes (Cursor)
+
+- **Issues:** Stale `harvest-job-pipeline-issues.md` implied no fixes applied.
+- **Files:** `docs/audits/harvest-job-pipeline-issues.md`, `infra/context/deploy-notes.md`, `docs/CHANGELOG.md`, `session-log.md`.
+- **Before → after:** §0 status table; launch matrix and orchestrator table match 2026-10-27 behavior; ECS doc for `--process-scheduled`.
+- **Verified:** Manual cross-check with codebase paths listed in register.
+- **Not done:** Per-issue inline edits in §4–§7 (snapshot in §0 is canonical).
+
+---
+
 ### 2026-10-26 — Prisma pool: slim jobs summary poll + batched coverage (Cursor)
 
 - **Issues:** P2024 on `/jobs/summary`, `/estate/facets` under load (10-connection pool, 6 parallel coverage queries + `getDefaultOrg` per request).
@@ -12,6 +42,26 @@
 - **Before → after:** Pollers use `?coverage=false`; coverage SQL batched at 3; `getOrgId` uses env id when set.
 - **Verified:** Code review; restart `dev:api` and exercise Estate catalog + Jobs.
 - **Not done:** Production deploy.
+
+---
+
+### 2026-10-27 — T3 scope + multi-source launch + process-scheduled (Cursor)
+
+- **Issues:** P0-7/P2-5 T3; P1-14 launch first source only.
+- **Files:** `job-scope.ts`, `usage.ts`, `jobs/launch/route.ts`, `orchestrator.ts`, `job-scope.test.ts`, `jobs.tsx`, docs.
+- **Before → after:** T3 ignores unrelated query text; launch without `sourceId` runs each active source; Fargate can pass `--process-scheduled`.
+- **Verified:** vitest job-scope.
+- **Not done:** Enable `--process-scheduled` in ECS command if desired.
+
+---
+
+### 2026-10-27 — Remaining estate/jobs batch (Cursor)
+
+- **Issues:** Source routes queue-only; schedule without run; no re-run flags in UI; scheduled harvest no-op.
+- **Files:** `scheduled-estate-harvest.ts`, `run-scheduled/route.ts`, `catalog-pipeline-launch.ts`, `job-scope-flags.ts`, source `harvest|inventory|refresh` routes, `launch/route.ts`, `orchestrator.ts`, `enrich.ts`, `harvest.ts`, `jobs.tsx`, `BulkActionBar`, `EstateCatalogTab`, tests, docs.
+- **Before → after:** Scheduled rows can start pipelines; Jobs modal can force full T0 / re-profile / re-enrich (new versions); source APIs start workers.
+- **Verified:** vitest.
+- **Not done:** Deploy web + harvester + ECS task def.
 
 ---
 
