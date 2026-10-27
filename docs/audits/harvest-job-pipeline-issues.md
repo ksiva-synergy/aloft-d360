@@ -1,8 +1,45 @@
 # Harvest & job pipeline — audit (issues register)
 
-**Date:** 2026-10-24  
+**Date:** 2026-10-24 (register) · **Remediation snapshot:** 2026-10-27  
 **Scope:** Estate discovery, structural harvest (T0–T2), embed, T3 usage, job launch/orchestration, and related UI/API entry points in `aloft-ui-redesign`.  
-**Status:** Findings only — no fixes applied in this document.
+**Living status:** [docs/jobs/current-status.md](../jobs/current-status.md) · **Session log:** [docs/jobs/session-log.md](../jobs/session-log.md)
+
+---
+
+## 0. Remediation snapshot (2026-10-27)
+
+Legend: **Fixed** = shipped in repo (verify on deployed web + harvester + ECS task def). **Partial** = materially better; edge cases remain. **Open** = not done.
+
+| ID | Status | Notes |
+|----|--------|--------|
+| **P0-1** | **Partial** | `resolveEffectiveScope` / `includePatterns` from `path` on object routes, estate harvest, `change_detect` enqueue; `normalizeJobScope` on trigger/enqueue-and-launch. Legacy jobs with raw `path` only still need re-enqueue. |
+| **P0-2** | **Fixed** | `reharvest-all` enqueues T0 with chain T1→T2 (not parallel tiers). |
+| **P0-3** | **Fixed** | `planEstateSplit` for T0/inventory; `liveScopeLaunch` for Limit + narrowed exclude-only T0. |
+| **P0-4** | **Fixed** | `runT0Harvest({ existingJobId })` from orchestrator. |
+| **P0-5** | **Fixed** | `runEstateInventory({ existingJobId })` — no duplicate audit row when orchestrated. |
+| **P0-6** | **Fixed** | `shouldAdvanceJobChain` includes `partial`. |
+| **P0-7** | **Fixed** | `statementReferencesObject` — qualified names only (+ backticks); no bare `object_name`. |
+| **P0-8** | **Partial** | T3 filters objects by Limit/excludes; history post-filtered to in-scope tables; continuations keep patterns. Warehouse pull still workspace-wide (P2-5). |
+| **P0-9** | **Partial** | Heartbeat on claimed job id for T0/T1/T2; monitor long split parents separately. |
+| **P1-1** | **Partial** | Modal labels Discovery vs Scanned; `humanSummary` / `registry` on plan API — not full cockpit. |
+| **P1-2** | **Fixed** | `embed` respects `includePatterns` + `excludeSchemas` in orchestrator. |
+| **P1-3** | **Fixed** | `t3_connected` fails at orchestrator; removed from launch picker. |
+| **P1-4** | **Partial** | `mapping` fails; `knowledge_sync` implemented in orchestrator; stubs removed from picker. |
+| **P1-5** | **Open** | T4 kinds fail (expected until inspector port). |
+| **P1-6** | **Fixed** | Exclude tree passed through plan/launch for T1/T2. |
+| **P1-7** | **Partial** | Limit copy + schema harvest guide; wizard not shipped. |
+| **P1-8** | **Partial** | Sequential toggle; embed in kind list when selected. |
+| **P1-9** | **Fixed** | `POST /jobs/trigger` uses `enqueueAndLaunchHarvest`. |
+| **P1-10** | **Partial** | TRIGGERABLE_JOBS copy cleaned; embed implemented. |
+| **P1-11** | **Fixed** | `runEstateInventory` honors Limit + excludes. |
+| **P1-12** | **Fixed** | T3 continuation scope includes `includePatterns` / `excludeSchemas`. |
+| **P1-14** | **Fixed** | Launch loops all `resolveLaunchSources` when no `sourceId`; UI source picker. |
+| **P1-18** | **Fixed** | T4 / silo / mapping disabled in launch API + picker. |
+| **P1-20** | **Partial** | Catalog **Run pipeline now**; exclude tree still subtractive — include-first wizard open. |
+| **P2-5** | **Partial** | T3 history rows filtered to in-scope table references after fetch; no SQL pushdown yet. |
+| **P2-16** | **Partial** | Plan API dual registry fields; three counts can still diverge in modal. |
+
+**Catalog / ops (2026-10-27):** **Run pipeline now**, **Run scheduled now**, `POST …/estate/run-scheduled`, optional orchestrator `--process-scheduled`. Jobs modal **re-run flags** (`forceFullScan`, `forceReprofile`, `forceReEnrich`).
 
 ---
 
@@ -164,52 +201,59 @@ flowchart TB
 
 ---
 
-## 8. Scope matrix
+## 8. Scope matrix (2026-10-27)
 
 | Control | estate_inventory | T0 | T1 | T2 | embed | t3_usage |
 |---------|------------------|----|----|----|-------|----------|
-| Source `scope_include` / `scope_exclude` | Yes | Yes* | No† | No† | No | No‡ |
-| Modal exclude tree | Yes (with T0) | Yes | Stripped at API | Stripped at API | — | — |
-| Modal Focus (`includePatterns`) | **No** | Yes | Yes | Yes | **No** | Stored, **not applied** |
-| `scope.path` on job | No | **No** | **No** | **No** | No | No |
+| Source `scope_include` / `scope_exclude` | Yes | Yes* | No† | No† | No | No |
+| Modal exclude tree | Yes | Yes | Yes | Yes | — | Yes |
+| Modal Focus (`includePatterns`) | Yes | Yes | Yes | Yes | Yes | Yes |
+| `scope.path` on job | Via `includePatterns`‡ | Via `includePatterns`‡ | Via `includePatterns`‡ | Via `includePatterns`‡ | — | — |
 | Auto-split | No | Yes | Yes | Yes | No | No |
 
 \*Unless Focus overrides `scope_include`.  
-†T1/T2 filter via Focus/partition in runner; excludes stripped at launch API.  
-‡Adapter loads source config but T3 does not filter objects/history by it.
+†T1/T2 filter via Focus/partition + exclude tree in runner.  
+‡`resolveEffectiveScope` maps `path` → single-table glob at enqueue; orchestrator reads `includePatterns`.
 
 ---
 
-## 9. Launch entry points (fragmentation)
+## 9. Launch entry points (2026-10-27)
 
 | Entry | Launches worker? | Scope honored? | Chain? |
 |--------|------------------|----------------|--------|
-| `POST /api/agent-lab/context/jobs/launch` | Yes | Focus, exclude, chain (per matrix) | Yes |
-| `POST /api/agent-lab/context/jobs/trigger` | **No** | Optional scope (mostly ignored at runtime) | No |
-| `POST /api/agent-lab/context/estate/harvest` | Enqueue T0 only | `{ path }` **ignored** | No |
-| `POST /api/agent-lab/context/objects/[id]/reharvest-all` | Yes | `{ path }` **ignored**; parallel tiers | No |
-| `POST /api/agent-lab/context/objects/[id]/refresh` | **No** | `{ path }` **ignored** | No |
-| `POST /api/agent-lab/context/objects/[id]/enrich` | **No** | `{ path }` **ignored** | No |
+| `POST /api/agent-lab/context/jobs/launch` | Yes | Focus, exclude, chain, runner flags | Yes |
+| `POST /api/agent-lab/context/jobs/trigger` | Yes | `normalizeJobScope` (`path` → patterns) | No |
+| `POST /api/agent-lab/context/estate/harvest` | Yes | Per-path `includePatterns` | No |
+| `POST /api/agent-lab/context/estate/run-scheduled` | Yes | Per-schema pipeline Limit | T0→T1→T2 |
+| Catalog **Run pipeline now** | Yes (via launch API) | `catalog.schema.*` | T0→T1→T2 |
+| `POST /api/agent-lab/context/objects/[id]/reharvest-all` | Yes | Table glob; T0 chains T1→T2 | Yes |
+| `POST /api/agent-lab/context/objects/[id]/refresh` | Yes | Table glob | No |
+| `POST /api/agent-lab/context/objects/[id]/enrich` | Yes | Table glob (enqueue-and-launch) | No |
+| `POST …/sources/[id]/harvest` | Yes | Full source (no Limit) | No |
+| `POST …/sources/[id]/inventory` | Yes | Source scope + job Limit | No |
+| `POST …/sources/[id]/refresh` | Yes | Optional `path` → T1 glob | No |
 
 ---
 
-## 10. Orchestrator implementation status
+## 10. Orchestrator implementation status (2026-10-27)
 
 | `job_kind` | Runtime | Notes |
 |------------|---------|--------|
-| `estate_inventory` | ✅ | Duplicate job row (P0-5) |
-| `change_detect` | ✅ | Enqueues path-scoped T0 (P0-1, P2-3) |
-| `t0_structural` | ✅ | Duplicate job row (P0-4), heartbeat (P0-9) |
-| `t1_profile` | ✅ | Uses `existingJobId` |
-| `t2_semantic` | ✅ | Finalize inside `runT2Enrich`; partial blocks chain (P0-6) |
-| `embed` | ✅ | No Focus (P1-2) |
-| `t3_usage` | ✅ | Source-wide (P0-7, P0-8); continuations |
-| `t3_connected` | ❌ | Not in switch → unknown kind |
-| `mapping` | ⚠️ Stub success | P1-4 |
-| `knowledge_sync` | ⚠️ Stub success | P1-4, P1-19 |
-| `silo_scan` | ✅ via `claimNext` | P2-7 |
-| `recompute_entity_tags` | ✅ via `claimNext` | P2-8 |
-| `t4_scan` / `t4_entity_propose` / `t4_dim_propose` | ❌ Failed | P1-5, P1-18 |
+| `estate_inventory` | ✅ | `existingJobId`; Limit + excludes |
+| `change_detect` | ✅ | Enqueues T0 with per-ref `includePatterns` |
+| `t0_structural` | ✅ | `existingJobId`; exclude-only → `resolveScope` |
+| `t1_profile` | ✅ | Stale-only + `forceReprofile`; heartbeat on claimed id |
+| `t2_semantic` | ✅ | Stale-only + `forceReEnrich`; chain on partial OK |
+| `embed` | ✅ | Limit + exclude filter on objects |
+| `t3_usage` | ✅ | Scoped objects + filtered history rows |
+| `t3_connected` | ❌ | Fails with clear reason |
+| `mapping` | ❌ | Fails (not ported) |
+| `knowledge_sync` | ✅ | `syncSourceToKnowledge` / per-object |
+| `silo_scan` | ✅ via `claimNext` | Not in Jobs launch picker |
+| `recompute_entity_tags` | ✅ via `claimNext` | Not in Jobs launch picker |
+| `t4_*` | ❌ Failed | Inspector tier not ported |
+
+CLI: `--process-scheduled` drains up to 3 scheduled schemas per active source (optional).
 
 ---
 
@@ -273,5 +317,15 @@ flowchart TB
 
 | Date | Change |
 |------|--------|
+| 2026-10-27 | §0 remediation snapshot; updated §8–§10 for Phase 0/1 fixes (scope, launch matrix, orchestrator). |
 | 2026-10-24 | Expanded P0-3, P1-1, P1-7, P2-16; added P1-20; symptom rows and §13 field report (T0 modal / Focus `curated_db…` incident). |
 | 2026-10-24 | Initial register from codebase review (conversation audit). |
+
+---
+
+## 15. Still open (next engineering)
+
+1. **Phase 2 remainder** — 4-step intent wizard, single headline count in modal (P2-16); cockpit is v1 not full charter §2 layout.
+2. **T4 / inspector port** — re-enable entity modelling kinds (P1-5); orchestrator still fails `t4_*`.
+3. **Schedules vs Focus** — EventBridge jobs remain full-source; UI documents via `scopeNote` (P2-15 partial).
+4. **Backfill** — `context_object_id` on estate rows without re-T0 (optional SQL backfill from `full_path` join).

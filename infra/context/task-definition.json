@@ -18,7 +18,8 @@
         "tsx",
         "--require",
         "./scripts/context/noserver.cjs",
-        "scripts/context/orchestrator.ts"
+        "scripts/context/orchestrator.ts",
+        "--process-scheduled"
       ],
       "environment": [
         { "name": "NODE_ENV", "value": "production" },

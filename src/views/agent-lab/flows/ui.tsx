@@ -44,6 +44,12 @@ export function StepIcon({ type, size = 'md' }: { type: string; size?: 'sm' | 'm
   );
 }
 
+/** Rounded search / goal field: soft glow on focus, not a boxy inner outline. */
+export const fieldShell =
+  'flex items-center gap-2 rounded-xl border border-[var(--line-1)] bg-[var(--surface-2)] px-3 transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-[color-mix(in_srgb,var(--brand-a)_50%,var(--line-1))] focus-within:bg-[var(--surface-1)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--brand-a)_12%,transparent)]';
+export const fieldInput =
+  'min-w-0 w-full bg-transparent text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]';
+
 export const btn = {
   primary: 'inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--brand-a)] px-3 text-size-ui font-semibold text-white hover:bg-[var(--brand-a-2)] disabled:opacity-60',
   secondary: 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--line-2)] bg-[var(--surface-1)] px-3 text-size-ui font-medium text-[var(--ink-1)] hover:bg-[var(--surface-2)] disabled:opacity-60',

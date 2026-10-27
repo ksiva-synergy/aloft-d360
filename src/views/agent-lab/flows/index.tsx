@@ -10,7 +10,7 @@ import FlowCanvas, { type StepFindings } from './FlowCanvas';
 import { StepEditor, WorkflowSettings } from './FlowForm';
 import CopilotPanel, { type CopilotProposal } from './CopilotPanel';
 import TestRunPanel, { verdict, type Drill, type Publishing, type TestResult } from './TestRunPanel';
-import { Chip, Segmented, StepIcon, btn, pretty } from './ui';
+import { Chip, Segmented, StepIcon, btn, fieldInput, fieldShell, pretty } from './ui';
 
 // Flows builder. Home: describe a goal, reopen a saved workflow, or start from a template.
 // Builder: canvas of the draft in the middle, an Edit / Copilot panel on the right, and a test-run
@@ -100,10 +100,13 @@ function Home({
           What would you like to automate?
         </label>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-          <div className="flex h-11 flex-1 items-center gap-2 rounded-xl border border-[var(--line-1)] bg-[var(--surface-2)] px-3 focus-within:border-[var(--brand-a)] focus-within:bg-[var(--surface-1)]">
+          <div className={cn(fieldShell, 'h-11 flex-1')}>
             <Search className="h-4 w-4 shrink-0 text-[var(--ink-3)]" aria-hidden />
             <input
               id="flow-goal"
+              type="text"
+              name="flow-goal"
+              autoComplete="off"
               value={goal}
               onChange={(e) => {
                 setGoal(e.target.value);
@@ -111,7 +114,7 @@ function Home({
               }}
               aria-describedby="flow-goal-help"
               placeholder="e.g. Chase suppliers when a purchase order is more than three days late"
-              className="h-full w-full bg-transparent text-size-body text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+              className={cn(fieldInput, 'h-full text-size-body')}
             />
           </div>
           <button type="submit" disabled={finding} className={cn(btn.primary, 'h-11 px-4')}>

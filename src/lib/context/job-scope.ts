@@ -80,7 +80,7 @@ export function statementReferencesObject(
     object_name: string | null;
   },
 ): boolean {
-  const sql = (statementText ?? '').toLowerCase();
+  const sql = (statementText ?? '').toLowerCase().replace(/`/g, '');
   const catalog = (obj.catalog_name ?? '').toLowerCase();
   const schema = (obj.schema_name ?? '').toLowerCase();
   const table = (obj.object_name ?? '').toLowerCase();
@@ -95,6 +95,46 @@ export function statementReferencesObject(
     if (sql.includes(schemaQualified)) return true;
   }
   return false;
+}
+
+/** Drop query-history rows that cannot reference any in-scope scanned object (T3 P2-5). */
+/** Escape single quotes for SQL string literals (Databricks). */
+function sqlLiteral(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+/**
+ * Optional SQL fragment for `system.query.history` when T3 scope is narrow (P2-5 pushdown).
+ * Matches `catalog.schema.` substrings in statement text (max schema groups capped).
+ */
+export function buildQueryHistoryStatementSqlFilter(
+  objects: Array<{ catalog_name: string | null; schema_name: string | null }>,
+  maxSchemaGroups = 40,
+): string | null {
+  const schemaKeys = new Set<string>();
+  for (const o of objects) {
+    if (o.catalog_name && o.schema_name) {
+      schemaKeys.add(`${o.catalog_name}.${o.schema_name}`.toLowerCase());
+    }
+  }
+  if (schemaKeys.size === 0) return null;
+  const keys = [...schemaKeys].slice(0, maxSchemaGroups);
+  const clauses = keys.map(k => `LOWER(statement_text) LIKE '%${sqlLiteral(k)}.%'`);
+  return `AND (${clauses.join(' OR ')})`;
+}
+
+export function prefilterHistoryRowsForObjects<T extends { statement_text?: string | null }>(
+  rows: T[],
+  objects: Array<{
+    catalog_name: string | null;
+    schema_name: string | null;
+    object_name: string | null;
+  }>,
+): T[] {
+  if (objects.length === 0) return [];
+  return rows.filter(row =>
+    objects.some(obj => statementReferencesObject(row.statement_text ?? '', obj)),
+  );
 }
 
 export function resolveEffectiveScope(scope: Record<string, unknown>): {

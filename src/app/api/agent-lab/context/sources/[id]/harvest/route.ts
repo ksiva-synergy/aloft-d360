@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
-import { enqueue } from '@/lib/context/queue';
+import { enqueueAndLaunchHarvest } from '@/lib/context/enqueue-and-launch';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +24,16 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     });
     if (!source) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
 
-    const job = await enqueue('t0_structural', id, null, 'on_demand', orgId);
-    return NextResponse.json({ job_id: job.id, status: 'queued' }, { status: 202 });
+    const { job, launched, taskArn, error } = await enqueueAndLaunchHarvest(
+      't0_structural',
+      id,
+      null,
+      orgId,
+    );
+    return NextResponse.json(
+      { job_id: job.id, status: 'queued', launched, task_arn: taskArn, launch_error: error ?? null },
+      { status: 202 },
+    );
   } catch (err) {
     console.error('[context/sources/:id/harvest POST]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

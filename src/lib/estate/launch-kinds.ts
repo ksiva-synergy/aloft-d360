@@ -5,7 +5,6 @@
 export const LAUNCH_DISABLED_JOB_KINDS = new Set<string>([
   'mapping',
   't3_connected',
-  't4_scan',
   't4_entity_propose',
   't4_dim_propose',
   'silo_scan',

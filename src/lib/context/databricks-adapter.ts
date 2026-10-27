@@ -840,6 +840,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     since: Date,
     until: Date,
     rowCap: number,
+    opts?: { statementTextSqlFilter?: string | null },
   ): Promise<{ rows: RawHistoryRow[]; nextCursor: Date | null }> {
     const sinceIso = since.toISOString().replace('T', ' ').replace('Z', '');
     const untilIso = until.toISOString().replace('T', ' ').replace('Z', '');
@@ -866,12 +867,14 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
         ? `AND start_time < TIMESTAMP '${cursorTime}' `
         : '';
 
+      const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
       const sql =
         `SELECT LEFT(statement_text, 8000) AS statement_text, executed_as, start_time, update_time, query_source, produced_rows ` +
         `FROM system.query.history ` +
         `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
         `  AND start_time < TIMESTAMP '${untilIso}' ` +
         `  AND statement_type = 'SELECT' ` +
+        scopeFilter +
         cursorClause +
         `ORDER BY start_time DESC ` +
         `LIMIT ${PAGE_SIZE}`;

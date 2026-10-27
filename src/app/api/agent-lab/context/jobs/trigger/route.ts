@@ -21,7 +21,7 @@ const VALID_KINDS: JobKind[] = [
   'knowledge_sync',
 ];
 
-const STUB_KINDS = new Set<JobKind>(['mapping', 't3_connected', 't4_scan']);
+const STUB_KINDS = new Set<JobKind>(['mapping', 't3_connected']);
 
 /**
  * POST /api/agent-lab/context/jobs/trigger

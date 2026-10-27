@@ -1725,7 +1725,16 @@ body {
 }
 /* One consistent, accent-colored focus ring and selection across the app */
 :focus-visible { outline-color: var(--brand-a); }
-::selection { background: color-mix(in srgb, var(--brand-a) 28%, transparent); }
+/* Let rounded field shells own focus styling (avoids a sharp inner rectangle on inputs). */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none;
+}
+::selection { background: color-mix(in srgb, var(--brand-a) 22%, transparent); color: inherit; }
 main { scroll-behavior: smooth; }
 
 /* ── Theme v2: scrollbars ────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-10-26 (jobs summary poll uses `?coverage=false`; `getCoverageSummary` batched; `getOrgId` env fast-path — reduces dev P2024 pool timeouts)  
-**Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md)
+**Last verified:** 2026-10-27 (T3 scope, multi-source launch, `--process-scheduled`; audit register §0 in [harvest-job-pipeline-issues.md](../audits/harvest-job-pipeline-issues.md))  
+**Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
 
@@ -9,7 +9,7 @@
 
 | Layer | Reality |
 |-------|---------|
-| **UI** | `Agent Lab → Estate → Jobs` — L1 kind cards → L2 dates → L3 runs; **Launch** opens a single modal (`jobs.tsx`) with exclude tree, Focus textarea, split preview. |
+| **UI** | `Agent Lab → Estate → Jobs` — L1 **pipeline health + recommended next step** (`JobsCockpitPanel`); kind cards → L2/L3; **Launch** modal with exclude **or include** tree, Limit textarea, split preview. |
 | **Control plane** | `POST /api/agent-lab/context/jobs/launch` enqueues `platform_context_jobs` and starts ECS Fargate (or local orchestrator). |
 | **Workers** | `scripts/context/orchestrator.ts` claims jobs and calls `runT0Harvest`, `runT1Profile`, `runT2Enrich`, etc. |
 
@@ -110,7 +110,8 @@ Example: `curated_db.db_smac_prod_navitasai_crewing_dashboard_public.*`
 |----------|------|
 | `POST …/jobs/plan` | Split preview; T0 uses discovery count; T1/T2 use Scanned; returns `registry`, `discoveryObjects`, `scannedObjects` |
 | `POST …/jobs/launch` | `assertObjectsInScope` for T0/T1/T2; then enqueue + Fargate |
-| `POST …/jobs/trigger` | Enqueue **only** — no worker (P1-9) |
+| `POST …/jobs/trigger` | Enqueue + **launch worker** (P1-9 fixed) |
+| `GET …/jobs/cockpit` | Pipeline health + recommendation |
 
 Splittable kinds may create parent `orchestrating` + child `queued` rows with `partition_*` in scope.
 
@@ -120,10 +121,12 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 
 | ID | Gap | Impact on schema-only harvest |
 |----|-----|-------------------------------|
-| **P1-1 / P1-20** | Full cockpit wizard | Interim labels, Limit field, source picker (multi-source); include-tree wizard not shipped |
-| **Overwrite toggles** | No UI for force full T0 / re-profile / re-enrich | Operators use Limit globs; `forceReprofile` exists server-side only |
+| **P1-1 / P1-20** | Full 4-step intent wizard | Cockpit strip + recommendations + include-tree mode shipped; intent cards not shipped |
+| **P2-5** | T3 SQL scope | Schema `LIKE` pushdown when Limit/excludes narrow scope; post-filter still applies |
+| **P1-16** | Estate ↔ scanned link | `context_object_id` set on T0 upsert (join in list API still works for legacy rows) |
+| **Re-run flags** | Jobs modal checkboxes: full T0 listing, re-profile all, re-enrich all (append versions) | Not on Catalog bar (use Jobs for flags) |
 
-**Planned UX/engineering:** [remediation charter](../audits/harvest-job-pipeline-remediation-charter.md) — include-tree, recommendations, `planEstateSplit`, `JobScope`, **Overwrite** toggles per tier.
+**Planned UX/engineering:** [remediation charter](../audits/harvest-job-pipeline-remediation-charter.md) — include-tree wizard, recommendations API, honest preview copy.
 
 ---
 
@@ -150,7 +153,8 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
-| 2026-10-26 | **P1-11** inventory Limit; **P1-14** `sourceId` on plan/launch + UI picker; **T1 stale-only** (`last_t1_at` &lt; `last_t0_at`); **P1-19** `knowledge_sync` orchestrator + sync-knowledge worker |
+| 2026-10-27 | Catalog **Run pipeline now** + **Run scheduled now**; source harvest/inventory/refresh **launch workers**; Jobs **re-run flags**; `POST …/estate/run-scheduled` |
+| 2026-10-26 | Scope batch (T1/T2 excludes, embed/T3 scope, T0 live launch); **P1-11** inventory Limit; **P1-14** source picker; **T1 stale-only**; **P1-19** knowledge_sync |
 | 2026-10-26 | **P0-3** … (Phase 0 bundle — see prior session log) |
 
 ---

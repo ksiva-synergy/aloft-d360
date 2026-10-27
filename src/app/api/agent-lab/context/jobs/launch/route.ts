@@ -24,6 +24,10 @@ import {
 } from '@/lib/estate/job-ui';
 import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
+import {
+  type JobScopeRunnerFlags,
+  mergeJobScopeRunnerFlags,
+} from '@/lib/context/job-scope-flags';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
@@ -92,11 +96,13 @@ async function launchKind(
   excludeSchemas: string[],
   includePatterns: string[],
   chain: JobKind[],
+  runnerFlags: JobScopeRunnerFlags = {},
 ): Promise<{ jobsEnqueued: number; taskArn: string | null; failures: { arn?: string; reason?: string }[] }> {
-  const scope: Record<string, unknown> = {};
+  let scope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) scope.excludeSchemas = excludeSchemas;
   if (includePatterns.length > 0) scope.includePatterns = includePatterns;
   if (chain.length > 0) scope.chain = chain;
+  scope = mergeJobScopeRunnerFlags(scope, runnerFlags);
   const scopeOrNull = Object.keys(scope).length > 0 ? scope : null;
 
   let jobsEnqueued = 0;
@@ -161,6 +167,7 @@ async function launchSplitKind(
   excludeSchemas: string[],
   includePatterns: string[],
   chain: JobKind[],
+  runnerFlags: JobScopeRunnerFlags = {},
 ): Promise<{
   parentJobId: string;
   totalChildren: number;
@@ -171,10 +178,11 @@ async function launchSplitKind(
   // Plan the split
   const plan = await planForKind(orgId, kind, sourceId, { excludeSchemas, includePatterns });
 
-  const baseScope: Record<string, unknown> = {};
+  let baseScope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) baseScope.excludeSchemas = excludeSchemas;
   if (includePatterns.length > 0) baseScope.includePatterns = includePatterns;
   if (chain.length > 0) baseScope.chain = chain;
+  baseScope = mergeJobScopeRunnerFlags(baseScope, runnerFlags);
 
   // Create parent + child job rows atomically
   const { parentJobId, childJobIds } = await enqueueWithChildren(
@@ -246,6 +254,11 @@ export async function POST(req: NextRequest) {
   const excludeSchemas: string[] = Array.isArray(body.excludeSchemas) ? body.excludeSchemas : [];
   const includePatterns: string[] = Array.isArray(body.includePatterns) ? body.includePatterns : [];
   const sequential: boolean = body.sequential === true;
+  const runnerFlags: JobScopeRunnerFlags = {
+    forceReprofile: body.forceReprofile === true,
+    forceReEnrich: body.forceReEnrich === true,
+    forceFullScan: body.forceFullScan === true,
+  };
   const requestedSourceId =
     typeof body.sourceId === 'string' ? body.sourceId : typeof body.source_id === 'string' ? body.source_id : undefined;
 
@@ -276,40 +289,43 @@ export async function POST(req: NextRequest) {
     const launchOne = async (kind: JobKind, chain: JobKind[]) => {
       const strippedExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
       const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
-      const sourceId = sources[0]?.id;
-      if (SPLITTABLE_KINDS.has(kind) && sourceId) {
-        await assertObjectsInScope(orgId, kind, sourceId, strippedExcludes, includePatterns);
-        const plan = await planForKind(orgId, kind, sourceId, scope);
 
-        if (plan.needsSplit) {
-          const result = await launchSplitKind(
-            kind,
-            orgId,
-            sourceId,
-            scope.excludeSchemas,
-            scope.includePatterns,
-            chain,
-          );
-          splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
-          totalJobsEnqueued += result.totalChildren + 1; // children + parent
-          allFailures.push(...result.failures);
-          taskArns.push(...result.taskArns);
-          return;
+      for (const src of sources) {
+        if (SPLITTABLE_KINDS.has(kind)) {
+          await assertObjectsInScope(orgId, kind, src.id, strippedExcludes, includePatterns);
+          const plan = await planForKind(orgId, kind, src.id, scope);
+
+          if (plan.needsSplit) {
+            const result = await launchSplitKind(
+              kind,
+              orgId,
+              src.id,
+              scope.excludeSchemas,
+              scope.includePatterns,
+              chain,
+              runnerFlags,
+            );
+            splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
+            totalJobsEnqueued += result.totalChildren + 1;
+            allFailures.push(...result.failures);
+            taskArns.push(...result.taskArns);
+            continue;
+          }
         }
-      }
 
-      // Non-split path
-      const result = await launchKind(
-        kind,
-        orgId,
-        sources,
-        scope.excludeSchemas,
-        scope.includePatterns,
-        chain,
-      );
-      totalJobsEnqueued += result.jobsEnqueued;
-      allFailures.push(...result.failures);
-      if (result.taskArn) taskArns.push(result.taskArn);
+        const result = await launchKind(
+          kind,
+          orgId,
+          [src],
+          scope.excludeSchemas,
+          scope.includePatterns,
+          chain,
+          runnerFlags,
+        );
+        totalJobsEnqueued += result.jobsEnqueued;
+        allFailures.push(...result.failures);
+        if (result.taskArn) taskArns.push(result.taskArn);
+      }
     };
 
     if (sequential && kinds.length > 1) {

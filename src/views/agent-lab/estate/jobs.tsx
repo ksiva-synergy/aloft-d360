@@ -10,10 +10,12 @@ import {
   formatStatsSummary,
   launchUsesEstateExcludeTree,
   resolveDisplayJobStatus,
-  resolveLaunchScopeFilters,
+  resolveModalLaunchScope,
   scopeSummaryFocus,
   stripExcludeSchemasForKind,
 } from '@/lib/estate/job-ui';
+import JobsCockpitPanel from '@/components/estate/JobsCockpitPanel';
+import { isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
 import { HARVEST_SCHEDULES, relativeNextRun, getNextRun } from '@/lib/context/schedules';
 import { toast } from 'sonner';
@@ -290,7 +292,7 @@ const KIND_META: Record<string, KindMeta> = {
   },
   t4_scan: {
     label: 'T4 Entity Scan',
-    description: 'Fans out per-schema entity + dimension proposals via Bedrock',
+    description: 'Fans out per-schema entity + dimension proposals from T2 semantic cards',
     color: '#FB923C',
     bg: 'rgba(251,146,60,0.08)',
     border: 'rgba(251,146,60,0.25)',
@@ -347,23 +349,27 @@ const JOB_KIND_GROUPS: JobKindGroup[] = [
     step: '04',
     label: 'Usage & Connections',
     subtitle: 'T3 - query history & lineage',
-    kinds: ['t3_connected', 't3_usage'],
-  },
-  {
-    id: 'knowledge',
-    step: '05',
-    label: 'Knowledge & Mapping',
-    subtitle: 'Cross-source links, silos & sync',
-    kinds: ['mapping', 'silo_scan', 'knowledge_sync', 'recompute_entity_tags'],
+    kinds: ['t3_usage'],
   },
   {
     id: 'entity_model',
+    step: '05',
+    label: 'Entity modelling (T4)',
+    subtitle: 'Semantic entities, dimensions & measures from T2 cards',
+    kinds: ['t4_scan'],
+  },
+  {
+    id: 'knowledge',
     step: '06',
-    label: 'Entity Modelling',
-    subtitle: 'T4 - entity + dimension proposals across estate',
-    kinds: ['t4_scan', 't4_entity_propose', 't4_dim_propose'],
+    label: 'Knowledge & Mapping',
+    subtitle: 'Cross-source links, silos & sync',
+    kinds: ['knowledge_sync'],
   },
 ];
+
+function filterLaunchableKindList(kinds: string[]): string[] {
+  return kinds.filter(k => !isLaunchDisabledKind(k));
+}
 
 const ALL_KINDS = JOB_KIND_GROUPS.flatMap(g => g.kinds);
 
@@ -421,10 +427,13 @@ const TRIGGERABLE_BY_KIND = Object.fromEntries(TRIGGERABLE_JOBS.map(j => [j.kind
 
 function getTriggerableJobGroups() {
   return JOB_KIND_GROUPS
-    .map(group => ({
-      group,
-      jobs: group.kinds.map(k => TRIGGERABLE_BY_KIND[k]).filter((j): j is (typeof TRIGGERABLE_JOBS)[number] => Boolean(j)),
-    }))
+    .map(group => {
+      const kinds = filterLaunchableKindList(group.kinds);
+      return {
+        group: { ...group, kinds },
+        jobs: kinds.map(k => TRIGGERABLE_BY_KIND[k]).filter((j): j is (typeof TRIGGERABLE_JOBS)[number] => Boolean(j)),
+      };
+    })
     .filter(g => g.jobs.length > 0);
 }
 
@@ -443,8 +452,13 @@ interface ConfirmState {
   loading: boolean;
   tree: CatalogTree[] | null;
   excludeSchemas: Set<string>; // "catalog.schema"
+  includedSchemas: Set<string>; // include-first tree (catalog.schema)
+  scopeTreeMode: 'exclude' | 'include';
   includePatterns: string;     // comma/newline-separated glob patterns, empty = full scope
   sequential: boolean;         // chain T0→T1→T2 in order rather than launching all at once
+  forceFullScan: boolean;
+  forceReprofile: boolean;
+  forceReEnrich: boolean;
 }
 
 interface CatalogTree {
@@ -463,8 +477,10 @@ function RunJobConfirmModal({
   onToggleSchema,
   onExcludeAllSchemas,
   onClearExcludeSchemas,
+  onSetScopeTreeMode,
   onChangeIncludePatterns,
   onToggleSequential,
+  onToggleRunnerFlag,
   onChangeSourceId,
   submitting,
 }: {
@@ -477,8 +493,10 @@ function RunJobConfirmModal({
   onToggleSchema: (key: string) => void;
   onExcludeAllSchemas: () => void;
   onClearExcludeSchemas: () => void;
+  onSetScopeTreeMode: (mode: 'exclude' | 'include') => void;
   onChangeIncludePatterns: (val: string) => void;
   onToggleSequential: () => void;
+  onToggleRunnerFlag: (key: 'forceFullScan' | 'forceReprofile' | 'forceReEnrich') => void;
   onChangeSourceId: (sourceId: string) => void;
   submitting: boolean;
 }) {
@@ -500,16 +518,23 @@ function RunJobConfirmModal({
     ? confirm.tree.reduce((sum, cat) => {
         return sum + cat.schemas.reduce((s2, sch) => {
           const key = `${cat.catalog}.${sch.name}`;
+          if (confirm.scopeTreeMode === 'include') {
+            return confirm.includedSchemas.has(key) ? s2 + sch.count : s2;
+          }
           return confirm.excludeSchemas.has(key) ? s2 : s2 + sch.count;
         }, 0);
       }, 0)
     : confirm.objectCount;
 
-  const limitPatterns = confirm.includePatterns
-    .split(/[\n,]+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+  const resolvedScope = resolveModalLaunchScope({
+    includePatternsText: confirm.includePatterns,
+    scopeTreeMode: confirm.scopeTreeMode,
+    excludeSchemas: Array.from(confirm.excludeSchemas),
+    includedSchemas: Array.from(confirm.includedSchemas),
+  });
+  const limitPatterns = resolvedScope.includePatterns;
   const limitActive = limitPatterns.length > 0;
+  const includeTreeActive = confirm.scopeTreeMode === 'include' && confirm.includedSchemas.size > 0 && !confirm.includePatterns.trim();
 
   // Derive the dominant split plan (first splittable kind)
   const splittableKinds = ['t2_semantic', 't1_profile', 't0_structural'];
@@ -521,17 +546,25 @@ function RunJobConfirmModal({
     ?? dominantSplitKind;
   const scopePlan = scopePlanKind ? splitPlans[scopePlanKind] : undefined;
   const activePlan = dominantSplitKind ? splitPlans[dominantSplitKind] : undefined;
+  const includeScopeEmpty =
+    confirm.scopeTreeMode === 'include'
+    && !confirm.includePatterns.trim()
+    && confirm.includedSchemas.size === 0
+    && showExcludeTree;
   const launchBlocked = Boolean(
-    dominantSplitKind
-    && !splitPlansLoading
-    && (splitPlanError || activePlan?.emptyScope || !activePlan),
+    includeScopeEmpty
+    || (
+      dominantSplitKind
+      && !splitPlansLoading
+      && (splitPlanError || activePlan?.emptyScope || !activePlan)
+    ),
   );
 
   const scopeCountLabel = limitActive
     ? (scopePlan?.registry === 'estate' || scopePlanKind === 't0_structural'
       ? 'Tables matching Limit (discovery)'
       : 'Tables matching Limit (scanned)')
-    : 'In Databricks (discovery)';
+    : 'Discovery (estate inventory)';
   const scopeCountValue = limitActive
     ? (splitPlansLoading
       ? null
@@ -584,13 +617,37 @@ function RunJobConfirmModal({
           <div className="rounded-lg border p-5 space-y-4" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))', backgroundColor: 'var(--muted, rgba(0,0,0,0.2))' }}>
             {showExcludeTree ? (
             <>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onSetScopeTreeMode('exclude')}
+                className="px-3 py-1.5 rounded-md border text-size-ui font-mono font-semibold"
+                style={{
+                  borderColor: confirm.scopeTreeMode === 'exclude' ? 'var(--brand-a)' : 'var(--border)',
+                  color: confirm.scopeTreeMode === 'exclude' ? 'var(--brand-a-ink)' : 'var(--text-secondary)',
+                }}
+              >
+                All discovery (exclude schemas)
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetScopeTreeMode('include')}
+                className="px-3 py-1.5 rounded-md border text-size-ui font-mono font-semibold"
+                style={{
+                  borderColor: confirm.scopeTreeMode === 'include' ? 'var(--brand-a)' : 'var(--border)',
+                  color: confirm.scopeTreeMode === 'include' ? 'var(--brand-a-ink)' : 'var(--text-secondary)',
+                }}
+              >
+                Limit to selected schemas
+              </button>
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2.5 min-w-0">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <span className="text-label" style={{ color: 'var(--text-secondary, #8892A4)' }}>
-                  Exclude schemas (discovery tree)
+                  {confirm.scopeTreeMode === 'include' ? 'Include schemas (discovery tree)' : 'Exclude schemas (discovery tree)'}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -766,7 +823,10 @@ function RunJobConfirmModal({
                             <div className="ml-8 pl-3.5 border-l" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))' }}>
                               {cat.schemas.map(sch => {
                                 const key = `${cat.catalog}.${sch.name}`;
-                                const excluded = confirm.excludeSchemas.has(key);
+                                const inIncludeMode = confirm.scopeTreeMode === 'include';
+                                const excluded = inIncludeMode
+                                  ? !confirm.includedSchemas.has(key)
+                                  : confirm.excludeSchemas.has(key);
                                 return (
                                   <button
                                     key={sch.name}
@@ -774,16 +834,16 @@ function RunJobConfirmModal({
                                     className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.05] text-left group"
                                     style={{ opacity: excluded ? 0.45 : 1 }}
                                   >
-                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${excluded ? 'border-red-500/60 bg-red-500/10' : 'border-[color:var(--line-2)] dark:border-white/20 bg-[color:var(--surface-2)] dark:bg-white/5 group-hover:border-[color:var(--line-2)] dark:group-hover:border-white/40'}`}>
-                                      {excluded ? (
-                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                                        </svg>
-                                      ) : (
+                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${excluded ? (inIncludeMode ? 'border-[color:var(--line-2)] dark:border-white/20 bg-transparent' : 'border-red-500/60 bg-red-500/10') : 'border-[color:var(--line-2)] dark:border-white/20 bg-[color:var(--surface-2)] dark:bg-white/5 group-hover:border-[color:var(--line-2)] dark:group-hover:border-white/40'}`}>
+                                      {!excluded ? (
                                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                           <polyline points="20 6 9 17 4 12"/>
                                         </svg>
-                                      )}
+                                      ) : !inIncludeMode ? (
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                        </svg>
+                                      ) : null}
                                     </div>
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary, #8892A4)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
@@ -984,6 +1044,36 @@ function RunJobConfirmModal({
           )}
         </div>
 
+        {(confirm.kinds.includes('t0_structural')
+          || confirm.kinds.includes('t1_profile')
+          || confirm.kinds.includes('t2_semantic')) && (
+          <div className="px-7 py-3 border-t space-y-2" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))' }}>
+            <div className="text-size-ui font-mono font-semibold" style={{ color: 'var(--text-secondary, #8892A4)' }}>
+              Run all in scope (new versions, ignore stale skip)
+            </div>
+            <div className="flex flex-wrap gap-4 text-size-ui" style={{ color: 'var(--ink-1)' }}>
+              {confirm.kinds.includes('t0_structural') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={confirm.forceFullScan} onChange={() => onToggleRunnerFlag('forceFullScan')} />
+                  Full T0 listing
+                </label>
+              )}
+              {confirm.kinds.includes('t1_profile') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={confirm.forceReprofile} onChange={() => onToggleRunnerFlag('forceReprofile')} />
+                  Re-profile all
+                </label>
+              )}
+              {confirm.kinds.includes('t2_semantic') && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={confirm.forceReEnrich} onChange={() => onToggleRunnerFlag('forceReEnrich')} />
+                  Re-enrich all
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="px-7 py-5 flex items-center justify-between border-t" style={{ borderColor: 'var(--border, rgba(255,255,255,0.08))' }}>
           <div className="text-size-ui font-mono" style={{ color: 'var(--text-secondary, #8892A4)' }}>
@@ -1072,8 +1162,12 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
   const refreshSplitPlans = useCallback(async (
     scopeKey: string,
     kinds: string[],
-    excludeSchemas: Set<string>,
-    includePatterns: string,
+    scope: {
+      excludeSchemas: Set<string>;
+      includedSchemas: Set<string>;
+      scopeTreeMode: 'exclude' | 'include';
+      includePatterns: string;
+    },
     sourceId: string | null,
     signal: AbortSignal,
   ) => {
@@ -1094,12 +1188,12 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       setSplitPlanError(null);
     }
 
-    const includeArr = includePatterns
-      .split(/[\n,]+/)
-      .map(s => s.trim())
-      .filter(Boolean);
-    const excludeArr = Array.from(excludeSchemas);
-    const scopeFilters = resolveLaunchScopeFilters(excludeArr, includeArr);
+    const scopeFilters = resolveModalLaunchScope({
+      includePatternsText: scope.includePatterns,
+      scopeTreeMode: scope.scopeTreeMode,
+      excludeSchemas: Array.from(scope.excludeSchemas),
+      includedSchemas: Array.from(scope.includedSchemas),
+    });
 
     const plans = await Promise.all(
       kindsToCheck.map(async (kind) => {
@@ -1157,22 +1251,27 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
   }, []);
 
   const splitPlanScopeKey = confirm && !confirm.loading
-    ? `${confirm.sourceId ?? ''}|${confirm.kinds.join(',')}|${Array.from(confirm.excludeSchemas).sort().join('|')}|${confirm.includePatterns}`
+    ? `${confirm.sourceId ?? ''}|${confirm.kinds.join(',')}|${confirm.scopeTreeMode}|${Array.from(confirm.excludeSchemas).sort().join('|')}|${Array.from(confirm.includedSchemas).sort().join('|')}|${confirm.includePatterns}`
     : null;
 
   useEffect(() => {
     if (!splitPlanScopeKey || !confirm || confirm.loading) return;
 
     const scopeKey = splitPlanScopeKey;
-    const { kinds, excludeSchemas, includePatterns, sourceId } = confirm;
-    const debounceMs = includePatterns.trim() ? 400 : 0;
+    const { kinds, sourceId } = confirm;
+    const debounceMs = confirm.includePatterns.trim() ? 400 : 0;
 
     const timer = setTimeout(() => {
       activeSplitPlanScopeRef.current = scopeKey;
       splitPlanAbortRef.current?.abort();
       const ac = new AbortController();
       splitPlanAbortRef.current = ac;
-      refreshSplitPlans(scopeKey, kinds, excludeSchemas, includePatterns, sourceId, ac.signal);
+      refreshSplitPlans(scopeKey, kinds, {
+        excludeSchemas: confirm.excludeSchemas,
+        includedSchemas: confirm.includedSchemas,
+        scopeTreeMode: confirm.scopeTreeMode,
+        includePatterns: confirm.includePatterns,
+      }, sourceId, ac.signal);
     }, debounceMs);
 
     return () => clearTimeout(timer);
@@ -1205,8 +1304,13 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       loading: true,
       tree: null,
       excludeSchemas: new Set(),
+      includedSchemas: new Set(),
+      scopeTreeMode: 'exclude',
       includePatterns: '',
       sequential: Array.from(selectedKinds).length > 1,
+      forceFullScan: false,
+      forceReprofile: false,
+      forceReEnrich: false,
     });
     try {
       const sourcesRes = await fetch('/api/agent-lab/context/sources');
@@ -1282,8 +1386,15 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
     activeSplitPlanScopeRef.current = null;
     setConfirm(prev => {
       if (!prev) return null;
+      if (prev.scopeTreeMode === 'include') {
+        const next = new Set(prev.includedSchemas);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return { ...prev, includedSchemas: next };
+      }
       const next = new Set(prev.excludeSchemas);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return { ...prev, excludeSchemas: next };
     });
   }
@@ -1292,6 +1403,15 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
     activeSplitPlanScopeRef.current = null;
     setConfirm(prev => {
       if (!prev?.tree) return prev;
+      if (prev.scopeTreeMode === 'include') {
+        const next = new Set(prev.includedSchemas);
+        for (const cat of prev.tree) {
+          for (const sch of cat.schemas) {
+            next.add(`${cat.catalog}.${sch.name}`);
+          }
+        }
+        return { ...prev, includedSchemas: next };
+      }
       const next = new Set(prev.excludeSchemas);
       for (const cat of prev.tree) {
         for (const sch of cat.schemas) {
@@ -1304,7 +1424,18 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
 
   function clearExcludeSchemas() {
     activeSplitPlanScopeRef.current = null;
-    setConfirm(prev => (prev ? { ...prev, excludeSchemas: new Set() } : null));
+    setConfirm(prev => {
+      if (!prev) return null;
+      if (prev.scopeTreeMode === 'include') {
+        return { ...prev, includedSchemas: new Set() };
+      }
+      return { ...prev, excludeSchemas: new Set() };
+    });
+  }
+
+  function setScopeTreeMode(mode: 'exclude' | 'include') {
+    activeSplitPlanScopeRef.current = null;
+    setConfirm(prev => (prev ? { ...prev, scopeTreeMode: mode } : null));
   }
 
   function changeIncludePatterns(val: string) {
@@ -1314,6 +1445,10 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
 
   function toggleSequential() {
     setConfirm(prev => prev ? { ...prev, sequential: !prev.sequential } : null);
+  }
+
+  function toggleRunnerFlag(key: 'forceFullScan' | 'forceReprofile' | 'forceReEnrich') {
+    setConfirm(prev => (prev ? { ...prev, [key]: !prev[key] } : null));
   }
 
   async function changeLaunchSource(sourceId: string) {
@@ -1363,20 +1498,23 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
     if (!confirm) return;
     setSubmitting(true);
     try {
-      const includePatterns = confirm.includePatterns
-        .split(/[\n,]+/)
-        .map(s => s.trim())
-        .filter(Boolean);
+      const { includePatterns, excludeSchemas } = resolveModalLaunchScope({
+        includePatternsText: confirm.includePatterns,
+        scopeTreeMode: confirm.scopeTreeMode,
+        excludeSchemas: Array.from(confirm.excludeSchemas),
+        includedSchemas: Array.from(confirm.includedSchemas),
+      });
       const res = await fetch('/api/agent-lab/context/jobs/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           kinds: confirm.kinds,
-          excludeSchemas: launchUsesEstateExcludeTree(confirm.kinds)
-            ? Array.from(confirm.excludeSchemas)
-            : [],
+          excludeSchemas: launchUsesEstateExcludeTree(confirm.kinds) ? excludeSchemas : [],
           includePatterns,
           sequential: confirm.sequential,
+          ...(confirm.forceFullScan ? { forceFullScan: true } : {}),
+          ...(confirm.forceReprofile ? { forceReprofile: true } : {}),
+          ...(confirm.forceReEnrich ? { forceReEnrich: true } : {}),
           ...(confirm.sourceId ? { sourceId: confirm.sourceId } : {}),
         }),
       });
@@ -1585,8 +1723,10 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           onToggleSchema={toggleSchema}
           onExcludeAllSchemas={excludeAllSchemas}
           onClearExcludeSchemas={clearExcludeSchemas}
+          onSetScopeTreeMode={setScopeTreeMode}
           onChangeIncludePatterns={changeIncludePatterns}
           onToggleSequential={toggleSequential}
+          onToggleRunnerFlag={toggleRunnerFlag}
           onChangeSourceId={changeLaunchSource}
           submitting={submitting}
         />
@@ -1851,12 +1991,14 @@ function L1View({
   loading,
   onSelectKind,
   onCancelJob,
+  onCockpitLaunched,
 }: {
   summaries: KindSummary[];
   queuedJobs: QueuedJobItem[];
   loading: boolean;
   onSelectKind: (kind: string) => void;
   onCancelJob: (jobId: string, kind: string) => void;
+  onCockpitLaunched?: () => void;
 }) {
   const mutedColor = 'var(--estate-text-muted)';
   const cardBg = 'var(--estate-raised)';
@@ -1869,6 +2011,7 @@ function L1View({
 
   return (
     <div className="flex-1 overflow-auto p-6">
+      <JobsCockpitPanel onLaunched={onCockpitLaunched} />
       {/* Aggregate overview */}
       {!loading && summaries.length > 0 && <AggregateStats summaries={summaries} />}
 
@@ -2624,8 +2767,8 @@ function EstateJobsPageContent() {
                   <span
                     key={sched.id}
                     title={isManual
-                      ? `${sched.description}\nManual / on-demand — no EventBridge rule deployed`
-                      : `${sched.description}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
+                      ? `${sched.description}\nScope: ${sched.scopeNote}\nManual / on-demand — no EventBridge rule deployed`
+                      : `${sched.description}\nScope: ${sched.scopeNote}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-size-ui font-mono transition-all"
                     style={{
                       backgroundColor: isImminent ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'var(--card)',
@@ -2716,6 +2859,7 @@ function EstateJobsPageContent() {
           queuedJobs={queuedJobs}
           loading={summariesLoading}
           onSelectKind={selectKind}
+          onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
           onCancelJob={async (jobId, kind) => {
             try {
               const res = await fetch(`/api/agent-lab/context/jobs/${jobId}`, { method: 'DELETE' });
