@@ -16,7 +16,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { ApiError } from '@/lib/http';
+import { ApiError, error } from '@/lib/http';
 import {
   provisionUserByOid,
   flattenPermissions,
@@ -24,6 +24,7 @@ import {
   isUsable,
   userAuthInclude,
   AccountLinkRequiredError,
+  roleRank,
 } from '@/lib/rbac';
 
 export interface AuthContext {
@@ -128,4 +129,25 @@ export function requireOwnerOrPermission(ctx: AuthContext, resourceUserId: strin
   if (ctx.userId === resourceUserId) return;
   if (ctx.permissions.has(key)) return;
   throw new ApiError(403, 'Forbidden', { required: key });
+}
+
+/** Throw 403 unless the caller's primary role is at least `minRole` (readonly < member < admin < platform_admin). */
+export function requireRole(ctx: AuthContext, minRole: 'member' | 'admin' | 'platform_admin'): void {
+  if (roleRank(ctx.role) < roleRank(minRole)) {
+    throw new ApiError(403, 'Forbidden', { requiredRole: minRole });
+  }
+}
+
+/**
+ * For route handlers not wrapped in `handle()`: resolves auth, runs `check` (e.g. requireRole /
+ * requirePermission) and returns the JSON error Response to send, or null to proceed.
+ */
+export async function denyUnless(req: Request, check: (ctx: AuthContext) => void): Promise<Response | null> {
+  try {
+    check(await resolveAuth(req));
+    return null;
+  } catch (e) {
+    if (e instanceof ApiError) return error(e.status, e.message, e.details);
+    throw e;
+  }
 }

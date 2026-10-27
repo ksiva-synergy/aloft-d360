@@ -13,7 +13,7 @@ import { buildTestRunSystemPrompt } from '@/lib/construction/prompts';
 import { loadConstructionState } from '@/lib/construction/load-state';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import { getDefaultOrg } from '@/lib/platform/agents';
-import { getSessionUserRole } from '@/lib/inspector/model-access';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;

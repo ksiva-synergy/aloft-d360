@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { fetchLlmLiteInspectorModelOptions } from '@/lib/llmlite/inspector-models';
 import { isLlmLiteConfigured } from '@/lib/llmlite/config';
-import { filterChatModelsForRole, getSessionUserRole } from '@/lib/inspector/model-access';
+import { filterChatModelsForRole } from '@/lib/inspector/model-access';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 

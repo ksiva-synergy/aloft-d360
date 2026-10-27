@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handle, ok, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
-import { PERMISSIONS, resolveRoleLabel } from '@/lib/rbac';
+import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
 import { writeAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -71,6 +71,11 @@ export const PATCH = handle<Ctx>(async (req, ctx) => {
 
     const newRole = await prisma.role.findUnique({ where: { name: body.role }, select: { id: true, name: true } });
     if (!newRole) throw new ApiError(400, `Unknown role: ${body.role}`);
+
+    // No escalation: the caller can neither grant a role above their own nor re-role someone who outranks them.
+    const current = await prisma.userRole.findMany({ where: { userId: id }, select: { role: { select: { name: true } } } });
+    const blocked = [newRole.name, ...current.map((r) => r.role.name)].find((r) => !canManageRole(auth.role, r));
+    if (blocked) throw new ApiError(403, `Your role cannot manage the "${blocked}" role`);
 
     // Revoke all current roles, assign the new one
     await prisma.userRole.deleteMany({ where: { userId: id } });

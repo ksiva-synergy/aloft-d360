@@ -22,7 +22,7 @@ import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { getDefaultOrg } from '@/lib/platform/agents';
-import { getSessionUserRole } from '@/lib/inspector/model-access';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;

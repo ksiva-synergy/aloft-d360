@@ -1,5 +1,5 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+// Pure, client-safe helpers (the SPA imports this via useInspectorChatModels). The server-only
+// session lookup lives in ./session-role so NextAuth and Prisma stay out of the browser bundle.
 import type { ModelOption } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 
@@ -26,9 +26,4 @@ export function filterChatModelsForRole(
   const grok = models.filter((m) => m.key === DEFAULT_INSPECTOR_MODEL_KEY);
   if (grok.length > 0) return grok;
   return models.filter((m) => m.key === DEFAULT_INSPECTOR_MODEL_KEY);
-}
-
-export async function getSessionUserRole(): Promise<string | undefined> {
-  const session = await getServerSession(authOptions);
-  return (session?.user as { role?: string } | undefined)?.role;
 }

@@ -4,15 +4,34 @@ import type { ConstructionState } from '@/lib/construction/constructionState';
 import { constructionStateNeedsRepair, loadConstructionState } from '@/lib/construction/load-state';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getPendingReflections } from '@/lib/marcus/dal';
+import { guardSessionRead } from '@/lib/inspector/session-auth';
+import { authenticateSession } from '@/middleware/auth';
+import { PERMISSIONS } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
+const ROUTE = '/api/agent-lab/workbench/sessions/:id';
+
+/**
+ * Ownership is always enforced here (not tied to INSPECTOR_AUTH_ENFORCE): only the owner may read,
+ * change or delete a session. Reads also allow `session:read:all` (platform admins), matching the
+ * sessions list. Returns a Response only when the request must be blocked.
+ */
+async function guardOwner(request: NextRequest, id: string, mode: 'read' | 'write'): Promise<Response | null> {
+  const blocked = await guardSessionRead(request, id, { route: ROUTE });
+  if (!blocked || mode === 'write' || blocked.status !== 403) return blocked;
+  const auth = await authenticateSession();
+  return auth?.permissions.has(PERMISSIONS.SESSION_READ_ALL) ? null : blocked;
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
+    const blocked = await guardOwner(request, id, 'read');
+    if (blocked) return blocked;
     const data = await prisma.workbench_sessions.findUnique({ where: { id } });
     if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
@@ -70,6 +89,8 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const blocked = await guardOwner(request, id, 'write');
+    if (blocked) return blocked;
     let body: Record<string, unknown> = {};
     try { body = await request.json(); } catch { /* empty body is valid */ }
 
@@ -155,11 +176,13 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
+    const blocked = await guardOwner(request, id, 'write');
+    if (blocked) return blocked;
     await prisma.$transaction([
       prisma.platform_interaction_search.deleteMany({ where: { session_id: id } }),
       prisma.platform_interaction_events.deleteMany({ where: { session_id: id } }),

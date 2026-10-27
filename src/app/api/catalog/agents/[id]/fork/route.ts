@@ -1,46 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { ApiError, clientMeta, created, handle, parse } from '@/lib/http';
+import { resolveAuth, requirePermission } from '@/middleware/auth';
+import { PERMISSIONS } from '@/lib/rbac';
+import { writeAudit } from '@/lib/audit';
+import { catalogAgentForkSchema } from '../../schema';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
-  const params = await paramsPromise;
-  try {
-    const original = await prisma.agent_catalog.findUnique({ where: { id: params.id } });
-    if (!original) {
-      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
-    }
+type Ctx = { params: Promise<{ id: string }> };
 
-    const body = await request.json().catch(() => ({}));
+// A fork is a private draft owned by the caller; owner, author and lineage never come from the body.
+export const POST = handle<Ctx>(async (req, ctx) => {
+  const params = await ctx.params;
+  const auth = await resolveAuth(req);
+  requirePermission(auth, PERMISSIONS.INSPECTOR_USE);
+  const original = await prisma.agent_catalog.findUnique({ where: { id: params.id } });
+  if (!original) throw new ApiError(404, 'Entry not found');
 
-    const data = await prisma.agent_catalog.create({
-      data: {
-        name: body.name || `${original.name} (fork)`,
-        slug: `${original.slug}-fork-${Date.now().toString(36)}`,
-        type: original.type,
-        description: original.description,
-        version: body.version || original.version,
-        config: original.config ?? {},
-        tools: original.tools ?? [],
-        input_schema: original.input_schema ?? {},
-        output_schema: original.output_schema ?? {},
-        bus_subscriptions: original.bus_subscriptions ?? [],
-        bus_publications: original.bus_publications ?? [],
-        tags: original.tags ?? [],
-        status: 'draft',
-        author: body.author || original.author,
-        parent_id: params.id,
-        is_head: false,
-        draft_of_id: body.draft_of_id || null,
-        owner_id: body.owner_id || null,
-        reviewers: [],
-        policy_ids: original.policy_ids ?? [],
-      },
-    });
+  const body = parse(catalogAgentForkSchema, await req.json().catch(() => ({})));
 
-    return NextResponse.json({ item: data }, { status: 201 });
-  } catch (err) {
-    console.error('[catalog/agents/:id/fork POST] error', err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
-  }
-}
+  const data = await prisma.agent_catalog.create({
+    data: {
+      name: body.name || `${original.name} (fork)`,
+      slug: `${original.slug}-fork-${Date.now().toString(36)}`,
+      type: original.type,
+      description: original.description,
+      version: body.version || original.version,
+      config: original.config ?? {},
+      tools: original.tools ?? [],
+      input_schema: original.input_schema ?? {},
+      output_schema: original.output_schema ?? {},
+      bus_subscriptions: original.bus_subscriptions ?? [],
+      bus_publications: original.bus_publications ?? [],
+      tags: original.tags ?? [],
+      status: 'draft',
+      author: original.author,
+      parent_id: params.id,
+      is_head: false,
+      draft_of_id: null,
+      owner_id: auth.userId,
+      reviewers: [],
+      policy_ids: original.policy_ids ?? [],
+    },
+  });
+
+  await writeAudit({ actorId: auth.userId, action: 'catalog_agent.forked', entityType: 'agent_catalog', entityId: data.id, after: { parentId: params.id }, ...clientMeta(req) });
+  return created({ item: data });
+});

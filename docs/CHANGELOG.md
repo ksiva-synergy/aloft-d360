@@ -2,6 +2,21 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-26 — Close auth findings S1–S4; CI verify gate; ESLint config; bundle leak
+
+- **What:**
+  - **S1 roles:** `DEFAULT_ROLE` is now `member` (`src/lib/rbac.ts`). New helpers `roleRank`/`canManageRole` mean nobody can grant, revoke or re-role above their own rank, and unknown custom roles count as top rank when being granted. Enforced in `PATCH /api/users/:id` and `POST`/`DELETE /api/access/assignments`. `requireRole` and `denyUnless` were added to `src/middleware/auth.ts`.
+  - **S2 sessions:** `GET`/`PATCH`/`DELETE /api/agent-lab/workbench/sessions/:id` always enforce ownership (reusing `guardSessionRead`). `session:read:all` may read, never write.
+  - **S3 policies and catalog:** policy and catalog-agent create/update/delete are admin-only, zod-whitelisted (`src/app/api/policies/schema.ts`, `src/app/api/catalog/agents/schema.ts`) and audited. Catalog `owner_id` is always the caller. A fork needs `inspector:use`, is owned by the caller, and ignores `owner_id`/`author`/`draft_of_id` from the body.
+  - **S4 Databricks:** connection create/update/delete/test are admin-only. SQL execute requires `inspector:use`.
+  - **Bundle leak:** `getSessionUserRole` moved to the server-only module `src/lib/inspector/session-role.ts`, so `model-access.ts` is client-safe. Five API routes updated.
+  - **ESLint:** `eslint.config.cjs` spreads `eslint-config-next/core-web-vitals` directly (`FlatCompat.extends` crashed). It now ignores build output (`public/spa`, `web/dist`) and `docs/vendor`.
+  - **CI:** a `verify` job in `.github/workflows/ecr-push.yml` (vitest, both typechecks, SPA build, `web:check-bundle`). Both image builds `need` it, so deploys do too.
+- **Why:** P0 findings from `docs/audits/business-ai-studio-current-state.md`. They are the prerequisite (D1) for publishing or running Studio flows.
+- **Verified:** `npx vitest run` 85 files / 667 tests pass, including the new `src/app/api/__tests__/authz-hardening.test.ts` (12 tests). Mutation checks: removing the session-PATCH owner guard fails 2 tests; removing the policy admin check fails 1. `tsc --noEmit` and `web:typecheck` clean. `web:build` + `web:check-bundle` report "bundle clean". ESLint clean on all touched files.
+- **Behaviour changes to review before deploy:** new Entra users get `member` (existing users unchanged). Non-admins can no longer write policies or catalog entries, or add or edit Databricks connections. Readonly users can no longer run warehouse SQL. Non-owners get 403 on another user's workbench session.
+- **Not done:** repo-wide ESLint now runs and reports **147 pre-existing problems (141 errors) in 84 files**, mostly the new `react-hooks` v7 rules such as `set-state-in-effect` (92). Lint is therefore not in the CI gate yet. The CI `verify` job has not run on GitHub yet. `BlueprintStage.refine-define.test.tsx` failed once under heavy parallel load, and passes alone and in a normal full run. S5–S13 (Inspector observe-mode, JWT role staleness, memory purge and studio-results ownership) remain open. Catalog review comments still take `author` from the body.
+
 ## 2026-10-26 — Lineage + scanned list: fewer pool slots per request
 
 - **What:** Semantic lineage uses `getOrgId` and skips `getUserByEmail` when `session.user.id` is set; `listScannedObjectsPage` queries run in batches of 2; `getDefaultOrg` prefers `DEFAULT_ORG_ID` lookup.

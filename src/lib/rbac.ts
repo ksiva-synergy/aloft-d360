@@ -15,8 +15,11 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
 
-/** Role granted to brand-new users on first login (just-in-time provisioning). */
-export const DEFAULT_ROLE = 'admin';
+/**
+ * Role granted to brand-new users on first login (just-in-time provisioning). Least privilege:
+ * anything above `member` is granted deliberately by an admin, or `platform_admin` via AAD group sync.
+ */
+export const DEFAULT_ROLE = 'member';
 
 /**
  * Thrown by provisionUserByOid when a first-time AAD login presents an email that
@@ -63,6 +66,25 @@ export const ROLE_LABELS: Record<string, string> = {
 
 /** Highest-privilege first — used to pick the coarse role string for the session. */
 const ROLE_PRECEDENCE = ['platform_admin', 'admin', 'member', 'readonly'];
+
+/**
+ * Rank of a role in the built-in hierarchy (readonly 1 … platform_admin 4). A role outside the
+ * hierarchy (custom roles can carry any permission) is ranked by `unknownAs`: `highest` when it is
+ * the role being granted, `lowest` when it is the caller's own role, so it never helps a caller.
+ */
+export function roleRank(role: string, unknownAs: 'highest' | 'lowest' = 'lowest'): number {
+  const i = ROLE_PRECEDENCE.indexOf(role);
+  if (i === -1) return unknownAs === 'highest' ? ROLE_PRECEDENCE.length : 0;
+  return ROLE_PRECEDENCE.length - i;
+}
+
+/**
+ * An actor may grant or revoke `targetRole`, or change the roles of a user whose current primary
+ * role is `targetRole`, only when it does not outrank the actor's own primary role.
+ */
+export function canManageRole(actorRole: string, targetRole: string): boolean {
+  return roleRank(targetRole, 'highest') <= roleRank(actorRole, 'lowest');
+}
 
 export const userAuthInclude = {
   roles: {

@@ -12,7 +12,7 @@ import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { buildRuntimeSystemPrompt } from '@/lib/construction/prompts';
 import { runtimeBriefFromCatalog } from '@/lib/construction/catalog-sync';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
-import { getSessionUserRole } from '@/lib/inspector/model-access';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;

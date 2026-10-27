@@ -31,7 +31,8 @@ import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
-import { chatModelKeyForRole, getSessionUserRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
+import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { fromLlmLiteModelKey } from '@/lib/llmlite/keys';
 import {

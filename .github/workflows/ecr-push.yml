@@ -44,8 +44,44 @@ env:
   EB_ENVIRONMENT_NAME: ${{ vars.EB_ENVIRONMENT_NAME || 'Aloft-d360-web-env' }}
 
 jobs:
+  # Gate: nothing is built or deployed unless tests, typechecks, the SPA build and the
+  # server-code bundle guard pass. No AWS access or secrets are used here.
+  verify:
+    name: Verify (tests, typecheck, bundle guard)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20 # matches the Dockerfile base image
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Unit and integration tests
+        run: npx vitest run
+
+      - name: Typecheck (API + shared)
+        run: npx tsc --noEmit
+
+      - name: Typecheck (SPA)
+        run: npm run web:typecheck
+
+      - name: Build SPA
+        run: |
+          npm run build --workspace=@aloft/shared
+          npm run web:build
+
+      - name: No server-only code in the browser bundle
+        run: npm run web:check-bundle
+
   build-harvester:
     name: Harvester → ECR
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +110,7 @@ jobs:
 
   build-web:
     name: Web → ECR
+    needs: verify
     runs-on: ubuntu-latest
     permissions:
       id-token: write
