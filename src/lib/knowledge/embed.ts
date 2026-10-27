@@ -9,7 +9,7 @@ export const EMBEDDING_DIMS = DEFAULT_EMBED_DIMS;
 export { OPENAI_EMBED_MODEL, CURRENT_EMBEDDING_MODEL };
 
 /**
- * Embed a string (AWS Titan first, then Azure OpenAI text-embedding-3-large).
+ * Embed a string (Bedrock Titan v2 first, then Azure OpenAI / Foundry fallback).
  * Truncates input. Never throws — returns null on failure.
  */
 export async function embedText(text: string): Promise<number[] | null> {

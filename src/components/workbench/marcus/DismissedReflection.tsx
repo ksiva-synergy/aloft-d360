@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface DismissedReflectionProps {
   technique: string;
@@ -19,7 +20,7 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
         justifyContent: 'space-between',
         width: '100%',
         backgroundColor: 'transparent',
-        borderLeft: hovered ? '3px solid rgba(253,181,21,0.4)' : '3px solid rgba(253,181,21,0.18)',
+        borderLeft: hovered ? '3px solid color-mix(in srgb, var(--brand-a) 40%, transparent)' : '3px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
         padding: '10px 0 10px 24px',
         marginTop: '8px',
         marginBottom: '4px',
@@ -30,19 +31,15 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
         <div style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '11px',
-          fontWeight: 500,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: '#5a6a82',
           flexShrink: 0,
         }}>
-          <span style={{ color: 'rgba(253,181,21,0.45)' }}>CAPTAIN TRACK SPARROW</span> · {technique.replace(/_/g, ' ')}
+          <span style={{ color: 'color-mix(in srgb, var(--brand-a) 45%, transparent)' }}>CAPTAIN TRACK SPARROW</span> · {technique.replace(/_/g, ' ')}
         </div>
         <div style={{
-          fontFamily: "'Inter Tight', system-ui, sans-serif",
-          fontSize: '12px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: '#5a6a82',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -53,8 +50,8 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
       </div>
       
       <div style={{
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        fontSize: '10px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color: '#5a6a82',
         opacity: hovered ? 1 : 0,
         transition: 'opacity 0.15s',

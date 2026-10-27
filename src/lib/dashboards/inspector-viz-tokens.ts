@@ -1,3 +1,4 @@
+import { FONT_SANS } from '@/lib/typography/tokens';
 /**
  * src/lib/dashboards/inspector-viz-tokens.ts
  *
@@ -104,11 +105,11 @@ export const SURFACE_DARK = {
 } as const;
 
 export const SURFACE_LIGHT = {
-  canvas: '#F5F2EB',
+  canvas: '#F7F9FC',
   card: '#FFFFFF',
-  cardElevated: '#FAFAF7',
-  border: '#C8C2AD',
-  borderSubtle: '#E4DFCF',
+  cardElevated: '#FBFCFE',
+  border: '#B4C0D0',
+  borderSubtle: '#E2E8F0',
 } as const;
 
 /** Theme-reactive surface tokens (resolve from globals.css `--iv-*`). */
@@ -124,7 +125,7 @@ export const INK_DIM = 'var(--iv-ink-dim, #768390)' as const;
 // ── Typography roles ─────────────────────────────────────────────────────────
 // Inter for ALL UI (labels, titles, pills). Mono is reserved for the SQL trust
 // panel ONLY — never labels/titles/pills.
-export const UI_FONT = "'Inter Tight', system-ui, sans-serif" as const;
+export const UI_FONT = FONT_SANS;
 export const MONO_FONT = "'IBM Plex Mono', ui-monospace, monospace" as const;
 
 // ── Deterministic measure → colour ───────────────────────────────────────────

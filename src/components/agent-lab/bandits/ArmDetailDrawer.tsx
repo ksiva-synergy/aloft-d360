@@ -11,6 +11,7 @@ import {
 } from '@/lib/bandits/born-tokens';
 import { betaPDF } from '@/lib/bandits/born-math';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
@@ -78,8 +79,7 @@ function providerPillStyle(provider: string): React.CSSProperties {
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em',
-      textTransform: 'uppercase', color: TEXT_MUT,
+      ...type.label, color: TEXT_MUT,
       borderBottom: `1px solid ${BORDER}`, paddingBottom: 6, marginBottom: 14,
     }}>
       {children}
@@ -181,10 +181,10 @@ function PosteriorCurve({
           </text>
         ))}
       </svg>
-      <div style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT, marginTop: 6 }}>
+      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 6 }}>
         Beta({alpha.toFixed(1)}, {betaParam.toFixed(1)}) · over composite reward
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT }}>
+      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
         95% CI: {pct(ciLow)}–{pct(ciHigh)} · P(best): {pct(bornProb)}
       </div>
     </div>
@@ -292,7 +292,7 @@ function CtsgvRadar({
         })}
       </svg>
       {/* Weight breakdown */}
-      <div style={{ fontFamily: MONO, fontSize: 10, color: TEXT_MUT }}>
+      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
         {RADAR_AXES.map((ax, i) => {
           const eff = effWeights[i];
           return (
@@ -303,7 +303,7 @@ function CtsgvRadar({
         })}
         <span style={{ marginLeft: 4 }}>· V —</span>
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 10 }}>
+      <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)' }}>
         Composite:{' '}
         <span style={{ color: qualityColor(stat.avg_composite) }}>
           {stat.avg_composite != null ? stat.avg_composite.toFixed(3) : '--'}
@@ -382,8 +382,6 @@ export function ArmDetailDrawer({
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: `${BORDER} transparent`,
         }}
       >
         {/* Close button */}
@@ -393,7 +391,7 @@ export function ArmDetailDrawer({
             position: 'sticky', top: 0, zIndex: 10,
             alignSelf: 'flex-end',
             background: 'transparent', border: 'none',
-            color: TEXT_MUT, fontFamily: MONO, fontSize: 16,
+            color: TEXT_MUT, fontFamily: MONO, fontSize: 'var(--type-body-lg-size)',
             padding: '14px 18px', cursor: 'pointer',
             lineHeight: 1,
           }}
@@ -409,7 +407,7 @@ export function ArmDetailDrawer({
           {/* ── 1. HEADER ── */}
           <Section>
             <div style={{
-              fontFamily: SERIF, fontSize: 20, fontWeight: 600,
+              fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600,
               color: isFav ? GOLD : TEXT_PRI,
               marginBottom: 8, lineHeight: 1.2,
             }}>
@@ -418,20 +416,20 @@ export function ArmDetailDrawer({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{
                 ...providerPillStyle(stat.provider),
-                fontFamily: MONO, fontSize: 10, letterSpacing: '0.04em',
+                fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
                 padding: '2px 7px', borderRadius: 4,
               }}>
                 {stat.provider}
               </span>
               <span style={{
-                fontFamily: MONO, fontSize: 10, letterSpacing: '0.04em',
+                fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
                 color: stat.phase === 'exploiting' ? TEAL : TEXT_MUT,
               }}>
                 {stat.phase}
               </span>
               {isFav && (
                 <span style={{
-                  fontFamily: MONO, fontSize: 9, color: GOLD,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),
                   border: `1px solid ${GOLD}`, borderRadius: 3,
                   padding: '1px 5px', letterSpacing: '0.04em',
                 }}>
@@ -439,7 +437,7 @@ export function ArmDetailDrawer({
                 </span>
               )}
             </div>
-            <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT }}>
+            <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
               arm #{rank} · {stat.total_pulls} pulls · {(stat.success_rate * 100).toFixed(1)}% success
             </div>
           </Section>
@@ -472,8 +470,7 @@ export function ArmDetailDrawer({
                       <th
                         key={h}
                         style={{
-                          fontFamily: MONO, fontSize: 9, letterSpacing: '0.06em',
-                          textTransform: 'uppercase', color: TEXT_MUT,
+                          ...type.label, color: TEXT_MUT,
                           borderBottom: `1px solid ${BORDER}`,
                           padding: '4px 8px',
                           textAlign: h === 'Sheet' ? 'left' : 'right',
@@ -487,10 +484,10 @@ export function ArmDetailDrawer({
                 <tbody>
                   {sortedSheets.map((row) => (
                     <tr key={row.sheet_type} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      <td style={{ padding: '6px 8px', fontFamily: MONO, fontSize: 10, color: TEXT_SEC }}>
+                      <td style={{ padding: '6px 8px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC }}>
                         {stripSheetType(row.sheet_type)}
                       </td>
-                      <td style={{ padding: '6px 8px', fontFamily: MONO, fontSize: 10, color: TEXT_MUT, textAlign: 'right' }}>
+                      <td style={{ padding: '6px 8px', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, textAlign: 'right' }}>
                         {row.total}
                       </td>
                       <td style={{ padding: '6px 8px', textAlign: 'right' }}>
@@ -501,7 +498,7 @@ export function ArmDetailDrawer({
                               height: '100%', background: color, borderRadius: 2,
                             }} />
                           </div>
-                          <span style={{ fontFamily: MONO, fontSize: 10, color: TEXT_PRI, minWidth: 38, textAlign: 'right' }}>
+                          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_PRI, minWidth: 38, textAlign: 'right' }}>
                             {(row.success_rate * 100).toFixed(1)}%
                           </span>
                         </div>
@@ -517,7 +514,7 @@ export function ArmDetailDrawer({
           <Section>
             <SectionLabel>Recent Runs</SectionLabel>
             {modelRuns.length === 0 ? (
-              <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT, opacity: 0.6 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,  }}>
                 No runs recorded.
               </div>
             ) : (
@@ -538,22 +535,22 @@ export function ArmDetailDrawer({
                       style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         minHeight: 36, borderBottom: `1px solid ${BORDER}`,
-                        padding: '4px 0', fontSize: 11,
+                        padding: '4px 0', fontSize: 'var(--type-ui-regular-size)',
                       }}
                     >
                       {/* Status icon */}
                       <div style={{ flexShrink: 0, width: 14, textAlign: 'center' }}>
                         {isCompleted
-                          ? <span style={{ color: '#6abf8a', fontSize: 12 }}>✓</span>
+                          ? <span style={{ color: '#6abf8a', fontSize: 'var(--type-ui-regular-size)' }}>✓</span>
                           : isErrored
-                            ? <span style={{ color: '#e15759', fontSize: 12 }}>✗</span>
-                            : <span style={{ color: '#c9a04e', fontSize: 12 }}>◷</span>
+                            ? <span style={{ color: '#e15759', fontSize: 'var(--type-ui-regular-size)' }}>✗</span>
+                            : <span style={{ color: '#c9a04e', fontSize: 'var(--type-ui-regular-size)' }}>◷</span>
                         }
                       </div>
 
                       {/* Task */}
                       <span style={{
-                        fontFamily: MONO, fontSize: 10, color: TEXT_SEC,
+                        fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC,
                         flex: '1 1 auto', minWidth: 0,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }} title={taskName}>
@@ -562,16 +559,16 @@ export function ArmDetailDrawer({
 
                       {/* Right cluster */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                        <span style={{ fontFamily: MONO, fontSize: 9, color: TEXT_MUT }}>
+                        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>
                           {run.created_at ? timeAgo(run.created_at) : '--'}
                         </span>
-                        <span style={{ fontFamily: MONO, fontSize: 9, color: TEXT_MUT, minWidth: 32, textAlign: 'right' }}>
+                        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, minWidth: 32, textAlign: 'right' }}>
                           {fmtDuration(durationMs)}
                         </span>
-                        <span style={{ fontFamily: MONO, fontSize: 9, color: TEXT_MUT, minWidth: 32, textAlign: 'right' }}>
+                        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, minWidth: 32, textAlign: 'right' }}>
                           {fmtTokens(tokens)}
                         </span>
-                        <span style={{ fontFamily: MONO, fontSize: 10, color: qualityColor(composite), minWidth: 28, textAlign: 'right' }}>
+                        <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: qualityColor(composite), minWidth: 28, textAlign: 'right' }}>
                           {composite != null ? composite.toFixed(2) : '--'}
                         </span>
                         <CtsgvMicroBar scores={run} totalWidth={48} height={8} />
@@ -581,13 +578,13 @@ export function ArmDetailDrawer({
                 })}
                 {totalRuns > 15 && (
                   <div style={{
-                    marginTop: 10, fontFamily: MONO, fontSize: 10,
+                    marginTop: 10, fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                     color: TEXT_MUT, textAlign: 'center',
                   }}>
                     Showing 15 of {totalRuns} runs ·{' '}
                     <a
                       href="/agent-lab/bandits"
-                      style={{ color: GOLD, textDecoration: 'none' }}
+                      style={{ color: inkOf(GOLD), textDecoration: 'none' }}
                     >
                       View all on dashboard
                     </a>

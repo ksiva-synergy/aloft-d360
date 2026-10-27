@@ -1,0 +1,42 @@
+'use client';
+
+import React from 'react';
+import Link from '@/lib/navigation/link';
+import { usePathname } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
+import { ESTATE_NAV_ITEMS, isEstateItemActive } from '@/lib/estate/nav-items';
+
+export default function EstateNav() {
+  const pathname = usePathname();
+
+  return (
+    <div className="flex items-center justify-between border-b border-[var(--header-border)] bg-[var(--header-bg)] px-4 shrink-0 md:px-6">
+      <div className="flex items-center gap-1 h-12">
+        {ESTATE_NAV_ITEMS.map((tab) => {
+          const isActive = isEstateItemActive(tab, pathname);
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                'relative flex items-center h-full px-4 text-ui transition-colors duration-200 rounded-t',
+                isActive
+                  ? 'bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--nav-item-text-active)]'
+                  : 'bg-transparent text-[var(--nav-item-text)] hover:text-[var(--nav-text)]',
+              )}
+            >
+              {tab.label}
+              {isActive && (
+                <span className="absolute bottom-0 left-2 right-2 h-[3px] rounded-t bg-[var(--brand-a)]" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+   <div className="text-eyebrow text-right uppercase text-[var(--nav-item-text)]">
+        Data Estate System
+      </div>
+    </div>
+  );
+}

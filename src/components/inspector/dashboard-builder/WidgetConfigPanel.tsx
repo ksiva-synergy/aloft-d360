@@ -12,9 +12,10 @@ import {
   type ChartRecommendation,
 } from '@/lib/dashboards/chart-defaults';
 import { useBuilderStore } from './builder-store';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 const FILTER_OPS: { value: FilterOp; label: string }[] = [
@@ -74,7 +75,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             onChange={(e) => !readOnly && handleTitleChange(e.target.value)}
             readOnly={readOnly}
             style={{
-              ...MONO, fontSize: 11, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
+              ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
               borderRadius: 4, padding: '6px 8px', color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
               width: '100%', outline: 'none', cursor: readOnly ? 'default' : undefined,
             }}
@@ -83,7 +84,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         </Section>
         <Section label="GOVERNANCE">
           <RawSqlBadge />
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
             This widget runs frozen raw SQL — it is not governed and not drift-checked.
             Graduate it to a metric in the Inspector to bring it under governance.
           </span>
@@ -91,7 +92,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         <Section label="SQL">
           <pre
             style={{
-              ...MONO, fontSize: 9, color: 'var(--builder-text)', background: 'var(--builder-surface)',
+              ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text)', background: 'var(--builder-surface)',
               border: '1px solid var(--builder-border)', borderRadius: 4, padding: '8px', margin: 0,
               overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220,
             }}
@@ -101,7 +102,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         </Section>
         {widget.chartConfig.x && (
           <Section label="AXES">
-            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
               X: {widget.chartConfig.x} · Y: {(widget.chartConfig.y ?? []).join(', ') || '—'}
             </span>
           </Section>
@@ -111,10 +112,10 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             <button
               onClick={() => removeWidget(widget.widgetId)}
               style={{
-                ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                ...type.label,
                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
                 border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
-                color: '#F87171', cursor: 'pointer', width: '100%', justifyContent: 'center',
+                color: inkOf('#F87171'), cursor: 'pointer', width: '100%', justifyContent: 'center',
               }}
             >
               <Trash2 size={12} />
@@ -240,7 +241,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           readOnly={readOnly}
           style={{
             ...MONO,
-            fontSize: 11,
+            fontSize: 'var(--type-ui-regular-size)',
             background: 'var(--builder-surface)',
             border: '1px solid var(--builder-border)',
             borderRadius: 4,
@@ -262,15 +263,12 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               key={kind}
               onClick={() => handleChartKindChange(kind)}
               style={{
-                ...MONO,
-                fontSize: 9,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 padding: '4px 8px',
                 borderRadius: 3,
-                border: `1px solid ${widget.chartKind === kind ? '#FDB515' : 'var(--builder-border)'}`,
-                background: widget.chartKind === kind ? 'rgba(253,181,21,0.1)' : 'transparent',
-                color: widget.chartKind === kind ? '#FDB515' : 'var(--builder-text-muted)',
+                border: `1px solid ${widget.chartKind === kind ? 'var(--brand-a)' : 'var(--builder-border)'}`,
+                background: widget.chartKind === kind ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+                color: widget.chartKind === kind ? 'var(--brand-a)' : 'var(--builder-text-muted)',
                 cursor: 'pointer',
               }}
             >
@@ -284,19 +282,19 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 5 }}>
               <Info size={11} style={{ color: 'var(--builder-text-muted)', flexShrink: 0, marginTop: 1 }} />
-              <span style={{ ...MONO, fontSize: 9, lineHeight: 1.4, color: 'var(--builder-text-muted)' }}>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.4, color: 'var(--builder-text-muted)' }}>
                 {recommendation.rationale}
               </span>
             </div>
             {!readOnly && alternativeKinds.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-                <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>Try:</span>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>Try:</span>
                 {alternativeKinds.map((kind) => (
                   <button
                     key={kind}
                     onClick={() => handleChartKindChange(kind)}
                     style={{
-                      ...MONO, fontSize: 9, letterSpacing: '0.04em', textTransform: 'uppercase',
+                      ...type.label,
                       padding: '2px 7px', borderRadius: 3, border: '1px dashed var(--builder-border)',
                       background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
                     }}
@@ -313,7 +311,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {/* Assigned Dimensions */}
       <Section label="DIMENSIONS">
         {dimLabels.length === 0 ? (
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
             Click a dimension in the picker to assign it
           </span>
         ) : (
@@ -328,7 +326,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {/* Assigned Measures */}
       <Section label="MEASURES">
         {measureLabels.length === 0 ? (
-          <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
             Click a measure in the picker to assign it
           </span>
         ) : (
@@ -382,10 +380,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             <button
               onClick={handleAddFilter}
               style={{
-                ...MONO,
-                fontSize: 9,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
@@ -414,11 +409,11 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                 key={mode}
                 onClick={() => handleFreshnessMode(mode)}
                 style={{
-                  ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   flex: 1, padding: '4px 8px', borderRadius: 3,
-                  border: `1px solid ${active ? '#FDB515' : 'var(--builder-border)'}`,
-                  background: active ? 'rgba(253,181,21,0.1)' : 'transparent',
-                  color: active ? '#FDB515' : 'var(--builder-text-muted)',
+                  border: `1px solid ${active ? 'var(--brand-a)' : 'var(--builder-border)'}`,
+                  background: active ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+                  color: active ? 'var(--brand-a)' : 'var(--builder-text-muted)',
                   cursor: readOnly ? 'default' : 'pointer',
                 }}
               >
@@ -429,7 +424,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         </div>
         {widget.freshness?.mode === 'cached' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', whiteSpace: 'nowrap' }}>
               Refresh every
             </span>
             <input
@@ -439,12 +434,12 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               onChange={(e) => handleStaleSecChange(Number(e.target.value))}
               readOnly={readOnly}
               style={{
-                ...MONO, fontSize: 10, width: 70,
+                ...MONO, fontSize: 'var(--type-ui-regular-size)', width: 70,
                 background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
                 borderRadius: 3, padding: '3px 6px', color: 'var(--builder-text)', outline: 'none',
               }}
             />
-            <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)' }}>sec</span>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>sec</span>
           </div>
         )}
       </Section>
@@ -455,7 +450,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           <a
             href={`/inspector?sourceChart=${encodeURIComponent(widget.source_chart_id)}`}
             style={{
-              ...MONO, fontSize: 9, letterSpacing: '0.04em', color: '#FDB515',
+              fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--brand-a-ink)',
               textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
             }}
           >
@@ -469,9 +464,9 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {drift && drift.status !== 'ok' && (
         <Section label="STATUS">
           {drift.status === 'unavailable' && (
-            <div style={{ ...MONO, fontSize: 10, padding: '6px 8px', borderRadius: 3, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#F87171' }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 3, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#F87171' }}>
               <strong>Definition unavailable</strong>
-              <div style={{ fontSize: 9, marginTop: 4, color: 'rgba(248,113,113,0.8)' }}>
+              <div style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, color: 'rgba(248,113,113,0.8)' }}>
                 {drift.unavailableIds && drift.unavailableIds.length > 0
                   ? `${drift.unavailableIds.length} referenced ID(s) have been archived or deleted. Remove them or replace with active definitions.`
                   : 'One or more referenced definitions no longer exist.'}
@@ -479,9 +474,9 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             </div>
           )}
           {drift.status === 'changed' && (
-            <div style={{ ...MONO, fontSize: 10, padding: '6px 8px', borderRadius: 3, background: 'rgba(253,181,21,0.08)', border: '1px solid rgba(253,181,21,0.2)', color: '#FDB515' }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 3, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)', color: 'var(--brand-a-ink)' }}>
               <strong>Definition changed</strong>
-              <div style={{ fontSize: 9, marginTop: 4, color: 'rgba(253,181,21,0.8)' }}>
+              <div style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, color: 'color-mix(in srgb, var(--brand-a) 80%, transparent)' }}>
                 {drift.changedMeasures && drift.changedMeasures.length > 0
                   ? `${drift.changedMeasures.length} measure(s) have been modified (aggregate, expression, or metric type) since this dashboard was last saved. Re-save to accept the current computation.`
                   : 'Measure computation has changed since last save.'}
@@ -496,10 +491,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
         <button
           onClick={() => removeWidget(widget.widgetId)}
           style={{
-            ...MONO,
-            fontSize: 10,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             display: 'flex',
             alignItems: 'center',
             gap: 6,
@@ -507,7 +499,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             borderRadius: 4,
             border: '1px solid rgba(239,68,68,0.3)',
             background: 'rgba(239,68,68,0.06)',
-            color: '#F87171',
+            color: inkOf('#F87171'),
             cursor: 'pointer',
             width: '100%',
             justifyContent: 'center',
@@ -524,7 +516,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--builder-text-label)' }}>
+      <span style={{ ...type.label, color: 'var(--builder-text-label)' }}>
         {label}
       </span>
       {children}
@@ -537,7 +529,7 @@ function FieldChip({ label, onRemove }: { label: string; onRemove: () => void })
     <div
       style={{
         ...MONO,
-        fontSize: 10,
+        fontSize: 'var(--type-ui-regular-size)',
         display: 'flex',
         alignItems: 'center',
         gap: 4,
@@ -574,7 +566,7 @@ function AxisSelect({
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', width: 50, flexShrink: 0 }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', width: 50, flexShrink: 0 }}>
         {label}
       </span>
       <select
@@ -582,7 +574,7 @@ function AxisSelect({
         onChange={(e) => onChange(e.target.value)}
         style={{
           ...MONO,
-          fontSize: 10,
+          fontSize: 'var(--type-ui-regular-size)',
           background: 'var(--builder-surface)',
           border: '1px solid var(--builder-border)',
           borderRadius: 3,
@@ -621,7 +613,7 @@ function AxisMultiSelect({
 
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-      <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', width: 50, flexShrink: 0, paddingTop: 4 }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', width: 50, flexShrink: 0, paddingTop: 4 }}>
         {label}
       </span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, flex: 1 }}>
@@ -633,12 +625,12 @@ function AxisMultiSelect({
               onClick={() => toggle(opt.label)}
               style={{
                 ...MONO,
-                fontSize: 9,
+                fontSize: 'var(--type-ui-regular-size)',
                 padding: '2px 6px',
                 borderRadius: 2,
-                border: `1px solid ${active ? '#FDB515' : 'var(--builder-border)'}`,
-                background: active ? 'rgba(253,181,21,0.1)' : 'transparent',
-                color: active ? '#FDB515' : 'var(--builder-text-muted)',
+                border: `1px solid ${active ? 'var(--brand-a)' : 'var(--builder-border)'}`,
+                background: active ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+                color: active ? 'var(--brand-a)' : 'var(--builder-text-muted)',
                 cursor: 'pointer',
               }}
             >
@@ -715,7 +707,7 @@ function FilterRow({
           value={filter.fieldId}
           onChange={(e) => handleFieldChange(e.target.value)}
           style={{
-            ...MONO, fontSize: 9, flex: 1, background: 'var(--builder-surface)',
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)',
             border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)',
           }}
         >
@@ -727,7 +719,7 @@ function FilterRow({
           value={filter.op}
           onChange={(e) => handleOpChange(e.target.value as FilterOp)}
           style={{
-            ...MONO, fontSize: 9, width: 60, background: 'var(--builder-surface)',
+            ...MONO, fontSize: 'var(--type-ui-regular-size)', width: 60, background: 'var(--builder-surface)',
             border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)',
           }}
         >
@@ -755,9 +747,9 @@ function FilterRow({
                   handleValueChange(arr);
                 }}
                 placeholder="from"
-                style={{ ...MONO, fontSize: 9, flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
               />
-              <span style={{ ...MONO, fontSize: 8, color: 'var(--builder-text-muted)' }}>—</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>—</span>
               <input
                 type="text"
                 value={Array.isArray(filter.value) ? String(filter.value[1] ?? '') : ''}
@@ -767,7 +759,7 @@ function FilterRow({
                   handleValueChange(arr);
                 }}
                 placeholder="to"
-                style={{ ...MONO, fontSize: 9, flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
               />
             </div>
           ) : isArray ? (
@@ -779,7 +771,7 @@ function FilterRow({
                 handleValueChange(items);
               }}
               placeholder="comma-separated values"
-              style={{ ...MONO, fontSize: 9, width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
             />
           ) : (
             <input
@@ -787,7 +779,7 @@ function FilterRow({
               value={filter.value != null ? String(filter.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="value"
-              style={{ ...MONO, fontSize: 9, width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
             />
           )}
         </div>

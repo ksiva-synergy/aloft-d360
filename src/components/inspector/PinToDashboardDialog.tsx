@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { createId } from '@paralleldrive/cuid2';
 import { X, Pin, LayoutDashboard, Plus } from 'lucide-react';
 import type { SemanticChartMessage } from '@/hooks/useInspectorChat';
 import type { WidgetSpec } from '@/lib/dashboards/types';
 import { buildWidgetSpecFromChart } from './dashboard-builder/chart-mapping';
+import { type, inkOf } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const GOLD = '#FDB515';
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const GOLD = 'var(--brand-a)';
 
 const NEW_DASHBOARD = '__new__';
 
@@ -207,15 +208,15 @@ export function PinToDashboardDialog({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 380, maxWidth: '92vw', background: 'var(--wb-canvas, #0D1B2A)',
-          border: '1px solid rgba(253,181,21,0.25)', borderRadius: 8,
+          width: 380, maxWidth: '92vw', background: 'var(--wb-canvas, #111322)',
+          border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 8,
           boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden',
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid rgba(253,181,21,0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <Pin size={13} style={{ color: GOLD }} />
-          <span style={{ ...MONO, fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: GOLD, flex: 1 }}>
+          <span style={{ ...type.label, color: inkOf(GOLD), flex: 1 }}>
             PIN TO DASHBOARD
           </span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--wb-muted)', display: 'flex' }}>
@@ -238,7 +239,7 @@ export function PinToDashboardDialog({
           {/* Destination */}
           <Field label="DESTINATION">
             {dashLoading ? (
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-muted)' }}>Loading dashboards…</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-muted)' }}>Loading dashboards…</span>
             ) : (
               <select
                 value={destination}
@@ -267,7 +268,7 @@ export function PinToDashboardDialog({
           )}
 
           {error && (
-            <p style={{ ...MONO, fontSize: 10, color: '#F87171', margin: 0 }}>{error}</p>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', margin: 0 }}>{error}</p>
           )}
 
           {/* Confirm */}
@@ -275,9 +276,9 @@ export function PinToDashboardDialog({
             onClick={handleConfirm}
             disabled={submitting || dashLoading}
             style={{
-              ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+              ...type.label,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: GOLD, color: '#0D1B2A', border: 'none', borderRadius: 4,
+              background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4,
               padding: '8px 14px', cursor: submitting || dashLoading ? 'not-allowed' : 'pointer',
               opacity: submitting || dashLoading ? 0.6 : 1, fontWeight: 600,
             }}
@@ -292,15 +293,15 @@ export function PinToDashboardDialog({
 }
 
 const inputStyle: React.CSSProperties = {
-  ...MONO, fontSize: 11, width: '100%', boxSizing: 'border-box',
-  background: 'var(--wb-canvas)', border: '1px solid rgba(253,181,21,0.25)',
+  ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
+  background: 'var(--wb-canvas)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
   borderRadius: 4, padding: '6px 8px', color: 'var(--wb-text)', outline: 'none',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--wb-muted)' }}>
+      <span style={{ ...type.label, color: 'var(--wb-muted)' }}>
         {label}
       </span>
       {children}

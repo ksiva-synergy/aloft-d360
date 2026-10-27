@@ -13,12 +13,13 @@ import {
   widgetDiffIsEmpty,
   type WidgetDiffLabelResolver,
 } from '@/lib/dashboards/widget-diff';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
-const GOLD = '#FDB515';
-const MUTED = '#8892A4';
+const GOLD = 'var(--brand-a)';
+const MUTED = 'var(--ink-3)';
 const GREEN = '#86EFAC';
 const RED = '#F87171';
 
@@ -201,16 +202,16 @@ export function DraftChangeCard({
     <div
       style={{
         marginTop: 8,
-        border: '1px solid rgba(253,181,21,0.3)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
         borderRadius: 6,
         background: 'rgba(0,0,0,0.2)',
         overflow: 'hidden',
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid rgba(253,181,21,0.12)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
         <GitCompare size={12} color={GOLD} />
-        <span style={{ ...MONO, fontSize: 10, letterSpacing: '0.06em', color: GOLD, textTransform: 'uppercase', flex: 1 }}>
+        <span style={{ ...type.label, flex: 1 }}>
           Apply to dashboard widget
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, display: 'flex' }}>
@@ -220,25 +221,25 @@ export function DraftChangeCard({
 
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {phase === 'loading' && (
-          <span style={{ ...MONO, fontSize: 10, color: MUTED }}>Locating the source widget…</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>Locating the source widget…</span>
         )}
 
         {phase === 'no_match' && (
-          <div style={{ ...MONO, fontSize: 10, color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             No dashboard widget references this chart, so there is nothing to update. Use “Pin to dashboard” to add it as a new widget instead.
           </div>
         )}
 
         {phase === 'error' && (
-          <div style={{ ...MONO, fontSize: 10, color: RED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: RED, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <AlertCircle size={12} style={{ flexShrink: 0, marginTop: 1 }} />
             {error ?? 'Something went wrong.'}
           </div>
         )}
 
         {phase === 'applied' && (
-          <div style={{ ...MONO, fontSize: 10, color: GREEN, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: GREEN, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Check size={12} />
             Updated “{target?.widget.title}” on {target?.dashboardName}.
           </div>
@@ -246,7 +247,7 @@ export function DraftChangeCard({
 
         {(phase === 'ready' || phase === 'applying') && target && afterWidget && (
           <>
-            <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>
+            <span style={{ ...type.label, color: MUTED }}>
               Widget “{target.widget.title}” · {target.dashboardName}
             </span>
 
@@ -258,12 +259,12 @@ export function DraftChangeCard({
 
             {/* What changed */}
             {nothingChanged ? (
-              <span style={{ ...MONO, fontSize: 10, color: MUTED }}>No differences — the widget already matches this chart.</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>No differences — the widget already matches this chart.</span>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ ...MONO, fontSize: 9, letterSpacing: '0.06em', textTransform: 'uppercase', color: MUTED }}>What changed</span>
+                <span style={{ ...type.label, color: MUTED }}>What changed</span>
                 {diffLines.map((line, i) => (
-                  <span key={i} style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)' }}>• {line}</span>
+                  <span key={i} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>• {line}</span>
                 ))}
               </div>
             )}
@@ -274,7 +275,7 @@ export function DraftChangeCard({
                 onClick={onClose}
                 disabled={phase === 'applying'}
                 style={{
-                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   border: '1px solid rgba(74,96,128,0.35)', borderRadius: 4, padding: '5px 12px',
                   background: 'transparent', color: MUTED, cursor: phase === 'applying' ? 'default' : 'pointer',
                 }}
@@ -285,9 +286,9 @@ export function DraftChangeCard({
                 onClick={handleApply}
                 disabled={phase === 'applying' || nothingChanged}
                 style={{
-                  ...MONO, fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   border: 'none', borderRadius: 4, padding: '5px 14px', fontWeight: 600,
-                  background: GOLD, color: '#0D1B2A',
+                  background: GOLD, color: 'var(--on-brand)',
                   cursor: phase === 'applying' || nothingChanged ? 'default' : 'pointer',
                   opacity: phase === 'applying' || nothingChanged ? 0.6 : 1,
                 }}
@@ -323,7 +324,7 @@ function WidgetFacet({
       style={{
         flex: 1,
         minWidth: 0,
-        border: `1px solid ${tone === 'gold' ? 'rgba(253,181,21,0.25)' : 'rgba(74,96,128,0.25)'}`,
+        border: `1px solid ${tone === 'gold' ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)' : 'rgba(74,96,128,0.25)'}`,
         borderRadius: 4,
         padding: '6px 8px',
         display: 'flex',
@@ -331,14 +332,14 @@ function WidgetFacet({
         gap: 3,
       }}
     >
-      <span style={{ ...MONO, fontSize: 8, letterSpacing: '0.08em', textTransform: 'uppercase', color: accent }}>{label}</span>
-      <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
+      <span style={{ ...type.label, color: accent }}>{label}</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>
         <span style={{ color: MUTED }}>Kind: </span>{widget.chartKind}
       </span>
-      <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
         <span style={{ color: MUTED }}>Dims: </span>{dims.length ? dims.join(', ') : '—'}
       </span>
-      <span style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)', wordBreak: 'break-word' }}>
         <span style={{ color: MUTED }}>Measures: </span>{measures.length ? measures.join(', ') : '—'}
       </span>
     </div>

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { enqueue } from '@/lib/context/queue';
 import { launchHarvesterTask } from '@/lib/context/launch-harvester';
+import { pathToIncludePattern } from '@/lib/context/job-scope';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -17,14 +18,9 @@ async function launchWorkerForKind(kind: string): Promise<{ taskId: string | nul
 /**
  * POST /api/agent-lab/context/objects/[id]/reharvest-all
  *
- * Enqueues AND launches workers for T0 → T1 → T2 → T4 for a single object.
- * T3 (usage) is always source-wide/meta and is intentionally excluded.
- *
- * With HARVEST_RUNTIME=local, workers spawn on this machine; otherwise ECS Fargate.
- *
- * Each tier is debounce-checked independently. If a job for that kind is already
- * queued or running, the existing job ID is returned and no new worker is launched.
- * A tier failing to launch does NOT abort the remaining tiers.
+ * Enqueues T0 with a single-table Focus glob and chains T1 → T2 on the orchestrator.
+ * T3 (usage) is source-wide and is intentionally excluded.
+ * T4 is deferred until after T2 has stamped last_t2_at on this object.
  */
 export async function POST(_req: NextRequest, { params }: RouteParams) {
   const session = await getServerSession(authOptions);
@@ -51,19 +47,16 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     }
 
     const resolvedObject = object;
-    const scope = { path: resolvedObject.full_path };
+    const includePatterns = [pathToIncludePattern(resolvedObject.full_path)];
+    const chainScope: Record<string, unknown> = {
+      includePatterns,
+      chain: ['t1_profile', 't2_semantic'],
+    };
+
     const results: Record<string, { jobId: string | null; queued: boolean; launched: boolean; taskArn?: string | null; reason?: string }> = {};
 
-    /**
-     * Enqueue-or-kick helper.
-     * - If a job is already RUNNING → debounce (worker already executing, do nothing).
-     * - If a job is QUEUED (stuck, no worker picked it up) → kick it by launching a new worker.
-     * - If no active job → enqueue a new row and launch a fresh worker.
-     */
-    async function enqueueOrKick(
-      kind: 't0_structural' | 't1_profile' | 't2_semantic' | 't4_scan',
-      jobScope: Record<string, unknown> | null,
-    ): Promise<{ jobId: string | null; queued: boolean; launched: boolean; taskArn?: string | null; reason?: string }> {
+    async function enqueueOrKickT0(): Promise<{ jobId: string | null; queued: boolean; launched: boolean; taskArn?: string | null; reason?: string }> {
+      const kind = 't0_structural';
       const running = await prisma.platformContextJob.findFirst({
         where: { source_id: resolvedObject.source_id, job_kind: kind, status: 'running' },
         select: { id: true },
@@ -90,7 +83,7 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
         return { jobId: stuck.id, queued: false, launched: !!taskId, taskArn, reason: error ?? 'kicked' };
       }
 
-      const job = await enqueue(kind, resolvedObject.source_id, jobScope, 'on_demand', orgId);
+      const job = await enqueue(kind, resolvedObject.source_id, chainScope, 'on_demand', orgId);
       const { taskId, taskArn, error } = await launchWorkerForKind(kind);
       if (taskId) {
         await prisma.$executeRaw`
@@ -102,45 +95,31 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       return { jobId: job.id, queued: true, launched: !!taskId, taskArn, reason: error };
     }
 
-    // ── T0: Structural ────────────────────────────────────────────────────────
     try {
-      results.t0 = await enqueueOrKick('t0_structural', scope);
+      results.t0 = await enqueueOrKickT0();
+      results.t1 = {
+        jobId: results.t0.jobId,
+        queued: false,
+        launched: false,
+        reason: 'chained_after_t0',
+      };
+      results.t2 = {
+        jobId: results.t0.jobId,
+        queued: false,
+        launched: false,
+        reason: 'chained_after_t1',
+      };
     } catch (err) {
-      console.error('[reharvest-all] T0 failed:', err);
+      console.error('[reharvest-all] T0 chain failed:', err);
       results.t0 = { jobId: null, queued: false, launched: false, reason: 'error' };
-    }
-
-    // ── T1: Profile ───────────────────────────────────────────────────────────
-    try {
-      results.t1 = await enqueueOrKick('t1_profile', scope);
-    } catch (err) {
-      console.error('[reharvest-all] T1 failed:', err);
       results.t1 = { jobId: null, queued: false, launched: false, reason: 'error' };
-    }
-
-    // ── T2: Semantic ──────────────────────────────────────────────────────────
-    try {
-      results.t2 = await enqueueOrKick('t2_semantic', scope);
-    } catch (err) {
-      console.error('[reharvest-all] T2 failed:', err);
       results.t2 = { jobId: null, queued: false, launched: false, reason: 'error' };
     }
 
-    // ── T4: Entity Model scan ─────────────────────────────────────────────────
-    // t4_scan is source-wide. It uses scanEstate(..., minT2=true) which filters
-    // to objects where last_t2_at IS NOT NULL. If T2 has never run for this
-    // object, the scan will find 0 tables and exit immediately — so we defer T4
-    // until T2 has been stamped at least once. Re-run Reharvest All (or trigger
-    // T4 from the Jobs page) after T2 completes.
     if (!resolvedObject.last_t2_at) {
       results.t4 = { jobId: null, queued: false, launched: false, reason: 'deferred' };
     } else {
-      try {
-        results.t4 = await enqueueOrKick('t4_scan', null);
-      } catch (err) {
-        console.error('[reharvest-all] T4 failed:', err);
-        results.t4 = { jobId: null, queued: false, launched: false, reason: 'error' };
-      }
+      results.t4 = { jobId: null, queued: false, launched: false, reason: 'not_in_chain' };
     }
 
     const anyQueued = Object.values(results).some(r => r.queued);

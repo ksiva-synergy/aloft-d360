@@ -25,7 +25,7 @@ const GLOBALS_CSS = resolve(
 // App-shell page background behind the guided builder (stable shell tokens:
 // globals.css --bg-base / --estate-bg). The card sits on this; --bp-card-bg is
 // semi-transparent, so text's effective background is card-bg composited on it.
-const PAGE_BG = { light: '#F5F2EB', dark: '#0a0d12' } as const;
+const PAGE_BG = { light: '#F7F9FC', dark: '#0a0d12' } as const;
 
 const AA_BODY = 4.5;
 

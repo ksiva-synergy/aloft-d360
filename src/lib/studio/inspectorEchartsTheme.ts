@@ -24,6 +24,7 @@ import {
   ACCENT_AMBER,
   UI_FONT,
 } from '@/lib/dashboards/inspector-viz-tokens';
+import { CHART_TEXT } from '@/lib/typography/tokens';
 
 // PREVIEW_PALETTE is gold-primary → slate blues, optimised for the dark canvas.
 // ECharts wants a mutable string[].
@@ -38,13 +39,13 @@ const DARK_SPLIT = 'rgba(255,255,255,0.05)'; // faint — no gridline clutter
 export const inspectorDarkTheme = {
   color: PALETTE,
   backgroundColor: 'transparent', // inherits the card surface
-  textStyle: { fontFamily: UI_FONT, fontSize: 11, color: DARK_INK },
+  textStyle: { fontFamily: UI_FONT, fontSize: CHART_TEXT.axis, color: DARK_INK },
   title: {
-    textStyle: { color: DARK_INK, fontFamily: UI_FONT, fontSize: 13 },
-    subtextStyle: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    textStyle: { color: DARK_INK, fontFamily: UI_FONT, fontSize: CHART_TEXT.tooltip },
+    subtextStyle: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   legend: {
-    textStyle: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 10 },
+    textStyle: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
     pageTextStyle: { color: DARK_MUTED },
   },
   tooltip: {
@@ -52,7 +53,7 @@ export const inspectorDarkTheme = {
     borderColor: SURFACE_DARK.border,
     borderWidth: 1,
     borderRadius: 6,
-    textStyle: { color: DARK_INK, fontFamily: UI_FONT, fontSize: 11 },
+    textStyle: { color: DARK_INK, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
     axisPointer: {
       lineStyle: { color: `${ACCENT_AMBER}55` },
       crossStyle: { color: `${ACCENT_AMBER}55` },
@@ -62,23 +63,23 @@ export const inspectorDarkTheme = {
     axisLine: { show: true, lineStyle: { color: DARK_LINE } },
     axisTick: { show: false },
     splitLine: { show: false }, // category gridlines off — restraint
-    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   valueAxis: {
     axisLine: { show: false },
     axisTick: { show: false },
     splitLine: { lineStyle: { color: DARK_SPLIT, type: 'solid' } },
-    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   timeAxis: {
     axisLine: { lineStyle: { color: DARK_LINE } },
     splitLine: { show: false },
-    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   logAxis: {
     axisLine: { lineStyle: { color: DARK_LINE } },
     splitLine: { lineStyle: { color: DARK_SPLIT } },
-    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: DARK_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   line: { lineStyle: { width: 2 }, symbolSize: 4, symbol: 'circle', smooth: 0.3 },
   bar: { itemStyle: { barBorderRadius: [4, 4, 0, 0], opacity: 0.92 }, barMaxWidth: 48 },
@@ -95,13 +96,13 @@ const LIGHT_SPLIT = 'rgba(0,0,0,0.06)';
 export const inspectorLightTheme = {
   color: PALETTE,
   backgroundColor: 'transparent',
-  textStyle: { fontFamily: UI_FONT, fontSize: 11, color: LIGHT_INK },
+  textStyle: { fontFamily: UI_FONT, fontSize: CHART_TEXT.axis, color: LIGHT_INK },
   title: {
-    textStyle: { color: LIGHT_INK, fontFamily: UI_FONT, fontSize: 13 },
-    subtextStyle: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    textStyle: { color: LIGHT_INK, fontFamily: UI_FONT, fontSize: CHART_TEXT.tooltip },
+    subtextStyle: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   legend: {
-    textStyle: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 10 },
+    textStyle: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
     pageTextStyle: { color: LIGHT_MUTED },
   },
   tooltip: {
@@ -109,7 +110,7 @@ export const inspectorLightTheme = {
     borderColor: LIGHT_LINE,
     borderWidth: 1,
     borderRadius: 6,
-    textStyle: { color: LIGHT_INK, fontFamily: UI_FONT, fontSize: 11 },
+    textStyle: { color: LIGHT_INK, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
     axisPointer: {
       lineStyle: { color: 'rgba(0,50,98,0.2)' },
       crossStyle: { color: 'rgba(0,50,98,0.2)' },
@@ -119,23 +120,23 @@ export const inspectorLightTheme = {
     axisLine: { show: true, lineStyle: { color: LIGHT_LINE } },
     axisTick: { show: false },
     splitLine: { show: false },
-    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   valueAxis: {
     axisLine: { show: false },
     axisTick: { show: false },
     splitLine: { lineStyle: { color: LIGHT_SPLIT, type: 'solid' } },
-    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   timeAxis: {
     axisLine: { lineStyle: { color: LIGHT_LINE } },
     splitLine: { show: false },
-    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   logAxis: {
     axisLine: { lineStyle: { color: LIGHT_LINE } },
     splitLine: { lineStyle: { color: LIGHT_SPLIT } },
-    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: 11 },
+    axisLabel: { color: LIGHT_MUTED, fontFamily: UI_FONT, fontSize: CHART_TEXT.axis },
   },
   line: { lineStyle: { width: 2 }, symbolSize: 4, symbol: 'circle', smooth: 0.3 },
   bar: { itemStyle: { barBorderRadius: [4, 4, 0, 0], opacity: 0.92 }, barMaxWidth: 48 },

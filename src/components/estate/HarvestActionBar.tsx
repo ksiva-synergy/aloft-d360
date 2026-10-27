@@ -15,9 +15,10 @@
 //   /api/agent-lab/context/objects/[id]/reharvest-all. T3 is always source-wide/meta.
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
+import { inkOf } from '@/lib/typography/tokens';
 
 interface TierRow {
   tier: string;
@@ -43,6 +44,7 @@ function formatRelativeTime(iso: string | null): string {
 interface HarvestActionBarProps {
   objectId: string;
   sourceId: string;
+  fullPath: string;
   last_t0_at: string | null;
   last_t1_at: string | null;
   last_t2_at: string | null;
@@ -54,6 +56,7 @@ interface HarvestActionBarProps {
 export default function HarvestActionBar({
   objectId,
   sourceId: _sourceId,
+  fullPath,
   last_t0_at,
   last_t1_at,
   last_t2_at,
@@ -110,7 +113,10 @@ export default function HarvestActionBar({
     setOpen(false);
     try {
       const body = row.jobKind
-        ? JSON.stringify({ kind: row.jobKind, scope: { path: undefined } })
+        ? JSON.stringify({
+            kind: row.jobKind,
+            scope: { includePatterns: [fullPath] },
+          })
         : undefined;
       const res = await fetch(row.triggerEndpoint, {
         method: 'POST',
@@ -126,7 +132,7 @@ export default function HarvestActionBar({
               {row.label} re-harvest queued.{' '}
               <Link
                 href={`/agent-lab/estate/jobs?highlight=${jobId}`}
-                style={{ color: '#FDB515', textDecoration: 'underline' }}
+                style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}
               >
                 View job →
               </Link>
@@ -197,17 +203,17 @@ export default function HarvestActionBar({
               <>{queued.length > 0 ? ' · ' : ''}Kicked stuck: <strong>{kicked.map(t => t.key.toUpperCase()).join(', ')}</strong></>
             )}
             {debounced.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · {debounced.map(t => t.key.toUpperCase()).join(', ')} already running</span>
+              <span style={{  }}> · {debounced.map(t => t.key.toUpperCase()).join(', ')} already running</span>
             )}
             {deferred.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · T4 deferred — re-run after T2 completes</span>
+              <span style={{  }}> · T4 deferred — re-run after T2 completes</span>
             )}
             {errored.length > 0 && (
-              <span style={{ color: '#F87171' }}> · {errored.map(t => t.key.toUpperCase()).join(', ')} failed</span>
+              <span style={{ color: inkOf('#F87171') }}> · {errored.map(t => t.key.toUpperCase()).join(', ')} failed</span>
             )}
             {linkJobId && (
               <>
-                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: '#FDB515', textDecoration: 'underline' }}>View jobs →</Link>
+                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}>View jobs →</Link>
               </>
             )}
           </span>,
@@ -218,11 +224,11 @@ export default function HarvestActionBar({
           <span>
             All tiers already running — {debounced.map(t => t.key.toUpperCase()).join(', ')} in progress
             {deferred.length > 0 && (
-              <span style={{ opacity: 0.7 }}> · T4 deferred — re-run after T2 completes</span>
+              <span style={{  }}> · T4 deferred — re-run after T2 completes</span>
             )}
             {linkJobId && (
               <>
-                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: '#FDB515', textDecoration: 'underline' }}>View jobs →</Link>
+                {' '}<Link href={`/agent-lab/estate/jobs?highlight=${linkJobId}`} style={{ color: 'var(--brand-a-ink)', textDecoration: 'underline' }}>View jobs →</Link>
               </>
             )}
           </span>
@@ -244,11 +250,11 @@ export default function HarvestActionBar({
     fontWeight: 600,
     padding: '4px 10px',
     borderRadius: 3,
-    border: '1px solid rgba(253,181,21,0.35)',
+    border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
     background: 'transparent',
-    color: '#FDB515',
+    color: 'var(--brand-a-ink)',
     cursor: 'pointer',
-    letterSpacing: '0.06em',
+    letterSpacing: '0.04em',
     textTransform: 'uppercase',
     transition: 'background 0.12s ease, border-color 0.12s ease',
   };
@@ -263,8 +269,8 @@ export default function HarvestActionBar({
         disabled={reharvestingAll || !!loadingTier}
         style={{
           ...btnBase,
-          background: reharvestingAll ? 'rgba(253,181,21,0.10)' : 'rgba(253,181,21,0.06)',
-          borderColor: reharvestingAll ? '#FDB515' : 'rgba(253,181,21,0.45)',
+          background: reharvestingAll ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
+          borderColor: reharvestingAll ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 45%, transparent)',
           opacity: loadingTier ? 0.5 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -274,7 +280,7 @@ export default function HarvestActionBar({
       >
         {reharvestingAll ? (
           <>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 11 }}>↻</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 'var(--type-ui-regular-size)' }}>↻</span>
             <span>{reharvestStep ?? 'queuing…'}</span>
           </>
         ) : (
@@ -282,7 +288,7 @@ export default function HarvestActionBar({
             <span>⚡</span>
             <span>Reharvest All</span>
             <span
-              style={{ opacity: 0.5, fontSize: 9 }}
+              style={{ opacity: 0.5, fontSize: 'var(--type-ui-regular-size)' }}
               title={!last_t2_at ? 'T4 will be deferred until T2 completes — re-run Reharvest All after T2 succeeds' : undefined}
             >
               {last_t2_at ? 'T0→T1→T2→T4' : 'T0→T1→T2→T4*'}
@@ -319,7 +325,7 @@ export default function HarvestActionBar({
                 zIndex: 30,
                 width: 240,
                 background: 'var(--estate-raised, #111D2E)',
-                border: '1px solid rgba(253,181,21,0.18)',
+                border: '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
                 borderRadius: 6,
                 overflow: 'hidden',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
@@ -333,7 +339,7 @@ export default function HarvestActionBar({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '8px 12px',
-                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                    borderBottom: '1px solid var(--line-1)',
                     cursor: row.canTrigger ? 'pointer' : 'default',
                     opacity: loadingTier && loadingTier !== row.tier ? 0.5 : 1,
                   }}
@@ -348,12 +354,12 @@ export default function HarvestActionBar({
                     {/* Tier chip */}
                     <span
                       style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 9,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 'var(--type-ui-regular-size)',
                         fontWeight: 600,
                         padding: '2px 5px',
                         borderRadius: 3,
-                        background: 'var(--estate-ink, #003262)',
+                        background: 'var(--estate-ink, var(--brand-a-ink))',
                         color: '#fff',
                         letterSpacing: '0.04em',
                         flexShrink: 0,
@@ -364,19 +370,19 @@ export default function HarvestActionBar({
                     <div>
                       <div
                         style={{
-                          fontFamily: '"Inter Tight", sans-serif',
-                          fontSize: 12,
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 'var(--type-ui-regular-size)',
                           fontWeight: 500,
-                          color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, #8892A4)',
+                          color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, var(--ink-3))',
                         }}
                       >
                         {row.label}
                       </div>
                       <div
                         style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 9,
-                          color: 'var(--estate-text-muted, #8892A4)',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 'var(--type-ui-regular-size)',
+                          color: 'var(--estate-text-muted, var(--ink-3))',
                         }}
                       >
                         {row.lastAt ? formatRelativeTime(row.lastAt) : 'Never run'}
@@ -385,15 +391,15 @@ export default function HarvestActionBar({
                   </div>
                   {row.canTrigger ? (
                     loadingTier === row.tier ? (
-                      <span style={{ fontSize: 10, color: '#FDB515', fontFamily: '"IBM Plex Mono", monospace' }}>
+                      <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', fontFamily: 'var(--font-mono)' }}>
                         queuing…
                       </span>
                     ) : (
                       <span
                         style={{
-                          fontSize: 10,
-                          color: '#FDB515',
-                          fontFamily: '"IBM Plex Mono", monospace',
+                          fontSize: 'var(--type-ui-regular-size)',
+                          color: 'var(--brand-a-ink)',
+                          fontFamily: 'var(--font-mono)',
                           fontWeight: 600,
                         }}
                       >
@@ -405,9 +411,9 @@ export default function HarvestActionBar({
                       href="/agent-lab/estate/jobs"
                       onClick={(e) => e.stopPropagation()}
                       style={{
-                        fontSize: 9,
-                        color: 'rgba(253,181,21,0.5)',
-                        fontFamily: '"IBM Plex Mono", monospace',
+                        fontSize: 'var(--type-ui-regular-size)',
+                        color: 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
+                        fontFamily: 'var(--font-mono)',
                         textDecoration: 'none',
                         whiteSpace: 'nowrap',
                       }}

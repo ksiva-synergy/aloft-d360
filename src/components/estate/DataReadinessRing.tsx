@@ -8,8 +8,9 @@
 
 import React from 'react';
 import { scoreColor, levelColor, GATING_CHIP_COLOR, GATING_CHIP_BG } from './dataReadinessColors';
+import { type } from '@/lib/typography/tokens';
 
-const TRACK_COLOR = 'rgba(255,255,255,0.07)';
+const TRACK_COLOR = 'color-mix(in srgb, var(--ink-1) 7%, transparent)';
 
 const DIMENSION_LABELS: Record<string, string> = {
   discoverable: 'Discoverable',
@@ -75,8 +76,8 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         fontWeight: 600,
         color,
         width: 20,
@@ -89,8 +90,8 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.4s ease' }} />
       </div>
       <span style={{
-        fontFamily: '"IBM Plex Mono", monospace',
-        fontSize: 11,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color,
         width: 32,
         textAlign: 'right',
@@ -128,7 +129,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             ) : null;
           })}
           <text x={cx} y={cy + 5} textAnchor="middle" dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 18, fill: TRACK_COLOR, fontWeight: 700 }}>
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: TRACK_COLOR, fontWeight: 600 }}>
             —
           </text>
         </svg>
@@ -178,7 +179,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             x={cx} y={cy - 8}
             textAnchor="middle"
             dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 22, fill: centerColor, fontWeight: 700 }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: centerColor, fontWeight: 600 }}
           >
             {dataScore.level}
           </text>
@@ -187,7 +188,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             x={cx} y={cy + 16}
             textAnchor="middle"
             dominantBaseline="central"
-            style={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: 11, fill: 'var(--estate-text-muted, #8892A4)' }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fill: 'var(--estate-text-muted, var(--ink-3))' }}
           >
             {Math.round(dataScore.composite * 100)}%
           </text>
@@ -209,12 +210,8 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
       {/* Right: Gating callout */}
       <div style={{ paddingTop: 4, minWidth: 0, flex: 1 }}>
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: 'var(--estate-text-secondary, #8892A4)',
+          ...type.label,
+          color: 'var(--estate-text-secondary, var(--ink-3))',
           marginBottom: 8,
         }}>
           DATA Readiness
@@ -232,11 +229,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
           padding: '2px 7px',
         }}>
           <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: GATING_CHIP_COLOR,
           }}>
             GATING
@@ -245,25 +238,25 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
 
         {/* Gating statement */}
         <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 12,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: gatingDimColor,
           marginBottom: 8,
           lineHeight: 1.5,
         }}>
           <span style={{ marginRight: 5 }}>◆</span>
-          <span style={{ fontWeight: 700 }}>{DIMENSION_LABELS[gatingDim]}</span>
+          <span style={{ fontWeight: 600 }}>{DIMENSION_LABELS[gatingDim]}</span>
           {' '}is holding this object at{' '}
-          <span style={{ fontWeight: 700 }}>{dataScore.level}</span>
+          <span style={{ fontWeight: 600 }}>{dataScore.level}</span>
         </div>
 
         {/* Gating reasons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {gatingReasons.slice(0, 5).map((reason, i) => (
             <div key={i} style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              color: 'var(--estate-text-muted, #8892A4)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
+              color: 'var(--estate-text-muted, var(--ink-3))',
               lineHeight: 1.5,
               paddingLeft: 14,
               position: 'relative',
@@ -282,9 +275,9 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
         {/* Level label */}
         <div style={{
           marginTop: 10,
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
-          color: 'var(--estate-text-muted, #8892A4)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
+          color: 'var(--estate-text-muted, var(--ink-3))',
           letterSpacing: '0.04em',
         }}>
           {LEVEL_LABELS[dataScore.level]}

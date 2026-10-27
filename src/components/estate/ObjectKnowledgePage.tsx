@@ -12,7 +12,7 @@
 // co-objects (compact summary + anchor link to #relationships).
 
 import React, { useCallback, useRef, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 
 import HeroSection from './HeroSection';
 import InPageNav, { type SectionRefs } from './InPageNav';
@@ -28,6 +28,7 @@ import HarvestTimeline from './HarvestTimeline';
 import RelationshipGraph from './RelationshipGraph';
 import RelationshipList from './RelationshipList';
 import type { DataScoreShape } from './DataReadinessRing';
+import { type } from '@/lib/typography/tokens';
 
 interface ObjectItem {
   id: string;
@@ -152,17 +153,17 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 12,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: labelColor,
             marginBottom: 24,
           }}
         >
-          <Link href="/agent-lab/estate" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[#FDB515] transition-colors">
+          <Link href="/agent-lab/estate" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[var(--brand-a-ink)] transition-colors">
             Data Estate
           </Link>
           <span>›</span>
-          <Link href="/agent-lab/estate/catalog" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[#FDB515] transition-colors">
+          <Link href="/agent-lab/estate/catalog" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[var(--brand-a-ink)] transition-colors">
             Catalog
           </Link>
           <span>›</span>
@@ -196,11 +197,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -210,7 +207,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Meaning & Trust</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 10 }}>STEWARD / ANALYST</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>STEWARD / ANALYST</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -240,12 +237,12 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                   background: cardBg,
                 }}
               >
-                <span style={{ fontSize: 20, opacity: 0.2 }}>✦</span>
+                <span style={{ fontSize: 'var(--type-title-section-size)', opacity: 0.2 }}>✦</span>
                 <div>
                   <div
                     style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 11,
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       fontWeight: 600,
                       color: labelColor,
                       marginBottom: 4,
@@ -255,12 +252,12 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                   </div>
                   <div
                     style={{
-                      fontFamily: '"Inter Tight", sans-serif',
-                      fontSize: 12,
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: mutedColor,
                     }}
                   >
-                    Run <strong style={{ color: '#FDB515' }}>Re-enrich (T2)</strong> from the action bar above to generate an AI summary, grain, key columns, and usage patterns.
+                    Run <strong style={{ color: 'var(--brand-a-ink)' }}>Re-enrich (T2)</strong> from the action bar above to generate an AI summary, grain, key columns, and usage patterns.
                   </div>
                 </div>
               </div>
@@ -297,11 +294,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -311,7 +304,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Relationships</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 10 }}>4 SOURCES · CONSOLIDATED</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>4 SOURCES · CONSOLIDATED</span>
           </div>
 
           {/* Graph (pattern spotting) + List (detail + actions) — always co-rendered */}
@@ -382,11 +375,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -396,7 +385,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Operations</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 10 }}>DATA ENGINEER</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>DATA ENGINEER</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -419,11 +408,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
               <div style={{ minHeight: 200 }}>
                 <div
                   style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color: labelColor,
                     marginBottom: 12,
                   }}
@@ -436,11 +421,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
               <div>
                 <div
                   style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color: labelColor,
                     marginBottom: 12,
                   }}
@@ -461,11 +442,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
         >
           <div
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
+              ...type.label,
               color: labelColor,
               marginBottom: 16,
               display: 'flex',
@@ -475,7 +452,7 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
           >
             <span>Usage</span>
             <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ opacity: 0.5, fontWeight: 400, fontSize: 10 }}>T3 · LAST 30 DAYS</span>
+            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>T3 · LAST 30 DAYS</span>
           </div>
 
           {usageSnapshot ? (
@@ -488,8 +465,8 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                 padding: '24px',
                 textAlign: 'center',
                 background: cardBg,
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 11,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: mutedColor,
               }}
             >

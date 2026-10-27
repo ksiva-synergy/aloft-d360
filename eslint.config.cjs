@@ -1,26 +1,30 @@
 // ESLint 9 flat config (CJS — avoids ESM/CJS ambiguity without "type":"module")
-const { FlatCompat } = require('@eslint/eslintrc');
-const tsPlugin = require('@typescript-eslint/eslint-plugin');
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
+// eslint-config-next 16 ships native flat configs. Wrapping them in FlatCompat.extends() crashed
+// config loading ("Converting circular structure to JSON"), so they are spread directly.
+const nextCoreWebVitals = require('eslint-config-next/core-web-vitals');
 
 module.exports = [
   // ── Ignored paths ──────────────────────────────────────────────────────────
   {
     ignores: [
       '.next/**',
+      '.next-*/**',
       'node_modules/**',
+      // Build output (minified bundles), gitignored
+      'public/spa/**',
+      'web/dist/**',
+      // Vendored third-party bundles
+      'docs/vendor/**',
       'packages/aloft-shared/dist/**',
       'scripts/**',
     ],
   },
 
-  // ── Extend Next.js recommended rules ───────────────────────────────────────
-  ...compat.extends('next/core-web-vitals'),
+  // ── Next.js recommended rules (registers react, react-hooks, import, jsx-a11y, @typescript-eslint)
+  ...nextCoreWebVitals,
 
-  // ── Register @typescript-eslint plugin + override rules ────────────────────
+  // ── Rule overrides ─────────────────────────────────────────────────────────
   {
-    plugins: { '@typescript-eslint': tsPlugin },
     linterOptions: {
       reportUnusedDisableDirectives: 'off',
     },

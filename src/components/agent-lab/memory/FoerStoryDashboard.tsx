@@ -10,9 +10,10 @@
 
 import React, { useState, useMemo } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useTheme } from 'next-themes';
+import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2 } from 'lucide-react';
 import type { StatsResponse } from '@/lib/foer/types';
 import { DistillationStage } from './DistillationStage';
@@ -34,6 +35,8 @@ import {
   topicColor,
 } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── One QueryClient per mount (not module-level to avoid SSR issues) ──────────
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
@@ -142,44 +145,6 @@ function buildKpis(stats: StatsResponse): KpiDef[] {
 // ── Theme detection helper ─────────────────────────────────────────────────────
 
 // ── CSS variable themes ───────────────────────────────────────────────────────
-const DARK_THEME = {
-  '--foer-bg':          '#05090f',
-  '--foer-surface':     '#0b1017',
-  '--foer-surface2':    '#111822',
-  '--foer-border':      'rgba(253,181,21,0.12)',
-  '--foer-border-dim':  'rgba(255,255,255,0.07)',
-  '--foer-text-pri':    '#F0F4F8',
-  '--foer-text-sec':    '#8BAFC8',
-  '--foer-text-mut':    '#4A6080',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#FDB515',
-  '--foer-pill-bg':     'rgba(253,181,21,0.10)',
-  '--foer-pill-active': 'rgba(253,181,21,0.20)',
-  '--foer-filter-bg':   'rgba(255,255,255,0.04)',
-  '--foer-filter-active':'rgba(253,181,21,0.15)',
-  '--foer-card-bg':     '#0d1520',
-  '--foer-placeholder-bg': '#0b1017',
-} as const;
-
-const LIGHT_THEME = {
-  '--foer-bg':          '#F8F5EE',
-  '--foer-surface':     '#EFEBE0',
-  '--foer-surface2':    '#E7E1D4',
-  '--foer-border':      'rgba(0,50,98,0.14)',
-  '--foer-border-dim':  'rgba(0,50,98,0.08)',
-  '--foer-text-pri':    '#0D1B2A',
-  '--foer-text-sec':    '#2C3E50',
-  '--foer-text-mut':    '#5A6A7A',
-  '--foer-gold':        '#FDB515',
-  '--foer-wordmark':    '#003262',
-  '--foer-pill-bg':     'rgba(0,50,98,0.08)',
-  '--foer-pill-active': 'rgba(0,50,98,0.18)',
-  '--foer-filter-bg':   'rgba(0,50,98,0.04)',
-  '--foer-filter-active':'rgba(0,50,98,0.12)',
-  '--foer-card-bg':     '#FFFFFF',
-  '--foer-placeholder-bg': '#EFEBE0',
-} as const;
-
 // ── Inner dashboard (needs Suspense for useSearchParams) ──────────────────────
 function FoerStoryInner() {
   const router      = useRouter();
@@ -188,9 +153,10 @@ function FoerStoryInner() {
 
   // ── Theme state — synced with global sidebar toggle via next-themes ──────────
   const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme !== 'light';
+  // Colors come from the app's design tokens, so only non-CSS bits (SVG tints) need the flag.
+  const dark = resolvedTheme === 'dark';
 
-  const theme = dark ? DARK_THEME : LIGHT_THEME;
+  const theme = FOER_THEME;
 
   // ── Filter state from URL ─────────────────────────────────────────────────
   const topicParam    = searchParams.get('topic')    ?? '';
@@ -249,8 +215,6 @@ function FoerStoryInner() {
       <EasterEggs />
       {/* Injected CSS for @keyframes and utility classes */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,600&family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
         [data-foer-theme] * { box-sizing: border-box; }
 
         @keyframes foer-pulse-gold {
@@ -342,9 +306,7 @@ function FoerStoryInner() {
           alignItems:     'center',
           gap:            '1.25rem',
           padding:        '0.75rem 2rem',
-          background:     dark
-            ? 'linear-gradient(to bottom, rgba(5,9,15,0.98) 0%, rgba(5,9,15,0.80) 100%)'
-            : 'linear-gradient(to bottom, rgba(248,245,238,0.98) 0%, rgba(248,245,238,0.80) 100%)',
+          background:     'linear-gradient(to bottom, color-mix(in srgb, var(--foer-bg) 98%, transparent) 0%, color-mix(in srgb, var(--foer-bg) 80%, transparent) 100%)',
           backdropFilter: 'blur(8px)',
           borderBottom:   '1px solid var(--foer-border-dim)',
         }}
@@ -353,7 +315,7 @@ function FoerStoryInner() {
           href="/agent-lab/memory/ops"
           style={{
             fontFamily:     BODY,
-            fontSize:       '13px',
+            fontSize: 'var(--type-ui-regular-size)',
             color:          'var(--foer-text-mut)',
             textDecoration: 'none',
             transition:     'color 0.15s',
@@ -380,11 +342,7 @@ function FoerStoryInner() {
         <p
           id="foer-kicker"
           style={{
-            fontFamily:    MONO,
-            fontSize:      '11px',
-            letterSpacing: '0.28em',
-            color:         'var(--foer-text-mut)',
-            textTransform: 'uppercase',
+            ...type.label,
             marginBottom:  '14px',
           }}
         >
@@ -396,10 +354,10 @@ function FoerStoryInner() {
           id="foer-wordmark"
           style={{
             fontFamily:   SERIF,
-            fontSize:     '64px',
+            fontSize: 'var(--type-display-size)',
             fontWeight:   600,
             color:        'var(--foer-wordmark)',
-            letterSpacing: '0.01em',
+            letterSpacing: '0',
             lineHeight:   1,
             margin:       '18px 0 0',
           }}
@@ -412,7 +370,7 @@ function FoerStoryInner() {
           id="foer-narrative"
           style={{
             fontFamily:  SERIF,
-            fontSize:    '20px',
+            fontSize: 'var(--type-title-section-size)',
             fontStyle:   'italic',
             color:       'var(--foer-text-sec)',
             maxWidth:    '640px',
@@ -459,11 +417,11 @@ function FoerStoryInner() {
             style={{
               padding:      '1.5rem',
               borderRadius: '6px',
-              border:       `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}30`,
-              background:   `${RULE_TYPE_COLORS.FAILURE_MODE}10`,
-              color:        RULE_TYPE_COLORS.FAILURE_MODE,
-              fontFamily:   MONO,
-              fontSize:     '0.8rem',
+              border:       `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
+              background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
+              color:        inkOf(RULE_TYPE_COLORS.FAILURE_MODE),
+              fontFamily:   'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
             }}
           >
             Failed to load FOER stats — check network or API.
@@ -488,10 +446,7 @@ function FoerStoryInner() {
                 {/* Label */}
                 <div
                   style={{
-                    fontFamily:    MONO,
-                    fontSize:      '9px',
-                    letterSpacing: '0.13em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color:         'var(--foer-text-mut)',
                   }}
                 >
@@ -500,12 +455,12 @@ function FoerStoryInner() {
                 {/* Value */}
                 <div
                   style={{
-                    fontSize:           '26px',
+                    fontSize: 'var(--type-kpi-lg-size)',
                     fontWeight:         600,
                     fontVariantNumeric: 'tabular-nums',
-                    color:              kpi.accent ?? 'var(--foer-text-pri)',
+                    color:              'var(--foer-text-pri)', // accent colors failed contrast (1.7:1) as small-number text
                     lineHeight:         1,
-                    letterSpacing:      '-0.01em',
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   {kpi.value}
@@ -514,8 +469,8 @@ function FoerStoryInner() {
                 {kpi.sub && (
                   <div
                     style={{
-                      fontFamily:    MONO,
-                      fontSize:      '9px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       letterSpacing: '0.04em',
                       color:         'var(--foer-text-sec)',
                       lineHeight:    1.3,
@@ -548,11 +503,7 @@ function FoerStoryInner() {
           <label
             htmlFor="foer-filter-topic"
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Topic
@@ -579,11 +530,7 @@ function FoerStoryInner() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Window
@@ -607,11 +554,7 @@ function FoerStoryInner() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Rule Type
@@ -699,7 +642,7 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily:  SERIF,
-                  fontSize:    '1rem',
+                  fontSize: 'var(--type-body-lg-size)',
                   fontWeight:  600,
                   color:       'var(--foer-text-sec)',
                   marginBottom: '0.2rem',
@@ -710,9 +653,9 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize:   '0.67rem',
+                  fontSize: 'var(--type-caption-size)',
                   color:      'var(--foer-text-mut)',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                 }}
               >
                 PLACEHOLDER · FOER-2+
@@ -737,9 +680,9 @@ function FoerStoryInner() {
             borderRadius: '999px',
             padding:   '0.4rem 0.8rem',
             fontFamily:MONO,
-            fontSize:  '0.7rem',
+            fontSize: 'var(--type-caption-size)',
             color:     'var(--foer-text-sec)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+            boxShadow: 'var(--shadow-card)',
             zIndex:    50,
           }}
         >
@@ -765,9 +708,9 @@ export function FoerStoryDashboard() {
               alignItems:     'center',
               justifyContent: 'center',
               height:         '100%',
-              color:          '#4A6080',
+              color:          'var(--ink-3)',
               fontFamily:     MONO,
-              fontSize:       '0.8rem',
+              fontSize: 'var(--type-ui-regular-size)',
               gap:            '0.5rem',
             }}
           >

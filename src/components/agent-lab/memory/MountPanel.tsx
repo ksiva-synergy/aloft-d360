@@ -17,12 +17,14 @@
  */
 
 import { useMemo, useState } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
 import type { SignatureEntry } from '@/app/api/agent-lab/memory/signatures/route';
 import { MONO, SERIF, GOLD, RULE_TYPE_COLORS } from '@/lib/foer/foer-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
+import { type, inkOf } from '@/lib/typography/tokens';
 // -- Types ---------------------------------------------------------------------
 
 interface BrowseBullet {
@@ -163,7 +165,7 @@ function computePhases(bullets: BrowseBullet[], taskSignature: string, signature
 
 const orbStyle = (ruleType: string, overBudget: boolean): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', gap: '5px',
-  fontFamily: MONO, fontSize: '0.60rem',
+  fontFamily: MONO, fontSize: 'var(--type-caption-size)',
   color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)',
   border: `1px solid ${RULE_TYPE_COLORS[ruleType] ?? GOLD}40`,
   borderRadius: '3px', padding: '2px 6px', cursor: 'default',
@@ -194,14 +196,14 @@ function ShelfGroupView({ groups, accentColor }: { groups: ShelfGroup[]; accentC
         const over   = g.slots.filter((s) => s.overBudget);
         const used   = active.reduce((sum, s) => sum + s.tokens, 0);
         return (
-          <div key={key} style={{ border: `1px solid ${accentColor}20`, borderRadius: '4px', overflow: 'hidden' }}>
+          <div key={key} style={{ border: `1px solid ${withAlpha(accentColor, '20')}`, borderRadius: '4px', overflow: 'hidden' }}>
             <div onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.6rem', cursor: 'pointer', background: 'var(--foer-surface2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: accentColor, letterSpacing: '0.06em' }}>{g.label}</span>
-                {g.subLabel && <span style={{ fontFamily: MONO, fontSize: '0.56rem', color: 'var(--foer-text-mut)' }}>{g.subLabel}</span>}
+                <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: accentColor, letterSpacing: '0.04em' }}>{g.label}</span>
+                {g.subLabel && <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>{g.subLabel}</span>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontFamily: MONO, fontSize: '0.57rem', color: 'var(--foer-text-mut)' }}>{active.length}  -  {used}t{over.length > 0 ? ` +${over.length}` : ''}</span>
+                <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>{active.length}  -  {used}t{over.length > 0 ? ` +${over.length}` : ''}</span>
                 {isOpen ? <ChevronDown size={10} style={{ color: 'var(--foer-text-mut)' }} /> : <ChevronRight size={10} style={{ color: 'var(--foer-text-mut)' }} />}
               </div>
             </div>
@@ -258,13 +260,13 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.68rem', letterSpacing: '0.10em', color: accentColor, textTransform: 'uppercase', fontWeight: 700 }}>{phaseLabel}</span>
-          <span style={{ fontFamily: MONO, fontSize: '0.57rem', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>{injectionPoint}</span>
+          <span style={{ ...type.label, fontWeight: 600 }}>{phaseLabel}</span>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em' }}>{injectionPoint}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span style={{
-              fontFamily: MONO, fontSize: '0.62rem',
+              fontFamily: MONO, fontSize: 'var(--type-caption-size)',
               color: pct >= 90 ? '#D9774B' : isEmpty ? 'var(--foer-text-mut)' : 'var(--foer-text-sec)',
               fontWeight: 600,
             }}>
@@ -275,7 +277,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
               : <ChevronRight size={11} style={{ color: 'var(--foer-text-mut)' }} />}
           </div>
           {!isEmpty && (
-            <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: 'var(--foer-text-mut)' }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               {active.length} rule{active.length !== 1 ? 's' : ''}{over.length > 0 ? ' · +' + over.length + ' cut' : ''}
             </span>
           )}
@@ -296,9 +298,9 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
       {expanded && (
         <div style={{ padding: '0.75rem 0.9rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', minWidth: 0, flex: 1 }}>
           {isEmpty ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', gap: '6px', opacity: 0.5 }}>
-              <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: 'var(--foer-text-mut)' }}>No bullets</span>
-              <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: 'var(--foer-text-mut)', fontStyle: 'italic' }}>{phaseTag}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1.5rem 0', gap: '6px' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>No bullets</span>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', fontStyle: 'italic' }}>{phaseTag}</span>
             </div>
           ) : groups && groups.length > 0 ? (
             <ShelfGroupView groups={groups} accentColor={accentColor} />
@@ -316,7 +318,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer', padding: '0',
                   display: 'flex', alignItems: 'center', gap: '5px',
-                  fontFamily: MONO, fontSize: '0.58rem', color: accentColor, letterSpacing: '0.06em',
+                  fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: inkOf(accentColor), letterSpacing: '0.04em',
                 }}
               >
                 {previewOpen
@@ -326,7 +328,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
               </button>
               {previewOpen && (
                 <pre style={{
-                  fontFamily: MONO, fontSize: '0.63rem', lineHeight: 1.6,
+                  fontFamily: MONO, fontSize: 'var(--type-caption-size)', lineHeight: 1.6,
                   color: 'var(--foer-text-sec)',
                   background: 'var(--foer-surface2)',
                   border: '1px solid ' + accentColor + '22',
@@ -335,7 +337,6 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                   margin: '0.4rem 0 0',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   overflowX: 'auto', maxHeight: '240px', overflowY: 'auto',
-                  scrollbarWidth: 'thin',
                 }}>
                   {previewText}
                 </pre>
@@ -446,33 +447,33 @@ export function MountPanel() {
     <section id="foer-section-mounted" style={{ padding: '56px 0', borderTop: '1px solid var(--foer-border)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
       {/* Section kicker */}
-      <div style={{ fontFamily: MONO, fontSize: '10.5px', letterSpacing: '0.22em', color: 'var(--foer-text-mut)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ ...type.label, display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ color: GOLD }}>06</span> · MOUNT · INJECTION
       </div>
 
       {/* Hero */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 260 }}>
-          <h2 style={{ fontFamily: SERIF, fontSize: '32px', fontWeight: 600, color: 'var(--foer-text-pri)', margin: '0 0 10px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+          <h2 style={{ fontFamily: SERIF, fontSize: 'var(--type-display-size)', fontWeight: 600, color: 'var(--foer-text-pri)', margin: '0 0 10px', letterSpacing: '-0.02em', lineHeight: 1.15 }}>
             Mounted at Task Start
           </h2>
-          <p style={{ fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-mut)', margin: '0 0 18px', lineHeight: 1.7 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', margin: '0 0 18px', lineHeight: 1.7 }}>
             Before the agent speaks its first word, three layers of memory are already loaded--in sequence, at the right moment.
           </p>
           {/* Story pipeline */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0', flexWrap: 'nowrap' }}>
             {([
-              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: '#FDB515' },
+              { step: '0',  label: 'Guardrails', desc: 'Fatal rules first',   color: 'var(--brand-a-ink)' },
               { step: '1a', label: 'Schema map', desc: 'Domain knowledge',    color: '#5E7E96' },
               { step: '1b', label: 'Task recall', desc: 'Pattern memory',     color: '#5FA9AE' },
             ] as const).map((item, i) => (
               <div key={item.step} style={{ display: 'flex', alignItems: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '6px 12px' }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: item.color + '1a', border: '1.5px solid ' + item.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: item.color, fontWeight: 700 }}>{item.step}</span>
+                    <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: item.color, fontWeight: 600 }}>{item.step}</span>
                   </div>
-                  <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: item.color, letterSpacing: '0.04em', fontWeight: 600 }}>{item.label}</span>
-                  <span style={{ fontFamily: MONO, fontSize: '0.55rem', color: 'var(--foer-text-mut)' }}>{item.desc}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: item.color, letterSpacing: '0.04em', fontWeight: 600 }}>{item.label}</span>
+                  <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>{item.desc}</span>
                 </div>
                 {i < 2 && (
                   <div style={{ display: 'flex', alignItems: 'center', marginBottom: '22px' }}>
@@ -487,26 +488,26 @@ export function MountPanel() {
 
         {/* Stats summary card */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0', border: '1px solid var(--foer-border)', borderRadius: '6px', overflow: 'hidden', minWidth: 210, flexShrink: 0 }}>
-          <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', borderBottom: '1px solid var(--foer-border)', fontFamily: MONO, fontSize: '0.60rem', letterSpacing: '0.08em', color: 'var(--foer-text-mut)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', borderBottom: '1px solid var(--foer-border)', ...type.label, }}>
             This signature
           </div>
           {([
-            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: '#FDB515' },
+            { label: 'P0 · guardrails', count: p0Active.length,  over: p0Over,  color: 'var(--brand-a-ink)' },
             { label: 'P1a · schema',    count: p1aActive.length, over: p1aOver, color: '#5E7E96' },
             { label: 'P1b · recall',    count: p1bActive.length, over: p1bOver, color: '#5FA9AE' },
           ] as const).map((row, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', borderBottom: i < 2 ? '1px solid var(--foer-border)' : 'none' }}>
-              <span style={{ fontFamily: MONO, fontSize: '0.62rem', color: row.color }}>{row.label}</span>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: row.color }}>{row.label}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontFamily: MONO, fontSize: '0.75rem', color: 'var(--foer-text-pri)', fontWeight: 600 }}>{row.count}</span>
-                {row.over > 0 && <span style={{ fontFamily: MONO, fontSize: '0.56rem', color: '#D9774B' }}>+{row.over} cut</span>}
+                <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-pri)', fontWeight: 600 }}>{row.count}</span>
+                {row.over > 0 && <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: inkOf('#D9774B') }}>+{row.over} cut</span>}
               </div>
             </div>
           ))}
           <div style={{ padding: '8px 14px', background: 'var(--foer-surface2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--foer-border)' }}>
-            <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: 'var(--foer-text-mut)' }}>total tokens</span>
-            <span style={{ fontFamily: MONO, fontSize: '0.72rem', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>
-              {totalUsed}<span style={{ color: 'var(--foer-text-mut)', fontSize: '0.60rem' }}>/{TOTAL_BUDGET}</span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>total tokens</span>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>
+              {totalUsed}<span style={{ color: 'var(--foer-text-mut)', fontSize: 'var(--type-caption-size)' }}>/{TOTAL_BUDGET}</span>
             </span>
           </div>
         </div>
@@ -515,13 +516,13 @@ export function MountPanel() {
       {/* Signature selector */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-          <label htmlFor="mount-sig-select" style={{ fontFamily: MONO, fontSize: '0.60rem', letterSpacing: '0.1em', color: 'var(--foer-text-mut)', textTransform: 'uppercase' }}>Previewing task signature</label>
+          <label htmlFor="mount-sig-select" style={{ ...type.label, }}>Previewing task signature</label>
           {isLoading ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foer-text-mut)', fontFamily: MONO, fontSize: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foer-text-mut)', fontFamily: MONO, fontSize: 'var(--type-caption-size)' }}>
               <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading...
             </div>
           ) : (
-            <select id="mount-sig-select" className="foer-select" value={activeSig} onChange={(e) => setSignature(e.target.value)} style={{ maxWidth: '420px', fontFamily: MONO, fontSize: '0.72rem', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--foer-border)', background: 'var(--foer-surface)', color: 'var(--foer-text-pri)', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27%238a9bb5%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 11L3 6h10l-5 5z%27/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: '28px' }}>
+            <select id="mount-sig-select" className="foer-select" value={activeSig} onChange={(e) => setSignature(e.target.value)} style={{ maxWidth: '420px', fontFamily: MONO, fontSize: 'var(--type-caption-size)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--foer-border)', background: 'var(--foer-surface)', color: 'var(--foer-text-pri)', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27%238a9bb5%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 11L3 6h10l-5 5z%27/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: '28px' }}>
               {signatures.map((s) => (
                 <option key={s.taskSignature} value={s.taskSignature} style={{ background: 'var(--foer-surface)', color: 'var(--foer-text-pri)' }}>{s.topicName} · {s.taskSignature.slice(0, 8)}</option>
               ))}
@@ -529,10 +530,10 @@ export function MountPanel() {
           )}
         </div>
         {selectedEntry && (
-          <div style={{ fontFamily: MONO, fontSize: '0.62rem', color: 'var(--foer-text-mut)', marginTop: '18px' }}>
+          <div style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', marginTop: '18px' }}>
             <span style={{ color: 'var(--foer-text-sec)' }}>{selectedEntry.topicName}</span>
             {' · '}{selectedEntry.memberCount} member{selectedEntry.memberCount !== 1 ? 's' : ''}
-            {' · '}<span data-testid="honesty-chip" style={{ color: '#C9A04E' }}>AM2.1 preview</span>
+            {' · '}<span data-testid="honesty-chip" style={{ color: inkOf('#C9A04E') }}>AM2.1 preview</span>
           </div>
         )}
       </div>
@@ -540,23 +541,23 @@ export function MountPanel() {
       {/* Segmented budget bar */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: 'var(--foer-text-mut)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Token Budget · 1800t total</span>
-          <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
+          <span style={{ ...type.label, letterSpacing: '0.08em' }}>Token Budget · 1800t total</span>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
         </div>
         <div style={{ height: '6px', borderRadius: '3px', background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>
-          <div style={{ width: p0W + '%',  background: '#FDB515', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
+          <div style={{ width: p0W + '%',  background: 'var(--brand-a)', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
           <div style={{ width: p1aW + '%', background: '#5E7E96', transition: 'width 0.4s ease' }} title={'Phase 1a: ' + p1aUsed + 't'} />
           <div style={{ width: p1bW + '%', background: '#5FA9AE', transition: 'width 0.4s ease' }} title={'Phase 1b: ' + p1bUsed + 't'} />
         </div>
         <div style={{ display: 'flex', gap: '1.25rem' }}>
           {([
-            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: '#FDB515' },
+            { label: 'P0',  used: p0Used,  budget: P0_BUDGET,  color: 'var(--brand-a-ink)' },
             { label: 'P1a', used: p1aUsed, budget: P1A_BUDGET, color: '#5E7E96' },
             { label: 'P1b', used: p1bUsed, budget: P1B_BUDGET, color: '#5FA9AE' },
           ] as const).map((seg) => (
             <div key={seg.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <div style={{ width: 8, height: 8, borderRadius: '2px', background: seg.color, flexShrink: 0 }} />
-              <span style={{ fontFamily: MONO, fontSize: '0.58rem', color: 'var(--foer-text-mut)' }}>{seg.label} {seg.used}/{seg.budget}t</span>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>{seg.label} {seg.used}/{seg.budget}t</span>
             </div>
           ))}
         </div>
@@ -574,7 +575,7 @@ export function MountPanel() {
             <PhaseBlurb
               phaseLabel="0 · Guardrails"
               phaseTag="phase:init"
-              accentColor="#FDB515"
+              accentColor="var(--brand-a-ink)"
               budget={P0_BUDGET}
               slots={phases.p0}
               previewText={p0Text}
@@ -586,7 +587,7 @@ export function MountPanel() {
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
             <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid var(--foer-border)' }} />
-              <span style={{ fontFamily: MONO, fontSize: '8px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em', writingMode: 'vertical-rl' }}>then</span>
             </div>
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
           </div>
@@ -608,7 +609,7 @@ export function MountPanel() {
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
             <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <div style={{ width: 0, height: 0, borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: '5px solid var(--foer-border)' }} />
-              <span style={{ fontFamily: MONO, fontSize: '8px', color: 'var(--foer-text-mut)', letterSpacing: '0.06em', writingMode: 'vertical-rl' }}>then</span>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)', letterSpacing: '0.04em', writingMode: 'vertical-rl' }}>then</span>
             </div>
             <div style={{ flex: 1, width: 1, background: 'var(--foer-border-dim)' }} />
           </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { EstateFilterState } from './EstateFilterBar';
 import LifecycleBadge, { computeLifecycle } from './LifecycleBadge';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 interface EstateTableProps {
   filters: EstateFilterState;
@@ -49,6 +50,7 @@ export default function EstateTable({
         if (filters.lifecycle) params.append('harvest', filters.lifecycle);
         if (filters.q) params.append('q', filters.q);
         if (!showTestSources) params.append('excludeTestSources', 'true');
+        if (filters.sourceId) params.append('sourceId', filters.sourceId);
         params.append('page', String(filters.page));
         params.append('pageSize', String(filters.pageSize));
 
@@ -87,7 +89,7 @@ export default function EstateTable({
   const hoverBg = 'var(--estate-hover)';
   const btnBorder = 'var(--estate-btn-border)';
   const estateBg = 'var(--estate-bg)';
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
 
   const allSelected = items.length > 0 && items.every(i => selectedPaths.has(i.full_path));
@@ -127,7 +129,7 @@ export default function EstateTable({
       case 'inaccessible':
         return (
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px dashed rgba(248, 113, 113, 0.35)`, color: '#f87171', borderRadius: '6px', opacity: 0.6, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px dashed rgba(248, 113, 113, 0.35)`, color: inkOf('#f87171'), borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             🔒 Locked
           </span>
@@ -138,7 +140,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onScheduleChange?.('include', { paths: [item.full_path] }); }}
             className="miniact"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textMuted, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textMuted, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#60a5fa'; e.currentTarget.style.color = '#60a5fa'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = btnBorder; e.currentTarget.style.color = textMuted; }}
           >
@@ -151,7 +153,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onScheduleChange?.('exclude', { paths: [item.full_path] }); }}
             className="miniact"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid rgba(96, 165, 250, 0.4)`, color: '#60a5fa', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(96, 165, 250, 0.4)`, color: inkOf('#60a5fa'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#f87171'; e.currentTarget.style.color = '#f87171'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(96, 165, 250, 0.4)'; e.currentTarget.style.color = '#60a5fa'; }}
           >
@@ -161,7 +163,7 @@ export default function EstateTable({
       case 'queued':
         return (
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px', opacity: 0.5, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             In queue
           </span>
@@ -172,7 +174,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onHarvest([item.full_path]); }}
             className="miniact"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid rgba(52, 211, 153, 0.35)`, color: '#34d399', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(52, 211, 153, 0.35)`, color: inkOf('#34d399'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#34d399'; e.currentTarget.style.backgroundColor = 'rgba(52,211,153,0.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(52, 211, 153, 0.35)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
@@ -185,7 +187,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onHarvest([item.full_path]); }}
             className="miniact"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid rgba(167, 139, 250, 0.35)`, color: '#a78bfa', borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(167, 139, 250, 0.35)`, color: inkOf('#a78bfa'), borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#a78bfa'; e.currentTarget.style.backgroundColor = 'rgba(167,139,250,0.08)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(167, 139, 250, 0.35)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
           >
@@ -198,7 +200,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onSyncKnowledge([item.full_path]); }}
             className="miniact-gold"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${goldDim}`, color: goldColor, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${goldDim}`, color: goldColor, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.backgroundColor = goldColor; e.currentTarget.style.color = estateBg; }}
             onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = goldColor; }}
           >
@@ -208,7 +210,7 @@ export default function EstateTable({
       case 'connected':
         return (
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid rgba(245,158,11,0.3)`, color: '#F59E0B', borderRadius: '6px', opacity: 0.8, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid rgba(245,158,11,0.3)`, color: inkOf('#F59E0B'), borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             ✓ Connected
           </span>
@@ -219,7 +221,7 @@ export default function EstateTable({
             type="button"
             onClick={e => { e.stopPropagation(); onSyncKnowledge([item.full_path]); }}
             className="miniact-gold"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${goldDim}`, color: goldColor, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${goldDim}`, color: goldColor, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
             onMouseEnter={e => { e.currentTarget.style.backgroundColor = goldColor; e.currentTarget.style.color = estateBg; }}
             onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = goldColor; }}
           >
@@ -229,7 +231,7 @@ export default function EstateTable({
       case 'published':
         return (
           <span
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px', opacity: 0.5, whiteSpace: 'nowrap' }}
+            style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px',  whiteSpace: 'nowrap' }}
           >
             ✓ Published
           </span>
@@ -278,10 +280,7 @@ export default function EstateTable({
                   key={i}
                   className={`py-3 px-3.5 ${col.align === 'right' ? 'text-right' : 'text-left'}`}
                   style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    fontSize: '9.5px',
-                    letterSpacing: '0.14em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     fontWeight: 500,
                     color: textDim,
                     borderBottom: `1px solid ${borderColor}`,
@@ -297,22 +296,22 @@ export default function EstateTable({
             {loading ? (
               [...Array(12)].map((_, idx) => (
                 <tr key={idx}>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-3.5 w-3.5 bg-slate-400/15 rounded" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-4/5" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-14" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-16" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-14 ml-auto" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-16" /></td>
-                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-slate-400/15 rounded w-20" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-3.5 w-3.5 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-4/5" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-16" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14 ml-auto" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-16" /></td>
+                  <td className="p-3.5" style={{ borderBottom: `1px solid ${borderColor}` }}><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-20" /></td>
                 </tr>
               ))
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <span className="text-lg opacity-30 font-mono">◆</span>
+                    <span className="text-size-title-section opacity-30 font-mono">◆</span>
                     <span
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: textMuted }}
+                      style={{ ...type.label, color: textMuted }}
                     >
                       No objects match your filters
                     </span>
@@ -352,7 +351,7 @@ export default function EstateTable({
                     </td>
                     <td
                       className="py-3 px-3.5 cursor-pointer max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: inkColor }}
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}
                       onClick={() => handleRowClick(item, lc)}
                       title={item.full_path}
                       onMouseEnter={e => { e.currentTarget.style.color = goldColor; }}
@@ -362,7 +361,7 @@ export default function EstateTable({
                     </td>
                     <td className="py-3 px-3.5">
                       <span
-                        className="inline-flex items-center font-mono text-[9.5px] tracking-wider uppercase px-2 py-1 rounded-md border"
+            className="inline-flex items-center text-label px-2 py-1 rounded-md border"
                         style={{ color: textMuted, borderColor: btnBorder }}
                       >
                         {item.object_type}
@@ -380,10 +379,10 @@ export default function EstateTable({
                         lastKnowledgeSyncAt={item.last_knowledge_sync_at}
                       />
                     </td>
-                    <td className="py-3 px-3.5 text-right" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', fontVariantNumeric: 'tabular-nums', color: rows ? textSecondary : textDim }}>
+                    <td className="py-3 px-3.5 text-right" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fontVariantNumeric: 'tabular-nums', color: rows ? textSecondary : textDim }}>
                       {rows ?? <span style={{ color: textDim }}>—</span>}
                     </td>
-                    <td className="py-3 px-3.5" style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: textMuted }}>
+                    <td className="py-3 px-3.5" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted }}>
                       {formatDate(item.last_inventoried_at)}
                     </td>
                     <td className="py-3 px-3.5" style={{ whiteSpace: 'nowrap' }}>
@@ -392,7 +391,7 @@ export default function EstateTable({
                         <button
                           type="button"
                           onClick={e => { e.stopPropagation(); handleRowClick(item, lc); }}
-                          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.07em', textTransform: 'uppercase', padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textMuted, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
+                          style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textMuted, borderRadius: '6px', cursor: 'pointer', background: 'transparent', whiteSpace: 'nowrap' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = goldDim; e.currentTarget.style.color = goldColor; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = btnBorder; e.currentTarget.style.color = textMuted; }}
                         >

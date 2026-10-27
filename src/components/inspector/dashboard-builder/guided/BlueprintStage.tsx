@@ -18,6 +18,7 @@ import {
   UI_FONT, ACCENT_AMBER, GOVERNED, CANDIDATE, INK as INK_TOK, INK_MUTED,
   CANVAS, CARD, BORDER,
 } from '@/lib/dashboards/inspector-viz-tokens';
+import { inkOf } from '@/lib/typography/tokens';
 
 const GOLD = ACCENT_AMBER;
 const GREEN = GOVERNED;
@@ -179,14 +180,14 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color={GOLD} />
-          <span style={{ fontFamily: UI_FONT, fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: GOLD, fontWeight: 600 }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', textTransform: 'uppercase', color: inkOf(GOLD), fontWeight: 600 }}>
             Guided · Step 2 · Blueprint
           </span>
         </div>
-        <h2 style={{ fontFamily: UI_FONT, fontSize: 20, lineHeight: 1.35, color: INK, margin: 0, fontWeight: 600 }}>
+        <h2 style={{ fontFamily: UI_FONT, fontSize: 'var(--type-title-section-size)', lineHeight: 1.35, color: INK, margin: 0, fontWeight: 600 }}>
           Here's a plan. Curate it before we build anything.
         </h2>
-        <p style={{ fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, margin: 0, lineHeight: 1.5, maxWidth: 640 }}>
+        <p style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, margin: 0, lineHeight: 1.5, maxWidth: 640 }}>
           Each card is a proposed chart with sample data — nothing has run yet.
           Drag to reorder, click a card to rename or refine, or remove any you don't need.
         </p>
@@ -196,7 +197,7 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
       {blueprint?.modelStatus === 'candidate' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 8, border: `1px solid ${tint(VIOLET, 34)}`, background: tint(VIOLET, 8) }}>
           <AlertTriangle size={14} style={{ color: VIOLET }} />
-          <span style={{ fontFamily: UI_FONT, fontSize: 11.5, color: INK, lineHeight: 1.4 }}>
+          <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: INK, lineHeight: 1.4 }}>
             This model isn't governed yet — charts will render in draft (owner-only) until it's published.
           </span>
         </div>
@@ -204,17 +205,17 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
 
       {/* ── Loading / error / empty ───────────────────────────────────────── */}
       {loading && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, padding: '18px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '18px 0' }}>
           <Loader2 size={15} className="spin" /> Proposing charts from your governed metrics…
         </div>
       )}
       {error && !loading && (
-        <div style={{ fontFamily: UI_FONT, fontSize: 12, color: '#F87171', padding: '10px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.08)' }}>
+        <div style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', padding: '10px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.08)' }}>
           {error}
         </div>
       )}
       {!loading && blueprint && blueprint.items.length === 0 && (
-        <p style={{ fontFamily: UI_FONT, fontSize: 12.5, color: MUTED, lineHeight: 1.5, maxWidth: 640 }}>
+        <p style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.5, maxWidth: 640 }}>
           No charts could be grounded in this model's governed metrics for that intent. Add one below, or
           define the metric you need — we won't invent a metric that doesn't exist.
         </p>
@@ -262,7 +263,7 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
               display: 'inline-flex', alignItems: 'center', gap: 6,
               marginTop: 12, padding: '8px 16px', borderRadius: 8,
               border: `1px dashed ${tint(MUTED, 40)}`, background: 'transparent',
-              color: MUTED, cursor: 'pointer', fontFamily: UI_FONT, fontSize: 12,
+              color: MUTED, cursor: 'pointer', fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)',
             }}
           >
             <Plus size={14} /> Add another chart
@@ -276,7 +277,7 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
           {onBack && (
             <button
               onClick={onBack}
-              style={{ fontFamily: UI_FONT, fontSize: 11.5, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
               <ArrowLeft size={13} /> Back to intent
             </button>
@@ -287,9 +288,9 @@ export function BlueprintStage({ modelId, intent, onAccept, onBack, dimensionHin
             disabled={governedCount === 0}
             title={governedCount === 0 ? 'Add at least one grounded chart first' : 'Accept all — refine each chart next'}
             style={{
-              fontFamily: UI_FONT, fontSize: 12.5, letterSpacing: '0.02em',
+              fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0',
               display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 22px', borderRadius: 8, border: 'none',
-              background: governedCount > 0 ? GOLD : tint(GOLD, 30), color: '#0D1B2A',
+              background: governedCount > 0 ? GOLD : tint(GOLD, 30), color: 'var(--on-brand)',
               cursor: governedCount > 0 ? 'pointer' : 'default', fontWeight: 600,
             }}
           >
@@ -397,7 +398,7 @@ function BlueprintCard({
       >
         <span
           style={{
-            fontFamily: UI_FONT, fontSize: 12, fontWeight: 600, color: '#e6edf3',
+            fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--ink-1)',
             flex: 1, lineHeight: 1.3, textShadow: '0 1px 3px rgba(0,0,0,0.8)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}
@@ -453,7 +454,7 @@ function DefineItPlaceholder({ term, provenance }: { term: string; provenance?: 
       }}
     >
       <PenLine size={22} style={{ color: VIOLET }} />
-      <span style={{ fontFamily: UI_FONT, fontSize: 11.5, color: VIOLET, lineHeight: 1.4, maxWidth: 200 }}>
+      <span style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: VIOLET, lineHeight: 1.4, maxWidth: 200 }}>
         {message}
       </span>
     </div>
@@ -462,7 +463,7 @@ function DefineItPlaceholder({ term, provenance }: { term: string; provenance?: 
 
 function typeChip(color: string): React.CSSProperties {
   return {
-    fontFamily: UI_FONT, fontSize: 9, letterSpacing: '0.04em', textTransform: 'uppercase',
+    fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase',
     padding: '2px 7px', borderRadius: 4,
     border: `1px solid ${tint(color, 50)}`, background: tint(color, 18), color,
     whiteSpace: 'nowrap', fontWeight: 600, pointerEvents: 'none',

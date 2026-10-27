@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       harvest: (sp.get('harvest') as 'none' | 'scheduled' | 'queued' | 'harvested' | 'inaccessible') ?? undefined,
       q: sp.get('q') ?? undefined,
       excludeTestSources: sp.get('excludeTestSources') === 'true',
+      sourceId: sp.get('sourceId')?.trim() || undefined,
     });
 
     return NextResponse.json(result);

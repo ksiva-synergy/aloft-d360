@@ -1,17 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
-const GOLD       = '#FDB515';
-const NAVY       = '#003262';
-const NAVY2      = '#0a3a6b';
-const TXT        = '#e6ecf4';
-const TXT2       = '#9aa8ba';
-const TXT3       = '#5d6b7d';
+const GOLD       = 'var(--brand-a)';
+const NAVY       = 'var(--brand-a-ink)';
+const NAVY2      = 'color-mix(in srgb, var(--brand-a) 45%, transparent)';
+const TXT        = 'var(--ink-1)';
+const TXT2       = 'var(--ink-2)';
+const TXT3       = 'var(--ink-3)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const body: React.CSSProperties = { fontFamily: "'Inter Tight', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const body: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 // ─── Class display names ──────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export function ClassSuggestionChip({
 
   return (
     <div style={{
-      background: 'rgba(253,181,21,.06)',
+      background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
       border: `1px solid ${GOLD}`,
       borderRadius: 6,
       padding: '12px 14px',
@@ -103,34 +104,34 @@ export function ClassSuggestionChip({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
-          ...mono, fontSize: 10, color: '#1a1205',
+          ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#1a1205',
           background: GOLD,
           borderRadius: 3,
           padding: '2px 8px',
-          letterSpacing: '0.12em',
+          letterSpacing: '0.08em',
           textTransform: 'uppercase' as const,
           flexShrink: 0,
         }}>
           {classId.toUpperCase()}
         </span>
-        <span style={{ ...mono, fontSize: 10, color: TXT2 }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
           {confidencePct}% match
         </span>
       </div>
 
       {/* Question */}
-      <p style={{ ...body, fontSize: 14, color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+      <p style={{ ...body, fontSize: 'var(--type-body-size)', color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
         This reads like <strong style={{ color: GOLD }}>{className}</strong>-class territory. Apply it?
       </p>
 
       {/* Rationale */}
-      <p style={{ ...mono, fontSize: 11, color: TXT3, margin: 0, lineHeight: 1.5 }}>
+      <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT3, margin: 0, lineHeight: 1.5 }}>
         {rationale}
       </p>
 
       {/* Error */}
       {error && (
-        <p style={{ ...mono, fontSize: 10, color: '#ef4444', margin: 0 }}>{error}</p>
+        <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#ef4444', margin: 0 }}>{error}</p>
       )}
 
       {/* Actions */}
@@ -139,9 +140,8 @@ export function ClassSuggestionChip({
           onClick={handleApply}
           disabled={applying}
           style={{
-            ...mono, fontSize: 11,
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.1em',
+            ...type.label,
+            letterSpacing: '0.08em',
             background: NAVY,
             color: '#ffffff',
             border: `1px solid ${NAVY2}`,
@@ -158,7 +158,7 @@ export function ClassSuggestionChip({
           onClick={handleKeepClassless}
           disabled={applying}
           style={{
-            ...mono, fontSize: 11,
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)',
             background: 'transparent',
             color: TXT2,
             border: 0,

@@ -56,6 +56,7 @@ import {
   UI_FONT, GOVERNED, CANDIDATE, ACCENT_AMBER, INK_MUTED,
 } from '@/lib/dashboards/inspector-viz-tokens';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
 export type { PreviewChartKind };
 
 /** Kind-aware thumb height: avoids a cramped 132px for all chart types. */
@@ -176,13 +177,13 @@ function SamplePreviewChartImpl({
           width: '100%', height: '100%',
           overflow: 'hidden',
           border: `1px solid ${governanceRing(governance, isDark)}`,
-          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${withAlpha(GOVERNED, '22')}` : undefined,
         }
       : {
           position: 'relative', display: 'flex', flexDirection: 'column',
           borderRadius: 10, overflow: 'hidden', minHeight: height,
           border: `1px solid ${governanceRing(governance, isDark)}`,
-          boxShadow: governance === 'governed' ? `0 0 0 1px ${GOVERNED}22` : undefined,
+          boxShadow: governance === 'governed' ? `0 0 0 1px ${withAlpha(GOVERNED, '22')}` : undefined,
         };
 
   return (
@@ -265,7 +266,7 @@ function guessFor(kind: PreviewChartKind): 'line' | 'bar' | 'scatter' | 'kpi' | 
 }
 
 function governanceRing(governance: SamplePreviewChartProps['governance'], isDark: boolean): string {
-  const base = isDark ? '#262d36' : '#C8C2AD';
+  const base = isDark ? '#262d36' : '#B4C0D0';
   if (governance === 'candidate') return `${CANDIDATE}55`;
   if (governance === 'governed') return `${GOVERNED}44`;
   return base;
@@ -276,8 +277,8 @@ function Chip({ color, label, icon, testId }: { color: string; label: string; ic
     <span
       data-testid={testId}
       style={{
-        fontFamily: UI_FONT, fontSize: 9, letterSpacing: '0.04em', textTransform: 'uppercase',
-        color, border: `1px solid ${color}66`, background: `${color}14`, borderRadius: 4,
+        fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase',
+        color, border: `1px solid ${withAlpha(color, '66')}`, background: `${withAlpha(color, '14')}`, borderRadius: 4,
         padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600,
       }}
     >
@@ -325,7 +326,7 @@ function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult;
 
   return (
     <div style={{ width: '100%', height, overflow: 'hidden', padding: '12px 12px 0' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: UI_FONT, fontSize: 11, color: inkColor }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
         <thead>
           <tr>
             <th style={thStyle}>{result.dimAliases[0] ? 'Category' : '#'}</th>
@@ -342,7 +343,7 @@ function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult;
         </tbody>
       </table>
       {remaining > 0 && (
-        <div style={{ fontFamily: UI_FONT, fontSize: 9.5, color: INK_MUTED, padding: '4px 0 8px', letterSpacing: '0.02em' }}>
+        <div style={{ fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', color: INK_MUTED, padding: '4px 0 8px', letterSpacing: '0' }}>
           +{remaining} more row{remaining === 1 ? '' : 's'}
         </div>
       )}
@@ -350,7 +351,7 @@ function SampleTable({ result, inkColor, height }: { result: RowsToOptionResult;
   );
 }
 
-const thStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid rgba(136,146,164,0.25)', color: INK_MUTED, fontWeight: 600, fontSize: 10 };
+const thStyle: React.CSSProperties = { textAlign: 'left', padding: '6px 8px', borderBottom: '1px solid rgba(136,146,164,0.25)', color: INK_MUTED, fontWeight: 600, fontSize: 'var(--type-ui-regular-size)' };
 const tdStyle: React.CSSProperties = { padding: '5px 8px', borderBottom: '1px solid rgba(136,146,164,0.12)' };
 
 /** IntersectionObserver-backed in-view gate for lazy-mounting off-screen cards. */

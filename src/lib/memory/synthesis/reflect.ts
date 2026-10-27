@@ -290,7 +290,7 @@ export async function reflectSession(
   // 1200 was too tight and caused "Unterminated string in JSON" truncations.
   const client = getBedrockClient();
   const res = await client.send(new ConverseCommand({
-    modelId: process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-6',
+    modelId: process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
     system:  [{ text: SYSTEM_PROMPT }],
     messages: [{ role: 'user', content: [{ text: userContent }] }],
     inferenceConfig: { maxTokens: 2400, temperature: 0.2 },

@@ -16,9 +16,10 @@ import { runT0Harvest, runT1Profile } from '@/lib/context/harvest';
 import { runT2Enrich } from '@/lib/context/enrich';
 import { runEstateInventory } from '@/lib/context/estate';
 import { runT3Usage } from '@/lib/context/usage';
+import { syncObjectToKnowledge, syncSourceToKnowledge } from '@/lib/context/knowledge-sync';
 import { embedSubjects, TITAN_MODEL } from '@/lib/context/embed';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
-import { getDefaultOrg } from '@/lib/platform/agents';
+import { resolveDefaultOrgId } from '@/lib/platform/agents';
 import type { ContextSource } from '@/lib/context/types';
 import type { PlatformContextSource, PlatformContextJob } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
@@ -30,12 +31,21 @@ import type { JobKind } from '@/lib/context/queue';
 // restore this import: import { runT4Scan, runT4EntityPropose, runT4DimPropose } from './t4-handlers';
 import { acquireOrchestratorLock } from '@/lib/memory/lock';
 import { launchHarvesterTask } from '@/lib/context/launch-harvester';
+import {
+  objectMatchesJobScope,
+  pathToIncludePattern,
+  resolveEffectiveScope,
+} from '@/lib/context/job-scope';
 
 /**
  * Enqueue the next kind in a sequential chain and launch a worker for it.
  * Copies excludeSchemas, includePatterns and the remaining chain tail from the
  * parent job's scope so the new container continues with the same settings.
  */
+function shouldAdvanceJobChain(status: 'succeeded' | 'failed' | 'partial'): boolean {
+  return status === 'succeeded' || status === 'partial';
+}
+
 async function advanceChain(
   orgId: string,
   parentScope: Record<string, unknown>,
@@ -98,6 +108,7 @@ async function dispatchSingleJob(
   orgId: string,
 ): Promise<{ status: 'succeeded' | 'failed' | 'partial'; error?: string }> {
   const scope = (job.scope ?? {}) as Record<string, unknown>;
+  const pathResolved = resolveEffectiveScope(scope);
 
   // Extract partition scope injected by auto-split (partition_catalog / partition_schema)
   const partitionCatalog = typeof scope.partition_catalog === 'string' ? scope.partition_catalog : undefined;
@@ -108,12 +119,8 @@ async function dispatchSingleJob(
   // Keep the full "catalog.schema" format as sent by the UI — stripping the catalog
   // prefix here caused cross-catalog bleed (landing_zone.digital_desk → *.digital_desk.*
   // which also silently excluded reporting_layer.digital_desk etc).
-  let effectiveExcludeSchemas = Array.isArray(scope.excludeSchemas)
-    ? (scope.excludeSchemas as string[])
-    : [];
-  let effectiveIncludePatterns = Array.isArray(scope.includePatterns)
-    ? (scope.includePatterns as string[])
-    : [];
+  let effectiveExcludeSchemas = pathResolved.excludeSchemas;
+  let effectiveIncludePatterns = pathResolved.includePatterns;
 
   if (partitionCatalog && partitionSchema) {
     if (partitionObjects && partitionObjects.length > 0) {
@@ -142,7 +149,13 @@ async function dispatchSingleJob(
       const since = sourceRow.last_sweep_at ?? new Date(0);
       const changedRefs = await adapter.detectChanges(toContextSource(sourceRow), since);
       for (const ref of changedRefs) {
-        await enqueue('t0_structural', job.source_id, { path: ref.full_path }, 'scheduled', orgId);
+        await enqueue(
+          't0_structural',
+          job.source_id,
+          { includePatterns: [pathToIncludePattern(ref.full_path)] },
+          'scheduled',
+          orgId,
+        );
       }
       await finalize(job.id, 'succeeded', { changed_refs: changedRefs.length });
       console.log(`[change_detect] source=${job.source_id} flagged=${changedRefs.length} → t0_structural enqueued`);
@@ -157,14 +170,14 @@ async function dispatchSingleJob(
       const result = await runT0Harvest(job.source_id, {
         excludeSchemas: effectiveExcludeSchemas,
         includePatterns: effectiveIncludePatterns,
+        existingJobId: job.id,
       });
       await finalize(job.id, result.status, {
-        dispatched_to_job: result.jobId,
         objects_swept: result.objectsSwept,
         queries_issued: result.queriesIssued,
       }, result.error);
       console.log(`[t0_structural] source=${job.source_id} objects=${result.objectsSwept} status=${result.status}`);
-      if (result.status === 'succeeded' && !job.parent_job_id) {
+      if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
         await advanceChain(orgId, scope, job.source_id);
       }
       return { status: result.status, error: result.error };
@@ -189,7 +202,7 @@ async function dispatchSingleJob(
         queries_issued: result.queriesIssued,
       }, result.error);
       console.log(`[t1_profile] source=${job.source_id} objects=${result.objectsSwept} status=${result.status}`);
-      if (result.status === 'succeeded' && !job.parent_job_id) {
+      if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
         await advanceChain(orgId, scope, job.source_id);
       }
       return { status: result.status, error: result.error };
@@ -208,7 +221,7 @@ async function dispatchSingleJob(
         ...(partitionObjects ? { partitionObjects } : {}),
       });
       console.log(`[t2_semantic] source=${job.source_id} objects=${result.objectsEnriched} columns=${result.columnsEnriched} cost=$${result.costUsd.toFixed(4)} status=${result.status}`);
-      if (result.status === 'succeeded' && !job.parent_job_id) {
+      if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
         await advanceChain(orgId, scope, job.source_id);
       }
       return { status: result.status };
@@ -219,7 +232,11 @@ async function dispatchSingleJob(
         await finalize(job.id, 'failed', {}, 'estate_inventory missing source_id');
         return { status: 'failed', error: 'missing source_id' };
       }
-      const estateResult = await runEstateInventory(job.source_id, orgId);
+      const estateResult = await runEstateInventory(job.source_id, orgId, {
+        existingJobId: job.id,
+        includePatterns: effectiveIncludePatterns,
+        excludeSchemas: effectiveExcludeSchemas,
+      });
       await finalize(job.id, 'succeeded', estateResult as unknown as Record<string, unknown>);
       console.log(`[estate_inventory] source=${job.source_id} inserted=${estateResult.inserted} updated=${estateResult.updated} removed=${estateResult.removed} catalogs=${estateResult.catalogs} mode=${estateResult.mode}`);
       return { status: 'succeeded' };
@@ -238,15 +255,26 @@ async function dispatchSingleJob(
           lifecycle: 'active',
           last_t2_at: { not: null },
         },
-        select: { id: true },
+        select: { id: true, full_path: true, catalog_name: true, schema_name: true },
       });
-      const embedObjectIds = embedObjectRows.map((o) => o.id);
+      const embedScopePatterns = effectiveIncludePatterns;
+      const embedObjectIds = embedObjectRows
+        .filter(o =>
+          objectMatchesJobScope(o.full_path, o.catalog_name, o.schema_name, {
+            includePatterns: embedScopePatterns,
+            excludeSchemas: effectiveExcludeSchemas,
+          }),
+        )
+        .map((o) => o.id);
 
       const embedAllColRows = await prisma.platformContextColumn.findMany({
         where: {
           org_id: orgId,
           lifecycle: 'active',
-          object: { source_id: job.source_id },
+          object: {
+            source_id: job.source_id,
+            ...(embedObjectIds.length > 0 ? { id: { in: embedObjectIds } } : {}),
+          },
         },
         select: { id: true, semantic: true },
       });
@@ -290,6 +318,9 @@ async function dispatchSingleJob(
         `[embed] source=${job.source_id} objects=${embedObjResult.embedded} columns=${embedColResult.embedded}` +
         ` skipped=${embedObjResult.skipped + embedColResult.skipped} failed=${embedObjResult.failed + embedColResult.failed} status=${embedStatus}`,
       );
+      if (shouldAdvanceJobChain(embedStatus) && !job.parent_job_id) {
+        await advanceChain(orgId, scope, job.source_id);
+      }
       return { status: embedStatus };
     }
 
@@ -303,7 +334,12 @@ async function dispatchSingleJob(
       const since = typeof scopeObj.since === 'string' ? new Date(scopeObj.since) : undefined;
       const until = typeof scopeObj.until === 'string' ? new Date(scopeObj.until) : undefined;
       console.log(`[t3_usage] orchestrator dispatching sourceId=${job.source_id} orgId=${orgId}${since ? ` since=${since.toISOString()}` : ''}${until ? ` until=${until.toISOString()}` : ''}`);
-      const t3Result = await runT3Usage(orgId, job.source_id, (since || until) ? { since, until } : undefined);
+      const t3Opts: { since?: Date; until?: Date; includePatterns?: string[]; excludeSchemas?: string[] } = {};
+      if (since) t3Opts.since = since;
+      if (until) t3Opts.until = until;
+      if (effectiveIncludePatterns.length > 0) t3Opts.includePatterns = effectiveIncludePatterns;
+      if (effectiveExcludeSchemas.length > 0) t3Opts.excludeSchemas = effectiveExcludeSchemas;
+      const t3Result = await runT3Usage(orgId, job.source_id, Object.keys(t3Opts).length > 0 ? t3Opts : undefined);
       await finalize(job.id, 'succeeded', t3Result as unknown as Record<string, unknown>);
       console.log(`[t3_usage] source=${job.source_id} objects=${t3Result.objectsProcessed} snapshots=${t3Result.snapshotsWritten} narratives=${t3Result.narrativesApplied} window=${t3Result.windowStart}→${t3Result.windowEnd}${t3Result.nextCursor ? ` nextCursor=${t3Result.nextCursor}` : ''}`);
 
@@ -313,10 +349,17 @@ async function dispatchSingleJob(
       // Enqueue the DB row AND launch a Fargate task so it runs immediately
       // (plain enqueue() leaves the row queued with no task to claim it).
       if (t3Result.nextCursor) {
-        const contJob = await enqueue('t3_usage', job.source_id, {
-          since: t3Result.windowStart,   // original window start
-          until: t3Result.nextCursor,    // where this job stopped
-        }, 'on_demand', orgId);
+        const contScope: Record<string, unknown> = {
+          since: t3Result.windowStart,
+          until: t3Result.nextCursor,
+        };
+        if (effectiveIncludePatterns.length > 0) {
+          contScope.includePatterns = effectiveIncludePatterns;
+        }
+        if (effectiveExcludeSchemas.length > 0) {
+          contScope.excludeSchemas = effectiveExcludeSchemas;
+        }
+        const contJob = await enqueue('t3_usage', job.source_id, contScope, 'on_demand', orgId);
         console.log(`[t3_usage] continuation job enqueued id=${contJob.id} since=${t3Result.windowStart} until=${t3Result.nextCursor}`);
 
         // Launch a dedicated worker for the continuation job
@@ -328,7 +371,12 @@ async function dispatchSingleJob(
           if (contTaskId) {
             await prisma.platformContextJob.update({
               where: { id: contJob.id },
-              data: { scope: { since: t3Result.windowStart, until: t3Result.nextCursor, fargate_task_id: contTaskId } as unknown as Prisma.InputJsonValue },
+              data: {
+                scope: {
+                  ...contScope,
+                  fargate_task_id: contTaskId,
+                } as unknown as Prisma.InputJsonValue,
+              },
             });
           }
           console.log(`[t3_usage] continuation task launched id=${contJob.id} taskId=${contTaskId ?? 'none'}${launchErr ? ` error=${launchErr}` : ''}`);
@@ -340,18 +388,48 @@ async function dispatchSingleJob(
       return { status: 'succeeded' };
     }
 
-    case 'mapping': {
-      console.log(`[orchestrator] mapping: not yet implemented — requeue skipped`);
-      await finalize(job.id, 'succeeded', { note: 'not yet implemented, requeue skipped' });
-      return { status: 'succeeded' };
+    case 'knowledge_sync': {
+      if (!job.source_id) {
+        await finalize(job.id, 'failed', {}, 'knowledge_sync missing source_id');
+        return { status: 'failed', error: 'missing source_id' };
+      }
+      const contextObjectId =
+        typeof scope.context_object_id === 'string' ? scope.context_object_id : undefined;
+      if (contextObjectId) {
+        const one = await syncObjectToKnowledge(contextObjectId, { includeSamples: true });
+        const status = one.error ? 'failed' : one.skipped ? 'succeeded' : 'succeeded';
+        await finalize(job.id, status, {
+          objects_synced: one.skipped ? 0 : 1,
+          chunks_ingested: one.chunksIngested,
+          skipped: one.skipped,
+        }, one.error);
+        return { status, error: one.error };
+      }
+      const batch = await syncSourceToKnowledge(job.source_id, orgId, {
+        includeSamples: true,
+        includePatterns: effectiveIncludePatterns,
+      });
+      const status = batch.errors > 0 && batch.synced === 0 ? 'failed' : batch.errors > 0 ? 'partial' : 'succeeded';
+      await finalize(job.id, status, batch as unknown as Record<string, unknown>);
+      if (shouldAdvanceJobChain(status) && !job.parent_job_id) {
+        await advanceChain(orgId, scope, job.source_id);
+      }
+      return { status };
+    }
+
+    case 'mapping':
+    case 't3_connected': {
+      const reason = `${job.job_kind}: not implemented in harvest orchestrator`;
+      console.warn(`[orchestrator] ${reason}`);
+      await finalize(job.id, 'failed', { objects_processed: 0 }, reason);
+      return { status: 'failed', error: reason };
     }
 
     case 'silo_scan':
-    case 'recompute_entity_tags':
-    case 'knowledge_sync': {
+    case 'recompute_entity_tags': {
       console.log(`[orchestrator] ${job.job_kind}: not yet implemented in this container — skipping`);
-      await finalize(job.id, 'succeeded', { note: 'not yet implemented in harvester, skipped' });
-      return { status: 'succeeded' };
+      await finalize(job.id, 'failed', { note: 'not yet implemented in harvester' }, 'not implemented');
+      return { status: 'failed', error: 'not implemented' };
     }
 
     // T4 tier — scan / entity-propose / dim-propose.
@@ -434,7 +512,7 @@ export async function runOrchestratorLoop(
       // If parent just finalized AND it has a chain, advance chain from parent
       if (parentFinalized) {
         const parent = await prisma.platformContextJob.findUnique({ where: { id: job.parent_job_id } });
-        if (parent && parent.status === 'succeeded' && parent.source_id) {
+        if (parent && shouldAdvanceJobChain(parent.status as 'succeeded' | 'failed' | 'partial') && parent.source_id) {
           const parentScope = (parent.scope ?? {}) as Record<string, unknown>;
           if (Array.isArray(parentScope.chain) && (parentScope.chain as string[]).length > 0) {
             await advanceChain(orgId, parentScope, parent.source_id);
@@ -499,8 +577,7 @@ async function main() {
   const childJobIdx = process.argv.indexOf('--child-job');
   const childJobId = childJobIdx >= 0 ? process.argv[childJobIdx + 1] : undefined;
 
-  const org = await getDefaultOrg();
-  const orgId = process.env.ORG_ID ?? org.id;
+  const orgId = await resolveDefaultOrgId();
 
   console.log(`[orchestrator] starting  org=${orgId} sweep=${sweep}${kindFilter ? ` kind=${kindFilter}` : ''}${childJobId ? ` child-job=${childJobId}` : ''}`);
 

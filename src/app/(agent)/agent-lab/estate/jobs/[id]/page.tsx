@@ -17,5 +17,6 @@ export default async function JobDetailPage({ params }: PageProps) {
 
   if (!job) return notFound();
 
-  return <JobRunPage job={job as any} />;
+  // Prisma returns Date; JobRunPage accepts ISO strings from the JSON API as well.
+  return <JobRunPage job={job as never} />;
 }

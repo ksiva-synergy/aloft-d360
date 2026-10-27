@@ -7,8 +7,12 @@
  * degrades to `null` for that card instead of 500-ing the whole page.
  */
 import { prisma } from '@/lib/db';
+import { runInBatches } from '@/lib/db/run-in-batches';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { computeMemoryStats } from '@/lib/foer/stats';
+
+const DASHBOARD_DB_CONCURRENCY = 3;
+const SUMMARY_CACHE_TTL_MS = 30_000;
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -85,6 +89,8 @@ export interface DashboardScope {
   canReadUsers: boolean;
 }
 
+const summaryCache = new Map<string, { at: number; data: DashboardSummary }>();
+
 // ── Section fetchers ─────────────────────────────────────────────────────────
 
 async function fetchEstate(orgId: string): Promise<EstateSummary | null> {
@@ -97,10 +103,11 @@ async function fetchEstate(orgId: string): Promise<EstateSummary | null> {
           COUNT(*)::int AS harvested,
           COUNT(CASE WHEN o.last_t1_at IS NOT NULL THEN 1 END)::int AS profiled,
           COUNT(CASE WHEN o.last_t2_at IS NOT NULL THEN 1 END)::int AS enriched,
-          COUNT(CASE WHEN e.subject_id IS NOT NULL THEN 1 END)::int AS embedded
+          COUNT(*) FILTER (WHERE EXISTS (
+            SELECT 1 FROM platform_context_embeddings e
+            WHERE e.subject_kind = 'object' AND e.subject_id = o.id AND e.embedding IS NOT NULL
+          ))::int AS embedded
         FROM platform_context_objects o
-        LEFT JOIN platform_context_embeddings e
-          ON o.id = e.subject_id AND e.subject_kind = 'object' AND e.org_id = ${orgId}
         WHERE o.org_id = ${orgId} AND o.lifecycle = 'active'
       `,
       prisma.$queryRaw<{ estate_total: number; stale_count: number; last_sweep: Date | null }[]>`
@@ -166,17 +173,21 @@ async function fetchLogins(scope: DashboardScope): Promise<LoginsSummary | null>
     const day = new Date(now - 24 * 60 * 60 * 1000);
     const week = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-    const [totalUsers, activeUsers, logins24h, logins7d, failed7d, roleRows] = await Promise.all([
-      prisma.user.count({ where: { deletedAt: null } }),
-      prisma.user.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
-      prisma.loginEvent.count({ where: { success: true, createdAt: { gte: day } } }),
-      prisma.loginEvent.count({ where: { success: true, createdAt: { gte: week } } }),
-      prisma.loginEvent.count({ where: { success: false, createdAt: { gte: week } } }),
-      prisma.role.findMany({
-        select: { name: true, _count: { select: { users: true } } },
-        orderBy: { name: 'asc' },
-      }),
-    ]);
+    const [totalUsers, activeUsers, logins24h, logins7d, failed7d, roleRows] = await runInBatches(
+      [
+        () => prisma.user.count({ where: { deletedAt: null } }),
+        () => prisma.user.count({ where: { deletedAt: null, status: 'ACTIVE' } }),
+        () => prisma.loginEvent.count({ where: { success: true, createdAt: { gte: day } } }),
+        () => prisma.loginEvent.count({ where: { success: true, createdAt: { gte: week } } }),
+        () => prisma.loginEvent.count({ where: { success: false, createdAt: { gte: week } } }),
+        () =>
+          prisma.role.findMany({
+            select: { name: true, _count: { select: { users: true } } },
+            orderBy: { name: 'asc' },
+          }),
+      ] as const,
+      DASHBOARD_DB_CONCURRENCY,
+    );
 
     let recent: LoginsSummary['recent'] = [];
     if (scope.canReadUsers) {
@@ -283,6 +294,12 @@ export async function getDashboardSummary(
   scope: DashboardScope,
   userId: string,
 ): Promise<DashboardSummary> {
+  const cacheKey = `${userId}:${scope.canReadUsers ? 'admin' : 'member'}`;
+  const cached = summaryCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < SUMMARY_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   // Estate + memory need the org; resolve once and share (null-safe).
   let orgId: string | null = null;
   try {
@@ -291,18 +308,19 @@ export async function getDashboardSummary(
     console.error('[dashboard/summary] org resolution failed', err);
   }
 
-  const [estate, memory, logins, inspector] = await Promise.all([
-    orgId ? fetchEstate(orgId) : Promise.resolve(null),
-    orgId ? fetchMemory(orgId) : Promise.resolve(null),
-    fetchLogins(scope),
-    fetchInspector(scope, userId),
-  ]);
+  // Load sections sequentially so FOER + logins do not open 25+ connections at once.
+  const estate = orgId ? await fetchEstate(orgId) : null;
+  const memory = orgId ? await fetchMemory(orgId) : null;
+  const logins = await fetchLogins(scope);
+  const inspector = await fetchInspector(scope, userId);
 
-  return {
+  const data: DashboardSummary = {
     estate,
     memory,
     logins,
     inspector,
     generatedAt: new Date().toISOString(),
   };
+  summaryCache.set(cacheKey, { at: Date.now(), data });
+  return data;
 }

@@ -23,6 +23,7 @@ import {
   tint,
 } from './mc-ui';
 import { selectCoverage } from './catalog-store';
+import { inkOf } from '@/lib/typography/tokens';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export function FilterBar() {
     >
       {/* Filter trigger buttons row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <span style={{ ...MONO, fontSize: 9, color: MUTED, letterSpacing: '0.08em', marginRight: 2 }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', marginRight: 2 }}>
           FILTER
         </span>
 
@@ -163,14 +164,14 @@ export function FilterBar() {
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            ...MONO,
-            fontSize: 10,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-ui-regular-size)',
             padding: '5px 9px',
             borderRadius: 4,
             cursor: 'pointer',
             border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
-            background: gapsOnly ? 'rgba(253,181,21,0.12)' : 'transparent',
-            color: gapsOnly ? GOLD : MUTED,
+            background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
+            color: inkOf(gapsOnly ? GOLD : MUTED),
           }}
         >
           <AlertTriangle size={11} />
@@ -179,8 +180,8 @@ export function FilterBar() {
             <span
               style={{
                 ...MONO,
-                fontSize: 9,
-                background: gapsOnly ? GOLD : 'rgba(253,181,21,0.15)',
+                fontSize: 'var(--type-ui-regular-size)',
+                background: gapsOnly ? GOLD : 'color-mix(in srgb, var(--brand-a) 15%, transparent)',
                 color: gapsOnly ? '#1A1206' : GOLD,
                 borderRadius: 3,
                 padding: '1px 4px',
@@ -196,8 +197,8 @@ export function FilterBar() {
           <button
             onClick={clearFacets}
             style={{
-              ...MONO,
-              fontSize: 9,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: MUTED,
               background: 'transparent',
               border: `1px solid ${BORDER}`,
@@ -292,7 +293,7 @@ function ActiveChip({
         alignItems: 'center',
         gap: 5,
         ...(mono ? MONO : SANS),
-        fontSize: 10,
+        fontSize: 'var(--type-ui-regular-size)',
         color,
         background: tint(color, 12),
         border: `1px solid ${tint(color, 30)}`,
@@ -400,12 +401,12 @@ function FacetDropdown({
           alignItems: 'center',
           gap: 5,
           ...MONO,
-          fontSize: 10,
+          fontSize: 'var(--type-ui-regular-size)',
           padding: '5px 9px',
           borderRadius: 4,
           cursor: 'pointer',
           border: `1px solid ${isActive ? GOLD : BORDER}`,
-          background: isActive ? 'rgba(253,181,21,0.1)' : 'transparent',
+          background: isActive ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
           color: isActive ? GOLD : INK_DIM,
         }}
       >
@@ -414,7 +415,7 @@ function FacetDropdown({
           <span
             style={{
               ...MONO,
-              fontSize: 9,
+              fontSize: 'var(--type-ui-regular-size)',
               background: GOLD,
               color: '#1A1206',
               borderRadius: 3,
@@ -466,9 +467,9 @@ function FacetDropdown({
                 style={{
                   width: '100%',
                   ...MONO,
-                  fontSize: 11,
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: INK,
-                  background: 'rgba(255,255,255,0.06)',
+                  background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
                   border: `1px solid ${BORDER}`,
                   borderRadius: 3,
                   padding: '5px 8px',
@@ -480,7 +481,7 @@ function FacetDropdown({
 
           <div style={{ maxHeight: 260, overflowY: 'auto' }} className="agent-labs-scrollbar">
             {filtered.length === 0 && (
-              <div style={{ ...MONO, fontSize: 10, color: MUTED, padding: '10px 12px' }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '10px 12px' }}>
                 No matches
               </div>
             )}
@@ -498,13 +499,13 @@ function FacetDropdown({
                     width: '100%',
                     textAlign: 'left',
                     padding: '6px 12px',
-                    background: checked ? 'rgba(253,181,21,0.07)' : 'transparent',
+                    background: checked ? 'color-mix(in srgb, var(--brand-a) 7%, transparent)' : 'transparent',
                     border: 'none',
                     cursor: 'pointer',
                     borderBottom: `1px solid ${BORDER}`,
                   }}
                   onMouseEnter={(e) => {
-                    if (!checked) e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    if (!checked) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink-1) 3%, transparent)';
                   }}
                   onMouseLeave={(e) => {
                     if (!checked) e.currentTarget.style.background = 'transparent';
@@ -554,7 +555,7 @@ function FacetDropdown({
                     {o.label}
                   </span>
                   {/* Count */}
-                  <span style={{ ...MONO, fontSize: 9, color: MUTED, flexShrink: 0 }}>
+                  <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>
                     {o.count}
                   </span>
                 </button>
@@ -580,7 +581,7 @@ function FacetDropdown({
                 }}
                 style={{
                   ...MONO,
-                  fontSize: 9,
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: MUTED,
                   background: 'transparent',
                   border: 'none',

@@ -6,7 +6,7 @@ import prisma from '@/lib/db';
 import {
   enqueue,
   enqueueWithChildren,
-  planSplit,
+  planForKind,
   launchChildTask,
   MAX_CONCURRENT_TASKS,
   MAX_CONCURRENT_BY_KIND,
@@ -17,7 +17,13 @@ import {
   isLocalHarvestRuntime,
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
-import { stripExcludeSchemasForKind } from '@/lib/estate/job-ui';
+import {
+  resolveLaunchScopeFilters,
+  stripExcludeSchemasForKind,
+  t0AllowsLiveScopeWhenDiscoveryEmpty,
+} from '@/lib/estate/job-ui';
+import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
+import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
@@ -35,8 +41,22 @@ async function assertObjectsInScope(
   includePatterns: string[],
 ): Promise<void> {
   if (!SPLITTABLE_KINDS.has(kind)) return;
-  const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+  const scope = resolveLaunchScopeFilters(
+    stripExcludeSchemasForKind(kind, excludeSchemas),
+    includePatterns,
+  );
+  const plan = await planForKind(orgId, kind, sourceId, scope);
   if (plan.totalObjects === 0) {
+    if (
+      t0AllowsLiveScopeWhenDiscoveryEmpty(
+        kind,
+        scope.includePatterns,
+        0,
+        plan.discoverySchemaGroups,
+      )
+    ) {
+      return;
+    }
     throw new NoObjectsInScopeError(kind);
   }
 }
@@ -149,7 +169,7 @@ async function launchSplitKind(
   failures: { arn?: string; reason?: string }[];
 }> {
   // Plan the split
-  const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+  const plan = await planForKind(orgId, kind, sourceId, { excludeSchemas, includePatterns });
 
   const baseScope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) baseScope.excludeSchemas = excludeSchemas;
@@ -226,18 +246,27 @@ export async function POST(req: NextRequest) {
   const excludeSchemas: string[] = Array.isArray(body.excludeSchemas) ? body.excludeSchemas : [];
   const includePatterns: string[] = Array.isArray(body.includePatterns) ? body.includePatterns : [];
   const sequential: boolean = body.sequential === true;
+  const requestedSourceId =
+    typeof body.sourceId === 'string' ? body.sourceId : typeof body.source_id === 'string' ? body.source_id : undefined;
 
-  const kinds = rawKinds.filter(k => VALID_KINDS.includes(k as JobKind)) as JobKind[];
+  const disabled = rawKinds.filter(k => isLaunchDisabledKind(k));
+  if (disabled.length > 0) {
+    return NextResponse.json(
+      { error: 'KIND_NOT_AVAILABLE', kinds: disabled, message: 'Selected job type is not available from launch yet.' },
+      { status: 400 },
+    );
+  }
+
+  const kinds = filterLaunchableKinds(
+    rawKinds.filter(k => VALID_KINDS.includes(k as JobKind)),
+  ) as JobKind[];
   if (kinds.length === 0) {
     return NextResponse.json({ error: 'INVALID_KIND', valid: VALID_KINDS }, { status: 400 });
   }
 
   try {
     const orgId = await getOrgId();
-    const sources = await prisma.platformContextSource.findMany({
-      where: { org_id: orgId, status: 'active' },
-      select: { id: true },
-    });
+    const sources = await resolveLaunchSources(orgId, requestedSourceId);
 
     let totalJobsEnqueued = 0;
     let allFailures: { arn?: string; reason?: string }[] = [];
@@ -245,17 +274,22 @@ export async function POST(req: NextRequest) {
     const splitSummaries: { kind: string; parentJobId: string; totalChildren: number }[] = [];
 
     const launchOne = async (kind: JobKind, chain: JobKind[]) => {
-      const effectiveExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
+      const strippedExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
+      const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
       const sourceId = sources[0]?.id;
       if (SPLITTABLE_KINDS.has(kind) && sourceId) {
-        await assertObjectsInScope(orgId, kind, sourceId, effectiveExcludes, includePatterns);
-        const plan = await planSplit(orgId, kind, sourceId, {
-          excludeSchemas: effectiveExcludes,
-          includePatterns,
-        });
+        await assertObjectsInScope(orgId, kind, sourceId, strippedExcludes, includePatterns);
+        const plan = await planForKind(orgId, kind, sourceId, scope);
 
         if (plan.needsSplit) {
-          const result = await launchSplitKind(kind, orgId, sourceId, effectiveExcludes, includePatterns, chain);
+          const result = await launchSplitKind(
+            kind,
+            orgId,
+            sourceId,
+            scope.excludeSchemas,
+            scope.includePatterns,
+            chain,
+          );
           splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
           totalJobsEnqueued += result.totalChildren + 1; // children + parent
           allFailures.push(...result.failures);
@@ -265,7 +299,14 @@ export async function POST(req: NextRequest) {
       }
 
       // Non-split path
-      const result = await launchKind(kind, orgId, sources, effectiveExcludes, includePatterns, chain);
+      const result = await launchKind(
+        kind,
+        orgId,
+        sources,
+        scope.excludeSchemas,
+        scope.includePatterns,
+        chain,
+      );
       totalJobsEnqueued += result.jobsEnqueued;
       allFailures.push(...result.failures);
       if (result.taskArn) taskArns.push(result.taskArn);
@@ -295,6 +336,9 @@ export async function POST(req: NextRequest) {
       split_summaries: splitSummaries.length > 0 ? splitSummaries : undefined,
     });
   } catch (err) {
+    if (err instanceof LaunchSourceNotFoundError) {
+      return NextResponse.json({ error: 'SOURCE_NOT_FOUND' }, { status: 404 });
+    }
     if (err instanceof NoObjectsInScopeError) {
       return NextResponse.json(
         { error: 'NO_OBJECTS_IN_SCOPE', message: err.message, kind: err.kind },

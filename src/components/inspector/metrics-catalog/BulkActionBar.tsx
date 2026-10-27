@@ -9,6 +9,7 @@ import {
 } from './catalog-store';
 import type { CatalogRow } from './catalog-types';
 import { MONO, MUTED, INK, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Bulk action bar — appears on selection. Replaces the old blind "Promote All
@@ -75,11 +76,11 @@ export function BulkActionBar({ onPromote, onArchive }: Props) {
     <div
       style={{
         flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-        padding: '10px 18px', borderTop: `1px solid ${BORDER}`, background: 'rgba(253,181,21,0.05)',
+        padding: '10px 18px', borderTop: `1px solid ${BORDER}`, background: 'color-mix(in srgb, var(--brand-a) 5%, transparent)',
       }}
     >
-      <span style={{ ...MONO, fontSize: 11, color: GOLD, fontWeight: 600 }}>{selectedCount} selected</span>
-      <button onClick={clearSelection} style={{ display: 'flex', alignItems: 'center', gap: 4, ...MONO, fontSize: 10, color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), fontWeight: 600 }}>{selectedCount} selected</span>
+      <button onClick={clearSelection} style={{ display: 'flex', alignItems: 'center', gap: 4, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, background: 'transparent', border: 'none', cursor: 'pointer' }}>
         <X size={11} /> clear
       </button>
 
@@ -87,7 +88,7 @@ export function BulkActionBar({ onPromote, onArchive }: Props) {
 
       {pending ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ ...MONO, fontSize: 11, color: INK }}>{pending.label} — {pending.rows.length} definition{pending.rows.length === 1 ? '' : 's'}?</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK }}>{pending.label} — {pending.rows.length} definition{pending.rows.length === 1 ? '' : 's'}?</span>
           <BarBtn primary label="Confirm" onClick={run} />
           <BarBtn label="Cancel" onClick={() => setPending(null)} />
         </div>
@@ -125,7 +126,7 @@ function BarBtn({ label, icon, onClick, primary, disabled }: { label: string; ic
       onClick={onClick}
       disabled={disabled}
       style={{
-        display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 10.5, fontWeight: 600,
+        display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
         padding: '6px 12px', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
         border: `1px solid ${primary && !disabled ? GOLD : BORDER}`,
         background: primary && !disabled ? GOLD : 'transparent',

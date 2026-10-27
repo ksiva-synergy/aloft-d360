@@ -6,9 +6,9 @@
  * enforcement logic here — it belongs at the shared chokepoint.
  */
 
-import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { denyUnless, requirePermission } from '@/middleware/auth';
+import { PERMISSIONS } from '@/lib/rbac';
 import { getOrgId, getConnection } from '@/lib/databricks/connections';
 import { getAccessToken } from '@/lib/databricks/token-client';
 import {
@@ -23,8 +23,8 @@ export const dynamic = 'force-dynamic';
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnless(request, (auth) => requirePermission(auth, PERMISSIONS.INSPECTOR_USE));
+  if (denied) return denied;
 
   const { id } = await params;
   try {

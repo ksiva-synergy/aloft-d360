@@ -12,6 +12,7 @@
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
+import { type } from '@/lib/typography/tokens';
 
 type TrustStatus = 'assumed' | 'confirmed' | 'certified';
 
@@ -118,8 +119,8 @@ export default function TrustActionBar({
       {/* Current status chip */}
       <span
         style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           fontWeight: 600,
           letterSpacing: '0.08em',
           padding: '3px 8px',
@@ -136,9 +137,9 @@ export default function TrustActionBar({
         <>
           <span
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
-              color: 'var(--estate-text-muted, #8892A4)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
+              color: 'var(--estate-text-muted, var(--ink-3))',
             }}
           >
             →
@@ -148,16 +149,12 @@ export default function TrustActionBar({
             disabled={loading}
             onClick={handleAdvance}
             style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
+              ...type.label,
               padding: '3px 10px',
               borderRadius: 3,
-              border: '1px solid rgba(253,181,21,0.35)',
+              border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
               background: 'transparent',
-              color: loading ? 'rgba(253,181,21,0.4)' : '#FDB515',
+              color: loading ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.12s ease',
             }}
@@ -171,8 +168,8 @@ export default function TrustActionBar({
       {localStatus === 'certified' && (
         <span
           style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 9,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'rgba(59,122,75,0.7)',
             letterSpacing: '0.08em',
           }}

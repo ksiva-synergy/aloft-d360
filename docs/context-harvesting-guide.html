@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT D360 — Context Harvesting Guide</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --navy: #003262;
+      --gold: #FDB515;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --harvest: #854d0e;
+      --harvest-bg: #fef3c7;
+      --radius: 12px;
+      --mono: 'Consolas', 'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--navy);
+      color: #fff;
+      padding: 1rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      padding: 0.5rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .sidebar a {
+      display: block;
+      padding: 0.45rem 1.25rem;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 0.9rem;
+      border-left: 3px solid transparent;
+    }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .sidebar a.sub { font-size: 0.82rem; padding-left: 2rem; opacity: 0.9; }
+    .sidebar .back {
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.75rem;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .content { flex: 1; max-width: 920px; padding: 2rem 2.5rem 4rem; }
+    .hero {
+      background: linear-gradient(135deg, var(--navy), #0a2540);
+      color: #fff;
+      padding: 2rem 2.5rem;
+      margin: -2rem -2.5rem 2rem;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .hero h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    .hero p { margin: 0; opacity: 0.9; max-width: 42rem; }
+    .badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 0.5rem;
+    }
+    section { margin-bottom: 2.5rem; scroll-margin-top: 1rem; }
+    section h2 {
+      font-size: 1.35rem;
+      color: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      padding-bottom: 0.35rem;
+      margin-bottom: 1rem;
+    }
+    section h3 { font-size: 1.05rem; color: var(--navy); margin: 1.25rem 0 0.5rem; }
+    .block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 12px rgba(0,50,98,0.05);
+    }
+    .callout {
+      background: var(--harvest-bg);
+      border: 1px solid #fcd34d;
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      font-size: 0.95rem;
+      margin: 1rem 0;
+    }
+    .callout strong { color: var(--harvest); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 0.75rem 0;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.5rem 0.65rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0ebe3; font-weight: 600; }
+    pre, code {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+    pre {
+      background: #1a2332;
+      color: #e8e4dc;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    .mermaid-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    ul { margin: 0.5rem 0 0 1.25rem; color: var(--muted); }
+    li { margin-bottom: 0.35rem; }
+    p { color: var(--muted); margin: 0.5rem 0; }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-right: 0.35rem;
+    }
+    .file-ref { color: #1e40af; font-family: var(--mono); font-size: 0.82rem; }
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .content { padding: 1rem; }
+      .hero { margin: 0 0 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Table of contents">
+      <a class="back" href="../architecture-guide.html#harvester">← Architecture Guide</a>
+      <h2>Guide</h2>
+      <a href="#purpose">Purpose</a>
+      <a href="#schedule">How often to run</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#prerequisites">Before harvest</a>
+      <a href="#source-scope">Source scope (include / exclude)</a>
+      <a href="#triggers">How runs start</a>
+      <h2>Pipeline steps</h2>
+      <a href="#step-change-detect">change_detect</a>
+      <a href="#step-t0">t0_structural</a>
+      <a href="#step-t0-deep" class="sub">↳ T0 deep dive</a>
+      <a href="#step-t1">t1_profile</a>
+      <a href="#step-t2">t2_semantic</a>
+      <a href="#step-embed">embed</a>
+      <a href="#step-t3">t3_usage (T3)</a>
+      <a href="#step-mapper">Mapper (mapping)</a>
+      <a href="#step-silo">Silo Scan</a>
+      <a href="#step-other">Other job kinds</a>
+      <h2>Consumption</h2>
+      <a href="#inspector-example">Inspector example</a>
+      <a href="#timeline">Timeline example</a>
+      <a href="#splitting">Splitting &amp; ECS</a>
+      <a href="#mental-model">Mental model</a>
+      <a href="#references">Key files</a>
+    </nav>
+
+    <main class="content">
+      <header class="hero">
+        <span class="badge">DATA ESTATE</span>
+        <h1>Context Harvesting — Architecture &amp; Step-by-Step Guide</h1>
+        <p>How the harvester discovers Databricks objects, enriches them, embeds them for search, and powers Inspector <strong>harvested</strong> mode. Also covers <strong>scope</strong>, <strong>T3 usage</strong>, <strong>Mapper</strong>, and <strong>Silo Scan</strong> (manual vs scheduled). Includes worked examples.</p>
+      </header>
+
+      <section id="purpose">
+        <h2>Purpose</h2>
+        <p>Raw warehouse tables are hard for an LLM to use. Harvesting copies and enriches metadata into Aurora (<span class="file-ref">platform_context_*</span>) so the app can search, describe, and profile objects <strong>without</strong> ad-hoc <code>SHOW TABLES</code> discovery on every chat.</p>
+        <div class="block">
+          <table>
+            <thead>
+              <tr><th>Outcome</th><th>What harvest provides</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Discoverability</strong></td><td>Vector + keyword catalog search (<span class="file-ref">describe.ts</span> → <code>searchObjects</code>)</td></tr>
+              <tr><td><strong>Trust</strong></td><td>T1 profiles: null rates, cardinality, top values</td></tr>
+              <tr><td><strong>Semantics</strong></td><td>T2 LLM summaries, column roles, PII hints</td></tr>
+              <tr><td><strong>Freshness</strong></td><td>Daily <code>change_detect</code> → re-T0 only what changed</td></tr>
+              <tr><td><strong>Inspector quality</strong></td><td>Harvested mode: <code>describe_schema</code> first, then SQL on known paths</td></tr>
+              <tr><td><strong>Usage intelligence (T3)</strong></td><td>Query history + lineage → key columns, co-tables, usage narrative</td></tr>
+              <tr><td><strong>Cross-schema links</strong></td><td>Mapper (column mappings) + Silo Scan (table-level silo candidates)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout">
+          <strong>Critical:</strong> If coverage or freshness is poor, <code>contextMode=harvested</code> can be worse than <code>warehouse_only</code>. Treat harvest health as a first-class SLO (Estate Overview, Jobs).
+        </div>
+      </section>
+
+      <section id="schedule">
+        <h2>How often to run</h2>
+        <h3>Production schedules (EventBridge)</h3>
+        <p>Defined in <span class="file-ref">infra/context/eventbridge-rule.json</span>. ECS runs <span class="file-ref">scripts/context/orchestrator.ts</span>.</p>
+        <table>
+          <thead>
+            <tr><th>Schedule (UTC)</th><th>Command / kind</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Daily 04:00</td><td><code>--sweep</code></td><td>Enqueue <code>change_detect</code> for every active context source</td></tr>
+            <tr><td>Sunday 03:00</td><td><code>--kind t1_profile</code></td><td>Full column profiling sweep</td></tr>
+            <tr><td>Sunday 05:00</td><td><code>--kind t3_usage</code></td><td>Usage / query-history style harvest</td></tr>
+            <tr><td>Sunday 08:00</td><td><code>--kind t4_scan</code></td><td>T4 bootstrap (<em>stubbed in this repo — fails until inspector port</em>)</td></tr>
+            <tr><td>Monday 06:00</td><td><code>--kind estate_inventory</code></td><td>Full estate re-inventory sync</td></tr>
+          </tbody>
+        </table>
+        <h3>When to run manually</h3>
+        <ul>
+          <li><strong>New source:</strong> Sequential chain T0 → T1 → T2 → <code>embed</code> via <code>POST /api/agent-lab/context/jobs/launch</code> with <code>sequential: true</code>.</li>
+          <li><strong>Urgent schema change:</strong> Per-source <code>POST .../context/sources/[id]/harvest</code> (queues T0) + launch orchestrator on ECS.</li>
+          <li><strong>Single object:</strong> Re-harvest from Estate Object Detail / <code>reharvest-all</code> APIs.</li>
+          <li><strong>Refresh LLM text:</strong> T2 + embed on demand (costly).</li>
+          <li><strong>Cross-schema alignment:</strong> <a href="#step-mapper">Mapper</a> when two schemas must join (steward confirms proposals).</li>
+          <li><strong>Silo discovery:</strong> <a href="#step-silo">Silo Scan</a> per anchor table (not on cron).</li>
+        </ul>
+        <p>You do <strong>not</strong> need the full T0→embed chain daily; daily change detect + weekly T1 is the usual balance. <strong>Mapping and silo jobs are not on EventBridge</strong> — see <a href="#step-mapper">Mapper</a> and <a href="#step-silo">Silo Scan</a>.</p>
+      </section>
+
+      <section id="architecture">
+        <h2>System architecture</h2>
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+flowchart TB
+  subgraph triggers["Triggers"]
+    EB[EventBridge cron]
+    API[Jobs launch / source harvest APIs]
+    EB --> ECS
+    API --> ECS
+  end
+  subgraph compute["AWS ECS Fargate ap-south-1"]
+    ECS[aloft-context-harvester]
+    ORCH[orchestrator.ts]
+    ECS --> ORCH
+  end
+  subgraph queue["PostgreSQL"]
+    Q[platform_context_jobs]
+    ORCH --> Q
+  end
+  subgraph tiers["Job kinds"]
+    CD[change_detect]
+    T0[t0_structural]
+    T1[t1_profile]
+    T2[t2_semantic]
+    EM[embed]
+    CD --> T0
+    T0 --> T1
+    T1 --> T2
+    T2 --> EM
+  end
+  ORCH --> tiers
+  DBX[(Databricks SQL)]
+  BR[Bedrock LLM]
+  EMB_API[Azure / Titan embeddings]
+  AUR[("platform_context tables")]
+  T0 --> DBX
+  T1 --> DBX
+  T2 --> BR
+  EM --> EMB_API
+  tiers --> AUR
+          </pre>
+        </div>
+        <p>Vercel hosts the Next.js app (enqueue + <code>RunTask</code>). Heavy work runs on Fargate, not serverless, due to timeouts and long SQL/LLM runs.</p>
+      </section>
+
+      <section id="workflow">
+        <h2>End-to-end workflow</h2>
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+sequenceDiagram
+  participant EB as EventBridge
+  participant ECS as ECS Fargate
+  participant O as orchestrator.ts
+  participant Q as Job queue
+  participant DBX as Databricks
+  participant PG as Aurora context tables
+  EB->>ECS: RunTask --sweep
+  ECS->>O: main()
+  O->>Q: enqueue change_detect per source
+  loop Until queue empty
+    O->>Q: claimNext
+    O->>DBX: detectChanges / profile SQL
+    O->>PG: upsert objects columns profiles semantic embeddings
+  end
+          </pre>
+        </div>
+        <p>Sequential launches store <code>scope.chain</code> on the first job; on success, <code>advanceChain</code> enqueues the next tier and starts another Fargate task.</p>
+      </section>
+
+      <section id="prerequisites">
+        <h2>Before harvest — worked example setup</h2>
+        <p>Throughout this guide we use one table and one connection:</p>
+        <ul>
+          <li>Connection display name: <code>synergy_dwh</code> (<span class="file-ref">platform_databricks_connections</span>)</li>
+          <li>Context source: <code>src-001</code> → <code>connection_ref</code>, <code>status=active</code>, <code>scope_include=['*.*.*']</code></li>
+          <li>Table: <code>curated_db.maritime.crew_certificates</code></li>
+        </ul>
+        <p>Before the first harvest: <code>last_sweep_at</code> is null, <span class="file-ref">platform_context_objects</span> has no rows for that path. Inspector harvested search returns nothing until T0+ (ideally through embed) completes.</p>
+      </section>
+
+      <section id="source-scope">
+        <h2>Source scope — <code>scope_include</code> / <code>scope_exclude</code></h2>
+        <p>Your Databricks workspace may have <strong>thousands of tables</strong>. ALOFT does not treat all of them as “your estate” unless you say so. <strong>Scope</strong> is the permanent fence on each <strong>context source</strong> (<span class="file-ref">platform_context_sources</span>).</p>
+
+        <div class="callout">
+          <strong>Simple rule for every table path</strong> <code>catalog.schema.table</code>:
+          <ol style="margin:0.5rem 0 0 1.25rem;color:var(--muted)">
+            <li>Must match at least one <strong>include</strong> pattern (default: <code>*.*.*</code> = as wide as permissions allow).</li>
+            <li>Must <strong>not</strong> match any <strong>exclude</strong> pattern.</li>
+            <li>Only then can estate inventory, T0–T2, Inspector catalog search, and (later) T4 bootstrap see that table.</li>
+          </ol>
+        </div>
+
+        <h3>What the fields mean</h3>
+        <table>
+          <thead><tr><th>Field</th><th>Stored on</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>scope_include</code></td><td>Context source (JSON array of globs)</td><td><strong>Allow list</strong> — which <code>catalog.schema.table</code> paths belong to this source.</td></tr>
+            <tr><td><code>scope_exclude</code></td><td>Same source</td><td><strong>Deny list</strong> — paths to skip even if they matched include.</td></tr>
+          </tbody>
+        </table>
+        <p>Patterns use three parts and <code>*</code> wildcards, e.g. <code>curated_db.addressable_market.*</code>. Matching logic: <span class="file-ref">src/lib/context/scope-match.ts</span> (<code>matchesScope</code>).</p>
+
+        <h3>Worked example — <code>curated_db.addressable_market</code></h3>
+        <p><code>curated_db.addressable_market</code> is a <strong>catalog + schema</strong> (all tables live under <code>curated_db.addressable_market.&lt;table_name&gt;</code>).</p>
+
+        <div class="block">
+          <h4>Only this schema</h4>
+<pre>scope_include: ["curated_db.addressable_market.*"]
+scope_exclude:  []</pre>
+          <p style="margin:0.5rem 0 0;color:var(--muted)">Harvest and catalog <strong>only</strong> tables in <code>addressable_market</code>. Other catalogs/schemas (even in the same workspace) are ignored for this source.</p>
+          <table style="margin-top:0.75rem">
+            <thead><tr><th>Path</th><th>In scope?</th></tr></thead>
+            <tbody>
+              <tr><td><code>curated_db.addressable_market.fact_sales</code></td><td>Yes</td></tr>
+              <tr><td><code>curated_db.other_schema.any_table</code></td><td>No</td></tr>
+              <tr><td><code>other_catalog.addressable_market.x</code></td><td>No (wrong catalog)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="block">
+          <h4>Whole <code>curated_db</code> catalog, but skip scratch schemas</h4>
+<pre>scope_include: ["curated_db.*.*"]
+scope_exclude:  ["curated_db.staging.*", "curated_db._scratch.*"]</pre>
+          <p style="margin:0.5rem 0 0;color:var(--muted)"><code>addressable_market</code> is included unless you add it to <code>scope_exclude</code>.</p>
+        </div>
+
+        <h3>15k tables in Databricks vs hundreds of semantic entities</h3>
+        <p>Scope is only the <strong>first</strong> filter. A table also needs T0 → T1 → T2 (<code>last_t2_at</code>) before T4 can propose an entity. So a wide <code>*.*.*</code> include does <strong>not</strong> mean 15k Auto-Bootstrap entities — only tables that were harvested, enriched, and processed by T4.</p>
+
+        <h3>Permanent scope vs one-job overrides</h3>
+        <table>
+          <thead><tr><th></th><th><code>scope_include</code> / <code>scope_exclude</code></th><th><code>includePatterns</code> / <code>excludeSchemas</code></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Where</strong></td><td>Context source record</td><td>Single harvest job (<code>platform_context_jobs.scope</code>)</td></tr>
+            <tr><td><strong>Lasts</strong></td><td>Until you change the source</td><td>That run only (children inherit)</td></tr>
+            <tr><td><strong>Include style</strong></td><td>Full globs <code>catalog.schema.*</code></td><td><code>includePatterns</code> — same glob shape; overrides include for T0</td></tr>
+            <tr><td><strong>Exclude style</strong></td><td>Full globs</td><td><code>excludeSchemas</code> — UI uses <code>catalog.schema</code> keys</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Where to set this in the product</h3>
+        <div class="block">
+          <h4>1. Permanent <code>scope_include</code> / <code>scope_exclude</code> (source)</h4>
+          <ul style="margin:0.25rem 0 0 1rem;color:var(--muted)">
+            <li><strong>At source creation (API):</strong> <code>POST /api/agent-lab/context/sources</code> with JSON body fields <code>scope_include</code> and <code>scope_exclude</code> (arrays of strings). See <span class="file-ref">src/app/api/agent-lab/context/sources/route.ts</span>.</li>
+            <li><strong>Estate overview:</strong> <code>/agent-lab/estate</code> — source cards show a catalog hint derived from the first include pattern (read-only today).</li>
+            <li><strong>Note:</strong> There is no dedicated “edit scope” screen in the UI yet; changing an existing source’s permanent scope is typically done via API/DB until a settings page is added.</li>
+          </ul>
+          <p>Example API body for your schema:</p>
+<pre>POST /api/agent-lab/context/sources
+{
+  "connection_ref": "&lt;databricks-connection-uuid&gt;",
+  "display_name": "Synergy curated",
+  "scope_include": ["curated_db.addressable_market.*"],
+  "scope_exclude": []
+}</pre>
+        </div>
+
+        <div class="block">
+          <h4>2. Per-job focus — <code>includePatterns</code> and <code>excludeSchemas</code> (UI)</h4>
+          <p>Use this when you want <strong>one harvest run</strong> to target a slice without changing the source forever.</p>
+          <ol style="margin:0.25rem 0 0 1.25rem;color:var(--muted)">
+            <li>Open <strong>Agent Lab → Data Estate → Jobs</strong> (<code>/agent-lab/estate/jobs</code>).</li>
+            <li>Choose a job type (e.g. <strong>T0 Structural</strong>, <strong>T2 Semantic</strong>, or a sequential T0→T1→T2 chain) and start a run.</li>
+            <li>In the launch confirmation modal:
+              <ul>
+                <li><strong>Scope — click schemas to exclude:</strong> tree of catalogs/schemas → toggles <code>excludeSchemas</code> (stored as <code>catalog.schema</code>).</li>
+                <li><strong>Focus — limit to specific tables (optional):</strong> textarea for <code>includePatterns</code> (e.g. <code>curated_db.addressable_market.*</code>, one per line).</li>
+              </ul>
+            </li>
+            <li>Confirm launch — scope is saved on the job; see it on the job detail page under excluded schemas / include patterns.</li>
+          </ol>
+          <p>Implementation: <span class="file-ref">src/app/(agent)/agent-lab/estate/jobs/page.tsx</span> (launch modal), <span class="file-ref">POST /api/agent-lab/context/jobs/launch</span>.</p>
+        </div>
+
+        <h3><code>includePatterns</code> vs <code>excludeSchemas</code> (plain English)</h3>
+        <table>
+          <thead><tr><th></th><th><code>includePatterns</code></th><th><code>excludeSchemas</code></th></tr></thead>
+          <tbody>
+            <tr><td><strong>Direction</strong></td><td><strong>Allow</strong> — narrow in for this run</td><td><strong>Deny</strong> — skip whole schemas</td></tr>
+            <tr><td><strong>Shape</strong></td><td>Globs: <code>catalog.schema.*</code> or single table</td><td>Usually <code>catalog.schema</code> (tree clicks)</td></tr>
+            <tr><td><strong>Empty</strong></td><td>Use source <code>scope_include</code></td><td>No extra excludes (except T0 rule below)</td></tr>
+          </tbody>
+        </table>
+        <div class="block">
+          <h4>Example runs (source allows all of <code>curated_db</code>)</h4>
+          <p><strong>Run A — only <code>addressable_market</code>:</strong></p>
+<pre>includePatterns: curated_db.addressable_market.*
+excludeSchemas:  (none)</pre>
+          <p><strong>Run B — all <code>curated_db</code> except staging:</strong></p>
+<pre>includePatterns: (empty)
+excludeSchemas:  curated_db.staging</pre>
+        </div>
+        <div class="callout">
+          <strong>On launch (T0 / estate inventory):</strong> If <code>includePatterns</code> is empty, the Jobs modal may <strong>auto-exclude</strong> schemas in catalogs with more than <strong>5,000</strong> estate objects (e.g. huge <code>landing_zone</code>) so the first inventory does not sweep everything. You can un-check schemas in the tree before confirming. Scheduled EventBridge jobs do <strong>not</strong> use this modal — only the source’s permanent scope.
+        </div>
+
+        <div class="callout">
+          <strong>Semantic layer link:</strong> T4 Auto-Bootstrap only proposes entities for tables already in <code>platform_context_objects</code> with <code>last_t2_at</code> set. Tightening <code>scope_include</code> to <code>curated_db.addressable_market.*</code> is how you tell ALOFT “bootstrap semantics for this business area first.” See <a href="semantic-layer-guide.html#estate">semantic-layer-guide → Context pipeline T0–T4</a>.
+        </div>
+      </section>
+
+      <section id="triggers">
+        <h2>How a run actually starts</h2>
+
+        <div class="block">
+          <h3><span class="step-num">A</span> Daily schedule</h3>
+          <ol style="margin-left:1.25rem;color:var(--muted)">
+            <li>Fargate starts with <code>orchestrator.ts --sweep</code>.</li>
+            <li><code>failStale(30)</code> marks stuck <code>running</code> jobs failed.</li>
+            <li>For each active source: <code>enqueue('change_detect', sourceId, …)</code>.</li>
+            <li>Loop: <code>claimNext(orgId)</code> → handler → until empty.</li>
+          </ol>
+          <pre>platform_context_jobs example:
+  job_kind=change_detect  status=succeeded  stats={"changed_refs":1}</pre>
+        </div>
+
+        <div class="block">
+          <h3><span class="step-num">B</span> Per-source harvest API</h3>
+          <p><code>POST /api/agent-lab/context/sources/{id}/harvest</code> → enqueues <code>t0_structural</code> only. Something must run the orchestrator (ECS launch route) to drain the queue.</p>
+        </div>
+
+        <div class="block">
+          <h3><span class="step-num">C</span> Full pipeline launch</h3>
+<pre>POST /api/agent-lab/context/jobs/launch
+{
+  "kinds": ["t0_structural", "t1_profile", "t2_semantic", "embed"],
+  "sequential": true
+}</pre>
+          <p>First job gets <code>scope.chain = ["t1_profile","t2_semantic","embed"]</code>. ECS runs <code>--kind t0_structural</code>; chain advances after each success.</p>
+        </div>
+
+        <div class="block">
+          <h3><span class="step-num">D</span> Estate UI (object &amp; source)</h3>
+          <table>
+            <thead><tr><th>UI action</th><th>API / behavior</th><th>Worker launched?</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Sources → Harvest Now</strong></td><td><code>POST …/context/sources/{id}/harvest</code> → enqueue <code>t0_structural</code></td><td>No — queue only unless you launch orchestrator</td></tr>
+              <tr><td><strong>Object → Re-harvest → T0 Structural</strong></td><td><code>POST …/context/jobs/trigger</code> with <code>kind: t0_structural</code></td><td>No — queue only (source-wide unless scope passed)</td></tr>
+              <tr><td><strong>Object → Reharvest All</strong></td><td><code>POST …/context/objects/{id}/reharvest-all</code></td><td><strong>Yes</strong> — enqueues T0/T1/T2/T4 with <code>scope.path</code> and calls <code>launchHarvesterTask</code></td></tr>
+              <tr><td><strong>Jobs → Launch</strong></td><td><code>POST …/context/jobs/launch</code></td><td><strong>Yes</strong> — enqueue + Fargate/local orchestrator</td></tr>
+            </tbody>
+          </table>
+          <div class="callout"><strong>Queue ≠ run:</strong> Many buttons only insert a row in <span class="file-ref">platform_context_jobs</span>. The harvester container (<span class="file-ref">scripts/context/orchestrator.ts</span>) must claim the job. Local dev: <code>HARVEST_RUNTIME=local</code> spawns the orchestrator on your machine (<span class="file-ref">src/lib/context/launch-harvester.ts</span>).</div>
+        </div>
+      </section>
+
+      <section id="step-change-detect">
+        <h2>Step: <code>change_detect</code></h2>
+        <p><strong>Purpose:</strong> Find tables altered since last sweep; queue T0 only for those paths.</p>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li>Load source and Databricks connection; <code>since = last_sweep_at</code>.</li>
+          <li>SQL (simplified): <code>SELECT … FROM system.information_schema.tables WHERE last_altered &gt; since</code></li>
+          <li>Filter to source scope; example hit: <code>curated_db.maritime.crew_certificates</code>.</li>
+          <li>For each ref: <code>enqueue('t0_structural', sourceId, { path }, 'scheduled')</code>.</li>
+        </ol>
+        <p>If <code>system.information_schema</code> is unavailable, adapter falls back to full <code>resolveScope</code> (treat as full change set).</p>
+        <div class="callout"><strong>Note:</strong> Daily change detect enqueues T0; it does not automatically run T1/T2/embed unless those jobs are queued or you launched a chain.</div>
+      </section>
+
+      <section id="step-t0">
+        <h2>Step: <code>t0_structural</code></h2>
+        <p><strong>Purpose:</strong> Copy schema from Databricks into Aurora (table/view inventory, column names, types, comments). T0 does <strong>not</strong> profile data (T1), run LLMs (T2), write embeddings, or create <code>platform_sem_*</code> rows (T4 + stewards).</p>
+        <table>
+          <thead><tr><th>Condition</th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td><code>last_sweep_at IS NULL</code></td><td>First run → <code>resolveScope</code> (all in-scope tables)</td></tr>
+            <tr><td>Later runs</td><td><code>detectChanges</code> since <code>last_sweep_at</code>, or per-table jobs from <code>change_detect</code></td></tr>
+            <tr><td><code>forceFullScan</code></td><td>Always <code>resolveScope</code></td></tr>
+            <tr><td><code>includePatterns</code> on job</td><td>Force <code>resolveScope</code> for that subset; does <strong>not</strong> advance <code>last_sweep_at</code> (preserves delta baseline)</td></tr>
+            <tr><td><code>excludeSchemas</code> on job</td><td>Merged into source <code>scope_exclude</code> as <code>catalog.schema.*</code> globs for this run</td></tr>
+          </tbody>
+        </table>
+        <p><code>harvestStructure</code> (<span class="file-ref">src/lib/context/databricks-adapter.ts</span>) batches metadata SQL per catalog/schema. Results upsert into:</p>
+        <pre>platform_context_objects:
+  full_path: curated_db.maritime.crew_certificates
+  object_kind: TABLE
+  last_t0_at: (timestamp)
+  lifecycle: active
+
+platform_context_columns:
+  crew_id, certificate_type, expiry_date (+ types, ordinals)</pre>
+        <p>On a <strong>full</strong> sweep, objects missing from the run can be marked <code>lifecycle: dropped</code> (scoped drops when <code>includePatterns</code> was used). Updates <code>last_sweep_at</code> on <span class="file-ref">platform_context_sources</span> except <code>includePatterns</code>-only runs. Calls <code>syncEstateFromHarvest</code> → <span class="file-ref">platform_estate_objects</span>. On success with <code>scope.chain</code>, <span class="file-ref">orchestrator.ts</span> <code>advanceChain</code> enqueues T1.</p>
+        <p>Full walkthrough (UI → tables → pipeline): <a href="semantic-layer-guide.html#t0-deep-dive">semantic-layer-guide → T0 deep dive</a>.</p>
+      </section>
+
+      <section id="step-t0-deep">
+        <h2>T0 deep dive — what happens inside</h2>
+        <p>This section documents the full <strong>T0 structural harvest</strong> path so you can reason about Data Estate, Inspector <code>contextMode=harvested</code>, and downstream T1–T4.</p>
+
+        <h3>One-sentence summary</h3>
+        <p>T0 answers: <em>“What tables and columns exist in Databricks under this source’s scope?”</em> and mirrors that into Aurora. Everything else in the harvest pipeline builds on those rows.</p>
+
+        <h3>End-to-end flow</h3>
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+flowchart LR
+  subgraph UI["Agent Lab UI"]
+    A[Harvest / Jobs launch / Reharvest]
+  end
+  subgraph Aurora["Aurora Postgres"]
+    J[platform_context_jobs]
+    S[platform_context_sources]
+    O[platform_context_objects]
+    C[platform_context_columns]
+    E[platform_estate_objects]
+  end
+  subgraph Worker["Harvester orchestrator"]
+    OR[claimNext → dispatchSingleJob]
+    T0[runT0Harvest]
+    DBX[DatabricksAdapter]
+  end
+  subgraph DBX_WS["Databricks SQL warehouse"]
+    IS[information_schema / DESCRIBE]
+  end
+  A -->|enqueue optional launch| J
+  A --> OR
+  OR -->|job_kind t0_structural| T0
+  T0 --> S
+  T0 --> DBX
+  DBX --> IS
+  T0 -->|upsert| O
+  T0 -->|upsert| C
+  T0 -->|syncEstateFromHarvest| E
+  T0 -->|last_sweep_at| S
+  OR -->|finalize| J
+          </pre>
+        </div>
+
+        <h3>Inside <code>runT0Harvest</code></h3>
+        <p>Implementation: <span class="file-ref">src/lib/context/harvest.ts</span> → <code>runT0Harvest</code>. Called from <span class="file-ref">scripts/context/orchestrator.ts</span> when a claimed job has <code>job_kind = t0_structural</code>.</p>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li><strong>Load source</strong> — <code>platform_context_sources</code> (<code>scope_include</code>, <code>scope_exclude</code>, <code>last_sweep_at</code>, <code>connection_ref</code>).</li>
+          <li><strong>Choose full vs delta</strong> — first run, <code>forceFullScan</code>, or job <code>includePatterns</code> → <code>DatabricksAdapter.resolveScope</code>; otherwise <code>detectChanges(source, last_sweep_at)</code>.</li>
+          <li><strong>Connection</strong> — load <code>platform_databricks_connections</code>; build adapter with warehouse id + workspace host.</li>
+          <li><strong>Harvest structure</strong> — <code>harvestStructure(refs)</code> (SHOW CATALOGS, information_schema.tables, column metadata per ref; see adapter).</li>
+          <li><strong>Upsert catalog</strong> — for each table: upsert <code>platform_context_objects</code> (set <code>last_t0_at</code>, <code>lifecycle: active</code>); upsert <code>platform_context_columns</code> per column.</li>
+          <li><strong>Drop pass</strong> — on full sweep only: mark missing in-scope objects <code>dropped</code> (narrowed to harvested schemas when <code>includePatterns</code> used).</li>
+          <li><strong>Estate sync</strong> — <code>syncEstateFromHarvest</code> updates <code>platform_estate_objects</code> for Discovery UI.</li>
+          <li><strong>Source stamp</strong> — set <code>last_sweep_at</code> unless this was an <code>includePatterns</code>-only subset run.</li>
+          <li><strong>Job stats</strong> — inner run creates/updates a <code>platform_context_jobs</code> row with <code>objects_swept</code>, <code>columns_upserted</code>, <code>queries_issued</code>, etc.; orchestrator also <code>finalize</code>s the queued job it claimed.</li>
+        </ol>
+
+        <h3>Tables touched by T0</h3>
+        <table>
+          <thead><tr><th>Table</th><th>T0 role</th></tr></thead>
+          <tbody>
+            <tr><td><code>platform_context_sources</code></td><td>Read scope + connection; write <code>last_sweep_at</code> (full-scope runs)</td></tr>
+            <tr><td><code>platform_databricks_connections</code></td><td>Read only — SQL credentials / warehouse</td></tr>
+            <tr><td><code>platform_context_objects</code></td><td>One row per <code>catalog.schema.table</code>; <strong><code>last_t0_at</code></strong> stamp</td></tr>
+            <tr><td><code>platform_context_columns</code></td><td>Column inventory (T1/T2 later fill <code>profile</code> / <code>semantic</code> JSON)</td></tr>
+            <tr><td><code>platform_context_jobs</code></td><td>Queue + execution history (<code>job_kind</code>, <code>scope</code>, <code>stats</code>)</td></tr>
+            <tr><td><code>platform_estate_objects</code></td><td>Mirror for estate discovery views</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Not written by T0:</strong> <code>platform_context_profiles</code> (T1), <code>platform_context_semantics</code> / column semantic (T2), <code>platform_context_embeddings</code> (<code>embed</code>), <code>platform_context_usage</code> (T3), <code>platform_sem_*</code> (T4 + governance).</p>
+
+        <h3>Job <code>scope</code> examples</h3>
+        <pre>Per-table reharvest (reharvest-all):
+  { "path": "my_catalog.my_schema.my_table" }
+
+Chained pipeline (jobs/launch):
+  {
+    "includePatterns": ["curated_db.addressable_market.*"],
+    "excludeSchemas": ["landing_zone.scratch"],
+    "chain": ["t1_profile", "t2_semantic", "embed"]
+  }
+
+change_detect fan-out:
+  { "path": "curated_db.maritime.crew_certificates" }</pre>
+
+        <h3>T0 → T4 pipeline (mental model)</h3>
+        <pre>Databricks (live data + information_schema)
+        │
+        ▼  T0  t0_structural
+Aurora: platform_context_objects + columns  (last_t0_at)
+        │
+        ▼  T1  t1_profile
+Aurora: profiles / column stats  (last_t1_at)
+        │
+        ▼  T2  t2_semantic
+Aurora: LLM semantic cards  (last_t2_at)
+        │
+        ▼  embed
+Aurora: platform_context_embeddings
+        │
+        ▼  T3  t3_usage (source-wide)
+Aurora: usage snapshots
+        │
+        ▼  T4  t4_scan / entity / dim propose
+Aurora: platform_sem_* drafts + last_t4_at
+        │
+        ▼  Stewards promote
+Governed semantic layer → Inspector / Studio</pre>
+
+        <h3>How to verify a T0 run</h3>
+        <ul style="margin-left:1.25rem;color:var(--muted)">
+          <li><strong>Agent Lab → Estate → Jobs</strong> — filter <code>t0_structural</code>; inspect <code>status</code> and <code>stats</code>.</li>
+          <li><strong>Object detail</strong> — Harvest timeline T0 dot = <code>last_t0_at</code> on <code>platform_context_objects</code>.</li>
+          <li><strong>CloudWatch</strong> — log group <code>/ecs/aloft-context-harvester</code> (production).</li>
+          <li><strong>Source record</strong> — <code>scope_include</code> / <code>scope_exclude</code> is the permanent fence; Jobs UI can add one-off <code>includePatterns</code>.</li>
+        </ul>
+
+        <h3>Code map</h3>
+        <table>
+          <thead><tr><th>File</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><span class="file-ref">src/lib/context/harvest.ts</span></td><td><code>runT0Harvest</code></td></tr>
+            <tr><td><span class="file-ref">src/lib/context/databricks-adapter.ts</span></td><td><code>resolveScope</code>, <code>detectChanges</code>, <code>harvestStructure</code></td></tr>
+            <tr><td><span class="file-ref">scripts/context/orchestrator.ts</span></td><td>Dispatch, <code>advanceChain</code>, change_detect → T0 enqueue</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/queue.ts</span></td><td><code>enqueue</code>, <code>claimNext</code>, <code>finalize</code></td></tr>
+            <tr><td><span class="file-ref">src/app/api/agent-lab/context/sources/[id]/harvest/route.ts</span></td><td>Source “Harvest Now” → enqueue T0</td></tr>
+            <tr><td><span class="file-ref">src/app/api/agent-lab/context/jobs/launch/route.ts</span></td><td>Enqueue + launch worker</td></tr>
+            <tr><td><span class="file-ref">src/app/api/agent-lab/context/objects/[id]/reharvest-all/route.ts</span></td><td>Per-object T0–T2–T4 + launch</td></tr>
+            <tr><td><span class="file-ref">src/components/estate/HarvestActionBar.tsx</span></td><td>Per-tier re-harvest UI</td></tr>
+            <tr><td><span class="file-ref">prisma/schema.prisma</span></td><td><code>PlatformContext*</code> models</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="step-t1">
+        <h2>Step: <code>t1_profile</code></h2>
+        <p><strong>Purpose:</strong> Run profiling SQL on Databricks; store stats and drift in Postgres.</p>
+        <p>For <code>crew_certificates</code>: row counts, per-column null rates, distinct estimates, top-K values. Writes <span class="file-ref">platform_context_profiles</span>, updates <code>row_count_est</code>, <code>last_t1_at</code>, column profile JSON.</p>
+        <pre>Example:
+  row_count_est = 48291
+  expiry_date.profile → null_rate, top_k, min/max
+  last_t1_at = (timestamp)</pre>
+        <p>Weekly Sunday 03:00 UTC EventBridge runs a full T1 sweep. After T1, <code>describe_schema</code> action <code>profile</code> serves stats from Aurora only.</p>
+      </section>
+
+      <section id="step-t2">
+        <h2>Step: <code>t2_semantic</code></h2>
+        <p><strong>Purpose:</strong> Bedrock (Claude Sonnet) produces object card + per-column semantics from T0/T1 data — <strong>no warehouse calls</strong> in <span class="file-ref">enrich.ts</span>.</p>
+        <pre>Example LLM output (simplified):
+{
+  "card": {
+    "summary": "Maritime crew certificate records with expiry tracking.",
+    "grain": "one row per certificate per crew member",
+    "key_columns": ["crew_id", "certificate_type"],
+    "pii_columns": ["crew_id"]
+  },
+  "columns": {
+    "expiry_date": {
+      "role": "timestamp",
+      "description": "Certificate expiration date for compliance reporting.",
+      "pii_flag": false
+    }
+  }
+}</pre>
+        <p>Stored on object/column <code>semantic</code> fields, <code>last_t2_at</code>, domain keywords for fast search routing. Job <code>stats.cost_usd</code> tracks spend.</p>
+      </section>
+
+      <section id="step-embed">
+        <h2>Step: <code>embed</code></h2>
+        <p><strong>Purpose:</strong> Enable natural-language catalog search.</p>
+        <p>Deterministic <code>composeEmbedText</code> then embedding API (Azure <code>text-embedding-3-large</code> if configured, else Titan 1024-dim):</p>
+        <pre>curated_db.maritime.crew_certificates (TABLE): Maritime crew certificate
+records with expiry tracking. Grain: one row per certificate per crew member.
+Key columns: crew_id, certificate_type.</pre>
+        <p>Upsert <span class="file-ref">platform_context_embeddings</span> (<code>subject_kind</code> object/column). Catalog and Inspector <code>describe_schema search</code> use pgvector + keyword + ILIKE blend. <strong>Required</strong> before <a href="#step-silo">Silo Scan</a> (embedding search) and helpful for <a href="#step-mapper">Mapper</a> candidate scoring.</p>
+      </section>
+
+      <section id="step-t3">
+        <h2>Step: <code>t3_usage</code> (T3 — usage &amp; connections)</h2>
+        <p><strong>Purpose:</strong> Learn how tables are <strong>actually used</strong> in Databricks — from query history and lineage — not just what columns exist (T0/T1) or what AI says they mean (T2).</p>
+
+        <div class="callout">
+          <strong>Job kinds:</strong> Real implementation is <code>t3_usage</code> (<span class="file-ref">src/lib/context/usage.ts</span>, orchestrator case in <span class="file-ref">orchestrator.ts</span>). The Jobs UI also lists <code>t3_connected</code>, but there is <strong>no orchestrator handler</strong> for it today — use <code>t3_usage</code>.
+        </div>
+
+        <h3>What each tier answers</h3>
+        <table>
+          <thead><tr><th>Tier</th><th>Question</th></tr></thead>
+          <tbody>
+            <tr><td>T0</td><td>What tables and columns exist?</td></tr>
+            <tr><td>T1</td><td>What do values look like (nulls, stats)?</td></tr>
+            <tr><td>T2</td><td>What does this data mean (summaries, PII hints)?</td></tr>
+            <tr><td><strong>T3</strong></td><td>How is it used (queries, joins, busy columns, lineage neighbors)?</td></tr>
+            <tr><td>T4</td><td>What business entities/measures to model? (<em>stubbed in this repo</em>)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Pipeline inside <code>runT3Usage</code></h3>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li><strong>Window</strong> — Default ~7 days since last <code>last_t3_at</code> on the source, or explicit <code>since</code>/<code>until</code> for continuation jobs.</li>
+          <li><strong>Query history</strong> — Pull via <span class="file-ref">DatabricksAdapter.pullQueryHistoryWindow</span> (capped, e.g. 50k rows; may set <code>nextCursor</code> and enqueue a follow-up <code>t3_usage</code> job).</li>
+          <li><strong>Lineage</strong> — Table + column lineage for the same window (capped).</li>
+          <li><strong>Per object</strong> — Match queries whose text mentions the table name; derive:
+            <ul>
+              <li><code>access_stats</code> — query count, executors, jobs vs ad-hoc vs dashboard vs Genie, first/last seen, weekly trend</li>
+              <li><code>key_columns</code> — columns in SELECT/JOIN/WHERE (scored; lineage boosts importance)</li>
+              <li><code>filter_patterns</code> — common WHERE shapes (literals masked — no secrets in stored patterns)</li>
+              <li><code>co_objects</code> — other tables in the same queries or via lineage (“often used with”)</li>
+              <li><code>drift</code> — vs previous usage snapshot version when applicable</li>
+            </ul>
+          </li>
+          <li><strong>Persist</strong> — Versioned row in <span class="file-ref">platform_context_usage</span>; set <code>last_t3_at</code> and <code>usage_evidence_at</code> on the object.</li>
+          <li><strong>Narrative (top N)</strong> — Bedrock writes a short usage story + key columns into <span class="file-ref">platform_context_semantics</span> (<code>status: observed</code>) for the busiest tables.</li>
+        </ol>
+
+        <h3>Plain English example</h3>
+        <p>Table <code>curated_db.crew.active_roster</code> after T3 might show: “240 queries this week, mostly jobs”; key columns <code>crew_id</code>, <code>vessel_imo</code>; co-objects <code>curated_db.payroll.payslips</code> and <code>curated_db.fleet.vessels</code>; narrative describing vessel filters and payroll joins. That comes from <strong>real query text + lineage</strong>, not schema guessing alone.</p>
+
+        <h3>How the application uses T3</h3>
+        <table>
+          <thead><tr><th>Consumer</th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Estate object detail</td><td>Usage snapshot when <code>last_t3_at</code> is set (<span class="file-ref">reads.ts</span>)</td></tr>
+            <tr><td>Inspector <code>describe_schema</code> → <code>usage</code></td><td><span class="file-ref">describe.ts</span> → <code>usageObject</code> (Aurora only)</td></tr>
+            <tr><td>Data score “actionable”</td><td>Points for T3 run + identified key columns (<span class="file-ref">data-score/dimensions/actionable.ts</span>)</td></tr>
+            <tr><td>T2 enrich (optional)</td><td><code>getUsageSignalsForEnrich</code> can feed later enrichment context</td></tr>
+          </tbody>
+        </table>
+        <p>T3 does <strong>not</strong> create Mapper links, silo links, or governed semantic metrics — it prioritizes and explains what matters in production.</p>
+
+        <h3>Schedule &amp; manual run</h3>
+        <ul>
+          <li><strong>Production:</strong> Sunday 05:00 UTC — <code>--kind t3_usage</code> (<span class="file-ref">eventbridge-rule.json</span>).</li>
+          <li><strong>Manual:</strong> Estate → Jobs → <strong>T3 Usage Harvest</strong> (Fargate orchestrator).</li>
+        </ul>
+      </section>
+
+      <section id="step-mapper">
+        <h2>Mapper — <code>mapping</code> jobs (cross-schema column alignment)</h2>
+        <p><strong>Purpose:</strong> Propose <strong>column-to-column</strong> links across two schemas (e.g. HR vs payroll) so joins, lineage, and Inspector <code>relations</code> reflect business reality. Stored in <span class="file-ref">platform_context_mappings</span> (not <code>platform_entity_mapping</code> — that name appears in older architecture docs only).</p>
+
+        <h3>Plain English</h3>
+        <p>Same real-world field, different names: <code>crew_id</code> in one table and <code>employee_ref</code> in another. Mapper finds candidates with signals + LLM; stewards <strong>confirm or reject</strong> — nothing is auto-confirmed by the job.</p>
+        <div class="block">
+<pre>Left scope:  curated_db.hr.*
+Right scope: curated_db.payroll.*
+→ proposals: crew_id ↔ employee_ref, vessel_imo ↔ ship_imo, …</pre>
+        </div>
+
+        <h3>What the job does (automated once started)</h3>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li>Resolve left/right <code>pathGlob</code> → object IDs (<span class="file-ref">mapping.ts</span> → <code>runMappingJob</code>).</li>
+          <li>Score column pairs: embeddings, name similarity, types, profiles (and value overlap where safe).</li>
+          <li>Bedrock adjudicates: <code>mapped</code> / <code>not_mapped</code> / <code>uncertain</code> + <code>mapping_kind</code> (<code>same_attribute</code>, <code>same_entity_key</code>, <code>derivable</code>, …).</li>
+          <li>Insert/update rows with <code>status: proposed</code> only.</li>
+          <li><code>computeEntityTags</code> — group objects into <code>entity_tags</code> on <span class="file-ref">platform_context_objects</span> from strong proposed key/attribute links.</li>
+        </ol>
+        <p><strong>Invariant:</strong> No Databricks access in <span class="file-ref">mapping.ts</span> — reads <span class="file-ref">platform_context_*</span> only.</p>
+
+        <h3>How it helps this application</h3>
+        <table>
+          <thead><tr><th>Area</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Inspector <code>describe_schema</code> → <code>relations</code></td><td>Proposed column mappings + entity group members beside T2 FK hints</td></tr>
+            <tr><td>Estate object → Relationships</td><td><span class="file-ref">RelationshipList.tsx</span> — confirm/reject via <code>PATCH …/mappings/[id]</code></td></tr>
+            <tr><td>Data score</td><td>“Actionable” dimension credits proposed mappings / confirmed silo links</td></tr>
+            <tr><td>Semantic layer</td><td>Informs stewards; does <strong>not</strong> auto-promote <span class="file-ref">platform_sem_*</span> measures. See <a href="semantic-layer-guide.html">semantic-layer-guide</a> playbook step 4.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Manual vs pipeline — what you must do</h3>
+        <table>
+          <thead><tr><th>Step</th><th>Automated?</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>T0–T2 + embed</td><td>Yes (schedule / Jobs launch)</td><td>Prerequisite metadata for mapping signals</td></tr>
+            <tr><td>Pick left/right schema pair</td><td><strong>Manual</strong></td><td>Mapper UI: <code>/agent-lab/estate/mapper</code></td></tr>
+            <tr><td>AI proposals</td><td>Yes (per job)</td><td>After enqueue + worker runs <code>runMappingJob</code></td></tr>
+            <tr><td>Confirm / reject</td><td><strong>Manual</strong> (steward)</td><td>By design — governance</td></tr>
+            <tr><td>EventBridge cron</td><td><strong>No</strong></td><td>Not in <span class="file-ref">eventbridge-rule.json</span></td></tr>
+            <tr><td>Jobs → Run → “Mapping” on Fargate</td><td><strong>Broken path today</strong></td><td>Orchestrator logs mapping “not yet implemented”; no <code>leftScope</code>/<code>rightScope</code> from modal</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Correct way to run mapping</h3>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li><strong>Mapper UI</strong> → Run mapping → <code>POST /api/agent-lab/context/mappings/run</code> (enqueues <code>mapping</code> with <code>left</code>/<code>right</code> globs).</li>
+          <li>Worker executes <code>runMappingJob</code> via <code>POST /api/agent-lab/context/process</code> (app process route — only handler registered for <code>mapping</code> today).</li>
+          <li><strong>Development:</strong> Mapper auto-calls <code>/context/process</code> after enqueue.</li>
+          <li><strong>Production:</strong> Ensure something drains <code>mapping</code> jobs (call <code>/context/process</code> or a future worker); enqueue alone does not run the job.</li>
+        </ol>
+        <p>Export: <code>GET /api/agent-lab/context/mappings/export</code>.</p>
+      </section>
+
+      <section id="step-silo">
+        <h2>Silo Scan — <code>silo_scan</code> jobs (table-level silos)</h2>
+        <p><strong>Purpose:</strong> For <strong>one anchor table</strong>, find other tables that may be the <strong>same business concept in a different catalog/schema</strong> (a data silo), not byte-for-byte duplicates. Complements <a href="#step-mapper">Mapper</a> (columns across two chosen schemas) and <a href="#step-t3">T3</a> (query co-usage).</p>
+
+        <h3>Plain English</h3>
+        <p>“We have crew roster here — is the same concept hiding under a different name elsewhere?” Silo Scan proposes <strong>table-to-table</strong> links for human review.</p>
+
+        <h3>What one run does</h3>
+        <ol style="margin-left:1.25rem;color:var(--muted)">
+          <li><strong>Embedding search</strong> — nearest neighbor objects in <span class="file-ref">platform_context_embeddings</span> (requires <code>embed</code>).</li>
+          <li><strong>Signals</strong> — column overlap, types, profiles, shared entity tags → composite score (default keep ≥ 0.60).</li>
+          <li><strong>LLM verdict</strong> — per pair: <code>silo</code>, <code>duplicate</code>, <code>related</code>, <code>unrelated</code>.</li>
+          <li><strong>Persist</strong> — <span class="file-ref">platform_context_object_links</span> (<code>link_kind: silo_candidate</code>, <code>status: proposed</code>).</li>
+        </ol>
+        <p><strong>Invariant:</strong> No warehouse access in <span class="file-ref">silo.ts</span>.</p>
+
+        <h3>Mapper vs Silo Scan</h3>
+        <table>
+          <thead><tr><th></th><th>Mapper</th><th>Silo Scan</th></tr></thead>
+          <tbody>
+            <tr><td>Unit</td><td>Columns across <strong>two</strong> schema globs you pick</td><td><strong>One</strong> anchor object</td></tr>
+            <tr><td>Storage</td><td><code>platform_context_mappings</code></td><td><code>platform_context_object_links</code></td></tr>
+            <tr><td>UI</td><td><code>/agent-lab/estate/mapper</code></td><td><code>/agent-lab/estate/silo</code> or ◎ on object harvest bar</td></tr>
+            <tr><td>API</td><td><code>POST …/mappings/run</code></td><td><code>POST …/silo/scan</code> with <code>objectId</code></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Manual vs pipeline</h3>
+        <table>
+          <thead><tr><th></th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Scheduled harvest</td><td><strong>Not</strong> on EventBridge</td></tr>
+            <tr><td>Jobs UI “Silo Scan” (all objects)</td><td>Misleading copy — implementation requires <code>objectId</code> in job scope; generic launch fails without it</td></tr>
+            <tr><td>ECS orchestrator</td><td><code>silo_scan</code> skipped (“not implemented in this container”)</td></tr>
+            <tr><td>App queue</td><td><span class="file-ref">queue.ts</span> → <code>dispatchJob</code> → <code>runSiloScan</code> when job is claimed via silo API path</td></tr>
+            <tr><td>Review links</td><td>Silo UI; confirm/reject <code>PATCH …/silo/links/[id]</code></td></tr>
+          </tbody>
+        </table>
+        <p>Options: <code>topN</code> (default 15), <code>minScore</code> (0.60), <code>includeRejected</code>.</p>
+      </section>
+
+      <section id="step-other">
+        <h2>Other job kinds</h2>
+        <table>
+          <thead><tr><th>Kind</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><code>estate_inventory</code></td><td>Broad sync; objects not seen in 7 days flagged stale (<span class="file-ref">estate.ts</span>)</td></tr>
+            <tr><td><code>t3_usage</code></td><td>See <a href="#step-t3">T3 section</a></td></tr>
+            <tr><td><code>t3_connected</code></td><td>Listed in Jobs UI only — <strong>no orchestrator handler</strong>; use <code>t3_usage</code></td></tr>
+            <tr><td><code>mapping</code></td><td>See <a href="#step-mapper">Mapper</a></td></tr>
+            <tr><td><code>silo_scan</code></td><td>See <a href="#step-silo">Silo Scan</a></td></tr>
+            <tr><td><code>recompute_entity_tags</code></td><td>Re-runs <code>computeEntityTags</code> from proposed mappings (app <code>dispatchJob</code>)</td></tr>
+            <tr><td><code>knowledge_sync</code></td><td>Knowledge artifact sync — orchestrator skipped in harvest container</td></tr>
+            <tr><td><code>t4_*</code></td><td>Entity/dimension proposals — <strong>not ported</strong> in this repo (jobs fail with clear error)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="inspector-example">
+        <h2>Inspector — full user example</h2>
+        <p><strong>User:</strong> “How many crew certificates expire this month?” — <code>contextMode: harvested</code>, connection <code>synergy_dwh</code>.</p>
+
+        <div class="block">
+          <h3>1. Chat setup</h3>
+          <p><span class="file-ref">/api/inspector/chat</span> loads governed semantic context if present. System prompt requires catalog search first. Tools include <code>describe_schema</code> and <code>execute_tool</code>.</p>
+        </div>
+
+        <div class="block">
+          <h3>2. Tool: <code>describe_schema</code> search</h3>
+<pre>{ "action": "search", "connection": "synergy_dwh",
+  "query": "crew certificates expiry", "k": 8 }</pre>
+          <p><span class="file-ref">dispatch.ts</span> → <code>searchObjects</code>: keyword route → else embed query + pgvector → ILIKE blend. <strong>No Databricks call.</strong></p>
+<pre>{ "results": [{ "path": "curated_db.maritime.crew_certificates",
+  "score": 0.87, "match_type": "blended" }] }</pre>
+        </div>
+
+        <div class="block">
+          <h3>3. Tool: describe + profile + relations + usage</h3>
+<pre>{ "action": "describe", "path": "curated_db.maritime.crew_certificates", "detail": "full" }
+{ "action": "profile", "path": "curated_db.maritime.crew_certificates" }
+{ "action": "relations", "path": "curated_db.maritime.crew_certificates" }
+{ "action": "usage", "path": "curated_db.maritime.crew_certificates" }</pre>
+          <p>All reads from <span class="file-ref">platform_context_*</span>. <code>relations</code> includes T2 FK hints, <a href="#step-mapper">Mapper</a> column proposals, and <code>entity_tags</code> peers. <code>usage</code> needs <a href="#step-t3">T3</a> (<code>last_t3_at</code>).</p>
+        </div>
+
+        <div class="block">
+          <h3>4. Tool: <code>execute_tool</code></h3>
+<pre>SELECT COUNT(*) AS expiring_count
+FROM curated_db.maritime.crew_certificates
+WHERE expiry_date >= date_trunc('month', current_date())
+  AND expiry_date &lt; date_trunc('month', current_date()) + INTERVAL 1 MONTH
+LIMIT 100</pre>
+          <p>Runs on Databricks via <span class="file-ref">executeDatabricksSQL</span>.</p>
+        </div>
+
+        <div class="block">
+          <h3><code>warehouse_only</code> contrast</h3>
+          <p><code>describe_schema</code> is removed from tools; agent must discover via <code>SHOW</code> / information_schema SQL every time — more warehouse load, no T2 summaries in tool results.</p>
+        </div>
+      </section>
+
+      <section id="timeline">
+        <h2>Timeline example (one new table)</h2>
+        <table>
+          <thead><tr><th>When</th><th>Event</th><th>Databricks</th><th>Aurora</th></tr></thead>
+          <tbody>
+            <tr><td>Mon</td><td>DBA creates table</td><td>Table exists</td><td>Nothing</td></tr>
+            <tr><td>Tue 04:00</td><td>Daily change_detect</td><td>1 metadata query</td><td>Queues T0</td></tr>
+            <tr><td>Tue ~04:05</td><td>T0 runs</td><td>Column metadata SQL</td><td>Object + columns</td></tr>
+            <tr><td>Tue (manual)</td><td>T1→T2→embed chain</td><td>Many profile queries</td><td>Profiles, semantic, vectors</td></tr>
+            <tr><td>Sun (schedule)</td><td><code>t3_usage</code></td><td>Query history + lineage APIs</td><td><span class="file-ref">platform_context_usage</span></td></tr>
+            <tr><td>As needed</td><td>Mapper / Silo (steward)</td><td>No extra table scans</td><td>Mappings / object links proposed</td></tr>
+            <tr><td>Wed</td><td>User asks Inspector</td><td>1–2 analytics SQL</td><td>Search/describe/profile/usage reads</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="splitting">
+        <h2>Splitting &amp; concurrency</h2>
+        <p>Large estates exceed a <strong>15-minute</strong> budget per task (<span class="file-ref">queue.ts</span> <code>TIME_BUDGET_MINUTES</code>). <code>planSplit</code> creates parent + child jobs per <code>catalog.schema</code> partition; up to <strong>5</strong> concurrent child Fargate tasks. Children run <code>orchestrator.ts --child-job &lt;id&gt;</code>. When all children succeed, parent finalizes and chain continues to the next tier.</p>
+      </section>
+
+      <section id="mental-model">
+        <h2>Mental model</h2>
+        <pre>Databricks     = source of truth for DATA and live SCHEMA changes
+Aurora context_* = source of truth for CATALOG TOOLS (describe_schema)
+ECS orchestrator = moves knowledge Databricks → Aurora in staged jobs
+Inspector harvested = search/describe/profile from Aurora, then SQL for answers</pre>
+      </section>
+
+      <section id="references">
+        <h2>Key files &amp; operations</h2>
+        <table>
+          <thead><tr><th>File / artifact</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><span class="file-ref">scripts/context/orchestrator.ts</span></td><td>ECS entry point, dispatch, chain, sweep</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/queue.ts</span></td><td>Enqueue, claim, split, ECS RunTask</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/harvest.ts</span></td><td>T0 / T1 runners</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/enrich.ts</span></td><td>T2 Bedrock enrichment</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/embed.ts</span></td><td>Vectors + composeEmbedText</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/describe.ts</span></td><td>Catalog search/describe/profile/relations/usage (no warehouse for reads)</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/usage.ts</span></td><td>T3 <code>runT3Usage</code>, usage narratives</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/mapping.ts</span></td><td>Mapper <code>runMappingJob</code>, <code>computeEntityTags</code></td></tr>
+            <tr><td><span class="file-ref">src/lib/context/silo.ts</span></td><td>Silo Scan <code>runSiloScan</code></td></tr>
+            <tr><td><span class="file-ref">src/lib/context/scope-match.ts</span></td><td>Source + job scope glob matching</td></tr>
+            <tr><td><span class="file-ref">src/app/(agent)/agent-lab/estate/mapper/page.tsx</span></td><td>Mapper UI</td></tr>
+            <tr><td><span class="file-ref">src/app/(agent)/agent-lab/estate/silo/page.tsx</span></td><td>Silo Finder UI</td></tr>
+            <tr><td><span class="file-ref">src/app/api/agent-lab/context/process/route.ts</span></td><td>Runs queued <code>mapping</code> jobs in-process</td></tr>
+            <tr><td><span class="file-ref">src/lib/context/databricks-adapter.ts</span></td><td>resolveScope, detectChanges, harvestStructure, T3 history/lineage</td></tr>
+            <tr><td><span class="file-ref">infra/context/eventbridge-rule.json</span></td><td>Production cron</td></tr>
+            <tr><td><span class="file-ref">Dockerfile.harvester</span></td><td>Container image</td></tr>
+          </tbody>
+        </table>
+        <h3>Local orchestrator</h3>
+<pre>npx tsx --require ./scripts/context/noserver.cjs scripts/context/orchestrator.ts --sweep</pre>
+        <p>See also <a href="../ARCHITECTURE.md">ARCHITECTURE.md</a> §7.5, §8.3, §13.4 and <a href="databricks-auth-and-usage.md">databricks-auth-and-usage.md</a>.</p>
+      </section>
+    </main>
+  </div>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral', securityLevel: 'loose' });
+  </script>
+</body>
+</html>

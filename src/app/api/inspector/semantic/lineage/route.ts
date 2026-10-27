@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getDefaultOrg } from '@/lib/platform/agents';
+import { getOrgId } from '@/lib/databricks/connections';
 import { getUserByEmail } from '@/lib/dashboards/permissions';
 import {
   resolveGovernedModel,
@@ -37,15 +37,17 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
     if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const user = await getUserByEmail(email);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session.user.id) {
+      const user = await getUserByEmail(email);
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const org = await getDefaultOrg();
+    const orgId = await getOrgId();
 
-    const model = await resolveGovernedModel(org.id);
+    const model = await resolveGovernedModel(orgId);
     if (!model) return NextResponse.json({ status: 'no_governed_model' as const });
 
-    const cat = await loadCatalog(org.id, model.id);
+    const cat = await loadCatalog(orgId, model.id);
     if (!cat) return NextResponse.json({ status: 'no_governed_model' as const });
 
     const url = new URL(request.url);
@@ -65,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     const focusId = validRequested ? requestedFocus! : focusOptions.options[0]?.id;
 
-    const consumers = await scanConsumers(org.id);
+    const consumers = await scanConsumers(orgId);
     const focus = focusId ? buildFocusedGraph(cat, consumers, focusId) : null;
 
     return NextResponse.json({

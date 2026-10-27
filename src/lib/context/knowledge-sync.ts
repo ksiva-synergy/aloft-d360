@@ -15,6 +15,7 @@ import prisma from '@/lib/db';
 import { chunkText } from '@/lib/knowledge/chunker';
 import { embedText, embeddingToSql } from '@/lib/knowledge/embed';
 import { DatabricksAdapter } from './databricks-adapter';
+import { pathMatchesIncludePatterns } from './job-scope';
 
 // ── Types (local mirrors of Prisma shapes) ────────────────────────────────────
 
@@ -384,13 +385,15 @@ export interface BatchSyncResult {
 export async function syncSourceToKnowledge(
   sourceId: string,
   orgId: string,
-  opts: { includeSamples?: boolean; force?: boolean } = {},
+  opts: { includeSamples?: boolean; force?: boolean; includePatterns?: string[] } = {},
 ): Promise<BatchSyncResult> {
+  const scopePatterns = opts.includePatterns ?? [];
+
   // Find objects ready for sync: have T2, and either never synced or T2 is newer
-  let objects: Array<{ id: string }>;
+  let objects: Array<{ id: string; full_path: string }>;
   if (opts.force) {
-    objects = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM platform_context_objects
+    objects = await prisma.$queryRaw<Array<{ id: string; full_path: string }>>`
+      SELECT id, full_path FROM platform_context_objects
       WHERE source_id = ${sourceId}::uuid
         AND org_id = ${orgId}
         AND lifecycle = 'active'
@@ -398,8 +401,8 @@ export async function syncSourceToKnowledge(
       ORDER BY last_t2_at DESC
     `;
   } else {
-    objects = await prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM platform_context_objects
+    objects = await prisma.$queryRaw<Array<{ id: string; full_path: string }>>`
+      SELECT id, full_path FROM platform_context_objects
       WHERE source_id = ${sourceId}::uuid
         AND org_id = ${orgId}
         AND lifecycle = 'active'
@@ -407,6 +410,10 @@ export async function syncSourceToKnowledge(
         AND (last_knowledge_sync_at IS NULL OR last_t2_at > last_knowledge_sync_at)
       ORDER BY last_t2_at DESC
     `;
+  }
+
+  if (scopePatterns.length > 0) {
+    objects = objects.filter(o => pathMatchesIncludePatterns(o.full_path, scopePatterns));
   }
 
   let synced = 0;

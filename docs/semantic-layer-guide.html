@@ -1,0 +1,2694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT D360 — Semantic Layer Guide</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --navy: #003262;
+      --gold: #FDB515;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --info-bg: #e8f4fc;
+      --warn-bg: #fef3c7;
+      --radius: 12px;
+      --mono: 'Consolas', 'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--navy);
+      color: #fff;
+      padding: 1rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      padding: 0.5rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .sidebar a, .sidebar button.tab-link {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.45rem 1.25rem;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      font-size: 0.88rem;
+      border: none;
+      border-left: 3px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .sidebar a:hover, .sidebar button.tab-link:hover {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+    .sidebar button.tab-link.active {
+      border-left-color: var(--gold);
+      background: rgba(253,181,21,0.12);
+      color: #fff;
+      font-weight: 600;
+    }
+    .sidebar .back {
+      display: block;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 0.5rem;
+      padding: 0.5rem 1.25rem 0.75rem;
+      color: var(--gold);
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .main { flex: 1; min-width: 0; }
+    .content { max-width: 1000px; padding: 2rem 2.5rem 4rem; }
+    .hero {
+      background: var(--navy);
+      color: #fff;
+      padding: 2rem 2.5rem;
+      margin: -2rem -2rem 2rem;
+    }
+    .hero h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    .hero p { margin: 0; opacity: 0.9; max-width: 44rem; font-size: 0.95rem; }
+    .badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--navy);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 0.5rem;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    h2.section-title {
+      font-size: 1.35rem;
+      color: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      padding-bottom: 0.35rem;
+      margin: 0 0 1rem;
+    }
+    h3 { font-size: 1.05rem; color: var(--navy); margin: 1.25rem 0 0.5rem; }
+    .callout {
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      font-size: 0.92rem;
+      margin: 1rem 0;
+    }
+    .callout.info { background: var(--info-bg); border: 1px solid #b8d4e8; }
+    .callout.warn { background: var(--warn-bg); border: 1px solid #fcd34d; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+    }
+    .card h4 { margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--navy); }
+    .card p { margin: 0; font-size: 0.88rem; color: var(--muted); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 0.75rem 0 1.25rem;
+      background: var(--surface);
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.6rem;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #eef2f7; color: var(--navy); font-weight: 600; }
+    pre.code {
+      background: #1a2332;
+      color: #e8ecf4;
+      padding: 1rem 1.15rem;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin: 0.75rem 0 1rem;
+    }
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.65rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    details summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--navy);
+      font-size: 0.92rem;
+    }
+    details ol { margin: 0.5rem 0 0 1.2rem; color: var(--muted); font-size: 0.88rem; }
+    .pill {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      margin-right: 0.25rem;
+    }
+    .pill.draft { background: #fef3c7; color: #854d0e; }
+    .pill.candidate { background: #dbeafe; color: #1e40af; }
+    .pill.governed { background: #dcfce7; color: #166534; }
+    .pill.archived { background: #f1f5f9; color: #475569; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+    }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat .value { font-weight: 700; color: var(--navy); margin: 0.2rem 0; }
+    .stat .detail { font-size: 0.8rem; color: var(--muted); }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .toolbar input[type="search"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.45rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .toolbar label { font-size: 0.88rem; color: var(--muted); display: flex; align-items: center; gap: 0.4rem; }
+    select {
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      max-width: 100%;
+    }
+    .mode-box {
+      background: #eef2f7;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+      margin: 0.75rem 0 1rem;
+    }
+    .muted { color: var(--muted); font-size: 0.88rem; }
+    .count { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .prose { font-size: 0.95rem; max-width: 52rem; margin: 0.75rem 0 1rem; }
+    .prose ul { margin: 0.5rem 0 0.75rem 1.25rem; color: var(--muted); }
+    .prose li { margin-bottom: 0.35rem; }
+    .def-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin: 1rem 0;
+    }
+    .def-block h4 { margin: 0 0 0.5rem; color: var(--navy); font-size: 1rem; }
+    .def-block dl { margin: 0; font-size: 0.9rem; }
+    .def-block dt { font-weight: 700; color: var(--navy); margin-top: 0.65rem; }
+    .def-block dt:first-child { margin-top: 0; }
+    .def-block dd { margin: 0.2rem 0 0 0; color: var(--muted); }
+    .example-box {
+      background: #f0f4fa;
+      border: 1px solid #c5d4e8;
+      border-radius: var(--radius);
+      padding: 1rem 1.15rem;
+      margin: 0.75rem 0 1rem;
+      font-size: 0.88rem;
+    }
+    .example-box strong { color: var(--navy); }
+    .compare-table td:first-child { font-weight: 600; width: 22%; }
+    #glossary-search { width: 100%; margin-bottom: 1rem; padding: 0.5rem 0.65rem; border: 1px solid var(--border); border-radius: 8px; }
+    .glossary-item { margin-bottom: 0.75rem; }
+    .glossary-item.hidden { display: none; }
+    .playbook-phase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.15rem 1.25rem 1.15rem 3.5rem;
+      margin: 1rem 0;
+      position: relative;
+    }
+    .playbook-phase .phase-num {
+      position: absolute;
+      left: 1rem;
+      top: 1.1rem;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 800;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .playbook-phase h4 { margin: 0 0 0.5rem; color: var(--navy); font-size: 1.05rem; }
+    .playbook-phase .who { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .playbook-phase ul { margin: 0.4rem 0 0 1.1rem; font-size: 0.9rem; color: var(--muted); }
+    .playbook-phase li { margin-bottom: 0.3rem; }
+    .loop-diagram {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      background: #1a2332;
+      color: #c8d4e8;
+      padding: 1rem 1.15rem;
+      border-radius: var(--radius);
+      line-height: 1.55;
+      margin: 1rem 0;
+      white-space: pre-wrap;
+    }
+    .read-order {
+      background: rgba(253,181,21,0.15);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+    .diagram-caption {
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: -0.35rem 0 0.5rem;
+      font-style: italic;
+    }
+    .mermaid-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin: 0.75rem 0 1.25rem;
+      overflow-x: auto;
+    }
+    .mermaid-wrap svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    .mermaid-wrap.mermaid-failed {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .mermaid-wrap.mermaid-failed::before {
+      content: 'Diagram could not load. Check network (Mermaid CDN) or refresh after opening this tab.';
+      display: block;
+      margin-bottom: 0.5rem;
+      font-style: italic;
+    }
+    .arch-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 720px;
+      margin: 1rem 0 1.5rem;
+    }
+    .arch-layer {
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      border: 2px solid;
+      text-align: center;
+    }
+    .arch-layer h4 {
+      margin: 0 0 0.35rem;
+      font-size: 1rem;
+      color: var(--navy);
+    }
+    .arch-layer p {
+      margin: 0;
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .arch-layer.layer-warehouse { background: #e8f4fc; border-color: #5b9dff; }
+    .arch-layer.layer-context { background: #f0fdf4; border-color: #2dd4a0; }
+    .arch-layer.layer-t4 { background: rgba(253,181,21,0.2); border-color: var(--gold); }
+    .arch-layer.layer-semantic { background: #ede9fe; border-color: #8b5cf6; }
+    .arch-layer.layer-use { background: #fff7ed; border-color: #fb923c; }
+    .arch-connector {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--navy);
+      padding: 0.35rem 0;
+      letter-spacing: 0.02em;
+    }
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin: 1rem 0 1.5rem;
+      font-size: 0.82rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--muted);
+    }
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.12);
+      flex-shrink: 0;
+    }
+    .one-minute {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--surface);
+      border-left: 4px solid var(--gold);
+      padding: 1rem 1.25rem;
+      margin: 0 0 1.25rem;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .detail-divider {
+      border: none;
+      border-top: 2px dashed var(--border);
+      margin: 2rem 0 1.5rem;
+    }
+    .sample-atlas {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .sample-atlas h4 {
+      margin: 1.25rem 0 0.5rem;
+      font-size: 0.95rem;
+      color: var(--navy);
+    }
+    .sample-atlas h4:first-child { margin-top: 0; }
+    table.sample-rows {
+      width: 100%;
+      font-size: 0.8rem;
+      border-collapse: collapse;
+      margin: 0.5rem 0 0.75rem;
+    }
+    table.sample-rows th {
+      text-align: left;
+      background: rgba(0,50,98,0.06);
+      padding: 0.4rem 0.55rem;
+      border: 1px solid var(--border);
+      color: var(--navy);
+      font-weight: 600;
+    }
+    table.sample-rows td {
+      padding: 0.4rem 0.55rem;
+      border: 1px solid var(--border);
+      vertical-align: top;
+      color: var(--muted);
+    }
+    table.sample-rows td code { font-size: 0.75rem; word-break: break-word; }
+    table.sample-rows tr td:first-child { color: var(--navy); font-weight: 500; white-space: nowrap; }
+    .sample-index td a { font-weight: 600; }
+    details.sample-fold {
+      margin: 0.75rem 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    details.sample-fold summary {
+      cursor: pointer;
+      padding: 0.55rem 0.85rem;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--navy);
+    }
+    details.sample-fold .sample-fold-body { padding: 0 0.85rem 0.85rem; }
+    .t4-detail-panel {
+      background: linear-gradient(135deg, rgba(0,50,98,0.04), rgba(253,181,21,0.08));
+      border: 2px solid var(--gold);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem 1.15rem;
+      margin: 0 0 1.5rem;
+      min-height: 4.5rem;
+    }
+    .t4-detail-panel.empty .t4-detail-body { display: none; }
+    .t4-detail-panel:not(.empty) .t4-detail-placeholder { display: none; }
+    .t4-detail-placeholder {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .t4-detail-panel h3.t4-detail-title {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+      color: var(--navy);
+    }
+    .t4-detail-panel .t4-detail-section { margin-top: 0.75rem; }
+    .t4-detail-panel .t4-detail-section h4 {
+      margin: 0 0 0.35rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .t4-detail-panel .t4-detail-section p,
+    .t4-detail-panel .t4-detail-section ol {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .t4-detail-panel .t4-detail-section ol { padding-left: 1.2rem; }
+    .t4-detail-sample {
+      margin-top: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      background: rgba(0,0,0,0.04);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      white-space: pre-wrap;
+      color: var(--navy);
+    }
+    .t4-quick-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin: 0.5rem 0 0;
+    }
+    .t4-quick-picks button {
+      font-size: 0.72rem;
+      padding: 0.3rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--navy);
+      cursor: pointer;
+    }
+    .t4-quick-picks button:hover,
+    .t4-quick-picks button.active {
+      border-color: var(--gold);
+      background: rgba(253,181,21,0.15);
+    }
+    .mermaid-wrap .node rect,
+    .mermaid-wrap .node circle,
+    .mermaid-wrap .node polygon,
+    .mermaid-wrap .node path,
+    .mermaid-wrap .actor,
+    .mermaid-wrap .messageText {
+      cursor: pointer;
+    }
+    .arch-layer.clickable {
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .arch-layer.clickable:hover {
+      box-shadow: 0 4px 14px rgba(0,50,98,0.12);
+      transform: translateY(-1px);
+    }
+    .arch-layer.clickable.active-layer {
+      outline: 3px solid var(--gold);
+      outline-offset: 2px;
+    }
+    .t4-hover-tooltip {
+      position: fixed;
+      z-index: 10000;
+      max-width: min(340px, calc(100vw - 24px));
+      padding: 0.7rem 0.9rem;
+      background: var(--navy);
+      color: rgba(255,255,255,0.95);
+      border-radius: 10px;
+      border: 1px solid rgba(253,181,21,0.45);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+    .t4-hover-tooltip.visible { opacity: 1; }
+    .t4-hover-tooltip .tip-title {
+      display: block;
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 0.84rem;
+      margin-bottom: 0.35rem;
+    }
+    .t4-hover-tooltip .tip-purpose { margin: 0; }
+    .t4-hover-tooltip .tip-how {
+      margin: 0.4rem 0 0;
+      padding-left: 1rem;
+      font-size: 0.74rem;
+      opacity: 0.9;
+    }
+    .t4-hover-tooltip .tip-hint {
+      display: block;
+      margin-top: 0.45rem;
+      font-size: 0.68rem;
+      opacity: 0.6;
+      font-style: italic;
+    }
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: relative; }
+      .hero { margin: -1rem -1rem 1.5rem; padding: 1.5rem; }
+      .content { padding: 1rem 1.25rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Semantic layer sections">
+      <a class="back" href="../architecture-guide.html" target="_top">← Architecture guide</a>
+      <span class="badge" style="margin:0 1.25rem 0.5rem;display:inline-block">Reference</span>
+      <h2>Start here</h2>
+      <button type="button" class="tab-link active" data-tab="playbook">Complete playbook (order)</button>
+      <button type="button" class="tab-link" data-tab="overview">Overview</button>
+      <button type="button" class="tab-link" data-tab="glossary">Glossary (plain English)</button>
+      <button type="button" class="tab-link" data-tab="compare">Three systems compared</button>
+      <h2>Deep dive</h2>
+      <button type="button" class="tab-link" data-tab="flow">End-to-end flow</button>
+      <button type="button" class="tab-link" data-tab="data">Aurora data model</button>
+      <button type="button" class="tab-link" data-tab="lifecycle">Status &amp; governance</button>
+      <button type="button" class="tab-link" data-tab="access">Access rules</button>
+      <button type="button" class="tab-link" data-tab="compiler">Compiler &amp; SQL</button>
+      <button type="button" class="tab-link" data-tab="apis">API reference</button>
+      <button type="button" class="tab-link" data-tab="ui">UI surfaces</button>
+      <button type="button" class="tab-link" data-tab="guided-blueprint">Guided blueprint</button>
+      <button type="button" class="tab-link" data-tab="integrations">Inspector &amp; dashboards</button>
+      <button type="button" class="tab-link" data-tab="estate">Context pipeline T0–T4</button>
+      <button type="button" class="tab-link" data-tab="t4">T4 visual guide</button>
+      <button type="button" class="tab-link" data-tab="gaps">Gaps &amp; env</button>
+    </nav>
+
+    <div class="main">
+      <div class="content">
+        <header class="hero">
+          <span class="badge">ALOFT D360</span>
+          <h1>Semantic Layer — End-to-End Guide</h1>
+          <p>A complete, plain-English guide: <strong>build</strong> the layer, <strong>govern</strong> it, <strong>use</strong> it in production, and <strong>improve</strong> it over time. The same content is inlined on <a href="../architecture-guide.html" target="_top" style="color:var(--gold)">architecture-guide.html</a> → Semantic Layer (run <code>node scripts/embed-semantic-guide.mjs</code> after editing this file).</p>
+        </header>
+
+        <section id="panel-playbook" class="panel active" aria-labelledby="playbook-title">
+          <h2 class="section-title" id="playbook-title">Complete playbook — proper order</h2>
+          <div class="read-order">
+            <strong>How to read this guide:</strong>
+            <ol style="margin:0.5rem 0 0 1.2rem;padding:0;line-height:1.55">
+              <li>Work through <strong>phases 1–12</strong> below (each box = one step, who does it, what changes in the DB).</li>
+              <li>Then <a href="#lifecycle" onclick="document.querySelector('[data-tab=lifecycle]')?.click();return false;">Status &amp; governance</a> for draft → governed rules.</li>
+              <li>Then <a href="#integrations" onclick="document.querySelector('[data-tab=integrations]')?.click();return false;">Inspector &amp; dashboards</a> for how users consume metrics.</li>
+              <li>Use <a href="#glossary" onclick="document.querySelector('[data-tab=glossary]')?.click();return false;">Glossary</a> when a term is unclear.</li>
+            </ol>
+          </div>
+          <p class="prose">Think of the semantic layer as a <strong>loop</strong>, not a one-time project: harvest context → author metrics → review → promote → use in chat and dashboards → improve from feedback. Each phase below says <em>who</em> acts, <em>what</em> to do, and <em>what</em> appears in Aurora.</p>
+
+          <div class="playbook-phase">
+            <span class="phase-num">1</span>
+            <h4>Prerequisites — connections and organization</h4>
+            <p class="who">Who: Platform admin / cloud team</p>
+            <ul>
+              <li><strong>Purpose:</strong> Nothing semantic can run without a warehouse connection and an org row in Aurora.</li>
+              <li><strong>Do:</strong> Configure Databricks OAuth M2M (<code>DATABRICKS_*</code>), Aurora (<code>DATABASE_URL</code>), and user login (Entra).</li>
+              <li><strong>Result:</strong> Inspector can resolve a connection; APIs use <code>getDefaultOrg()</code> for your tenant.</li>
+              <li><strong>Not this step:</strong> No metrics exist yet — that is phase 3–5.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">2</span>
+            <h4>Harvest the Data Estate (context, not governance)</h4>
+            <p class="who">Who: Data engineer or steward — Agent Lab → Estate → Jobs / Sources</p>
+            <ul>
+              <li><strong>Purpose:</strong> Inventory tables, profile columns, and generate AI descriptions so humans (and Inspector) understand the warehouse.</li>
+              <li><strong>Pipeline order (typical):</strong> <code>change_detect</code> (optional) → <strong>T0</strong> <code>t0_structural</code> → <strong>T1</strong> <code>t1_profile</code> → <strong>T2</strong> <code>t2_semantic</code> (LLM cards) → <code>embed</code> (vectors for catalog search). <strong>T3</strong> usage (<code>t3_usage</code>) is separate and source-wide. See <a href="#estate" onclick="document.querySelector('[data-tab=estate]')?.click();return false;">Context pipeline T0–T4</a>.</li>
+              <li><strong>Yes, T2 exists:</strong> job kind <code>t2_semantic</code> stamps <code>last_t2_at</code> and writes object/column semantic JSON — this is enrichment, not governed metrics.</li>
+              <li><strong>T3 naming:</strong> Inspector docs sometimes call embeddings “T3”; in code, <strong>T3 = usage/lineage</strong> (<code>t3_usage</code>, live). <code>t3_connected</code> is listed in the UI but <em>not</em> implemented in <code>orchestrator.ts</code> yet.</li>
+              <li><strong>Storage:</strong> <code>platform_context_*</code> — <em>not</em> <code>platform_sem_*</code>.</li>
+              <li><strong>Advantage:</strong> Mapper, estate briefing, and <code>describe_schema</code> in Inspector get accurate metadata without stewards typing every column.</li>
+              <li><strong>Example:</strong> After T2, object <code>marine.gold.inspections</code> has a semantic summary card stewards can confirm via <code>confirm-semantic</code> (trust on descriptions only).</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">3</span>
+            <h4>Obtain a semantic model (container in Aurora)</h4>
+            <p class="who">Who: Admin or automated bootstrap (when T4 works)</p>
+            <ul>
+              <li><strong>Purpose:</strong> All entities/measures hang off <code>platform_semantic_models.id</code>.</li>
+              <li><strong>Intended path:</strong> T4 <code>t4_scan</code> → <code>t4_entity_propose</code> → <code>t4_dim_propose</code> writes <span class="pill candidate">candidate</span> rows (<code>source_type=auto_bootstrap</code>). Diagrams + detail: <a href="#t4" onclick="document.querySelector('[data-tab=t4]')?.click();return false;">T4 visual guide</a>.</li>
+              <li><strong>Today in this repo:</strong> T4 orchestrator jobs <strong>fail</strong> (handlers not shipped). Existing DBs may still contain data from an earlier T4 deployment.</li>
+              <li><strong>Check:</strong> <code>GET /api/inspector/semantic/models</code> returns at least one model; Inspector Semantic tab uses <code>/candidates</code>.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">4</span>
+            <h4>Map and align (optional but valuable)</h4>
+            <p class="who">Who: Data steward — <code>/agent-lab/estate/mapper</code></p>
+            <ul>
+              <li><strong>Purpose:</strong> Link columns across sources so joins and lineage make business sense.</li>
+              <li><strong>Do:</strong> Review proposed mappings; accept or correct.</li>
+              <li><strong>Feeds semantic layer:</strong> Informs stewards when defining entities/joins; does not auto-promote measures.</li>
+              <li><strong>Detail:</strong> Manual schema-pair launch + steward confirm; not on EventBridge. Full guide: <a href="context-harvesting-guide.html#step-mapper">context-harvesting → Mapper</a>. Table-level silos: <a href="context-harvesting-guide.html#step-silo">Silo Scan</a>.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">5</span>
+            <h4>Author definitions (build the layer)</h4>
+            <p class="who">Who: Analyst or steward — Inspector “Define metric”, Metrics catalog, or graduate from a chart</p>
+            <ul>
+              <li><strong>Purpose:</strong> Create business metrics and dimensions tied to real columns.</li>
+              <li><strong>API:</strong> <code>POST …/drafts</code> → rows in <code>platform_sem_measures</code> or <code>platform_sem_dimensions</code> with <span class="pill draft">draft</span>, <code>created_by</code> = you.</li>
+              <li><strong>Fields that matter:</strong> label, column, aggregate, synonyms, <code>nl_intent</code> (“what question does this answer?”).</li>
+              <li><strong>Side effect:</strong> <code>upsertIntentEmbedding</code> stores NL text for search/disambiguation.</li>
+              <li><strong>Example:</strong> Draft measure “Open defects” = COUNT(defect_id) on entity Inspections, intent “How many open defects per vessel?”</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">6</span>
+            <h4>Preview before sharing (authoring mode)</h4>
+            <p class="who">Who: Same author as the draft</p>
+            <ul>
+              <li><strong>Purpose:</strong> Run the metric on real Databricks data while still private.</li>
+              <li><strong>API:</strong> <code>POST …/authoring-preview</code> with <code>SemanticQuery</code>; server sets <code>authoringMode</code> + your user id only.</li>
+              <li><strong>Rules:</strong> You may reference <em>your</em> drafts; never another user’s drafts (<code>SemanticDraftAccessError</code>).</li>
+              <li><strong>UI:</strong> Define Metric panel chart preview; results may show “Draft — not governed”.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">7</span>
+            <h4>Submit for governance (draft → candidate)</h4>
+            <p class="who">Who: Owner of the draft only</p>
+            <ul>
+              <li><strong>Purpose:</strong> Make work visible to the org for review — not yet “official.”</li>
+              <li><strong>API:</strong> <code>POST …/submit</code> with definition IDs you own.</li>
+              <li><strong>Gate:</strong> No reputation required to submit. T4/system rows (<code>created_by</code> null) cannot be submitted until a human owns them.</li>
+              <li><strong>Visibility:</strong> Appears in <code>GET …/review</code> and Metrics catalog (Govern lens).</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">8</span>
+            <h4>Review and promote (candidate → governed)</h4>
+            <p class="who">Who: Admin, or author with enough <code>semantic_authoring</code> reputation</p>
+            <ul>
+              <li><strong>Purpose:</strong> Mark definitions as <span class="pill governed">governed</span> — the production contract.</li>
+              <li><strong>API:</strong> <code>POST …/promote</code> — runs <code>evaluatePromotionEligibility</code>.</li>
+              <li><strong>Promotion gate:</strong> Admin always OK; else streetCred ≥ 80 self-approve, or quorum sum ≥ 120 / admin approver. Day one: empty reputation → effectively admin-only.</li>
+              <li><strong>Entity rule:</strong> Promoting a <em>measure</em> requires its parent <em>entity</em> to already be governed.</li>
+              <li><strong>Audit:</strong> <code>platform_sem_audit</code> row; <code>creditAuthoringPromotion</code> if <code>MEMORY_REPUTATION_ENABLED=true</code>.</li>
+              <li><strong>Model status:</strong> <code>recalculateModelStatus</code> may set model to governed when any entity is governed.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">9</span>
+            <h4>Use in production (consume governed definitions)</h4>
+            <p class="who">Who: All analysts with Inspector / dashboard access</p>
+            <ul>
+              <li><strong>Inspector chat:</strong> <code>buildSemanticContext</code> injects governed catalog into prompt → agent calls <code>emit_semantic_chart</code> with IDs → chart-pipeline + <code>executeSemanticQuery</code> (model must be governed).</li>
+              <li><strong>Dashboards:</strong> Widget picker <code>GET …/definitions</code> (no drafts) → widget stores <code>SemanticQuery</code> → viewers hit <code>POST …/dashboards/[id]/data</code> (no authoring bypass).</li>
+              <li><strong>Guided builder:</strong> NL dashboard outline (Intent → Blueprint → Drill-in). LLM proposes chart specs; <code>blueprint-ground.ts</code> enforces catalog IDs — see <a href="#guided-blueprint" onclick="document.querySelector('[data-tab=guided-blueprint]')?.click();return false;">Guided blueprint</a> tab.</li>
+              <li><strong>Advantage:</strong> Same measure id → same SQL → same number in chat and on the dashboard.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">10</span>
+            <h4>Operate and change safely (after govern)</h4>
+            <p class="who">Who: Steward with edit rights; admins for others’ rows</p>
+            <ul>
+              <li><strong>Edit governed defs:</strong> <code>PATCH …/definitions/[id]</code> — <code>decideEditGate</code> (admin or self-approve).</li>
+              <li><strong>Computation changes:</strong> Editing formula-like fields can <strong>demote</strong> to <span class="pill candidate">candidate</span> (<code>forceDemotion</code>) so numbers are re-reviewed.</li>
+              <li><strong>Archive:</strong> Retire bad metrics; excluded from queries.</li>
+              <li><strong>Lineage:</strong> <code>GET /api/inspector/semantic/lineage</code> shows dashboards consuming a measure before you change it.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">11</span>
+            <h4>Continuous improvement — how the layer gets better over time</h4>
+            <p class="who">Who: Users, stewards, and background jobs together</p>
+            <ul>
+              <li><strong>Disambiguation in Inspector:</strong> When the agent is unsure (“revenue” matches several measures), it calls a disambiguation tool; user picks a chip → follow-up query uses the right governed id. Teaches the session; reduces wrong charts.</li>
+              <li><strong>NL intents + embeddings:</strong> Every <code>nl_intent</code> on drafts/governed defs is embedded; <code>resolve-intent</code> and <code>disambiguation-rank</code> get better at matching questions to metrics. Backfill: <code>scripts/backfill-nl-intent-embeddings.ts</code>.</li>
+              <li><strong>Reputation loop:</strong> Successful promotions credit authors in <code>semantic_authoring</code> (CONTRIBUTED). Higher streetCred → self-approve future promotions → faster iteration without losing control.</li>
+              <li><strong>Teach mode (related):</strong> Personal rules in FOER can be promoted to org with the <em>same</em> promotion gate; credits same reputation domain — aligns “what the org knows” with semantic governance.</li>
+              <li><strong>Estate refresh:</strong> Re-harvest (T0/T1/T2) when schemas change; <code>change_detect</code> jobs keep context fresh so stewards do not govern against stale column lists.</li>
+              <li><strong>confirm-semantic on estate cards:</strong> Stewards certify AI descriptions → better mapper/authoring decisions (trust signal, not metric promotion).</li>
+              <li><strong>Audit + contributions UI:</strong> <code>my-contributions</code>, per-model contributions — transparency for who improved the catalog.</li>
+              <li><strong>Future:</strong> T4 bootstrap when ported; optional <code>applyMetricViews</code> to publish governed SQL to Databricks <code>spinor_semantic</code> for external BI.</li>
+            </ul>
+          </div>
+
+          <div class="playbook-phase">
+            <span class="phase-num">12</span>
+            <h4>Close the loop (repeat)</h4>
+            <p class="who">Who: Whole team</p>
+            <ul>
+              <li>New business questions → new drafts or synonyms on existing measures.</li>
+              <li>Wrong answers → fix definition or add disambiguation; check lineage for downstream dashboards.</li>
+              <li>Schema changes → harvest → review entities → update joins/measures → re-promote if demoted.</li>
+            </ul>
+          </div>
+
+          <h3>Continuous improvement loop (diagram)</h3>
+          <div class="loop-diagram">Harvest (T0–T2) ──► Steward authors drafts ──► Preview ──► Submit ──► Promote (governed)
+        │                                                      │
+        │                                                      ▼
+        └──────────── Schema / estate refresh ◄──── Use (Inspector + dashboards)
+                              ▲                              │
+                              │                              ▼
+                         Lineage + audit ◄──── Improve (intents, disambiguation, rep, teach, PATCH)</div>
+
+          <div class="callout info">
+            <strong>Summary:</strong> You <em>build</em> in phases 5–6 (drafts), <em>govern</em> in 7–8 (submit/promote), <em>use</em> in phase 9, and <em>improve continuously</em> in 10–12 via feedback, embeddings, reputation, re-harvest, and controlled edits.
+          </div>
+        </section>
+
+        <section id="panel-overview" class="panel" aria-labelledby="overview-title">
+          <h2 class="section-title" id="overview-title">Overview</h2>
+
+          <div class="def-block">
+            <h4>What is the semantic layer? (one sentence)</h4>
+            <p class="prose" style="margin:0">It is the <strong>official dictionary of your business numbers</strong> — stored in Aurora — so when someone asks for “revenue” or “deficiencies per vessel,” the app uses <em>one approved definition</em> and turns it into safe SQL on Databricks.</p>
+          </div>
+
+          <h3>What problem does it solve?</h3>
+          <p class="prose">Without a semantic layer, every analyst and every AI answer writes its own SQL. Two dashboards both labeled “Revenue” can use different filters, joins, or columns. The semantic layer fixes that by storing <strong>named metrics and dimensions</strong> with owners, review, and audit — then Inspector and dashboards <strong>must use those IDs</strong> instead of inventing SQL.</p>
+
+          <h3>Advantages (why we built it this way)</h3>
+          <ul class="prose">
+            <li><strong>One version of the truth</strong> — promoted (<span class="pill governed">governed</span>) metrics are what production chat and dashboards use.</li>
+            <li><strong>Safer than raw SQL from the AI</strong> — the agent sends a structured <code>SemanticQuery</code>; the app compiles SQL with join rules and blocks dangerous expressions.</li>
+            <li><strong>Human workflow</strong> — draft → submit → promote fits data stewards; reputation and admin override match FOER governance.</li>
+            <li><strong>Natural language alignment</strong> — synonyms and <code>nl_intent</code> plus embeddings help match questions to the right metric.</li>
+            <li><strong>Traceability</strong> — <code>platform_sem_audit</code> records who changed status; lineage shows which dashboards use a measure.</li>
+          </ul>
+
+          <h3>Plain analogy</h3>
+          <div class="example-box">
+            <strong>Harvester</strong> = walking the warehouse with a clipboard (what tables exist, column types, AI descriptions).<br>
+            <strong>Semantic layer</strong> = the signed metric catalog on the wall (“Revenue = SUM(net_amount) on orders, exclude refunds”).<br>
+            <strong>Databricks</strong> = the factory floor where the actual data lives; we only send compiled SQL there to read it.
+          </div>
+
+          <div class="callout info">
+            <strong>Important distinction:</strong> ALOFT’s semantic definitions live in <strong>Aurora</strong> (<code>platform_sem_*</code>). They are <em>not</em> the same as Databricks Unity Catalog “metric views,” and they are <em>not</em> created by the harvester alone.
+          </div>
+          <div class="cards">
+            <div class="card"><h4>System of record</h4><p>Aurora PostgreSQL: models, entities, dimensions, measures, joins, audit, NL intent embeddings.</p></div>
+            <div class="card"><h4>Execution plane</h4><p>Databricks runs the SQL the app compiles. Data never moves into Aurora for analytics.</p></div>
+            <div class="card"><h4>Who uses it</h4><p>Inspector (chat + charts), dashboard widgets, metrics catalog, guided dashboard blueprint.</p></div>
+          </div>
+          <h3>vs Databricks native semantic layer</h3>
+          <table>
+            <thead><tr><th>Topic</th><th>Databricks UC / metric views</th><th>ALOFT today</th></tr></thead>
+            <tbody>
+              <tr><td>Metadata home</td><td>Unity Catalog objects</td><td>Aurora <code>platform_sem_*</code></td></tr>
+              <tr><td>Governance</td><td>UC grants, policies</td><td>draft → candidate → governed + promotion gate + FOER rep</td></tr>
+              <tr><td>Query path</td><td>Engine resolves UC semantic SQL</td><td>App compiles <code>SemanticQuery</code> JSON in <code>compiler.ts</code></td></tr>
+              <tr><td>BI-wide reuse</td><td>Any UC-connected tool</td><td>Primarily ALOFT Inspector &amp; dashboards</td></tr>
+              <tr><td>Optional publish</td><td>CREATE METRIC VIEW</td><td><code>metric-views.ts</code> → VIEW in <code>catalog.spinor_semantic</code> (unwired)</td></tr>
+            </tbody>
+          </table>
+          <h3>Core library modules</h3>
+          <table id="lib-modules-table">
+            <thead><tr><th>File</th><th>Path</th><th>Role</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="muted">Source: ARCHITECTURE.md §7.2</p>
+        </section>
+
+        <section id="panel-glossary" class="panel" aria-labelledby="glossary-title">
+          <h2 class="section-title" id="glossary-title">Glossary (plain English)</h2>
+          <p class="prose">Every important term used in this guide. Use the search box to filter.</p>
+          <input type="search" id="glossary-search" placeholder="Search glossary…" aria-label="Search glossary" />
+          <div id="glossary-list"></div>
+        </section>
+
+        <section id="panel-compare" class="panel" aria-labelledby="compare-title">
+          <h2 class="section-title" id="compare-title">Three systems compared</h2>
+          <p class="prose">Harvester, semantic layer, and Databricks solve different problems. All three can exist in one deployment.</p>
+          <table class="compare-table">
+            <thead><tr><th>Question</th><th>Harvester / Data Estate</th><th>ALOFT semantic layer</th><th>Databricks UC metrics</th></tr></thead>
+            <tbody>
+              <tr><td>What is it?</td><td>Jobs that scan Databricks and enrich metadata</td><td>Approved metric definitions in Aurora</td><td>Native semantic objects in the lakehouse</td></tr>
+              <tr><td>Storage</td><td><code>platform_context_*</code></td><td><code>platform_sem_*</code></td><td>Unity Catalog</td></tr>
+              <tr><td>Purpose</td><td>Discovery, profiling, AI column descriptions, embeddings for search</td><td>One official meaning per business metric</td><td>Share metrics across Databricks-connected BI tools</td></tr>
+              <tr><td>Example</td><td>“Table <code>marine.inspections</code> has column <code>defect_count</code>”</td><td>“Defects per inspection = COUNT(defect_id) by vessel”</td><td>Metric view <code>defects_per_vessel</code> in UC</td></tr>
+              <tr><td>ALOFT status</td><td>T0–T2 + embed + t3_usage live; t3_connected &amp; T4 stubbed</td><td>Authoring + APIs live; needs seeded model</td><td>SQL execution used; optional VIEW export not wired to UI</td></tr>
+            </tbody>
+          </table>
+          <div class="example-box">
+            <strong>Example — same question, three layers:</strong> User asks Inspector “defects by flag last quarter.” Harvester context helps the AI <em>find</em> table <code>inspections</code>. The semantic layer picks the <em>governed</em> measure “Open Defect Count” and dimension “Flag.” Databricks <em>runs</em> the compiled SQL and returns rows.
+          </div>
+        </section>
+
+        <section id="panel-flow" class="panel" aria-labelledby="flow-title">
+          <h2 class="section-title" id="flow-title">End-to-end flow</h2>
+          <p class="prose"><strong>Reading queries:</strong> production users never send raw SQL for governed analytics; they (or the agent) send IDs. <strong>Building metrics:</strong> stewards use the UI ladder below before numbers appear in chat.</p>
+          <h3>Runtime query path</h3>
+          <pre class="code">User / Agent
+  → SemanticQuery { modelId, entityId, dimensions[], measures[], filters[], sorts[], limit? }
+  → execute.ts: load org + model
+       IF NOT authoringMode AND model.status ≠ 'governed' → SemanticModelNotGovernedError
+  → filterAccessible() per referenced entity/dim/measure (authoring-access rules)
+  → validateSemanticQuery() (types.ts)
+  → compileSemanticQuery() (compiler.ts) → SQL string
+  → executeDatabricksSQL() (databricks/execute.ts)
+  → SemanticQueryResult { sql, columns, rows, isDraft? }</pre>
+          <h3>Authoring path</h3>
+          <pre class="code">UI (Define Metric / Metrics Catalog / Governance Panel)
+  → POST /drafts → platform_sem_measures | platform_sem_dimensions (status=draft)
+  → POST /authoring-preview (authoringUserId = session user)
+  → POST /submit → status candidate
+  → POST /promote → status governed (+ parent entity must be governed for defs)
+  → platform_sem_audit row + optional reputation credit</pre>
+          <h3>Worked example — Inspector question</h3>
+          <div class="example-box">
+            <strong>User:</strong> “Total open defects by flag this year.”<br>
+            <strong>Agent</strong> builds <code>SemanticQuery</code>: entity = Inspections, measure = Open Defect Count (id <code>meas_abc</code>), dimension = Flag (<code>dim_flag</code>), filter = status = open, time grain = year.<br>
+            <strong>App</strong> checks model is <span class="pill governed">governed</span>, compiles SQL like <code>SELECT flag, SUM(...) AS open_defect_count FROM catalog.schema.inspections WHERE ... GROUP BY flag</code>, runs on Databricks.<br>
+            <strong>Chart</strong> reads column <code>open_defect_count</code> (from <code>toAlias</code> of the measure label) — not the display name “Open Defect Count”.
+          </div>
+          <h3>Scenarios (step-by-step)</h3>
+          <div id="scenarios-container"></div>
+        </section>
+
+        <section id="panel-data" class="panel" aria-labelledby="data-title">
+          <h2 class="section-title" id="data-title">Aurora data model</h2>
+          <p class="prose">Think of a <strong>semantic model</strong> as a folder. Inside are <strong>entities</strong> (tables), each with <strong>dimensions</strong> (how you slice) and <strong>measures</strong> (what you count or sum). <strong>Joins</strong> link entities when a question spans tables.</p>
+          <table>
+            <thead><tr><th>Table</th><th>Purpose</th><th>Key constraints / defaults</th></tr></thead>
+            <tbody>
+              <tr><td><code>platform_semantic_models</code></td><td>One logical model per org</td><td><code>status</code> default candidate; <code>source_type</code> default auto_bootstrap</td></tr>
+              <tr><td><code>platform_sem_entities</code></td><td>Table/view → business entity</td><td>unique (model_id, full_path); <code>created_by</code> NULL = T4/system</td></tr>
+              <tr><td><code>platform_sem_dimensions</code></td><td>Group-by fields</td><td>unique (entity_id, column_name); nl_intent; synonyms[]</td></tr>
+              <tr><td><code>platform_sem_measures</code></td><td>Metrics</td><td>aggregate, metric_type, expression?, unit, nl_intent</td></tr>
+              <tr><td><code>platform_sem_joins</code></td><td>Entity graph</td><td><code>join_on_sql</code> verbatim in compiler</td></tr>
+              <tr><td><code>platform_sem_audit</code></td><td>Governance trail</td><td>FK model_id; action, from_status, to_status, diff JSON</td></tr>
+              <tr><td><code>platform_nl_intent_embeddings</code></td><td>NL search for intents</td><td>source_type + source_id; embed via Titan/Azure path</td></tr>
+            </tbody>
+          </table>
+          <h3>SemanticQuery JSON (agent contract)</h3>
+          <pre class="code">{
+  modelId: string,      // platform_semantic_models.id
+  entityId: string,     // primary fact entity
+  dimensions: [{ dimensionId, timeGrain? }],
+  measures: [{ measureId }],
+  filters: [{ fieldId, fieldKind: 'dimension'|'measure', op, value }],
+  sorts: [{ fieldId, fieldKind, direction }],
+  limit?: number        // default 1000, max 10000
+}</pre>
+          <div class="callout warn">Result row keys use <code>compiler.toAlias(label)</code> — not human labels. Charts and WidgetPreview must resolve columns via <code>toAlias</code>.</div>
+
+          <p class="prose">Full <strong>T4 walkthrough samples</strong> (context object → jobs → sem rows → API): <a href="#t4" onclick="document.querySelector('[data-tab=t4]')?.click();return false;">T4 visual guide</a> → <a href="#t4-samples">Sample data atlas</a>.</p>
+
+          <h3>Example rows — semantic tables (after T4 or authoring)</h3>
+          <table class="sample-rows">
+            <thead><tr><th>Table</th><th>Key sample fields</th><th>Typical <code>status</code></th></tr></thead>
+            <tbody>
+              <tr><td><code>platform_semantic_models</code></td><td><code>name=Auto-Bootstrap Model</code>, <code>source_type=auto_bootstrap</code></td><td><code>governed</code> (catalog gate)</td></tr>
+              <tr><td><code>platform_sem_entities</code></td><td><code>full_path=cat.schema.table</code>, <code>entity_label</code>, <code>created_by=NULL</code> if T4</td><td><code>candidate</code></td></tr>
+              <tr><td><code>platform_sem_dimensions</code></td><td><code>column_name</code>, <code>dimension_type</code>, <code>synonyms[]</code></td><td><code>candidate</code> → <code>governed</code></td></tr>
+              <tr><td><code>platform_sem_measures</code></td><td><code>aggregate=count|sum|hllp</code>, <code>expression</code> if derived</td><td><code>candidate</code> → <code>governed</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Table-by-table (definition + purpose + example)</h3>
+          <div class="def-block">
+            <h4><code>platform_semantic_models</code></h4>
+            <dl>
+              <dt>Definition</dt><dd>The top-level container for one org’s semantic world (often one per business domain).</dd>
+              <dt>Purpose</dt><dd>Dashboards and Inspector bind to a model; status summarizes whether anything is officially governed yet.</dd>
+              <dt>Example</dt><dd>Model “Marine operations” with <code>source_type=auto_bootstrap</code> after T4 (when enabled).</dd>
+              <dt>Not the same as</dt><dd>A Databricks catalog name — connection to warehouse is per dashboard/connection, not stored on the model row.</dd>
+            </dl>
+          </div>
+          <div class="def-block">
+            <h4><code>platform_sem_entities</code></h4>
+            <dl>
+              <dt>Definition</dt><dd>One business table or view, identified by <code>full_path</code> (catalog.schema.table).</dd>
+              <dt>Purpose</dt><dd>Anchor for dimensions and measures; compiler uses this path in the FROM clause.</dd>
+              <dt>Example</dt><dd><code>full_path</code> = <code>marine.gold.inspections</code>, label “Inspections.”</dd>
+            </dl>
+          </div>
+          <div class="def-block">
+            <h4><code>platform_sem_measures</code> &amp; <code>platform_sem_dimensions</code></h4>
+            <dl>
+              <dt>Definition</dt><dd>Measures = numbers you aggregate (sum, count, …). Dimensions = attributes you group or filter by.</dd>
+              <dt>Purpose</dt><dd>These are the IDs the agent puts in <code>SemanticQuery</code>.</dd>
+              <dt>Example</dt><dd>Measure “Revenue” = SUM(<code>net_amount</code>). Dimension “Vessel” = column <code>vessel_id</code>.</dd>
+              <dt>Advantage</dt><dd>Synonyms let “sales” and “revenue” map to the same governed measure in NL search.</dd>
+            </dl>
+          </div>
+        </section>
+
+        <section id="panel-lifecycle" class="panel" aria-labelledby="lifecycle-title">
+          <h2 class="section-title" id="lifecycle-title">Status &amp; governance</h2>
+          <p class="prose">This section details <strong>phases 7–8</strong> of the <a href="#playbook" onclick="document.querySelector('[data-tab=playbook]')?.click();return false;">complete playbook</a>. Statuses are labels on each row (entity, dimension, or measure). They control <strong>who can see it</strong> and <strong>whether production queries may use it</strong>.</p>
+          <p>
+            <span class="pill draft">draft</span> owner submit
+            <span class="pill candidate">candidate</span> promote (gated)
+            <span class="pill governed">governed</span> archive
+            <span class="pill archived">archived</span>
+          </p>
+          <table>
+            <thead><tr><th>Transition</th><th>Who</th><th>Conditions</th></tr></thead>
+            <tbody>
+              <tr><td>draft → candidate</td><td>Owner (created_by)</td><td>T4/system rows (created_by null) cannot submit → 403</td></tr>
+              <tr><td>candidate → governed</td><td>Admin OR author + rep gate</td><td>Cannot promote draft directly → 400; measure promote needs parent entity governed</td></tr>
+              <tr><td>→ archived</td><td>Admin any; else own drafts</td><td>Archived cannot promote/submit</td></tr>
+              <tr><td>governed PATCH</td><td>Admin or self-approve</td><td><code>decideEditGate</code> may demote to candidate</td></tr>
+              <tr><td>Model status</td><td><code>recalculateModelStatus</code></td><td>governed if ≥1 governed entity; else candidate</td></tr>
+            </tbody>
+          </table>
+          <h3>Promotion gate (<code>promotion-gate.ts</code>)</h3>
+          <div class="stat-grid">
+            <div class="stat"><div class="label">Self-approve</div><div class="value">streetCred ≥ 80</div><div class="detail">semantic_authoring domain</div></div>
+            <div class="stat"><div class="label">Quorum</div><div class="value">sum ≥ 120</div><div class="detail">OR any admin approver</div></div>
+            <div class="stat"><div class="label">Day one</div><div class="value">Empty domain</div><div class="detail">Non-admins provisional → admin promote only</div></div>
+            <div class="stat"><div class="label">Flag</div><div class="value">MEMORY_REPUTATION_ENABLED</div><div class="detail">Must be 'true' for non-admin rep + credit on promote</div></div>
+          </div>
+          <details>
+            <summary>submitDefinitions / promoteDefinitions (governance.ts)</summary>
+            <p class="muted">Submit: only draft → candidate; no reputation gate. Promote: rejects archived; promoteDefinitions requires parent entity governed. Credits <code>created_by</code> authors when reputation enabled.</p>
+          </details>
+
+          <h3>Status meanings in plain English</h3>
+          <div class="def-block">
+            <dl>
+              <dt><span class="pill draft">draft</span></dt><dd><strong>Private workbook.</strong> Only you (the owner) can preview it in authoring mode. Hidden from org review and from production Inspector/charts.</dd>
+              <dt><span class="pill candidate">candidate</span></dt><dd><strong>In review.</strong> Visible to stewards in the metrics catalog. Can be used in some paths once the <em>model</em> is governed, but not promoted to “official” until promote succeeds.</dd>
+              <dt><span class="pill governed">governed</span></dt><dd><strong>Official.</strong> This is the definition production should use. Inspector semantic charts and published dashboards rely on these IDs.</dd>
+              <dt><span class="pill archived">archived</span></dt><dd><strong>Retired.</strong> Kept for history; excluded from queries and pickers.</dd>
+            </dl>
+          </div>
+          <div class="example-box">
+            <strong>Example ladder:</strong> Alex drafts “Avg days to close defect” → submits → candidate → admin (or Alex with streetCred ≥ 80) promotes → governed. Audit row records Alex as author; reputation may credit Alex in <code>semantic_authoring</code>.
+          </div>
+          <div class="example-box">
+            <strong>T4 bootstrap ladder (no Submit step):</strong> T4 creates measure as <code>candidate</code>, <code>created_by=NULL</code> → steward uses <code>POST …/promote</code> directly (not Submit) → <code>governed</code>. Sample audit row: <a href="#sample-audit">atlas J</a>.
+          </div>
+          <h3>Sample rows — same measure at each status</h3>
+          <table class="sample-rows">
+            <thead><tr><th>status</th><th>created_by</th><th>Who can promote?</th><th>Inspector chart?</th></tr></thead>
+            <tbody>
+              <tr><td><code>draft</code></td><td><code>user_abc</code></td><td>Owner submits first</td><td>Authoring preview only (owner)</td></tr>
+              <tr><td><code>candidate</code></td><td><code>NULL</code> (T4)</td><td>Admin / promotion gate</td><td>No (until governed)</td></tr>
+              <tr><td><code>candidate</code></td><td><code>user_abc</code></td><td>After submit, same promote rules</td><td>Model-dependent</td></tr>
+              <tr><td><code>governed</code></td><td><code>NULL</code> or user</td><td>—</td><td>Yes — production path</td></tr>
+            </tbody>
+          </table>
+          <p class="muted">Full T4 table samples: <a href="#t4-samples" onclick="document.querySelector('[data-tab=t4]')?.click();return false;">Sample data atlas</a>.</p>
+        </section>
+
+        <section id="panel-access" class="panel" aria-labelledby="access-title">
+          <h2 class="section-title" id="access-title">Access rules</h2>
+          <p class="prose">The same measure ID can be allowed or blocked depending on <strong>who is asking</strong> and <strong>whether authoring mode is on</strong>. This prevents one user’s private draft from appearing in another user’s dashboard.</p>
+          <h3>Visibility by surface</h3>
+          <table id="access-matrix-table"><thead><tr><th>Surface</th><th>draft</th><th>candidate</th><th>governed</th></tr></thead><tbody></tbody></table>
+          <h3>decideDefinitionAccess (authoring-access.ts)</h3>
+          <table id="authoring-decisions-table"><thead><tr><th>Row status</th><th>authoring?</th><th>owner</th><th>in query?</th><th>Result</th></tr></thead><tbody></tbody></table>
+          <h3>Simulate execution mode</h3>
+          <select id="access-mode" aria-label="Execution mode">
+            <option value="default">Inspector / charts / dashboard data</option>
+            <option value="authoring">authoring-preview / editor preview</option>
+            <option value="dashboard-view">Published dashboard viewer</option>
+          </select>
+          <div class="mode-box" id="access-mode-detail"></div>
+          <div class="callout warn"><code>context-builder</code> loads governed entities but dimensions/measures without status filter — non-governed defs may appear in LLM prompt (documented risk).</div>
+        </section>
+
+        <section id="panel-compiler" class="panel" aria-labelledby="compiler-title">
+          <h2 class="section-title" id="compiler-title">Compiler &amp; SQL</h2>
+          <p class="prose">The <strong>compiler</strong> translates your structured question into SQL. The <strong>executor</strong> runs that SQL on Databricks. You never hand user-written SQL to the warehouse for governed semantic charts.</p>
+          <div class="example-box">
+            <strong>Filter example:</strong> “Only flags in EU” → dimension filter → goes in <code>WHERE</code>. “Only show measures where total &gt; 1000” → measure filter → goes in <code>HAVING</code> after aggregation.
+          </div>
+          <table>
+            <thead><tr><th>Rule</th><th>Behavior</th></tr></thead>
+            <tbody>
+              <tr><td>Dimension filters</td><td>WHERE; temporal + timeGrain → DATE_TRUNC</td></tr>
+              <tr><td>Measure filters</td><td>HAVING on SELECT aliases</td></tr>
+              <tr><td>Multi-entity</td><td>BFS join graph; missing path throws</td></tr>
+              <tr><td>join_on_sql</td><td>Verbatim in ON clause</td></tr>
+              <tr><td>ratio / derived</td><td>expression after compileSafety() DDL blocklist</td></tr>
+              <tr><td>cumulative</td><td>Two-layer CTE + window SUM</td></tr>
+              <tr><td>LIMIT</td><td>min(query.limit ?? 1000, 10000)</td></tr>
+              <tr><td>Aliases</td><td>toAlias(label) for result keys</td></tr>
+            </tbody>
+          </table>
+          <h3>metric-views.ts (optional Databricks publish)</h3>
+          <p class="muted"><code>compileMetricViewDDL</code> → <code>CREATE OR REPLACE VIEW</code> in <code>catalog.spinor_semantic</code>. <code>applyMetricViews</code> not wired to any API. Upgrade path: CREATE METRIC VIEW when UC Business Semantics stable.</p>
+        </section>
+
+        <section id="panel-apis" class="panel" aria-labelledby="apis-title">
+          <h2 class="section-title" id="apis-title">API reference</h2>
+          <p class="prose">HTTP endpoints the UI and tools call. <strong>Session</strong> = you must be logged in. <strong>Org default</strong> = uses the app’s default organization (single-tenant deployments). Guards describe failure cases (401, 403, 404).</p>
+          <div class="toolbar">
+            <input type="search" id="api-search" placeholder="Search route, guard, method…" aria-label="Search APIs" />
+            <label><input type="checkbox" id="api-auth-only" /> Session-auth only</label>
+          </div>
+          <p class="count" id="api-count"></p>
+          <table id="api-table">
+            <thead><tr><th>Method</th><th>Route</th><th>Auth</th><th>Guards / conditions</th><th>File</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <section id="panel-ui" class="panel" aria-labelledby="ui-title">
+          <h2 class="section-title" id="ui-title">UI surfaces</h2>
+          <p class="prose">Where humans actually build and govern metrics. If you are a steward, start at <strong>/agent-lab/metrics</strong>. If you are an analyst, you often start in <strong>Inspector</strong> and “graduate” a good answer into a metric.</p>
+          <table>
+            <thead><tr><th>Route / area</th><th>Components</th><th>Semantic APIs</th></tr></thead>
+            <tbody>
+              <tr><td><code>/agent-lab/metrics</code></td><td>metrics-catalog/*</td><td>models, review, my-drafts, promote, lineage</td></tr>
+              <tr><td><code>/inspector</code></td><td>InspectorShell, DashboardPane</td><td>candidates, governance, DefineMetricPanel</td></tr>
+              <tr><td>Inspector right pane</td><td>SemanticGovernancePanel, MyDraftsSection</td><td>review, submit, promote, archive</td></tr>
+              <tr><td>Dashboard builder</td><td>guided/*, DefinitionPicker</td><td>definitions, blueprint, intents</td></tr>
+              <tr><td><code>/agent-lab/estate/entities</code></td><td>entities page</td><td>entities-catalog</td></tr>
+              <tr><td><code>/agent-lab/estate/lineage</code></td><td>lineage page</td><td>lineage?focus=</td></tr>
+              <tr><td><code>/agent-lab/estate/mapper</code></td><td>mapper</td><td>context mappings</td></tr>
+              <tr><td>Estate object UI</td><td>TrustActionBar</td><td>confirm-semantic</td></tr>
+            </tbody>
+          </table>
+          <details><summary>Metrics Catalog lenses</summary><p class="muted">Govern vs Explore reweights emphasis only; server enforces promote/archive. Facets: my_drafts, authored.</p></details>
+          <details><summary>Empty model UX</summary><p class="muted">EmptyModelState: schema scan button disabled; bootstrap not enabled in UI.</p></details>
+          <details><summary>Guided dashboard builder (entry)</summary><p class="muted">Dashboard builder <code>guided/*</code> stages — full architecture in the <strong>Guided blueprint</strong> tab.</p></details>
+        </section>
+
+        <section id="panel-guided-blueprint" class="panel" aria-labelledby="guided-blueprint-title">
+          <h2 class="section-title" id="guided-blueprint-title">Guided dashboard blueprint</h2>
+          <p class="prose">The <strong>guided builder</strong> is an NL-first path to designing a dashboard on top of the semantic layer. It lives in the dashboard builder (<span class="mono">components/inspector/dashboard-builder/guided/*</span>), not in Inspector chat. <strong>Blueprint</strong> is stage 2: a reviewable outline of 4–6 proposed charts before any widgets are pinned or queries run at scale.</p>
+
+          <div class="callout info">
+            <strong>One sentence:</strong> You state the business decision the dashboard should answer; the platform resolves terms against the catalog, proposes a storyboard of charts, grounds every field id server-side, then you curate and drill in to live widgets.
+          </div>
+
+          <h3>Why it exists (value)</h3>
+          <ul class="prose">
+            <li><strong>Speed</strong> — First layout from one question instead of adding widgets one by one.</li>
+            <li><strong>Governance</strong> — Charts reference <em>catalog measure/dimension ids</em>; invented ids cannot survive grounding.</li>
+            <li><strong>Transparency</strong> — Each card has a rationale; missing metrics surface as “define it” rows, not silent wrong SQL.</li>
+            <li><strong>Separation from chat</strong> — Inspector chat explores (SQL, tools, many agent loops). Blueprint <em>authors</em> a governed dashboard spec.</li>
+          </ul>
+
+          <h3>Three stages (guided flow)</h3>
+          <table>
+            <thead><tr><th>Stage</th><th>UI</th><th>What runs</th><th>Output</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>1 — Intent</strong></td>
+                <td><code>IntentStage.tsx</code></td>
+                <td><code>POST …/resolve-intent</code> — deterministic term classification + optional embedding assist (<code>intent-resolve.ts</code>, <code>matchIntents</code>). <strong>Not</strong> a tool-using agent.</td>
+                <td><code>ResolvedIntent</code> — topic, modelId, relevant field ids, four-state disambiguations (matched / ambiguous / not_governed / unrecognized).</td>
+              </tr>
+              <tr>
+                <td><strong>2 — Blueprint</strong></td>
+                <td><code>BlueprintStage.tsx</code></td>
+                <td><code>POST …/blueprint</code> — one Bedrock turn with forced <code>propose_blueprint</code> tool, then <code>groundBlueprint()</code>. Optional <code>…/blueprint/refine-item</code> per card.</td>
+                <td><code>GuidedBlueprint</code> — 4–6 <code>ChartBlueprint</code> items (spec only; not executed here).</td>
+              </tr>
+              <tr>
+                <td><strong>3 — Drill-in</strong></td>
+                <td><code>DrillInStage.tsx</code></td>
+                <td><code>blueprintToWidgetSpec</code>, <code>useWidgetPreview</code>, semantic <code>executeSemanticQuery</code> for previews.</td>
+                <td>Live widget specs on the dashboard draft; same compiler path as published dashboards.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="loop-diagram">User topic (Intent)
+    → resolve-intent (rules + embeddings)
+    → propose_blueprint (LLM, single forced tool)
+    → blueprint-ground (server catalog intersect — no LLM)
+    → user curates / refine-item / inline define
+    → Drill-in → widget SemanticQuery → dashboard publish</div>
+
+          <h3>LLM vs agent (important)</h3>
+          <table>
+            <thead><tr><th>Surface</th><th>Pattern</th><th>Typical loops</th></tr></thead>
+            <tbody>
+              <tr><td>Inspector chat</td><td>Full <code>runAgentLoop</code> — many tools (<code>execute_tool</code>, <code>emit_semantic_chart</code>, …)</td><td>Up to <code>INSPECTOR_MAX_LOOPS</code> (default 15) per user message</td></tr>
+              <tr><td>Blueprint propose / refine</td><td>Same loop helper, but <strong>one</strong> forced tool (<code>toolChoice: propose_blueprint</code>) and <code>abortSignal</code> after capture</td><td><code>maxLoops: 2</code> is a technical minimum so tools stay enabled on the first round — usually <strong>one</strong> model round-trip, not multi-step exploration</td></tr>
+              <tr><td>resolve-intent</td><td>No agent loop</td><td>N/A</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Propose vs ground (trust model)</h3>
+          <div class="def-block">
+            <h4>Model proposes — server grounds</h4>
+            <dl>
+              <dt><code>blueprint-propose.ts</code></dt>
+              <dd>Tool schema, system prompt (catalog-only, cacheable), parser for raw chart JSON. Persuasion only.</dd>
+              <dt><code>blueprint-ground.ts</code></dt>
+              <dd>Pure function: every output id must be in the catalog load; unknown ids dropped. Missing metrics → <code>grounding: 'undefined'</code> + <code>undefinedTerm</code> (define-it path), never a fabricated id.</dd>
+              <dt><code>recommendChartKind</code></dt>
+              <dd>Chart type guess delegated to shipped recommender — blueprint does not invent chart logic twice.</dd>
+            </dl>
+          </div>
+
+          <h3>APIs</h3>
+          <table>
+            <thead><tr><th>Method</th><th>Route</th><th>Body / notes</th></tr></thead>
+            <tbody>
+              <tr><td>POST</td><td><code>/api/inspector/semantic/[modelId]/resolve-intent</code></td><td><code>{ topic, terms? }</code> — stage 1</td></tr>
+              <tr><td>POST</td><td><code>/api/inspector/semantic/[modelId]/blueprint</code></td><td><code>{ intent: ResolvedIntent }</code> → <code>GuidedBlueprint</code></td></tr>
+              <tr><td>POST</td><td><code>…/blueprint/refine-item</code></td><td><code>{ intent, item, feedback }</code> — one card; preserves <code>item.id</code></td></tr>
+            </tbody>
+          </table>
+          <p class="muted">Model env: <code>INSPECTOR_BLUEPRINT_MODEL_ID</code> (default Claude Sonnet). Extended thinking is off for forced-tool turns.</p>
+
+          <h3>Key types &amp; files</h3>
+          <table>
+            <thead><tr><th>Artifact</th><th>Location</th></tr></thead>
+            <tbody>
+              <tr><td><code>ResolvedIntent</code>, <code>ChartBlueprint</code>, <code>GuidedBlueprint</code></td><td><code>src/lib/dashboards/guided-types.ts</code></td></tr>
+              <tr><td>UI stages + prefetch</td><td><code>src/components/inspector/dashboard-builder/guided/</code>, <code>blueprint-prefetch.ts</code></td></tr>
+              <tr><td>State</td><td><code>builder-store.ts</code> → <code>guidedSession.intent</code>, <code>guidedSession.blueprint</code></td></tr>
+              <tr><td>Routes</td><td><code>src/app/api/inspector/semantic/[modelId]/blueprint/route.ts</code>, <code>refine-item/route.ts</code>, <code>resolve-intent/route.ts</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Per-item grounding states</h3>
+          <ul class="prose">
+            <li><code>grounding: 'governed'</code> — all measure/dimension refs resolved to catalog ids.</li>
+            <li><code>grounding: 'undefined'</code> — placeholder card; UI nudges define/govern via Teach or inline authoring (<code>pendingDefinition</code> ladder on the item).</li>
+            <li><code>modelStatus</code> on the whole blueprint (<code>governed</code> | <code>candidate</code>) — banner only; one dashboard binds one semantic model.</li>
+          </ul>
+
+          <details><summary>Compared to “pin from Inspector chat”</summary>
+            <p class="muted">Pinning captures a chart you already ran in chat. Guided blueprint designs a <em>multi-chart dashboard</em> from a decision question before exploration — both end on semantic widget specs, different entry paths.</p>
+          </details>
+          <details><summary>Docs &amp; tests</summary>
+            <p class="muted"><code>docs/inspector-guided/</code> · <code>BlueprintStage.*.test.tsx</code> · <code>lib/dashboards/__tests__/blueprint-*.test.ts</code></p>
+          </details>
+        </section>
+
+        <section id="panel-integrations" class="panel" aria-labelledby="integrations-title">
+          <h2 class="section-title" id="integrations-title">Inspector &amp; dashboards</h2>
+          <p class="prose">This section is <strong>phase 9 (use)</strong> and parts of <strong>phase 11 (improve)</strong> in the <a href="#playbook">playbook</a>. Inspector is the main <strong>consumer</strong> of the semantic layer. Dashboards store semantic widget specs and re-run the same execution path when viewers refresh data.</p>
+          <div class="def-block">
+            <h4><code>buildSemanticContext</code></h4>
+            <dl>
+              <dt>Purpose</dt><dd>Inject a short list of governed entities/measures into the system prompt so the model knows what official names exist.</dd>
+              <dt>Advantage</dt><dd>Cheaper and more accurate than dumping entire schemas; optional embedding rank surfaces relevant tables first.</dd>
+              <dt>Limitation</dt><dd>Runs once per chat session init — not on every tool call.</dd>
+            </dl>
+          </div>
+          <details open><summary>inspector/chat/route.ts</summary><ul class="muted"><li>buildSemanticContext when connection resolves</li><li>emit_semantic_chart + disambiguation tools when hasSemantic</li><li>Client renders disambiguation chips; wait for user pick</li></ul></details>
+          <details><summary>chart-pipeline.ts</summary><p class="muted">Model must be governed; draft/archived IDs excluded; executeSemanticQuery without authoring.</p></details>
+          <details><summary>intent-match + embeddings</summary><p class="muted">nl_intent → upsertIntentEmbedding. Backfill: scripts/backfill-nl-intent-embeddings.ts</p></details>
+          <details><summary>lineage.ts</summary><p class="muted">Dashboard widget semanticQuery IDs → consumer edges; governanceSummary for bootstrap models.</p></details>
+          <details open><summary>Guided blueprint (dashboard authoring)</summary>
+            <p class="muted">NL dashboard outline: Intent → forced <code>propose_blueprint</code> → <code>blueprint-ground.ts</code>. Not Inspector chat agent. Full walkthrough: <a href="#guided-blueprint" onclick="document.querySelector('[data-tab=guided-blueprint]')?.click();return false;">Guided blueprint</a> tab.</p>
+          </details>
+          <details><summary>blueprint-ground.ts</summary><p class="muted">Set-membership guard: output ids ⊆ catalog; undefined terms → define-it cards, never invented ids.</p></details>
+        </section>
+
+        <section id="panel-estate" class="panel" aria-labelledby="estate-title">
+          <h2 class="section-title" id="estate-title">Context pipeline T0–T4 — architecture &amp; depth</h2>
+          <p class="prose">The <strong>context harvester</strong> (Data Estate) builds a searchable catalog in Aurora from Databricks. It <strong>feeds</strong> Inspector, Mapper, and (when enabled) semantic bootstrap — but it is <strong>not</strong> the governed semantic layer (<code>platform_sem_*</code>). Full estate UI detail: <a href="context-harvesting-guide.html">context-harvesting-guide.html</a>. Example rows per tier + T4 output: <a href="#t4-samples" onclick="document.querySelector('[data-tab=t4]')?.click();return false;">Sample data atlas</a>.</p>
+
+          <div class="callout info">
+            <strong>Which tables get harvested / bootstrapped?</strong> Start with source <code>scope_include</code> / <code>scope_exclude</code> (permanent fence), then optional per-job <code>includePatterns</code> / <code>excludeSchemas</code> on Estate Jobs. Plain-English guide + <code>curated_db.addressable_market</code> example: <a href="context-harvesting-guide.html#source-scope">context-harvesting-guide → Source scope</a>.
+          </div>
+
+          <div class="callout info">
+            <strong>Quick answers:</strong>
+            <ul style="margin:0.5rem 0 0 1rem;padding:0">
+              <li><strong>Do we have T2?</strong> Yes — job <code>t2_semantic</code> in <code>src/lib/context/enrich.ts</code> (Bedrock Sonnet describes tables/columns).</li>
+              <li><strong>Do we have T3?</strong> <code>t3_usage</code> is implemented (weekly cron + Jobs); see <a href="context-harvesting-guide.html#step-t3">context-harvesting → T3</a>. <code>t3_connected</code> is UI-only — use <code>t3_usage</code>.</li>
+              <li><strong>Embeddings?</strong> Separate job <code>embed</code> — often documented as “search tier”; writes <code>platform_context_embeddings</code>. Implemented in orchestrator; uses Azure <code>text-embedding-3-large</code> (not warehouse SQL).</li>
+              <li><strong>T4?</strong> Designed to propose <code>platform_sem_*</code> rows — <strong>stubbed</strong> in this repo (jobs finalize as <code>failed</code>).</li>
+            </ul>
+          </div>
+
+          <h3>Two naming schemes (read this once)</h3>
+          <p class="prose">Docs and UI mix <em>tier numbers</em> (T0, T1, …) with <em>job kinds</em> in <code>platform_context_jobs.job_kind</code>. They are related but not identical.</p>
+          <table>
+            <thead><tr><th>People say</th><th>Job kind(s)</th><th>Stamp on object</th><th>Status in aloft-d360</th></tr></thead>
+            <tbody>
+              <tr><td><strong>T0</strong> structural</td><td><code>t0_structural</code>, often after <code>change_detect</code></td><td><code>last_t0_at</code></td><td>Live — Databricks SQL via <code>DatabricksAdapter</code></td></tr>
+              <tr><td><strong>T1</strong> profile</td><td><code>t1_profile</code></td><td><code>last_t1_at</code></td><td>Live — samples/stats in profile tables</td></tr>
+              <tr><td><strong>T2</strong> semantic enrich</td><td><code>t2_semantic</code></td><td><code>last_t2_at</code></td><td>Live — LLM object cards + column <code>semantic</code> JSON</td></tr>
+              <tr><td>Search / “T3 embed” (Inspector doc)</td><td><code>embed</code></td><td>(embeddings table, not <code>last_t3_at</code>)</td><td>Live in orchestrator</td></tr>
+              <tr><td><strong>T3</strong> usage (architecture)</td><td><code>t3_usage</code></td><td><code>last_t3_at</code>, <code>usage_evidence_at</code></td><td>Live — query history + lineage + optional narrative</td></tr>
+              <tr><td><strong>T3</strong> connected</td><td><code>t3_connected</code></td><td>UI claims <code>last_t3_at</code></td><td><strong>Not wired</strong> in orchestrator</td></tr>
+              <tr><td><strong>T4</strong> semantic bootstrap</td><td><code>t4_scan</code> → <code>t4_entity_propose</code> → <code>t4_dim_propose</code></td><td><code>last_t4_at</code> (when ported)</td><td><strong>Stubbed</strong> — fails loudly</td></tr>
+              <tr><td>Estate inventory</td><td><code>estate_inventory</code></td><td>estate mirror tables</td><td>Live — parallel to per-object T0</td></tr>
+            </tbody>
+          </table>
+
+          <details class="sample-fold"><summary>Sample: harvest job rows (T0 → T2) on one table</summary>
+            <div class="sample-fold-body">
+              <table class="sample-rows">
+                <thead><tr><th>job_kind</th><th>scope (sample)</th><th>Writes</th></tr></thead>
+                <tbody>
+                  <tr><td><code>t0_structural</code></td><td><code>{ "path": "current_db.drifter.process_flow_log_user" }</code></td><td>Columns in <code>platform_context_columns</code></td></tr>
+                  <tr><td><code>t1_profile</code></td><td>same path / source</td><td>Profile stats on columns</td></tr>
+                  <tr><td><code>t2_semantic</code></td><td>source-wide or partition</td><td>Object card + column <code>semantic</code> JSON — see <a href="#sample-context-col">atlas C</a></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <h3>Runtime architecture</h3>
+          <p class="prose">Work is queued in Aurora, executed by a long-running worker on <strong>ECS Fargate</strong> (or locally when <code>HARVEST_RUNTIME=local</code>).</p>
+          <div class="loop-diagram">EventBridge (daily/weekly) or Agent Lab → POST …/context/jobs/launch
+    → platform_context_jobs (queued)
+    → ECS task: npx tsx scripts/context/orchestrator.ts [--sweep | --kind &lt;kind&gt;]
+    → claimNext / dispatchSingleJob
+    → Databricks SQL (T0/T1/T3) and/or Bedrock/Azure (T2/T3 narrative/embed)
+    → upsert platform_context_* (+ optional advanceChain to next job kind)</div>
+          <table>
+            <thead><tr><th>Component</th><th>Path / resource</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>Entry point</td><td><code>scripts/context/orchestrator.ts</code></td><td>Switch on <code>job_kind</code>; stale-job reap; auto-split children; chain advancement</td></tr>
+              <tr><td>Queue</td><td><code>src/lib/context/queue.ts</code></td><td>enqueue, claim, finalize, planSplit, Fargate <code>launchHarvesterTask</code></td></tr>
+              <tr><td>T0 runner</td><td><code>src/lib/context/harvest.ts</code> → <code>runT0Harvest</code></td><td>Full scope or delta via <code>detectChanges</code></td></tr>
+              <tr><td>T1 runner</td><td><code>harvest.ts</code> → <code>runT1Profile</code></td><td>Column profiling; respects partition scope for child jobs</td></tr>
+              <tr><td>T2 runner</td><td><code>src/lib/context/enrich.ts</code> → <code>runT2Enrich</code></td><td><strong>No warehouse access</strong> — reads context tables only; calls Bedrock for cards</td></tr>
+              <tr><td>Embed</td><td><code>src/lib/context/embed.ts</code></td><td>Compose deterministic <code>embed_text</code>; Azure embeddings → <code>platform_context_embeddings</code></td></tr>
+              <tr><td>T3 usage</td><td><code>src/lib/context/usage.ts</code> → <code>runT3Usage</code></td><td>Pulls history/lineage from Databricks; may spawn continuation jobs</td></tr>
+              <tr><td>Launch API</td><td><code>src/app/api/agent-lab/context/jobs/launch/route.ts</code></td><td>Valid kinds; optional <code>scope.chain</code> for T0→T1→T2→…</td></tr>
+              <tr><td>Infra</td><td><code>infra/context/eventbridge-rule.json</code></td><td>Schedules for change_detect, t1_profile, estate_inventory, t4_scan, t3_usage</td></tr>
+            </tbody>
+          </table>
+
+          <h3 id="t0-deep-dive">T0 — structural harvest (<code>t0_structural</code>)</h3>
+          <div class="callout info"><strong>Also documented in</strong> <a href="context-harvesting-guide.html#step-t0-deep">context-harvesting-guide → T0 deep dive</a> (same pipeline; this section is the semantic-guide cross-reference for stewards).</div>
+          <div class="def-block">
+            <h4>What it does</h4>
+            <dl>
+              <dt>Purpose</dt><dd>Discover tables/views and column metadata from the warehouse and mirror them into Aurora.</dd>
+              <dt>How</dt><dd><code>DatabricksAdapter.resolveScope</code> (first run / forced / includePatterns) or <code>detectChanges</code> (delta since <code>last_sweep_at</code>). Then <code>harvestStructure</code> per ref.</dd>
+              <dt>Writes</dt><dd><code>platform_context_objects</code>, <code>platform_context_columns</code>; sets <code>last_t0_at</code>, <code>lifecycle</code>; syncs <code>platform_estate_objects</code>; updates source <code>last_sweep_at</code> on full-scope runs.</dd>
+              <dt>Example</dt><dd><code>change_detect</code> sees altered <code>marine.gold.inspections</code> → enqueues T0 with <code>scope.path</code> for that object only.</dd>
+              <dt>Not</dt><dd>Does not compute aggregates, LLM text, embeddings, usage history, or <code>platform_sem_*</code> metrics.</dd>
+            </dl>
+          </div>
+
+          <div class="callout info">
+            <strong>Queue vs run:</strong> “Harvest Now” on a source only enqueues <code>t0_structural</code>. Something must run the harvester (<code>POST …/jobs/launch</code>, ECS schedule, or <code>HARVEST_RUNTIME=local</code>). <strong>Reharvest All</strong> on an object enqueues and launches workers. See <a href="context-harvesting-guide.html#step-t0-deep">context-harvesting-guide → T0 deep dive</a> for the full UI/API/table map.
+          </div>
+
+          <h4>UI entry points</h4>
+          <table>
+            <thead><tr><th>Where in Agent Lab</th><th>What happens</th><th>Worker started?</th></tr></thead>
+            <tbody>
+              <tr><td>Estate → Sources → <strong>Harvest Now</strong></td><td><code>POST /api/agent-lab/context/sources/{id}/harvest</code></td><td>Queue only</td></tr>
+              <tr><td>Object → Re-harvest → <strong>T0 Structural</strong></td><td><code>POST /api/agent-lab/context/jobs/trigger</code> (<code>kind: t0_structural</code>)</td><td>Queue only (source-wide unless scope set)</td></tr>
+              <tr><td>Object → <strong>Reharvest All</strong></td><td><code>POST …/objects/{id}/reharvest-all</code> with <code>scope.path</code></td><td>Enqueue + <code>launchHarvesterTask</code></td></tr>
+              <tr><td>Estate → Jobs → <strong>Launch</strong></td><td><code>POST …/jobs/launch</code> (+ optional <code>scope.chain</code>)</td><td>Enqueue + worker</td></tr>
+              <tr><td>T4 diagram — click <strong>T0</strong> box</td><td>Popup summary (same pipeline step)</td><td>—</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Execution steps (<code>runT0Harvest</code>)</h4>
+          <ol class="prose">
+            <li>Load <code>platform_context_sources</code> and decide full vs delta (<code>last_sweep_at</code>, <code>includePatterns</code>, <code>forceFullScan</code>).</li>
+            <li>Load <code>platform_databricks_connections</code>; run SQL via <code>DatabricksAdapter</code>.</li>
+            <li><code>resolveScope</code> or <code>detectChanges</code> → list of <code>catalog.schema.table</code> refs.</li>
+            <li><code>harvestStructure</code> → column metadata per ref.</li>
+            <li>Upsert <code>platform_context_objects</code> (<code>last_t0_at</code>) and <code>platform_context_columns</code>.</li>
+            <li>Full sweep: mark vanished tables <code>lifecycle: dropped</code> (scoped when using <code>includePatterns</code>).</li>
+            <li><code>syncEstateFromHarvest</code> → <code>platform_estate_objects</code>.</li>
+            <li>Update <code>last_sweep_at</code> on source (skip for subset <code>includePatterns</code> runs).</li>
+            <li>Orchestrator <code>finalize</code> + optional <code>advanceChain</code> to T1.</li>
+          </ol>
+
+          <h4>Tables (T0 and neighbors)</h4>
+          <table>
+            <thead><tr><th>Table</th><th>T0</th><th>Later tiers</th></tr></thead>
+            <tbody>
+              <tr><td><code>platform_context_sources</code></td><td>Read; <code>last_sweep_at</code></td><td>Scope fence for all jobs</td></tr>
+              <tr><td><code>platform_context_objects</code></td><td>Upsert; <code>last_t0_at</code></td><td><code>last_t1_at</code> … <code>last_t4_at</code></td></tr>
+              <tr><td><code>platform_context_columns</code></td><td>Upsert structure</td><td>profile / semantic JSON</td></tr>
+              <tr><td><code>platform_context_jobs</code></td><td>Queue + stats</td><td>All job kinds</td></tr>
+              <tr><td><code>platform_estate_objects</code></td><td>Synced from T0</td><td>Discovery UI</td></tr>
+              <tr><td><code>platform_context_profiles</code></td><td>—</td><td>T1</td></tr>
+              <tr><td><code>platform_context_embeddings</code></td><td>—</td><td><code>embed</code></td></tr>
+              <tr><td><code>platform_sem_*</code></td><td>—</td><td>T4 + steward promote</td></tr>
+            </tbody>
+          </table>
+
+          <h4>Pipeline position</h4>
+          <div class="loop-diagram">Databricks information_schema
+  → T0 (inventory in Aurora)
+  → T1 (profiles) → T2 (LLM cards) → embed (vectors)
+  → T3 usage (source-wide) → T4 proposals → governed platform_sem_*
+Inspector harvested mode reads Aurora context tables — not live Databricks structure on every question.</div>
+
+          <p class="muted">Runnable detail + mermaid flow: <a href="context-harvesting-guide.html#step-t0-deep">context-harvesting-guide.html#step-t0-deep</a>. Prisma fields: <a href="all-database-tables-guide.html">all-database-tables-guide</a> → <code>platform_context_objects</code>.</p>
+
+          <h3>T1 — profiling (<code>t1_profile</code>)</h3>
+          <div class="def-block">
+            <h4>What it does</h4>
+            <dl>
+              <dt>Purpose</dt><dd>Attach statistics and sample values so stewards (and T2) know null rates, cardinalities, and top values.</dd>
+              <dt>How</dt><dd>Warehouse queries per object (budgeted); results saved via <code>saveProfile</code> in <code>profile.ts</code>.</dd>
+              <dt>Writes</dt><dd>Profile JSON on columns/objects; <code>last_t1_at</code>. Catalog UI can show “profiled vs stale” when <code>last_t1_at &lt; last_t0_at</code>.</dd>
+              <dt>Schedule</dt><dd>Weekly EventBridge <code>aloft-context-harvester-weekly</code> runs <code>--kind t1_profile</code>.</dd>
+            </dl>
+          </div>
+
+          <h3>T2 — semantic enrichment (<code>t2_semantic</code>)</h3>
+          <div class="def-block">
+            <h4>What it does</h4>
+            <dl>
+              <dt>Purpose</dt><dd>Turn dry schema into business language: object summary, grain, key columns, PII hints, FK guesses, column roles.</dd>
+              <dt>How</dt><dd>Bedrock Claude Sonnet with Zod-validated JSON (<code>ObjectCardSchema</code>, <code>ColumnSemanticLlmSchema</code>). Can incorporate <code>getUsageSignalsForEnrich</code> when T3 usage already ran.</dd>
+              <dt>Writes</dt><dd>Object semantic card + column <code>semantic</code> field; <code>last_t2_at</code>; job stats include <code>cost_usd</code> (used for T2 cost estimates).</dd>
+              <dt>Cost</dt><dd>On-demand launches show a warning in Jobs UI — token spend is real. Concurrency capped via <code>T2_MAX_CONCURRENT</code>.</dd>
+              <dt>Not</dt><dd>Not governance: descriptions do not become <code>platform_sem_measures</code> until a steward authors or T4 proposes rows.</dd>
+            </dl>
+          </div>
+
+          <h3>Embed job — catalog semantic search (often grouped with enrichment)</h3>
+          <div class="def-block">
+            <h4>What it does</h4>
+            <dl>
+              <dt>Purpose</dt><dd>Let <code>describe_schema</code> / catalog search rank objects and columns by meaning, not only keywords.</dd>
+              <dt>Eligibility</dt><dd>Objects with <code>last_t2_at</code>; columns with non-null <code>semantic</code>.</dd>
+              <dt>How</dt><dd>Deterministic text composition → Azure embedding → <code>platform_context_embeddings</code> (pgvector).</dd>
+              <dt>Note</dt><dd><code>inspector-context-modes.md</code> labels this stage “T3 embeddings”; job kind remains <code>embed</code> to avoid clashing with <code>t3_usage</code>.</dd>
+            </dl>
+          </div>
+
+          <h3>T3 — usage &amp; lineage (<code>t3_usage</code>)</h3>
+          <div class="def-block">
+            <h4>What it does</h4>
+            <dl>
+              <dt>Purpose</dt><dd>Learn how tables are <em>actually used</em>: filters, joins, projections, lineage edges — then optional LLM “usage narrative.”</dd>
+              <dt>Scope</dt><dd><strong>Source-wide</strong>, not per-table reharvest (excluded from <code>reharvest-all</code> on purpose).</dd>
+              <dt>How</dt><dd>Scans Databricks query history + table/column lineage (row caps); scores objects; writes usage snapshots; top objects get Bedrock narrative with strict “no invented columns” rules.</dd>
+              <dt>Continuation</dt><dd>If history exceeds row cap, orchestrator enqueues another <code>t3_usage</code> with <code>since</code>/<code>until</code> and launches a follow-up Fargate task.</dd>
+              <dt>Schedule</dt><dd><code>aloft-t3-usage-weekly</code> in <code>eventbridge-rule.json</code> (Saturday 05:00 UTC in template).</dd>
+            </dl>
+          </div>
+          <div class="callout warn"><strong><code>t3_connected</code>:</strong> Listed on Agent Lab → Estate → Jobs as “T3 Connected” but there is <em>no</em> <code>case 't3_connected'</code> in <code>orchestrator.ts</code>. Treat as planned/plumbing only until a handler ships.</div>
+
+          <h3>T4 — semantic bootstrap</h3>
+          <p class="prose">T4 is the only harvest tier that writes <strong><code>platform_sem_*</code></strong>. <strong>All T4 depth</strong> (diagrams, job tree, sample atlas, steps 1–12, re-enable checklist) lives in one place: the <a href="#t4" onclick="document.querySelector('[data-tab=t4]')?.click();return false;">T4 visual guide</a> tab — not duplicated here.</p>
+          <div class="callout warn">
+            <strong>Current repo:</strong> T4 cases in <code>orchestrator.ts</code> finalize as <code>failed</code> until <code>t4-handlers.ts</code> and <code>scripts/inspector/</code> are ported. See <a href="#gaps" onclick="document.querySelector('[data-tab=gaps]')?.click();return false;">Gaps &amp; env</a> for the full list.
+          </div>
+
+          <h3>Job chains, splits, and schedules</h3>
+          <ul class="prose">
+            <li><strong>Chain:</strong> When launching T0/T1/T2 from the API, pass <code>scope.chain</code> (e.g. <code>['t1_profile','t2_semantic','embed']</code>). After a top-level job succeeds, <code>advanceChain</code> enqueues the next kind and starts another worker.</li>
+            <li><strong>Auto-split:</strong> Large T0/T1/T2 jobs partition by catalog/schema; child tasks run with <code>--child-job</code>; parent stats aggregate in queue layer.</li>
+            <li><strong>Daily sweep:</strong> <code>--sweep</code> enqueues <code>change_detect</code> per active source → changed refs → <code>t0_structural</code>.</li>
+          </ul>
+          <table>
+            <thead><tr><th>EventBridge rule (infra template)</th><th>Command</th></tr></thead>
+            <tbody>
+              <tr><td><code>aloft-context-harvester-daily</code></td><td><code>orchestrator.ts --sweep</code></td></tr>
+              <tr><td><code>aloft-context-harvester-weekly</code></td><td><code>--kind t1_profile</code></td></tr>
+              <tr><td><code>aloft-estate-inventory-weekly</code></td><td><code>--kind estate_inventory</code></td></tr>
+              <tr><td><code>aloft-t4-semantic-bootstrap-weekly</code></td><td><code>--kind t4_scan</code> (fails until ported)</td></tr>
+              <tr><td><code>aloft-t3-usage-weekly</code></td><td><code>--kind t3_usage</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>How this connects to the semantic layer</h3>
+          <table>
+            <thead><tr><th>Plane</th><th>Tables</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>Context T0–T2 + embed</td><td><code>platform_context_*</code></td><td>Discovery, profiling, AI descriptions, search vectors</td></tr>
+              <tr><td>T3 usage</td><td>usage snapshots + narratives on objects</td><td>Improves T2 prompts and steward prioritization</td></tr>
+              <tr><td>Estate trust</td><td><code>platform_context_semantics</code></td><td><code>confirm-semantic</code>: assumed → confirmed → certified (not metric promotion)</td></tr>
+              <tr><td>Semantic layer</td><td><code>platform_sem_*</code></td><td>Governed metrics — human authoring today; T4 intended to propose candidates</td></tr>
+              <tr><td>Bridge</td><td><code>full_path</code> alignment</td><td>Entity rows point at warehouse paths harvested in T0</td></tr>
+            </tbody>
+          </table>
+          <div class="def-block">
+            <h4><code>confirm-semantic</code> (estate trust)</h4>
+            <dl>
+              <dt>Definition</dt><dd>Steward marks an AI-generated <em>description card</em> on a context object as confirmed or certified.</dd>
+              <dt>Purpose</dt><dd>Quality signal on harvested metadata — “we trust this column description.”</dd>
+              <dt>Not the same as</dt><dd>Promoting a measure to <span class="pill governed">governed</span> in <code>platform_sem_measures</code>.</dd>
+            </dl>
+          </div>
+          <pre class="code">Intended T4 outcome (when ported):
+platform_semantic_models (source_type=auto_bootstrap)
+  → platform_sem_entities per table (candidate, created_by NULL)
+  → platform_sem_dimensions / platform_sem_measures proposed
+Stewards submit user-authored drafts; T4/system rows cannot submit until a human owns them.</pre>
+          <p class="muted">No <code>platform_semantic_models.create</code> in app code — greenfield needs seed, working T4, or manual DB insert. See <a href="#gaps">Gaps &amp; env</a> and <a href="#t4">T4 deep dive</a>.</p>
+        </section>
+
+        <section id="panel-t4" class="panel" aria-labelledby="t4-title">
+          <h2 class="section-title" id="t4-title">T4 — how the semantic layer gets built (visual guide)</h2>
+          <div class="read-order">
+            <strong>Start here:</strong> One-minute story → <strong>click layers &amp; diagram boxes</strong> for details → <a href="#t4-samples">sample data atlas</a> → steps below.
+          </div>
+
+          <div class="one-minute">
+            <strong>In one minute:</strong> Harvesting (T0–T2) writes a <em>catalog</em> in Aurora (“what tables exist and what columns mean”). <strong>T4</strong> is an automated job that reads that catalog, asks an LLM (Bedrock) to propose <em>official metric definitions</em>, and saves them as <strong>candidate</strong> rows in the <em>semantic layer</em>. Stewards then <strong>promote</strong> the good ones to <strong>governed</strong> so Inspector and dashboards can use them safely. T4 does not run SQL for end users — it only <em>creates metadata</em> in PostgreSQL.
+          </div>
+
+          <div class="legend-row" aria-label="Color legend">
+            <span class="legend-item"><span class="legend-swatch" style="background:#e8f4fc"></span> Databricks (data)</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#f0fdf4"></span> Context catalog (T0–T2)</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:rgba(253,181,21,0.45)"></span> T4 jobs + LLM</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#ede9fe"></span> Semantic layer (metrics)</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:#fff7ed"></span> Inspector / dashboards</span>
+          </div>
+
+          <h3>The big picture — five layers (top to bottom)</h3>
+          <p class="diagram-caption">Think of data flowing downward: warehouse → catalog → T4 proposes metrics → you govern → apps consume.</p>
+          <div class="arch-stack">
+            <div class="arch-layer layer-warehouse clickable" data-t4-block="databricks" role="button" tabindex="0">
+              <h4>① Databricks warehouse</h4>
+              <p>Real tables: <code>catalog.schema.table</code> and columns. T0–T1 read this with SQL.</p>
+            </div>
+            <div class="arch-connector">▼ T0 inventory · T1 profile · T2 AI descriptions</div>
+            <div class="arch-layer layer-context clickable" data-t4-block="context-catalog" role="button" tabindex="0">
+              <h4>② Context catalog (Aurora <code>platform_context_*</code>)</h4>
+              <p>Not the semantic layer — discovery metadata, profiles, and AI “cards” per table/column.</p>
+            </div>
+            <div class="arch-connector">▼ T4 scan → entity propose → dim propose (Bedrock)</div>
+            <div class="arch-layer layer-t4 clickable" data-t4-block="t4-pipeline" role="button" tabindex="0">
+              <h4>③ T4 bootstrap (Fargate jobs)</h4>
+              <p>Reads context catalog only; writes <strong>candidate</strong> entities, dimensions, measures, joins.</p>
+            </div>
+            <div class="arch-connector">▼ Rows in <code>platform_sem_*</code></div>
+            <div class="arch-layer layer-semantic clickable" data-t4-block="semantic-layer" role="button" tabindex="0">
+              <h4>④ Semantic layer (Aurora <code>platform_sem_*</code>)</h4>
+              <p>Business names, aggregates, join rules — compiled to SQL when users ask governed questions.</p>
+            </div>
+            <div class="arch-connector">▼ Promote trusted defs to GOVERNED</div>
+            <div class="arch-layer layer-use clickable" data-t4-block="production-use" role="button" tabindex="0">
+              <h4>⑤ Production use</h4>
+              <p>Inspector <code>emit_semantic_chart</code>, Metrics catalog, dashboard widgets, Entities page.</p>
+            </div>
+          </div>
+
+          <div id="t4-detail-panel" class="t4-detail-panel empty" aria-live="polite">
+            <p class="t4-detail-placeholder"><strong>Hover</strong> any layer or diagram box for a quick summary; <strong>click</strong> for full purpose, steps, and samples. Quick picks:</p>
+            <div class="t4-quick-picks" id="t4-quick-picks"></div>
+            <div class="t4-detail-body"></div>
+          </div>
+
+          <h3>End-to-end flow (diagram)</h3>
+          <p class="diagram-caption">Hover or click a box for details. Solid arrows = metadata movement.</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid" id="mermaid-t4-e2e">flowchart TB
+  subgraph WH["Databricks"]
+    TBL[("Tables and columns")]
+  end
+  subgraph HARV["Harvester on ECS Fargate"]
+    T0[T0 structural]
+    T1[T1 profile]
+    T2[T2 semantic enrich]
+  end
+  subgraph CTX["Aurora context catalog"]
+    PCO[(platform_context_objects)]
+  end
+  subgraph T4J["T4 job tree"]
+    SCAN[t4_scan coordinator]
+    EP[t4_entity_propose per schema]
+    DP[t4_dim_propose per table]
+    BR{{Bedrock LLM}}
+  end
+  subgraph SEM["Aurora semantic layer"]
+    MODEL[(platform_semantic_models)]
+    ENT[(entities dimensions measures joins)]
+  end
+  subgraph GOV["People and apps"]
+    ST[Stewards promote]
+    APP[Inspector and dashboards]
+  end
+  TBL --> T0 --> T1 --> T2 --> PCO
+  PCO --> SCAN --> EP --> DP
+  EP --> BR
+  DP --> BR
+  SCAN --> MODEL
+  EP --> ENT
+  DP --> ENT
+  ENT --> ST --> APP</pre>
+          </div>
+
+          <h3>Runtime architecture — what actually runs</h3>
+          <p class="diagram-caption">Click a box: EventBridge, UI, Fargate, orchestrator, queue, Aurora, Bedrock.</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid" id="mermaid-t4-runtime">flowchart LR
+  EB[EventBridge weekly]
+  UI[Agent Lab Jobs UI]
+  API[jobs launch API]
+  ECS[ECS Fargate task]
+  ORCH[orchestrator.ts]
+  Q[(platform_context_jobs queue)]
+  AUR[(Aurora PostgreSQL)]
+  BR[AWS Bedrock]
+  EB --> ECS
+  UI --> API --> ECS
+  ECS --> ORCH
+  ORCH --> Q
+  ORCH --> AUR
+  ORCH --> BR</pre>
+          </div>
+
+          <h3>Inside T4 — three jobs, parent and child</h3>
+          <p class="diagram-caption">Click SCAN, EP, or DP nodes for job-level detail and samples.</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid" id="mermaid-t4-jobs">flowchart TB
+  SCAN["t4_scan\n1 coordinator per run\nadvisory lock"]
+  EP1["t4_entity_propose\nschema A"]
+  EP2["t4_entity_propose\nschema B"]
+  DP1["t4_dim_propose\ntable 1"]
+  DP2["t4_dim_propose\ntable 2"]
+  DP3["t4_dim_propose\ntable N"]
+  SCAN --> EP1
+  SCAN --> EP2
+  EP1 --> DP1
+  EP1 --> DP2
+  EP2 --> DP3</pre>
+          </div>
+
+          <h3>One table — sequence (what gets created when)</h3>
+          <p class="diagram-caption">Click a participant (Context, scan, entity propose, dim propose, DB).</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid" id="mermaid-t4-seq">sequenceDiagram
+  autonumber
+  participant C as Context row T2 card
+  participant S as t4_scan
+  participant E as t4_entity_propose
+  participant D as t4_dim_propose
+  participant DB as platform_sem tables
+  C->>S: eligible last_t2_at set
+  S->>E: enqueue for schema drifter
+  E->>DB: insert entity plus joins candidate
+  E->>D: enqueue with context_object_id
+  D->>C: read columns profiles semantic JSON
+  D->>DB: insert dimensions and measures candidate
+  D->>C: stamp last_t4_at</pre>
+          </div>
+
+          <h3>After T4 — governance funnel</h3>
+          <p class="diagram-caption">Click each stage: candidate → review → promote → governed → charts.</p>
+          <div class="mermaid-wrap">
+            <pre class="mermaid" id="mermaid-t4-gov">flowchart LR
+  G_CAND["T4 CANDIDATE rows"]
+  G_REV["Stewards review"]
+  G_PROM["POST promote"]
+  G_GOV["GOVERNED defs"]
+  G_USE["Inspector charts"]
+  G_CAND --> G_REV --> G_PROM --> G_GOV --> G_USE</pre>
+          </div>
+
+          <div class="callout info">
+            <strong>Repo note:</strong> The <em>diagrams</em> describe the intended production design. In <strong>this</strong> codebase checkout, <code>t4-handlers.ts</code> is missing — new T4 runs fail until that code is ported. Your database may already contain semantic rows from an earlier deployment (as with Auto-Bootstrap Model).
+          </div>
+
+          <h3 id="t4-samples">Sample data atlas — one table through every layer</h3>
+          <p class="diagram-caption">Fictional but realistic shapes. IDs are shortened; your DB uses cuid/uuid. Use this to map UI screens → Aurora tables.</p>
+
+          <table class="sample-rows sample-index">
+            <thead><tr><th>Guide section</th><th>Aurora table / API</th><th>Sample block</th></tr></thead>
+            <tbody>
+              <tr><td>① Warehouse</td><td>Databricks (not stored in Aurora)</td><td><a href="#sample-warehouse">A</a></td></tr>
+              <tr><td>② Context T0–T2</td><td><code>platform_context_objects</code>, columns</td><td><a href="#sample-context">B–C</a></td></tr>
+              <tr><td>③ T4 jobs</td><td><code>platform_context_jobs</code></td><td><a href="#sample-jobs">D</a></td></tr>
+              <tr><td>④ Semantic model</td><td><code>platform_semantic_models</code></td><td><a href="#sample-model">E</a></td></tr>
+              <tr><td>④ Entity</td><td><code>platform_sem_entities</code></td><td><a href="#sample-entity">F</a></td></tr>
+              <tr><td>④ Dimensions / measures</td><td><code>platform_sem_dimensions</code>, <code>platform_sem_measures</code></td><td><a href="#sample-dims">G–H</a></td></tr>
+              <tr><td>④ Joins</td><td><code>platform_sem_joins</code></td><td><a href="#sample-join">I</a></td></tr>
+              <tr><td>⑤ Governance</td><td><code>platform_sem_audit</code></td><td><a href="#sample-audit">J</a></td></tr>
+              <tr><td>⑤ Production query</td><td><code>SemanticQuery</code> JSON</td><td><a href="#sample-query">K</a></td></tr>
+              <tr><td>⑤ Entities UI</td><td><code>GET …/entities-catalog</code></td><td><a href="#sample-api">L</a></td></tr>
+            </tbody>
+          </table>
+
+          <div class="sample-atlas">
+            <h4 id="sample-warehouse">A — Databricks (source data, illustrative)</h4>
+            <p class="diagram-caption" style="margin-top:0">T0/T1 read this; T4 never stores warehouse rows in <code>platform_sem_*</code>.</p>
+            <table class="sample-rows">
+              <thead><tr><th>user_id</th><th>is_active</th><th>platform_synced_at</th></tr></thead>
+              <tbody>
+                <tr><td><code>usr_1042</code></td><td><code>true</code></td><td><code>2026-07-01T08:12:00Z</code></td></tr>
+                <tr><td><code>usr_1043</code></td><td><code>false</code></td><td><code>2026-07-01T08:12:00Z</code></td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-context">B — <code>platform_context_objects</code> (after T0–T2, before T4)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>Column</th><th>Sample value</th><th>Meaning</th></tr></thead>
+              <tbody>
+                <tr><td><code>id</code></td><td><code>a1b2c3d4-…-uuid</code></td><td>Used in <code>t4_dim_propose</code> scope as <code>context_object_id</code></td></tr>
+                <tr><td><code>full_path</code></td><td><code>current_db.drifter.process_flow_log_user</code></td><td>Must match <code>platform_sem_entities.full_path</code> later</td></tr>
+                <tr><td><code>last_t0_at</code></td><td><code>2026-07-01T04:20:00Z</code></td><td>Structural harvest done</td></tr>
+                <tr><td><code>last_t1_at</code></td><td><code>2026-07-01T05:10:00Z</code></td><td>Profile done</td></tr>
+                <tr><td><code>last_t2_at</code></td><td><code>2026-07-01T06:00:00Z</code></td><td><strong>Required</strong> for T4 eligibility</td></tr>
+                <tr><td><code>last_t4_at</code></td><td><code>NULL</code> → then timestamp after dim propose</td><td>Estate “T4 Modelled” dot</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-context-col">C — Column <code>semantic</code> JSON (T2 output on <code>platform_context_columns</code>)</h4>
+            <pre class="code">{
+  "role": "dimension",
+  "entity": "Process Flow Log User",
+  "description": "Whether the user record is active in the process flow log.",
+  "pii_flag": false,
+  "confidence": 0.91
+}</pre>
+            <p class="diagram-caption">T4 dim propose sends this + profile top-k values to Bedrock to name <code>platform_sem_dimensions</code>.</p>
+
+            <h4 id="sample-jobs">D — <code>platform_context_jobs</code> (parent / child tree)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>job_kind</th><th>parent_job_id</th><th>status</th><th>scope (sample)</th><th>stats (sample)</th></tr></thead>
+              <tbody>
+                <tr><td><code>t4_scan</code></td><td><code>NULL</code></td><td><code>succeeded</code></td><td><code>{}</code></td><td><code>{ "clusters_enqueued": 12, "tables_total": 487 }</code></td></tr>
+                <tr><td><code>t4_entity_propose</code></td><td><code>&lt;scan id&gt;</code></td><td><code>succeeded</code></td><td><code>{ "cluster_catalog": "current_db", "cluster_schema": "drifter" }</code></td><td><code>{ "entities_proposed": 24, "joins_proposed": 3 }</code></td></tr>
+                <tr><td><code>t4_dim_propose</code></td><td><code>&lt;entity_propose id&gt;</code></td><td><code>succeeded</code></td><td><code>{ "context_object_id": "a1b2c3d4-…" }</code></td><td><code>{ "dimensions_written": 4, "measures_written": 2 }</code></td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-model">E — <code>platform_semantic_models</code></h4>
+            <table class="sample-rows">
+              <thead><tr><th>Column</th><th>Sample value</th></tr></thead>
+              <tbody>
+                <tr><td><code>id</code></td><td><code>shdzdz8qrhxjwzkpkislsitz</code> (example)</td></tr>
+                <tr><td><code>name</code></td><td><code>Auto-Bootstrap Model</code></td></tr>
+                <tr><td><code>source_type</code></td><td><code>auto_bootstrap</code></td></tr>
+                <tr><td><code>status</code></td><td><code>governed</code> (after steward promotes model — Entities page needs this)</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-entity">F — <code>platform_sem_entities</code> (T4 entity propose)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>Column</th><th>Sample value</th></tr></thead>
+              <tbody>
+                <tr><td><code>model_id</code></td><td><code>shdzdz8qrhxjwzkpkislsitz</code></td></tr>
+                <tr><td><code>full_path</code></td><td><code>current_db.drifter.process_flow_log_user</code></td></tr>
+                <tr><td><code>entity_label</code></td><td><code>Process Flow Log User</code></td></tr>
+                <tr><td><code>status</code></td><td><code>candidate</code> (typical for T4 bulk)</td></tr>
+                <tr><td><code>created_by</code></td><td><code>NULL</code> (system / T4 — cannot use Submit API without owning row)</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-dims">G — <code>platform_sem_dimensions</code> (T4 dim propose)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>dimension_label</th><th>column_name</th><th>dimension_type</th><th>status</th></tr></thead>
+              <tbody>
+                <tr><td>Is Active</td><td><code>is_active</code></td><td><code>categorical</code></td><td><code>candidate</code></td></tr>
+                <tr><td>User ID</td><td><code>user_id</code></td><td><code>hyperlink</code></td><td><code>candidate</code></td></tr>
+                <tr><td>Platform Synced At</td><td><code>platform_synced_at</code></td><td><code>temporal</code></td><td><code>governed</code> (after promote)</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-meas">H — <code>platform_sem_measures</code> (T4 dim propose)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>measure_label</th><th>column_name</th><th>aggregate</th><th>metric_type</th><th>status</th></tr></thead>
+              <tbody>
+                <tr><td>Total Process Flow Log Users</td><td><code>user_id</code></td><td><code>count</code></td><td><code>simple</code></td><td><code>candidate</code></td></tr>
+                <tr><td>Distinct Users</td><td><code>user_id</code></td><td><code>hllp</code></td><td><code>simple</code></td><td><code>governed</code> (after promote)</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-join">I — <code>platform_sem_joins</code> (entity propose, same schema)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>from entity</th><th>to entity</th><th>join_on_sql (sample)</th></tr></thead>
+              <tbody>
+                <tr><td>Process Flow Log User</td><td>Process Flow Log</td><td><code>process_flow_log_user.process_flow_log_id = process_flow_log.id</code></td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-audit">J — <code>platform_sem_audit</code> (after promote one measure)</h4>
+            <table class="sample-rows">
+              <thead><tr><th>action</th><th>table_name</th><th>from_status</th><th>to_status</th><th>changed_by</th></tr></thead>
+              <tbody>
+                <tr><td><code>promote</code></td><td><code>platform_sem_measures</code></td><td><code>candidate</code></td><td><code>governed</code></td><td><code>user@cuid</code> or admin</td></tr>
+              </tbody>
+            </table>
+
+            <h4 id="sample-query">K — <code>SemanticQuery</code> (Inspector / dashboard — governed IDs only)</h4>
+            <pre class="code">{
+  "modelId": "shdzdz8qrhxjwzkpkislsitz",
+  "entityId": "ent_process_flow_log_user",
+  "dimensions": [{ "dimensionId": "dim_platform_synced_at" }],
+  "measures": [{ "measureId": "meas_distinct_users" }],
+  "filters": [],
+  "limit": 1000
+}</pre>
+            <p class="diagram-caption">Compiler loads defs from Aurora → generates SQL → <code>executeDatabricksSQL</code> on the connection.</p>
+
+            <h4 id="sample-api">L — <code>GET /api/inspector/semantic/entities-catalog</code> (fragment)</h4>
+            <pre class="code">{
+  "status": "ok",
+  "model": { "id": "shdzdz8qrhxjwzkpkislsitz", "name": "Auto-Bootstrap Model" },
+  "total": 487,
+  "entities": [{
+    "label": "Process Flow Log User",
+    "fullPath": "current_db.drifter.process_flow_log_user",
+    "status": "candidate",
+    "dimensions": [{
+      "label": "Is Active",
+      "dimensionType": "categorical",
+      "status": "candidate",
+      "resolvesTo": { "fullPath": "…", "column": "is_active" }
+    }],
+    "measures": [{
+      "label": "Distinct Users",
+      "aggregate": "hllp",
+      "status": "governed",
+      "resolvesTo": { "fullPath": "…", "column": "user_id" }
+    }]
+  }]
+}</pre>
+          </div>
+
+          <hr class="detail-divider" />
+          <h3 class="section-title" style="border:none;padding:0;margin-top:0">Detailed reference (step-by-step)</h3>
+
+          <h3>1. Role in the product</h3>
+          <table>
+            <thead><tr><th>Layer</th><th>Tables</th><th>Built by</th></tr></thead>
+            <tbody>
+              <tr><td>Data Estate / context</td><td><code>platform_context_*</code></td><td>T0–T3, <code>embed</code></td></tr>
+              <tr><td>Semantic layer</td><td><code>platform_semantic_models</code>, <code>platform_sem_entities</code>, dimensions, measures, joins</td><td><strong>T4</strong> (auto) + Define Metric (human)</td></tr>
+            </tbody>
+          </table>
+          <p class="prose">The Estate <strong>Entities</strong> page (<code>/agent-lab/estate/entities</code>) reads the <strong>governed</strong> semantic model via <code>GET /api/inspector/semantic/entities-catalog</code>. A typical bootstrap model is named <strong>Auto-Bootstrap Model</strong>, <code>source_type=auto_bootstrap</code>, with hundreds of <strong>candidate</strong> entities/dims/measures and <code>created_by = NULL</code> on every T4 row.</p>
+
+          <h3>2. Prerequisites (what T4 needs before it runs)</h3>
+          <table>
+            <thead><tr><th>Requirement</th><th>Why</th><th>How you know</th></tr></thead>
+            <tbody>
+              <tr><td>T0 inventory</td><td>Stable <code>full_path</code> per table</td><td><code>platform_context_objects.last_t0_at</code></td></tr>
+              <tr><td>T1 profile (recommended)</td><td>Top values, null rates for LLM grounding</td><td><code>last_t1_at</code>, profile JSON on columns</td></tr>
+              <tr><td><strong>T2 semantic enrich (required)</strong></td><td>Object “cards” + column roles/descriptions</td><td><code>last_t2_at</code> NOT NULL; column <code>semantic</code> JSON</td></tr>
+              <tr><td>Active context source</td><td>Scope for scan</td><td><code>platform_context_sources</code> linked to Databricks connection</td></tr>
+              <tr><td>Bedrock (Fargate task role)</td><td>LLM calls in propose steps</td><td><code>BEDROCK_REGION</code>, ECS task can call Bedrock</td></tr>
+            </tbody>
+          </table>
+          <p class="prose"><strong>Gate:</strong> <code>reharvest-all</code> on a single object defers <code>t4_scan</code> until that object has <code>last_t2_at</code>. The coordinator uses <code>scanEstate(..., minT2=true)</code> so tables without T2 are skipped (scan would otherwise find zero eligible tables).</p>
+          <details class="sample-fold"><summary>Sample: prerequisite row on context object (<a href="#sample-context">atlas B</a>)</summary>
+            <div class="sample-fold-body">
+              <table class="sample-rows">
+                <thead><tr><th>Check</th><th>Sample</th><th>Pass?</th></tr></thead>
+                <tbody>
+                  <tr><td><code>last_t2_at</code></td><td><code>2026-07-01T06:00:00Z</code></td><td>Yes — eligible for T4</td></tr>
+                  <tr><td><code>last_t2_at</code></td><td><code>NULL</code></td><td>No — skipped by scan</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <h3>3. Three job kinds — coordinator tree</h3>
+          <p class="prose">T4 is implemented as a <strong>job hierarchy</strong> in <code>platform_context_jobs</code>, executed by <code>scripts/context/orchestrator.ts</code> on ECS Fargate. Intended handlers live in <code>scripts/context/t4-handlers.ts</code> (import <code>runT4Scan</code>, <code>runT4EntityPropose</code>, <code>runT4DimPropose</code>) — <strong>not present in this repo checkout</strong>; behavior below is reconstructed from queue tuning, digest assembly, Estate Jobs UI, and comments in surviving code.</p>
+
+          <div class="loop-diagram">┌─ t4_scan ─────────────────────────────────────────────────────────────┐
+│  Coordinator: one run per org/source launch (--kind t4_scan)         │
+│  • Advisory lock: ctx-orch:{orgId}:t4_scan (no overlapping scans)    │
+│  • Select eligible context objects (T2 done; incremental: last_t4_at)  │
+│  • Group tables by catalog.schema → enqueue t4_entity_propose children │
+│  • Stats on parent job: clusters_enqueued, tables_total, …             │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │ parent_job_id = scan.id
+        ┌───────────────────────┴───────────────────────┐
+        ▼  t4_entity_propose (per schema cluster)        │
+│  scope.cluster_catalog, scope.cluster_schema           │
+│  • Bedrock: cluster tables → business entities       │
+│  • INSERT platform_sem_entities (candidate, created_by NULL)           │
+│  • INSERT platform_sem_joins (join_on_sql between entities)            │
+│  • Enqueue t4_dim_propose per table in cluster         │
+│  • Stats: entities_proposed, joins_proposed             │
+        └───────────────────────┬───────────────────────┘
+                                │ parent_job_id = entity_propose.id
+                                ▼
+              t4_dim_propose (per table)
+│  scope.context_object_id → platform_context_objects.id │
+│  • Resolve full_path → entity row in platform_sem_entities           │
+│  • Bedrock: propose dimensions + measures from T2 card + profiles      │
+│  • INSERT platform_sem_dimensions / platform_sem_measures (candidate)  │
+│  • Stats: dimensions_written, measures_written                       │
+│  • SET platform_context_objects.last_t4_at = now()                    │</div>
+
+          <h3>4. Step A — <code>t4_scan</code> (getting / selecting tables)</h3>
+          <div class="def-block">
+            <h4>Scan phase (plain English)</h4>
+            <dl>
+              <dt>Trigger</dt><dd>EventBridge <code>aloft-t4-semantic-bootstrap-weekly</code> (Sunday 08:00 UTC), Agent Lab → Jobs → Run <strong>T4 Entity Scan</strong>, or <code>POST …/context/jobs/launch</code> with <code>kind: t4_scan</code>. <code>reharvest-all</code> enqueues a source-wide scan after T2 (not per-object scope).</dd>
+              <dt>What it reads</dt><dd><code>platform_context_objects</code> (+ columns, profiles, T2 semantic JSON) for the org’s active source(s). Does not re-introspect Databricks for structure if T0 already ran.</dd>
+              <dt>Eligibility</dt><dd>Objects with <code>last_t2_at</code> set; incremental runs prefer objects where T4 is stale or missing (<code>last_t4_at</code> null or older than T2 refresh — exact filter lives in <code>scanEstate</code> in the ported handler).</dd>
+              <dt>What it writes</dt><dd>Child job rows (<code>t4_entity_propose</code>) with <code>parent_job_id</code> pointing at the scan job. Coordinator may ensure a <code>platform_semantic_models</code> row exists (name e.g. “Auto-Bootstrap Model”, <code>source_type=auto_bootstrap</code>, often <code>status=candidate</code> until promoted).</dd>
+              <dt>Concurrency</dt><dd><code>MAX_CONCURRENT_BY_KIND.t4_scan = 1</code> — only one scan coordinator at a time per org (plus advisory lock).</dd>
+              <dt>Failure modes</dt><dd>Second overlapping scan exits early (“locked by another process”). No T2 → zero tables → scan succeeds with little or no children.</dd>
+            </dl>
+          </div>
+          <details class="sample-fold"><summary>Sample: <code>t4_scan</code> job row (<a href="#sample-jobs">atlas D</a>)</summary>
+            <div class="sample-fold-body"><pre class="code">job_kind: t4_scan
+status: succeeded
+parent_job_id: null
+stats: { "clusters_enqueued": 12, "tables_total": 487 }</pre></div>
+          </details>
+
+          <h3>5. Step B — <code>t4_entity_propose</code> (creating entities &amp; joins)</h3>
+          <div class="def-block">
+            <h4>Entity + join proposal</h4>
+            <dl>
+              <dt>Unit of work</dt><dd>One <strong>catalog.schema</strong> cluster (all tables in that schema that the scan assigned to this child).</dd>
+              <dt>LLM input</dt><dd>Table names, T2 summaries/grain/key columns, FK hints from object cards, optional usage signals if T3 ran.</dd>
+              <dt>Creates</dt><dd>
+                <ul style="margin:0.25rem 0 0 1rem;padding:0;font-size:0.9rem">
+                  <li><code>platform_sem_entities</code> — <code>full_path</code> matches context object path; <code>entity_label</code>, <code>description</code>, <code>synonyms</code>, <code>status=candidate</code>, <code>created_by=NULL</code>.</li>
+                  <li><code>platform_sem_joins</code> — <code>from_entity_id</code>, <code>to_entity_id</code>, <code>join_on_sql</code>, <code>join_type</code> (default inner).</li>
+                </ul>
+              </dd>
+              <dt>Uniqueness</dt><dd>One entity per (<code>model_id</code>, <code>full_path</code>) — constraint <code>ux_pse_model_path</code>. Re-runs upsert or skip per handler logic.</dd>
+              <dt>Fan-out</dt><dd>Enqueues one <code>t4_dim_propose</code> per table, carrying <code>context_object_id</code> in job <code>scope</code>.</dd>
+              <dt>Throughput</dt><dd>~10 clusters/min budgeted in <code>RATE_PER_MINUTE</code>; <code>MAX_CONCURRENT_BY_KIND.t4_entity_propose = 2</code> (each may spawn up to 5 dim tasks).</dd>
+            </dl>
+          </div>
+          <details class="sample-fold"><summary>Sample: entity + join rows (<a href="#sample-entity">F</a>, <a href="#sample-join">I</a>)</summary>
+            <div class="sample-fold-body">
+              <p class="diagram-caption" style="margin-top:0">Entity row + join between two tables in the same schema.</p>
+              <table class="sample-rows">
+                <thead><tr><th>entity_label</th><th>full_path</th><th>status</th></tr></thead>
+                <tbody>
+                  <tr><td>Process Flow Log User</td><td><code>current_db.drifter.process_flow_log_user</code></td><td><code>candidate</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <h3>6. Step C — <code>t4_dim_propose</code> (creating dimensions &amp; measures)</h3>
+          <div class="def-block">
+            <h4>Column-level semantic proposals</h4>
+            <dl>
+              <dt>Unit of work</dt><dd>One physical table — <code>scope.context_object_id</code> → <code>platform_context_objects.id</code>.</dd>
+              <dt>LLM input</dt><dd>Column list, types, T1 top-k samples, T2 per-column <code>semantic</code> (role, description, PII flag), object card measures/dimension hints.</dd>
+              <dt>Creates</dt><dd>
+                <ul style="margin:0.25rem 0 0 1rem;padding:0;font-size:0.9rem">
+                  <li><code>platform_sem_dimensions</code> — <code>column_name</code>, <code>dimension_label</code>, <code>dimension_type</code> (categorical, temporal, …), <code>status=candidate</code>, <code>created_by=NULL</code>.</li>
+                  <li><code>platform_sem_measures</code> — <code>aggregate</code> (count, sum, hllp, …), <code>metric_type</code> (simple, derived, …), optional <code>expression</code>, <code>status=candidate</code>.</li>
+                </ul>
+              </dd>
+              <dt>Stamp</dt><dd>On success, <code>platform_context_objects.last_t4_at</code> — Estate UI shows <strong>T4 Modelled</strong> on the harvest timeline.</dd>
+              <dt>Cost hint</dt><dd>Jobs UI warns ~<strong>$0.003/table</strong> (Bedrock Sonnet); dim propose ~1.5–2s per call; concurrency 5 for <code>t4_dim_propose</code>.</dd>
+              <dt>Not created here</dt><dd><code>nl_intent</code> on T4 rows is usually NULL until a steward edits (Define Metric / PATCH).</dd>
+            </dl>
+          </div>
+          <details class="sample-fold"><summary>Sample: dimension + measure rows (<a href="#sample-dims">G</a>, <a href="#sample-meas">H</a>)</summary>
+            <div class="sample-fold-body">
+              <table class="sample-rows">
+                <thead><tr><th>Kind</th><th>Label</th><th>Column</th><th>Aggregate / type</th></tr></thead>
+                <tbody>
+                  <tr><td>Dimension</td><td>Is Active</td><td><code>is_active</code></td><td><code>categorical</code></td></tr>
+                  <tr><td>Measure</td><td>Distinct Users</td><td><code>user_id</code></td><td><code>hllp</code> / simple</td></tr>
+                </tbody>
+              </table>
+              <p class="diagram-caption">After success: <code>platform_context_objects.last_t4_at</code> set for that table.</p>
+            </div>
+          </details>
+
+          <h3>7. What lands in Aurora (column cheat sheet)</h3>
+          <table>
+            <thead><tr><th>Table</th><th>Key fields T4 sets</th><th>Default status</th></tr></thead>
+            <tbody>
+              <tr><td><code>platform_semantic_models</code></td><td><code>name</code>, <code>source_type=auto_bootstrap</code>, <code>org_id</code></td><td>often <code>candidate</code> until model promote</td></tr>
+              <tr><td><code>platform_sem_entities</code></td><td><code>model_id</code>, <code>full_path</code>, <code>entity_label</code>, <code>description</code>, <code>created_by=NULL</code></td><td><code>candidate</code></td></tr>
+              <tr><td><code>platform_sem_dimensions</code></td><td><code>entity_id</code>, <code>column_name</code>, <code>dimension_type</code>, labels/synonyms</td><td><code>candidate</code></td></tr>
+              <tr><td><code>platform_sem_measures</code></td><td><code>entity_id</code>, <code>column_name</code> or <code>expression</code>, <code>aggregate</code>, <code>metric_type</code></td><td><code>candidate</code></td></tr>
+              <tr><td><code>platform_sem_joins</code></td><td><code>from_entity_id</code>, <code>to_entity_id</code>, <code>join_on_sql</code></td><td>n/a</td></tr>
+              <tr><td><code>platform_context_objects</code></td><td><code>last_t4_at</code> (bridge back to estate)</td><td>n/a</td></tr>
+            </tbody>
+          </table>
+
+          <h3>8. Job scope JSON (how children find their work)</h3>
+          <pre class="code">t4_entity_propose scope (example):
+  cluster_catalog: "marine"
+  cluster_schema:  "gold"
+
+t4_dim_propose scope (example):
+  context_object_id: "&lt;uuid of platform_context_objects&gt;"
+
+Parent linkage:
+  platform_context_jobs.parent_job_id → scan → entity_propose → dim_propose</pre>
+          <p class="prose"><code>src/lib/inspector/digest.ts</code> rebuilds a run summary by walking this tree (not timestamps — entity_propose children overlap in time). It maps each dim job’s <code>context_object_id</code> → <code>full_path</code> → <code>platform_sem_entities</code> row created in the scan window.</p>
+
+          <h3>9. After T4 — governance (T4 does not finish the job)</h3>
+          <table>
+            <thead><tr><th>Action</th><th>T4/system rows (<code>created_by</code> NULL)</th><th>Human drafts (<code>created_by</code> set)</th></tr></thead>
+            <tbody>
+              <tr><td>Visible on Entities page</td><td>Yes, if model is <strong>governed</strong></td><td>Same</td></tr>
+              <tr><td><code>POST …/submit</code></td><td><strong>403</strong> — cannot submit without owner</td><td>Owner can submit draft → candidate</td></tr>
+              <tr><td><code>POST …/promote</code></td><td>Admin / promotion gate can promote candidates → governed</td><td>Same gate</td></tr>
+              <tr><td>Inspector <code>emit_semantic_chart</code></td><td>Uses <strong>governed</strong> measures (candidates excluded in production paths)</td><td>Own drafts in authoring preview only</td></tr>
+            </tbody>
+          </table>
+          <p class="prose">Typical bootstrap path: T4 fills thousands of <strong>candidate</strong> defs → steward promotes the <strong>model</strong> to governed (so Entities catalog loads) → selectively promotes trusted measures/dimensions (or bulk cleanup/archives junk via audit/system demotions).</p>
+
+          <h3>10. How to observe a T4 run</h3>
+          <table>
+            <thead><tr><th>Surface</th><th>What you get</th></tr></thead>
+            <tbody>
+              <tr><td>Agent Lab → Estate → <strong>Jobs</strong></td><td>Job tree: scan → entity propose → dim propose; statuses, stats JSON on each row</td></tr>
+              <tr><td>Job detail → affected objects</td><td>Objects whose <code>last_t4_at</code> fell in the run window (<code>jobs/[id]/objects</code> API)</td></tr>
+              <tr><td><code>GET /api/inspector/digest?runId=</code></td><td>Aggregated totals: clusters, tables, entities/dims/measures/joins proposed; per-schema breakdown; markdown narrative</td></tr>
+              <tr><td>Estate catalog / object detail</td><td><code>last_t4_at</code> on harvest timeline; data-score treats T4 paths as “modelled”</td></tr>
+            </tbody>
+          </table>
+          <p class="prose">Digest stats keys (on job <code>stats</code> JSON): <code>clusters_enqueued</code>, <code>tables_total</code>, <code>entities_proposed</code>, <code>joins_proposed</code>, <code>dimensions_written</code>, <code>measures_written</code>.</p>
+
+          <h3>11. End-to-end example (one table)</h3>
+          <ol class="prose">
+            <li>T0–T2 run on <code>prod.drifter.process_flow_log_user</code> — context object has profile + semantic card.</li>
+            <li><code>t4_scan</code> includes schema <code>drifter</code> → enqueues <code>t4_entity_propose</code> for that schema.</li>
+            <li>Entity propose creates <code>platform_sem_entities</code> with label “Process Flow Log User”, <code>full_path</code> as above, <code>candidate</code>.</li>
+            <li><code>t4_dim_propose</code> for that object creates dims (“Is Active”, “User ID”, …) and measures (“Total Process Flow Log Users” COUNT, “Distinct Users” HLLP).</li>
+            <li>Entities UI shows the card with <span class="pill candidate">Candidate</span> badges until you promote selected defs.</li>
+            <li>Compiler can build SQL from governed subset only when Inspector/dashboard requests governed IDs.</li>
+          </ol>
+
+          <h3>12. Repo status &amp; re-enable checklist</h3>
+          <div class="callout warn">
+            <strong>This checkout:</strong> <code>orchestrator.ts</code> cases for T4 call <code>finalize(..., 'failed', …)</code> with <em>T4/inspector tier not ported</em>. To re-enable:
+            <ol style="margin:0.5rem 0 0 1.2rem">
+              <li>Port <code>scripts/context/t4-handlers.ts</code> and <code>scripts/inspector/</code> from <code>aloft-platform</code>.</li>
+              <li>Restore import: <code>runT4Scan</code>, <code>runT4EntityPropose</code>, <code>runT4DimPropose</code> in <code>orchestrator.ts</code>.</li>
+              <li>Deploy harvester image; verify Bedrock on ECS task role.</li>
+              <li>Run T2 backfill before first scan; then <code>--kind t4_scan</code> or weekly rule.</li>
+            </ol>
+          </div>
+          <p class="prose">Related code (present today): <code>src/lib/context/queue.ts</code> (kinds, concurrency), <code>src/lib/inspector/digest.ts</code> (post-run report), <code>src/app/api/inspector/digest/route.ts</code>, <code>src/app/api/agent-lab/context/objects/[id]/reharvest-all/route.ts</code>, <code>src/lib/semantic/governance.ts</code> + submit/promote routes.</p>
+          <p class="muted">See also: <a href="#estate">Context pipeline T0–T4</a> · <a href="#lifecycle">Status &amp; governance</a> · <a href="#playbook">Playbook phases 3–8</a></p>
+        </section>
+
+        <section id="panel-gaps" class="panel" aria-labelledby="gaps-title">
+          <h2 class="section-title" id="gaps-title">Gaps &amp; environment</h2>
+          <p class="prose">Known limitations so you do not assume features work when they are stubbed or single-tenant only.</p>
+          <table>
+            <thead><tr><th>Gap</th><th>Impact</th></tr></thead>
+            <tbody>
+              <tr><td>T4 stubbed</td><td>You cannot rely on harvest alone to create semantic models; seed DB or manual setup required.</td></tr>
+              <tr><td><code>t3_connected</code> not implemented</td><td>Jobs UI can show the kind, but orchestrator has no handler — do not expect it to run.</td></tr>
+              <tr><td>“T3” naming split</td><td>Inspector docs: embeddings; architecture: <code>t3_usage</code>. Both are correct in different layers — see Context pipeline tab.</td></tr>
+              <tr><td>Schema scan UI disabled</td><td>“Scan a source schema” in metrics catalog is intentionally off until bootstrap API exists.</td></tr>
+              <tr><td>metric-views unwired</td><td>Governed metrics stay in Aurora; Power BI etc. won’t see spinor_semantic views unless you run code manually.</td></tr>
+              <tr><td>Open APIs on default org</td><td>Some routes work without login using default org — fine for single org, risky if multi-tenant.</td></tr>
+              <tr><td>context-builder def status</td><td>Prompt may list non-governed dims under a governed entity — treat as known risk.</td></tr>
+              <tr><td>No model create API</td><td>App cannot create platform_semantic_models from UI; need T4/seed/SQL.</td></tr>
+            </tbody>
+          </table>
+          <h3>Environment variables</h3>
+          <table>
+            <thead><tr><th>Variable</th><th>Effect</th></tr></thead>
+            <tbody>
+              <tr><td><code>MEMORY_REPUTATION_ENABLED=true</code></td><td>streetCred gate + promotion credit</td></tr>
+              <tr><td><code>INSPECTOR_BLUEPRINT_MODEL_ID</code></td><td>Blueprint LLM for propose_blueprint</td></tr>
+              <tr><td><code>DEFAULT_ORG_SLUG</code></td><td>NL intent backfill script org</td></tr>
+              <tr><td><code>DATABRICKS_*</code>, <code>AWS_*</code></td><td>SQL execution + embed/Bedrock paths</td></tr>
+            </tbody>
+          </table>
+          <p class="muted">Promotion thresholds (80 / 120) are constants in promotion-gate.ts, not env vars.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* Must run before DOMContentLoaded — otherwise Mermaid auto-renders diagrams inside hidden tabs (0×0 SVGs). */
+    if (typeof mermaid !== 'undefined') {
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+    }
+
+    const GLOSSARY = [
+      { term: 'Semantic layer', def: 'The set of official business metrics and dimensions your organization agrees on.', purpose: 'So everyone (and the AI) uses the same definitions for numbers.', example: 'One governed “Revenue” measure used by Inspector and dashboards.', advantage: 'Consistency and auditability.', not: 'Not the harvester, not raw Databricks tables.' },
+      { term: 'Semantic model', def: 'A named bundle of entities, dimensions, measures, and joins in Aurora.', purpose: 'Scopes which tables and metrics belong together (e.g. marine ops).', example: 'Model id linked from dashboards and SemanticQuery.modelId.', advantage: 'Clear boundary for governance and lineage.', not: 'Not a Databricks database.' },
+      { term: 'Entity', def: 'A physical table or view in the warehouse.', purpose: 'The FROM clause anchor for queries.', example: 'Entity “Inspections” → marine.gold.inspections.', advantage: 'Business label + synonyms separate from technical path.', not: 'Not a single column.' },
+      { term: 'Dimension', def: 'An attribute you group or filter by.', purpose: 'Slice metrics (by flag, vessel, month).', example: 'Dimension “Flag” on column flag_code.', advantage: 'Typed (categorical, temporal) for better chart suggestions.', not: 'Not an aggregated number.' },
+      { term: 'Measure', def: 'A metric you aggregate (sum, count, average, …).', purpose: 'The number users ask for in questions.', example: '“Open defect count” = COUNT(defect_id).', advantage: 'Central place for formula and unit.', not: 'Not a raw column unless simple aggregate maps 1:1.' },
+      { term: 'Join', def: 'A declared relationship between two entities.', purpose: 'Lets the compiler build multi-table SQL safely.', example: 'Inspections JOIN vessels ON inspections.vessel_id = vessels.id.', advantage: 'Stewards control join logic once.', not: 'Not inferred automatically on every query without join rows.' },
+      { term: 'SemanticQuery', def: 'JSON request listing model, entity, dimension IDs, measure IDs, filters.', purpose: 'Safe contract between AI/UI and compiler.', example: '{ entityId, measures: [{ measureId }], dimensions: [...] }', advantage: 'Validation before SQL hits Databricks.', not: 'Not free-text SQL.' },
+      { term: 'Governed status', def: 'Official, production-ready definition.', purpose: 'Used by Inspector charts and published dashboards.', example: 'After successful POST /promote.', advantage: 'Trust in shared metrics.', not: 'Not the same as “table exists in warehouse”.' },
+      { term: 'Draft status', def: 'Personal work-in-progress definition.', purpose: 'Let analysts experiment without affecting others.', example: 'Alex’s draft measure visible only to Alex in preview.', advantage: 'Safe sandbox.', not: 'Not visible in org review until submit.' },
+      { term: 'Candidate status', def: 'Submitted for org visibility and review.', purpose: 'Bridge between private draft and official governed.', example: 'Shows in metrics catalog Govern lens.', advantage: 'Collaboration before promotion.', not: 'Not yet fully trusted for all production paths without model rules.' },
+      { term: 'Promotion gate', def: 'Rules for who may promote candidate → governed.', purpose: 'Prevent low-trust users from defining official metrics.', example: 'streetCred ≥ 80 self-approve, else admin or quorum 120.', advantage: 'Ties to FOER reputation domain semantic_authoring.', not: 'Not applied on submit (submit is open to owner).' },
+      { term: 'Harvester', def: 'ECS Fargate worker running scripts/context/orchestrator.ts over platform_context_jobs.', purpose: 'Fill Data Estate inventory for discovery and AI context.', example: 'Daily change_detect sweep + weekly T1 profile.', advantage: 'Keeps metadata fresh without manual spreadsheets.', not: 'Not the governed semantic layer (platform_sem_*).' },
+      { term: 'T0 (structural)', def: 'Job kind t0_structural — mirror catalog.schema.table and columns from Databricks.', purpose: 'Authoritative inventory for everything downstream.', example: 'last_t0_at stamped on platform_context_objects.', advantage: 'Delta mode after first sweep saves warehouse queries.', not: 'Not profiling or LLM enrichment.' },
+      { term: 'T1 (profile)', def: 'Job kind t1_profile — column stats and samples.', purpose: 'Ground truth for data quality and T2 prompts.', example: 'Top-k values on a status column before LLM describes it.', advantage: 'Stewards see null% and cardinality in Catalog.', not: 'Not business metric definitions.' },
+      { term: 'T2 (semantic enrich)', def: 'Job kind t2_semantic — Bedrock-generated object cards and column semantic JSON.', purpose: 'Human-readable catalog and better embed/search text.', example: 'Grain, PII flags, FK candidates on marine.gold.inspections.', advantage: 'Feeds describe_schema and Mapper without typing every column.', not: 'Not governed measures — use semantic layer authoring.' },
+      { term: 'embed job', def: 'Job kind embed — vectorize T2 text into platform_context_embeddings.', purpose: 'Semantic search in harvested catalog mode.', example: 'Inspector describe_schema search ranks by pgvector similarity.', advantage: 'Finds tables by meaning, not exact name match.', not: 'Not the same job as t3_usage (usage is separate).' },
+      { term: 'T3 usage', def: 'Job kind t3_usage — query history + lineage analysis per source.', purpose: 'Capture real filters, joins, and hot columns.', example: 'Weekly aloft-t3-usage-weekly Fargate task.', advantage: 'T2 enrichment can reuse usage signals; stewards see how tables are used.', not: 'Not per-object reharvest-all (source-wide only).' },
+      { term: 'T3 connected', def: 'Job kind t3_connected — planned cross-object connection analysis.', purpose: 'Would stamp relationship metadata beyond single-table usage.', example: 'Shown in Jobs UI pipeline group “Usage & Connections”.', advantage: 'Future richer graph for Mapper/lineage.', not: 'Not implemented in orchestrator.ts today.' },
+      { term: 'T4 bootstrap', def: 'Three job kinds: t4_scan (coordinator) → t4_entity_propose (per schema) → t4_dim_propose (per table) writing platform_sem_* candidates.', purpose: 'Auto-seed semantic models from T2-enriched context objects.', example: 'See guide tab T4 bootstrap (deep dive) for scan/propose/create steps.', advantage: 'Bulk catalog without typing every measure.', not: 'Not governed until promote; handlers stubbed in this repo checkout.' },
+      { term: 't4_scan', def: 'Source-wide T4 coordinator job with advisory lock.', purpose: 'Pick T2-ready tables and fan out entity-propose children per catalog.schema.', example: 'aloft-t4-semantic-bootstrap-weekly EventBridge rule.', advantage: 'Incremental via last_t4_at on context objects.', not: 'Does not write dims/measures itself.' },
+      { term: 'last_t4_at', def: 'Timestamp on platform_context_objects when t4_dim_propose succeeded for that table.', purpose: 'Estate UI + incremental scan eligibility.', example: 'Harvest timeline T4 dot on object detail.', advantage: 'See which tables were modelled.', not: 'Not the same as governed status on sem rows.' },
+      { term: 'buildSemanticContext', def: 'Server function that loads governed entity summaries for prompts.', purpose: 'Ground Inspector on official names.', example: 'Top 10 entities ranked by embedding similarity to connection.', advantage: 'Better NL answers without full schema dump.', not: 'Not a query executor.' },
+      { term: 'nl_intent', def: 'Natural language phrase a metric answers.', purpose: 'Power intent search and disambiguation.', example: '“How many open defects per vessel?” on a measure row.', advantage: 'Links questions to definitions via embeddings.', not: 'Not the SQL expression.' },
+      { term: 'emit_semantic_chart', def: 'Inspector tool that returns a chart from SemanticQuery.', purpose: 'Structured analytics output in chat.', example: 'Agent picks measure/dimension IDs then tool renders chart.', advantage: 'Governed path vs ad-hoc db_query.', not: 'Not raw SQL tool.' },
+      { term: 'Guided blueprint', def: 'Stage 2 of the guided dashboard builder: a reviewable outline of 4–6 proposed charts for a ResolvedIntent.', purpose: 'Let users curate a dashboard storyboard before widgets execute.', example: 'POST /semantic/[modelId]/blueprint after resolve-intent.', advantage: 'Fast first layout with server-side id grounding.', not: 'Not a live dashboard or Inspector chat session.' },
+      { term: 'ChartBlueprint', def: 'One proposed chart spec: title, measure/dimension ids, chart kind guess, rationale, grounding state.', purpose: 'Bridge between LLM proposal and widget SemanticQuery.', example: '“Accidents by root cause” with governed measure + dimension ids.', advantage: 'Labels ride beside ids — cards render without extra lookups.', not: 'Not a rendered chart or pinned widget yet.' },
+      { term: 'propose_blueprint', def: 'Forced Bedrock tool that returns structured chart proposals for one dashboard intent.', purpose: 'Single-turn JSON output instead of free-form chat.', example: 'Model fills charts[]; route calls groundBlueprint on the result.', advantage: 'Schema-bound proposal.', not: 'Not trusted without blueprint-ground.ts.' },
+      { term: 'ResolvedIntent', def: 'Stage-1 output: user topic + modelId + relevant field ids + per-term disambiguation state.', purpose: 'Bind one dashboard to one semantic model and resolved vocabulary.', example: 'Topic + matched “Open defects” measure id.', advantage: 'Intent never picks charts — only vocabulary.', not: 'Not the blueprint itself.' },
+      { term: 'toAlias', def: 'Function that turns a label into a SQL column alias.', purpose: 'Stable keys in result rows for charts.', example: '“Open Defect Count” → open_defect_count.', advantage: 'Charts don’t break on spaces in labels.', not: 'Not the display label shown to users.' },
+      { term: 'spinor_semantic', def: 'Optional Databricks schema for exported views.', purpose: 'Separate client data from app-generated metric views.', example: 'catalog.spinor_semantic.mv_inspections_revenue', advantage: 'Could expose metrics to external BI.', not: 'Not wired from UI today.' },
+      { term: 'Metrics catalog', def: 'UI at /agent-lab/metrics for browsing and governing defs.', purpose: 'Single pane for stewards and analysts.', example: 'Govern lens + promote/archive actions.', advantage: 'Virtualized table + lineage drawer.', not: 'Not the harvester jobs page.' },
+      { term: 'Lineage', def: 'Graph of what uses a semantic definition.', purpose: 'Impact analysis before changing a measure.', example: 'Dashboard widget references measure id → edge in graph.', advantage: 'See blast radius of edits.', not: 'Not UC lineage from Databricks.' },
+      { term: 'Continuous improvement', def: 'Ongoing loop: use metrics → learn from disambiguation, edits, harvest, reputation → refine definitions.', purpose: 'Keep the catalog accurate as the business and warehouse evolve.', example: 'User picks correct measure from chips; steward adds synonym; re-promote after schema change.', advantage: 'Layer stays trustworthy without one big bang project.', not: 'Not automatic self-governance without stewards.' },
+      { term: 'Disambiguation', def: 'When one word maps to several metrics, the agent asks the user to choose.', purpose: 'Prevent wrong governed id in charts.', example: '“Revenue” → chips for Net Revenue vs Gross Revenue.', advantage: 'Teaches the session which definition you mean.', not: 'Not a substitute for writing clear synonyms on measures.' },
+      { term: 'forceDemotion', def: 'Editing a governed computation may drop status back to candidate.', purpose: 'Force re-review after formula changes.', example: 'Change SUM to AVG on a governed measure → candidate until re-promoted.', advantage: 'Production numbers cannot change silently.', not: 'Not applied to cosmetic synonym edits only.' },
+      { term: 'authoring-preview', def: 'API that runs SemanticQuery in authoring mode.', purpose: 'Preview draft metrics before promote.', example: 'Define Metric panel “Run preview” button.', advantage: 'Stamped as draft in UI.', not: 'Not used for anonymous dashboard viewers.' },
+      { term: 'SemanticDraftAccessError', def: 'Error when query references another user’s draft.', purpose: 'Security boundary for personal drafts.', example: '403 on authoring-preview if measure id is someone else’s draft.', advantage: 'Prevents data leaks via ID guessing.', not: 'Not thrown for governed measures.' },
+    ];
+
+    function renderGlossary(filter) {
+      const q = (filter || '').toLowerCase();
+      const html = GLOSSARY.filter(g => {
+        if (!q) return true;
+        const blob = (g.term + g.def + g.purpose + g.example).toLowerCase();
+        return blob.includes(q);
+      }).map(g => `
+        <article class="def-block glossary-item">
+          <h4>${esc(g.term)}</h4>
+          <dl>
+            <dt>Definition</dt><dd>${esc(g.def)}</dd>
+            <dt>Purpose</dt><dd>${esc(g.purpose)}</dd>
+            <dt>Example</dt><dd>${esc(g.example)}</dd>
+            <dt>Advantage</dt><dd>${esc(g.advantage)}</dd>
+            <dt>Not the same as</dt><dd>${esc(g.not)}</dd>
+          </dl>
+        </article>`).join('');
+      document.getElementById('glossary-list').innerHTML = html || '<p class="muted">No terms match your search.</p>';
+    }
+
+    const LIB_MODULES = [
+      { name: 'types.ts', path: 'src/lib/semantic/types.ts', role: 'SemanticQuery contract + validateSemanticQuery()' },
+      { name: 'compiler.ts', path: 'src/lib/semantic/compiler.ts', role: 'SemanticQuery + model → Databricks SQL; compileSafety()' },
+      { name: 'execute.ts', path: 'src/lib/semantic/execute.ts', role: 'Load model, filterAccessible, compile, executeDatabricksSQL' },
+      { name: 'authoring-access.ts', path: 'src/lib/semantic/authoring-access.ts', role: 'draft vs governed visibility per execution mode' },
+      { name: 'authoring-draft.ts', path: 'src/lib/semantic/authoring-draft.ts', role: 'Define Metric validation + preview + edit gates' },
+      { name: 'governance.ts', path: 'src/lib/semantic/governance.ts', role: 'submit, promote, archive, audit, recalculateModelStatus' },
+      { name: 'promotion-gate.ts', path: 'src/lib/semantic/promotion-gate.ts', role: 'streetCred 80; quorum 120; semantic_authoring' },
+      { name: 'context-builder.ts', path: 'src/lib/semantic/context-builder.ts', role: 'Inspector prompt: governed entities + pgvector rank' },
+      { name: 'intent-embed.ts', path: 'src/lib/semantic/intent-embed.ts', role: 'platform_nl_intent_embeddings upsert/delete' },
+      { name: 'intent-match.ts', path: 'src/lib/semantic/intent-match.ts', role: 'Cosine match + governed intent listing' },
+      { name: 'lineage.ts', path: 'src/lib/semantic/lineage.ts', role: 'Catalog, consumers, graph, governanceSummary' },
+      { name: 'metric-views.ts', path: 'src/lib/semantic/metric-views.ts', role: 'DDL to spinor_semantic — not API-wired' },
+      { name: 'errors.ts', path: 'src/lib/semantic/errors.ts', role: 'ValidationFailure, NotGoverned, DraftAccess' },
+    ];
+
+    const ACCESS_MATRIX = [
+      { surface: 'Inspector chat / emit_semantic_chart', draft: 'Hidden', candidate: 'Yes if model governed', governed: 'Yes' },
+      { surface: 'buildSemanticContext (LLM prompt)', draft: 'Governed entities; defs not filtered', candidate: 'Under governed entity', governed: 'Yes' },
+      { surface: 'authoring-preview / Define Metric', draft: 'Own drafts only', candidate: 'Yes', governed: 'Yes' },
+      { surface: 'GET /definitions', draft: 'Hidden', candidate: 'Shown', governed: 'Shown' },
+      { surface: 'GET /review', draft: 'Hidden', candidate: 'Shown', governed: 'Shown' },
+      { surface: 'Dashboard batch /data', draft: 'No', candidate: 'Yes if model governed', governed: 'Yes' },
+      { surface: 'verify_claim (reflect-tools)', draft: 'No', candidate: 'Governed model only', governed: 'Yes' },
+    ];
+
+    const AUTHORING_DECISIONS = [
+      ['archived', 'any', 'any', 'any', 'exclude'],
+      ['candidate | governed', 'any', 'any', 'any', 'allow'],
+      ['draft', 'false', 'any', 'any', 'exclude'],
+      ['draft', 'true', 'caller', 'any', 'allow'],
+      ['draft', 'true', 'other', 'yes', 'forbid → SemanticDraftAccessError'],
+      ['draft', 'true', 'other', 'no', 'exclude (not in query)'],
+    ];
+
+    const SCENARIOS = [
+      { title: 'Analyst asks a governed question in Inspector', steps: [
+        'User types a question in Inspector with a Databricks connection selected.',
+        'Server loads buildSemanticContext — short list of official entities/measures for the prompt.',
+        'LLM chooses governed measure/dimension IDs (or asks user to disambiguate).',
+        'Tool emit_semantic_chart sends SemanticQuery JSON (not raw SQL).',
+        'chart-pipeline verifies model is governed and IDs are not draft/archived.',
+        'executeSemanticQuery compiles SQL, runs on Databricks, returns rows for the chart.',
+      ]},
+      { title: 'Steward defines a new metric (Phase 3.5B)', steps: [
+        'DefineMetricPanel → GET …/authoring-meta.',
+        'POST …/drafts → status=draft, created_by=user.',
+        'nl_intent → upsertIntentEmbedding.',
+        'POST …/authoring-preview with session authoringUserId.',
+        'POST …/submit → candidate.',
+        'POST …/promote → evaluatePromotionEligibility.',
+        'writeAuditRow + creditAuthoringPromotion if MEMORY_REPUTATION_ENABLED.',
+      ]},
+      { title: 'T4 bootstrap run (when handlers are deployed)', steps: [
+        'Prerequisite: T2 semantic enrich completed for target tables (last_t2_at set).',
+        'Launch t4_scan (weekly schedule or Jobs UI) — coordinator acquires org lock.',
+        'scanEstate(minT2=true) selects objects; enqueues t4_entity_propose per catalog.schema.',
+        'Each entity propose: Bedrock creates platform_sem_entities + joins; enqueues t4_dim_propose per table.',
+        'Each dim propose: writes platform_sem_dimensions/measures (candidate, created_by NULL); stamps last_t4_at.',
+        'Optional: GET /api/inspector/digest for run summary; stewards promote model and selected defs to governed.',
+      ]},
+      { title: 'Dashboard widget uses semantic binding', steps: [
+        'GET …/definitions (governed model; no drafts in picker).',
+        'Widget stores SemanticQuery in spec JSON.',
+        'Editor preview may use authoring opts; viewers cannot.',
+        'GET …/dashboards/[id]/data batch execute, no authoring bypass.',
+        'lineage scanConsumers from widget measure IDs.',
+      ]},
+    ];
+
+    const API_ROUTES = [
+      { route: '/api/inspector/semantic/models', method: 'GET', auth: 'Session', guards: '401 if no user; defaultModelId = latest governed else candidate', file: 'semantic/models/route.ts' },
+      { route: '/api/inspector/semantic/candidates', method: 'GET', auth: 'None (org default)', guards: 'Latest candidate model for Inspector Semantic tab', file: 'semantic/candidates/route.ts' },
+      { route: '/api/inspector/semantic/my-drafts', method: 'GET', auth: 'Session', guards: 'Owner-scoped drafts org-wide', file: 'semantic/my-drafts/route.ts' },
+      { route: '/api/inspector/semantic/my-contributions', method: 'GET', auth: 'Session', guards: 'Audit-based contribution feed', file: 'semantic/my-contributions/route.ts' },
+      { route: '/api/inspector/semantic/lineage', method: 'GET', auth: 'Session', guards: '401; no_governed_model or graph JSON', file: 'semantic/lineage/route.ts' },
+      { route: '/api/inspector/semantic/entities-catalog', method: 'GET', auth: 'Session', guards: 'Paginated governed catalog', file: 'semantic/entities-catalog/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/definitions', method: 'GET', auth: 'Org default', guards: '404 unless model governed; hides draft/archived', file: 'semantic/[modelId]/definitions/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/review', method: 'GET', auth: 'Org default', guards: '404 if model missing; excludes draft', file: 'semantic/[modelId]/review/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/drafts', method: 'GET/POST', auth: 'Session', guards: 'POST: 403 other-user entity; 409 dup dimension', file: 'semantic/[modelId]/drafts/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/submit', method: 'POST', auth: 'Session', guards: 'Owner only; T4 rows cannot submit', file: 'semantic/[modelId]/submit/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/promote', method: 'POST', auth: 'Session', guards: '403 promotion gate; 400 draft without submit', file: 'semantic/[modelId]/promote/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/archive', method: 'POST', auth: 'Session', guards: 'Admin any; non-admin own drafts only', file: 'semantic/[modelId]/archive/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/definitions/[id]', method: 'PATCH', auth: 'Session', guards: 'decideEditGate; may demote', file: '.../definitions/[definitionId]/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/authoring-meta', method: 'GET', auth: 'Session', guards: 'Define Metric entities/defs', file: 'semantic/[modelId]/authoring-meta/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/authoring-preview', method: 'POST', auth: 'Session', guards: '403 DraftAccess; 503 no DBX', file: 'semantic/[modelId]/authoring-preview/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/resolve-intent', method: 'POST', auth: 'Org default', guards: '404 if model not governed', file: 'semantic/[modelId]/resolve-intent/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/intents', method: 'GET', auth: 'Org default', guards: 'Governed NL intents', file: 'semantic/[modelId]/intents/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/disambiguation-rank', method: 'POST', auth: 'Optional session', guards: 'Ranks candidates', file: 'semantic/[modelId]/disambiguation-rank/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/blueprint', method: 'POST', auth: 'Org default', guards: 'propose_blueprint + catalog grounding', file: 'semantic/[modelId]/blueprint/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/blueprint/refine-item', method: 'POST', auth: 'Org default', guards: 'Refine blueprint item', file: '.../blueprint/refine-item/route.ts' },
+      { route: '/api/inspector/semantic/[modelId]/contributions', method: 'GET', auth: 'Session', guards: 'Per-model history', file: 'semantic/[modelId]/contributions/route.ts' },
+      { route: '/api/agent-lab/context/objects/[id]/confirm-semantic', method: 'POST', auth: 'Session', guards: 'Estate card trust; 409 VERSION_SUPERSEDED', file: 'confirm-semantic/route.ts' },
+      { route: '/api/inspector/digest', method: 'GET', auth: 'Org default', guards: '404 if no succeeded t4_scan; payload + narrative + charts', file: 'inspector/digest/route.ts' },
+      { route: '/api/agent-lab/context/jobs/launch', method: 'POST', auth: 'Session', guards: 'Can launch t4_scan among VALID_KINDS', file: 'context/jobs/launch/route.ts' },
+      { route: '/api/inspector/dashboards/[dashboardId]/data', method: 'POST', auth: 'Session', guards: 'Batch execute; no authoring bypass', file: 'dashboards/.../data/route.ts' },
+    ];
+
+    const MODE_TEXT = {
+      default: 'Default path: model must be governed; filterAccessible excludes all drafts; candidate + governed defs allowed.',
+      authoring: 'isAuthoringExecution requires BOTH authoringMode AND authoringUserId. Model status gate bypassed. Own drafts allowed in query.',
+      'dashboard-view': 'dashboards/.../data and viewer preview: no authoring bypass; model must be governed; drafts never execute.',
+    };
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function fillTable(tbody, rows, cols) {
+      tbody.innerHTML = rows.map(row => {
+        const cells = cols ? cols(row) : row;
+        return '<tr>' + cells.map(c => '<td>' + esc(c) + '</td>').join('') + '</tr>';
+      }).join('');
+    }
+
+    document.querySelector('#lib-modules-table tbody').innerHTML = LIB_MODULES.map(m =>
+      '<tr><td><code>' + esc(m.name) + '</code></td><td><code>' + esc(m.path) + '</code></td><td>' + esc(m.role) + '</td></tr>'
+    ).join('');
+
+    fillTable(document.querySelector('#access-matrix-table tbody'), ACCESS_MATRIX, r => [r.surface, r.draft, r.candidate, r.governed]);
+    fillTable(document.querySelector('#authoring-decisions-table tbody'), AUTHORING_DECISIONS);
+
+    renderGlossary('');
+    document.getElementById('glossary-search').addEventListener('input', e => renderGlossary(e.target.value));
+
+    document.getElementById('scenarios-container').innerHTML = SCENARIOS.map(s => {
+      const steps = s.steps.map((st, i) => '<li>' + esc(st) + '</li>').join('');
+      return '<details><summary>' + esc(s.title) + '</summary><ol>' + steps + '</ol></details>';
+    }).join('');
+
+    function renderApis() {
+      const q = document.getElementById('api-search').value.toLowerCase();
+      const authOnly = document.getElementById('api-auth-only').checked;
+      const filtered = API_ROUTES.filter(r => {
+        if (authOnly && r.auth !== 'Session' && !r.auth.startsWith('Session')) return false;
+        if (!q) return true;
+        return (r.route + r.guards + r.method).toLowerCase().includes(q);
+      });
+      document.getElementById('api-count').textContent = 'Showing ' + filtered.length + ' of ' + API_ROUTES.length + ' routes.';
+      fillTable(document.querySelector('#api-table tbody'), filtered, r => [r.method, r.route, r.auth, r.guards, r.file]);
+    }
+    document.getElementById('api-search').addEventListener('input', renderApis);
+    document.getElementById('api-auth-only').addEventListener('change', renderApis);
+    renderApis();
+
+    function updateAccessMode() {
+      const v = document.getElementById('access-mode').value;
+      document.getElementById('access-mode-detail').textContent = MODE_TEXT[v] || '';
+    }
+    document.getElementById('access-mode').addEventListener('change', updateAccessMode);
+    updateAccessMode();
+
+    const T4_BLOCKS = {
+      databricks: {
+        title: '① Databricks warehouse',
+        purpose: 'The real data: tables and columns in your lakehouse. T0 and T1 run SQL here to discover structure and profiles.',
+        how: ['T0: DESCRIBE / information_schema → paths and column types.', 'T1: sample queries → null %, top values.', 'T4 does not copy warehouse rows into platform_sem_* — only metadata in Aurora.'],
+        sample: 'Row (illustrative): user_id=usr_1042, is_active=true\nPath: current_db.drifter.process_flow_log_user',
+        atlas: '#sample-warehouse',
+      },
+      'context-catalog': {
+        title: '② Context catalog (platform_context_*)',
+        purpose: 'Harvested inventory and AI descriptions — what Inspector “catalog mode” searches. Input to T4.',
+        how: ['platform_context_objects: one row per table, last_t0_at … last_t4_at stamps.', 'platform_context_columns: semantic JSON from T2.', 'embed job writes platform_context_embeddings for search.'],
+        sample: 'full_path: current_db.drifter.process_flow_log_user\nlast_t2_at: set (required for T4)\nlast_t4_at: set after dim propose',
+        atlas: '#sample-context',
+      },
+      t0: {
+        title: 'T0 structural harvest',
+        purpose: 'Mirror table/column inventory from Databricks into Aurora — foundation for T1–T4 and Inspector harvested mode.',
+        how: [
+          'Job kind: t0_structural (orchestrator → runT0Harvest in harvest.ts).',
+          'Reads: platform_context_sources, platform_databricks_connections; SQL via DatabricksAdapter.',
+          'Writes: platform_context_objects (last_t0_at), platform_context_columns; sync platform_estate_objects.',
+          'Full sweep: lifecycle dropped for missing tables; updates source last_sweep_at (not on includePatterns-only runs).',
+          'UI: Sources “Harvest Now” queues only; Reharvest All enqueues + launches worker.',
+          'Does not: profile, LLM, embed, usage, or platform_sem_*.',
+        ],
+        sample: 'job_kind: t0_structural\nscope: { "path": "cat.schema.table" }\n\nChained launch:\nscope.chain: ["t1_profile","t2_semantic","embed"]',
+        atlas: 'context-harvesting-guide.html#step-t0-deep',
+      },
+      t1: { title: 'T1 profile', purpose: 'Column statistics and samples for stewards and LLM prompts.', how: ['Job: t1_profile.', 'Stores profile JSON on columns.', 'Sets last_t1_at.'], sample: 'Top values on is_active: true (607), false (412)', atlas: '' },
+      t2: { title: 'T2 semantic enrich', purpose: 'Bedrock-generated business descriptions and column roles.', how: ['Job: t2_semantic in enrich.ts.', 'Object “card” + column semantic field.', 'Gate: T4 scan requires last_t2_at.'], sample: 'semantic.role: dimension\nsemantic.description: Whether the user record is active…', atlas: '#sample-context-col' },
+      't4-pipeline': {
+        title: '③ T4 bootstrap (three jobs)',
+        purpose: 'Auto-build semantic layer candidates from the context catalog using Bedrock.',
+        how: ['t4_scan: pick tables, enqueue per schema.', 't4_entity_propose: entities + joins.', 't4_dim_propose: dimensions + measures per table.'],
+        sample: 'Job tree: scan → entity_propose → dim_propose\nSee atlas D for full job rows',
+        atlas: '#sample-jobs',
+      },
+      't4-scan': {
+        title: 't4_scan (coordinator)',
+        purpose: 'One run per org/source: find T2-ready tables and fan out child jobs.',
+        how: ['Advisory lock ctx-orch:{orgId}:t4_scan.', 'scanEstate(..., minT2=true).', 'Groups by catalog.schema → t4_entity_propose.', 'May ensure platform_semantic_models exists.'],
+        sample: 'stats: { "clusters_enqueued": 12, "tables_total": 487 }',
+        atlas: '#sample-jobs',
+      },
+      't4-entity-propose': {
+        title: 't4_entity_propose',
+        purpose: 'Per schema cluster: propose business entities and joins between tables.',
+        how: ['scope: cluster_catalog, cluster_schema.', 'INSERT platform_sem_entities (candidate, created_by NULL).', 'INSERT platform_sem_joins.', 'Enqueue t4_dim_propose per table.'],
+        sample: 'entity_label: Process Flow Log User\nfull_path: current_db.drifter.process_flow_log_user',
+        atlas: '#sample-entity',
+      },
+      't4-dim-propose': {
+        title: 't4_dim_propose',
+        purpose: 'Per table: propose dimensions and measures from T2 + profiles.',
+        how: ['scope.context_object_id → platform_context_objects.id.', 'INSERT platform_sem_dimensions / platform_sem_measures.', 'Sets last_t4_at on context object.'],
+        sample: 'Dim: Is Active → is_active (categorical)\nMeasure: Distinct Users → user_id (hllp)',
+        atlas: '#sample-dims',
+      },
+      bedrock: {
+        title: 'AWS Bedrock (LLM)',
+        purpose: 'Generates proposed labels, types, aggregates — not executed SQL for end users.',
+        how: ['Used in T2 enrich and T4 entity/dim propose.', 'Sonnet-class model in Fargate task.', '~$0.003/table warning in Jobs UI.'],
+        sample: 'Input: T2 card + column list + profile top-k\nOutput: Zod-validated JSON → Aurora rows',
+        atlas: '',
+      },
+      'semantic-layer': {
+        title: '④ Semantic layer (platform_sem_*)',
+        purpose: 'Official metric definitions: entities, dimensions, measures, joins — compiled to SQL.',
+        how: ['platform_semantic_models: container (e.g. Auto-Bootstrap Model).', 'Unique (model_id, full_path) per entity.', 'status: candidate until promote → governed.'],
+        sample: 'model: Auto-Bootstrap Model, source_type=auto_bootstrap\n697 entities typical after bulk T4',
+        atlas: '#sample-model',
+      },
+      'sem-model': { title: 'platform_semantic_models', purpose: 'Top-level bundle for dashboards and Inspector.', how: ['Entities page requires model status=governed.', 'source_type auto_bootstrap from T4.'], sample: 'name: Auto-Bootstrap Model\nstatus: governed (after promote)', atlas: '#sample-model' },
+      'sem-entities': { title: 'platform_sem_entities + dims/measures', purpose: 'Business view of one warehouse table and its metrics.', how: ['full_path ties to context catalog.', 'SemanticQuery references measure/dimension IDs.', 'Compiler builds SQL.'], sample: 'See entities-catalog API fragment in atlas L', atlas: '#sample-api' },
+      'stewards-promote': {
+        title: 'Stewards promote',
+        purpose: 'Turn trusted candidates into governed production definitions.',
+        how: ['T4 rows: created_by NULL → use POST …/promote (not Submit).', 'Promotion gate: streetCred / admin.', 'platform_sem_audit records change.'],
+        sample: 'action: promote\ncandidate → governed on platform_sem_measures',
+        atlas: '#sample-audit',
+      },
+      'production-use': {
+        title: '⑤ Inspector & dashboards',
+        purpose: 'Consume governed SemanticQuery — not raw T4 candidates in production charts.',
+        how: ['emit_semantic_chart tool.', 'GET entities-catalog for Estate UI.', 'Dashboard batch /data executes compiler.'],
+        sample: 'SemanticQuery: modelId + entityId + measureIds + dimensionIds',
+        atlas: '#sample-query',
+      },
+      'inspector-apps': { title: 'Inspector and dashboards', purpose: 'End-user analytics on governed metrics.', how: ['chart-pipeline checks governed model.', 'Draft/archived IDs excluded for viewers.'], sample: 'User asks: “distinct users by month” → governed measure IDs', atlas: '#sample-query' },
+      eb: { title: 'EventBridge schedule', purpose: 'Weekly automatic t4_scan (aloft-t4-semantic-bootstrap-weekly).', how: ['Sunday 08:00 UTC in infra template.', 'Starts ECS task with --kind t4_scan.'], sample: 'cron(0 8 ? * SUN *)', atlas: '' },
+      ui: { title: 'Agent Lab Jobs UI', purpose: 'Manual on-demand harvest and T4 launch.', how: ['Run T4 Entity Scan button.', 'Shows job tree and stats.'], sample: 'Jobs → T4 Entity Scan → confirm cost warning', atlas: '' },
+      api: { title: 'jobs launch API', purpose: 'POST /api/agent-lab/context/jobs/launch enqueues work.', how: ['VALID_KINDS includes t4_scan.', 'Spawns Fargate via launchHarvesterTask.'], sample: 'body: { kind: "t4_scan" }', atlas: '' },
+      ecs: { title: 'ECS Fargate harvester', purpose: 'Runs orchestrator.ts in container aloft-context-harvester.', how: ['Reads DATABASE_URL, Databricks creds.', 'Claims jobs from platform_context_jobs.'], sample: 'npx tsx scripts/context/orchestrator.ts --kind t4_scan', atlas: '' },
+      orch: { title: 'orchestrator.ts', purpose: 'Dispatches job_kind to handlers; T4 stubbed in this repo checkout.', how: ['switch(job_kind) for t4_scan / entity / dim.', 'advanceChain for T0→T1→T2 pipelines.', 'Advisory lock on t4_scan entry.'], sample: 'Missing: t4-handlers.ts → jobs fail until ported', atlas: '' },
+      queue: { title: 'platform_context_jobs', purpose: 'Queue + parent_job_id tree for fan-out.', how: ['Statuses: queued, running, succeeded, failed.', 'stats JSON on each job for digest API.'], sample: 'parent: scan id → children entity_propose → dim_propose', atlas: '#sample-jobs' },
+      aurora: { title: 'Aurora PostgreSQL', purpose: 'Stores both context catalog and semantic layer.', how: ['Prisma from Next.js and harvester.', 'Same DB for platform_context_* and platform_sem_*.'], sample: 'DATABASE_URL in Beanstalk + Fargate task', atlas: '' },
+      'gov-candidate': { title: 'T4 candidate rows', purpose: 'Bulk proposals — visible but not production-trusted.', how: ['created_by NULL.', 'Thousands after bootstrap run.'], sample: 'status: candidate on entity/dim/measure', atlas: '#sample-dims' },
+      'gov-review': { title: 'Steward review', purpose: 'Entities page + Metrics catalog lenses.', how: ['Browse candidate badges.', 'Promote selected defs.'], sample: 'Entities UI: Process Flow Log User (Candidate)', atlas: '#sample-api' },
+      'gov-promote': { title: 'POST promote', purpose: 'candidate → governed with gate and audit.', how: ['promotion-gate.ts streetCred 80 or quorum.', 'writeAuditRow.'], sample: 'POST …/semantic/[modelId]/promote', atlas: '#sample-audit' },
+      'gov-governed': { title: 'Governed definitions', purpose: 'Official metrics for SQL compilation.', how: ['Inspector emit_semantic_chart uses these IDs.', 'forceDemotion on risky edits.'], sample: 'status: governed on Distinct Users measure', atlas: '#sample-meas' },
+    };
+
+    const T4_MERMAID_ID = {
+      TBL: 'databricks', T0: 't0', T1: 't1', T2: 't2', PCO: 'context-catalog',
+      SCAN: 't4-scan', EP: 't4-entity-propose', EP1: 't4-entity-propose', EP2: 't4-entity-propose',
+      DP: 't4-dim-propose', DP1: 't4-dim-propose', DP2: 't4-dim-propose', DP3: 't4-dim-propose',
+      BR: 'bedrock', MODEL: 'sem-model', ENT: 'sem-entities', ST: 'stewards-promote', APP: 'inspector-apps',
+      EB: 'eb', UI: 'ui', API: 'api', ECS: 'ecs', ORCH: 'orch', Q: 'queue', AUR: 'aurora',
+      G_CAND: 'gov-candidate', G_REV: 'gov-review', G_PROM: 'gov-promote', G_GOV: 'gov-governed', G_USE: 'production-use',
+    };
+
+    const T4_TEXT_KEYS = [
+      ['platform_context_objects', 'context-catalog'],
+      ['t4_scan', 't4-scan'],
+      ['t4_entity_propose', 't4-entity-propose'],
+      ['t4_dim_propose', 't4-dim-propose'],
+      ['Bedrock', 'bedrock'],
+      ['platform_semantic', 'sem-model'],
+      ['entities dimensions', 'sem-entities'],
+      ['Stewards promote', 'stewards-promote'],
+      ['Inspector and dashboards', 'inspector-apps'],
+      ['T0 structural', 't0'],
+      ['T1 profile', 't1'],
+      ['T2 semantic', 't2'],
+      ['Tables and columns', 'databricks'],
+      ['orchestrator', 'orch'],
+      ['EventBridge', 'eb'],
+      ['Agent Lab', 'ui'],
+      ['jobs launch', 'api'],
+      ['Fargate', 'ecs'],
+      ['platform_context_jobs', 'queue'],
+      ['Aurora PostgreSQL', 'aurora'],
+      ['Context row', 'context-catalog'],
+      ['platform_sem tables', 'sem-entities'],
+      ['CANDIDATE rows', 'gov-candidate'],
+      ['Stewards review', 'gov-review'],
+      ['POST promote', 'gov-promote'],
+      ['GOVERNED defs', 'gov-governed'],
+      ['Inspector charts', 'production-use'],
+    ];
+
+    let t4HoverBlockId = null;
+
+    function ensureT4TooltipEl() {
+      let tip = document.getElementById('t4-hover-tooltip');
+      if (tip) return tip;
+      tip = document.createElement('div');
+      tip.id = 't4-hover-tooltip';
+      tip.className = 't4-hover-tooltip';
+      tip.hidden = true;
+      tip.setAttribute('role', 'tooltip');
+      tip.innerHTML =
+        '<span class="tip-title"></span>' +
+        '<p class="tip-purpose"></p>' +
+        '<p class="tip-how"></p>' +
+        '<span class="tip-hint">Click for full details</span>';
+      document.body.appendChild(tip);
+      return tip;
+    }
+
+    function hideT4HoverTip() {
+      const tip = document.getElementById('t4-hover-tooltip');
+      if (tip) {
+        tip.classList.remove('visible');
+        tip.hidden = true;
+      }
+      t4HoverBlockId = null;
+    }
+
+    function moveT4HoverTip(ev) {
+      const tip = document.getElementById('t4-hover-tooltip');
+      if (!tip || tip.hidden) return;
+      const pad = 16;
+      let x = ev.clientX + pad;
+      let y = ev.clientY + pad;
+      tip.style.left = x + 'px';
+      tip.style.top = y + 'px';
+      const rect = tip.getBoundingClientRect();
+      if (rect.right > window.innerWidth - 8) {
+        x = Math.max(8, ev.clientX - rect.width - pad);
+        tip.style.left = x + 'px';
+      }
+      if (rect.bottom > window.innerHeight - 8) {
+        y = Math.max(8, ev.clientY - rect.height - pad);
+        tip.style.top = y + 'px';
+      }
+    }
+
+    function showT4HoverTip(blockId, ev) {
+      const data = T4_BLOCKS[blockId];
+      if (!data) {
+        hideT4HoverTip();
+        return;
+      }
+      const tip = ensureT4TooltipEl();
+      tip.querySelector('.tip-title').textContent = data.title;
+      tip.querySelector('.tip-purpose').textContent = data.purpose;
+      const howEl = tip.querySelector('.tip-how');
+      if (data.how && data.how.length) {
+        howEl.textContent = '• ' + data.how[0];
+        howEl.style.display = 'block';
+      } else {
+        howEl.textContent = '';
+        howEl.style.display = 'none';
+      }
+      tip.hidden = false;
+      requestAnimationFrame(() => {
+        tip.classList.add('visible');
+        moveT4HoverTip(ev);
+      });
+      t4HoverBlockId = blockId;
+    }
+
+    function resolveT4BlockFromMermaidEvent(ev, wrap) {
+      const node = ev.target.closest
+        ? ev.target.closest('g.node, g.actor, g.labelGroup, .messageText, .note, g.cluster')
+        : null;
+      if (!node || !wrap.contains(node)) return null;
+      const nodeId = node.id || '';
+      const m = nodeId.match(/flowchart-([A-Za-z0-9_]+)-/);
+      if (m && T4_MERMAID_ID[m[1]]) return T4_MERMAID_ID[m[1]];
+      const seqM = nodeId.match(/sequence-(\d+)/);
+      if (seqM) {
+        const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+        for (let i = 0; i < T4_TEXT_KEYS.length; i++) {
+          if (text.indexOf(T4_TEXT_KEYS[i][0]) !== -1) return T4_TEXT_KEYS[i][1];
+        }
+      }
+      const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+      for (let i = 0; i < T4_TEXT_KEYS.length; i++) {
+        if (text.indexOf(T4_TEXT_KEYS[i][0]) !== -1) return T4_TEXT_KEYS[i][1];
+      }
+      return null;
+    }
+
+    function renderT4Block(blockId) {
+      hideT4HoverTip();
+      const data = T4_BLOCKS[blockId];
+      const panel = document.getElementById('t4-detail-panel');
+      if (!data || !panel) return;
+      panel.classList.remove('empty');
+      document.querySelectorAll('.arch-layer.clickable').forEach((el) => {
+        el.classList.toggle('active-layer', el.getAttribute('data-t4-block') === blockId);
+      });
+      document.querySelectorAll('#t4-quick-picks button').forEach((btn) => {
+        btn.classList.toggle('active', btn.getAttribute('data-t4-block') === blockId);
+      });
+      const atlasLink = data.atlas
+        ? '<p class="diagram-caption" style="margin-top:0.75rem"><a href="' + data.atlas + '">Open sample in data atlas →</a></p>'
+        : '';
+      panel.querySelector('.t4-detail-body').innerHTML =
+        '<h3 class="t4-detail-title">' + esc(data.title) + '</h3>' +
+        '<div class="t4-detail-section"><h4>Purpose</h4><p>' + esc(data.purpose) + '</p></div>' +
+        '<div class="t4-detail-section"><h4>How it works</h4><ol>' +
+        data.how.map((s) => '<li>' + esc(s) + '</li>').join('') +
+        '</ol></div>' +
+        '<div class="t4-detail-section"><h4>Sample</h4><div class="t4-detail-sample">' + esc(data.sample) + '</div></div>' +
+        atlasLink;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function initT4QuickPicks() {
+      const wrap = document.getElementById('t4-quick-picks');
+      if (!wrap || wrap.dataset.bound) return;
+      wrap.dataset.bound = '1';
+      ['t4-scan', 't4-entity-propose', 't4-dim-propose', 'context-catalog', 'semantic-layer', 'stewards-promote'].forEach((id) => {
+        const b = T4_BLOCKS[id];
+        if (!b) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-t4-block', id);
+        btn.textContent = b.title.replace(/^[①-⑤]\s*/, '').slice(0, 28);
+        btn.title = b.purpose;
+        btn.addEventListener('click', () => renderT4Block(id));
+        btn.addEventListener('mouseenter', (ev) => showT4HoverTip(id, ev));
+        btn.addEventListener('mousemove', (ev) => {
+          if (t4HoverBlockId === id) moveT4HoverTip(ev);
+        });
+        btn.addEventListener('mouseleave', () => hideT4HoverTip());
+        wrap.appendChild(btn);
+      });
+    }
+
+    function bindT4ArchLayers() {
+      document.querySelectorAll('.arch-layer.clickable').forEach((el) => {
+        if (el.dataset.bound) return;
+        el.dataset.bound = '1';
+        const id = el.getAttribute('data-t4-block');
+        const activate = () => { if (id) renderT4Block(id); };
+        el.addEventListener('click', activate);
+        el.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); activate(); }
+        });
+        if (id && T4_BLOCKS[id]) {
+          el.setAttribute('aria-label', T4_BLOCKS[id].title + ': ' + T4_BLOCKS[id].purpose);
+        }
+        el.addEventListener('mouseenter', (ev) => { if (id) showT4HoverTip(id, ev); });
+        el.addEventListener('mousemove', (ev) => {
+          if (id && t4HoverBlockId === id) moveT4HoverTip(ev);
+        });
+        el.addEventListener('mouseleave', () => hideT4HoverTip());
+      });
+    }
+
+    function bindT4MermaidClicks() {
+      const t4Panel = document.getElementById('panel-t4');
+      if (!t4Panel) return;
+      t4Panel.querySelectorAll('.mermaid-wrap').forEach((wrap) => {
+        if (wrap.dataset.t4ClickBound) return;
+        wrap.dataset.t4ClickBound = '1';
+        wrap.addEventListener('click', (ev) => {
+          const blockId = resolveT4BlockFromMermaidEvent(ev, wrap);
+          if (blockId) renderT4Block(blockId);
+        });
+        wrap.addEventListener('mousemove', (ev) => {
+          const blockId = resolveT4BlockFromMermaidEvent(ev, wrap);
+          if (blockId) {
+            if (blockId !== t4HoverBlockId) showT4HoverTip(blockId, ev);
+            else moveT4HoverTip(ev);
+          } else {
+            hideT4HoverTip();
+          }
+        });
+        wrap.addEventListener('mouseleave', () => hideT4HoverTip());
+      });
+    }
+
+    let t4MermaidRendered = false;
+
+    function ensureT4MermaidSources(panel) {
+      panel.querySelectorAll('pre.mermaid').forEach((pre) => {
+        if (pre.dataset.mermaidSrc) return;
+        const raw = (pre.textContent || '').trim();
+        if (raw && !raw.startsWith('#mermaid')) pre.dataset.mermaidSrc = raw;
+      });
+    }
+
+    function t4ChartsNeedRerender(panel) {
+      const wraps = panel.querySelectorAll('.mermaid-wrap');
+      if (!wraps.length) return true;
+      for (let i = 0; i < wraps.length; i++) {
+        const svg = wraps[i].querySelector('svg');
+        if (!svg) return true;
+        const r = svg.getBoundingClientRect();
+        if (r.width < 48 || r.height < 48) return true;
+      }
+      return false;
+    }
+
+    function resetT4MermaidBlocks(panel) {
+      panel.querySelectorAll('pre.mermaid').forEach((pre) => {
+        const src = pre.dataset.mermaidSrc;
+        if (!src) return;
+        pre.removeAttribute('data-processed');
+        pre.innerHTML = '';
+        pre.textContent = src;
+      });
+      panel.querySelectorAll('.mermaid-wrap').forEach((w) => w.classList.remove('mermaid-failed'));
+    }
+
+    let t4MermaidRendering = false;
+
+    function renderT4Mermaid() {
+      const panel = document.getElementById('panel-t4');
+      if (!panel || !panel.classList.contains('active')) return;
+      initT4QuickPicks();
+      bindT4ArchLayers();
+      bindT4MermaidClicks();
+      ensureT4MermaidSources(panel);
+      const blocks = panel.querySelectorAll('pre.mermaid');
+      if (!blocks.length) return;
+      if (typeof mermaid === 'undefined') {
+        panel.querySelectorAll('.mermaid-wrap').forEach((w) => w.classList.add('mermaid-failed'));
+        return;
+      }
+      const needsRerender = t4ChartsNeedRerender(panel);
+      if (t4MermaidRendered && !needsRerender) return;
+      if (t4MermaidRendering) return;
+      if (needsRerender) resetT4MermaidBlocks(panel);
+      t4MermaidRendering = true;
+      try {
+        mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+        mermaid.run({ nodes: blocks }).then(() => {
+          t4MermaidRendered = !t4ChartsNeedRerender(panel);
+          bindT4MermaidClicks();
+          if (t4ChartsNeedRerender(panel)) {
+            t4MermaidRendered = false;
+            setTimeout(() => renderT4Mermaid(), 120);
+          }
+        }).catch((err) => {
+          console.warn('[semantic-guide] mermaid.run failed', err);
+          t4MermaidRendered = false;
+          panel.querySelectorAll('.mermaid-wrap').forEach((w) => w.classList.add('mermaid-failed'));
+        }).finally(() => {
+          t4MermaidRendering = false;
+        });
+      } catch (err) {
+        t4MermaidRendering = false;
+        console.warn('[semantic-guide] mermaid init failed', err);
+      }
+    }
+
+    function activateTab(tab) {
+      document.querySelectorAll('.tab-link').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+      });
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      const panel = document.getElementById('panel-' + tab);
+      if (panel) panel.classList.add('active');
+      history.replaceState(null, '', '#' + tab);
+      if (tab === 't4') requestAnimationFrame(() => renderT4Mermaid());
+    }
+
+    document.querySelectorAll('.tab-link').forEach(btn => {
+      btn.addEventListener('click', () => activateTab(btn.getAttribute('data-tab')));
+    });
+
+    const hash = (location.hash || '#playbook').replace('#', '');
+    const link = document.querySelector('.tab-link[data-tab="' + hash + '"]');
+    if (link && hash !== 'playbook') activateTab(hash);
+  </script>
+</body>
+</html>

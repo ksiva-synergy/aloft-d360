@@ -4,6 +4,7 @@ import React from 'react';
 import { Ruler, Scale, Circle, ChevronDown, Plus } from 'lucide-react';
 import { useCatalogStore } from './catalog-store';
 import { MONO, SANS, MUTED, INK, GOLD, BORDER } from './mc-ui';
+import { type } from '@/lib/typography/tokens';
 
 /**
  * Top model bar: brand, active-model picker (switches scope → refetch), candidate
@@ -55,7 +56,7 @@ export function TopModelBar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Ruler size={16} color={GOLD} />
-          <span style={{ ...MONO, fontSize: 10, color: MUTED, letterSpacing: '0.08em' }}>ALOFT v0.4</span>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>ALOFT v0.4</span>
         </div>
 
         <div style={{ position: 'relative' }}>
@@ -74,11 +75,11 @@ export function TopModelBar() {
               maxWidth: 360,
             }}
           >
-            <span style={{ ...SANS, fontSize: 13, fontWeight: 600, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {active?.name ?? 'No model'}
             </span>
             {active && (
-              <span style={{ ...MONO, fontSize: 9, color: MUTED, textTransform: 'uppercase' }}>{active.status}</span>
+              <span style={{ ...type.label, }}>{active.status}</span>
             )}
             <ChevronDown size={13} color={MUTED} />
           </button>
@@ -104,7 +105,7 @@ export function TopModelBar() {
                   padding: 4,
                 }}
               >
-                <div style={{ ...MONO, fontSize: 9, color: MUTED, letterSpacing: '0.08em', padding: '6px 8px 4px' }}>
+                <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', padding: '6px 8px 4px' }}>
                   SEMANTIC MODELS
                 </div>
                 {sorted.map((m) => (
@@ -120,17 +121,17 @@ export function TopModelBar() {
                       gap: 12,
                       width: '100%',
                       textAlign: 'left',
-                      background: m.id === activeModelId ? 'rgba(253,181,21,0.08)' : 'transparent',
+                      background: m.id === activeModelId ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
                       border: 'none',
                       borderRadius: 4,
                       padding: '7px 8px',
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ ...SANS, fontSize: 12, color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {m.name}
                     </span>
-                    <span style={{ ...MONO, fontSize: 9, color: MUTED, textTransform: 'uppercase' }}>{m.status}</span>
+                    <span style={{ ...type.label, }}>{m.status}</span>
                   </button>
                 ))}
                 <div style={{ borderTop: `1px solid ${BORDER}`, marginTop: 4, paddingTop: 4 }}>
@@ -151,7 +152,7 @@ export function TopModelBar() {
                     }}
                   >
                     <Plus size={13} color={MUTED} />
-                    <span style={{ ...SANS, fontSize: 12, color: MUTED }}>New Model</span>
+                    <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>New Model</span>
                   </button>
                 </div>
               </div>
@@ -160,7 +161,7 @@ export function TopModelBar() {
         </div>
 
         {active && (
-          <div style={{ ...MONO, fontSize: 10, color: MUTED, display: 'flex', gap: 12 }}>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'flex', gap: 12 }}>
             <span><span style={{ color: 'var(--mc-status-governed)' }}>{governed}</span> governed</span>
             <span><span style={{ color: 'var(--mc-status-candidate)' }}>{candidate}</span> candidate</span>
           </div>
@@ -192,7 +193,7 @@ function LensButton({ active, onClick, icon, label }: { active: boolean; onClick
         background: active ? GOLD : 'transparent',
         color: active ? '#1A1206' : MUTED,
         ...MONO,
-        fontSize: 11,
+        fontSize: 'var(--type-ui-regular-size)',
         fontWeight: 600,
         letterSpacing: '0.04em',
       }}

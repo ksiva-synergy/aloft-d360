@@ -1,4 +1,5 @@
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ── Dot ──────────────────────────────────────────────────────
 export interface DotProps { c?: string; s?: number; }
@@ -173,11 +174,11 @@ export function StatusBadge({ s }: StatusBadgeProps) {
   let border = 'none';
 
   if (upper === 'LIVE') {
-    bg = '#052010';
+    bg = 'color-mix(in srgb, var(--green) 12%, transparent)';
     color = 'var(--green)';
     border = '1px solid var(--green)';
   } else if (upper === 'PREVIEW') {
-    bg = '#1A1200';
+    bg = 'color-mix(in srgb, var(--amber) 12%, transparent)';
     color = 'var(--amber)';
     border = '1px solid var(--amber)';
   } else if (upper === 'COMING SOON') {
@@ -188,10 +189,8 @@ export function StatusBadge({ s }: StatusBadgeProps) {
 
   return (
     <span style={{
-      fontFamily: 'var(--mono)',
-      fontSize: 9,
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
+      ...type.label,
+      letterSpacing: '0.08em',
       padding: '2px 6px',
       borderRadius: 3,
       background: bg,
@@ -213,10 +212,8 @@ export function Check({ ok, label }: CheckProps) {
       display: 'inline-flex',
       alignItems: 'center',
       gap: 3,
-      fontFamily: 'var(--mono)',
-      fontSize: 9,
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
+      ...type.label,
+      letterSpacing: '0.08em',
       padding: '1px 5px',
       borderRadius: 3,
       border: ok ? '1px solid var(--green)' : '1px solid var(--border)',
@@ -236,10 +233,9 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{
-        fontSize: 8,
-        fontFamily: 'var(--mono)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.1em',
+        fontSize: 'var(--type-ui-regular-size)',
+        ...type.label,
+        letterSpacing: '0.08em',
         color: 'var(--label)',
       }}>
         {k}
@@ -248,7 +244,7 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        fontSize: 11,
+        fontSize: 'var(--type-ui-regular-size)',
         fontFamily: 'var(--mono)',
         color: accent ? 'var(--green)' : 'var(--text)',
       }}>

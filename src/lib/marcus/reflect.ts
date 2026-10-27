@@ -60,7 +60,7 @@ export async function evaluateForReflection(input: ReflectInput): Promise<void> 
     const client = new BedrockRuntimeClient({ region: process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'us-east-1' });
 
     const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-6',
+      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
       system:   [{ text: template }],
       messages: [{ role: 'user', content: [{ text: userContent }] }],
       inferenceConfig: { maxTokens: 800, temperature: 0.3 },
@@ -140,7 +140,7 @@ async function evaluateFirstTurn(input: ReflectInput): Promise<void> {
     }
 
     const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-6',
+      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
       system:   [{ text: template }],
       messages: [{ role: 'user', content: [{ text: missionStatement }] }],
       inferenceConfig: { maxTokens: 600, temperature: 0.3 },
@@ -203,7 +203,7 @@ export async function evaluateInspectorFirstTurn(params: {
     });
 
     const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-4-6',
+      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
       system:   [{ text: INSPECTOR_FIRST_TURN_PROMPT }],
       messages: [{ role: 'user', content: [{ text: params.firstQuestion }] }],
       inferenceConfig: { maxTokens: 600, temperature: 0.3 },

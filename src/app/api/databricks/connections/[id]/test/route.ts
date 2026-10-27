@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { denyUnless, requireRole } from '@/middleware/auth';
 import { getOrgId, getConnection } from '@/lib/databricks/connections';
 import { testConnection } from '@/lib/databricks/test-connection';
 import { syncToolEntry } from '@/lib/databricks/tool-registration';
@@ -9,9 +8,9 @@ export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function POST(_req: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+export async function POST(req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnless(req, (auth) => requireRole(auth, 'admin'));
+  if (denied) return denied;
 
   const { id } = await params;
   try {

@@ -3,14 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
-import { enqueue } from '@/lib/context/queue';
+import { pathToIncludePattern } from '@/lib/context/job-scope';
+import { enqueueAndLaunchHarvest } from '@/lib/context/enqueue-and-launch';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/agent-lab/context/estate/sync-knowledge
  * Object-scoped knowledge sync — enqueues a knowledge_sync job for each path.
- * Only acts on objects that are already harvested (have a context_object row).
  */
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -46,7 +46,16 @@ export async function POST(req: NextRequest) {
 
       const row = contextRow[0];
 
-      await enqueue('knowledge_sync', row.source_id, { path, context_object_id: row.id }, 'on_demand', orgId);
+      await enqueueAndLaunchHarvest(
+        'knowledge_sync',
+        row.source_id,
+        {
+          includePatterns: [pathToIncludePattern(path)],
+          context_object_id: row.id,
+        },
+        orgId,
+      );
+
       enqueued.push(path);
     }
 

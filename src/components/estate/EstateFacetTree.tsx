@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 interface FacetCatalog {
   name: string;
@@ -14,6 +15,7 @@ interface FacetSchema {
 }
 
 interface EstateFacetTreeProps {
+  sourceId?: string;
   selectedCatalog?: string;
   selectedSchema?: string;
   onSelect: (catalog?: string, schema?: string) => void;
@@ -22,7 +24,7 @@ interface EstateFacetTreeProps {
   showTestSources?: boolean;
 }
 
-export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSelect, total, refreshKey = 0, showTestSources = false }: EstateFacetTreeProps) {
+export default function EstateFacetTree({ sourceId, selectedCatalog, selectedSchema, onSelect, total, refreshKey = 0, showTestSources = false }: EstateFacetTreeProps) {
   const [catalogs, setCatalogs] = useState<FacetCatalog[]>([]);
   const [schemas, setSchemas] = useState<FacetSchema[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -33,6 +35,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
     try {
       const params = new URLSearchParams();
       if (!showTestSources) params.append('excludeTestSources', 'true');
+      if (sourceId) params.append('sourceId', sourceId);
       const res = await fetch(`/api/agent-lab/context/estate/facets?${params}`);
       if (!res.ok) return;
       const data = await res.json();
@@ -43,7 +46,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
     } finally {
       setLoading(false);
     }
-  }, [showTestSources]);
+  }, [showTestSources, sourceId]);
 
   useEffect(() => { void fetchFacets(); }, [fetchFacets, refreshKey]);
 
@@ -62,7 +65,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
   const textSecondary = 'var(--estate-text-secondary)';
   const textMuted = 'var(--estate-text-muted)';
   const textDim = 'var(--estate-text-dim)';
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const activeBg = 'var(--estate-active-bg)';
   const hoverBg = 'var(--estate-hover)';
 
@@ -87,7 +90,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
         {/* Header */}
         <div
           className="flex justify-between px-5 pb-3"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.16em', color: textDim, textTransform: 'uppercase' }}
+          style={{ ...type.label, }}
         >
           <span>Catalogs</span>
           <span>{catalogs.length}</span>
@@ -99,21 +102,21 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
           onClick={() => onSelect(undefined, undefined)}
           className="w-full flex items-center gap-2 px-5 py-1.5 text-left transition-colors"
           style={{
-            fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: '11.5px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             color: !selectedCatalog ? goldColor : textSecondary,
             backgroundColor: !selectedCatalog ? activeBg : 'transparent',
           }}
         >
-          <span style={{ color: textDim, fontSize: '9px', width: 8 }}>▾</span>
+          <span style={{ color: textDim, fontSize: 'var(--type-ui-regular-size)', width: 8 }}>▾</span>
           <span className="flex-1">All catalogs</span>
-          <span style={{ fontSize: '9.5px', color: textDim, fontVariantNumeric: 'tabular-nums' }}>{total}</span>
+          <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim, fontVariantNumeric: 'tabular-nums' }}>{total}</span>
         </button>
 
         {loading ? (
           <div className="space-y-1 mt-2 px-5">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className="h-5 bg-slate-400/10 rounded animate-pulse" />
+              <div key={i} className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded animate-pulse" />
             ))}
           </div>
         ) : (
@@ -128,8 +131,8 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                   <div
                     className="flex items-center gap-2 px-5 py-[7px] cursor-pointer transition-colors"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      fontSize: '11.5px',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       color: isActive ? goldColor : textSecondary,
                       backgroundColor: isActive ? activeBg : 'transparent',
                     }}
@@ -141,7 +144,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                     }}
                   >
                     <span
-                      style={{ color: textDim, fontSize: '9px', width: 8, cursor: 'pointer', transition: 'transform 150ms ease' }}
+                      style={{ color: textDim, fontSize: 'var(--type-ui-regular-size)', width: 8, cursor: 'pointer', transition: 'transform 150ms ease' }}
                     >
                       {isExpanded ? '▾' : '▸'}
                     </span>
@@ -151,7 +154,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                     >
                       {cat.name}
                     </span>
-                    <span style={{ fontSize: '9.5px', color: textDim, fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim, fontVariantNumeric: 'tabular-nums' }}>
                       {cat.count}
                     </span>
                   </div>
@@ -167,8 +170,8 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                             onClick={() => onSelect(cat.name, sch.name)}
                             className="w-full flex items-center gap-2 text-left px-3 py-[5px] truncate transition-colors"
                             style={{
-                              fontFamily: "'IBM Plex Mono', monospace",
-                              fontSize: '10.5px',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 'var(--type-ui-regular-size)',
                               color: schActive ? goldColor : textMuted,
                               backgroundColor: schActive ? activeBg : 'transparent',
                             }}
@@ -177,7 +180,7 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                             title={sch.name}
                           >
                             <span className="truncate flex-1">{sch.name}</span>
-                            <span style={{ fontSize: '9px', color: textDim }}>{sch.count}</span>
+                            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim }}>{sch.count}</span>
                           </button>
                         );
                       })}
@@ -193,8 +196,8 @@ export default function EstateFacetTree({ selectedCatalog, selectedSchema, onSel
                 onClick={() => setShowAll(true)}
                 className="w-full text-left px-5 py-2 transition-colors"
                 style={{
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  fontSize: '10px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: textDim,
                   letterSpacing: '0.04em',
                 }}

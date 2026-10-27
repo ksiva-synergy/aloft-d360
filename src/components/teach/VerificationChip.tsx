@@ -13,6 +13,7 @@ import React from 'react';
 import { Check, HelpCircle } from 'lucide-react';
 import type { VerificationResult } from '@/lib/inspector/reflect-tools';
 import { FONT_MONO, mix } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 export function VerificationChip({ v, compact = false }: { v: VerificationResult; compact?: boolean }) {
   const confirmed = v.state === 'confirmed';
@@ -66,16 +67,13 @@ export function VerificationChip({ v, compact = false }: { v: VerificationResult
         <span
           style={{
             display: 'block',
-            fontFamily: FONT_MONO,
-            fontSize: 8.5,
-            letterSpacing: '0.1em',
-            textTransform: 'uppercase',
+            ...type.label,
             color,
           }}
         >
           {caption}
         </span>
-        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
+        <span style={{ display: 'block', fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)', lineHeight: 1.35 }}>
           {detail}
         </span>
       </span>

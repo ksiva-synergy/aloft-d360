@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 /** Amber, muted. The visible line between governed and escape-hatch. */
-const AMBER = '#FDB515';
+const AMBER = 'var(--brand-a)';
 
 /**
  * Phase 3.5C — the "Unverified · Raw SQL" badge. Rendered everywhere a raw-SQL
@@ -30,18 +31,18 @@ export function RawSqlBadge({
     <span
       title={title}
       style={{
-        ...MONO,
+        fontFamily: 'var(--font-sans)',
         fontSize,
-        letterSpacing: '0.06em',
+        letterSpacing: '0.04em',
         textTransform: 'uppercase',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 3,
         padding: size === 'xs' ? '1px 5px' : '2px 6px',
         borderRadius: 3,
-        background: 'rgba(253,181,21,0.12)',
-        color: AMBER,
-        border: '1px solid rgba(253,181,21,0.3)',
+        background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
+        color: inkOf(AMBER),
+        border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
         whiteSpace: 'nowrap',
         flexShrink: 0,
         ...style,

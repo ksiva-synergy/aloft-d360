@@ -31,12 +31,56 @@ export function kindUsesEstateExcludeTree(kind: string): boolean {
 }
 
 export function launchUsesEstateExcludeTree(kinds: string[]): boolean {
-  return kinds.some(kindUsesEstateExcludeTree);
+  return kinds.some(
+    k => kindUsesEstateExcludeTree(k) || k === 't1_profile' || k === 't2_semantic',
+  );
 }
 
-export function stripExcludeSchemasForKind(kind: string, excludeSchemas: string[]): string[] {
-  if (kind === 't1_profile' || kind === 't2_semantic') return [];
+/** Pass modal exclude tree through to plan/launch for all tiers that honor it in runners. */
+export function stripExcludeSchemasForKind(_kind: string, excludeSchemas: string[]): string[] {
   return excludeSchemas;
+}
+
+/**
+ * When Limit (includePatterns) is set, it defines the positive scope.
+ * Exclude-tree entries must not zero out a deliberate Limit (P1-20 / modal UX).
+ */
+export function resolveLaunchScopeFilters(
+  excludeSchemas: string[],
+  includePatterns: string[],
+): { excludeSchemas: string[]; includePatterns: string[] } {
+  if (includePatterns.length > 0) {
+    return { excludeSchemas: [], includePatterns };
+  }
+  return { excludeSchemas, includePatterns };
+}
+
+/**
+ * T0 with Limit can resolve matching tables live from Databricks (resolveScope)
+ * even when `platform_estate_objects` has no rows for that catalog yet.
+ */
+export type T0LiveScopeSchemaGroups = { total: number; excluded: number };
+
+/**
+ * Allow T0 launch when discovery counts are 0 but Databricks listing will still run
+ * (Limit globs, or exclude-only with at least one non-excluded schema group).
+ */
+export function t0AllowsLiveScopeWhenDiscoveryEmpty(
+  kind: string,
+  includePatterns: string[],
+  discoveryObjectCount: number,
+  discoverySchemaGroups?: T0LiveScopeSchemaGroups,
+): boolean {
+  if (kind !== 't0_structural' || discoveryObjectCount > 0) return false;
+  if (includePatterns.length > 0) return true;
+  if (
+    discoverySchemaGroups
+    && discoverySchemaGroups.excluded > 0
+    && discoverySchemaGroups.excluded < discoverySchemaGroups.total
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function isSplittableKind(kind: string): boolean {

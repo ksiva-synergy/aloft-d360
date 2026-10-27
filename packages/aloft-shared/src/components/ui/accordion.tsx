@@ -159,7 +159,7 @@ const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>
       <div
         ref={ref}
         className={cn(
-          "overflow-hidden text-sm transition-all",
+          "overflow-hidden text-size-body transition-all",
           "pb-4 pt-0",
           className
         )}

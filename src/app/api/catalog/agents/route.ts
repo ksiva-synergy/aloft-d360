@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/catalog-helpers';
+import { ApiError, clientMeta, created, handle, parse } from '@/lib/http';
+import { resolveAuth, requireRole } from '@/middleware/auth';
+import { writeAudit } from '@/lib/audit';
+import { catalogAgentCreateSchema } from './schema';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     const sp = request.nextUrl.searchParams;
+    const slug = sp.get('slug');
+    if (slug) {
+      const item = await prisma.agent_catalog.findFirst({
+        where: { slug },
+      });
+      if (!item) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      }
+      return NextResponse.json({ item });
+    }
+
     const status = sp.get('status');
     const type = sp.get('type');
     const search = sp.get('search');
@@ -35,23 +50,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// Publishing to the catalog is admin-only; the caller becomes the owner.
+export const POST = handle(async (req) => {
+  const auth = await resolveAuth(req);
+  requireRole(auth, 'admin');
+  const body = parse(catalogAgentCreateSchema, await req.json());
+  const slug = body.slug ?? `${slugify(body.name)}-${Date.now().toString(36)}`;
   try {
-    const body = await request.json();
-    if (!body.name || !body.type) {
-      return NextResponse.json({ error: 'Missing required fields: name, type' }, { status: 400 });
-    }
-    if (!body.slug) {
-      body.slug = slugify(body.name) + '-' + Date.now().toString(36);
-    }
-    const data = await prisma.agent_catalog.create({ data: body });
-    return NextResponse.json({ item: data }, { status: 201 });
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code === 'P2002') {
-      return NextResponse.json({ error: 'An entry with this slug already exists' }, { status: 409 });
-    }
-    console.error('[catalog/agents POST] error', err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    const item = await prisma.agent_catalog.create({ data: { ...body, slug, owner_id: auth.userId } });
+    await writeAudit({ actorId: auth.userId, action: 'catalog_agent.created', entityType: 'agent_catalog', entityId: item.id, after: { slug, name: item.name }, ...clientMeta(req) });
+    return created({ item });
+  } catch (err) {
+    if ((err as { code?: string }).code === 'P2002') throw new ApiError(409, 'An entry with this slug already exists');
+    throw err;
   }
-}
+});

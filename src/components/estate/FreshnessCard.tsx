@@ -40,11 +40,11 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
         borderWidth: freshness.stale ? '1.5px' : '1px'
       }}
     >
-      <div className="font-mono text-[10px] tracking-wider uppercase" style={{ color: labelColor }}>
+   <div className="text-label " style={{ color: labelColor }}>
         Freshness Contract
       </div>
 
-      <div className="space-y-2.5 font-mono text-xs select-none">
+      <div className="space-y-2.5 font-mono text-size-ui select-none">
         {/* STRUCTURAL */}
         <div className="flex items-center justify-between">
           <span style={{ color: mutedColor }}>STRUCTURAL</span>
@@ -74,10 +74,10 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
 
       {/* Guidance */}
       <p
-        className="text-xs leading-relaxed border-t pt-3"
+        className="text-size-ui leading-relaxed border-t pt-3"
         style={{
           color: labelColor,
-          fontFamily: "'Inter Tight', sans-serif",
+          fontFamily: 'var(--font-sans)',
           borderColor: 'var(--estate-border-gold)'
         }}
       >

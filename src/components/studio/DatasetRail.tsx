@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DatasetRailProps {
@@ -47,7 +48,7 @@ function SparklineCanvas({ columns, rows }: { columns: QueryResult['columns']; r
     const range = max - min || 1;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.strokeStyle = '#FDB515';
+    ctx.strokeStyle = '#5B3DF5';
     ctx.lineWidth = 1.5;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -66,8 +67,8 @@ function SparklineCanvas({ columns, rows }: { columns: QueryResult['columns']; r
     return (
       <span
         style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--builder-text-label)',
         }}
       >
@@ -108,10 +109,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
         style={{
           padding: '8px 16px',
           borderBottom: '1px solid var(--builder-border)',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 10,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--builder-text-label)',
           flexShrink: 0,
         }}
@@ -147,7 +145,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 outline: 'none',
               }}
               onFocus={e => {
-                e.currentTarget.style.outline = '1px solid rgba(253,181,21,0.5)';
+                e.currentTarget.style.outline = '1px solid color-mix(in srgb, var(--brand-a-ink) 60%, transparent)';
                 e.currentTarget.style.outlineOffset = '-2px';
               }}
               onBlur={e => {
@@ -164,7 +162,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               {isSelected && (
                 <span
                   className="absolute left-0 top-[7px] bottom-[7px] w-[2.5px] rounded-full"
-                  style={{ background: '#FDB515' }}
+                  style={{ background: 'var(--brand-a)' }}
                 />
               )}
 
@@ -172,13 +170,13 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     padding: '1px 5px',
                     borderRadius: 2,
                     border: isSelected ? '1px solid var(--builder-gold)' : '1px solid var(--builder-border)',
                     color: isSelected ? 'var(--builder-gold)' : 'var(--builder-text-label)',
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.04em',
                   }}
                 >
                   Q{i + 1}
@@ -186,13 +184,13 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 {result.truncated && (
                   <span
                     style={{
-                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 10,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       padding: '1px 4px',
                       borderRadius: 2,
                       border: '1px solid rgba(248,113,113,0.4)',
-                      color: '#f87171',
-                      letterSpacing: '0.06em',
+                      color: inkOf('#f87171'),
+                      letterSpacing: '0.04em',
                     }}
                   >
                     TRUNCATED
@@ -203,8 +201,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               {/* SQL preview */}
               <p
                 style={{
-                  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: 'var(--builder-text-muted)',
                   margin: '0 0 4px',
                   overflow: 'hidden',
@@ -226,8 +224,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               >
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: 'var(--builder-text-label)',
                   }}
                 >
@@ -235,8 +233,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 </span>
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 10,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: 'var(--builder-text-label)',
                   }}
                 >

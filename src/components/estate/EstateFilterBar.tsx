@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface EstateFilterState {
+  sourceId?: string;
   catalog?: string;
   schema?: string;
   kind?: string;
@@ -43,9 +45,8 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
   const textSecondary = 'var(--estate-text-secondary)';
 
   const selectStyle: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '12px',
-    letterSpacing: '0.04em',
+    fontFamily: 'var(--font-sans)',
+    ...type.ui,
     backgroundColor: surfaceBg,
     border: `1px solid ${borderColor}`,
     borderRadius: '6px',
@@ -77,7 +78,7 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
         onFocusCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-btn-border)'; }}
         onBlurCapture={e => { e.currentTarget.style.borderColor = borderColor; }}
       >
-        <span style={{ color: textMuted, fontSize: '14px' }}>⌕</span>
+        <span style={{ color: textMuted, fontSize: 'var(--type-body-size)' }}>⌕</span>
         <input
           type="text"
           placeholder={`Search ${total} objects across the estate…`}
@@ -86,8 +87,8 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
           className="flex-1 bg-transparent border-none outline-none"
           style={{
             color: inkColor,
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: '13px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-ui-regular-size)',
           }}
         />
       </div>

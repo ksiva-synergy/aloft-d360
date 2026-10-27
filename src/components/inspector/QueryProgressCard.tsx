@@ -4,11 +4,12 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { TrustPanel } from './TrustPanel';
 import type { QueryProgress } from '@/hooks/useInspectorChat';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 
 const STAGE_ORDER: Array<QueryProgress['stage']> = ['planning', 'executing', 'rendering'];
 
@@ -32,8 +33,8 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(253,181,21,0.15)',
+        background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
         borderRadius: 6,
         overflow: 'hidden',
         marginBottom: 12,
@@ -46,17 +47,13 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
           alignItems: 'center',
           gap: 8,
           padding: '8px 12px',
-          borderBottom: '1px solid rgba(253,181,21,0.08)',
+          borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
         }}
       >
         <Loader2 size={12} color={GOLD} className="query-progress-spin" />
         <span
           style={{
-            ...MONO,
-            fontSize: 10,
-            letterSpacing: '0.06em',
-            color: GOLD,
-            textTransform: 'uppercase',
+            ...type.label,
           }}
         >
           {STAGE_COPY[progress.stage ?? 'planning'] ?? 'Working…'}
@@ -86,8 +83,8 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
 
         {/* Selected definitions */}
         {progress.definitionsSelected && progress.definitionsSelected.length > 0 && (
-          <div style={{ ...MONO, fontSize: 10, color: 'var(--wb-ink-dim, #B8C1CF)' }}>
-            <span style={{ color: 'var(--wb-muted, #8892A4)' }}>Using: </span>
+          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>
+            <span style={{ color: 'var(--wb-muted, var(--ink-3))' }}>Using: </span>
             {progress.definitionsSelected.join(', ')}
           </div>
         )}

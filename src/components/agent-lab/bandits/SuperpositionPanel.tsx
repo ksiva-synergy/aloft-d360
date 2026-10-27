@@ -21,6 +21,7 @@ import {
   shortName,
 } from '@/lib/bandits/born-tokens';
 import type { CtsgvModelStat } from './types';
+import { inkOf } from '@/lib/typography/tokens';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -379,7 +380,7 @@ export function SuperpositionPanel({
   if (stats.length === 0) {
     return (
       <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: TEXT_MUT }}>No arm data available.</div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No arm data available.</div>
       </div>
     );
   }
@@ -397,17 +398,17 @@ export function SuperpositionPanel({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
-          <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
+          <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
             Superposition
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: TEXT_MUT, marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 2 }}>
             Beta distribution beliefs
           </div>
         </div>
         <button
           onClick={() => setMode(m => m === 'overlap' ? 'ridgeline' : 'overlap')}
           style={{
-            fontFamily: MONO, fontSize: 10, color: TEXT_MUT,
+            fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
             background: 'transparent', border: `1px solid ${BORDER}`,
             borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
             letterSpacing: '0.04em',
@@ -420,7 +421,7 @@ export function SuperpositionPanel({
       {/* Legend */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
-        marginBottom: 10, fontFamily: MONO, fontSize: 11,
+        marginBottom: 10, fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
       }}>
         {stats.map((stat, idx) => {
           const { alpha, beta } = armAlphaBeta(stat);
@@ -586,7 +587,7 @@ export function SuperpositionPanel({
               borderRadius: 6,
               padding: '8px 12px',
               fontFamily: MONO,
-              fontSize: 11,
+              fontSize: 'var(--type-ui-regular-size)',
               color: TEXT_SEC,
               pointerEvents: 'none',
               zIndex: 10,
@@ -634,17 +635,17 @@ export function SuperpositionPanel({
               textAlign: 'center',
             }}>
               <div style={{
-                fontFamily: "'Source Serif 4', serif",
+                fontFamily: 'var(--font-sans)',
                 fontStyle: 'italic',
-                fontSize: 18,
-                color: GOLD,
+                fontSize: 'var(--type-title-section-size)',
+                color: inkOf(GOLD),
                 marginBottom: 8,
               }}>
                 Superposition holds.
               </div>
               <div style={{
-                fontFamily: "'Inter Tight', sans-serif",
-                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: TEXT_SEC,
               }}>
                 Nothing is decided until you let go.
@@ -666,17 +667,17 @@ export function SuperpositionPanel({
             zIndex: 20,
           }}>
             <div style={{
-              fontFamily: "'Source Serif 4', serif",
+              fontFamily: 'var(--font-sans)',
               fontStyle: 'italic',
-              fontSize: 20,
-              color: GOLD,
+              fontSize: 'var(--type-title-section-size)',
+              color: inkOf(GOLD),
               marginBottom: 8,
             }}>
               Wave function collapsed.
             </div>
             <div style={{
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: TEXT_SEC,
             }}>
               The favourite was never in doubt.
@@ -694,16 +695,16 @@ export function SuperpositionPanel({
           <button
             onClick={startMeasure}
             style={{
-              fontFamily: "'Inter Tight', sans-serif",
-              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 600,
               padding: '7px 18px',
               borderRadius: 6,
               border: `1px solid ${GOLD}`,
               background: CARD_BG,
-              color: GOLD,
+              color: inkOf(GOLD),
               cursor: 'pointer',
-              letterSpacing: '0.02em',
+              letterSpacing: '0',
               transition: 'background 0.15s, color 0.15s',
             }}
             onMouseEnter={e => {
@@ -722,7 +723,7 @@ export function SuperpositionPanel({
         {measuring && (
           <span
             onClick={startMeasure}
-            style={{ fontFamily: MONO, fontSize: 13, color: GOLD, cursor: 'pointer' }}
+            style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), cursor: 'pointer' }}
           >
             K = {drawCount}
           </span>
@@ -730,13 +731,13 @@ export function SuperpositionPanel({
 
         {measured && (
           <>
-            <span style={{ fontFamily: MONO, fontSize: 13, color: GOLD }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD) }}>
               K = 0 · MEASURED
             </span>
             <button
               onClick={resetMeasure}
               style={{
-                fontFamily: MONO, fontSize: 11,
+                fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
                 padding: '5px 12px', borderRadius: 4,
                 border: `1px solid ${BORDER}`,
                 background: 'transparent', color: TEXT_MUT,

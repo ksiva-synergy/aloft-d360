@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import { Check } from 'lucide-react';
 import type { Learning, LearningState } from '@/lib/inspector/reflect-tools';
 import { FONT_DISPLAY, FONT_MONO, mix } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 type ConflictChoice = 'keep_new' | 'keep_existing' | 'scope_by_context';
 
@@ -74,11 +75,11 @@ export function ConflictResolver({
         {/* Existing */}
         <div style={{ padding: '18px 18px 20px' }}>
           <div style={caption}>Existing memory</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, lineHeight: 1.4, color: 'var(--foreground)', margin: '8px 0 10px' }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 'var(--type-title-section-size)', lineHeight: 1.4, color: 'var(--foreground)', margin: '8px 0 10px' }}>
             {learning.conflict.existingStatement}
           </div>
           {learning.conflict.note && (
-            <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>{learning.conflict.note}</div>
+            <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)' }}>{learning.conflict.note}</div>
           )}
         </div>
 
@@ -106,7 +107,7 @@ export function ConflictResolver({
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: FONT_MONO,
-              fontSize: 9,
+              fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.08em',
               color: 'var(--text-tertiary)',
             }}
@@ -118,10 +119,10 @@ export function ConflictResolver({
         {/* New */}
         <div style={{ padding: '18px 18px 20px', background: mix('var(--primary)', 6) }}>
           <div style={{ ...caption, color: 'var(--primary)' }}>New — this session</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, lineHeight: 1.4, color: 'var(--foreground)', margin: '8px 0 10px' }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 'var(--type-title-section-size)', lineHeight: 1.4, color: 'var(--foreground)', margin: '8px 0 10px' }}>
             {learning.statement}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Taught in this session</div>
+          <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)' }}>Taught in this session</div>
         </div>
       </div>
 
@@ -150,8 +151,8 @@ export function ConflictResolver({
                 transition: 'box-shadow .15s',
               }}
             >
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{c.label}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted-foreground)', marginTop: 3 }}>{c.detail}</div>
+              <div style={{ fontSize: 'var(--type-ui-regular-size)', fontWeight: 600 }}>{c.label}</div>
+              <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)', marginTop: 3 }}>{c.detail}</div>
             </button>
           );
         })}
@@ -186,7 +187,7 @@ export function ConflictResolver({
           >
             <Check size={12} strokeWidth={3} />
           </span>
-          <span style={{ fontSize: 12.5, color: 'var(--foreground)', lineHeight: 1.45 }}>
+          <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--foreground)', lineHeight: 1.45 }}>
             {confirmText} — captured as a learning; the memory commit happens later, outside Teach.
           </span>
         </div>
@@ -196,10 +197,7 @@ export function ConflictResolver({
 }
 
 const caption: React.CSSProperties = {
-  fontFamily: FONT_MONO,
-  fontSize: 9,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
+  ...type.label,
   color: 'var(--text-tertiary)',
 };
 
@@ -213,10 +211,7 @@ function pill(colorVar: string): React.CSSProperties {
     background: mix(colorVar, 14),
     boxShadow: `inset 0 0 0 1px ${mix(colorVar, 32)}`,
     color: colorVar,
-    fontFamily: FONT_MONO,
-    fontSize: 9.5,
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
+    ...type.label,
   };
 }
 

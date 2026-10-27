@@ -42,7 +42,7 @@ export function useCatalogRefresh(): number {
       if (cancelled) return;
 
       try {
-        const res = await fetch('/api/agent-lab/context/jobs/summary');
+        const res = await fetch('/api/agent-lab/context/jobs/summary?coverage=false');
         if (!res.ok) return;
 
         const json = await res.json();

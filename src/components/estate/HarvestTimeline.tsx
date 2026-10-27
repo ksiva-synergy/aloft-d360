@@ -12,6 +12,7 @@
 //   not-run  → muted at reduced opacity
 
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface HarvestTierStatus {
   last_t0_at: string | null;
@@ -119,9 +120,9 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
               />
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 10,
-                  fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
+                  fontWeight: 600,
                   letterSpacing: '0.08em',
                   color: dotColor,
                 }}
@@ -130,8 +131,8 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
               </span>
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: textColor,
                   opacity: 0.7,
                 }}
@@ -143,8 +144,8 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
             {/* Timestamp */}
             <div
               style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 10,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: textColor,
               }}
             >
@@ -155,10 +156,7 @@ export default function HarvestTimeline({ tiers, failures }: HarvestTimelineProp
             {isFailed && (
               <span
                 style={{
-                  fontFamily: '"IBM Plex Mono", monospace',
-                  fontSize: 9,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
+                  ...type.label,
                   color: COLOR_FAILED,
                 }}
               >

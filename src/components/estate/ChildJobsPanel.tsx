@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
+import { inkOf } from '@/lib/typography/tokens';
 
 export interface ChildJob {
   id: string;
@@ -87,14 +88,14 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
           className="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin shrink-0"
           style={{ borderColor: '#FDB515', borderTopColor: 'transparent' }}
         />
-        <span className="text-[11px] font-mono" style={{ color: '#8892A4' }}>Loading child jobs...</span>
+        <span className="text-[length:var(--type-caption-size)] font-sans" style={{ color: inkOf('#8892A4') }}>Loading child jobs...</span>
       </div>
     );
   }
 
   if (children.length === 0) {
     return (
-      <div className="text-[11px] font-mono py-3 px-4" style={{ color: '#8892A4' }}>
+      <div className="text-[length:var(--type-caption-size)] font-sans py-3 px-4" style={{ color: inkOf('#8892A4') }}>
         No child jobs found.
       </div>
     );
@@ -108,14 +109,14 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
         className="flex items-center justify-between px-4 py-2 border-b"
         style={{ borderColor: 'rgba(253,181,21,0.15)', backgroundColor: 'rgba(253,181,21,0.04)' }}
       >
-        <div className="flex items-center gap-3 text-[11px] font-mono">
-          <span className="font-bold" style={{ color: '#FDB515' }}>{counts?.total ?? children.length} chunks</span>
+        <div className="flex items-center gap-3 text-[length:var(--type-caption-size)] font-mono">
+          <span className="font-semibold" style={{ color: inkOf('#FDB515') }}>{counts?.total ?? children.length} chunks</span>
           {counts && (
             <>
-              {counts.running > 0 && <span style={{ color: '#FDB515' }}>{counts.running} running</span>}
-              {counts.queued > 0 && <span style={{ color: '#8892A4' }}>{counts.queued} queued</span>}
-              {counts.succeeded > 0 && <span style={{ color: '#2DD4A0' }}>{counts.succeeded} done</span>}
-              {counts.failed > 0 && <span style={{ color: '#EF4444' }}>{counts.failed} failed</span>}
+              {counts.running > 0 && <span style={{ color: inkOf('#FDB515') }}>{counts.running} running</span>}
+              {counts.queued > 0 && <span style={{ color: inkOf('#8892A4') }}>{counts.queued} queued</span>}
+              {counts.succeeded > 0 && <span style={{ color: inkOf('#2DD4A0') }}>{counts.succeeded} done</span>}
+              {counts.failed > 0 && <span style={{ color: inkOf('#EF4444') }}>{counts.failed} failed</span>}
             </>
           )}
         </div>
@@ -124,8 +125,8 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
             type="button"
             onClick={retryFailed}
             disabled={retrying}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
-            style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#EF4444', backgroundColor: 'rgba(239,68,68,0.08)' }}
+      className="text-label inline-flex items-center gap-1.5 px-2.5 py-1 rounded border text-[length:var(--type-caption-size)] transition-colors disabled:opacity-50"
+            style={{ borderColor: 'rgba(239,68,68,0.4)', color: inkOf('#EF4444'), backgroundColor: 'rgba(239,68,68,0.08)' }}
           >
             Retry {failedCount} failed
           </button>
@@ -147,7 +148,7 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
               : null;
 
           return (
-            <div key={child.id} className="flex items-center gap-3 px-4 py-2 text-[11px] font-mono">
+            <div key={child.id} className="flex items-center gap-3 px-4 py-2 text-[length:var(--type-caption-size)] font-mono">
               <span className="shrink-0 font-semibold tabular-nums w-6 text-right" style={{ color: '#8892A4' }}>
                 {(child.child_index ?? 0) + 1}
               </span>
@@ -159,7 +160,7 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
               >
                 {partition}
               </Link>
-              <span className="shrink-0 uppercase font-bold" style={{ color: statusColor[child.status] ?? '#8892A4' }}>
+              <span className="shrink-0 uppercase font-semibold" style={{ color: statusColor[child.status] ?? '#8892A4' }}>
                 {child.status}
               </span>
               {duration !== null && (

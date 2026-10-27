@@ -14,6 +14,7 @@
 // If no last_t0_at exists, renders nothing (object is not yet inventoried).
 
 import React from 'react';
+import { inkOf } from '@/lib/typography/tokens';
 
 export type LifecycleState = 'discovered' | 'harvested' | 'published';
 
@@ -90,8 +91,8 @@ export default function LifecycleBadge({
           display: 'inline-flex',
           alignItems: 'center',
           gap: 5,
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 10,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           fontWeight: 600,
           letterSpacing: '0.08em',
           padding: '3px 8px',
@@ -122,14 +123,14 @@ export default function LifecycleBadge({
             display: 'inline-flex',
             alignItems: 'center',
             gap: 5,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 9,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             fontWeight: 600,
             letterSpacing: '0.08em',
             padding: '2px 6px',
             borderRadius: 3,
             backgroundColor: STALE_STYLE.bg,
-            color: STALE_STYLE.color,
+            color: inkOf(STALE_STYLE.color),
             border: `1px solid ${STALE_STYLE.border}`,
             textTransform: 'uppercase',
           }}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { FilterState } from './FilterBar';
 import KindBadge from './KindBadge';
 import StatusChip from './StatusChip';
@@ -110,7 +110,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
   return (
     <div className="flex-1 flex flex-col min-height-0 overflow-hidden bg-[var(--background)]">
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-xs transition-colors duration-200">
+        <table className="w-full border-collapse text-size-ui transition-colors duration-200">
           <thead>
             <tr
               className="sticky top-0 z-18 border-b"
@@ -120,55 +120,55 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
               }}
             >
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Object Path
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-20"
+        className="text-left text-label p-3 w-20"
                 style={{ color: labelColor }}
               >
                 Kind
               </th>
               <th
-                className="text-right font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-24"
+        className="text-right text-label p-3 w-24"
                 style={{ color: labelColor }}
               >
                 Rows
               </th>
               <th
-                className="text-right font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-16"
+        className="text-right text-label p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Cols
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Summary
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-28"
+        className="text-left text-label p-3 w-28"
                 style={{ color: labelColor }}
               >
                 Status
               </th>
               <th
-                className="text-center font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-16"
+        className="text-center text-label p-3 w-16"
                 style={{ color: labelColor }}
               >
                 Fresh
               </th>
               <th
-                className="text-center font-mono text-[9px] font-bold tracking-widest uppercase p-3 w-12"
+        className="text-center text-label p-3 w-12"
                 style={{ color: labelColor }}
               >
                 Pii
               </th>
               <th
-                className="text-left font-mono text-[9px] font-bold tracking-widest uppercase p-3"
+        className="text-left text-label p-3"
                 style={{ color: labelColor }}
               >
                 Entity Tags
@@ -184,15 +184,15 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                   className="animate-pulse border-b"
                   style={{ borderColor: borderColor }}
                 >
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-4/5"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-12"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16 ml-auto"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-8 ml-auto"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/10 rounded w-5/6"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-16"></div></td>
-                  <td className="p-3 text-center"><div className="h-2.5 w-2.5 bg-slate-400/20 rounded-full inline-block"></div></td>
-                  <td className="p-3 text-center"><div className="h-3 bg-slate-400/20 rounded w-3 inline-block"></div></td>
-                  <td className="p-3"><div className="h-4 bg-slate-400/20 rounded w-20"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-4/5"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 ml-auto"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-8 ml-auto"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-5/6"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16"></div></td>
+                  <td className="p-3 text-center"><div className="h-2.5 w-2.5 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded-full inline-block"></div></td>
+                  <td className="p-3 text-center"><div className="h-3 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-3 inline-block"></div></td>
+                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20"></div></td>
                 </tr>
               ))
             ) : displayedItems.length === 0 ? (
@@ -201,10 +201,10 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                 <td colSpan={9} className="p-12 text-center">
                   <div className="flex flex-col items-center justify-center gap-3">
                     <span className="w-9 h-9 relative block opacity-30">
-                      <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: '#FDB515' }} />
-                      <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: '#FDB515' }} />
+                      <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: 'var(--brand-a-ink)' }} />
+                      <span className="absolute inset-2.5 border-2 rotate-45 opacity-60" style={{ borderColor: 'var(--brand-a-ink)' }} />
                     </span>
-                    <span className="text-sm font-semibold" style={{ color: inkColor, fontFamily: "'Inter Tight', sans-serif" }}>
+                    <span className="text-size-body font-semibold" style={{ color: inkColor, fontFamily: 'var(--font-sans)' }}>
                       No objects match your filters
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                 >
                   {/* full_path */}
                   <td
-                    className="p-3 font-mono text-[12px] truncate max-w-[200px]"
+                    className="p-3 font-mono text-size-ui truncate max-w-[200px]"
                     style={{ color: inkColor }}
                     title={item.full_path}
                   >
@@ -238,15 +238,15 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                     <KindBadge kind={item.object_kind} />
                   </td>
                   {/* rows */}
-                  <td className="p-3 text-right font-mono text-[12px]" style={{ color: inkColor }}>
+                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: inkColor }}>
                     {item.row_count_est !== null ? Number(item.row_count_est).toLocaleString() : '—'}
                   </td>
                   {/* columns (always "—") */}
-                  <td className="p-3 text-right font-mono text-[12px]" style={{ color: mutedColor }}>
+                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: mutedColor }}>
                     —
                   </td>
                   {/* summary */}
-                  <td className="p-3 font-serif text-[12px] truncate max-w-[240px]" style={{ color: labelColor }}>
+                  <td className="p-3 text-size-ui truncate max-w-[240px]" style={{ color: labelColor }}>
                     {getSummary(item)}
                   </td>
                   {/* status */}
@@ -260,7 +260,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                   {/* pii */}
                   <td className="p-3 text-center">
                     {hasPiiFlag(item) && (
-                      <span className="text-red-500 font-bold text-xs" title="PII Detected">
+                      <span className="text-red-500 font-semibold text-size-ui" title="PII Detected">
                         ⚑
                       </span>
                     )}
@@ -271,7 +271,7 @@ export default function ObjectTable({ filters, onTotalChange }: ObjectTableProps
                       {getTags(item.entity_tags).map((tag, idx) => (
                         <span
                           key={idx}
-                          className="font-mono text-[9px] font-semibold tracking-wider text-slate-500 border rounded px-1.5 py-0.5"
+                          className="font-mono text-size-ui font-semibold tracking-wide text-[var(--ink-3)] border rounded px-1.5 py-0.5"
                           style={{ borderColor: borderColor }}
                         >
                           {tag}

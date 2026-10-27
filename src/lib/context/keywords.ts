@@ -18,6 +18,13 @@ const STOPWORDS = new Set([
 // Column roles whose names carry meaningful domain signal (entity nouns).
 const ENTITY_ROLES = new Set(['key', 'dimension', 'fk_ref']);
 
+const CATALOG_NAME_SEARCH_STOPWORDS = new Set([
+  'there', 'here', 'table', 'tables', 'called', 'named', 'name', 'find', 'search',
+  'show', 'look', 'looking', 'have', 'has', 'had', 'want', 'wanted', 'would',
+  'like', 'need', 'create', 'make', 'build', 'agent', 'agents', 'related',
+  'catalog', 'harvest', 'harvested', 'data', 'please', 'tell', 'me', 'about',
+]);
+
 // ── Tokenizer ─────────────────────────────────────────────────────────────────
 
 /**
@@ -147,4 +154,9 @@ export function extractDomainKeywords(input: KeywordExtractionInput): string[] {
  */
 export function tokenizeQuery(query: string): string[] {
   return clean(tokenize(query));
+}
+
+/** Extract catalog-name terms from natural-language requests, excluding prompt filler. */
+export function tokenizeCatalogNameQuery(query: string): string[] {
+  return [...new Set(clean(tokenize(query)).filter((token) => !CATALOG_NAME_SEARCH_STOPWORDS.has(token)))];
 }

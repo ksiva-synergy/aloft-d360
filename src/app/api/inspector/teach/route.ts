@@ -42,7 +42,7 @@ const REFLECT_MODELS: Record<string, { bedrockId: string; supportsThinking: bool
   'opus-4-6': { bedrockId: 'us.anthropic.claude-opus-4-6-v1', supportsThinking: true },
   'haiku-4-5': { bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', supportsThinking: false },
 };
-const DEFAULT_REFLECT_MODEL = 'sonnet-4-6';
+const DEFAULT_REFLECT_MODEL = 'sonnet-5-5';
 
 function isBedrockConfigured(): boolean {
   return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);

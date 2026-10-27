@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
-import { enqueue } from '@/lib/context/queue';
+import { pathToIncludePattern } from '@/lib/context/job-scope';
+import { enqueueAndLaunchHarvest, findScopedHarvestConflict } from '@/lib/context/enqueue-and-launch';
 import prisma from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,6 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     const org = await getDefaultOrg();
     const orgId = org.id;
 
-    // Fetch the object scoped to the org
     const object = await prisma.platformContextObject.findFirst({
       where: { id, org_id: orgId },
       select: { source_id: true, full_path: true },
@@ -34,16 +34,11 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
 
-    // Debounce: check for active t1_profile job on this source
-    const activeJob = await prisma.platformContextJob.findFirst({
-      where: {
-        source_id: object.source_id,
-        job_kind: 't1_profile',
-        status: { in: ['queued', 'running'] },
-      },
-      select: { id: true },
-      orderBy: { created_at: 'asc' },
-    });
+    const activeJob = await findScopedHarvestConflict(
+      object.source_id,
+      't1_profile',
+      object.full_path,
+    );
 
     if (activeJob) {
       return NextResponse.json(
@@ -52,10 +47,18 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const scope = { path: object.full_path };
-    const job = await enqueue('t1_profile', object.source_id, scope, 'on_demand', orgId);
+    const scope = { includePatterns: [pathToIncludePattern(object.full_path)] };
+    const { job, launched } = await enqueueAndLaunchHarvest(
+      't1_profile',
+      object.source_id,
+      scope,
+      orgId,
+    );
 
-    return NextResponse.json({ data: { jobId: job.id }, queued: true }, { status: 202 });
+    return NextResponse.json(
+      { data: { jobId: job.id, launched }, queued: true },
+      { status: 202 },
+    );
   } catch (err) {
     console.error('[context/objects/:id/refresh POST]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

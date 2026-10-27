@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { denyUnless, requireRole } from '@/middleware/auth';
 import { getOrgId, getConnection, updateConnection, deleteConnection } from '@/lib/databricks/connections';
 import { writeCredentials } from '@/lib/databricks/secrets';
 import { evictToken as evictCachedToken } from '@/lib/databricks/token-client';
@@ -27,8 +28,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnless(request, (auth) => requireRole(auth, 'admin'));
+  if (denied) return denied;
 
   const { id } = await params;
   try {
@@ -73,9 +74,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+export async function DELETE(req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnless(req, (auth) => requireRole(auth, 'admin'));
+  if (denied) return denied;
 
   const { id } = await params;
   try {

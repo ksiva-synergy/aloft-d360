@@ -14,6 +14,7 @@ import { FONT_BODY, FONT_MONO, STATE_VAR, STATE_LABEL, TYPE_LABEL, mix, surfaceC
 import { VerificationChip } from './VerificationChip';
 import { MemoryRecallExpander } from './MemoryRecallExpander';
 import { ConflictResolver } from './ConflictResolver';
+import { type } from '@/lib/typography/tokens';
 
 export function LearningCard({
   learning,
@@ -45,14 +46,14 @@ export function LearningCard({
     >
       {/* Header: type tag + state badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9 }}>
-        <span style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+        <span style={{ ...type.label, color: 'var(--text-tertiary)' }}>
           {TYPE_LABEL[learning.type]}
         </span>
         <StateBadge state={learning.state} color={color} />
       </div>
 
       {/* Statement */}
-      <p style={{ fontFamily: FONT_BODY, fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--foreground)', margin: 0 }}>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, lineHeight: 1.5, color: 'var(--foreground)', margin: 0 }}>
         {learning.statement}
       </p>
 
@@ -65,7 +66,7 @@ export function LearningCard({
             borderRadius: 9,
             background: mix('var(--warning)', 9),
             boxShadow: `inset 0 0 0 1px ${mix('var(--warning)', 26)}`,
-            fontSize: 12,
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--foreground)',
             lineHeight: 1.45,
           }}
@@ -126,11 +127,7 @@ function StateBadge({ state, color }: { state: LearningState; color: string }) {
         borderRadius: 20,
         background: mix(color, 14),
         color,
-        fontFamily: FONT_MONO,
-        fontSize: 8,
-        fontWeight: 600,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
+        ...type.label,
       }}
     >
       {verified ? (
@@ -186,10 +183,7 @@ const ghostBtn: React.CSSProperties = {
   background: 'var(--muted)',
   boxShadow: 'inset 0 0 0 1px var(--border)',
   color: 'var(--muted-foreground)',
-  fontFamily: FONT_MONO,
-  fontSize: 8.5,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
+  ...type.label,
 };
 
 const amberBtn: React.CSSProperties = {
@@ -202,10 +196,7 @@ const amberBtn: React.CSSProperties = {
   cursor: 'pointer',
   background: 'var(--warning)',
   color: 'var(--primary-foreground)',
-  fontFamily: FONT_MONO,
-  fontSize: 8.5,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
+  ...type.label,
 };
 
 export default LearningCard;

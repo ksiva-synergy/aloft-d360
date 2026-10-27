@@ -39,8 +39,9 @@ function diffObjects(a: Record<string, unknown>, b: Record<string, unknown>, pat
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string; otherId: string } }
+  { params: paramsPromise }: { params: Promise<{ id: string; otherId: string }> }
 ) {
+  const params = await paramsPromise;
   try {
     const { id, otherId } = params;
 

@@ -1,4 +1,5 @@
 import echarts from './echartsCore';
+import { CHART_TEXT, FONT_MONO } from '@/lib/typography/tokens';
 
 // 8-step series palette: gold primary, then desaturated blues/slates that read on #0D1B2A.
 // Steps 1 (#FDB515) and 7-8 (#8BAFC8/#5A82A0) match builder-text-muted/label tokens exactly.
@@ -19,27 +20,27 @@ const spinorTheme = {
   color: PALETTE,
   backgroundColor: 'transparent',
   textStyle: {
-    fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-    fontSize: 11,
+    fontFamily: FONT_MONO,
+    fontSize: CHART_TEXT.axis,
     color: '#8BAFC8',
   },
   title: {
     textStyle: {
       color: '#F0F4F8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 13,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.tooltip,
     },
     subtextStyle: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   legend: {
     textStyle: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     pageTextStyle: {
       color: '#8BAFC8',
@@ -52,8 +53,8 @@ const spinorTheme = {
     borderRadius: 6,
     textStyle: {
       color: '#F0F4F8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
     axisPointer: {
       lineStyle: {
@@ -77,8 +78,8 @@ const spinorTheme = {
     },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   valueAxis: {
@@ -94,8 +95,8 @@ const spinorTheme = {
     },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   timeAxis: {
@@ -107,8 +108,8 @@ const spinorTheme = {
     },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   logAxis: {
@@ -120,8 +121,8 @@ const spinorTheme = {
     },
     axisLabel: {
       color: '#8BAFC8',
-      fontFamily: 'IBM Plex Mono, ui-monospace, monospace',
-      fontSize: 11,
+      fontFamily: FONT_MONO,
+      fontSize: CHART_TEXT.axis,
     },
   },
   line: {

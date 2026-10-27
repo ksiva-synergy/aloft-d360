@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
+import { type } from '@/lib/typography/tokens';
 
 interface Column {
   column_name: string;
@@ -67,7 +68,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
   const inkColor = 'var(--estate-ink)';
   const textMuted = 'var(--estate-text-muted)';
   const textDim = 'var(--estate-text-dim)';
-  const goldColor = '#FDB515';
+  const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
 
   return (
@@ -99,28 +100,28 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-5 text-base hover:opacity-100 transition-opacity"
+            className="absolute top-4 right-5 text-size-body-lg hover:opacity-100 transition-opacity"
             style={{ color: textDim, opacity: 0.7 }}
           >
             ✕
           </button>
           <div
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', letterSpacing: '0.16em', textTransform: 'uppercase', color: textDim }}
+            style={{ ...type.label, color: textDim }}
           >
             Preview Columns · live
           </div>
           <div
             className="mt-2 break-all"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: inkColor }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}
           >
             {path}
           </div>
           <div
             className="mt-2.5 flex gap-3"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10px', color: textDim }}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textDim }}
           >
             {loading ? (
-              <span style={{ opacity: 0.5 }}>loading…</span>
+              <span style={{ color: 'var(--ink-3)', }}>loading…</span>
             ) : (
               <span>{columns.length} columns</span>
             )}
@@ -130,7 +131,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
         {/* Note */}
         <div
           className="px-5 py-2.5 border-b"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '9.5px', color: goldDim, letterSpacing: '0.03em', borderColor }}
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-2)', letterSpacing: '0.04em', borderColor }}
         >
           Live read from information_schema.columns — no harvest, no persistence.
         </div>
@@ -142,21 +143,21 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               {[...Array(8)].map((_, i) => (
                 <div key={`skel-${i}`} className="px-5 py-3 border-b animate-pulse" style={{ borderColor }}>
                   <div className="flex justify-between">
-                    <div className="h-4 bg-slate-400/15 rounded w-28" />
-                    <div className="h-3.5 bg-slate-400/15 rounded w-14" />
+                    <div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-28" />
+                    <div className="h-3.5 bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)] rounded w-14" />
                   </div>
-                  <div className="h-3 bg-slate-400/10 rounded w-16 mt-2" />
+                  <div className="h-3 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-16 mt-2" />
                 </div>
               ))}
             </div>
           ) : error ? (
             error.startsWith('INSUFFICIENT_PERMISSIONS:') ? (
               <div className="flex flex-col items-center gap-3 pt-12 text-center px-6">
-                <span style={{ fontSize: '28px', lineHeight: 1 }}>🔒</span>
-                <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: '13px', color: inkColor, fontWeight: 500 }}>
+                <span style={{ fontSize: 'var(--type-kpi-lg-size)', lineHeight: 1 }}>🔒</span>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, fontWeight: 500 }}>
                   No catalog access
                 </span>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: textMuted, lineHeight: 1.6 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
                   The service account lacks <code>USE CATALOG</code> on{' '}
                   <span style={{ color: goldColor }}>{error.split(':')[1] || path.split('.')[0]}</span>.
                   <br />Grant the privilege in Databricks Unity Catalog and retry.
@@ -166,11 +167,11 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               const [, cat, remote] = error.split(':');
               return (
                 <div className="flex flex-col items-center gap-3 pt-12 text-center px-6">
-                  <span style={{ fontSize: '28px', lineHeight: 1 }}>🔌</span>
-                  <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: '13px', color: inkColor, fontWeight: 500 }}>
+                  <span style={{ fontSize: 'var(--type-kpi-lg-size)', lineHeight: 1 }}>🔌</span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, fontWeight: 500 }}>
                     External source unreachable
                   </span>
-                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: textMuted, lineHeight: 1.6 }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, lineHeight: 1.6 }}>
                     <span style={{ color: goldColor }}>{cat || path.split('.')[0]}</span> is a federated catalog.
                     <br />Databricks could not connect to the remote source
                     {remote ? <> (<span style={{ color: inkColor }}>{remote}</span>)</> : ''}.
@@ -180,11 +181,11 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               );
             })() : (
             <div className="flex flex-col items-center gap-3 pt-12 text-center px-5">
-              <span className="text-lg opacity-40">⚠</span>
-              <span style={{ fontFamily: "'Inter Tight', sans-serif", fontSize: '13px', color: inkColor }}>
+              <span className="text-size-title-section opacity-40">⚠</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
                 Failed to load columns
               </span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: textMuted }}>{error}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted }}>{error}</span>
             </div>
             )
           ) : (
@@ -195,18 +196,18 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
                 style={{ gridTemplateColumns: '1fr auto', borderColor }}
               >
                 <div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: inkColor }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
                     {col.column_name}
                   </div>
-                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '10.5px', color: textMuted, marginTop: '3px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: textMuted, marginTop: '3px' }}>
                     {col.data_type}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span
-                    className="text-[8.5px] tracking-wider uppercase px-1.5 py-0.5 rounded border"
+                    className="text-size-ui tracking-wide uppercase px-1.5 py-0.5 rounded border"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontFamily: 'var(--font-mono)',
                       color: col.is_nullable === 'YES' ? textDim : textMuted,
                       borderColor: borderStrong,
                     }}
@@ -216,7 +217,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
                 </div>
                 {col.comment && (
                   <div
-                    style={{ gridColumn: '1 / 3', fontFamily: "'Source Serif 4', Georgia, serif", fontSize: '12px', color: textDim, marginTop: '4px' }}
+                    style={{ gridColumn: '1 / 3', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: textDim, marginTop: '4px' }}
                   >
                     {col.comment}
                   </div>
@@ -232,7 +233,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             type="button"
             onClick={onClose}
             className="flex-1 text-center py-2.5 rounded-md border transition-colors"
-            style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', borderColor: borderStrong, color: textMuted, background: 'transparent' }}
+            style={{ ...type.label, borderColor: borderStrong, color: textMuted, background: 'transparent' }}
           >
             Close
           </button>
@@ -241,7 +242,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               type="button"
               onClick={() => { onClose(); router.push(`/agent-lab/estate/object/${contextObjectId}`); }}
               className="flex-1 text-center py-2.5 rounded-md font-semibold transition-colors"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', backgroundColor: goldColor, color: 'var(--estate-bg)' }}
+              style={{ ...type.label, backgroundColor: goldColor, color: 'var(--estate-bg)' }}
             >
               ◆ View Full Detail
             </button>
@@ -250,7 +251,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
               type="button"
               onClick={() => { onHarvest([path]); onClose(); }}
               className="flex-1 text-center py-2.5 rounded-md font-semibold transition-colors"
-              style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', backgroundColor: goldColor, color: 'var(--estate-bg)' }}
+              style={{ ...type.label, backgroundColor: goldColor, color: 'var(--estate-bg)' }}
             >
               ⛏ Harvest this object
             </button>

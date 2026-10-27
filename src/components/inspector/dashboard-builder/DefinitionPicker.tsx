@@ -5,12 +5,13 @@ import { Search, Layers, BarChart3, Hash, ChevronRight, BarChart2 } from 'lucide
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { MeasureSnapshot } from '@/lib/dashboards/types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
-const GOLD = '#FDB515';
+const GOLD = 'var(--brand-a)';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -128,7 +129,7 @@ export function DefinitionPicker({
   if (loading) {
     return (
       <div style={{ padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-label)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           LOADING DEFINITIONS…
         </span>
       </div>
@@ -139,7 +140,7 @@ export function DefinitionPicker({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Tab bar — matches Palette.tsx pattern exactly */}
       <div style={{ display: 'flex', gap: 2, padding: '8px 8px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 4 }}>
+        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', borderRadius: 4 }}>
           {(['definitions', 'charts'] as PickerTab[]).map((tab) => (
             <button
               key={tab}
@@ -148,15 +149,12 @@ export function DefinitionPicker({
                 flex: 1,
                 textAlign: 'center',
                 padding: '4px 0',
-                ...MONO,
-                fontSize: 10,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 borderRadius: 3,
                 cursor: 'pointer',
                 border: 'none',
                 transition: 'all 0.15s',
-                background: activeTab === tab ? 'rgba(255,255,255,0.08)' : 'transparent',
+                background: activeTab === tab ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent',
                 fontWeight: activeTab === tab ? 600 : 400,
                 color: activeTab === tab ? GOLD : 'var(--builder-text-muted)',
               }}
@@ -190,7 +188,7 @@ export function DefinitionPicker({
                 placeholder="Filter definitions…"
                 style={{
                   ...MONO,
-                  fontSize: 11,
+                  fontSize: 'var(--type-ui-regular-size)',
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
@@ -215,7 +213,7 @@ export function DefinitionPicker({
             ))}
             {filteredEntities.length === 0 && (
               <div style={{ padding: 16, textAlign: 'center' }}>
-                <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                   No matching definitions
                 </span>
               </div>
@@ -227,23 +225,23 @@ export function DefinitionPicker({
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
           {chartsLoading && (
             <div style={{ padding: 16, textAlign: 'center' }}>
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              <span style={{ ...type.label, }}>
                 LOADING CHARTS…
               </span>
             </div>
           )}
           {chartsError && (
             <div style={{ padding: 12 }}>
-              <span style={{ ...MONO, fontSize: 10, color: '#F87171' }}>{chartsError}</span>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171' }}>{chartsError}</span>
             </div>
           )}
           {!chartsLoading && !chartsError && savedCharts.length === 0 && (
             <div style={{ padding: 16, textAlign: 'center' }}>
               <BarChart2 size={20} style={{ color: 'var(--builder-text-muted)', margin: '0 auto 8px', display: 'block' }} />
-              <span style={{ ...MONO, fontSize: 10, color: 'var(--builder-text-muted)' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>
                 No saved charts yet.
               </span>
-              <p style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
                 Use the Inspector to run a semantic query, then click "SAVE TO CHARTS" on the result.
               </p>
             </div>
@@ -289,8 +287,8 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
         transition: 'all 0.15s',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(253,181,21,0.06)';
-        e.currentTarget.style.borderColor = 'rgba(253,181,21,0.35)';
+        e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 6%, transparent)';
+        e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--brand-a) 35%, transparent)';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent';
@@ -299,19 +297,19 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <BarChart3 size={11} style={{ color: GOLD, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 'var(--type-ui-regular-size)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {chart.name}
         </span>
         <span
           style={{
-            fontSize: 8,
+            fontSize: 'var(--type-ui-regular-size)',
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             padding: '1px 4px',
             borderRadius: 2,
-            background: 'rgba(253,181,21,0.1)',
+            background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
             color: GOLD,
-            border: '1px solid rgba(253,181,21,0.2)',
+            border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
             flexShrink: 0,
           }}
         >
@@ -319,7 +317,7 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
         </span>
       </div>
       {measureLabels.length > 0 && (
-        <div style={{ fontSize: 9, color: 'var(--builder-text-muted)', paddingLeft: 17 }}>
+        <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', paddingLeft: 17 }}>
           {measureLabels.join(' · ')}
           {(chart.semantic_query.measures ?? []).length > 3 && ` +${(chart.semantic_query.measures ?? []).length - 3}`}
         </div>
@@ -349,10 +347,7 @@ function EntityGroup({
       <button
         onClick={onToggle}
         style={{
-          ...MONO,
-          fontSize: 10,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
+          ...type.label,
           display: 'flex',
           alignItems: 'center',
           gap: 4,
@@ -385,7 +380,7 @@ function EntityGroup({
           {/* Dimensions */}
           {entity.dimensions.length > 0 && (
             <div style={{ marginBottom: 4 }}>
-              <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', letterSpacing: '0.10em', textTransform: 'uppercase', padding: '2px 4px', display: 'block' }}>
+              <span style={{ ...type.label, padding: '2px 4px', display: 'block' }}>
                 DIMENSIONS
               </span>
               {entity.dimensions.map((dim) => (
@@ -403,7 +398,7 @@ function EntityGroup({
           {/* Measures */}
           {entity.measures.length > 0 && (
             <div>
-              <span style={{ ...MONO, fontSize: 9, color: 'var(--builder-text-muted)', letterSpacing: '0.10em', textTransform: 'uppercase', padding: '2px 4px', display: 'block' }}>
+              <span style={{ ...type.label, padding: '2px 4px', display: 'block' }}>
                 MEASURES
               </span>
               {entity.measures.map((meas) => (
@@ -446,7 +441,7 @@ function DefinitionRow({
       title={`Add ${label} to selected widget`}
       style={{
         ...MONO,
-        fontSize: 10,
+        fontSize: 'var(--type-ui-regular-size)',
         display: 'flex',
         alignItems: 'center',
         gap: 6,
@@ -460,14 +455,14 @@ function DefinitionRow({
         opacity: isCandidate ? 0.7 : 1,
         textAlign: 'left',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(253,181,21,0.06)'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 6%, transparent)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
     >
       {icon}
       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <span style={{ fontSize: 9, color: 'var(--builder-text-label)', flexShrink: 0, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-label)', flexShrink: 0, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {sublabel}
       </span>
       <StatusBadge status={status} />
@@ -482,16 +477,13 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       style={{
-        ...MONO,
-        fontSize: 8,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
+        ...type.label,
         padding: '1px 4px',
         borderRadius: 2,
         flexShrink: 0,
-        background: isGoverned ? 'rgba(134,239,172,0.1)' : 'rgba(253,181,21,0.1)',
-        color: isGoverned ? '#86EFAC' : '#FDB515',
-        border: `1px solid ${isGoverned ? 'rgba(134,239,172,0.2)' : 'rgba(253,181,21,0.2)'}`,
+        background: isGoverned ? 'rgba(134,239,172,0.1)' : 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+        color: isGoverned ? '#86EFAC' : 'var(--brand-a)',
+        border: `1px solid ${isGoverned ? 'rgba(134,239,172,0.2)' : 'color-mix(in srgb, var(--brand-a) 20%, transparent)'}`,
       }}
     >
       {isGoverned ? 'GOV' : 'CAND'}

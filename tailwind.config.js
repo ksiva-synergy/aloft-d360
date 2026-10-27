@@ -4,6 +4,11 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/views/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/lib/navigation/**/*.{ts,tsx}',
+    './packages/aloft-shared/src/components/ui/**/*.{ts,tsx}',
+    './web/index.html',
+    './web/src/**/*.{ts,tsx}',
   ],
   darkMode: 'class',
   theme: {
@@ -105,8 +110,12 @@ module.exports = {
         // evals-v2 brand aliases — authoritative flat tokens for eval surfaces
         'brand': {
           navy: '#003262',
-          gold:  '#FDB515',
+          gold:  '#FDB515', a: 'var(--brand-a)', 'a-2': 'var(--brand-a-2)', 'a-soft': 'var(--brand-a-soft)', 'a-ink': 'var(--brand-a-ink)', b: 'var(--brand-b)', 'b-soft': 'var(--brand-b-soft)', 'b-ink': 'var(--brand-b-ink)', c: 'var(--brand-c)',
         },
+        'surface': { 1: 'var(--surface-1)', 2: 'var(--surface-2)', 3: 'var(--surface-3)' },
+        'line': { 1: 'var(--line-1)', 2: 'var(--line-2)' },
+        'ink': { 1: 'var(--ink-1)', 2: 'var(--ink-2)', 3: 'var(--ink-3)' },
+        'rail': { bg: 'var(--rail-bg)', ink: 'var(--rail-ink)', strong: 'var(--rail-ink-strong)', muted: 'var(--rail-muted)', line: 'var(--rail-line)' },
         'terminal': {
           bg:      '#0d1117',
           surface: '#161b22',
@@ -129,21 +138,45 @@ module.exports = {
           'red-fail':      'var(--builder-red-fail)',
         },
       },
+      fontSize: {
+        // Size-only utilities (size + line height, weight/tracking untouched) for places where the
+        // element inherits its weight. Full styles are the token classes below.
+        'size-caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)' }],
+        'size-ui':            ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)' }],
+        'size-body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)' }],
+        'size-body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)' }],
+        'size-title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)' }],
+        'size-kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)' }],
+        'size-display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)' }],
+        // Type tokens — values live in src/styles/typography.css (docs/audits/typography-implementation-plan.md).
+        'display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)',       fontWeight: 'var(--type-display-weight)',       letterSpacing: 'var(--type-display-ls)' }],
+        'title-page':    ['var(--type-title-page-size)',    { lineHeight: 'var(--type-title-page-lh)',    fontWeight: 'var(--type-title-page-weight)',    letterSpacing: 'var(--type-title-page-ls)' }],
+        'title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)', fontWeight: 'var(--type-title-section-weight)', letterSpacing: 'var(--type-title-section-ls)' }],
+        'title-card':    ['var(--type-title-card-size)',    { lineHeight: 'var(--type-title-card-lh)',    fontWeight: 'var(--type-title-card-weight)',    letterSpacing: 'var(--type-title-card-ls)' }],
+        'body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)',       fontWeight: 'var(--type-body-lg-weight)',       letterSpacing: 'var(--type-body-lg-ls)' }],
+        'body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)',          fontWeight: 'var(--type-body-weight)',          letterSpacing: 'var(--type-body-ls)' }],
+        'ui-lg':         ['var(--type-ui-lg-size)',         { lineHeight: 'var(--type-ui-lg-lh)',         fontWeight: 'var(--type-ui-lg-weight)',         letterSpacing: 'var(--type-ui-lg-ls)' }],
+        'ui':            ['var(--type-ui-size)',            { lineHeight: 'var(--type-ui-lh)',            fontWeight: 'var(--type-ui-weight)',            letterSpacing: 'var(--type-ui-ls)' }],
+        'ui-regular':    ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)',    fontWeight: 'var(--type-ui-regular-weight)',    letterSpacing: 'var(--type-ui-regular-ls)' }],
+        'label':         ['var(--type-label-size)',         { lineHeight: 'var(--type-label-lh)',         fontWeight: 'var(--type-label-weight)',         letterSpacing: 'var(--type-label-ls)' }],
+        'caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)',       fontWeight: 'var(--type-caption-weight)',       letterSpacing: 'var(--type-caption-ls)' }],
+        'eyebrow':       ['var(--type-eyebrow-size)',       { lineHeight: 'var(--type-eyebrow-lh)',       fontWeight: 'var(--type-eyebrow-weight)',       letterSpacing: 'var(--type-eyebrow-ls)' }],
+        'kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)',        fontWeight: 'var(--type-kpi-lg-weight)',        letterSpacing: 'var(--type-kpi-lg-ls)' }],
+        'kpi-md':        ['var(--type-kpi-md-size)',        { lineHeight: 'var(--type-kpi-md-lh)',        fontWeight: 'var(--type-kpi-md-weight)',        letterSpacing: 'var(--type-kpi-md-ls)' }],
+        'kpi-sm':        ['var(--type-kpi-sm-size)',        { lineHeight: 'var(--type-kpi-sm-lh)',        fontWeight: 'var(--type-kpi-sm-weight)',        letterSpacing: 'var(--type-kpi-sm-ls)' }],
+        'code':          ['var(--type-code-size)',          { lineHeight: 'var(--type-code-lh)',          fontWeight: 'var(--type-code-weight)',          letterSpacing: 'var(--type-code-ls)' }],
+      },
       fontFamily: {
-        // REBRAND: Inter → Inter Tight | JetBrains Mono → IBM Plex Mono
-        sans: ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
-        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'monospace'],
-        // evals-v2 semantic font aliases
-        display: ['"Source Serif 4"', 'Georgia', 'serif'],   // --fd: headings, agent names
-        body:    ['"Inter Tight"', 'Inter', 'system-ui', 'sans-serif'], // --fu: labels, body
+        // One sans, one mono (values in src/styles/typography.css).
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
       borderRadius: {
         // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)
         // Use rounded-sm (4px) for interactive elements, rounded-card (6px) for surfaces
-        'sm':    '4px',
-        'card':  '6px',
-        'brand': '6px',  // evals-v2 max border-radius — do not exceed
+        'sm':    '6px',
+        'card':  '16px',
+        'brand': '16px',
         // Intentionally NOT overriding 'md'/'lg'/'xl' — their presence in JSX is a violation;
         // removing the override here surfaces the violation rather than silencing it.
       },
@@ -152,6 +185,8 @@ module.exports = {
       },
       boxShadow: {
         'nav': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'card': 'var(--shadow-card)',
+        'pop': 'var(--shadow-pop)',
       },
       keyframes: {
         'fade-in': {

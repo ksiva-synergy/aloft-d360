@@ -55,8 +55,10 @@ export async function POST(req: NextRequest) {
       SELECT catalog_name, COUNT(*) as cnt
       FROM platform_estate_objects
       WHERE org_id = $1
+        AND source_id = $2
+        AND lifecycle = 'active'
       GROUP BY catalog_name
-    `, orgId);
+    `, orgId, sourceId);
     const auroraMap = new Map(auroraRows.map(r => [r.catalog_name, Number(r.cnt)]));
 
     // Discover catalogs visible to the token

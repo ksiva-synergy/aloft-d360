@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inspector — Architecture &amp; Execution Model · ALOFT D360</title>
+  <style>
+    :root {
+      --bg: #0f1114;
+      --surface: #16171a;
+      --surface-2: #1e2126;
+      --border: #2a2f38;
+      --text: #e8eaed;
+      --muted: #9aa3b2;
+      --accent: #c9a227;
+      --accent-dim: color-mix(in srgb, var(--accent) 25%, transparent);
+      --code-bg: #12141a;
+      --link: #7eb8ff;
+      --sans: "DM Sans", system-ui, -apple-system, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--text);
+      background: var(--bg);
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre {
+      font-family: var(--mono);
+      font-size: 0.88em;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 0.12em 0.35em;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+    header.hero {
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+      padding: 2.5rem 1.5rem 2rem;
+    }
+    .hero-inner { max-width: 52rem; margin: 0 auto; }
+    .hero h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.85rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .hero .subtitle {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 42rem;
+    }
+    .meta {
+      margin-top: 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 15rem minmax(0, 1fr);
+      gap: 0;
+      max-width: 72rem;
+      margin: 0 auto;
+      min-height: calc(100vh - 12rem);
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.toc { position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    nav.toc {
+      position: sticky;
+      top: 0;
+      align-self: start;
+      max-height: 100vh;
+      overflow-y: auto;
+      padding: 1.5rem 1rem 2rem 1.5rem;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+    nav.toc p.label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin: 0 0 0.75rem;
+    }
+    nav.toc ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    nav.toc li { margin: 0.35rem 0; }
+    nav.toc a {
+      color: var(--muted);
+      font-size: 0.9rem;
+      display: block;
+      padding: 0.2rem 0;
+    }
+    nav.toc a:hover { color: var(--text); }
+    main {
+      padding: 2rem 1.5rem 4rem;
+      min-width: 0;
+    }
+    main section {
+      margin-bottom: 2.75rem;
+      scroll-margin-top: 1rem;
+    }
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 1.5rem 0 0.65rem;
+      color: var(--accent);
+    }
+    p { margin: 0 0 1rem; }
+    ul, ol { margin: 0 0 1rem; padding-left: 1.35rem; }
+    li { margin: 0.35rem 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 1rem 0 1.5rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--surface-2);
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    tr:nth-child(even) td { background: color-mix(in srgb, var(--surface) 50%, transparent); }
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-dim);
+      padding: 0.85rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0 1.25rem;
+    }
+    .callout strong { color: var(--accent); }
+    .diagram {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0 1.5rem;
+      overflow-x: auto;
+    }
+    .mermaid { text-align: center; }
+    .file-ref {
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#2a2f38',
+        primaryTextColor: '#e8eaed',
+        primaryBorderColor: '#c9a227',
+        lineColor: '#9aa3b2',
+        secondaryColor: '#1e2126',
+        tertiaryColor: '#16171a',
+      },
+    });
+  </script>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>Inspector — Architecture &amp; Execution Model</h1>
+      <p class="subtitle">
+        How the conversational data analyst works in ALOFT D360 (Data 360 / Agent Lab):
+        UI harness, SSE chat API, single-agent tool loop, catalog + warehouse + semantic analysis paths.
+      </p>
+      <p class="meta">
+        Repository: aloft-d360 · Evidence from source · 24 Oct 2026 ·
+        Related: <a href="audits/business-ai-studio-current-state.md">platform audit</a>
+      </p>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Table of contents">
+      <p class="label">On this page</p>
+      <ul>
+        <li><a href="#what">What Inspector is</a></li>
+        <li><a href="#harness">Harness layers</a></li>
+        <li><a href="#flow">End-to-end flow</a></li>
+        <li><a href="#session">Sessions &amp; context mode</a></li>
+        <li><a href="#server-context">Server context stack</a></li>
+        <li><a href="#loop">Agent loop</a></li>
+        <li><a href="#tools">Tools &amp; analysis</a></li>
+        <li><a href="#pipelines">Sub-pipelines</a></li>
+        <li><a href="#ui">UI composition</a></li>
+        <li><a href="#after">After each turn</a></li>
+        <li><a href="#related">Related surfaces</a></li>
+        <li><a href="#limits">Limits &amp; non-goals</a></li>
+        <li><a href="#files">Key files</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <section id="what">
+        <h2>What Inspector is</h2>
+        <p>
+          <strong>Inspector</strong> is the product’s conversational <em>data analyst</em> for Synergy Maritime /
+          Databricks data. It is not a separate microservice. It is a vertical slice of the monolith:
+        </p>
+        <ul>
+          <li><strong>UI</strong> — <code>InspectorShell</code> on routes <code>/inspector</code> and <code>/inspector/:sessionId</code></li>
+          <li><strong>Client harness</strong> — <code>useInspectorChat</code> (SSE, messages, tool cards, charts)</li>
+          <li><strong>API</strong> — <code>POST /api/inspector/chat</code> (prompt assembly + stream)</li>
+          <li><strong>Engine</strong> — <code>runAgentLoop</code> / <code>dispatchAgentLoop</code> with <code>executeInspectorTool</code></li>
+        </ul>
+        <div class="callout">
+          <strong>Product role:</strong> Help users understand data <em>before</em> they commission an agent in the
+          workbench. The system prompt and <code>AgentHandoffCard</code> steer “build an agent” intent toward Agent Lab.
+        </div>
+      </section>
+
+      <section id="harness">
+        <h2>Harness layers (engineering model)</h2>
+        <p>
+          Inspector is a <strong>classic single-agent harness</strong> (ReAct-style tool loop), not a workflow engine or multi-agent orchestrator.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Responsibility</th>
+              <th>Primary code</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>UI harness</td>
+              <td>Session, messages, SSE parsing, tool cards, charts, disambiguation, export offers</td>
+              <td class="file-ref">src/hooks/useInspectorChat.ts<br>src/components/inspector/InspectorShell.tsx</td>
+            </tr>
+            <tr>
+              <td>HTTP harness</td>
+              <td>Auth guard, prompt assembly, SSE encoding, metrics, trace, bandit side effects</td>
+              <td class="file-ref">src/app/api/inspector/chat/route.ts</td>
+            </tr>
+            <tr>
+              <td>Loop harness</td>
+              <td>Stream model → run tools in parallel → append results → repeat until text or max loops</td>
+              <td class="file-ref">src/lib/inspector/agent-loop.ts<br>src/lib/inspector/providers/factory.ts</td>
+            </tr>
+            <tr>
+              <td>Tool harness</td>
+              <td>Named tools; some invoke sub-pipelines (semantic chart)</td>
+              <td class="file-ref">src/lib/inspector/tools.ts</td>
+            </tr>
+            <tr>
+              <td>SQL safety</td>
+              <td>Read-only verbs, single statement, row caps</td>
+              <td class="file-ref">src/lib/databricks/execute.ts</td>
+            </tr>
+            <tr>
+              <td>Semantic governance</td>
+              <td>Compile <code>SemanticQuery</code> → SQL → execute on connection</td>
+              <td class="file-ref">src/lib/semantic/*<br>src/lib/inspector/chart-pipeline.ts</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>Runtime:</strong> One HTTP <code>POST</code> per user turn, <code>text/event-stream</code>,
+          <code>maxDuration = 300</code> seconds. Closing the browser aborts the request; the agent does not continue in a background worker.
+        </p>
+      </section>
+
+      <section id="flow">
+        <h2>End-to-end flow (user asks a question)</h2>
+        <div class="diagram">
+          <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant UI as InspectorShell + useInspectorChat
+  participant API as POST /api/inspector/chat
+  participant Ctx as Context builders
+  participant Loop as Agent loop
+  participant Tools as executeInspectorTool
+  participant WH as Catalog + Databricks
+
+  U->>UI: Send message
+  UI->>API: sessionId, messages, model, contextMode
+  API->>Ctx: Semantic, session knowledge, memory, insights
+  API->>Loop: systemPrompt + messages + tools
+  loop Each iteration
+    Loop->>Loop: Model stream
+    Loop-->>UI: SSE text / thinking / tools
+    Loop->>Tools: Tool calls
+    Tools->>WH: describe_schema / SQL / semantic
+    Tools-->>UI: query_result, charts, disambiguation
+  end
+  API-->>UI: SSE done
+  UI->>UI: PATCH workbench_sessions (autosave)
+          </pre>
+        </div>
+        <ol>
+          <li>User sends text from <code>PromptCanvas</code>.</li>
+          <li>Client appends user + empty assistant messages and opens SSE to <code>/api/inspector/chat</code>.</li>
+          <li>Server builds system prompt + optional synthetic recall turn, runs the tool loop.</li>
+          <li>Client updates UI from SSE events; persists query results via <code>/api/studio/results</code> when applicable.</li>
+          <li>After ~2s debounce, client <code>PATCH</code>es <code>/api/agent-lab/workbench/sessions/:id</code> with messages (server does not own transcript during stream).</li>
+        </ol>
+      </section>
+
+      <section id="session">
+        <h2>Sessions &amp; context mode</h2>
+        <h3>Creating and loading sessions</h3>
+        <ul>
+          <li><strong>New:</strong> <code>POST /api/inspector/sessions</code> → <code>workbench_sessions</code> with <code>surface: 'inspector'</code>. Requires <code>inspector:use</code> or <code>session:write</code>.</li>
+          <li><strong>Load:</strong> <code>GET /api/agent-lab/workbench/sessions/:id</code> + optional <code>GET /api/studio/results?sessionId=...</code> for past SQL result sets.</li>
+        </ul>
+        <h3>Context mode (status bar toggle)</h3>
+        <table>
+          <thead>
+            <tr><th>Mode</th><th>Discovery</th><th>Prompt</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>harvested</code> (default)</td>
+              <td><code>describe_schema</code> search/describe/profile on estate catalog (low warehouse cost)</td>
+              <td><code>INSPECTOR_SYSTEM_PROMPT</code> — catalog first, then SQL with known paths</td>
+            </tr>
+            <tr>
+              <td><code>warehouse_only</code></td>
+              <td>Live <code>SHOW</code> / <code>DESCRIBE</code> via <code>execute_tool</code></td>
+              <td><code>INSPECTOR_WAREHOUSE_ONLY_PROMPT</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="file-ref">src/lib/inspector/prompts.ts · Sent on every chat POST as <code>contextMode</code>.</p>
+      </section>
+
+      <section id="server-context">
+        <h2>Server context stack (before the model runs)</h2>
+        <p>Each turn, <code>inspector/chat/route.ts</code> assembles analysis context:</p>
+        <table>
+          <thead>
+            <tr><th>Input</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Base system prompt</td><td>Mandatory workflow: memory → catalog → SQL → export rules</td></tr>
+            <tr><td><code>buildInsightsContext</code></td><td>Harvested insights when <code>contextMode === 'harvested'</code></td></tr>
+            <tr><td><code>buildSessionKnowledgeContext</code></td><td>Tables, paths, heuristics confirmed in this Inspector session</td></tr>
+            <tr><td><code>buildSemanticContext</code></td><td>Governed entities, dimensions, measures from semantic model (per org + connection)</td></tr>
+            <tr><td>FOER operating memory (optional)</td><td>If <code>MEMORY_INJECT_ENABLED</code> and class <code>inspector</code>: phases in system prompt + synthetic assistant recall turn</td></tr>
+            <tr><td>Message history</td><td>From request body (client is source of truth for transcript)</td></tr>
+          </tbody>
+        </table>
+        <p>
+          <strong>Model routing:</strong> Bedrock <code>ConverseStream</code> via <code>runAgentLoop</code>, or OpenAI-compatible
+          path via <code>dispatchAgentLoop</code> → <code>runFoundryAgentLoop</code> (Azure Foundry, xAI, Bedrock Mantle, LLM Lite).
+          Optional Grok fallback when Bedrock fails and xAI credentials exist.
+        </p>
+      </section>
+
+      <section id="loop">
+        <h2>Agent loop</h2>
+        <ol>
+          <li>Stream assistant text (and optional “thinking” on supported Anthropic models).</li>
+          <li>Collect tool-use blocks from the stream.</li>
+          <li>Execute tools in <strong>parallel</strong> (<code>Promise.all</code>).</li>
+          <li>Append assistant message + tool results to the conversation.</li>
+          <li>Repeat until the model returns text only, hits <code>getInspectorMaxLoops()</code>, aborts, or errors.</li>
+        </ol>
+        <p>
+          Abort: client <code>AbortController</code> → <code>request.signal</code> → <code>abortSignal</code> on the loop.
+          In-flight tool calls are not cancelled mid-execution.
+        </p>
+      </section>
+
+      <section id="tools">
+        <h2>Tools &amp; how analysis happens</h2>
+        <p>
+          Tools are defined in <code>INSPECTOR_TOOLS</code> / <code>buildToolConfig</code> in <code>prompts.ts</code>.
+          All execution goes through <code>executeInspectorTool</code>.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Tool</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>describe_schema</code></td>
+              <td>Search, describe, profile <strong>harvested</strong> catalog metadata (preferred in harvested mode)</td>
+            </tr>
+            <tr>
+              <td><code>execute_tool</code></td>
+              <td>Read-only Databricks SQL via <code>executeDatabricksSQL</code> (service principal on connection)</td>
+            </tr>
+            <tr>
+              <td><code>emit_chart</code></td>
+              <td>Chart DSL on the <strong>last query result</strong> in the turn → ECharts option</td>
+            </tr>
+            <tr>
+              <td><code>emit_semantic_chart</code></td>
+              <td>Governed <code>SemanticQuery</code> → compile → execute → chart (with staged SSE progress)</td>
+            </tr>
+            <tr>
+              <td><code>emit_disambiguation</code></td>
+              <td>Surface candidate fields as chips; model should end turn and wait for user pick</td>
+            </tr>
+            <tr>
+              <td><code>export_query_result</code></td>
+              <td>CSV export (reuses last successful SQL per prompt rules)</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          <strong>Analysis model:</strong> There is no separate “analysis engine” service. Analysis is
+          <em>LLM reasoning + tools + prompts</em>, with deterministic safety on SQL and semantic compilation.
+        </div>
+      </section>
+
+      <section id="pipelines">
+        <h2>Sub-pipelines inside tools</h2>
+        <h3>Semantic chart (<code>emit_semantic_chart</code>)</h3>
+        <p><code>runSemanticChartPipeline</code> in <code>chart-pipeline.ts</code>:</p>
+        <ol>
+          <li>Validate <code>SemanticQuery</code></li>
+          <li>Compile to SQL (<code>src/lib/semantic/compiler.ts</code>)</li>
+          <li>Execute on Databricks (<code>executeSemanticQuery</code>)</li>
+          <li>Profile rows, recommend chart kind, build ECharts option</li>
+          <li>Emit <code>semantic_chart_result</code> SSE with trust metadata for <code>TrustPanel</code></li>
+        </ol>
+        <h3>Raw chart (<code>emit_chart</code>)</h3>
+        <p>Uses last <code>query_result</code> from the turn; validates Chart DSL (often from tool input); compiles to ECharts without requiring a second full agent loop when inline DSL is valid.</p>
+      </section>
+
+      <section id="ui">
+        <h2>UI composition</h2>
+        <p><code>InspectorShell</code> brings together:</p>
+        <ul>
+          <li><strong>PromptCanvas</strong> — chat thread (shared with workbench)</li>
+          <li><strong>DataStudio</strong> — grids and charts from <code>queryResults</code></li>
+          <li><strong>SemanticChartCard</strong>, <strong>DisambiguationCard</strong>, <strong>QueryProgressCard</strong>, <strong>ExportReadyCard</strong></li>
+          <li><strong>DashboardPane</strong> — pin SQL/charts to dashboards</li>
+          <li><strong>SemanticGovernancePanel</strong> — drafts, promotion, catalog (right pane)</li>
+          <li><strong>DeveloperPane</strong> — Agent Ops metrics (role-gated)</li>
+          <li><strong>AgentHandoffCard</strong> — detect build-agent intent → Agent Lab</li>
+        </ul>
+        <p>SSE event types consumed by <code>useInspectorChat</code> include: <code>text</code>, <code>thinking</code>, <code>loop_start</code>, <code>tool_call_*</code>, <code>query_result</code>, <code>semantic_chart_result</code>, <code>semantic_disambiguation</code>, export events, and <code>done</code>.</p>
+      </section>
+
+      <section id="after">
+        <h2>After each turn (same HTTP request)</h2>
+        <p>Inspector chat is the richest harness. Typical side effects:</p>
+        <ul>
+          <li><code>TurnMetricsRecorder</code> → <code>agent_turn_log</code> + <code>agent_loop_log</code></li>
+          <li><code>withAgentOpsToolLog</code> → sampled <code>tool_invocation_log</code></li>
+          <li><code>logAgentCost</code> on completed/truncated turns</li>
+          <li><code>openSession</code> trace → <code>platform_trace_nodes</code> / edges (FOER, UUID session)</li>
+          <li>Bandit observation + optional judge score</li>
+          <li><code>persistSessionKnowledgeAfterTurn</code></li>
+          <li>Memory injection attribution when bullets were used</li>
+          <li>Marcus reflection (env-gated)</li>
+        </ul>
+      </section>
+
+      <section id="related">
+        <h2>Related surfaces (same foundations)</h2>
+        <table>
+          <thead>
+            <tr><th>Surface</th><th>Relationship to Inspector</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Dashboard builder / viewer</td><td>Same semantic SQL and chart stack; less conversational loop</td></tr>
+            <tr><td>Metrics catalog / semantic authoring</td><td>Defines governed fields Inspector and <code>emit_semantic_chart</code> use</td></tr>
+            <tr><td>Teach</td><td>Fork of chat harness; different tools; stricter session read auth</td></tr>
+            <tr><td>Performance Lab / Boost</td><td>Same loop; fixed benchmark prompts; writes <code>platform_boost_runs</code></td></tr>
+            <tr><td>Commissioned agent chat</td><td>Smaller tool set; catalog instructions; no full Inspector context stack</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="limits">
+        <h2>Limits &amp; non-goals</h2>
+        <ul>
+          <li>Not multi-agent orchestration (pipeline tables exist; no runtime in <code>src/</code>).</li>
+          <li>Not durable runs — no worker resumes a turn after disconnect or API restart.</li>
+          <li><code>policy_entry</code> is not consulted by the loop (CRUD API only).</li>
+          <li>SQL runs as the <strong>connection service principal</strong>, not per-user warehouse identity; read-only enforcement is in <code>execute.ts</code>.</li>
+          <li>Session ownership on chat is <strong>observe mode</strong> unless <code>INSPECTOR_AUTH_ENFORCE=true</code> (see platform audit for auth gaps on session GET).</li>
+        </ul>
+      </section>
+
+      <section id="files">
+        <h2>Key files (quick reference)</h2>
+        <table>
+          <thead>
+            <tr><th>Path</th><th>Role</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>src/views/inspector/index.tsx</code></td><td>Page entry</td></tr>
+            <tr><td><code>src/components/inspector/InspectorShell.tsx</code></td><td>Layout and panes</td></tr>
+            <tr><td><code>src/hooks/useInspectorChat.ts</code></td><td>SSE client, state, autosave</td></tr>
+            <tr><td><code>src/app/api/inspector/chat/route.ts</code></td><td>Chat POST handler</td></tr>
+            <tr><td><code>src/app/api/inspector/sessions/route.ts</code></td><td>Create inspector session</td></tr>
+            <tr><td><code>src/lib/inspector/prompts.ts</code></td><td>System prompts and tool definitions</td></tr>
+            <tr><td><code>src/lib/inspector/agent-loop.ts</code></td><td>Bedrock tool loop</td></tr>
+            <tr><td><code>src/lib/inspector/providers/foundry-chat.ts</code></td><td>Foundry / xAI loop</td></tr>
+            <tr><td><code>src/lib/inspector/tools.ts</code></td><td>Tool dispatcher</td></tr>
+            <tr><td><code>src/lib/inspector/chart-pipeline.ts</code></td><td>Semantic chart pipeline</td></tr>
+            <tr><td><code>src/lib/semantic/context-builder.ts</code></td><td>Governed entity context for prompt</td></tr>
+            <tr><td><code>src/lib/databricks/execute.ts</code></td><td>Read-only SQL chokepoint</td></tr>
+            <tr><td><code>web/src/router.tsx</code></td><td>Routes <code>inspector/:sessionId</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    ALOFT D360 · Inspector architecture documentation · Generated from repository source · Open this file in a browser (Mermaid diagrams require network for CDN).
+  </footer>
+</body>
+</html>

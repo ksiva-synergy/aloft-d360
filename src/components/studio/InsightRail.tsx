@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { ChartSpec, ColumnProfile } from '@/lib/studio/types';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface InsightItem {
@@ -38,17 +39,17 @@ const T = {
   text:     'var(--builder-text)',
   muted:    'var(--builder-text-muted)',
   label:    'var(--builder-text-label)',
-  gold:     '#FDB515',
+  gold:     'var(--brand-a)',
 } as const;
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const SANS: React.CSSProperties = {
-  fontFamily: "'Inter Tight', 'Inter', ui-sans-serif, sans-serif",
+  fontFamily: 'var(--font-sans)',
 };
 const SERIF: React.CSSProperties = {
-  fontFamily: "'Source Serif 4', 'Georgia', ui-serif, serif",
+  fontFamily: 'var(--font-sans)',
 };
 
 // ── Shimmer skeleton card ─────────────────────────────────────────────────────
@@ -70,12 +71,12 @@ function SkeletonCard() {
           height: 10,
           width: '60%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 10,
         }}
       />
       {/* gold rule */}
-      <div style={{ height: 1, background: 'rgba(253,181,21,0.25)', marginBottom: 12 }} />
+      <div style={{ height: 1, background: 'color-mix(in srgb, var(--brand-a) 25%, transparent)', marginBottom: 12 }} />
       {/* headline */}
       <div
         className="animate-pulse"
@@ -83,7 +84,7 @@ function SkeletonCard() {
           height: 14,
           width: '90%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 6,
         }}
       />
@@ -93,7 +94,7 @@ function SkeletonCard() {
           height: 14,
           width: '70%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.06)',
+          background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 12,
         }}
       />
@@ -104,7 +105,7 @@ function SkeletonCard() {
           height: 11,
           width: '100%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
           marginBottom: 4,
         }}
       />
@@ -114,7 +115,7 @@ function SkeletonCard() {
           height: 11,
           width: '80%',
           borderRadius: 3,
-          background: 'rgba(255,255,255,0.04)',
+          background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
       />
     </div>
@@ -150,11 +151,7 @@ function InsightCard({
       >
         <span
           style={{
-            ...MONO,
-            fontSize: 10,
-            color: T.label,
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
+            ...type.label,
           }}
         >
           INSIGHT · {insight.kind.toUpperCase()}
@@ -162,12 +159,12 @@ function InsightCard({
         <span
           style={{
             ...MONO,
-            fontSize: 10,
+            fontSize: 'var(--type-ui-regular-size)',
             color: T.label,
             border: `1px solid ${T.border}`,
             borderRadius: 3,
             padding: '1px 5px',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.04em',
           }}
         >
           {insight.confidence.toUpperCase()}
@@ -182,7 +179,7 @@ function InsightCard({
         style={{
           ...SERIF,
           fontStyle: 'italic',
-          fontSize: 15,
+          fontSize: 'var(--type-body-size)',
           color: T.text,
           lineHeight: 1.4,
           marginBottom: 8,
@@ -195,11 +192,11 @@ function InsightCard({
         {insight.headline}
       </p>
 
-      {/* body — Inter Tight */}
+      {/* body — Inter Variable */}
       <p
         style={{
           ...SANS,
-          fontSize: 13,
+          fontSize: 'var(--type-ui-regular-size)',
           color: T.muted,
           lineHeight: 1.55,
           margin: 0,
@@ -370,10 +367,7 @@ export function InsightRail({
     justifyContent: 'space-between',
     padding: '0 16px',
     borderBottom: `1px solid ${T.border}`,
-    ...MONO,
-    fontSize: 10,
-    letterSpacing: '0.12em',
-    textTransform: 'uppercase' as const,
+    ...type.label,
     color: T.label,
   };
 
@@ -419,7 +413,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...MONO, fontSize: 11, color: T.label, textTransform: 'uppercase', letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.08em', textAlign: 'center' }}>
             INSIGHTS UNAVAILABLE
           </span>
           <button
@@ -429,8 +423,8 @@ export function InsightRail({
               border: 'none',
               cursor: 'pointer',
               ...MONO,
-              fontSize: 11,
-              color: T.gold,
+              fontSize: 'var(--type-ui-regular-size)',
+              color: inkOf(T.gold),
               textDecoration: 'underline',
               letterSpacing: '0.08em',
             }}
@@ -465,7 +459,7 @@ export function InsightRail({
             padding: '0 24px',
           }}
         >
-          <span style={{ ...MONO, fontSize: 11, color: T.label, textTransform: 'uppercase', letterSpacing: '0.10em', textAlign: 'center' }}>
+          <span style={{ ...type.label, letterSpacing: '0.08em', textAlign: 'center' }}>
             NO INSIGHTS GENERATED
           </span>
         </div>
@@ -487,13 +481,13 @@ export function InsightRail({
             <span
               style={{
                 ...MONO,
-                fontSize: 9,
+                fontSize: 'var(--type-ui-regular-size)',
                 color: T.gold,
-                background: 'rgba(253,181,21,0.08)',
-                border: '1px solid rgba(253,181,21,0.2)',
+                background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
                 borderRadius: 3,
                 padding: '1px 5px',
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
               }}
             >
               {loadedInsights.length}

@@ -6,6 +6,8 @@ import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { GOLD, RULE_TYPE_COLORS, MONO, SERIF, BODY, ruleTypeColor } from '@/lib/foer/foer-tokens';
 import type { KeeperSummaryResponse } from '@/app/api/agent-lab/memory/keeper-summary/route';
 
+import { withAlpha } from '@/lib/theme/with-alpha';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const RULE_TYPE_ORDER: Record<string, number> = {
@@ -228,7 +230,7 @@ function TraceGraph({ bullets, sessionsScanned, memoriesAnalyzed, memoriesKept, 
             r={Math.max(7, Math.round(o.conf * 10))}
             fill={o.color}
             fillOpacity={0.85}
-            style={{ filter: `drop-shadow(0 0 5px ${o.color}66)` }}
+            style={{ filter: `drop-shadow(0 0 5px ${withAlpha(o.color, '66')})` }}
           />
         </g>
       ))}
@@ -291,7 +293,7 @@ export function KeeperChoicePanel() {
             background: 'var(--foer-surface)',
             gap: '0.5rem',
             fontFamily: MONO,
-            fontSize: '0.75rem',
+            fontSize: 'var(--type-caption-size)',
             color: 'var(--foer-text-sec)',
           }}
         >
@@ -308,11 +310,11 @@ export function KeeperChoicePanel() {
         <div
           style={{
             borderRadius: 6,
-            border: `1px solid ${RULE_TYPE_COLORS.FAILURE_MODE}30`,
-            background: `${RULE_TYPE_COLORS.FAILURE_MODE}10`,
-            color: RULE_TYPE_COLORS.FAILURE_MODE,
-            fontFamily: MONO,
-            fontSize: '0.75rem',
+            border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
+            background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
+            color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE),
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-caption-size)',
             padding: '1rem',
           }}
         >
@@ -338,11 +340,7 @@ export function KeeperChoicePanel() {
     >
       {/* Section kicker */}
       <div style={{
-        fontFamily:    MONO,
-        fontSize:      '10.5px',
-        letterSpacing: '0.22em',
-        color:         'var(--foer-text-mut)',
-        textTransform: 'uppercase',
+        ...type.label,
         marginBottom:  '14px',
         display:       'flex',
         alignItems:    'center',
@@ -356,7 +354,7 @@ export function KeeperChoicePanel() {
         <h2 style={{
           fontFamily:    SERIF,
           fontWeight:    600,
-          fontSize:      '30px',
+          fontSize: 'var(--type-kpi-lg-size)',
           color:         'var(--foer-text-pri)',
           letterSpacing: '-0.01em',
           margin:        0,
@@ -380,7 +378,7 @@ export function KeeperChoicePanel() {
 
       <p style={{
         color:      'var(--foer-text-sec)',
-        fontSize:   '15px',
+        fontSize: 'var(--type-body-size)',
         maxWidth:   '680px',
         margin:     '0 0 24px',
         lineHeight: 1.5,
@@ -411,8 +409,8 @@ export function KeeperChoicePanel() {
                 borderRadius:   6,
                 border:         '1px dashed var(--foer-border-dim)',
                 background:     'var(--foer-surface)',
-                fontFamily:     MONO,
-                fontSize:       '0.72rem',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-caption-size)',
                 color:          'var(--foer-text-mut)',
               }}
             >
@@ -436,7 +434,7 @@ export function KeeperChoicePanel() {
               gap:        '4px 14px',
               marginTop:  '10px',
               fontFamily: MONO,
-              fontSize:   '0.68rem',
+              fontSize: 'var(--type-caption-size)',
               color:      'var(--foer-text-sec)',
             }}>
               <span>{sessions} <span style={{ color: 'var(--foer-text-mut)' }}>sessions</span></span>
@@ -471,11 +469,11 @@ export function KeeperChoicePanel() {
             alignItems:   'center',
             justifyContent: 'space-between',
           }}>
-            <span style={{ fontFamily: MONO, fontSize: '0.65rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foer-text-mut)' }}>
+            <span style={{ ...type.label, color: 'var(--foer-text-mut)' }}>
               The Keeper weighs
             </span>
             {!isEmpty && (
-              <span style={{ fontFamily: MONO, fontSize: '0.65rem', color: GOLD }}>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: inkOf(GOLD) }}>
                 {bullets.length} rule{bullets.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -483,12 +481,12 @@ export function KeeperChoicePanel() {
 
           {/* Empty states */}
           {isEmpty && (
-            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-mut)' }}>
+            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               No runs in this window.
             </div>
           )}
           {!isEmpty && bullets.length === 0 && (
-            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: MONO, fontSize: '0.72rem', color: 'var(--foer-text-mut)' }}>
+            <div style={{ padding: '2rem', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
               No memory bullets retained.
             </div>
           )}
@@ -501,8 +499,6 @@ export function KeeperChoicePanel() {
                 flexDirection:  'column',
                 maxHeight:      '340px',
                 overflowY:      'auto',
-                scrollbarWidth: 'thin',
-                scrollbarColor: 'var(--foer-border) transparent',
               }}
             >
               {bullets.map((bullet, idx) => {
@@ -536,14 +532,11 @@ export function KeeperChoicePanel() {
                       {/* Text badge */}
                       <span
                         style={{
-                          fontFamily:    MONO,
-                          fontSize:      '0.60rem',
-                          fontWeight:    600,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
+                          ...type.label,
+                          letterSpacing: '0.04em',
                           color:         accent,
-                          background:    `${accent}12`,
-                          border:        `1px solid ${accent}35`,
+                          background:    `${withAlpha(accent, '12')}`,
+                          border:        `1px solid ${withAlpha(accent, '35')}`,
                           borderRadius:  3,
                           padding:       '1px 4px',
                           whiteSpace:    'nowrap',
@@ -553,7 +546,7 @@ export function KeeperChoicePanel() {
                         {ruleTypeLabel(bullet.ruleType)}
                       </span>
 
-                      <span style={{ fontFamily: MONO, fontSize: '0.60rem', color: 'var(--foer-text-mut)', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)', whiteSpace: 'nowrap' }}>
                         {(bullet.confidence * 100).toFixed(0)}%
                       </span>
 
@@ -569,7 +562,7 @@ export function KeeperChoicePanel() {
                     <p
                       style={{
                         fontFamily: BODY,
-                        fontSize:   '0.78rem',
+                        fontSize: 'var(--type-caption-size)',
                         color:      'var(--foer-text-pri)',
                         lineHeight: 1.5,
                         margin:     0,
@@ -583,7 +576,7 @@ export function KeeperChoicePanel() {
                       <p
                         style={{
                           fontFamily:   SERIF,
-                          fontSize:     '0.72rem',
+                          fontSize: 'var(--type-caption-size)',
                           fontStyle:    'italic',
                           color:        'var(--foer-text-sec)',
                           lineHeight:   1.5,
@@ -604,7 +597,7 @@ export function KeeperChoicePanel() {
 
           {/* Footer quote */}
           <div style={{ padding: '0.65rem 1.25rem', borderTop: '1px solid var(--foer-border-dim)', textAlign: 'center' }}>
-            <p style={{ fontFamily: SERIF, fontSize: '0.65rem', fontStyle: 'italic', color: 'var(--foer-text-mut)', margin: 0 }}>
+            <p style={{ fontFamily: SERIF, fontSize: 'var(--type-caption-size)', fontStyle: 'italic', color: 'var(--foer-text-mut)', margin: 0 }}>
               &ldquo;Failures become rules in the imperative. A retry loop becomes nothing.&rdquo;
             </p>
           </div>

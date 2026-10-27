@@ -1,7 +1,7 @@
 import 'server-only';
 
 import prisma from '@/lib/db';
-import { getDefaultOrg } from '@/lib/platform/agents';
+import { resolveDefaultOrgId } from '@/lib/platform/agents';
 
 export type DatabricksConnectionRow = {
   id: string;
@@ -33,8 +33,9 @@ export type UpdateConnectionInput = Partial<CreateConnectionInput> & {
 };
 
 export async function getOrgId(): Promise<string> {
-  const org = await getDefaultOrg();
-  return org.id;
+  const fromEnv = process.env.DEFAULT_ORG_ID?.trim();
+  if (fromEnv) return fromEnv;
+  return resolveDefaultOrgId();
 }
 
 export async function listConnections(orgId: string): Promise<DatabricksConnectionRow[]> {

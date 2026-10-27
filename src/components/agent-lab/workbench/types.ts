@@ -4,12 +4,29 @@ import type { ConstructionState } from '@/lib/construction/constructionState';
 export type { ArtifactType, ArtifactDraft };
 export type { DraftValidationError } from '@/lib/agent-lab/artifactDraftSchemas';
 
+/** Persisted on assistant messages after each completed stream (`done`). */
+export interface TurnOpsSnapshot {
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  loopCount: number;
+  outcome: 'completed' | 'truncated' | 'errored';
+  modelKey?: string;
+  modelName?: string;
+  contextMode?: 'harvested' | 'warehouse_only';
+  firstTokenMs?: number | null;
+}
+
 export interface WorkbenchMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   toolCalls?: ToolCall[];
+  /** Server/client turn metrics for Agent Ops cockpit. */
+  turnOps?: TurnOpsSnapshot;
   thinking?: string;
+  /** Latest server activity; only used while this response is streaming. */
+  activity?: 'thinking' | 'writing';
   draftPatches?: JsonPatch[];
   suggestions?: CatalogSuggestion[];
   followUpSuggestions?: string[];
@@ -156,9 +173,10 @@ export interface ModelOption {
 }
 
 export const AVAILABLE_MODELS: ModelOption[] = [
-  // Anthropic (Bedrock)
+  // Anthropic (Bedrock) — 5.5
   { key: 'opus-5-5',    label: 'Claude Opus 5.5',   provider: 'anthropic', bedrockId: 'us.anthropic.claude-opus-5-5',                     supportsTools: true,  supportsThinking: true,  description: 'Frontier — agentic coding & long tasks' },
   { key: 'sonnet-5-5',  label: 'Claude Sonnet 5.5', provider: 'anthropic', bedrockId: 'us.anthropic.claude-sonnet-5-5',                   supportsTools: true,  supportsThinking: true,  description: 'Production default (Bedrock)' },
+  // Anthropic (Bedrock) — 4.x
   { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'anthropic', bedrockId: 'us.anthropic.claude-opus-4-6-v1',                 supportsTools: true,  supportsThinking: true,  description: 'Legacy frontier' },
   { key: 'sonnet-4-6',  label: 'Claude Sonnet 4.6', provider: 'anthropic', bedrockId: 'us.anthropic.claude-sonnet-4-6',                   supportsTools: true,  supportsThinking: true,  description: 'Legacy production' },
   { key: 'mistral-l3',  label: 'Mistral Large 3',   provider: 'mistral',   bedrockId: 'mistral.mistral-large-3-675b-instruct',            supportsTools: true,  supportsThinking: false, description: '128K context, multilingual' },
@@ -166,7 +184,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
   { key: 'qwen3-32b',   label: 'Qwen3 32B',         provider: 'qwen',      bedrockId: 'qwen.qwen3-32b-v1:0',                             supportsTools: true,  supportsThinking: false, description: 'Alibaba Qwen3, 131K context' },
   // Azure Foundry
   { key: 'gpt-5-4',     label: 'GPT-5.4',           provider: 'openai',    bedrockId: 'gpt-5.4-PBC',                                     supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-5.4 via Foundry' },
-  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'openai.gpt-6-luna',                               supportsTools: true,  supportsThinking: false, description: 'GPT-6 Luna via Bedrock Mantle (direct)' },
+  { key: 'gpt-6-luna',  label: 'GPT-6 Luna',        provider: 'openai',    bedrockId: 'global.openai.gpt-6-luna',                        supportsTools: true,  supportsThinking: false, description: 'OpenAI GPT-6 Luna via Bedrock global runtime' },
   { key: 'grok-4-3',    label: 'Grok 4.3',          provider: 'xai',       bedrockId: 'grok-4.3-PBC',                                    supportsTools: true,  supportsThinking: false, description: 'xAI Grok 4.3 via Foundry' },
   // Direct xAI (when XAI_API_KEY is set in backend)
   { key: 'grok-xai',    label: 'Grok 4.7 (xAI direct)', provider: 'xai',       bedrockId: 'grok-4.7',                                        supportsTools: true,  supportsThinking: false, description: 'Native xAI via XAI_API_KEY + XAI_MODEL (grok-4.7)' },

@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import Link from '@/lib/navigation/link'
+import { usePathname, useRouter } from '@/lib/navigation'
 import { Home } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
@@ -105,7 +105,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbPr
       className={className}
     >
       <Breadcrumb>
-        <BreadcrumbList className="text-xs sm:text-sm">
+        <BreadcrumbList className="text-size-ui sm:text-size-body">
           {/* Home icon anchor */}
           <BreadcrumbItem>
             <BreadcrumbLink asChild>

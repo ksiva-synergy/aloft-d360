@@ -7,6 +7,12 @@ import { TEST_SOURCE_DISPLAY_NAME_SQL } from './test-sources';
 import { computeDataScore } from './data-score';
 import type { DataScoreResult } from './data-score';
 import { assembleDimensionInput } from './data-score/assemble';
+import { SQL_OBJECT_HAS_EMBEDDING, SQL_PCO_HAS_EMBEDDING } from './embedding-presence';
+import { runInBatches } from '@/lib/db/run-in-batches';
+
+/** Cap parallel Prisma queries (pool is often connection_limit=10 in dev). */
+const COVERAGE_SUMMARY_DB_CONCURRENCY = 3;
+const SCANNED_LIST_DB_CONCURRENCY = 2;
 
 // ── 1. listObjectsPage ─────────────────────────────────────────────────────────
 
@@ -364,10 +370,15 @@ export async function getObjectAggregate(
   }
 
   // 11. DS3a: embedding presence (Published lifecycle signal)
-  const embeddingCount = await prisma.platformContextEmbedding.count({
-    where: { subject_kind: 'object', subject_id: objectId },
-  });
-  const hasEmbedding = embeddingCount > 0;
+  const embeddingRows = await prisma.$queryRaw<{ cnt: number }[]>`
+    SELECT COUNT(*)::int AS cnt
+    FROM platform_context_embeddings
+    WHERE subject_kind = 'object'
+      AND subject_id = ${objectId}::uuid
+      AND org_id = ${orgId}
+      AND embedding IS NOT NULL
+  `;
+  const hasEmbedding = (embeddingRows[0]?.cnt ?? 0) > 0;
 
   const aggregate = {
     object: obj,
@@ -576,12 +587,11 @@ export async function getSourceCoverage(
       COUNT(*)::int AS objects_total,
       COUNT(CASE WHEN o.last_t1_at IS NOT NULL THEN 1 END)::int AS profiled,
       COUNT(CASE WHEN o.last_t2_at IS NOT NULL THEN 1 END)::int AS enriched,
-      COUNT(CASE WHEN e.subject_id IS NOT NULL THEN 1 END)::int AS embedded,
+      COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embedded,
       MAX(o.last_t0_at) AS last_t0_at,
       MAX(o.last_t1_at) AS last_t1_at,
       (SELECT COUNT(*)::int FROM platform_context_jobs WHERE source_id = ${sourceId}::uuid AND status = 'queued' AND org_id = ${orgId}) AS queued_count
     FROM platform_context_objects o
-    LEFT JOIN platform_context_embeddings e ON o.id = e.subject_id AND e.subject_kind = 'object' AND e.org_id = ${orgId}
     WHERE o.source_id = ${sourceId}::uuid AND o.org_id = ${orgId} AND o.lifecycle = 'active'
   `;
 
@@ -766,10 +776,20 @@ export interface ScannedTierCounts {
   t4: number;
 }
 
+export interface ScannedEmbeddingTotals {
+  /** Distinct scanned objects with an object-level embedding row (same as tierCounts.embed). */
+  objects_with_embedding: number;
+  /** Rows in platform_context_embeddings (object kind) in scope. */
+  object_vector_rows: number;
+  /** Rows in platform_context_embeddings (column kind) for columns under scoped objects. */
+  column_vector_rows: number;
+}
+
 export interface ListScannedObjectsResult {
   items: ScannedObjectRow[];
   total: number;
   tierCounts: ScannedTierCounts;
+  embeddingTotals: ScannedEmbeddingTotals;
   page: number;
   pageSize: number;
 }
@@ -813,10 +833,7 @@ export async function listScannedObjects(
         conditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
         break;
       case 'embed':
-        conditions.push(Prisma.sql`EXISTS (
-          SELECT 1 FROM platform_context_embeddings e2
-          WHERE e2.subject_id = o.id AND e2.subject_kind = 'object' AND e2.org_id = ${orgId}
-        )`);
+        conditions.push(SQL_OBJECT_HAS_EMBEDDING);
         break;
       case 't3':
         conditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
@@ -838,20 +855,49 @@ export async function listScannedObjects(
 
   const whereClause = Prisma.join(conditions, ' AND ');
 
-  const [countRes, rows] = await Promise.all([
+  const sourceScopeForVectors = params.sourceId
+    ? Prisma.sql`AND o.source_id = ${params.sourceId}::uuid`
+    : Prisma.empty;
+  const testScopeForVectors = params.excludeTestSources
+    ? Prisma.sql`AND o.source_id NOT IN (
+        SELECT id FROM platform_context_sources
+        WHERE org_id = ${orgId} AND (${Prisma.raw(TEST_SOURCE_DISPLAY_NAME_SQL)})
+      )`
+    : Prisma.empty;
+
+  const [countRes, vectorTotalsRes, rows] = await runInBatches(
+    [
+    () =>
     prisma.$queryRaw<Array<{ count: number; t0: number; t1: number; t2: number; embed: number; t3: number; t4: number }>>(Prisma.sql`
       SELECT
         COUNT(*)::int AS count,
         COUNT(*) FILTER (WHERE o.last_t0_at IS NOT NULL)::int AS t0,
         COUNT(*) FILTER (WHERE o.last_t1_at IS NOT NULL)::int AS t1,
         COUNT(*) FILTER (WHERE o.last_t2_at IS NOT NULL)::int AS t2,
-        COUNT(*) FILTER (WHERE e.subject_id IS NOT NULL)::int AS embed,
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embed,
         COUNT(*) FILTER (WHERE o.last_t3_at IS NOT NULL)::int AS t3,
         COUNT(*) FILTER (WHERE o.last_t4_at IS NOT NULL)::int AS t4
       FROM platform_context_objects o
-      LEFT JOIN platform_context_embeddings e ON o.id = e.subject_id AND e.subject_kind = 'object' AND e.org_id = ${orgId}
       WHERE ${whereClause}
     `),
+    () =>
+    prisma.$queryRaw<Array<{ object_vector_rows: number; column_vector_rows: number }>>(Prisma.sql`
+      SELECT
+        (SELECT COUNT(*)::int FROM platform_context_embeddings e
+          INNER JOIN platform_context_objects o ON o.id = e.subject_id AND o.org_id = ${orgId}
+          WHERE e.subject_kind = 'object' AND e.embedding IS NOT NULL
+            AND o.org_id = ${orgId} AND o.lifecycle = 'active' AND o.last_t0_at IS NOT NULL
+            ${sourceScopeForVectors} ${testScopeForVectors}
+        ) AS object_vector_rows,
+        (SELECT COUNT(*)::int FROM platform_context_embeddings e
+          INNER JOIN platform_context_columns c ON c.id = e.subject_id AND c.org_id = ${orgId}
+          INNER JOIN platform_context_objects o ON o.id = c.object_id AND o.org_id = ${orgId}
+          WHERE e.subject_kind = 'column' AND e.embedding IS NOT NULL
+            AND c.lifecycle = 'active' AND o.lifecycle = 'active' AND o.last_t0_at IS NOT NULL
+            ${sourceScopeForVectors} ${testScopeForVectors}
+        ) AS column_vector_rows
+    `),
+    () =>
     prisma.$queryRaw<Array<{
       id: string;
       full_path: string;
@@ -883,18 +929,19 @@ export async function listScannedObjects(
         o.last_t2_at,
         o.last_t3_at,
         o.last_t4_at,
-        (e.subject_id IS NOT NULL) AS has_embedding,
+        ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding,
         o.lifecycle,
         o.source_id,
         s.display_name AS source_name
       FROM platform_context_objects o
       LEFT JOIN platform_context_sources s ON o.source_id = s.id
-      LEFT JOIN platform_context_embeddings e ON o.id = e.subject_id AND e.subject_kind = 'object' AND e.org_id = ${orgId}
       WHERE ${whereClause}
       ORDER BY o.full_path ASC
       LIMIT ${pageSize} OFFSET ${skip}
     `),
-  ]);
+    ] as const,
+    SCANNED_LIST_DB_CONCURRENCY,
+  );
 
   const total = countRes[0]?.count ?? 0;
   const tierCounts: ScannedTierCounts = {
@@ -904,6 +951,11 @@ export async function listScannedObjects(
     embed: countRes[0]?.embed ?? 0,
     t3: countRes[0]?.t3 ?? 0,
     t4: countRes[0]?.t4 ?? 0,
+  };
+  const embeddingTotals: ScannedEmbeddingTotals = {
+    objects_with_embedding: tierCounts.embed,
+    object_vector_rows: vectorTotalsRes[0]?.object_vector_rows ?? tierCounts.embed,
+    column_vector_rows: vectorTotalsRes[0]?.column_vector_rows ?? 0,
   };
   const items: ScannedObjectRow[] = rows.map((row) => ({
     id: row.id,
@@ -924,7 +976,7 @@ export async function listScannedObjects(
     source_name: row.source_name,
   }));
 
-  return { items, total, tierCounts, page, pageSize };
+  return { items, total, tierCounts, embeddingTotals, page, pageSize };
 }
 
 // ── 8b. listScannedFacets ────────────────────────────────────────────────────────
@@ -1123,6 +1175,7 @@ export async function listEstateObjects(
     harvest?: 'none' | 'discovered' | 'scheduled' | 'queued' | 'harvested' | 'published' | 'stale' | 'inaccessible';
     q?: string;
     excludeTestSources?: boolean;
+    sourceId?: string;
   },
 ): Promise<{ rows: EstateListRow[]; total: number; page: number; pageSize: number }> {
   const page = Math.max(1, opts.page ?? 1);
@@ -1141,6 +1194,12 @@ export async function listEstateObjects(
       SELECT id::text FROM platform_context_sources
       WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
     ))`);
+  }
+
+  if (opts.sourceId) {
+    conditions.push(`peo.source_id = $${paramIdx}`);
+    params.push(opts.sourceId);
+    paramIdx++;
   }
 
   if (opts.catalog) {
@@ -1194,11 +1253,15 @@ export async function listEstateObjects(
 
   const whereClause = conditions.join(' AND ');
 
+  const pcoJoin = `pco.org_id = peo.org_id
+     AND pco.full_path = peo.full_path
+     AND (peo.source_id IS NULL OR pco.source_id = peo.source_id::uuid)`;
+
   const countSql = `
     SELECT COUNT(*)::int AS total
     FROM platform_estate_objects peo
     LEFT JOIN platform_context_objects pco
-      ON pco.org_id = peo.org_id AND pco.full_path = peo.full_path
+      ON ${pcoJoin}
     WHERE ${whereClause}
   `;
 
@@ -1213,13 +1276,16 @@ export async function listEstateObjects(
       pco.row_count_est,
       pco.last_t0_at, pco.last_t1_at, pco.last_t2_at, pco.last_t3_at, pco.last_t4_at,
       pco.last_knowledge_sync_at,
-      (e.subject_id IS NOT NULL) AS has_embedding,
+      (EXISTS (
+        SELECT 1 FROM platform_context_embeddings e
+        WHERE e.subject_kind = 'object'
+          AND e.subject_id = pco.id
+          AND e.embedding IS NOT NULL
+      )) AS has_embedding,
       ${harvestCase} AS live_harvest_state
     FROM platform_estate_objects peo
     LEFT JOIN platform_context_objects pco
-      ON pco.org_id = peo.org_id AND pco.full_path = peo.full_path
-    LEFT JOIN platform_context_embeddings e
-      ON e.subject_id = pco.id AND e.subject_kind = 'object' AND e.org_id = peo.org_id
+      ON ${pcoJoin}
     WHERE ${whereClause}
     ORDER BY peo.catalog_name, peo.schema_name, peo.object_name
     LIMIT $${paramIdx} OFFSET $${paramIdx + 1}
@@ -1299,6 +1365,12 @@ export interface CoverageSummary {
    * Makes the coverage number decomposable rather than a single soft scalar.
    */
   semantic_status_breakdown: Record<string, number>;
+  /** Active objects with a non-null object-level embedding vector. */
+  objects_with_embedding: number;
+  /** Total object-kind embedding rows in scope (usually equals objects_with_embedding). */
+  object_embedding_rows: number;
+  /** Column-kind embedding rows for columns under scoped objects. */
+  column_embedding_rows: number;
   degrade: {
     /** Objects whose latest profile is a partial sweep. */
     objects_partial: number;
@@ -1319,10 +1391,13 @@ export async function getCoverageSummary(
   orgId: string,
   sourceId?: string,
 ): Promise<CoverageSummary> {
-  // Scope fragment reused across queries (aliases the objects table as `o`).
+  // Scope fragment reused across queries (aliases the objects table as `o` / `o2`).
   const srcObj = sourceId ? Prisma.sql`AND o.source_id = ${sourceId}::uuid` : Prisma.empty;
+  const srcObjO2 = sourceId ? Prisma.sql`AND o2.source_id = ${sourceId}::uuid` : Prisma.empty;
 
-  const [coverageRows, statusRows, profileRows, skipRows, deferredRows] = await Promise.all([
+  const [coverageRows, embeddingRows, statusRows, profileRows, skipRows, deferredRows] = await runInBatches(
+    [
+    () =>
     // 1. Active objects + how many have a T2 semantic card (excludes T3 'observed').
     prisma.$queryRaw<Array<{ active_objects: number; objects_with_semantic: number }>>(Prisma.sql`
       SELECT
@@ -1337,6 +1412,31 @@ export async function getCoverageSummary(
       ) sem ON sem.subject_id = o.id
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
     `),
+    () =>
+    prisma.$queryRaw<
+      Array<{
+        objects_with_embedding: number;
+        object_embedding_rows: number;
+        column_embedding_rows: number;
+      }>
+    >(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS objects_with_embedding,
+        (SELECT COUNT(*)::int FROM platform_context_embeddings e
+          INNER JOIN platform_context_objects o2 ON o2.id = e.subject_id AND o2.org_id = ${orgId}
+          WHERE e.subject_kind = 'object' AND e.embedding IS NOT NULL
+            AND o2.org_id = ${orgId} AND o2.lifecycle = 'active' ${srcObjO2}
+        ) AS object_embedding_rows,
+        (SELECT COUNT(*)::int FROM platform_context_embeddings e
+          INNER JOIN platform_context_columns c ON c.id = e.subject_id AND c.org_id = ${orgId}
+          INNER JOIN platform_context_objects o2 ON o2.id = c.object_id AND o2.org_id = ${orgId}
+          WHERE e.subject_kind = 'column' AND e.embedding IS NOT NULL
+            AND c.lifecycle = 'active' AND o2.lifecycle = 'active' ${srcObjO2}
+        ) AS column_embedding_rows
+      FROM platform_context_objects o
+      WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
+    `),
+    () =>
     // 1b. Distinct active objects by semantic status (decomposes the number above).
     prisma.$queryRaw<Array<{ status: string; objects: number }>>(Prisma.sql`
       SELECT s.status, COUNT(DISTINCT s.subject_id)::int AS objects
@@ -1345,6 +1445,7 @@ export async function getCoverageSummary(
       WHERE s.subject_kind = 'object' AND s.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
       GROUP BY s.status
     `),
+    () =>
     // 2. Object-level degrade from each object's latest profile version.
     prisma.$queryRaw<Array<{ objects_partial: number; objects_view_unqueryable: number; objects_degraded: number }>>(Prisma.sql`
       WITH latest_profile AS (
@@ -1360,6 +1461,7 @@ export async function getCoverageSummary(
         COUNT(*) FILTER (WHERE stats->>'partial' = 'true' OR stats->>'view_unqueryable' = 'true')::int AS objects_degraded
       FROM latest_profile
     `),
+    () =>
     // 3. Per-column skip_reason distribution across active columns.
     prisma.$queryRaw<Array<{ skip_reason: string; cnt: number }>>(Prisma.sql`
       SELECT c.profile->>'skip_reason' AS skip_reason, COUNT(*)::int AS cnt
@@ -1369,6 +1471,7 @@ export async function getCoverageSummary(
         AND c.profile->>'skip_reason' IS NOT NULL ${srcObj}
       GROUP BY c.profile->>'skip_reason'
     `),
+    () =>
     // 4. Columns deferred to a null-only profile (a lighter degrade than a skip).
     prisma.$queryRaw<Array<{ cnt: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS cnt
@@ -1377,10 +1480,13 @@ export async function getCoverageSummary(
       WHERE c.org_id = ${orgId} AND c.lifecycle = 'active' AND o.lifecycle = 'active'
         AND c.profile->>'stats_deferred' = 'true' ${srcObj}
     `),
-  ]);
+    ] as const,
+    COVERAGE_SUMMARY_DB_CONCURRENCY,
+  );
 
   const activeObjects = coverageRows[0]?.active_objects ?? 0;
   const objectsWithSemantic = coverageRows[0]?.objects_with_semantic ?? 0;
+  const emb = embeddingRows[0];
 
   const statusBreakdown: Record<string, number> = {};
   for (const row of statusRows) {
@@ -1402,6 +1508,9 @@ export async function getCoverageSummary(
     objects_with_semantic: objectsWithSemantic,
     semantic_coverage_ratio: activeObjects > 0 ? objectsWithSemantic / activeObjects : 0,
     semantic_status_breakdown: statusBreakdown,
+    objects_with_embedding: emb?.objects_with_embedding ?? 0,
+    object_embedding_rows: emb?.object_embedding_rows ?? 0,
+    column_embedding_rows: emb?.column_embedding_rows ?? 0,
     degrade: {
       objects_partial: profileRows[0]?.objects_partial ?? 0,
       objects_view_unqueryable: profileRows[0]?.objects_view_unqueryable ?? 0,
