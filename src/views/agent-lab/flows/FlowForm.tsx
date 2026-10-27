@@ -246,7 +246,7 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
     case 'approval':
       return (
         <div className="space-y-3">
-          <Field id={k('assignee')} label="Approver email" hint="Blank = the flow owner.">
+          <Field id={k('assignee')} label="Approver email" hint="Blank = the automation owner.">
             <input id={k('assignee')} type="email" className={field} value={c.assignee ?? ''} onChange={(e) => set({ assignee: e.target.value || undefined })} />
           </Field>
           <Field id={k('message')} label="Message to the approver">
@@ -312,7 +312,7 @@ export function WorkflowSettings({ def, onChange, bindings }: { def: Def; onChan
 
   return (
     <div>
-      <Section title="Workflow">
+      <Section title="Automation">
         <Field id="flow-name" label="Name">
           <input id="flow-name" className={field} value={def.name ?? ''} onChange={(e) => onChange({ ...def, name: e.target.value })} />
         </Field>
@@ -350,7 +350,7 @@ export function WorkflowSettings({ def, onChange, bindings }: { def: Def; onChan
           </button>
         }
       >
-        {inputs.length === 0 && <p className="text-size-ui text-[var(--ink-3)]">No inputs. Add one to make the workflow reusable, then reference it as {'{{inputs.name}}'}.</p>}
+        {inputs.length === 0 && <p className="text-size-ui text-[var(--ink-3)]">No inputs. Add one to make the automation reusable, then reference it as {'{{inputs.name}}'}.</p>}
         {inputs.map((inp, i) => (
           <div key={i} className="rounded-lg border border-[var(--line-1)] p-2.5">
             <div className="grid grid-cols-[1fr_6.5rem_auto] items-end gap-2">
@@ -438,7 +438,7 @@ export function StepEditor({
         <button type="button" aria-label={`Remove ${step.id}`} title="Remove step" className={btn.icon} onClick={() => onChange(removeStep(def, step.id))}>
           <Trash2 className="h-4 w-4" />
         </button>
-        <button type="button" aria-label="Close step" title="Back to workflow settings" className={btn.icon} onClick={onClose}>
+        <button type="button" aria-label="Close step" title="Back to automation settings" className={btn.icon} onClick={onClose}>
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -528,7 +528,7 @@ export function StepEditor({
 
       {MOCKED_TYPES.has(step.type) && (
         <Section title="Sample response for tests">
-          <Field id={`${step.id}-fixture`} label="Sample response" hint="What this step returns in a test run. Not saved with the workflow. Leave empty for an empty result.">
+          <Field id={`${step.id}-fixture`} label="Sample response" hint="What this step returns in a test run. Not saved with the automation. Leave empty for an empty result.">
             <JsonField id={`${step.id}-fixture`} value={fixture ?? {}} rows={5} onCommit={(v) => onFixture(Object.keys(v).length ? v : undefined)} />
           </Field>
         </Section>

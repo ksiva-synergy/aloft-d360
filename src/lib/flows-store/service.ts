@@ -24,7 +24,7 @@ async function loadFlow(id: string, actor: Actor) {
   const flow = await prisma.platformFlow.findUnique({ where: { id } });
   // Same answer for "missing", "other org" and "not yours": no existence leak.
   if (!flow || flow.org_id !== actor.orgId || (flow.owner !== actor.userId && !isPlatformAdmin(actor))) {
-    throw new ApiError(404, 'Flow not found');
+    throw new ApiError(404, 'Automation not found');
   }
   return flow;
 }
@@ -83,7 +83,7 @@ export async function saveVersion(actor: Actor, id: string, definition: unknown,
   const def = requireValid(definition);
   const latest = await prisma.platformFlowVersion.findFirst({ where: { flow_id: id }, orderBy: { version: 'desc' }, select: { version: true } });
   const latestNo = latest?.version ?? 0;
-  if (baseVersion !== latestNo) throw new ApiError(409, 'This workflow changed since you opened it', { latestVersion: latestNo });
+  if (baseVersion !== latestNo) throw new ApiError(409, 'This automation changed since you opened it', { latestVersion: latestNo });
   const next = latestNo + 1;
   try {
     const updated = await prisma.$transaction(async (tx) => {
@@ -93,7 +93,7 @@ export async function saveVersion(actor: Actor, id: string, definition: unknown,
     await writeAudit({ actorId: actor.userId, action: 'flow.version.saved', entityType: 'flow', entityId: id, before: { version: latestNo, status: flow.status }, after: { version: next } });
     return toSummary(updated, next);
   } catch (e) {
-    if ((e as { code?: string }).code === 'P2002') throw new ApiError(409, 'This workflow changed since you opened it', { latestVersion: latestNo + 1 });
+    if ((e as { code?: string }).code === 'P2002') throw new ApiError(409, 'This automation changed since you opened it', { latestVersion: latestNo + 1 });
     throw e;
   }
 }
@@ -111,7 +111,7 @@ export async function publishFlow(
 ) {
   const flow = await loadFlow(id, actor);
   const current = flow.current_version_id ? await prisma.platformFlowVersion.findUnique({ where: { id: flow.current_version_id } }) : null;
-  if (!current) throw new ApiError(409, 'This workflow has no saved version');
+  if (!current) throw new ApiError(409, 'This automation has no saved version');
   if (current.version !== opts.version) throw new ApiError(409, 'Only the latest saved version can be published', { latestVersion: current.version });
 
   const analysis = await analyzeFlow(current.definition, {
@@ -146,7 +146,7 @@ export async function unpublishFlow(actor: Actor, id: string) {
 export async function deleteFlow(actor: Actor, id: string) {
   await loadFlow(id, actor);
   const runs = await prisma.platformFlowRun.count({ where: { flow_id: id } });
-  if (runs > 0) throw new ApiError(409, 'This workflow has run history and cannot be deleted');
+  if (runs > 0) throw new ApiError(409, 'This automation has run history and cannot be deleted');
   await prisma.platformFlow.delete({ where: { id } });
   await writeAudit({ actorId: actor.userId, action: 'flow.deleted', entityType: 'flow', entityId: id });
 }

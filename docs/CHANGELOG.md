@@ -2,6 +2,16 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — Rename "Flows" to "Automate" (user-visible only)
+
+- **What:**
+  - The sidebar item, page heading, breadcrumb and page title are now **Automate**. Each item is an **automation**: My automations, Blank automation, Save automation, Untitled automation, "Back to all automations", and the panel and canvas labels.
+  - Copilot's prompt says "automation in ALOFT Automate", and server messages say "automation" ("This automation changed since you opened it", "Automation not found", "Automate is not enabled on this environment").
+  - The page moved to **`/agent-lab/automate`**, and `/agent-lab/flows` redirects there (`web/src/router.tsx`).
+- **Not renamed (internal, on purpose):** code folders (`src/lib/flows`, `src/views/agent-lab/flows`), API paths (`/api/agent-lab/flows/*`), the `FLOWS_ENABLED` flag, `FLOWS_COPILOT_MODEL_ID`, and the database tables (`platform_flows*`). Renaming these needs a database migration and touches committed code; it can follow if wanted.
+- **Why:** the user chose the name "Automate" (2026-10-27).
+- **Verified:** 107 Automate, Connections and flow tests pass with the new labels. In Chrome, `/agent-lab/flows` lands on `/agent-lab/automate`, and the home and builder show the new wording.
+
 ## 2026-10-27 — Connections are self-service: owned by their creator, private unless shared
 
 - **What:**

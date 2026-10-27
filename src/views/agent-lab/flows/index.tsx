@@ -30,7 +30,7 @@ const DOMAIN_LABEL: Record<FlowTemplate['domain'], string> = {
   integration: 'Custom API',
 };
 
-const BLANK: Def = { name: 'Untitled workflow', trigger: { type: 'manual' }, inputs: [], steps: [] };
+const BLANK: Def = { name: 'Untitled automation', trigger: { type: 'manual' }, inputs: [], steps: [] };
 
 const templateSteps = (t: FlowTemplate) => (t.definition.steps as { type: string }[] | undefined) ?? [];
 
@@ -78,11 +78,11 @@ function Home({
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="flex items-center gap-2">
-        <h1 className="text-size-kpi-lg font-semibold tracking-tight text-[var(--ink-1)]">Flows</h1>
+        <h1 className="text-size-kpi-lg font-semibold tracking-tight text-[var(--ink-1)]">Automate</h1>
         <Chip tone="brand">Preview</Chip>
       </div>
       <p className="mt-1 max-w-2xl text-size-body text-[var(--ink-3)]">
-        Automate repeatable work across your data, people and systems. Every workflow is checked against your permissions and tested on sample data before it can be published.
+        Automate repeatable work across your data, people and systems. Every automation is checked against your permissions and tested on sample data before it can be published.
       </p>
 
       <form
@@ -118,7 +118,7 @@ function Home({
             {finding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Start building
           </button>
           <button type="button" onClick={() => onBlank()} className={cn(btn.secondary, 'h-11 px-4')}>
-            <Plus className="h-4 w-4" /> Blank workflow
+            <Plus className="h-4 w-4" /> Blank automation
           </button>
         </div>
         <p id="flow-goal-help" className={cn('mt-3 text-size-ui', goalMessage ? 'text-[var(--bad)]' : needGoal ? 'text-[var(--warn)]' : 'text-[var(--ink-3)]')} aria-live="polite">
@@ -130,8 +130,8 @@ function Home({
       </form>
 
       {flows.length > 0 && (
-        <section aria-label="My workflows" className="mt-10">
-          <h2 className="text-size-body font-semibold text-[var(--ink-1)]">My workflows</h2>
+        <section aria-label="My automations" className="mt-10">
+          <h2 className="text-size-body font-semibold text-[var(--ink-1)]">My automations</h2>
           <ul className="mt-3 divide-y divide-[var(--line-1)] overflow-hidden rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)]">
             {flows.map((f) => (
               <li key={f.id}>
@@ -242,7 +242,7 @@ export default function FlowsPage() {
       const res = await fetch('/api/agent-lab/flows/catalog');
       const data = await readJson<Catalog>(res);
       if (cancelled) return;
-      if (!res.ok) setLoadError({ message: data.error ?? 'Could not load Flows', disabled: data.details?.code === 'flows_disabled' });
+      if (!res.ok) setLoadError({ message: data.error ?? 'Could not load Automate', disabled: data.details?.code === 'flows_disabled' });
       else {
         setCatalog(data);
         void loadMyFlows();
@@ -320,14 +320,14 @@ export default function FlowsPage() {
   const openSaved = async (id: string) => {
     const res = await fetch(`/api/agent-lab/flows/${id}`);
     const data = await readJson<{ flow?: { id: string; version: number; status: string; definition: unknown } }>(res);
-    if (!res.ok || !data.flow) return setGoalMessage(data.error ?? 'Could not open that workflow');
+    if (!res.ok || !data.flow) return setGoalMessage(data.error ?? 'Could not open that automation');
     const d = data.flow.definition as Def;
     const inputs = Object.fromEntries((d.inputs ?? []).filter((i) => i.default !== undefined).map((i) => [i.name, i.default]));
     openWorkspace({ text: pretty(d), saved: { id: data.flow.id, version: data.flow.version, status: data.flow.status }, template: null, inputs, fixtures: {} });
   };
 
   const backToHome = () => {
-    if (dirty && typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('Leave without saving? Your changes to this workflow will be lost.')) return;
+    if (dirty && typeof window !== 'undefined' && typeof window.confirm === 'function' && !window.confirm('Leave without saving? Your changes to this automation will be lost.')) return;
     setOpen(false);
     setGoalMessage(null);
     void loadMyFlows();
@@ -392,7 +392,7 @@ export default function FlowsPage() {
         const issues = data.details?.issues?.map((i) => `${i.path || '(root)'} ${i.message}`).join('; ');
         return setNotice({
           tone: 'bad',
-          text: res.status === 409 ? 'This workflow was changed elsewhere. Reopen it from My workflows to get the latest version.' : issues ? `Not saved: ${issues}` : data.error ?? 'Could not save',
+          text: res.status === 409 ? 'This automation was changed elsewhere. Reopen it from My automations to get the latest version.' : issues ? `Not saved: ${issues}` : data.error ?? 'Could not save',
         });
       }
       setSaved({ id: data.flow.id, version: data.flow.version ?? 1, status: data.flow.status });
@@ -447,7 +447,7 @@ export default function FlowsPage() {
     return (
       <div className="mx-auto max-w-3xl px-6 py-16 text-center">
         <Plug className="mx-auto h-8 w-8 text-[var(--ink-3)]" />
-        <p className="mt-3 text-size-body font-medium text-[var(--ink-1)]">{loadError.disabled ? 'Flows is not switched on here' : 'Flows could not load'}</p>
+        <p className="mt-3 text-size-body font-medium text-[var(--ink-1)]">{loadError.disabled ? 'Automate is not switched on here' : 'Automate could not load'}</p>
         <p className="mx-auto mt-1 max-w-md text-size-body text-[var(--ink-3)]">
           {loadError.disabled ? 'An administrator can enable the preview by setting FLOWS_ENABLED=true for the API server.' : loadError.message}
         </p>
@@ -476,12 +476,12 @@ export default function FlowsPage() {
   return (
     <div className="flex h-full min-h-[560px] flex-col bg-[var(--main-bg)]">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line-1)] bg-[var(--surface-1)] px-3">
-        <button type="button" onClick={backToHome} className={btn.ghost} aria-label="Back to all workflows">
-          <ArrowLeft className="h-4 w-4" /> Workflows
+        <button type="button" onClick={backToHome} className={btn.ghost} aria-label="Back to all automations">
+          <ArrowLeft className="h-4 w-4" /> Automations
         </button>
         <span className="h-5 w-px bg-[var(--line-1)]" aria-hidden />
-        <button type="button" onClick={() => setSelectedId(null)} className="min-w-0 truncate text-size-body font-semibold text-[var(--ink-1)] hover:text-[var(--brand-a)]" title="Workflow settings">
-          {def?.name || 'Untitled workflow'}
+        <button type="button" onClick={() => setSelectedId(null)} className="min-w-0 truncate text-size-body font-semibold text-[var(--ink-1)] hover:text-[var(--brand-a)]" title="Automation settings">
+          {def?.name || 'Untitled automation'}
         </button>
         <StatusChip status={saved?.status} version={saved?.version} />
         {saved && <span className={cn('inline-flex items-center gap-1 text-size-caption', dirty ? 'text-[var(--warn)]' : 'text-[var(--ink-3)]')}>
@@ -514,7 +514,7 @@ export default function FlowsPage() {
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <FlaskConical className="h-4 w-4" />} Test
         </button>
         <button type="button" onClick={() => void saveWorkflow()} disabled={busy !== null || (!!saved && !dirty)} className={btn.secondary} title="Ctrl+S">
-          {busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saved ? 'Save new version' : 'Save workflow'}
+          {busy === 'save' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {saved ? 'Save new version' : 'Save automation'}
         </button>
         {saved && saved.status !== 'active' && (
           <button type="button" onClick={() => void publishWorkflow()} disabled={busy !== null || dirty} title={dirty ? 'Save your changes first' : 'Checks and a simulated run must pass'} className={btn.primary}>
@@ -625,7 +625,7 @@ export default function FlowsPage() {
           />
         </div>
 
-        <aside aria-label="Workflow panel" className="flex w-[380px] shrink-0 flex-col border-l border-[var(--line-1)] bg-[var(--surface-1)] xl:w-[420px]">
+        <aside aria-label="Automation panel" className="flex w-[380px] shrink-0 flex-col border-l border-[var(--line-1)] bg-[var(--surface-1)] xl:w-[420px]">
           <div className="flex h-11 shrink-0 items-center border-b border-[var(--line-1)] px-3">
             <Segmented
               label="Panel"

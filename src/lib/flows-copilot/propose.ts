@@ -19,7 +19,7 @@ const PROPOSE_TOOL: Tool = {
   toolSpec: {
     name: PROPOSE_TOOL_NAME,
     description:
-      'Reply to the user and propose edits to their workflow draft as an ordered list of operations. ' +
+      'Reply to the user and propose edits to their automation draft as an ordered list of operations. ' +
       'Nothing is applied until the user accepts. Use an empty operations list to answer a question without changing anything.',
     inputSchema: {
       json: {
@@ -77,7 +77,7 @@ function renderCapabilities(): string {
 /** Stable across requests (catalog and rules only), so it can be prompt-cached. */
 export function buildCopilotSystemPrompt(): string {
   return [
-    'You help a business user edit an automated workflow in ALOFT Flows. You see their current draft as JSON.',
+    'You help a business user edit an automation in ALOFT Automate. You see their current draft as JSON.',
     'You change it ONLY by calling propose_flow_changes with typed operations. The user reviews and accepts or discards them.',
     'ALWAYS answer by calling propose_flow_changes, even for a question: put your answer in "reply" and use an empty operations list. Never answer in plain text.',
     '',
@@ -147,7 +147,7 @@ export async function proposeFlowEdit(params: {
 }): Promise<ProposeOutcome> {
   const turns: Message[] = (params.history ?? []).slice(-6).map((t) => ({ role: t.role, content: [{ text: t.text } as ContentBlock] }));
   const userText = [
-    'Current workflow draft:',
+    'Current automation draft:',
     '```json',
     JSON.stringify(params.definition, null, 2),
     '```',

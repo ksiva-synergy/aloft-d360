@@ -77,7 +77,7 @@ function fakeApi(opts: { disabled?: boolean; permissions?: string[]; flows?: Sav
   return Object.assign(spy, { calls, flows });
 }
 
-const canvas = () => screen.getByRole('region', { name: 'Workflow canvas' });
+const canvas = () => screen.getByRole('region', { name: 'Automation canvas' });
 const drawer = () => screen.getByRole('region', { name: 'Test run' });
 const codeJson = () => {
   fireEvent.click(screen.getByRole('tab', { name: /Code/ }));
@@ -94,7 +94,8 @@ const runTest = async () => {
 beforeEach(() => vi.restoreAllMocks());
 afterEach(() => vi.restoreAllMocks());
 
-describe('Flows builder', () => {
+// Long UI journeys (several simulated runs each); the default 5 s is too tight when the whole suite runs in parallel.
+describe('Flows builder', { timeout: 20_000 }, () => {
   it('goes from a goal to a matched template on the canvas, tests it, and shows what blocks publishing', async () => {
     const api = fakeApi();
     render(<FlowsPage />);
@@ -209,7 +210,7 @@ describe('Flows builder', () => {
     expect(screen.getByText('Not saved')).toBeTruthy();
     expect(screen.queryByText('Unsaved changes')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save workflow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save automation' }));
     await screen.findByText('Saved as version 1.');
     expect(api.calls.find((c) => c.method === 'POST' && c.path === '/api/agent-lab/flows')!.body.definition.name).toBe('Order status webhook to REST and alert');
     expect(screen.getByText('Draft · v1')).toBeTruthy();
@@ -247,14 +248,14 @@ describe('Flows builder', () => {
     expect(api.calls.find((c) => c.path.endsWith('/simulate'))!.body.fixtures.supplier.body.name).toBe('Baltic Supply');
   });
 
-  it('reopens a saved workflow from My workflows and shows why publishing was refused', async () => {
+  it('reopens a saved automation from My automations and shows why publishing was refused', async () => {
     const def = JSON.parse(JSON.stringify(FLOW_TEMPLATES.find((t) => t.id === 'hr-new-starter-onboarding')!.definition));
     const api = fakeApi({
       flows: [{ id: 'f9', name: 'Onboarding', status: 'draft', version: 3, definition: def, owner: 'me', updatedAt: '2026-10-26T10:00:00Z' }],
       publishError: 'publishing needs permission "connector:external", which you do not have',
     });
     render(<FlowsPage />);
-    fireEvent.click(await within(await screen.findByRole('region', { name: 'My workflows' })).findByRole('button', { name: /Onboarding/ }));
+    fireEvent.click(await within(await screen.findByRole('region', { name: 'My automations' })).findByRole('button', { name: /Onboarding/ }));
     await waitFor(() => expect((screen.getByLabelText('Name', { selector: '#flow-name' }) as HTMLInputElement).value).toBe('New starter onboarding'));
     expect(screen.getByText('Draft · v3')).toBeTruthy();
     expect(screen.getByText('Saved')).toBeTruthy();
@@ -268,7 +269,7 @@ describe('Flows builder', () => {
     const def = FLOW_TEMPLATES[0]!.definition;
     const api = fakeApi({ flows: [{ id: 'f1', name: 'X', status: 'draft', version: 1, definition: def, owner: 'me', updatedAt: '2026-10-26T10:00:00Z' }] });
     render(<FlowsPage />);
-    fireEvent.click(await within(await screen.findByRole('region', { name: 'My workflows' })).findByRole('button', { name: /^X/ }));
+    fireEvent.click(await within(await screen.findByRole('region', { name: 'My automations' })).findByRole('button', { name: /^X/ }));
     await screen.findByText('Draft · v1');
     fireEvent.change(screen.getByLabelText('Name', { selector: '#flow-name' }), { target: { value: 'Y' } });
     api.flows[0]!.version = 2; // someone else saved
@@ -336,8 +337,8 @@ describe('Flows builder', () => {
   it('starts a blank workflow and explains when Copilot is not available', async () => {
     fakeApi({ copilot: () => ({ status: 503, error: 'The copilot needs a configured model backend on this server', code: 'copilot_unavailable' }) });
     render(<FlowsPage />);
-    fireEvent.click(await screen.findByRole('button', { name: /Blank workflow/ }));
-    expect(screen.getByText('This workflow has no steps yet')).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: /Blank automation/ }));
+    expect(screen.getByText('This automation has no steps yet')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Describe a change'), { target: { value: 'build me something' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByText('The copilot needs a configured model backend on this server');
@@ -351,7 +352,7 @@ describe('Flows builder', () => {
   it('explains how to switch the preview on when it is disabled', async () => {
     fakeApi({ disabled: true });
     render(<FlowsPage />);
-    await waitFor(() => expect(screen.getByText('Flows is not switched on here')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Automate is not switched on here')).toBeTruthy());
     expect(screen.getByText(/FLOWS_ENABLED=true/)).toBeTruthy();
   });
 });

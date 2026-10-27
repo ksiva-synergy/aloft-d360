@@ -12,7 +12,7 @@ import type { Actor } from '@/lib/flows-store/service';
 
 /** Off unless FLOWS_ENABLED=true (docs/flows-architecture.md §16). */
 export function assertFlowsEnabled(): void {
-  if (process.env.FLOWS_ENABLED !== 'true') throw new ApiError(404, 'Flows preview is not enabled on this environment', { code: 'flows_disabled' });
+  if (process.env.FLOWS_ENABLED !== 'true') throw new ApiError(404, 'Automate is not enabled on this environment', { code: 'flows_disabled' });
 }
 
 /**
@@ -54,5 +54,5 @@ export const estimateAgentCostUsd = (model?: string) => computeCostUsd(model ?? 
 
 export const PUBLISHING_STATUS = {
   available: true,
-  reason: 'Save the workflow, then publish it once it passes every check and a simulated run.',
+  reason: 'Save the automation, then publish it once it passes every check and a simulated run.',
 } as const;

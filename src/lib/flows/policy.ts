@@ -77,7 +77,7 @@ export function profileStep(step: FlowStep, opts: PolicyOptions): StepProfile | 
       return { ...NO_EFFECT, usesAI: false, estimatedCostUsd: 0, does };
     }
     case 'approval':
-      return { ...NO_EFFECT, usesAI: false, estimatedCostUsd: 0, does: `Waits for ${step.config.assignee ?? 'the flow owner'} to approve` };
+      return { ...NO_EFFECT, usesAI: false, estimatedCostUsd: 0, does: `Waits for ${step.config.assignee ?? 'the automation owner'} to approve` };
     case 'output':
       return {
         ...READ,

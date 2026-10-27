@@ -86,7 +86,7 @@ export default function TestRunPanel({ def, open, onToggle, inputValues, onInput
         <div className="grid h-[min(360px,45vh)] min-h-0 grid-cols-[minmax(240px,300px)_1fr] border-t border-[var(--line-1)]">
           <div className="min-h-0 space-y-3 overflow-y-auto border-r border-[var(--line-1)] p-3">
             <p className="text-size-caption font-semibold uppercase tracking-wide text-[var(--ink-3)]">Inputs</p>
-            {inputs.length === 0 && <p className="text-size-ui text-[var(--ink-3)]">This workflow has no inputs.</p>}
+            {inputs.length === 0 && <p className="text-size-ui text-[var(--ink-3)]">This automation has no inputs.</p>}
             {inputs.map((inp) => {
               const id = `test-input-${inp.name}`;
               const value = inputValues[inp.name];
@@ -159,7 +159,7 @@ export default function TestRunPanel({ def, open, onToggle, inputValues, onInput
           <div className="flex min-h-0 flex-col" aria-live="polite">
             {!result && (
               <div className="flex flex-1 items-center justify-center p-6 text-center text-size-ui text-[var(--ink-3)]">
-                Run a test to check the workflow against your permissions and see how a run would go, step by step.
+                Run a test to check the automation against your permissions and see how a run would go, step by step.
               </div>
             )}
 

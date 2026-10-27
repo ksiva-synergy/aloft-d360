@@ -209,7 +209,7 @@ export default function FlowCanvas({ def, selectedId, onSelect, onAddAfter, runS
       <div
         ref={scroller}
         role="region"
-        aria-label="Workflow canvas"
+        aria-label="Automation canvas"
         className="h-full overflow-auto [background-image:radial-gradient(var(--line-2)_1px,transparent_1px)] [background-size:20px_20px]"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -219,7 +219,7 @@ export default function FlowCanvas({ def, selectedId, onSelect, onAddAfter, runS
       >
         {steps.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-            <p className="text-size-body font-medium text-[var(--ink-1)]">This workflow has no steps yet</p>
+            <p className="text-size-body font-medium text-[var(--ink-1)]">This automation has no steps yet</p>
             <p className="max-w-sm text-size-ui text-[var(--ink-3)]">Add the first step, or describe what you want in Copilot and it will propose the steps.</p>
             {onAddAfter && <AddMenu label="Add the first step" onPick={(t) => onAddAfter(null, t)} />}
           </div>

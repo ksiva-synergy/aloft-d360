@@ -93,7 +93,7 @@ export const POST = handle(async (req) => {
     });
   }
   return ok({
-    reply: 'I could not turn that into a valid change to this workflow. Try a smaller, more specific request, or make the change in the step panel.',
+    reply: 'I could not turn that into a valid change to this automation. Try a smaller, more specific request, or make the change in the step panel.',
     proposal: null,
     problems: repairNote?.split('\n').slice(0, 5),
   });

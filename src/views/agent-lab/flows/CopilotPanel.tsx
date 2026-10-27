@@ -20,7 +20,7 @@ type Msg =
   | { role: 'assistant'; text: string; proposal?: CopilotProposal; problems?: string[] }
   | { role: 'error'; text: string };
 
-const SUGGESTIONS = ['Run this every Monday at 09:00', 'Add a human approval before anything is sent', 'Explain what this workflow does', 'Set a budget of $0.50 per run'];
+const SUGGESTIONS = ['Run this every Monday at 09:00', 'Add a human approval before anything is sent', 'Explain what this automation does', 'Set a budget of $0.50 per run'];
 
 type Props = {
   def: Def | null;
@@ -99,7 +99,7 @@ export default function CopilotPanel({ def, pendingId, outcomes, onPropose, onAp
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]">
                 <Sparkles className="h-4 w-4" aria-hidden />
               </span>
-              <p className="text-size-ui font-semibold text-[var(--ink-1)]">Edit this workflow by describing the change</p>
+              <p className="text-size-ui font-semibold text-[var(--ink-1)]">Edit this automation by describing the change</p>
             </div>
             <p className="mt-2 text-size-ui text-[var(--ink-3)]">
               Copilot proposes changes and shows them on the canvas. Nothing changes until you apply it, and every proposal is checked against your permissions first.
