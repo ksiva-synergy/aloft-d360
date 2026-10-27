@@ -41,10 +41,11 @@ const PROPOSE_TOOL: Tool = {
                 trigger: { type: 'object', description: '{ type: manual|schedule|event|webhook, cron?, name? }' },
                 maxCostUsd: { type: ['number', 'null'] },
                 input: { type: 'object', description: '{ name, type: string|number|boolean, required?, default?, description? }' },
-                step: { type: 'object', description: '{ id, type, name?, dependsOn?, when?, retries?, config }' },
+                step: { type: 'object', description: '{ id, type, name?, dependsOn?, when?, forEach?, retries?, config }' },
                 id: { type: 'string' },
                 dependsOn: { type: 'array', items: { type: 'string' } },
                 when: { type: ['object', 'null'], description: '{ ref: "{{steps.x.y}}", operator, value } or null to remove' },
+                forEach: { type: ['object', 'null'], description: '{ items: "{{steps.x.list}}", maxItems, concurrency? } or null to stop repeating' },
                 retries: { type: 'integer' },
                 config: { type: 'object', description: 'Keys merged into the step config; a key set to null is removed.' },
                 from: { type: 'string' },
@@ -86,7 +87,8 @@ export function buildCopilotSystemPrompt(): string {
     '- trigger: { type: "manual" } | { type: "schedule", cron: 5-field UTC cron } | { type: "event", name } | { type: "webhook", name: lowercase-with-dashes }.',
     '- inputs: { name: snake_case, type: string|number|boolean, required, default? }. Reference as {{inputs.name}}.',
     '- step: { id: snake_case unique, type, name?, dependsOn?: [ids], when?: { ref: "{{steps.id.field}}", operator: eq|neq|gt|gte|lt|lte|contains, value }, retries?: 0–5, config }.',
-    '- Reference an earlier step\'s output as {{steps.<id>.<field>}} (query/transform: rows, rowCount; agent: text; retrieve: chunks). A reference creates the dependency automatically.',
+    '- Reference an earlier step\'s output as {{steps.<id>.<field>}} (query/transform: rows, rowCount; agent: text; retrieve: chunks; object_store.list: objects, each with key; document.extract: fields). A reference creates the dependency automatically.',
+    '- REPEAT FOR EACH ITEM: an agent or tool step may set forEach: { items: "{{steps.<id>.<list>}}", maxItems: 1–1000, concurrency?: 1–10 }. It then runs once per item; inside its config use {{item}} or {{item.<field>}} for the current item. Its output is { items: [{ item, output, error? }], total, succeeded, failed }. Use it whenever the user wants something done for every row or every file (e.g. extract each document listed by object_store.list: forEach over {{steps.list_docs.objects}} with input key "{{item.key}}"). A list longer than maxItems fails the step, so pick a realistic limit and say it. A repeating paid step needs a per-run budget: set one (set_budget) if there is none.',
     '',
     'STEP CONFIG BY TYPE',
     '- query: { semantic: { modelId, entityId, dimensions: [{ dimensionId, timeGrain? }], measures: [{ measureId }], filters: [{ fieldId, fieldKind: "dimension"|"measure", op: eq|neq|gt|gte|lt|lte|in|not_in|between|is_null|is_not_null, value }], sorts: [{ fieldId, fieldKind, direction: asc|desc }] }, maxRows } — governed; preferred. Use exactly these keys. Or { sql, maxRows } (raw read-only, needs the flow:sql permission; avoid).',
@@ -102,7 +104,8 @@ export function buildCopilotSystemPrompt(): string {
     '- Make the smallest set of changes that does what the user asked. Do not rewrite steps they did not mention.',
     '- Never remove or bypass an approval step unless the user explicitly asks; say that publishing may then be blocked.',
     '- A step that writes to or sends outside the platform needs an approval step before it (dependsOn chain). Add one when you add such a step.',
-    '- Never invent connection ids, semantic model/entity/measure ids, agent slugs or email addresses. Use a clear placeholder such as "CHOOSE_CONNECTION" and tell the user what to fill in.',
+    '- Connections: use only an id from the AVAILABLE CONNECTIONS list in the user message. When the user names the storage ("our S3 bucket", "the SharePoint site"), pick the connection of that kind; if several fit, pick the one whose name matches best and say which, or ask. If none fits, use "CHOOSE_CONNECTION" and tell them to add one under Govern → Connections and pick it in the step panel.',
+    '- Never invent semantic model/entity/measure ids, agent slugs, extraction schema names or email addresses. Use a clear placeholder such as "CHOOSE_MODEL" and tell the user what to fill in.',
     '- Operations apply in order, so add a step before another step depends on it. Use update_step with only the fields that change.',
     '- If the request is unclear or impossible with these step types, ask a short question and return no operations.',
     '- Keep the reply to a few sentences in plain language. No JSON in the reply.',
@@ -110,6 +113,21 @@ export function buildCopilotSystemPrompt(): string {
 }
 
 export type CopilotTurn = { role: 'user' | 'assistant'; text: string };
+
+/** A connection the user may use, as the copilot sees it: never credentials or settings. */
+export type CopilotConnection = { id: string; name: string; kind: string; shared: boolean; status: string };
+
+const KIND_NAME: Record<string, string> = { s3: 'Amazon S3', azure_blob: 'Azure Blob Storage', sharepoint: 'SharePoint' };
+
+/** Per-request context, so it goes in the user message rather than the cached system prompt. */
+export function renderConnections(connections: CopilotConnection[] | undefined): string {
+  if (!connections) return 'AVAILABLE CONNECTIONS: (could not be loaded; use "CHOOSE_CONNECTION")';
+  if (!connections.length) return 'AVAILABLE CONNECTIONS: none yet (use "CHOOSE_CONNECTION")';
+  const lines = connections.map(
+    (c) => `- id "${c.id}": ${JSON.stringify(c.name)} (${KIND_NAME[c.kind] ?? c.kind}${c.shared ? ', shared by a colleague' : ''}${c.status === 'ok' ? '' : `, ${c.status === 'error' ? 'failing its test' : 'not tested yet'}`})`,
+  );
+  return ['AVAILABLE CONNECTIONS (the user may use these; "connection" inputs take the id):', ...lines].join('\n');
+}
 
 export type ProposeOutcome =
   /** The model called the tool. `operations` is unparsed. */
@@ -144,6 +162,8 @@ export async function proposeFlowEdit(params: {
   history?: CopilotTurn[];
   repairNote?: string;
   role?: string | null;
+  /** The user's own and shared connections; undefined when they could not be loaded. */
+  connections?: CopilotConnection[];
 }): Promise<ProposeOutcome> {
   const turns: Message[] = (params.history ?? []).slice(-6).map((t) => ({ role: t.role, content: [{ text: t.text } as ContentBlock] }));
   const userText = [
@@ -151,6 +171,8 @@ export async function proposeFlowEdit(params: {
     '```json',
     JSON.stringify(params.definition, null, 2),
     '```',
+    '',
+    renderConnections(params.connections),
     '',
     params.repairNote ? `Your previous proposal could not be applied:\n${params.repairNote}\nPropose a corrected set of operations for my request.` : '',
     `My request: ${params.message}`,

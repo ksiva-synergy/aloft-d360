@@ -1,9 +1,10 @@
-import { scopedPath, type BrowseResult, type SharepointConfig, type SharepointSecret, type StorageProvider } from '../types';
+import { FileTooLargeError, fileName, scopedPath, type BrowseResult, type SharepointConfig, type SharepointSecret, type StorageProvider } from '../types';
 
 // SharePoint through Microsoft Graph with an Entra app (tenant id, client id, client secret) using the
 // client-credentials flow. Requests go only to login.microsoftonline.com and graph.microsoft.com; the
-// site URL is used as a lookup key, never fetched. Grant the app `Sites.Selected` (or Sites.Read.All)
-// with admin consent. Read-only: list files in a document library.
+// site URL is used as a lookup key, never fetched. A download uses the short-lived, pre-authorised
+// link Graph returns, and only when it is on *.sharepoint.com (no token is sent with it). Grant the
+// app `Sites.Selected` (or Sites.Read.All) with admin consent. Read-only: list and download files.
 
 const LOGIN = 'https://login.microsoftonline.com';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
@@ -86,6 +87,21 @@ export function sharepointProvider(config: SharepointConfig, secret: SharepointS
       }));
       items.sort((a, b) => Number(b.isFolder) - Number(a.isFolder) || a.name.localeCompare(b.name));
       return { path: base, items, truncated: !!data['@odata.nextLink'] };
+    },
+
+    async read(path, maxBytes) {
+      if (!driveId) await resolveDrive();
+      const full = scopedPath(root, path);
+      const item = await graph<DriveItem & { file?: { mimeType?: string }; '@microsoft.graph.downloadUrl'?: string }>(`/drives/${driveId}${itemPath(full)}`, `Opening "${fileName(full)}"`);
+      if (!item.file) throw new Error(`"${fileName(full)}" is a folder, not a file`);
+      if ((item.size ?? 0) > maxBytes) throw new FileTooLargeError(item.name, item.size!, maxBytes);
+      const link = item['@microsoft.graph.downloadUrl'];
+      if (!link || !/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.sharepoint\.com\//i.test(link)) throw new Error('SharePoint did not return a download link on sharepoint.com');
+      const res = await fetchImpl(link, { signal: AbortSignal.timeout(60_000), redirect: 'error' });
+      if (!res.ok) throw new Error(`Downloading "${item.name}" failed (${res.status})`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > maxBytes) throw new FileTooLargeError(item.name, bytes.byteLength, maxBytes);
+      return { name: item.name, bytes, contentType: item.file.mimeType };
     },
   };
 }

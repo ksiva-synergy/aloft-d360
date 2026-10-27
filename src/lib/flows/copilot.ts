@@ -9,6 +9,7 @@ import { STEP_TYPE_LABEL, removeStep, renameStep, type Def, type InputDef, type 
 
 const stepId = z.string().regex(STEP_ID_PATTERN);
 const condition = z.object({ ref: z.string().min(1).max(300), operator: z.string().min(1), value: z.union([z.string(), z.number(), z.boolean()]) });
+const forEach = z.object({ items: z.string().min(1).max(300), maxItems: z.number().int().min(1).max(1000), concurrency: z.number().int().min(1).max(10).optional() });
 const input = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
   type: z.enum(['string', 'number', 'boolean']),
@@ -35,6 +36,7 @@ export const copilotOperationSchema = z.discriminatedUnion('op', [
       name: z.string().max(120).optional(),
       dependsOn: z.array(stepId).optional(),
       when: condition.optional(),
+      forEach: forEach.optional(),
       retries: z.number().int().min(0).max(5).optional(),
       config: z.record(z.unknown()),
     }),
@@ -46,6 +48,8 @@ export const copilotOperationSchema = z.discriminatedUnion('op', [
     dependsOn: z.array(stepId).optional(),
     /** `null` removes the condition. */
     when: condition.nullable().optional(),
+    /** `null` stops the step repeating. */
+    forEach: forEach.nullable().optional(),
     retries: z.number().int().min(0).max(5).optional(),
     /** Merged into the existing config, key by key. A key set to `null` is removed. */
     config: z.record(z.unknown()).optional(),
@@ -139,6 +143,8 @@ export function applyOperations(def: Def, operations: CopilotOperation[]): Apply
         if (op.retries !== undefined) step.retries = op.retries;
         if (op.when === null) delete step.when;
         else if (op.when) step.when = op.when;
+        if (op.forEach === null) delete step.forEach;
+        else if (op.forEach) step.forEach = op.forEach;
         if (op.config) {
           const config = { ...step.config };
           for (const [k, v] of Object.entries(op.config)) {

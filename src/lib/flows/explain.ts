@@ -76,6 +76,9 @@ export function explainFlow(flow: FlowDefinition, order: string[], report: Polic
 
   const aiSteps = steps.filter((s) => s.usesAI).map((s) => s.id);
   const limitations: string[] = ['Steps run one at a time, in the order shown.'];
+  if (flow.steps.some((s) => s.forEach)) {
+    limitations.push('A repeating step runs once per item, up to its item limit; a list longer than the limit fails the step instead of skipping items. One failed item does not stop the others.');
+  }
   if (flow.steps.some((s) => s.type === 'query')) {
     limitations.push('Warehouse queries use the shared ALOFT warehouse credential plus ALOFT governance checks, not your personal warehouse identity.');
   }

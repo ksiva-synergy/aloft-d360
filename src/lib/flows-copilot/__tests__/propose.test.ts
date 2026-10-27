@@ -71,4 +71,22 @@ describe('copilot model adapter', () => {
     expect(toolCallWrittenAsText('Sure! {"reply":"x"}')).toBeNull();
     expect(toolCallWrittenAsText('{"operations":[]}')).toBeNull();
   });
+
+  it('tells the model which connections the user may use, and says so when there are none', async () => {
+    hasXai.mockReturnValue(true);
+    const prompts: string[] = [];
+    dispatchAgentLoop.mockImplementation(async (_m: unknown, loop: Loop & { messages: { content: { text: string }[] }[]; systemPrompt: string }) => {
+      prompts.push(loop.messages.at(-1)!.content[0]!.text);
+      expect(loop.systemPrompt).toMatch(/forEach: \{ items:/);
+      expect(loop.systemPrompt).not.toMatch(/Crew documents/); // per-request data stays out of the cached prompt
+      return done();
+    });
+    await proposeFlowEdit({ definition: def, message: 'x', connections: [{ id: 'c-1', name: 'Crew documents', kind: 's3', shared: false, status: 'ok' }, { id: 'c-2', name: 'HR', kind: 'sharepoint', shared: true, status: 'error' }] });
+    await proposeFlowEdit({ definition: def, message: 'x', connections: [] });
+    await proposeFlowEdit({ definition: def, message: 'x' });
+    expect(prompts[0]).toContain('- id "c-1": "Crew documents" (Amazon S3)');
+    expect(prompts[0]).toContain('- id "c-2": "HR" (SharePoint, shared by a colleague, failing its test)');
+    expect(prompts[1]).toContain('AVAILABLE CONNECTIONS: none yet');
+    expect(prompts[2]).toContain('AVAILABLE CONNECTIONS: (could not be loaded');
+  });
 });

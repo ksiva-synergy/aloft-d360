@@ -172,9 +172,11 @@ export function checkFlowPolicy(flow: FlowDefinition, opts: PolicyOptions): Poli
       });
       continue;
     }
-    profiles[step.id] = profile;
-    expectedUsd += profile.estimatedCostUsd;
-    worstCaseUsd += profile.estimatedCostUsd * (step.retries + 1);
+    // A repeating step is priced for its item limit: the list size is only known at run time.
+    const calls = step.forEach?.maxItems ?? 1;
+    profiles[step.id] = step.forEach ? { ...profile, does: `For each item of ${step.forEach.items} (up to ${calls}): ${profile.does}` } : profile;
+    expectedUsd += profile.estimatedCostUsd * calls;
+    worstCaseUsd += profile.estimatedCostUsd * calls * (step.retries + 1);
 
     if (step.type === 'tool') checkToolBindings(step, opts.registry.get(step.config.capability, step.config.version)!, opts.policy, findings);
     if (step.type === 'agent' && (hasRef(step.config.agentSlug) || hasRef(step.config.model))) {
@@ -201,13 +203,20 @@ export function checkFlowPolicy(flow: FlowDefinition, opts: PolicyOptions): Poli
     }
   }
 
+  const repeating = flow.steps.some((s) => s.forEach);
   const budgetUsd = flow.budget?.maxCostUsd;
   if (budgetUsd !== undefined) {
-    if (expectedUsd > budgetUsd) {
+    if (expectedUsd > budgetUsd && repeating) {
+      // With a repeating step this is the cost at the item limit; smaller lists can still finish.
+      findings.push({ severity: 'warning', code: 'budget_may_stop_run', message: `at the item limit the cost would be $${expectedUsd.toFixed(4)}, over the $${budgetUsd} budget; a run stops when the budget is used up` });
+    } else if (expectedUsd > budgetUsd) {
       findings.push({ severity: 'error', code: 'budget_too_low', message: `expected cost $${expectedUsd.toFixed(4)} is over the $${budgetUsd} budget, so no run can finish` });
     } else if (worstCaseUsd > budgetUsd) {
       findings.push({ severity: 'warning', code: 'budget_may_stop_run', message: `with every retry used, cost could reach $${worstCaseUsd.toFixed(4)} and the run would stop at the $${budgetUsd} budget` });
     }
+  } else if (repeating && expectedUsd > 0) {
+    // Without a budget nothing caps a repeating paid step but its item limit.
+    findings.push({ severity: 'error', code: 'no_budget', message: `a step repeats for each item and costs money, so set a per-run budget (up to $${expectedUsd.toFixed(4)} at the item limit)` });
   } else if (expectedUsd > 0) {
     findings.push({ severity: 'warning', code: 'no_budget', message: `no per-run budget is set (expected cost $${expectedUsd.toFixed(4)})` });
   }

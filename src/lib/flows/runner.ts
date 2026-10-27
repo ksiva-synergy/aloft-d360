@@ -1,5 +1,5 @@
 import type { FlowDefinition, FlowStep, FlowStepType, RunStatus, StepStatus } from './schema';
-import { applyInputs, evaluateCondition, resolveConfig, type ResolveContext } from './resolve';
+import { applyInputs, evaluateCondition, resolveConfig, resolveString, type ResolveContext } from './resolve';
 import { stepDependencies } from './validate';
 
 // Framework-free flow runner. It talks to storage through RunStore and to the outside world through
@@ -69,10 +69,86 @@ async function withTimeout<T>(ms: number, fn: (signal: AbortSignal) => Promise<T
   }
 }
 
+type Attempted = { result: StepResult; attempts: number } | { result?: undefined; attempts: number; error: string; nonRetryable: boolean };
+
+/** Resolves refs and runs one call of a step, with its retries (exponential back-off) and its timeout per attempt. */
+async function attempt(
+  step: FlowStep,
+  ctx: ResolveContext,
+  executor: StepExecutor,
+  baseDelayMs: number,
+  onAttempt: (n: number) => Promise<void>,
+): Promise<Attempted> {
+  let error = '';
+  const maxAttempts = step.retries + 1;
+  for (let n = 1; n <= maxAttempts; n++) {
+    await onAttempt(n);
+    try {
+      const resolved = { ...step, config: resolveConfig(step.config, ctx) } as FlowStep;
+      return { result: await withTimeout(step.timeoutMs, (signal) => executor(step, resolved, signal)), attempts: n };
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+      if (isNonRetryable(err)) return { attempts: n, error, nonRetryable: true };
+      if (n < maxAttempts) await sleep(baseDelayMs * 2 ** (n - 1));
+    }
+  }
+  return { attempts: maxAttempts, error, nonRetryable: false };
+}
+
+/** One entry per item of a `forEach` step, in list order. */
+export type ForEachItemResult = { index: number; item: unknown; output?: unknown; error?: string };
+export type ForEachOutput = { items: ForEachItemResult[]; total: number; succeeded: number; failed: number };
+
+/**
+ * Runs a `forEach` step: once per item, up to `concurrency` at a time. A failed item is recorded and
+ * the others continue; the step fails only when every item failed, or at once on a non-retryable
+ * error (a policy or budget stop), so a budget is never exceeded by items still in flight starting.
+ */
+async function runForEach(
+  step: FlowStep & { forEach: NonNullable<FlowStep['forEach']> },
+  ctx: ResolveContext,
+  executor: StepExecutor,
+  baseDelayMs: number,
+  isCancelled: () => Promise<boolean>,
+): Promise<{ output: ForEachOutput } | { error: string; cancelled?: boolean }> {
+  const list = resolveString(step.forEach.items, ctx);
+  if (!Array.isArray(list)) return { error: `${step.forEach.items} is not a list` };
+  if (list.length > step.forEach.maxItems) {
+    return { error: `${list.length} items is over this step's limit of ${step.forEach.maxItems}; raise the limit or narrow the list (no item was processed)` };
+  }
+  const results: ForEachItemResult[] = new Array(list.length);
+  let next = 0;
+  let stop: { error: string; cancelled?: boolean } | undefined;
+  const worker = async () => {
+    while (!stop && next < list.length) {
+      const index = next++;
+      if (await isCancelled()) {
+        stop = { error: 'run cancelled', cancelled: true };
+        return;
+      }
+      const item = list[index];
+      const r = await attempt(step, { ...ctx, item }, executor, baseDelayMs, async () => {});
+      if (r.result?.kind === 'done') results[index] = { index, item, output: r.result.output };
+      else if (r.result) results[index] = { index, item, error: 'a repeating step cannot pause for approval' };
+      else {
+        results[index] = { index, item, error: r.error };
+        if (r.nonRetryable) stop = { error: `item ${index + 1}: ${r.error}` };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(step.forEach.concurrency, Math.max(list.length, 1)) }, worker));
+  if (stop) return stop;
+  const failed = results.filter((r) => r.error !== undefined);
+  if (list.length > 0 && failed.length === list.length) return { error: `every item failed; first: ${failed[0]!.error}` };
+  return { output: { items: results, total: list.length, succeeded: list.length - failed.length, failed: failed.length } };
+}
+
 /**
  * Runs (or resumes) a flow. Steps run one at a time in `order`; each state change is saved before
- * moving on. A step whose `when` is false is skipped, and so is every step that depends on it. Returns the final run status: `waiting_approval` means the run paused and should be
- * resumed by calling executeRun again once the approval step has been marked succeeded.
+ * moving on. A step whose `when` is false is skipped, and so is every step that depends on it. A
+ * step with `forEach` runs once per item of its list (see runForEach). Returns the final run status:
+ * `waiting_approval` means the run paused and should be resumed by calling executeRun again once
+ * the approval step has been marked succeeded.
  */
 export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
   const { flow, order, store, executors } = opts;
@@ -146,24 +222,37 @@ export async function executeRun(opts: ExecuteRunOptions): Promise<RunStatus> {
       return 'failed';
     }
 
-    let lastError = '';
-    let result: StepResult | undefined;
-    let attemptsUsed = 0;
-    const maxAttempts = step.retries + 1;
-    for (let attempt = 1; attempt <= maxAttempts && !result; attempt++) {
-      attemptsUsed = attempt;
-      await store.saveStepRun({ stepId: id, status: 'running', attempt });
+    const baseDelayMs = opts.retryBaseDelayMs ?? 1000;
+    if (step.forEach) {
+      await store.saveStepRun({ stepId: id, status: 'running', attempt: 1 });
+      let r: Awaited<ReturnType<typeof runForEach>>;
       try {
-        const resolved = { ...step, config: resolveConfig(step.config, ctx) } as FlowStep;
-        result = await withTimeout(step.timeoutMs, (signal) => executor(step, resolved, signal));
+        r = await runForEach(step as FlowStep & { forEach: NonNullable<FlowStep['forEach']> }, ctx, executor, baseDelayMs, () => store.isCancelled());
       } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
-        if (isNonRetryable(err)) break;
-        if (attempt < maxAttempts) await sleep((opts.retryBaseDelayMs ?? 1000) * 2 ** (attempt - 1));
+        r = { error: err instanceof Error ? err.message : String(err) };
       }
+      if ('error' in r) {
+        if (r.cancelled) {
+          await skipRest(i, 'run cancelled');
+          await store.setRunStatus('cancelled');
+          return 'cancelled';
+        }
+        await store.saveStepRun({ stepId: id, status: 'failed', attempt: 1, error: r.error });
+        await skipRest(i + 1, `step "${id}" failed`);
+        await store.setRunStatus('failed', `step "${id}" failed: ${r.error}`);
+        return 'failed';
+      }
+      ctx.steps[id] = r.output;
+      await store.saveStepRun({ stepId: id, status: 'succeeded', attempt: 1, output: r.output });
+      continue;
     }
 
+    const attempted = await attempt(step, ctx, executor, baseDelayMs, (n) => store.saveStepRun({ stepId: id, status: 'running', attempt: n }));
+    const attemptsUsed = attempted.attempts;
+    const result = attempted.result;
+
     if (!result) {
+      const lastError = 'error' in attempted ? attempted.error : '';
       await store.saveStepRun({ stepId: id, status: 'failed', attempt: attemptsUsed, error: lastError });
       await skipRest(i + 1, `step "${id}" failed`);
       await store.setRunStatus('failed', `step "${id}" failed: ${lastError}`);

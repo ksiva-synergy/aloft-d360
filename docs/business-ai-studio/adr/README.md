@@ -11,6 +11,7 @@ Format: context → options → decision → consequences → evidence → revis
 | [005](ADR-005-capability-contracts-and-policy-gateway.md) | Capability contracts and a single policy gateway | Accepted (provisional) |
 | [006](ADR-006-tenancy-and-authorization.md) | Tenancy and authorization for Studio | Proposed (blocked on D1, D3) |
 | [007](ADR-007-secrets-and-egress.md) | Secrets, connector isolation and egress | Proposed |
+| [013](ADR-013-document-extraction.md) | Document extraction: Grok directly now, the DATA360 OCR gateway later (with plans for both gateway options) | Accepted (provisional) |
 
 Not yet written. Each is due before its milestone:
 

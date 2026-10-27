@@ -22,6 +22,22 @@ const stepCondition = z.object({
   value: comparable,
 });
 
+/** Steps that may repeat for each item of a list (validateFlow enforces it). */
+export const FOR_EACH_STEP_TYPES = ['agent', 'tool'] as const;
+export const FOR_EACH_MAX_ITEMS = 1000;
+
+/**
+ * Run the step once per item of a list. Inside the step, `{{item}}` / `{{item.<field>}}` is the
+ * current item. Retries and the timeout apply per item. More items than `maxItems` fails the step
+ * rather than silently skipping some.
+ */
+const stepForEach = z.object({
+  /** Exactly one ref to a list, e.g. `{{steps.list_docs.objects}}`. */
+  items: z.string().min(1).max(300),
+  maxItems: z.number().int().min(1).max(FOR_EACH_MAX_ITEMS),
+  concurrency: z.number().int().min(1).max(10).default(4),
+});
+
 const base = {
   id: stepId,
   name: z.string().max(120).optional(),
@@ -29,6 +45,7 @@ const base = {
   retries: z.number().int().min(0).max(5).default(0),
   timeoutMs: z.number().int().min(1000).max(300_000).default(60_000),
   when: stepCondition.optional(),
+  forEach: stepForEach.optional(),
 };
 
 /** Mirrors `SemanticQuery` in src/lib/semantic/types.ts so an executor can pass it to executeSemanticQuery unchanged. */
@@ -190,6 +207,7 @@ export type FlowStep = z.infer<typeof flowStepSchema>;
 export type FlowStepType = FlowStep['type'];
 export type FlowTrigger = z.infer<typeof flowTriggerSchema>;
 export type StepCondition = z.infer<typeof stepCondition>;
+export type StepForEach = z.infer<typeof stepForEach>;
 export type TransformOperator = (typeof TRANSFORM_OPERATORS)[number];
 export type FlowDefinition = z.infer<typeof flowDefinitionSchema>;
 

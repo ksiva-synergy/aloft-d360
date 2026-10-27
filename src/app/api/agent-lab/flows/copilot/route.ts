@@ -6,7 +6,8 @@ import type { PolicyFinding } from '@/lib/flows/policy';
 import { applyOperations, diffFlows, parseOperations } from '@/lib/flows/copilot';
 import type { Def } from '@/lib/flows/edit';
 import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
-import { proposeFlowEdit } from '@/lib/flows-copilot/propose';
+import { proposeFlowEdit, type CopilotConnection } from '@/lib/flows-copilot/propose';
+import { listConnections } from '@/lib/connections/service';
 import { assertFlowsEnabled, estimateAgentCostUsd, flowsRequestContext } from '../_shared';
 
 export const dynamic = 'force-dynamic';
@@ -41,9 +42,17 @@ export const POST = handle(async (req) => {
   if (!inspectorLlmConfigured()) throw new ApiError(503, 'The copilot needs a configured model backend on this server', { code: 'copilot_unavailable' });
 
   const draft = definition as Def;
+  // The connections this user may use (own and shared), so the copilot can fill in a real id. Names
+  // and kinds only; never settings or credentials. A failure (e.g. table not migrated) is not fatal.
+  const connections: CopilotConnection[] | undefined = await listConnections(actor)
+    .then((list) => list.map((c) => ({ id: c.id, name: c.name, kind: c.kind, shared: !c.mine, status: c.status })))
+    .catch((e: unknown) => {
+      console.warn('[flows copilot] connections unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
+      return undefined;
+    });
   let repairNote: string | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role }).catch(
+    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role, connections }).catch(
       (e: unknown) => ({ kind: 'error', detail: e instanceof Error ? e.message : String(e) }) as const,
     );
     if (proposal.kind === 'error') {

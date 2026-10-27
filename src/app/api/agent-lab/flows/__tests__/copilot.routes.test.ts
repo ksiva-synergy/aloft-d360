@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/lib/http';
 import { getFlowTemplate } from '@/lib/flows/templates';
 
-const { resolveAuth, proposeFlowEdit, llmConfigured } = vi.hoisted(() => ({ resolveAuth: vi.fn(), proposeFlowEdit: vi.fn(), llmConfigured: vi.fn() }));
+const { resolveAuth, proposeFlowEdit, llmConfigured, listConnections } = vi.hoisted(() => ({ resolveAuth: vi.fn(), proposeFlowEdit: vi.fn(), llmConfigured: vi.fn(), listConnections: vi.fn() }));
 
 vi.mock('@/middleware/auth', () => ({
   resolveAuth,
@@ -17,6 +17,7 @@ vi.mock('@/middleware/auth', () => ({
 vi.mock('@/lib/lifecycle/log-agent-cost', () => ({ computeCostUsd: () => 0.033 }));
 vi.mock('@/lib/flows-copilot/propose', () => ({ proposeFlowEdit }));
 vi.mock('@/lib/inspector/llm-configured', () => ({ inspectorLlmConfigured: llmConfigured }));
+vi.mock('@/lib/connections/service', () => ({ listConnections }));
 
 import { POST } from '../copilot/route';
 
@@ -31,6 +32,7 @@ beforeEach(() => {
   resolveAuth.mockReset().mockResolvedValue(member);
   proposeFlowEdit.mockReset();
   llmConfigured.mockReset().mockReturnValue(true);
+  listConnections.mockReset().mockResolvedValue([]);
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -98,6 +100,25 @@ describe('flows copilot API', () => {
     expect(data.error).toMatch(/xAI 401: invalid key/);
     expect(data.details).toEqual({ code: 'copilot_model_error' });
     expect(proposeFlowEdit.mock.calls[0]![0].role).toBe('member');
+  });
+
+  it('gives the model the connections this user may use (names and kinds only), and copes when they cannot be loaded', async () => {
+    listConnections.mockResolvedValue([
+      { id: 'c-1', name: 'Crew documents', kind: 's3', status: 'ok', mine: true, config: { bucket: 'crew-docs', region: 'ap-south-1' } },
+      { id: 'c-2', name: 'HR site', kind: 'sharepoint', status: 'untested', mine: false, config: { siteUrl: 'https://x.sharepoint.com' } },
+    ]);
+    proposeFlowEdit.mockResolvedValue({ kind: 'proposal', reply: 'ok', operations: [] });
+    await call({ definition: definition(), message: 'read the S3 files' });
+    expect(listConnections.mock.calls[0]![0]).toEqual({ userId: 'u-1', role: 'member', orgId: 'org-1' });
+    expect(proposeFlowEdit.mock.calls[0]![0].connections).toEqual([
+      { id: 'c-1', name: 'Crew documents', kind: 's3', shared: false, status: 'ok' },
+      { id: 'c-2', name: 'HR site', kind: 'sharepoint', shared: true, status: 'untested' },
+    ]);
+
+    listConnections.mockRejectedValue(new Error('relation "platform_connections" does not exist'));
+    const res = await call({ definition: definition(), message: 'read the S3 files' });
+    expect(res.status).toBe(200);
+    expect(proposeFlowEdit.mock.calls[1]![0].connections).toBeUndefined();
   });
 
   it('asks again when the model answers in plain text, then passes its text through', async () => {

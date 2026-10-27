@@ -34,7 +34,14 @@ Self-service at **Govern → Connections** (`/agent-staging/connections`), and p
 - **In Automate:** a step whose operation has a `connection` field (`object_store.list`, `document.extract`) shows a dropdown of your own and shared connections. It stores the connection id, keeps showing an id you can no longer use, and links to the Connections page so you reuse a connection before adding another.
 - **Errors:** provider errors are redacted (secret values, SAS signatures, `AccountKey`) before they are stored or shown.
 - **Credential choice (2026-10-27):** access keys and connection strings, chosen by the owner. IAM roles and managed identity are still preferred where available (§2).
-- **Not built yet:** reading file contents, uploads, live capability handlers for Automate (`object_store.list` remains a contract with a simulation mock), knowledge indexing from these sources, sharing with specific people or teams (only private or whole organisation), and a publish-time check that the automation owner may still use each connection it names.
+- **Reading documents (built 2026-10-27):**
+  - Anyone who may use a connection can extract fields from one file in it (`POST /api/connections/:id/extract`, or "Try on a file" in the step panel).
+  - Files: PDF pages are rendered to PNG; PNG and JPEG pass through. At most 20 MB and 10 pages (`EXTRACTION_MAX_MB`, `EXTRACTION_MAX_PAGES`).
+  - **Model: Grok 4.7 via the xAI API, chosen by the user on 2026-10-27. The page images leave AWS for xAI.** Use `EXTRACTION_MODEL` to change the model.
+  - The answer must match the named schema. A value is kept only with the text it was read from, and dates must be real dates.
+  - The audit records the path, schema, page count and model, never the values.
+  - Why Grok directly rather than the DATA360 OCR gateway, when to switch, and the plans for doing so: [ADR-013](adr/ADR-013-document-extraction.md).
+- **Not built yet:** uploads, live capability handlers for Automate (`object_store.list` remains a contract with a simulation mock), knowledge indexing from these sources, sharing with specific people or teams (only private or whole organisation), and a publish-time check that the automation owner may still use each connection it names.
 
 ## 2. Credentials and identity (target)
 

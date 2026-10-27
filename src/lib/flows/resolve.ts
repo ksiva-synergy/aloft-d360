@@ -5,6 +5,8 @@ export type ResolveContext = {
   inputs: Record<string, unknown>;
   /** Outputs of steps that have already succeeded, keyed by step id. */
   steps: Record<string, unknown>;
+  /** The current item while a `forEach` step runs; `{{item}}` / `{{item.<field>}}`. */
+  item?: unknown;
 };
 
 function lookup(root: unknown, path: string[]): unknown {
@@ -17,8 +19,10 @@ function lookup(root: unknown, path: string[]): unknown {
 }
 
 function resolveRef(ref: FlowRef, ctx: ResolveContext): unknown {
-  const root = ref.scope === 'steps' ? ctx.steps : ref.scope === 'inputs' ? ctx.inputs : undefined;
-  const value = lookup(root, [ref.name, ...ref.path]);
+  const value =
+    ref.scope === 'item'
+      ? lookup(ctx.item, [ref.name, ...ref.path].filter(Boolean))
+      : lookup(ref.scope === 'steps' ? ctx.steps : ref.scope === 'inputs' ? ctx.inputs : undefined, [ref.name, ...ref.path]);
   if (value === undefined) throw new Error(`${ref.raw} could not be resolved`);
   return value;
 }

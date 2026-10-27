@@ -102,11 +102,11 @@ export function parseAzureConnectionString(cs: string): { ok: true; accountName:
   return { ok: true, accountName };
 }
 
-/** What the UI and API return for a connection. Never includes secrets or the secret reference. */
 /** `private`: only the owner (and platform admins). `org`: everyone in the organisation may use it. */
 export const VISIBILITIES = ['private', 'org'] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
 
+/** What the UI and API return for a connection. Never includes secrets or the secret reference. */
 export type ConnectionSummary = {
   id: string;
   name: string;
@@ -129,6 +129,15 @@ export type ConnectionSummary = {
 
 export type BrowseItem = { name: string; path: string; isFolder: boolean; size?: number; modified?: string };
 export type BrowseResult = { path: string; items: BrowseItem[]; truncated: boolean };
+export type FileContent = { name: string; bytes: Uint8Array; contentType?: string };
+
+/** A file is over the size the caller accepts; raised before its content is downloaded. */
+export class FileTooLargeError extends Error {
+  constructor(name: string, size: number, maxBytes: number) {
+    super(`"${name}" is ${(size / 1048576).toFixed(1)} MB; the limit is ${(maxBytes / 1048576).toFixed(0)} MB`);
+    this.name = 'FileTooLargeError';
+  }
+}
 
 /** A live client for one connection. Implementations live in ./providers. */
 export interface StorageProvider {
@@ -136,7 +145,11 @@ export interface StorageProvider {
   test(): Promise<string>;
   /** Lists one level under `path` (relative to the connection's root folder). */
   list(path: string, max: number): Promise<BrowseResult>;
+  /** Downloads one file at `path` (relative to the root folder). Throws FileTooLargeError before downloading a file over `maxBytes`. */
+  read(path: string, maxBytes: number): Promise<FileContent>;
 }
+
+export const fileName = (path: string) => path.split('/').filter(Boolean).pop() ?? path;
 
 /** Joins a connection's root folder and a browse path, refusing to climb above the root. */
 export function scopedPath(root: string | undefined, path: string): string {

@@ -1,5 +1,5 @@
 import CronParser from 'cron-parser';
-import { flowDefinitionSchema, type FlowDefinition, type FlowStep } from './schema';
+import { FOR_EACH_STEP_TYPES, flowDefinitionSchema, type FlowDefinition, type FlowStep } from './schema';
 
 export type FlowIssue = { path: string; message: string };
 
@@ -38,15 +38,22 @@ function collectStrings(value: unknown, into: string[]): void {
   else if (value && typeof value === 'object') Object.values(value).forEach((v) => collectStrings(v, into));
 }
 
-/** Every string in a step that may carry refs: its config and its `when` condition. */
-function stepStrings(step: FlowStep): string[] {
+/** Strings outside the config that may carry refs: the `when` condition and the `forEach` list. */
+function controlStrings(step: FlowStep): string[] {
   const strings: string[] = [];
-  collectStrings(step.config, strings);
   if (step.when) {
     strings.push(step.when.ref);
     if (typeof step.when.value === 'string') strings.push(step.when.value);
   }
+  if (step.forEach) strings.push(step.forEach.items);
   return strings;
+}
+
+/** Every string in a step that may carry refs: its config, its `when` condition and its `forEach` list. */
+function stepStrings(step: FlowStep): string[] {
+  const strings: string[] = [];
+  collectStrings(step.config, strings);
+  return [...strings, ...controlStrings(step)];
 }
 
 /** Step ids a step reads from: explicit `dependsOn` plus every `{{steps.<id>…}}` ref in its config or condition. */
@@ -106,15 +113,35 @@ export function validateFlow(raw: unknown): FlowValidation {
     if (step.when && !isSingleRef(step.when.ref)) {
       issues.push({ path: `steps.${i}.when.ref`, message: 'a condition must be exactly one {{ref}}' });
     }
+    if (step.forEach) {
+      if (!(FOR_EACH_STEP_TYPES as readonly string[]).includes(step.type)) {
+        issues.push({ path: `steps.${i}.forEach`, message: `only ${FOR_EACH_STEP_TYPES.join(' and ')} steps can repeat for each item` });
+      }
+      if (!isSingleRef(step.forEach.items)) {
+        issues.push({ path: `steps.${i}.forEach.items`, message: 'the list to repeat over must be exactly one {{ref}}, e.g. {{steps.list_docs.objects}}' });
+      }
+    }
+    // `{{item}}` exists only inside the config of a repeating step, never in its condition or list.
+    const configStrings: string[] = [];
+    collectStrings(step.config, configStrings);
+    for (const s of controlStrings(step)) {
+      for (const ref of extractRefs(s)) {
+        if (ref.scope === 'item') issues.push({ path: `steps.${i}`, message: `${ref.raw} can only be used in the inputs of a step that repeats for each item` });
+      }
+    }
     for (const s of stepStrings(step)) {
       for (const ref of extractRefs(s)) {
-        if (ref.scope === 'steps') {
+        if (ref.scope === 'item') {
+          if (!step.forEach && configStrings.includes(s)) {
+            issues.push({ path: `steps.${i}.config`, message: `${ref.raw} needs the step to repeat for each item (set forEach)` });
+          }
+        } else if (ref.scope === 'steps') {
           if (!ids.has(ref.name)) issues.push({ path: `steps.${i}.config`, message: `${ref.raw} refers to unknown step "${ref.name}"` });
           else if (ref.name === step.id) issues.push({ path: `steps.${i}.config`, message: `${ref.raw} refers to its own step` });
         } else if (ref.scope === 'inputs') {
           if (!inputNames.has(ref.name)) issues.push({ path: `steps.${i}.config`, message: `${ref.raw} refers to unknown input "${ref.name}"` });
         } else {
-          issues.push({ path: `steps.${i}.config`, message: `${ref.raw} must start with "steps." or "inputs."` });
+          issues.push({ path: `steps.${i}.config`, message: `${ref.raw} must start with "steps.", "inputs." or (in a repeating step) "item"` });
         }
       }
     }

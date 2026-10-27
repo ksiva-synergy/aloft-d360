@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { CapabilityDefinition } from './types';
+import { extractionSchemaNames, getExtractionSchema } from '@/lib/extraction/schemas';
 
 // Built-in capability contracts for the first connector set (REST, email, team notification, object
 // store, document extraction). Only contracts and simulation mocks live here; live handlers are
@@ -145,16 +146,30 @@ export const documentExtract: CapabilityDefinition = {
   approval: 'none',
   requiredPermission: CAPABILITY_PERMISSIONS.READ,
   fields: {
-    connection: { binding: 'literal', required: true, description: 'Object-store connection holding the document' },
-    key: { binding: 'data', required: true, description: 'Object key of the document' },
-    schema: { binding: 'literal', required: true, description: 'Name of the extraction schema' },
+    connection: { binding: 'literal', required: true, description: 'Connection (S3, Azure Blob or SharePoint) holding the document' },
+    key: { binding: 'data', required: true, description: 'Path of the document inside the connection, e.g. {{item.key}}' },
+    schema: { binding: 'literal', required: true, description: `Extraction schema: ${extractionSchemaNames().join(' | ')}` },
   },
-  input: z.object({ connection: z.string().min(1).max(120), key: z.string().min(1).max(1024), schema: z.string().min(1).max(120) }),
-  // List-price assumption for one page of form/table extraction; replace with measured cost.
+  input: z.object({
+    connection: z.string().min(1).max(120),
+    key: z.string().min(1).max(1024),
+    schema: z.string().refine((v) => !!getExtractionSchema(v), { message: `unknown extraction schema; use one of ${extractionSchemaNames().join(', ')}` }),
+  }),
+  // Assumption for Grok 4.7 reading a few page images (about 1.5k input tokens a page); replace with measured cost.
   estimatedCostUsd: 0.05,
   idempotency: 'natural',
   describe: (i) => `Extract "${s(i.schema)}" fields from "${s(i.key)}"`,
-  simulate: () => ({ fields: {}, confidence: null }),
+  // Same shape as a live extraction (src/lib/extraction/extract.ts), with every field not found.
+  simulate: (i) => {
+    const keys = Object.keys(getExtractionSchema(String(i.schema))?.fields ?? {});
+    return {
+      schema: i.schema,
+      documentType: null,
+      values: Object.fromEntries(keys.map((k) => [k, null])),
+      fields: Object.fromEntries(keys.map((k) => [k, { value: null, page: null, evidence: null }])),
+      missing: keys,
+    };
+  },
 };
 
 export const BUILTIN_CAPABILITIES: readonly CapabilityDefinition[] = [

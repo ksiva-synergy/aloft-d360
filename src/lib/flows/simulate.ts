@@ -166,6 +166,9 @@ export async function simulateFlow(opts: SimulateOptions): Promise<SimulationRep
   const report: SimulatedStep[] = order.map((id) => {
     const state = steps.get(id);
     const t = trace.get(id) ?? {};
+    // A repeating step's trace holds its last item; say how many items the effect applied to.
+    const total = byId.get(id)!.forEach ? (state?.output as { total?: number } | undefined)?.total : undefined;
+    if (total !== undefined && t.effect) t.effect = `For each of ${total} items, e.g. ${t.effect}`;
     return {
       stepId: id,
       type: byId.get(id)!.type,

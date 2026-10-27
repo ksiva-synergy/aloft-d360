@@ -1,8 +1,9 @@
 import { BlobServiceClient, type ContainerClient } from '@azure/storage-blob';
-import { scopedPath, type AzureBlobConfig, type AzureBlobSecret, type BrowseResult, type StorageProvider } from '../types';
+import { FileTooLargeError, fileName, scopedPath, type AzureBlobConfig, type AzureBlobSecret, type BrowseResult, type StorageProvider } from '../types';
 
 // Azure Blob Storage with a connection string. The string is checked before it is stored
-// (parseAzureConnectionString) so it can only reach an Azure blob endpoint. Read-only: list blobs.
+// (parseAzureConnectionString) so it can only reach an Azure blob endpoint. Read-only: list and
+// download blobs.
 
 export function azureBlobProvider(
   config: AzureBlobConfig,
@@ -44,6 +45,15 @@ export function azureBlobProvider(
         modified: b.properties.lastModified?.toISOString(),
       }));
       return { path: path.replace(/^\/+|\/+$/g, ''), items: [...folders, ...files], truncated: !!p?.continuationToken };
+    },
+
+    async read(path, maxBytes) {
+      const name = scopedPath(root, path);
+      const blob = container.getBlobClient(name);
+      const props = await blob.getProperties();
+      if ((props.contentLength ?? 0) > maxBytes) throw new FileTooLargeError(fileName(name), props.contentLength!, maxBytes);
+      const buffer = await blob.downloadToBuffer();
+      return { name: fileName(name), bytes: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength), contentType: props.contentType };
     },
   };
 }

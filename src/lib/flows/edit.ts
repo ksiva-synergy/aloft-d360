@@ -12,7 +12,11 @@ export type Def = {
   [key: string]: unknown;
 };
 export type InputDef = { name: string; type: 'string' | 'number' | 'boolean'; required?: boolean; default?: string | number | boolean; description?: string };
-export type Step = { id: string; type: string; name?: string; dependsOn?: string[]; retries?: number; timeoutMs?: number; when?: { ref: string; operator: string; value: string | number | boolean }; config: Record<string, unknown>; [key: string]: unknown };
+export type ForEachDef = { items: string; maxItems: number; concurrency?: number };
+export type Step = { id: string; type: string; name?: string; dependsOn?: string[]; retries?: number; timeoutMs?: number; when?: { ref: string; operator: string; value: string | number | boolean }; forEach?: ForEachDef; config: Record<string, unknown>; [key: string]: unknown };
+
+/** Step types that may repeat for each item (mirrors FOR_EACH_STEP_TYPES in schema.ts). */
+export const REPEATABLE_STEP_TYPES = ['agent', 'tool'] as const;
 
 export const STEP_TYPES = ['query', 'retrieve', 'agent', 'transform', 'approval', 'output', 'tool'] as const;
 export const STEP_TYPE_LABEL: Record<string, string> = {
@@ -130,6 +134,17 @@ export function setWhen(def: Def, id: string, when: Step['when'] | undefined): D
     if (s.id !== id) return s;
     const { when: _old, ...rest } = s;
     return when ? { ...rest, when } : (rest as Step);
+  });
+  return next;
+}
+
+/** Makes a step repeat for each item of a list, or (undefined) run once again. */
+export function setForEach(def: Def, id: string, forEach: ForEachDef | undefined): Def {
+  const next = clone(def);
+  next.steps = (next.steps ?? []).map((s) => {
+    if (s.id !== id) return s;
+    const { forEach: _old, ...rest } = s;
+    return forEach ? { ...rest, forEach } : (rest as Step);
   });
   return next;
 }

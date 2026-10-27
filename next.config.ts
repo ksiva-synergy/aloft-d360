@@ -29,6 +29,9 @@ const nextConfig: NextConfig = {
     ];
   },
   transpilePackages: ["@aloft/shared"],
+  // Document extraction (src/lib/extraction/render.ts): pdf.js loads its worker module at run time
+  // and @napi-rs/canvas is a native addon, so both must be required from node_modules, not bundled.
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
   // Parent monorepo has its own package-lock.json; pin tracing/root to this app
   // so `next start` looks for `.next` here instead of C:\ALOFT.
   outputFileTracingRoot: path.join(__dirname),

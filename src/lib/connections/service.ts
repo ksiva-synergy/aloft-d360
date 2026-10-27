@@ -10,6 +10,7 @@ import { sharepointProvider } from './providers/sharepoint';
 import {
   CONFIG_SCHEMA,
   CONNECTION_KINDS,
+  FileTooLargeError,
   SECRET_SCHEMA,
   VISIBILITIES,
   parseAzureConnectionString,
@@ -18,6 +19,7 @@ import {
   type BrowseResult,
   type ConnectionKind,
   type ConnectionSummary,
+  type FileContent,
   type StorageProvider,
   type Visibility,
 } from './types';
@@ -278,6 +280,23 @@ export async function testConnection(actor: Actor, id: string) {
   });
   await writeAudit({ actorId: actor.userId, action: 'connection.tested', entityType: 'connection', entityId: id, after: { status } });
   return { connection: await summarize(actor, updated), ok: status === 'ok', detail };
+}
+
+/**
+ * Anyone who may use it. Downloads one file inside the connection's root folder; a file over
+ * `maxBytes` is refused before it is downloaded (413). Provider errors are redacted.
+ */
+export async function readConnectionFile(actor: Actor, id: string, path: string, maxBytes: number): Promise<FileContent & { connection: { id: string; name: string; kind: ConnectionKind } }> {
+  if (!path.trim() || path.split('/').includes('..')) throw new ApiError(400, 'Give a file path inside the connection, without ".."');
+  const row = await load(actor, id, 'use');
+  const { provider, secrets } = await liveProvider(row);
+  try {
+    const file = await provider.read(path, maxBytes);
+    return { ...file, connection: { id: row.id, name: row.name, kind: row.kind as ConnectionKind } };
+  } catch (e) {
+    if (e instanceof FileTooLargeError) throw new ApiError(413, e.message);
+    throw new ApiError(502, redact(e instanceof Error ? e.message : String(e), secrets));
+  }
 }
 
 /** Anyone who may use it. One folder level, inside the connection's root folder. */

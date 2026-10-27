@@ -9,7 +9,9 @@ import {
   coerceDefault,
   removeStep,
   renameStep,
+  REPEATABLE_STEP_TYPES,
   setBudget,
+  setForEach,
   setInputs,
   setTrigger,
   setWhen,
@@ -20,6 +22,8 @@ import {
   type Step,
 } from './editor-model';
 import { StepIcon, btn } from './ui';
+import { TryExtraction } from './TryExtraction';
+import { EXTRACTION_SCHEMAS, getExtractionSchema } from '@/lib/extraction/schemas';
 
 // Side-panel editors over the same JSON definition the API validates: workflow settings, and one
 // step at a time. Every change calls `onChange` with a new definition; validity and policy are
@@ -279,6 +283,14 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
               <ConnectionPicker id={k('connection')} value={typeof c.input?.connection === 'string' ? c.input.connection : ''} onChange={(v) => set({ input: { ...(c.input ?? {}), connection: v } })} />
             </Field>
           )}
+          {c.capability === 'document.extract' && (
+            <Field id={k('schema')} label="What to read" hint={getExtractionSchema(c.input?.schema)?.description}>
+              <select id={k('schema')} className={field} value={typeof c.input?.schema === 'string' ? c.input.schema : ''} onChange={(e) => set({ input: { ...(c.input ?? {}), schema: e.target.value } })}>
+                <option value="">Choose an extraction schema…</option>
+                {EXTRACTION_SCHEMAS.map((x) => <option key={x.name} value={x.name}>{x.title}</option>)}
+              </select>
+            </Field>
+          )}
           <Field id={k('input')} label="Inputs">
             <JsonField id={k('input')} value={c.input ?? {}} onCommit={(v) => set({ input: v })} rows={7} />
           </Field>
@@ -426,6 +438,7 @@ export function StepEditor({
   const [idDraft, setIdDraft] = useState(step.id);
   const others = (def.steps ?? []).filter((s) => s.id !== step.id);
   const when = step.when;
+  const forEach = step.forEach;
 
   return (
     <div>
@@ -479,6 +492,12 @@ export function StepEditor({
         <StepConfig step={step} def={def} onChange={onChange} capabilities={capabilities} />
       </Section>
 
+      {step.type === 'tool' && step.config.capability === 'document.extract' && (
+        <Section title="Try it">
+          <TryExtraction stepId={step.id} input={(step.config.input ?? {}) as Record<string, unknown>} onUseAsSample={(output) => onFixture(output)} />
+        </Section>
+      )}
+
       <Section title="When it runs">
         <Field id={`${step.id}-after`} label="Runs after" hint="Referencing another step's output adds it automatically.">
           <div className="flex flex-wrap gap-1.5" id={`${step.id}-after`}>
@@ -513,6 +532,33 @@ export function StepEditor({
             </Field>
           </div>
         )}
+        {(REPEATABLE_STEP_TYPES as readonly string[]).includes(step.type) && (
+          <>
+            <label className="inline-flex items-center gap-2 text-size-ui text-[var(--ink-1)]">
+              <input
+                type="checkbox"
+                checked={!!forEach}
+                onChange={(e) => onChange(setForEach(def, step.id, e.target.checked ? { items: `{{steps.${step.dependsOn?.[0] ?? others[0]?.id ?? 'previous_step'}.rows}}`, maxItems: 100, concurrency: 4 } : undefined))}
+              />
+              Repeat for each item of a list
+            </label>
+            {forEach && (
+              <div className="space-y-2">
+                <Field id={`${step.id}-fe-items`} label="List" hint="Use {{item}} or {{item.field}} in this step's inputs for the current item.">
+                  <input id={`${step.id}-fe-items`} className={`${field} font-mono`} value={forEach.items} onChange={(e) => onChange(setForEach(def, step.id, { ...forEach, items: e.target.value }))} />
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field id={`${step.id}-fe-max`} label="Item limit" hint="A longer list fails the step instead of skipping items.">
+                    <input id={`${step.id}-fe-max`} type="number" min={1} max={1000} className={field} value={forEach.maxItems} onChange={(e) => onChange(setForEach(def, step.id, { ...forEach, maxItems: Number(e.target.value) }))} />
+                  </Field>
+                  <Field id={`${step.id}-fe-conc`} label="At the same time" hint="1–10 items in parallel.">
+                    <input id={`${step.id}-fe-conc`} type="number" min={1} max={10} className={field} value={forEach.concurrency ?? 4} onChange={(e) => onChange(setForEach(def, step.id, { ...forEach, concurrency: Number(e.target.value) }))} />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </Section>
 
       <Section title="Reliability">
@@ -528,7 +574,7 @@ export function StepEditor({
 
       {MOCKED_TYPES.has(step.type) && (
         <Section title="Sample response for tests">
-          <Field id={`${step.id}-fixture`} label="Sample response" hint="What this step returns in a test run. Not saved with the automation. Leave empty for an empty result.">
+          <Field id={`${step.id}-fixture`} label="Sample response" hint={`What this step returns in a test run${forEach ? ', for every item' : ''}. Not saved with the automation. Leave empty for an empty result.`}>
             <JsonField id={`${step.id}-fixture`} value={fixture ?? {}} rows={5} onCommit={(v) => onFixture(Object.keys(v).length ? v : undefined)} />
           </Field>
         </Section>

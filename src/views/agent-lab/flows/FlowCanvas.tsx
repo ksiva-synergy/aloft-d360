@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import dagre from 'dagre';
-import { AlertTriangle, CheckCircle2, CircleSlash, Maximize2, Minus, Plus, ShieldCheck, Sparkles, XCircle, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleSlash, Maximize2, Minus, Plus, Repeat, ShieldCheck, Sparkles, XCircle, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { draftEdges, reduceEdges, type FlowDiff } from '@/lib/flows/copilot';
 import { STEP_TYPES, STEP_TYPE_LABEL, type Def, type Step } from '@/lib/flows/edit';
@@ -146,6 +146,11 @@ function StepNode({ step, selected, status, findings, mark, onSelect, onAdd }: {
             {step.type === 'agent' && (
               <span className="inline-flex items-center gap-0.5 text-size-caption text-[var(--brand-a-ink)]">
                 <Sparkles className="h-3 w-3" aria-hidden /> AI
+              </span>
+            )}
+            {step.forEach && (
+              <span className="inline-flex items-center gap-0.5 text-size-caption text-[var(--ink-2)]" title={`Repeats for each item of ${step.forEach.items}, up to ${step.forEach.maxItems}`}>
+                <Repeat className="h-3 w-3" aria-hidden /> For each
               </span>
             )}
             {findings && findings.errors > 0 && (

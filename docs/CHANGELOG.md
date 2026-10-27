@@ -2,6 +2,66 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — ADR-013: document extraction, Grok directly now, the DATA360 OCR gateway later
+
+- **What:** new `docs/business-ai-studio/adr/ADR-013-document-extraction.md`, which records:
+  - **The decision:** use the Grok-direct extraction (`src/lib/extraction/`) for now.
+  - **What we learned about the DATA360 OCR gateway** (`DATA360Portal_ReactJS` at `559314c`): per-project token API, ingestion, job queue and worker, field analyzer, review queue.
+  - **Options compared:** Grok directly; gateway project tokens as connections; ALOFT as a gateway integration client.
+  - **Triggers for switching:** volume, human review, stored history, reusing existing gateway projects, data residency.
+  - **Step-by-step plans for both gateway options.** These cover the Entra app role and admin consent, the gateway middleware and guards (`aloft_` prefix, ownership table, on-behalf-of audit, quotas), ALOFT settings and tables, and network needs.
+  - It also flags the gateway's hard-coded secret in `backend/gen-token.js`, and why ALOFT must never hold the gateway's `JWT_SECRET`.
+- **Also:**
+  - `docs/business-ai-studio/adr/README.md` lists ADR-013;
+  - `docs/business-ai-studio/06-connectors-security.md` §1.1 links to it.
+- **Why:** the user asked for the gateway analysis to be documented for future use, while keeping Grok-direct extraction for now to stay simple.
+- **Verified:** docs only. The gateway facts were read from its code, which takes precedence over its partly outdated `doc2/OCR_MODULE.md`; the route paths and file names are quoted as found there.
+- **Not done:** nothing was changed in the gateway repository.
+
+## 2026-10-27 — Automate: repeat a step for each item; read documents from S3, Blob and SharePoint with Grok 4.7
+
+- **What:**
+  - **Repeat for each item.** Any Ask AI or connector step can set `forEach: { items: "{{steps.x.list}}", maxItems, concurrency }`. It then runs once per item, and its inputs can use `{{item}}` or `{{item.field}}`.
+    - Retries and the timeout apply to each item separately.
+    - A failed item is recorded and the others carry on; the step fails only if every item fails. A policy or budget stop halts the whole step at once.
+    - A list longer than `maxItems` (at most 1000) fails the step and processes nothing, so rows are never silently skipped.
+    - The output is `{ items: [{ index, item, output | error }], total, succeeded, failed }`.
+    - Cost is counted at the item limit. A repeating paid step must have a per-run budget (an error otherwise). If the budget is below the cost at the item limit, that's only a warning, because smaller lists can still finish.
+    - It's available on the canvas (a "For each" badge), in the step panel ("Repeat for each item of a list"), and to Copilot through `add_step` / `update_step`.
+  - **Copilot knows your connections.** Every turn it gets the id, name and kind of each connection you may use (never settings or credentials), so "our S3 bucket" becomes a real connection id. If they can't be loaded (for example, before the table exists), it says so and uses `CHOOSE_CONNECTION`. It also knows For each and the extraction schema names.
+  - **Reading documents.**
+    - Download: each storage provider gains `read(path, maxBytes)`. S3 uses GetObject; Blob checks the size from the blob's properties before downloading; SharePoint uses Graph's short-lived download link, only on `*.sharepoint.com` and without the token. A file over the limit is refused before its content is fetched, and paths stay inside the root folder.
+    - Rendering: `src/lib/extraction/render.ts` renders PDF pages to PNG with `pdfjs-dist` and `@napi-rs/canvas`, with no system binaries. PNG and JPEG pass through, and the type is decided from the file's bytes. Code evaluation and font loading are switched off.
+    - Reading the fields: `src/lib/extraction/extract.ts` sends all pages to **Grok 4.7 in one call** (xAI chat completions, image inputs). The answer must match the schema, and each field has a value or null, a page and evidence. The prompt forbids guessing and tells the model to treat document text as data, not instructions.
+    - Checking the answer: a value without supporting text is discarded, dates must be real `YYYY-MM-DD` dates, pages must exist, and unknown keys are ignored. The output has `values` for easy references (`{{…values.expiry_date}}`) and `fields` with evidence.
+    - Schemas: named schemas live in `src/lib/extraction/schemas.ts`: `seafarer_certificate` and `seafarer_medical`.
+    - API: `POST /api/connections/:id/extract { path, schema }` is open to anyone who may use the connection. Limits are `EXTRACTION_MAX_PAGES` (default 10) and `EXTRACTION_MAX_MB` (default 20); the model can be changed with `EXTRACTION_MODEL` (default `XAI_MODEL`, then `grok-4.7`). It's audited as `document.extracted` with the path, schema, page count and model, never the values.
+    - Step panel: an "Extract document fields" step gets a **What to read** schema dropdown and **Try on a file**. That reads one real document and shows each value with the page and text it came from, and **Use as sample response** turns the real result into the step's test data.
+    - `document.extract` accepts only known schema names, and its simulated output has the same shape as a live extraction.
+  - `next.config.ts` adds `serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"]`.
+- **Why:** the user asked for a check over every seafarer's documents in S3, which needs a step to run per row and a way to read the files. They chose Grok 4.7 over Bedrock Claude for extraction (2026-10-27), knowing the page images are sent to xAI outside AWS.
+- **Dependencies:** `pdfjs-dist` 5.4.624 (the 6.x line needs Node 22; the images run `node:20-alpine`) and `@napi-rs/canvas` 0.1.89, both pinned exactly. The lockfile includes the `linux-x64-musl` and `linux-arm64-musl` canvas binaries for Alpine.
+- **Verified:**
+  - New tests:
+    - `src/lib/flows/__tests__/for-each.test.ts` (14): validation, fan-out order and concurrency, per-item retries and failures, the item limit, budget stop, cancellation, cost and budget findings, a simulated run, Copilot operations.
+    - `src/lib/extraction/__tests__/render.test.ts`: a real PDF built in memory and rendered.
+    - `src/lib/extraction/__tests__/extract.test.ts`: the request shape and the acceptance rules.
+    - `src/app/api/connections/__tests__/extract.routes.test.ts`: access, size, type and schema checks before the model; a PDF rendered and all pages sent in one call; an audit without values; redaction.
+    - `src/lib/connections/__tests__/providers-read.test.ts`: download for each provider; the SharePoint link must be on sharepoint.com and is fetched without the token.
+    - `src/views/agent-lab/flows/__tests__/StepRepeat.test.tsx` and `TryExtraction.test.tsx`.
+    - Copilot: connections reach the prompt (`propose.test.ts`, `copilot.routes.test.ts`).
+  - **Live check against xAI**, using a made-up three-page certificate rendered from PDF (no real person's data):
+    - Grok 4.7 returned 11 of 12 fields correctly, each with its page and source text, in 11 s for about 9.1k input tokens (about 3k per page).
+    - It left the date of birth empty because `02/07/1985` could be read either way.
+    - On an earlier run where two lines ran off the page, it returned null for those fields instead of guessing.
+- **Not done:**
+  - There's still no run engine. For each and extraction work in test runs and in "Try on a file", but nothing runs on a schedule yet.
+  - `object_store.list` has no live handler; listing works through Browse.
+  - There's no comparison step for the mismatch check yet. Planned: compare extracted values against the table in code.
+  - No caching by file hash yet.
+  - The per-item cost estimate ($0.05) is an assumption until it's measured.
+  - Ambiguous numeric dates come back empty. A per-schema date-order setting may be wanted.
+
 ## 2026-10-27 — Rename "Flows" to "Automate" (user-visible only)
 
 - **What:**
