@@ -2,6 +2,13 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-27 — CI: add missing estate cockpit + job-scope-flags + T4 sources
+
+- **What:** Committed files that `jobs.tsx` and `jobs/launch` already imported but were never pushed: `job-scope-flags.ts`, `JobsCockpitPanel`, `cockpit` API/lib, scheduled harvest + catalog pipeline launch, `t4-handlers` + `src/lib/context/t4/*`.
+- **Why:** GitHub `tsc --noEmit` failed with TS2307 on `@/lib/context/job-scope-flags` and `JobsCockpitPanel`.
+- **Verified:** `npx tsc --noEmit` locally.
+- **Not done:** Automate agent-step / run-catalog-agent work still uncommitted (separate batch).
+
 ## 2026-10-27 — CI: remove orphan Next job pages (SPA-only app shell)
 
 - **What:** Deleted `src/app/(agent)/agent-lab/estate/jobs/**/page.tsx` added during PR #27 merge. This repo’s Next app has **no** `app/layout.tsx`; all UI URLs rewrite to `public/spa` (`next.config.ts`). Estate Jobs stay in `src/views/agent-lab/estate/jobs.tsx` + React Router.
@@ -59,6 +66,43 @@ Single running log of changes made in this repo, **newest first**.
 - Verified: static HTML (open in browser); no app build required.
 
 ## 2026-10-21 — SSO-only authentication
+
+## 2026-10-27 — Automate: "Ask an agent" step, with saved agents, answer fields and recorded runs
+
+- **What:**
+  - **Shared agent runner (`src/lib/agents/run-catalog-agent.ts`).** Agent chat (`src/app/api/agent-lab/agents/chat/route.ts`) and Automate now run saved agents the same way: the agent's instructions, the read-only data tools (`describe_schema`, `execute_tool`) and up to 8 rounds.
+    - Every run is recorded through `TurnMetricsRecorder` in `agent_turn_log` / `agent_loop_log` (tokens, rounds, tool calls, duration, outcome), with surface `agent_use` or `automation`.
+    - Its cost is worked out from ALOFT's price table.
+    - Before this, agent chat recorded nothing.
+  - **Answer fields.** An agent step can ask for its answer as fields (`answer: [{ key, label, type: text|date|number, description }]`). The agent must finish by calling a `submit_answer` tool. Values are checked like document fields (real dates, numbers). An answer written as JSON text is also accepted, and if none comes back, the run says so. Later steps read `{{steps.<id>.values.<key>}}`. Works with For each.
+  - **Policy check** (`src/lib/flows/policy.ts`). Bad answer fields are flagged as `invalid_input`. With the agent list supplied (`PolicyContext.agents`, loaded in `flowsRequestContext`), it also flags an unknown agent (`unknown_agent`) and an agent that is draft or deprecated or has no instructions (`agent_not_ready`); either blocks publishing. Test runs return `values` and `missing` in the same shape as a live run.
+  - **Step panel** (`src/views/agent-lab/flows/AgentStep.tsx`, `FlowForm.tsx`):
+    - An agent picker with three groups: "Ready", "Drafts (can be tried, not published)" and "Not set up (no instructions)", the last one disabled. Agents with the same name show their slug.
+    - A "Get the answer as specific fields" option, reusing the field editor.
+    - **Try it**: one real run with sample values replacing `{{…}}`. It shows rounds, data lookups, time and cost, and offers **Use as sample response**.
+  - **API:** `GET /api/agent-lab/flows/agents` (`src/lib/agents/catalog.ts`) and `POST /api/agent-lab/flows/agent-try`. Try refuses unresolved `{{refs}}` and audits `agent.tried` with cost and turn ID, not the prompt or the answer.
+  - **Copilot** gets the saved agents (name, status, description, whether each can run) and is told to use only ones that can run, with answer fields when later steps need specific values.
+  - **Prices:** `src/lib/lifecycle/log-agent-cost.ts` adds Amazon Nova Pro, Lite and Micro (list prices; verify against AWS) and `pricingKey`, which maps `bedrock/nova-pro` and `us.amazon.nova-pro-v1:0`. Nova runs were previously priced as Sonnet, about 4× too high.
+  - **`scripts/close-stale-agent-runs.ts`:** reports `platform_agent_runs` rows stuck as running or pending, and with `--apply` marks them as errors. Nothing is deleted.
+- **Why:** the user wants automations to use the agents they already have and get specific answers back. On the way, three things turned up in dev:
+  - **Stuck runs:** 46 of 59 `platform_agent_runs` rows were stuck since 8–12 June 2026, with no cost recorded. Nothing in this codebase writes that table.
+  - **Two agent lists:** agent chat runs `agent_catalog` (9 entries), separate from the 40 `platform_agents`.
+  - **Placeholder agents:** the catalog agents marked live, staging or preview (Regulatory Decision Tracer, Demand Signal Forecaster, Audit Trail Synthesiser, Quarterly Close Coordinator) have no instructions and cannot run. Only drafts can (Invoice Harmonization Analyst, Databricks Jobs Agent ×3).
+- **Verified:**
+  - New tests:
+    - `src/lib/agents/__tests__/run-catalog-agent.test.ts`: tools offered, submit_answer typing and early stop, JSON-text fallback, refusals, an errored run recorded, Nova cost;
+    - `src/lib/flows/__tests__/agent-step.test.ts`: policy cases and a test run's shape;
+    - `src/app/api/agent-lab/flows/__tests__/agents.routes.test.ts`;
+    - `src/app/api/agent-lab/agents/__tests__/chat.route.test.ts`: chat keeps its HTTP errors and streamed events, and records as `agent_use`;
+    - `src/views/agent-lab/flows/__tests__/AgentStep.test.tsx`;
+    - agent list cases in the Copilot tests.
+  - **Live check:** the Invoice Harmonization Analyst on Grok 4.7 answered three fields through `submit_answer`, correctly typed and correct (155 days to expiry), in 1 round, 8.6 s, about $0.018. The run was recorded in `agent_turn_log`.
+- **Not done:**
+  - Closing the 46 stale runs in dev was blocked by the permission system (it changes shared data). Run `npx tsx --env-file=.env scripts/close-stale-agent-runs.ts --apply` to apply it.
+  - The placeholder catalog agents need instructions, or should be marked so; the useful drafts need promoting before they can be used in published automations.
+  - The two agent lists (`agent_catalog` and `platform_agents`) aren't unified.
+  - Not yet built: files attached to an agent step, knowledge-base citations, a second agent checking the first, confidence routing.
+  - No run engine yet.
 
 ## 2026-10-27 — Automate: read your own fields from documents, set up from the panel or by chat
 
