@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { CapabilityDefinition } from './types';
-import { extractionSchemaNames, getExtractionSchema } from '@/lib/extraction/schemas';
+import { EXTRACTION_FIELD_TYPES, MAX_CUSTOM_FIELDS, extractionSchemaNames, resolveExtractionSchema } from '@/lib/extraction/schemas';
 
 // Built-in capability contracts for the first connector set (REST, email, team notification, object
 // store, document extraction). Only contracts and simulation mocks live here; live handlers are
@@ -148,22 +148,38 @@ export const documentExtract: CapabilityDefinition = {
   fields: {
     connection: { binding: 'literal', required: true, description: 'Connection (S3, Azure Blob or SharePoint) holding the document' },
     key: { binding: 'data', required: true, description: 'Path of the document inside the connection, e.g. {{item.key}}' },
-    schema: { binding: 'literal', required: true, description: `Extraction schema: ${extractionSchemaNames().join(' | ')}` },
+    schema: { binding: 'literal', description: `A built-in extraction schema: ${extractionSchemaNames().join(' | ')}. Set this OR fields.` },
+    fields: {
+      binding: 'literal',
+      description: `Your own fields instead of a schema: [{ key: snake_case, type: ${EXTRACTION_FIELD_TYPES.join('|')}, description: what to read, label? }], 1–${MAX_CUSTOM_FIELDS}`,
+    },
   },
-  input: z.object({
-    connection: z.string().min(1).max(120),
-    key: z.string().min(1).max(1024),
-    schema: z.string().refine((v) => !!getExtractionSchema(v), { message: `unknown extraction schema; use one of ${extractionSchemaNames().join(', ')}` }),
-  }),
+  input: z
+    .object({
+      connection: z.string().min(1).max(120),
+      key: z.string().min(1).max(1024),
+      schema: z.string().optional(),
+      fields: z.array(z.record(z.unknown())).optional(),
+    })
+    .superRefine((v, ctx) => {
+      const r = resolveExtractionSchema(v);
+      if (!r.ok) r.problems.forEach((message) => ctx.addIssue({ code: 'custom', message }));
+    }),
+  checkLiteral: (i) => {
+    const r = resolveExtractionSchema(i);
+    return r.ok ? [] : r.problems;
+  },
   // Assumption for Grok 4.7 reading a few page images (about 1.5k input tokens a page); replace with measured cost.
   estimatedCostUsd: 0.05,
   idempotency: 'natural',
-  describe: (i) => `Extract "${s(i.schema)}" fields from "${s(i.key)}"`,
+  describe: (i) =>
+    Array.isArray(i.fields) ? `Extract ${i.fields.length} field${i.fields.length === 1 ? '' : 's'} from "${s(i.key)}"` : `Extract "${s(i.schema)}" fields from "${s(i.key)}"`,
   // Same shape as a live extraction (src/lib/extraction/extract.ts), with every field not found.
   simulate: (i) => {
-    const keys = Object.keys(getExtractionSchema(String(i.schema))?.fields ?? {});
+    const r = resolveExtractionSchema(i);
+    const keys = Object.keys(r.ok ? r.schema.fields : {});
     return {
-      schema: i.schema,
+      schema: r.ok ? r.schema.name : i.schema,
       documentType: null,
       values: Object.fromEntries(keys.map((k) => [k, null])),
       fields: Object.fromEntries(keys.map((k) => [k, { value: null, page: null, evidence: null }])),

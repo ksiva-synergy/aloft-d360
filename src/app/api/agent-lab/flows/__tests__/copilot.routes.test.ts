@@ -121,6 +121,45 @@ describe('flows copilot API', () => {
     expect(proposeFlowEdit.mock.calls[1]![0].connections).toBeUndefined();
   });
 
+  it('builds a document step with the fields the user listed, and the check catches a bad list', async () => {
+    const extract = (fields: unknown) => ({
+      op: 'add_step',
+      step: { id: 'read_reports', type: 'tool', config: { capability: 'document.extract', input: { connection: 'c-1', key: 'reports/latest.pdf', fields } } },
+    });
+    proposeFlowEdit.mockResolvedValueOnce({
+      kind: 'proposal',
+      reply: 'Added a step that reads vessel name, inspection date and deficiencies.',
+      operations: [
+        extract([
+          { key: 'vessel_name', label: 'Vessel name', type: 'text', description: 'Name of the vessel' },
+          { key: 'inspection_date', label: 'Inspection date', type: 'date', description: 'Date of the inspection' },
+          { key: 'deficiencies', label: 'Deficiencies', type: 'number', description: 'Number of deficiencies recorded' },
+        ]),
+      ],
+    });
+    const good = await (await call({ definition: definition(), message: 'Vessel name\nInspection date\nNumber of deficiencies' })).json();
+    expect(good.proposal.diff.added).toEqual(['read_reports']);
+    expect(good.proposal.introduced.filter((f: { stepId?: string; severity: string }) => f.stepId === 'read_reports' && f.severity === 'error')).toEqual([]);
+
+    proposeFlowEdit.mockResolvedValueOnce({ kind: 'proposal', reply: 'Added.', operations: [extract([{ key: 'Vessel', type: 'colour', description: '' }])] });
+    const bad = await (await call({ definition: definition(), message: 'read the vessel' })).json();
+    expect(bad.proposal.introduced.some((f: { code: string; stepId?: string }) => f.code === 'invalid_input' && f.stepId === 'read_reports')).toBe(true);
+  });
+
+  it('accepts a long pasted sample and keeps long conversations working', async () => {
+    proposeFlowEdit.mockResolvedValue({ kind: 'proposal', reply: 'ok', operations: [] });
+    const sample = `Fields I need from this report:\n${'Vessel: MV EXAMPLE  IMO 9999999  Port: Example  '.repeat(150)}`;
+    expect(sample.length).toBeGreaterThan(4000);
+    const history = Array.from({ length: 30 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', text: i === 0 ? sample : `turn ${i}` }));
+    const res = await call({ definition: definition(), message: sample, history });
+    expect(res.status).toBe(200);
+    const sent = proposeFlowEdit.mock.calls[0]![0];
+    expect(sent.message).toBe(sample.trim());
+    expect(sent.history).toHaveLength(20);
+    expect(sent.history.at(-1).text).toBe('turn 29');
+    expect((await call({ definition: definition(), message: 'x'.repeat(12_001) })).status).toBe(400);
+  });
+
   it('asks again when the model answers in plain text, then passes its text through', async () => {
     proposeFlowEdit.mockResolvedValueOnce({ kind: 'text', reply: 'hmm' }).mockResolvedValueOnce({ kind: 'proposal', reply: 'Renamed.', operations: [{ op: 'set_name', name: 'PO chaser' }] });
     const first = await (await call({ definition: definition(), message: 'rename it' })).json();

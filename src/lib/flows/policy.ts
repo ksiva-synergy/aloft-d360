@@ -102,6 +102,7 @@ export function profileStep(step: FlowStep, opts: PolicyOptions): StepProfile | 
 
 function checkToolBindings(step: Extract<FlowStep, { type: 'tool' }>, def: CapabilityDefinition, ctx: PolicyContext, out: PolicyFinding[]): void {
   const input = step.config.input;
+  for (const message of def.checkLiteral?.(input) ?? []) out.push({ severity: 'error', code: 'invalid_input', stepId: step.id, message });
   for (const key of Object.keys(input)) {
     if (!def.fields[key]) out.push({ severity: 'error', code: 'unknown_field', stepId: step.id, message: `${def.id} has no input "${key}"` });
   }

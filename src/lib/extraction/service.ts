@@ -1,7 +1,7 @@
 import { writeAudit } from '@/lib/audit';
 import { ApiError } from '@/lib/http';
 import { readConnectionFile, type Actor } from '@/lib/connections/service';
-import { extractionSchemaNames, getExtractionSchema } from './schemas';
+import { resolveExtractionSchema } from './schemas';
 import { renderDocument, UnsupportedDocumentError } from './render';
 import { ExtractionUnavailableError, extractFields, grokVision, type ExtractionResult, type VisionCall } from './extract';
 
@@ -24,11 +24,12 @@ export type DocumentExtraction = ExtractionResult & {
 
 export async function extractFromConnection(
   actor: Actor,
-  input: { connectionId: string; path: string; schema: string },
+  input: { connectionId: string; path: string; schema?: string; fields?: unknown },
   vision?: VisionCall,
 ): Promise<DocumentExtraction> {
-  const schema = getExtractionSchema(input.schema);
-  if (!schema) throw new ApiError(422, `Unknown extraction schema "${input.schema}". Available: ${extractionSchemaNames().join(', ')}`);
+  const resolved = resolveExtractionSchema({ schema: input.schema, fields: input.fields });
+  if (!resolved.ok) throw new ApiError(422, `Cannot read this document: ${resolved.problems.join('; ')}`, { issues: resolved.problems });
+  const schema = resolved.schema;
   let call: VisionCall;
   try {
     call = vision ?? grokVision();
@@ -61,7 +62,7 @@ export async function extractFromConnection(
     entityType: 'connection',
     entityId: file.connection.id,
     // What was read and by which model; never the extracted values or the document itself.
-    after: { path: input.path, schema: schema.name, pages, missing: result.missing.length, model: result.model, usage: result.usage },
+    after: { path: input.path, schema: schema.name, fields: Object.keys(schema.fields).length, pages, missing: result.missing.length, model: result.model, usage: result.usage },
   });
   return { ...result, file: { connectionId: file.connection.id, path: input.path, name: file.name }, pages };
 }

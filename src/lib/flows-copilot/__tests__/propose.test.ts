@@ -78,6 +78,10 @@ describe('copilot model adapter', () => {
     dispatchAgentLoop.mockImplementation(async (_m: unknown, loop: Loop & { messages: { content: { text: string }[] }[]; systemPrompt: string }) => {
       prompts.push(loop.messages.at(-1)!.content[0]!.text);
       expect(loop.systemPrompt).toMatch(/forEach: \{ items:/);
+      // It knows how to turn a list of wanted values, or a pasted sample, into a document step's own fields.
+      expect(loop.systemPrompt).toMatch(/input\.fields = \[\{ key, label, type, description \}\]/);
+      expect(loop.systemPrompt).toMatch(/paste a sample of the document text/);
+      expect(loop.systemPrompt).toMatch(/send the COMPLETE input object/);
       expect(loop.systemPrompt).not.toMatch(/Crew documents/); // per-request data stays out of the cached prompt
       return done();
     });

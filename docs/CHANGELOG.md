@@ -54,6 +54,32 @@ Single running log of changes made in this repo, **newest first**.
 
 ## 2026-10-21 — SSO-only authentication
 
+## 2026-10-27 — Automate: read your own fields from documents, set up from the panel or by chat
+
+- **What:**
+  - **Own fields:** an "Extract document fields" step can now read the user's own fields instead of a built-in schema. Its input takes either `schema` or `fields: [{ key, label, type: text|date|number, description }]` (1–30 fields), not both. `src/lib/extraction/schemas.ts` adds `checkCustomFields`, `schemaFromFields` and `resolveExtractionSchema`. Grok gets exactly those fields, with the same rules as before: a value needs its source text, dates must be real dates, numbers must parse.
+  - **Step panel:**
+    - "What to read" now has **My own fields…**, which opens a field editor (`src/views/agent-lab/flows/ExtractFieldsEditor.tsx`).
+    - People type a plain name ("Expiry date"); the reference key (`values.expiry_date`) is derived from it and shown.
+    - Problems such as a missing description or the same name twice are listed under the editor.
+    - **Try on a file** sends the field list.
+  - **Copilot:**
+    - New instructions: when the user names what they want read, pastes a list of fields, or pastes a sample of the document text, Copilot builds the field list, choosing sensible types, and says which fields it added. It doesn't add fields that weren't asked for.
+    - It now sends the complete `input` when changing a tool step, because the editor replaces `input` as a whole.
+  - **Checked while editing:** capability contracts can declare `checkLiteral` (`src/lib/capabilities/types.ts`), and the policy check reports its problems as `invalid_input` errors (`src/lib/flows/policy.ts`). A bad field list, or a step with neither a schema nor fields, is flagged while editing and blocks publishing, without running anything.
+  - **API:** `POST /api/connections/:id/extract` accepts `fields` as well as `schema`, and the audit now records the field count.
+  - **Copilot API:** a message can be up to 12,000 characters, enough to paste a document sample. Earlier turns are shortened to 4,000 characters and only the latest 20 are kept, so a long paste or a long conversation no longer makes the next request fail. Before this, the panel sent the whole history and the server rejected more than 20 turns or any turn over 4,000 characters.
+- **Why:** the user wants new document types without a developer. People define the fields themselves, or say or paste what they need in chat and Copilot does it for them.
+- **Verified:**
+  - New tests:
+    - `src/lib/extraction/__tests__/custom-fields.test.ts`: list rules, schema building, the editing-time error, a simulated run with own fields;
+    - `src/views/agent-lab/flows/__tests__/ExtractFields.test.tsx`: building a list in the panel, key derivation, Try on a file sends the list, problems shown;
+    - an own-fields case in `src/app/api/connections/__tests__/extract.routes.test.ts`, including numbers parsed from "1,204";
+    - Copilot route cases for a proposed field list, a bad list flagged, a long paste and a long history;
+    - prompt checks in `propose.test.ts`.
+  - **Live check with Grok 4.7** (made-up example): from a pasted six-line list of wanted values for "every report listed", Copilot proposed a step that repeats for each listed report, uses the user's real S3 connection, and reads six fields with sensible types (inspection date as date, deficiency count as number, IMO number as text). The proposal passed validation with no errors.
+- **Not done:** the field list is per step, so it can't yet be saved as a reusable named schema for others. There's no per-field date-order hint for ambiguous dates such as `02/07/1985`.
+
 ## 2026-10-27 — ADR-013: document extraction, Grok directly now, the DATA360 OCR gateway later
 
 - **What:** new `docs/business-ai-studio/adr/ADR-013-document-extraction.md`, which records:

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { FileSearch, Loader2 } from 'lucide-react';
-import { getExtractionSchema } from '@/lib/extraction/schemas';
+import { resolveExtractionSchema } from '@/lib/extraction/schemas';
 import { btn } from './ui';
 
 // "Try on a file" for a document.extract step: reads one real document through the step's
@@ -25,15 +25,24 @@ const field = 'h-8 w-full rounded-lg border border-[var(--line-1)] bg-[var(--sur
 
 export function TryExtraction({ stepId, input, onUseAsSample }: { stepId: string; input: Record<string, unknown>; onUseAsSample: (output: Record<string, unknown>) => void }) {
   const connection = typeof input.connection === 'string' ? input.connection : '';
-  const schemaName = typeof input.schema === 'string' ? input.schema : '';
   const key = typeof input.key === 'string' && !input.key.includes('{{') ? input.key : '';
   const [path, setPath] = useState(key);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  const schema = getExtractionSchema(schemaName);
+  const resolved = resolveExtractionSchema({ schema: input.schema, fields: input.fields });
+  const schema = resolved.ok ? resolved.schema : undefined;
+  // What the API needs: the built-in schema's name, or the step's own field list.
+  const what = Array.isArray(input.fields) ? { fields: input.fields } : { schema: input.schema };
 
-  const missingSetup = !connection || connection === 'CHOOSE_CONNECTION' ? 'Choose a connection first.' : !schema ? 'Choose an extraction schema first.' : null;
+  const missingSetup =
+    !connection || connection === 'CHOOSE_CONNECTION'
+      ? 'Choose a connection first.'
+      : !schema
+        ? Array.isArray(input.fields)
+          ? 'Finish the field list first.'
+          : 'Choose what to read first.'
+        : null;
 
   const run = async () => {
     setBusy(true);
@@ -43,7 +52,7 @@ export function TryExtraction({ stepId, input, onUseAsSample }: { stepId: string
       const res = await fetch(`/api/connections/${encodeURIComponent(connection)}/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: path.trim(), schema: schemaName }),
+        body: JSON.stringify({ path: path.trim(), ...what }),
       });
       const data = (await res.json().catch(() => ({}))) as Result & { error?: string };
       if (!res.ok) setError(data.error ?? `Could not read the file (${res.status})`);
@@ -116,7 +125,7 @@ export function TryExtraction({ stepId, input, onUseAsSample }: { stepId: string
               className={btn.ghost}
               onClick={() => {
                 const { documentType, values, fields, missing } = result;
-                onUseAsSample({ schema: schemaName, documentType, values, fields, missing });
+                onUseAsSample({ schema: schema.name, documentType, values, fields, missing });
               }}
             >
               Use as sample response

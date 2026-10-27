@@ -23,7 +23,10 @@ import {
 } from './editor-model';
 import { StepIcon, btn } from './ui';
 import { TryExtraction } from './TryExtraction';
-import { EXTRACTION_SCHEMAS, getExtractionSchema } from '@/lib/extraction/schemas';
+import { EXTRACTION_SCHEMAS, getExtractionSchema, type CustomField } from '@/lib/extraction/schemas';
+import { ExtractFieldsEditor } from './ExtractFieldsEditor';
+
+const CUSTOM = '__own_fields';
 
 // Side-panel editors over the same JSON definition the API validates: workflow settings, and one
 // step at a time. Every change calls `onChange` with a new definition; validity and policy are
@@ -283,14 +286,29 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
               <ConnectionPicker id={k('connection')} value={typeof c.input?.connection === 'string' ? c.input.connection : ''} onChange={(v) => set({ input: { ...(c.input ?? {}), connection: v } })} />
             </Field>
           )}
-          {c.capability === 'document.extract' && (
-            <Field id={k('schema')} label="What to read" hint={getExtractionSchema(c.input?.schema)?.description}>
-              <select id={k('schema')} className={field} value={typeof c.input?.schema === 'string' ? c.input.schema : ''} onChange={(e) => set({ input: { ...(c.input ?? {}), schema: e.target.value } })}>
-                <option value="">Choose an extraction schema…</option>
-                {EXTRACTION_SCHEMAS.map((x) => <option key={x.name} value={x.name}>{x.title}</option>)}
-              </select>
-            </Field>
-          )}
+          {c.capability === 'document.extract' && (() => {
+            const own = Array.isArray(c.input?.fields);
+            const { schema: _schema, fields: _fields, ...rest } = (c.input ?? {}) as Record<string, unknown>;
+            return (
+              <>
+                <Field id={k('schema')} label="What to read" hint={own ? 'List the fields to read. Grok reads only these, and says "not found" rather than guessing.' : getExtractionSchema(c.input?.schema)?.description}>
+                  <select
+                    id={k('schema')}
+                    className={field}
+                    value={own ? CUSTOM : typeof c.input?.schema === 'string' ? c.input.schema : ''}
+                    onChange={(e) =>
+                      set({ input: e.target.value === CUSTOM ? { ...rest, fields: [{ key: '', label: '', type: 'text', description: '' }] } : { ...rest, ...(e.target.value ? { schema: e.target.value } : {}) } })
+                    }
+                  >
+                    <option value="">Choose what to read…</option>
+                    {EXTRACTION_SCHEMAS.map((x) => <option key={x.name} value={x.name}>{x.title}</option>)}
+                    <option value={CUSTOM}>My own fields…</option>
+                  </select>
+                </Field>
+                {own && <ExtractFieldsEditor id={k('fields')} fields={c.input.fields as CustomField[]} onChange={(fields) => set({ input: { ...rest, fields } })} />}
+              </>
+            );
+          })()}
           <Field id={k('input')} label="Inputs">
             <JsonField id={k('input')} value={c.input ?? {}} onCommit={(v) => set({ input: v })} rows={7} />
           </Field>

@@ -41,6 +41,11 @@ export interface CapabilityDefinition {
   fields: Record<string, CapabilityField>;
   /** Validates the fully resolved input at call time. */
   input: ZodType<Record<string, unknown>>;
+  /**
+   * Checks the saved (unresolved) input when the flow is validated, so a bad literal value is
+   * reported while editing rather than only when a run calls it. Returns problems; empty when fine.
+   */
+  checkLiteral?: (literalInput: Record<string, unknown>) => string[];
   /** List-price estimate per call, used for budgets before anything runs. */
   estimatedCostUsd: number;
   /** `key`: the handler receives an idempotency key and must use it so a retried call has one effect. */
