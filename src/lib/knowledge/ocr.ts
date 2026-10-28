@@ -1,16 +1,25 @@
 import { PDFDocument } from 'pdf-lib';
 
-// Mistral OCR 4 on Azure AI Foundry, for scanned PDF pages and images in knowledge bases (decision
-// 2026-10-27; the same service DATA360's OCR module uses). Text and tables come back as Markdown
+// Mistral OCR 4, for scanned PDF pages and images in knowledge bases (decision 2026-10-27), through
+// ALOFT's own LiteLLM gateway by default or ALOFT's Azure AI Foundry resource. Text and tables come back as Markdown
 // per page. Azure accepts at most 30 pages per request, so longer work is split into batches of up
 // to 30 pages, a few running at once; each batch retries on its own and a batch that still fails
 // only marks its own pages as failed. Page numbers are mapped back to the original document.
 
-export type OcrConfig = { endpoint: string; apiKey: string; model: string; batchPages: number; concurrency: number; timeoutMs: number };
+export type OcrConfig = {
+  /** `litellm`: ALOFT's LiteLLM gateway (`/v1/ocr`); `foundry`: Azure AI Foundry directly. Same request and response shape. */
+  via: 'litellm' | 'foundry';
+  endpoint: string;
+  apiKey: string;
+  model: string;
+  batchPages: number;
+  concurrency: number;
+  timeoutMs: number;
+};
 
 export class OcrUnavailableError extends Error {
   constructor() {
-    super('OCR for scanned pages needs a Mistral OCR endpoint: set KNOWLEDGE_OCR_ENDPOINT and KNOWLEDGE_OCR_API_KEY (or FOUNDRY_ENDPOINT and FOUNDRY_API_KEY)');
+    super('OCR for scanned pages needs Mistral OCR: configure the LiteLLM gateway (llmlite_base_url, llmlite_api_key), or set KNOWLEDGE_OCR_ENDPOINT and KNOWLEDGE_OCR_API_KEY');
     this.name = 'OcrUnavailableError';
   }
 }
@@ -27,18 +36,37 @@ export function resolveOcrEndpoint(raw: string): string {
   return `${ep.replace(/\/openai\/v1$/i, '')}/providers/mistral/azure/ocr`;
 }
 
+/** LiteLLM proxies serve OCR at `<base>/v1/ocr`. */
+export const liteLlmOcrEndpoint = (base: string) => `${base.trim().replace(/\/+$/, '').replace(/\/v1$/i, '')}/v1/ocr`;
+
+/**
+ * Where OCR goes, first match wins:
+ *   1. KNOWLEDGE_OCR_ENDPOINT + KNOWLEDGE_OCR_API_KEY (a Foundry endpoint set on purpose);
+ *   2. ALOFT's LiteLLM gateway (llmlite_base_url + llmlite_api_key), model azure_ai/mistral-ocr-4-0 —
+ *      the default, since calling the Foundry deployment directly returned 503 on 2026-10-28 while
+ *      the gateway answered;
+ *   3. FOUNDRY_ENDPOINT + FOUNDRY_API_KEY, deployment mistral-ocr-4-0.
+ * KNOWLEDGE_OCR_MODEL overrides the model or deployment name in every case.
+ */
 export function ocrConfigFromEnv(): OcrConfig | null {
-  const endpoint = process.env.KNOWLEDGE_OCR_ENDPOINT?.trim() || process.env.FOUNDRY_ENDPOINT?.trim();
-  const apiKey = process.env.KNOWLEDGE_OCR_API_KEY?.trim() || process.env.FOUNDRY_API_KEY?.trim();
-  if (!endpoint || !apiKey) return null;
-  return {
-    endpoint: resolveOcrEndpoint(endpoint),
-    apiKey,
-    model: process.env.KNOWLEDGE_OCR_MODEL?.trim() || 'mistral-ocr-4-0',
+  const env = (name: string) => process.env[name]?.trim() || process.env[name.toLowerCase()]?.trim() || '';
+  const limits = {
     batchPages: intEnv('KNOWLEDGE_OCR_BATCH_PAGES', 30, 1, 30),
     concurrency: intEnv('KNOWLEDGE_OCR_CONCURRENCY', 2, 1, 8),
     timeoutMs: intEnv('KNOWLEDGE_OCR_TIMEOUT_MS', 180_000, 10_000, 600_000),
   };
+  const model = (fallback: string) => env('KNOWLEDGE_OCR_MODEL') || fallback;
+
+  if (env('KNOWLEDGE_OCR_ENDPOINT') && env('KNOWLEDGE_OCR_API_KEY')) {
+    return { via: 'foundry', endpoint: resolveOcrEndpoint(env('KNOWLEDGE_OCR_ENDPOINT')), apiKey: env('KNOWLEDGE_OCR_API_KEY'), model: model('mistral-ocr-4-0'), ...limits };
+  }
+  if (env('LLMLITE_BASE_URL') && env('LLMLITE_API_KEY')) {
+    return { via: 'litellm', endpoint: liteLlmOcrEndpoint(env('LLMLITE_BASE_URL')), apiKey: env('LLMLITE_API_KEY'), model: model('azure_ai/mistral-ocr-4-0'), ...limits };
+  }
+  if (env('FOUNDRY_ENDPOINT') && env('FOUNDRY_API_KEY')) {
+    return { via: 'foundry', endpoint: resolveOcrEndpoint(env('FOUNDRY_ENDPOINT')), apiKey: env('FOUNDRY_API_KEY'), model: model('mistral-ocr-4-0'), ...limits };
+  }
+  return null;
 }
 
 type OcrResponse = { pages?: { index?: number; markdown?: string }[] };
@@ -49,7 +77,8 @@ async function postOcr(cfg: OcrConfig, document: Record<string, string>, fetchIm
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetchImpl(cfg.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}`, 'api-key': cfg.apiKey },
+      // LiteLLM takes a bearer key; Azure Foundry takes `api-key` (and accepts the bearer form too).
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}`, ...(cfg.via === 'foundry' ? { 'api-key': cfg.apiKey } : {}) },
       body: JSON.stringify({ model: cfg.model, document, include_image_base64: false }),
       signal: AbortSignal.timeout(cfg.timeoutMs),
     }).catch((e: unknown) => ({ ok: false, status: 0, text: async () => (e instanceof Error ? e.message : String(e)) }) as Response);

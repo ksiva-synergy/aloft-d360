@@ -1,6 +1,8 @@
 # ADR-013 — Document extraction: Grok directly now, the DATA360 OCR gateway later
 
-**Status:** Accepted (provisional) · **Date:** 2026-10-27 · **Decided by:** the product owner, in the Automate build session
+**Status:** Accepted (provisional); options B and C withdrawn on 2026-10-28 · **Date:** 2026-10-27 · **Decided by:** the product owner, in the Automate build session
+
+> **Update 2026-10-28 — ALOFT and DATA360 stay separate.** The product owner decided the two applications must not be connected or share anything: no calls between them, no shared settings, keys or logs. Options B and C below (using the DATA360 OCR gateway) will not be pursued; the analysis is kept only as a record. ALOFT reads documents itself, with its own settings: Grok for Automate's "Extract document fields", and pdf-inspector plus Mistral OCR on ALOFT's own Azure AI Foundry resource (`FOUNDRY_ENDPOINT`) for knowledge bases.
 
 ## Context
 

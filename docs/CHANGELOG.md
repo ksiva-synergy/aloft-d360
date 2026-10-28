@@ -2,6 +2,22 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-28 — Knowledge OCR through ALOFT's LiteLLM gateway; ALOFT and DATA360 kept separate
+
+- **What:**
+  - **Where OCR requests go** (`src/lib/knowledge/ocr.ts`): knowledge-base OCR now prefers ALOFT's own LiteLLM gateway (`llmlite_base_url` / `llmlite_api_key`; `POST <base>/v1/ocr`, model `azure_ai/mistral-ocr-4-0`, bearer key). Order of preference:
+    1. `KNOWLEDGE_OCR_ENDPOINT` + `KNOWLEDGE_OCR_API_KEY`, if set on purpose;
+    2. the gateway;
+    3. `FOUNDRY_ENDPOINT` + `FOUNDRY_API_KEY` (deployment `mistral-ocr-4-0`).
+    `KNOWLEDGE_OCR_MODEL` overrides the model name. The `api-key` header is now sent only to Foundry.
+  - **ADR-013:** the options to use the DATA360 OCR gateway are withdrawn. The product owner decided ALOFT and DATA360 must stay separate (no calls, settings, keys or logs shared).
+  - **`ocr.ts` comment:** the reference to DATA360 is removed.
+- **Why:** calling the Mistral OCR deployment on ALOFT's Foundry resource (`aif-synde-eastus2`) directly kept failing on 2026-10-27/28. It returned 503 "temporary_upstream_failure … getting deployment headers" for every host, body format, header style and api-version tried. The key itself is valid: an embedding call on the same resource returned 200. The same model through the gateway answered at once.
+- **Verified:**
+  - Tests: endpoint selection order, gateway endpoint building, and the headers sent per route.
+  - **Live** (made-up content): a 36-page PDF with 1 digital page and 35 image-only scanned pages, read end to end through `readDocument` and the gateway. It took 9.2 s and 2 OCR requests (30 + 5 pages), with every scanned page's text on the right page, including both sides of the batch boundary (pages 31 and 32), and no failures.
+- **Not done:** the direct Foundry route remains as the last fallback. Its 503 is outside ALOFT's control.
+
 ## 2026-10-28 — Knowledge bases, Phase 0: tables, file readers, OCR in batches, Titan-only embedding, jobs, hybrid search
 
 - **What** (plan in the claude.ai doc "ALOFT knowledge bases — plan"; decisions taken 2026-10-27):

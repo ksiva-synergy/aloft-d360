@@ -8,7 +8,7 @@ import { PDFDocument } from 'pdf-lib';
 import { makePdf } from '@/lib/extraction/__tests__/pdf-fixture';
 import { markdownToBlocks } from '../markdown';
 import { clauseHeading, splitBlocks } from '../split';
-import { ocrConfigFromEnv, ocrPdfPages, resolveOcrEndpoint, type OcrConfig } from '../ocr';
+import { liteLlmOcrEndpoint, ocrConfigFromEnv, ocrPdfPages, resolveOcrEndpoint, type OcrConfig } from '../ocr';
 
 describe('markdown', () => {
   it('turns headings, paragraphs, lists and tables into blocks', () => {
@@ -86,7 +86,7 @@ describe('splitBlocks', () => {
 });
 
 describe('Mistral OCR', () => {
-  const cfg: OcrConfig = { endpoint: 'https://f.example.com/providers/mistral/azure/ocr', apiKey: 'secret-key', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2, timeoutMs: 10_000 };
+  const cfg: OcrConfig = { via: 'foundry', endpoint: 'https://f.example.com/providers/mistral/azure/ocr', apiKey: 'secret-key', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2, timeoutMs: 10_000 };
   const pageCountOf = async (dataUrl: string) => (await PDFDocument.load(Buffer.from(dataUrl.split(',')[1]!, 'base64'))).getPageCount();
 
   it('splits 65 pages into batches of 30, 30 and 5 and maps text back to the original pages', { timeout: 60_000 }, async () => {
@@ -147,17 +147,43 @@ describe('Mistral OCR', () => {
     expect(r.errors[0]).toMatch(/Mistral OCR failed \(400\): .*document too large/);
   });
 
-  it('builds the endpoint from either the Foundry base or the deployment URI, and reads its settings from env', () => {
+  it('builds the endpoint from either the Foundry base or the deployment URI', () => {
     expect(resolveOcrEndpoint('https://x.services.ai.azure.com/openai/v1/')).toBe('https://x.services.ai.azure.com/providers/mistral/azure/ocr');
     expect(resolveOcrEndpoint('https://x.services.ai.azure.com/providers/mistral/azure/ocr')).toBe('https://x.services.ai.azure.com/providers/mistral/azure/ocr');
-    vi.stubEnv('KNOWLEDGE_OCR_ENDPOINT', '');
-    vi.stubEnv('KNOWLEDGE_OCR_API_KEY', '');
+    expect(liteLlmOcrEndpoint('https://aigw.example.com/')).toBe('https://aigw.example.com/v1/ocr');
+    expect(liteLlmOcrEndpoint('https://aigw.example.com/v1')).toBe('https://aigw.example.com/v1/ocr');
+  });
+
+  it('prefers an explicit endpoint, then the LiteLLM gateway, then Foundry', () => {
+    const clear = () => ['KNOWLEDGE_OCR_ENDPOINT', 'KNOWLEDGE_OCR_API_KEY', 'KNOWLEDGE_OCR_MODEL', 'LLMLITE_BASE_URL', 'LLMLITE_API_KEY', 'llmlite_base_url', 'llmlite_api_key', 'FOUNDRY_ENDPOINT', 'FOUNDRY_API_KEY'].forEach((n) => vi.stubEnv(n, ''));
+    clear();
     vi.stubEnv('FOUNDRY_ENDPOINT', 'https://y.services.ai.azure.com');
-    vi.stubEnv('FOUNDRY_API_KEY', 'k');
+    vi.stubEnv('FOUNDRY_API_KEY', 'fk');
     vi.stubEnv('KNOWLEDGE_OCR_BATCH_PAGES', '50');
-    expect(ocrConfigFromEnv()).toMatchObject({ endpoint: 'https://y.services.ai.azure.com/providers/mistral/azure/ocr', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2 });
-    vi.stubEnv('FOUNDRY_API_KEY', '');
+    expect(ocrConfigFromEnv()).toMatchObject({ via: 'foundry', endpoint: 'https://y.services.ai.azure.com/providers/mistral/azure/ocr', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2 });
+    // The gateway wins over Foundry; ALOFT's .env uses the lower-case names.
+    vi.stubEnv('llmlite_base_url', 'https://aigw.example.com/');
+    vi.stubEnv('llmlite_api_key', 'lk');
+    expect(ocrConfigFromEnv()).toMatchObject({ via: 'litellm', endpoint: 'https://aigw.example.com/v1/ocr', apiKey: 'lk', model: 'azure_ai/mistral-ocr-4-0' });
+    vi.stubEnv('KNOWLEDGE_OCR_ENDPOINT', 'https://z.services.ai.azure.com');
+    vi.stubEnv('KNOWLEDGE_OCR_API_KEY', 'zk');
+    vi.stubEnv('KNOWLEDGE_OCR_MODEL', 'my-ocr');
+    expect(ocrConfigFromEnv()).toMatchObject({ via: 'foundry', endpoint: 'https://z.services.ai.azure.com/providers/mistral/azure/ocr', model: 'my-ocr' });
+    clear();
     expect(ocrConfigFromEnv()).toBeNull();
     vi.unstubAllEnvs();
+  });
+
+  it('sends a bearer key only to the gateway, and the api-key header too to Foundry', async () => {
+    const pdf = makePdf(['x']);
+    const seen: Record<string, string>[] = [];
+    const fetchImpl = vi.fn(async (_u: string, init: RequestInit) => {
+      seen.push(init.headers as Record<string, string>);
+      return new Response(JSON.stringify({ pages: [{ index: 0, markdown: 'x' }] }), { status: 200 });
+    });
+    await ocrPdfPages(pdf, [0], 1, { ...cfg, via: 'litellm' }, fetchImpl as never);
+    await ocrPdfPages(pdf, [0], 1, cfg, fetchImpl as never);
+    expect(seen[0]).toEqual({ 'Content-Type': 'application/json', Authorization: 'Bearer secret-key' });
+    expect(seen[1]).toEqual({ 'Content-Type': 'application/json', Authorization: 'Bearer secret-key', 'api-key': 'secret-key' });
   });
 });

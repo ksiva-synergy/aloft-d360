@@ -10,7 +10,7 @@ import { OcrUnavailableError, type OcrConfig } from '../ocr';
 import { UnreadableDocumentError } from '../blocks';
 import { makeDocx, makePptx, makeXlsx } from './office-fixtures';
 
-const ocr: OcrConfig = { endpoint: 'https://foundry.example.com/providers/mistral/azure/ocr', apiKey: 'k', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2, timeoutMs: 10_000 };
+const ocr: OcrConfig = { via: 'foundry', endpoint: 'https://foundry.example.com/providers/mistral/azure/ocr', apiKey: 'k', model: 'mistral-ocr-4-0', batchPages: 30, concurrency: 2, timeoutMs: 10_000 };
 const noOcr = { ocr: null };
 
 describe('Word', () => {
