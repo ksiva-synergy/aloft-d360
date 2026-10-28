@@ -354,7 +354,7 @@ Slack notify, event triggers, canvas view (`@xyflow/react`, `dagre`), branching,
 
 ## 16. Rollout
 
-- Feature flag `FLOWS_ENABLED` (env, default off) hides navigation and routes until Phase 1 is accepted.
+- Feature flag `FLOWS_ENABLED` was removed (2026-10-28); Automate APIs are always on; access is gated by auth + `inspector:use` only.
 - Migration is applied manually per repo convention (`prisma db execute`, then `prisma migrate resolve --applied`), dev first, then staging; it only creates tables so rollback is dropping them.
 - Pilot with one team and 2–3 flows; review run history and cost weekly before opening wider.
 - Docs to update on each phase: `docs/CHANGELOG.md` (required by `CLAUDE.md`), `ARCHITECTURE.md` (new subsystem section), `docs/api-routes.generated.md` (regenerate), this file's status lines.

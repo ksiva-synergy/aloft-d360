@@ -5,6 +5,131 @@
 
 ---
 
+### 2026-10-28 — Embeddings inactive / T0 drops doc
+
+- **Files:** `embeddings-lifecycle-and-drops.md`, README, `current-status.md`, `redundancy-and-skip-behavior.md`, CHANGELOG.
+- **Why:** Explain mass “inactive embedding” behavior (object dropped, search excludes).
+
+---
+
+### 2026-10-28 — Tier timestamps / staleness doc
+
+- **Files:** `tier-timestamps-and-staleness.md`, `README.md`, `current-status.md`, `redundancy-and-skip-behavior.md`, `CHANGELOG.md`.
+- **Why:** Document `last_t1_at < last_t0_at` and ladder for understanding.
+
+---
+
+### 2026-10-28 — Efficient pipeline playbook + brainstorm
+
+- **Files:** `efficient-pipeline-playbook.md`, `schema-harvest-guide.md`, `README.md`, `redundancy-and-skip-behavior.md`, `CHANGELOG.md`.
+- **Why:** Golden paths and prioritized ideas for non-redundant harvest craft.
+
+---
+
+### 2026-10-28 — Redundancy / stale-skip operator doc
+
+- **Files:** `docs/jobs/redundancy-and-skip-behavior.md` (new), `README.md`, `current-status.md`, `versioning-and-incremental.md`, `CHANGELOG.md`.
+- **Why:** Detailed documentation for when tiers skip work vs when orchestration still runs jobs.
+
+---
+
+- **Change:** Wizard enabled unless `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=false` (`job-ui.ts`, jobs README/current-status).
+- **Why:** Product default should not require a secret env to turn on Phase 4 UX.
+
+---
+
+### 2026-10-28 — Phase 4 guided wizard + scope copy (Cursor)
+
+- **Files:** `JobsLaunchWizard.tsx`, `JobsCockpitPanel.tsx`, `jobs.tsx`, `job-ui.ts`, `JobDetailDrawer.tsx`, `ActiveRunsPanel.tsx`; docs.
+- **Enable:** set `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=true` in env and restart dev server.
+- **Verified:** tsc.
+
+---
+
+### 2026-10-28 — Active Runs filters + multi Continue (Phase 2–3, Cursor)
+
+- **Files:** `ActiveRunsPanel.tsx`, `jobs.tsx`, `ScannedFacetTree.tsx`, `ScannedObjectsTab.tsx`, `ScannedPipelineScopeBar.tsx`, `pipeline/intent/route.ts`, `pipeline/continue/route.ts`; docs.
+- **Verified:** `npx tsc --noEmit`.
+- **Not done:** Phase 4 wizard; Phase 0 ECS sign-off.
+
+---
+
+### 2026-10-28 — Phase 0 doc + Phase 1–3 continuation (planned order, Cursor)
+
+- **Issues:** DET-2592 — continue master plan phases 0→3 without Jira updates.
+- **Files:** `docs/jobs/phase-0-chain-deploy.md`, `README.md`, `remediation-master-plan.md`; `pipeline-intent.ts`, `cockpit/route.ts`, `plan/route.ts`, `launch/route.ts`, `jobs/kick-queued/route.ts`, `reads.ts` (facets + tier gaps), `ActiveRunsPanel.tsx`, `ScannedPipelineScopeBar.tsx`, `ScannedFacetTree.tsx`, `ScannedObjectsTab.tsx`, `BulkActionBar.tsx`; `CHANGELOG.md`, `session-log.md`, `current-status.md`.
+- **Before → after:** Ops have deploy/runbook doc; cockpit and plan honor scoped intent/stale copy; Active Runs is a fuller ops desk; Scanned tree/tiers show **gaps** not only completed tiers; overlap blocks Continue with banner.
+- **Verified:** vitest + tsc.
+- **Not done:** ECS deploy verification; partial filter for orchestrating; multi-schema Continue; wizard (Phase 4).
+
+```text
+[x] docs/jobs/session-log.md updated
+[x] docs/CHANGELOG.md updated
+[x] docs/jobs/current-status.md updated
+```
+
+---
+
+### 2026-10-28 — Pipeline intent, Active Runs, Scanned Continue (Phase 1–2 partial, Cursor)
+
+- **Issues:** DET-2592 implementation start (repo only — no Jira updates).
+- **Files:** `src/lib/estate/pipeline-intent.ts`, `src/lib/context/active-jobs.ts`, `src/lib/context/enqueue-and-launch.ts` (`findScopedLaunchConflict`), `src/lib/context/job-scope.ts` (`includePatternsOverlap`), API routes under `context/pipeline/*` and `context/jobs/active`, `jobs/plan`, `jobs/launch`; UI `ActiveRunsPanel`, `ScannedPipelineScopeBar`, `jobs.tsx` tab + queued strip link; tests `pipeline-intent.test.ts`, `job-scope.test.ts`; docs below.
+- **Before → after:** Operators can open **Active Runs**, kick queued rows, continue pipeline from Scanned catalog/schema scope; launch rejects overlapping active jobs (409); T1/T2 plan shows stale counts.
+- **Verified:** Vitest on intent helpers + pattern overlap; typecheck.
+- **Not done:** Harvester deploy (Phase 0); cancel on Active Runs; failed/partial filters; cockpit intent delegation; launch conflict in continue-only path (client calls launch).
+
+```text
+[x] docs/jobs/session-log.md updated
+[x] docs/CHANGELOG.md updated
+[x] docs/jobs/current-status.md updated (behavior)
+```
+
+---
+
+### 2026-10-28 — Master remediation plan DET-2592 (Cursor)
+
+- **Issues:** User request — brainstorm and plan to fix all Estate Jobs / ops / pipeline gaps.
+- **Files:** `docs/jobs/remediation-master-plan.md` (new), `docs/jobs/README.md`, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`, `session-log.md`.
+- **Before → after:** Phases 0–5 (deploy/chain, pipeline intent, Active runs UI, Scanned Continue, wizard, audit remainder), PR bundles A–I, verification matrix, timeline. No code.
+- **Verified:** Crosswalk to OPS-1–14, audit §0, scanned-continue + ops docs.
+- **Not done:** Execute phases.
+
+---
+
+### 2026-10-28 — Ops console gaps + Active runs vision (Cursor)
+
+- **Issues:** DET-2592 — need one place to see running/failed/stuck harvest jobs; operator asked for gap analysis beyond pipeline UX.
+- **Files:** `docs/jobs/ops-console-gaps-and-vision.md` (new), `docs/estate-jobs.md`, `docs/jobs/README.md`, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`, `session-log.md`.
+- **Before → after:** Documented today’s monitoring path (Jobs L1→L3, kick/retry/cancel), OPS-1–OPS-14 gap register, proposed **Active runs** tab + `GET jobs/active` sketch, acceptance criteria. No runtime change.
+- **Verified:** Cross-check with `jobs/queued`, `JobDetailDrawer`, `ChildJobsPanel`, `listJobsPage` status filter unused in UI.
+- **Not done:** Build Active runs UI/API.
+
+```text
+[x] docs/jobs/session-log.md updated
+[x] docs/CHANGELOG.md updated
+```
+
+---
+
+### 2026-10-28 — Scanned Continue pipeline design doc (Cursor)
+
+- **Issues:** DET-2592 / operator need to run T1→T2→embed from Scanned when only T0 complete; tier chips and catalog **Run pipeline now** do not match that flow.
+- **Files:** `docs/jobs/scanned-continue-pipeline-design.md` (new), `docs/jobs/README.md`, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`, `session-log.md`.
+- **Before → after:** Design captured for pipeline intent API, Scanned UX (Continue vs full pipeline), multi-schema/table selection, reliability guardrails, phased rollout, acceptance criteria. No runtime change.
+- **Verified:** Doc review; links from jobs index and current-status §6.
+- **Not done:** Implementation (phases 1–6 in design doc).
+
+```text
+[x] Read docs/jobs/current-status.md
+[x] Identified issue IDs (if any) — UX/planned (DET-2592)
+[x] Code/docs change complete
+[x] docs/CHANGELOG.md updated
+[x] docs/jobs/session-log.md updated
+[ ] docs/jobs/current-status.md updated (if behavior changed) — link only, no behavior change
+```
+
+---
+
 ### 2026-10-27 — Schema Run now stopped after T0 (Cursor)
 
 - **Issues:** Catalog **Run pipeline now** did not continue T0 → T1 → T2 → embed. Operator reported only profile; DB showed T0 succeeded and T1 queued with no `fargate_task_id`.

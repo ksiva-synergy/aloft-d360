@@ -12,18 +12,32 @@ interface FacetSchema {
   catalog: string;
   name: string;
   count: number;
+  needs_profile?: number;
+  needs_enrich?: number;
+  needs_embed?: number;
 }
 
 interface ScannedFacetTreeProps {
   selectedCatalog?: string;
   selectedSchema?: string;
+  pipelineSchemaKeys?: Set<string>;
+  onTogglePipelineSchema?: (catalog: string, schema: string) => void;
   onSelect: (catalog?: string, schema?: string) => void;
   total: number;
   refreshKey?: number;
   showTestSources?: boolean;
 }
 
-export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSelect, total, refreshKey = 0, showTestSources = false }: ScannedFacetTreeProps) {
+export default function ScannedFacetTree({
+  selectedCatalog,
+  selectedSchema,
+  pipelineSchemaKeys,
+  onTogglePipelineSchema,
+  onSelect,
+  total,
+  refreshKey = 0,
+  showTestSources = false,
+}: ScannedFacetTreeProps) {
   const [catalogs, setCatalogs] = useState<FacetCatalog[]>([]);
   const [schemas, setSchemas] = useState<FacetSchema[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -93,6 +107,11 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
           <span>Databases</span>
           <span>{catalogs.length}</span>
         </div>
+        {onTogglePipelineSchema && (
+          <p className="px-5 pb-2 text-[10px] font-mono" style={{ color: textDim }}>
+            Check schemas for multi-schema Continue
+          </p>
+        )}
 
         {/* All databases */}
         <button
@@ -161,12 +180,27 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                     <div className="pl-9">
                       {catSchemas.map(sch => {
                         const schActive = selectedCatalog === cat.name && selectedSchema === sch.name;
+                        const pipeKey = `${cat.name}.${sch.name}`;
+                        const pipeChecked = pipelineSchemaKeys?.has(pipeKey) ?? false;
                         return (
-                          <button
+                          <div
                             key={sch.name}
+                            className="flex items-center gap-1 px-1 py-[3px]"
+                          >
+                            {onTogglePipelineSchema && (
+                              <input
+                                type="checkbox"
+                                checked={pipeChecked}
+                                onChange={() => onTogglePipelineSchema(cat.name, sch.name)}
+                                onClick={e => e.stopPropagation()}
+                                className="shrink-0 cursor-pointer"
+                                title="Include in Continue pipeline"
+                              />
+                            )}
+                            <button
                             type="button"
                             onClick={() => onSelect(cat.name, sch.name)}
-                            className="w-full flex items-center gap-2 text-left px-3 py-[5px] truncate transition-colors"
+                            className="flex-1 flex items-center gap-2 text-left px-2 py-[5px] truncate transition-colors"
                             style={{
                               fontFamily: 'var(--font-mono)',
                               fontSize: 'var(--type-ui-regular-size)',
@@ -175,11 +209,21 @@ export default function ScannedFacetTree({ selectedCatalog, selectedSchema, onSe
                             }}
                             onMouseEnter={e => { if (!schActive) e.currentTarget.style.backgroundColor = hoverBg; }}
                             onMouseLeave={e => { if (!schActive) e.currentTarget.style.backgroundColor = schActive ? activeBg : 'transparent'; }}
-                            title={sch.name}
+                            title={
+                              sch.needs_profile || sch.needs_enrich || sch.needs_embed
+                                ? `${sch.name} — ${sch.needs_profile ?? 0} need profile, ${sch.needs_enrich ?? 0} enrich, ${sch.needs_embed ?? 0} embed`
+                                : sch.name
+                            }
                           >
                             <span className="truncate flex-1">{sch.name}</span>
-                            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim }}>{sch.count}</span>
+                            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: textDim }}>
+                              {sch.count}
+                              {(sch.needs_profile ?? 0) > 0 && (
+                                <span style={{ color: '#86EFAC', marginLeft: 4 }}>+{sch.needs_profile}</span>
+                              )}
+                            </span>
                           </button>
+                          </div>
                         );
                       })}
                     </div>

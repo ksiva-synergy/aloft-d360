@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from '@/lib/navigation';
 import ScannedFacetTree from './ScannedFacetTree';
+import ScannedPipelineScopeBar, {
+  MAX_CONTINUE_SCHEMAS,
+  MAX_CONTINUE_TABLES,
+} from './ScannedPipelineScopeBar';
 import Pagination from './Pagination';
+import { schemaIncludePattern } from '@/lib/estate/catalog-pipeline';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { type } from '@/lib/typography/tokens';
@@ -90,10 +95,10 @@ const TIER_COLORS = {
 } as const;
 
 const TIER_LABELS: Record<keyof typeof TIER_COLORS, string> = {
-  t0: 'T0 Structural — schema, columns, row counts',
-  t1: 'T1 Profile — statistical column profiling',
-  t2: 'T2 Semantic — AI summaries and PII detection',
-  embed: 'Embed — tables with object-level vectors (column vectors shown separately)',
+  t0: 'T0 Structural — scanned tables (no T1 yet)',
+  t1: 'Needs profile — stale vs latest T0',
+  t2: 'Needs enrich — stale vs latest profile',
+  embed: 'Needs embed — scanned tables missing object vectors',
   t3: 'T3 Connected — usage analysis and cross-object connections',
   t4: 'T4 Modelled — entity + dimension proposals generated',
 };
@@ -173,6 +178,8 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
   const [embeddingTotals, setEmbeddingTotals] = useState<ScannedEmbeddingTotals | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchVal, setSearchVal] = useState('');
+  const [pipelineSchemaKeys, setPipelineSchemaKeys] = useState<Set<string>>(new Set());
+  const [selectedTablePaths, setSelectedTablePaths] = useState<Set<string>>(new Set());
 
   const [filters, setFilters] = useState<ScannedFilterState>({
     catalog: undefined,
@@ -183,6 +190,38 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
     page: 1,
     pageSize: 50,
   });
+
+  const pipelineIncludePatterns = useMemo(() => {
+    if (selectedTablePaths.size > 0) return [...selectedTablePaths];
+    if (pipelineSchemaKeys.size > 0) {
+      return [...pipelineSchemaKeys].map(key => {
+        const dot = key.indexOf('.');
+        if (dot <= 0) return key;
+        return schemaIncludePattern(key.slice(0, dot), key.slice(dot + 1));
+      });
+    }
+    if (filters.catalog && filters.schema) {
+      return [schemaIncludePattern(filters.catalog, filters.schema)];
+    }
+    if (filters.catalog) return [`${filters.catalog}.*`];
+    return [];
+  }, [pipelineSchemaKeys, selectedTablePaths, filters.catalog, filters.schema]);
+
+  const pipelineScopeLabel = useMemo(() => {
+    if (selectedTablePaths.size > 0) return `${selectedTablePaths.size} table(s)`;
+    if (pipelineSchemaKeys.size > 0) return `${pipelineSchemaKeys.size} schema(s)`;
+    if (filters.catalog && filters.schema) return `${filters.catalog}.${filters.schema}`;
+    if (filters.catalog) return filters.catalog;
+    return undefined;
+  }, [selectedTablePaths, pipelineSchemaKeys, filters.catalog, filters.schema]);
+
+  const pipelineCatalog = useMemo(() => {
+    if (pipelineSchemaKeys.size > 0) {
+      const first = [...pipelineSchemaKeys][0];
+      return first?.split('.')[0];
+    }
+    return filters.catalog;
+  }, [pipelineSchemaKeys, filters.catalog]);
 
   const inkColor = 'var(--estate-ink)';
   const labelColor = 'var(--estate-text-secondary)';
@@ -251,6 +290,33 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
     setFilters(prev => ({ ...prev, catalog, schema, page: 1 }));
   }, []);
 
+  const handleTogglePipelineSchema = useCallback((catalog: string, schema: string) => {
+    const key = `${catalog}.${schema}`;
+    setSelectedTablePaths(new Set());
+    setPipelineSchemaKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else {
+        if (next.size >= MAX_CONTINUE_SCHEMAS) return prev;
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleTablePath = useCallback((fullPath: string) => {
+    setPipelineSchemaKeys(new Set());
+    setSelectedTablePaths(prev => {
+      const next = new Set(prev);
+      if (next.has(fullPath)) next.delete(fullPath);
+      else {
+        if (next.size >= MAX_CONTINUE_TABLES) return prev;
+        next.add(fullPath);
+      }
+      return next;
+    });
+  }, []);
+
   const handleFilterChange = useCallback((updates: Partial<ScannedFilterState>) => {
     setFilters(prev => ({ ...prev, ...updates, page: 1 }));
   }, []);
@@ -289,6 +355,8 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
       <ScannedFacetTree
         selectedCatalog={filters.catalog}
         selectedSchema={filters.schema}
+        pipelineSchemaKeys={pipelineSchemaKeys}
+        onTogglePipelineSchema={handleTogglePipelineSchema}
         onSelect={handleFacetSelect}
         total={total}
         refreshKey={refreshKey}
@@ -296,6 +364,22 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
       />
 
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {(pipelineIncludePatterns.length > 0 || filters.catalog) && (
+        <ScannedPipelineScopeBar
+          catalog={pipelineCatalog}
+          schema={pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? undefined : filters.schema}
+          includePatterns={
+            pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? pipelineIncludePatterns : undefined
+          }
+          scopeLabel={pipelineScopeLabel}
+          sourceId={sourceFilter && sourceFilter !== 'All' ? sourceFilter : undefined}
+          onLaunched={() => {
+            fetchObjects();
+            setPipelineSchemaKeys(new Set());
+            setSelectedTablePaths(new Set());
+          }}
+        />
+        )}
         {/* Filter / search bar */}
         <div
           className="flex items-center gap-3 px-6 py-3.5 flex-wrap"
@@ -383,6 +467,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 className="sticky top-0 z-10 border-b select-none"
                 style={{ backgroundColor: thBg, borderColor }}
               >
+        <th className="p-3 text-label w-8" style={{ color: labelColor }} />
         <th className="p-3 text-label " style={{ color: labelColor }}>Object Path</th>
         <th className="p-3 text-label w-28" style={{ color: labelColor }}>Kind</th>
         <th className="p-3 text-label w-32" style={{ color: labelColor }}>Source</th>
@@ -405,7 +490,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-16 text-center">
+                  <td colSpan={7} className="p-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <span className="text-size-title-section opacity-40 font-mono">◆</span>
            <span className="text-label " style={{ color: labelColor }}>
@@ -430,6 +515,14 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150"
                   onClick={() => router.push(`/agent-lab/estate/object/${obj.id}`)}
                 >
+                  <td className="p-3 text-center" onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedTablePaths.has(obj.full_path)}
+                      onChange={() => toggleTablePath(obj.full_path)}
+                      title="Include in Continue pipeline"
+                    />
+                  </td>
                   <td className="p-3 font-mono text-size-ui max-w-[280px]">
                     <span
                       style={{ color: inkColor }}

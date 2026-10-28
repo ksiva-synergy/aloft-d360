@@ -22,6 +22,7 @@ export type { UsageSnapshot } from './UsagePanel';
 export { default as JobDetailDrawer, mapJobStatus } from './JobDetailDrawer';
 export { default as LogStreamPanel } from './LogStreamPanel';
 export { ScannedObjectsTab } from './ScannedObjectsTab';
+export { default as ActiveRunsPanel } from './ActiveRunsPanel';
 export { default as LifecycleBadge, computeLifecycle } from './LifecycleBadge';
 export { default as EstateFacetTree } from './EstateFacetTree';
 export { default as EstateFilterBar } from './EstateFilterBar';

@@ -8,6 +8,7 @@ import {
   pathToIncludePattern,
   resolveEffectiveScope,
   schemaMatchesIncludePatterns,
+  includePatternsOverlap,
   statementReferencesObject,
   usesEstateObjectPlan,
 } from './job-scope';
@@ -102,5 +103,15 @@ describe('job-scope', () => {
         excludeSchemas: ['curated_db.a'],
       }),
     ).toBe(false);
+  });
+
+  it('includePatternsOverlap treats empty as full source', () => {
+    expect(includePatternsOverlap([], ['a.b.*'])).toBe(true);
+    expect(includePatternsOverlap(['a.b.*'], [])).toBe(true);
+  });
+
+  it('includePatternsOverlap detects nested catalog globs', () => {
+    expect(includePatternsOverlap(['curated_db.*'], ['curated_db.foo.*'])).toBe(true);
+    expect(includePatternsOverlap(['curated_db.foo.*'], ['curated_db.bar.*'])).toBe(false);
   });
 });

@@ -97,7 +97,7 @@ export default function BulkActionBar({
                 opacity: pipelineRunning ? 0.6 : 1,
               }}
             >
-              {pipelineRunning ? 'Launching…' : 'Run pipeline now'}
+              {pipelineRunning ? 'Launching…' : 'Run full pipeline (from T0)'}
             </button>
           )}
           {onRunScheduled && (

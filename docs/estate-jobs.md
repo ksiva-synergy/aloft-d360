@@ -74,3 +74,11 @@
 3. Confirm **Scanned & beyond**.
 4. **T1** with same Focus (or T0→T1 sequential chain).
 5. For large runs: read **chunk count** in launch modal before confirming.
+
+## Managing runs (monitoring & recovery)
+
+**Full guide and gap list:** [jobs/ops-console-gaps-and-vision.md](./jobs/ops-console-gaps-and-vision.md)
+
+**Quick path:** **Estate → Jobs → Job Types** — cockpit strip, **Active** stat, **queued** strip, then drill **kind → date → run**. Use drawer **Launch** (queued only), **Retry failed** (split parents), **Child jobs** for chunks. **Scanned** tab does not list jobs.
+
+There is **no single “all active runs” list yet** (planned: **Active runs** tab). Chain follow-ups (e.g. T1 queued after T0) may need kick or web poller on `GET …/jobs/queued`.

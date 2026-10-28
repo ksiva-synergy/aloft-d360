@@ -34,6 +34,18 @@ export function pathMatchesIncludePatterns(fullPath: string, patterns: string[])
   return patterns.some(pat => minimatch(fullPath, pat, { dot: true }));
 }
 
+/** True when two Focus glob sets could match the same table path. */
+export function includePatternsOverlap(a: string[], b: string[]): boolean {
+  if (a.length === 0 || b.length === 0) return true;
+  for (const pa of a) {
+    for (const pb of b) {
+      if (pa === pb) return true;
+      if (minimatch(pa, pb, { dot: true }) || minimatch(pb, pa, { dot: true })) return true;
+    }
+  }
+  return false;
+}
+
 /** Modal exclude tree uses `catalog.schema` keys (schema-only keys supported for legacy). */
 export function isSchemaExcluded(catalog: string, schema: string, excludeSchemas: string[]): boolean {
   if (!excludeSchemas.length) return false;

@@ -9,7 +9,7 @@ import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { proposeFlowEdit, type CopilotAgent, type CopilotConnection, type CopilotKnowledgeBase } from '@/lib/flows-copilot/propose';
 import { listConnections } from '@/lib/connections/service';
 import { listCatalogAgents } from '@/lib/agents/catalog';
-import { assertFlowsEnabled, estimateAgentCostUsd, flowsRequestContext } from '../_shared';
+import { estimateAgentCostUsd, flowsRequestContext } from '../_shared';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -36,7 +36,6 @@ const body = z.object({
  * One repair attempt is made when the proposed edits cannot be applied or do not validate.
  */
 export const POST = handle(async (req) => {
-  assertFlowsEnabled();
   const { policy, actor, knowledge } = await flowsRequestContext(req);
   const text = await req.text();
   if (text.length > MAX_BODY_CHARS) throw new ApiError(413, `Request body is over ${MAX_BODY_CHARS} characters`);

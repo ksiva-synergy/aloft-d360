@@ -37,7 +37,6 @@ const ctx = { params: Promise.resolve({ id: 'f-1' }) };
 const post = (body: unknown) => new Request('http://t/x', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 beforeEach(() => {
-  vi.stubEnv('FLOWS_ENABLED', 'true');
   vi.stubEnv('DEFAULT_ORG_ID', 'org-1');
   Object.values(svc).forEach((f) => f.mockReset());
   resolveAuth.mockReset().mockResolvedValue(member);
@@ -45,11 +44,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('flow CRUD routes', () => {
-  it('are hidden when the flag is off and need a signed-in user with inspector:use', async () => {
-    vi.stubEnv('FLOWS_ENABLED', '');
-    expect((await list(new Request('http://t/x'), undefined)).status).toBe(404);
-    expect(resolveAuth).not.toHaveBeenCalled();
-    vi.stubEnv('FLOWS_ENABLED', 'true');
+  it('needs a signed-in user with inspector:use', async () => {
     resolveAuth.mockRejectedValueOnce(new ApiError(401, 'Unauthenticated'));
     expect((await list(new Request('http://t/x'), undefined)).status).toBe(401);
     resolveAuth.mockResolvedValueOnce(readonly);

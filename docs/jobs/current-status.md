@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-10-27 (catalog pipeline T0→T1→T2→embed; chain follow-up launch; audit register §0 in [harvest-job-pipeline-issues.md](../audits/harvest-job-pipeline-issues.md))  
+**Last verified:** 2026-10-28 (pipeline intent API, Active Runs tab, Scanned Continue bar, launch scope 409; chain deploy still pending)  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
@@ -9,11 +9,11 @@
 
 | Layer | Reality |
 |-------|---------|
-| **UI** | `Agent Lab → Estate → Jobs` — L1 **pipeline health + recommended next step** (`JobsCockpitPanel`); kind cards → L2/L3; **Launch** modal with exclude **or include** tree, Limit textarea, split preview. |
-| **Control plane** | `POST /api/agent-lab/context/jobs/launch` enqueues `platform_context_jobs` and starts ECS Fargate (or local orchestrator). |
-| **Workers** | `scripts/context/orchestrator.ts` claims jobs and calls `runT0Harvest`, `runT1Profile`, `runT2Enrich`, etc. |
+| **UI** | `Agent Lab → Estate → Jobs` — L1 **Job Types**, **Scanned Objects** (gap tier pills, facet gap counts, Continue + overlap banner), **Active Runs** (kick/cancel, failed 24h, start waiting jobs); catalog **Run full pipeline (from T0)**. |
+| **Control plane** | `POST …/jobs/launch` (409 overlap, `pipeline_run_id` on sequential chains), `GET …/pipeline/intent`, `POST …/pipeline/continue`, `GET …/jobs/active`, **`POST …/jobs/kick-queued`**. Scoped **`GET …/jobs/cockpit`**. Plan API **staleObjectCount** + honest T1/T2 summaries. |
+| **Workers** | `scripts/context/orchestrator.ts` … **Deploy/runbook:** [phase-0-chain-deploy.md](./phase-0-chain-deploy.md). |
 
-**Operator intent we are moving toward:** Harvest **one schema per catalog** easily, run **only tiers that need work**, optional **overwrite** when necessary. **Incremental is preferred when we keep versions** (T1/T2 append profile/semantic versions); see [versioning-and-incremental.md](./versioning-and-incremental.md). **Today:** first-time T0 on a focused schema can launch when discovery has rows (P0-3 fixed); modal still uses exclude-tree + Limit textarea (wizard not shipped).
+**Operator intent we are moving toward:** Harvest **one schema per catalog** easily, run **only tiers that need work**, optional **overwrite** when necessary. **Incremental is preferred when we keep versions** (T1/T2 append profile/semantic versions); see [versioning-and-incremental.md](./versioning-and-incremental.md). **Embeddings “inactive” / mass catalog loss:** [embeddings-lifecycle-and-drops.md](./embeddings-lifecycle-and-drops.md) (usually **`lifecycle: dropped`** on objects, not deleted vectors). **Stale skips and launch paths:** [redundancy-and-skip-behavior.md](./redundancy-and-skip-behavior.md). **Today:** first-time T0 on a focused schema can launch when discovery has rows (P0-3 fixed); modal still uses exclude-tree + Limit textarea (wizard not shipped).
 
 ---
 
@@ -129,11 +129,18 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 | **P1-16** | Estate ↔ scanned link | `context_object_id` set on T0 upsert (join in list API still works for legacy rows) |
 | **Re-run flags** | Jobs modal checkboxes: full T0 listing, re-profile all, re-enrich all (append versions) | Not on Catalog bar (use Jobs for flags) |
 
-**Planned UX/engineering:** [remediation charter](../audits/harvest-job-pipeline-remediation-charter.md) — include-tree wizard, recommendations API, honest preview copy.
+**Planned UX/engineering:** [remediation charter](../audits/harvest-job-pipeline-remediation-charter.md) — include-tree wizard, recommendations API, honest preview copy. **Scanned Continue pipeline (design):** [scanned-continue-pipeline-design.md](./scanned-continue-pipeline-design.md). **Ops / Active runs (design):** [ops-console-gaps-and-vision.md](./ops-console-gaps-and-vision.md). **Master fix plan (phases 0–5):** [remediation-master-plan.md](./remediation-master-plan.md).
 
 ---
 
-## 7. Target behavior (not implemented — design intent)
+## 7. Target behavior (partial — Continue + Active Runs shipped)
+
+| Capability | Status |
+|------------|--------|
+| **Active runs desk** | **Partial** — kind filter, failed/partial 24h, retry failed, queued deep-link; source filter not yet |
+| **Continue pipeline from Scanned** | **Partial** — confirm sheet; multi-schema (≤12) and multi-table (≤50) Continue |
+| **UI** | … **Guided launch** wizard on L1 (default on; `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=false` to hide); advanced kind cards collapsed under **Advanced job types**. |
+| **Harvest this schema (wizard)** | **Partial (flagged)** — 4-step wizard; discovery include-tree still via classic modal |
 
 Documented so agents do not implement the wrong default.
 

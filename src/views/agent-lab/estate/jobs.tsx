@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react
 import { useRouter, useSearchParams } from '@/lib/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Pagination, JobDetailDrawer, ScannedObjectsTab } from '@/components/estate';
+import { Pagination, JobDetailDrawer, ScannedObjectsTab, ActiveRunsPanel } from '@/components/estate';
+import JobsLaunchWizard from '@/components/estate/JobsLaunchWizard';
 import ChildJobsPanel from '@/components/estate/ChildJobsPanel';
 import {
   formatStatsSummary,
@@ -13,6 +14,7 @@ import {
   resolveModalLaunchScope,
   scopeSummaryFocus,
   stripExcludeSchemasForKind,
+  isJobsLaunchWizardEnabled,
 } from '@/lib/estate/job-ui';
 import JobsCockpitPanel from '@/components/estate/JobsCockpitPanel';
 import { isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
@@ -25,7 +27,7 @@ import { inkOf } from '@/lib/typography/tokens';
 // ?? Types ??????????????????????????????????????????????????????????????????????
 
 type ViewLevel = 'l1' | 'l2' | 'l3';
-type ActiveTab = 'jobs' | 'scanned';
+type ActiveTab = 'jobs' | 'scanned' | 'active';
 
 interface JobItem {
   id: string;
@@ -1992,6 +1994,8 @@ function L1View({
   onSelectKind,
   onCancelJob,
   onCockpitLaunched,
+  onOpenActiveRuns,
+  onOpenWizard,
 }: {
   summaries: KindSummary[];
   queuedJobs: QueuedJobItem[];
@@ -1999,19 +2003,37 @@ function L1View({
   onSelectKind: (kind: string) => void;
   onCancelJob: (jobId: string, kind: string) => void;
   onCockpitLaunched?: () => void;
+  onOpenActiveRuns?: () => void;
+  onOpenWizard?: () => void;
 }) {
   const mutedColor = 'var(--estate-text-muted)';
   const cardBg = 'var(--estate-raised)';
 
   const dbKinds = summaries.map(s => s.kind);
   const kindGroups = getJobKindGroups(dbKinds);
+  const coreGroups = kindGroups.filter(g => g.id !== 'entity_model' && g.id !== 'knowledge');
+  const advancedGroups = kindGroups.filter(g => g.id === 'entity_model' || g.id === 'knowledge');
 
   const summaryByKind: Record<string, KindSummary> = {};
   summaries.forEach(s => { summaryByKind[s.kind] = s; });
 
+  const renderKindGroupCards = (groups: typeof kindGroups) =>
+    groups.map((group, groupIdx) => (
+      <React.Fragment key={group.id}>
+        <JobKindGroupHeader group={group} isFirst={groupIdx === 0} />
+        {group.kinds.map(kind => (
+          <JobKindCard
+            key={kind}
+            kind={kind}
+            summary={summaryByKind[kind]}
+            onSelect={onSelectKind}
+          />
+        ))}
+      </React.Fragment>
+    ));
   return (
     <div className="flex-1 overflow-auto p-6">
-      <JobsCockpitPanel onLaunched={onCockpitLaunched} />
+      <JobsCockpitPanel onLaunched={onCockpitLaunched} onOpenWizard={onOpenWizard} />
       {/* Aggregate overview */}
       {!loading && summaries.length > 0 && <AggregateStats summaries={summaries} />}
 
@@ -2054,35 +2076,47 @@ function L1View({
               <span className="text-size-ui font-mono" style={{ color: mutedColor }}>+{queuedJobs.length - 8} more</span>
             )}
           </div>
+          {onOpenActiveRuns && (
+            <button
+              type="button"
+              onClick={onOpenActiveRuns}
+              className="ml-auto text-label underline-offset-2 hover:underline"
+              style={{ color: 'var(--brand-a-ink)' }}
+            >
+              View in Active Runs
+            </button>
+          )}
         </div>
       )}
 
       {/* Grouped cards — pipeline order */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {loading ? (
-          [...Array(9)].map((_, i) => (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[...Array(9)].map((_, i) => (
             <div
               key={i}
               className="animate-pulse rounded-xl border p-5 h-44"
               style={{ borderColor: 'var(--line-1)', backgroundColor: cardBg }}
             />
-          ))
-        ) : (
-          kindGroups.map((group, groupIdx) => (
-            <React.Fragment key={group.id}>
-              <JobKindGroupHeader group={group} isFirst={groupIdx === 0} />
-              {group.kinds.map(kind => (
-                <JobKindCard
-                  key={kind}
-                  kind={kind}
-                  summary={summaryByKind[kind]}
-                  onSelect={onSelectKind}
-                />
-              ))}
-            </React.Fragment>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {renderKindGroupCards(coreGroups)}
+          </div>
+          {advancedGroups.length > 0 && (
+            <details className="mt-4 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--line-1)', backgroundColor: cardBg }}>
+              <summary className="text-label cursor-pointer py-1" style={{ color: 'var(--estate-text-secondary)' }}>
+                Advanced job types (T4, knowledge sync)
+              </summary>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
+                {renderKindGroupCards(advancedGroups)}
+              </div>
+            </details>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -2597,9 +2631,11 @@ function EstateJobsPageContent() {
   const urlDate = searchParams.get('date');
   const urlHighlight = searchParams.get('highlight');
   const urlTab = searchParams.get('tab') as ActiveTab | null;
+  const urlActiveFilter = searchParams.get('activeFilter');
 
   const level: ViewLevel = urlKind && urlDate ? 'l3' : urlKind ? 'l2' : 'l1';
-  const activeTab: ActiveTab = urlTab === 'scanned' ? 'scanned' : 'jobs';
+  const activeTab: ActiveTab =
+    urlTab === 'scanned' ? 'scanned' : urlTab === 'active' ? 'active' : 'jobs';
 
   // ?? L1 state
   const [summaries, setSummaries] = useState<KindSummary[]>([]);
@@ -2619,6 +2655,7 @@ function EstateJobsPageContent() {
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
   const highlightedRef = useRef<string | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // ?? Navigation helpers
   function pushParams(updates: Record<string, string | null>) {
@@ -2826,8 +2863,10 @@ function EstateJobsPageContent() {
       {level === 'l1' && (
         <div className="border-b shrink-0 bg-[var(--background)] border-[var(--nav-border)]">
           <div className="flex items-center gap-0.5 px-6 pt-1.5">
-            {(['jobs', 'scanned'] as ActiveTab[]).map(tab => {
+            {(['jobs', 'scanned', 'active'] as ActiveTab[]).map(tab => {
               const isActive = activeTab === tab;
+              const label =
+                tab === 'jobs' ? 'Job Types' : tab === 'scanned' ? 'Scanned Objects' : 'Active Runs';
               return (
                 <button
                   key={tab}
@@ -2839,7 +2878,7 @@ function EstateJobsPageContent() {
                       : 'text-[var(--nav-item-text)] bg-transparent hover:text-[var(--nav-text)] hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)]',
                   )}
                 >
-                  {tab === 'jobs' ? 'Job Types' : 'Scanned Objects'}
+                  {label}
                   {isActive && (
                     <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t bg-[var(--brand-a)]" />
                   )}
@@ -2853,6 +2892,12 @@ function EstateJobsPageContent() {
       {/* Content */}
       {level === 'l1' && activeTab === 'scanned' ? (
         <ScannedObjectsTab refreshKey={refreshKey} />
+      ) : level === 'l1' && activeTab === 'active' ? (
+        <ActiveRunsPanel
+          refreshKey={refreshKey}
+          queuedOnly={urlActiveFilter === 'queued'}
+          onSelectJob={job => setSelectedJob(job as JobItem)}
+        />
       ) : level === 'l1' ? (
         <L1View
           summaries={summaries}
@@ -2860,6 +2905,8 @@ function EstateJobsPageContent() {
           loading={summariesLoading}
           onSelectKind={selectKind}
           onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
+          onOpenActiveRuns={() => pushParams({ tab: 'active', activeFilter: 'queued' })}
+          onOpenWizard={() => setWizardOpen(true)}
           onCancelJob={async (jobId, kind) => {
             try {
               const res = await fetch(`/api/agent-lab/context/jobs/${jobId}`, { method: 'DELETE' });
@@ -2902,6 +2949,16 @@ function EstateJobsPageContent() {
 
       {/* Detail Drawer */}
       <JobDetailDrawer job={selectedJob} onClose={() => setSelectedJob(null)} />
+      {isJobsLaunchWizardEnabled() && (
+        <JobsLaunchWizard
+          open={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          onLaunched={() => {
+            fetchSummaries();
+            fetchQueued();
+          }}
+        />
+      )}
     </div>
   );
 }

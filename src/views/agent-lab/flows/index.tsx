@@ -201,7 +201,7 @@ function Home({
 
 export default function FlowsPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [loadError, setLoadError] = useState<{ message: string; disabled?: boolean } | null>(null);
+  const [loadError, setLoadError] = useState<{ message: string } | null>(null);
   const [myFlows, setMyFlows] = useState<FlowSummary[]>([]);
   const [goalMessage, setGoalMessage] = useState<string | null>(null);
   const [finding, setFinding] = useState(false);
@@ -245,7 +245,7 @@ export default function FlowsPage() {
       const res = await fetch('/api/agent-lab/flows/catalog');
       const data = await readJson<Catalog>(res);
       if (cancelled) return;
-      if (!res.ok) setLoadError({ message: data.error ?? 'Could not load Automate', disabled: data.details?.code === 'flows_disabled' });
+      if (!res.ok) setLoadError({ message: data.error ?? 'Could not load Automate' });
       else {
         setCatalog(data);
         void loadMyFlows();
@@ -450,10 +450,8 @@ export default function FlowsPage() {
     return (
       <div className="mx-auto max-w-3xl px-6 py-16 text-center">
         <Plug className="mx-auto h-8 w-8 text-[var(--ink-3)]" />
-        <p className="mt-3 text-size-body font-medium text-[var(--ink-1)]">{loadError.disabled ? 'Automate is not switched on here' : 'Automate could not load'}</p>
-        <p className="mx-auto mt-1 max-w-md text-size-body text-[var(--ink-3)]">
-          {loadError.disabled ? 'An administrator can enable the preview by setting FLOWS_ENABLED=true for the API server.' : loadError.message}
-        </p>
+        <p className="mt-3 text-size-body font-medium text-[var(--ink-1)]">Automate could not load</p>
+        <p className="mx-auto mt-1 max-w-md text-size-body text-[var(--ink-3)]">{loadError.message}</p>
       </div>
     );
   }

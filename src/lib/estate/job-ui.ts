@@ -203,3 +203,23 @@ export function scopeSummaryFocus(scope: unknown): string | null {
   if (lines.length === 1) return lines[0];
   return `${lines[0]} (+${lines.length - 1} more)`;
 }
+
+/** Plain-language scope for run detail / drawer (client-safe). */
+export function formatJobScopeHuman(scope: unknown): string {
+  if (!scope || typeof scope !== 'object') return 'Full source (no Limit globs)';
+  const s = scope as Record<string, unknown>;
+  const focus = scopeSummaryFocus(scope);
+  if (focus) return `Limit to: ${focus}`;
+  const excludes = Array.isArray(s.excludeSchemas) ? (s.excludeSchemas as string[]) : [];
+  if (excludes.length > 0) return `${excludes.length} schema(s) excluded from run`;
+  const chain = Array.isArray(s.chain) ? s.chain.map(String) : [];
+  if (chain.length > 0) return `Pipeline chain: ${chain.join(' → ')}`;
+  const surface = typeof s.ui_surface === 'string' ? s.ui_surface : null;
+  if (surface) return `Launched from ${surface.replace(/_/g, ' ')}`;
+  return 'Full source';
+}
+
+/** Guided launch wizard on Jobs L1 (Phase 4). On by default; set `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=false` to hide. */
+export function isJobsLaunchWizardEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_JOBS_LAUNCH_WIZARD !== 'false';
+}

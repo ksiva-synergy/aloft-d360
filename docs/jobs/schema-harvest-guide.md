@@ -37,20 +37,18 @@ Use this order. Skip steps that are already satisfied.
 |------|----------|----------|-----------|
 | 0 | *(optional)* `estate_inventory` | Schema not visible in discovery tree | Already in discovery |
 | 1 | `t0_structural` | No rows in **Scanned** for this schema | All tables scanned (`last_t0_at` set) and delta sufficient |
-| 2 | `t1_profile` | Scanned but need stats / drift | Only if you accept stale profiles *(today T1 re-profiles all in scope)* |
+| 2 | `t1_profile` | Scanned but need stats / drift | Stale-only: skip when `last_t1_at >= last_t0_at` — use **Continue** or plan `staleObjectCount` |
 | 3 | `t2_semantic` | `last_t2_at` missing or older than `last_t1_at` | Already enriched after last profile |
-| 4 | `embed` | Need vectors for search | **Today runs wider than Focus** (P1-2) — avoid unless needed |
+| 4 | `embed` | Need vectors for search | Scoped via job Limit; worker skips unchanged `embed_text` |
 | 5 | `t3_usage` | Need query-history usage | **Today is source-wide** (P0-8) — avoid for schema-only |
 
-**Recommended chain for one schema (modal):**
+**Recommended path for one schema (efficient):**
 
-1. Select **T0 Structural** only first time.  
-2. Confirm tables under **Scanned & beyond** tab filtered by schema.  
-3. Run **T1** with the **same** Focus glob.  
-4. Run **T2** with the same Focus — only stale tables are enriched.  
-5. Add **embed** only if you need embeddings; expect possible extra tables until P1-2 is fixed.
+1. First time: **T0** with `catalog.schema.*` Limit (or **Guided launch**).  
+2. Confirm tables under **Scanned** for that schema.  
+3. **Continue pipeline** through T2 or embed — enqueues only gap tiers with the same scope.  
 
-**Sequential toggle:** When launching T0 + T1 + T2 together, enable **Run sequentially** so T1 does not start before T0 finishes.
+See [efficient-pipeline-playbook.md](./efficient-pipeline-playbook.md). Modal manual chain: use **Run sequentially** if launching multiple kinds yourself.
 
 ---
 
@@ -61,7 +59,7 @@ Use this order. Skip steps that are already satisfied.
 | Tier | Default (incremental) | When you need overwrite |
 |------|------------------------|-------------------------|
 | **T0** | Delta via `detectChanges` after first full sweep | New schema: Focus forces full resolve for that schema. Full source rescan: `forceFullScan` in code only (UI not wired). *No version chain — current structural row only.* |
-| **T1** | *Not skip-by-default* — re-run re-profiles all tables in Focus → **new profile version** each time | When columns/types changed or you need fresh drift in history |
+| **T1** | **Stale-only** — skip when profile is current vs last T0 | **`forceReprofile`** or structural change (re-T0) |
 | **T2** | Only objects where enrich is stale vs T1 → **new semantic card version** when run | After schema change: run T1 first, then T2; or future “re-enrich all” |
 | **embed** | Skips unchanged text when possible | Force re-embed (future UI) |
 

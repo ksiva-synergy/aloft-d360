@@ -827,13 +827,19 @@ export async function listScannedObjects(
         conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL AND o.last_t1_at IS NULL`);
         break;
       case 't1':
-        conditions.push(Prisma.sql`o.last_t1_at IS NOT NULL AND o.last_t2_at IS NULL`);
+        conditions.push(
+          Prisma.sql`o.last_t0_at IS NOT NULL AND (o.last_t1_at IS NULL OR o.last_t1_at < o.last_t0_at)`,
+        );
         break;
       case 't2':
-        conditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
+        conditions.push(
+          Prisma.sql`o.last_t1_at IS NOT NULL AND (o.last_t2_at IS NULL OR o.last_t2_at < o.last_t1_at)`,
+        );
         break;
       case 'embed':
-        conditions.push(SQL_OBJECT_HAS_EMBEDDING);
+        conditions.push(
+          Prisma.sql`o.last_t0_at IS NOT NULL AND NOT (${SQL_OBJECT_HAS_EMBEDDING})`,
+        );
         break;
       case 't3':
         conditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
@@ -872,9 +878,17 @@ export async function listScannedObjects(
       SELECT
         COUNT(*)::int AS count,
         COUNT(*) FILTER (WHERE o.last_t0_at IS NOT NULL)::int AS t0,
-        COUNT(*) FILTER (WHERE o.last_t1_at IS NOT NULL)::int AS t1,
-        COUNT(*) FILTER (WHERE o.last_t2_at IS NOT NULL)::int AS t2,
-        COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embed,
+        COUNT(*) FILTER (
+          WHERE o.last_t0_at IS NOT NULL
+            AND (o.last_t1_at IS NULL OR o.last_t1_at < o.last_t0_at)
+        )::int AS t1,
+        COUNT(*) FILTER (
+          WHERE o.last_t1_at IS NOT NULL
+            AND (o.last_t2_at IS NULL OR o.last_t2_at < o.last_t1_at)
+        )::int AS t2,
+        COUNT(*) FILTER (
+          WHERE o.last_t0_at IS NOT NULL AND NOT (${SQL_OBJECT_HAS_EMBEDDING})
+        )::int AS embed,
         COUNT(*) FILTER (WHERE o.last_t3_at IS NOT NULL)::int AS t3,
         COUNT(*) FILTER (WHERE o.last_t4_at IS NOT NULL)::int AS t4
       FROM platform_context_objects o
@@ -986,7 +1000,14 @@ export async function listScannedFacets(
   opts: { excludeTestSources?: boolean } = {},
 ): Promise<{
   catalogs: { name: string; count: number }[];
-  schemas: { catalog: string; name: string; count: number }[];
+  schemas: {
+    catalog: string;
+    name: string;
+    count: number;
+    needs_profile: number;
+    needs_enrich: number;
+    needs_embed: number;
+  }[];
 }> {
   const testExclusion = opts.excludeTestSources
     ? `AND source_id NOT IN (
@@ -1004,8 +1025,32 @@ export async function listScannedFacets(
        ORDER BY catalog_name`,
       orgId,
     ),
-    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number }[]>(
-      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count
+    prisma.$queryRawUnsafe<{
+      catalog: string;
+      name: string;
+      count: number;
+      needs_profile: number;
+      needs_enrich: number;
+      needs_embed: number;
+    }[]>(
+      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count,
+        COUNT(*) FILTER (
+          WHERE last_t0_at IS NOT NULL
+            AND (last_t1_at IS NULL OR last_t1_at < last_t0_at)
+        )::int AS needs_profile,
+        COUNT(*) FILTER (
+          WHERE last_t1_at IS NOT NULL
+            AND (last_t2_at IS NULL OR last_t2_at < last_t1_at)
+        )::int AS needs_enrich,
+        COUNT(*) FILTER (
+          WHERE last_t0_at IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM platform_context_embeddings e
+              WHERE e.subject_kind = 'object'
+                AND e.subject_id = platform_context_objects.id
+                AND e.embedding IS NOT NULL
+            )
+        )::int AS needs_embed
        FROM platform_context_objects
        WHERE org_id = $1 AND lifecycle = 'active' AND last_t0_at IS NOT NULL AND catalog_name IS NOT NULL AND schema_name IS NOT NULL ${testExclusion}
        GROUP BY catalog_name, schema_name

@@ -43,7 +43,6 @@ const post = (body: unknown) => tryAgent(new Request('http://test/api/agent-lab/
 const answer = [{ key: 'compliant', label: 'Compliant', type: 'text', description: 'yes or no' }];
 
 beforeEach(() => {
-  vi.stubEnv('FLOWS_ENABLED', 'true');
   vi.stubEnv('DEFAULT_ORG_ID', 'org-1');
   h.resolveAuth.mockReset().mockResolvedValue(member);
   h.runCatalogAgent.mockReset();
