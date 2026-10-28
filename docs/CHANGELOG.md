@@ -2,6 +2,50 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-28 — Knowledge bases, Phase 0: tables, file readers, OCR in batches, Titan-only embedding, jobs, hybrid search
+
+- **What** (plan in the claude.ai doc "ALOFT knowledge bases — plan"; decisions taken 2026-10-27):
+  - **Migration `prisma/migrations/20261028_knowledge_phase0/migration.sql`** (additive; **not applied**), with matching changes in `prisma/schema.prisma`:
+    - `knowledge_sources` gains owner, scope (personal / team / org; the 8 existing rows become org), team, archived, connection and folder, and approval columns.
+    - New `knowledge_documents` (one row per file version or Q&A entry), `knowledge_jobs` (background work) and `knowledge_queries` (search log).
+    - `knowledge_chunks` gains document, section path, page, chunk type, content hash, a generated full-text column with a GIN index, and an HNSW vector index. `embedding` becomes `vector(1024)`; all 4 existing dev rows were 1024-dimensional.
+  - **Readers** (`src/lib/knowledge/readers.ts`):
+    - **PDF:** digital pages through `@firecrawl/pdf-inspector`, which gives Markdown with headings and tables, as DATA360's OCR module does. Pages without a text layer go to OCR.
+    - **Word:** through `mammoth` (headings, paragraphs, lists, table rows with headers).
+    - **Excel:** through `read-excel-file`, every sheet, row by row with headers, capped at 20,000 rows with a warning. **CSV:** RFC 4180.
+    - **PowerPoint:** through `jszip`, in presentation order, with speaker notes.
+    - **Images:** through OCR. **Text and Markdown:** as they are.
+    - File type is decided from the bytes first; unsupported files are refused with a clear message.
+  - **OCR** (`src/lib/knowledge/ocr.ts`): Mistral OCR 4 (`mistral-ocr-4-0`) on Azure AI Foundry (`POST …/providers/mistral/azure/ocr`, the user's choice for scans).
+    - At most 30 pages per request: longer or mixed documents are split into batches with `pdf-lib`, containing only the pages that need OCR, 2 batches at a time.
+    - Page numbers are mapped back to the original document.
+    - Each batch retries rate limits and server errors; a batch that still fails only fails its own pages.
+    - Settings: `KNOWLEDGE_OCR_ENDPOINT` / `_API_KEY` / `_MODEL` / `_BATCH_PAGES` / `_CONCURRENCY`, falling back to `FOUNDRY_ENDPOINT` / `FOUNDRY_API_KEY`.
+  - **Splitting** (`split.ts`): by structure. Headings and numbered clauses ("4.2 Fire") build a section path, and text is packed within one section and one page (so citations name the right page). Rows, slides and Q&A are each a separate piece. This replaces the fixed 2,000-character cut for knowledge bases.
+  - **Embedding:** Titan v2 only, no fallback outside AWS. `embedForKnowledge` / `embedQuestion` in `src/lib/knowledge/embed.ts` throw a retryable error if Titan fails. `src/lib/azure/embed-client.ts` gains an optional `region` argument, so `KNOWLEDGE_EMBED_REGION` can pin the region; the default is unchanged (us-east-1 today).
+  - **Indexing** (`index-document.ts`, `repo.ts`): read, split, embed only pieces whose content is new to the knowledge base, then replace the document's chunks and update counts in one transaction. Older versions of the same path are marked superseded, not deleted. An unreadable file is failed with the reason; temporary problems are retried.
+  - **Jobs** (`jobs.ts`, `job-queue.ts`): Postgres queue with `FOR UPDATE SKIP LOCKED`, retries backing off 1, 2, 4 … 60 minutes, and stale running jobs reclaimed after 15 minutes.
+  - **Search** (`search.ts`): meaning (vector) and exact words (full text) fused by reciprocal rank, current versions only. Every result is a citation (knowledge base, document, version, section, page, and how it matched), and every query is logged.
+  - **Scripts:** `scripts/knowledge-index.ts` (add local files to a knowledge base and index them) and `scripts/knowledge-search.ts` (ask a question).
+  - `next.config.ts` adds `@firecrawl/pdf-inspector` to `serverExternalPackages`.
+- **Dependencies:** `@firecrawl/pdf-inspector` 1.25.2 (MIT; prebuilt for Alpine x64 and arm64), `mammoth` 1.13.0 (BSD-2), `read-excel-file` 9.3.12 (MIT), `jszip` 3.10.2, `pdf-lib` 1.17.1 (MIT; the version DATA360 uses). `exceljs` was tried and removed: unmaintained since 2023, with an old `uuid` advisory.
+- **Verified:**
+  - **Tests** in `src/lib/knowledge/__tests__/`:
+    - readers on Word, Excel and PowerPoint files built in memory, plus CSV, Markdown, text, and digital and mixed PDFs;
+    - splitting, including never across pages;
+    - OCR: 65 pages sent as batches of 30, 30 and 5, two at a time; pages mapped back; a 429 retried and a 400 not; a failed batch only fails its pages;
+    - the pipeline with an in-memory store (embeddings reused for unchanged sections, Q&A, failures, retries), the job runner, and search citations.
+  - **Live check without the database**, on a generated 300-page manual (made-up content):
+    - pdf-inspector read it in 0.1 s; it split into 300 pieces, one per page; Titan embedded them in 35 s;
+    - three questions each found the exact page at rank 1 (pages 137, 58 and 241).
+    - An earlier run that packed text across pages found only nearby pages, which led to the "never across a page" rule.
+- **Not done:**
+  - **Migration not applied.** The permission system blocks changes to the shared dev database. Run the two commands at the top of the migration file.
+  - **Search SQL not yet run against Postgres** (it needs the tables).
+  - **Section paths not checked live:** the generated test PDF uses one font for everything, so pdf-inspector found no headings; real manuals use heading fonts.
+  - **Mistral OCR live call:** ALOFT's Foundry resource (`aif-synde-eastus2`, from `FOUNDRY_ENDPOINT`) accepted the request for `mistral-ocr-4-0` but returned 503 `dependency_timeout` on all three attempts (about 5 minutes). The retries and per-batch failure worked as designed. Confirm the deployment is healthy there, or point `KNOWLEDGE_OCR_ENDPOINT` / `KNOWLEDGE_OCR_API_KEY` at the Foundry resource DATA360 uses. Digital PDFs, Word, Excel, PowerPoint and text need no OCR.
+  - **Phase 1 onwards:** upload storage (an S3 bucket for `s3://` references), the Knowledge page, attaching knowledge bases to agents and Automate, teams and access rules, connection folders.
+
 ## 2026-10-27 — CI: add missing estate cockpit + job-scope-flags + T4 sources
 
 - **What:** Committed files that `jobs.tsx` and `jobs/launch` already imported but were never pushed: `job-scope-flags.ts`, `JobsCockpitPanel`, `cockpit` API/lib, scheduled harvest + catalog pipeline launch, `t4-handlers` + `src/lib/context/t4/*`.

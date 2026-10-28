@@ -18,11 +18,16 @@ export const EMBED_BULK_CONCURRENCY = Math.min(
   Math.max(1, Number(process.env.EMBED_BULK_CONCURRENCY) || 8),
 );
 
-let titanClient: BedrockRuntimeClient | null = null;
+/** One client per region; most callers use the default region, knowledge bases may pin their own. */
+const titanClients = new Map<string, BedrockRuntimeClient>();
 
-function getTitanClient(): BedrockRuntimeClient {
-  titanClient ??= new BedrockRuntimeClient({ region: getTitanRegion() });
-  return titanClient;
+function getTitanClient(region = getTitanRegion()): BedrockRuntimeClient {
+  let client = titanClients.get(region);
+  if (!client) {
+    client = new BedrockRuntimeClient({ region });
+    titanClients.set(region, client);
+  }
+  return client;
 }
 
 function getTitanRegion(): string {
@@ -39,11 +44,11 @@ function getBedrockApiKey(): string | null {
   );
 }
 
-async function invokeTitan(body: string): Promise<{ embedding?: number[] }> {
+async function invokeTitan(body: string, region = getTitanRegion()): Promise<{ embedding?: number[] }> {
   const apiKey = getBedrockApiKey();
   if (apiKey) {
     const res = await fetch(
-      `https://bedrock-runtime.${getTitanRegion()}.amazonaws.com/model/${encodeURIComponent(TITAN_EMBED_MODEL)}/invoke`,
+      `https://bedrock-runtime.${region}.amazonaws.com/model/${encodeURIComponent(TITAN_EMBED_MODEL)}/invoke`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -53,7 +58,7 @@ async function invokeTitan(body: string): Promise<{ embedding?: number[] }> {
     if (!res.ok) throw new Error(`Bedrock ${res.status}: ${(await res.text()).slice(0, 200)}`);
     return res.json() as Promise<{ embedding?: number[] }>;
   }
-  const resp = await getTitanClient().send(new InvokeModelCommand({
+  const resp = await getTitanClient(region).send(new InvokeModelCommand({
     modelId: TITAN_EMBED_MODEL,
     contentType: 'application/json',
     accept: 'application/json',
@@ -69,10 +74,13 @@ async function invokeTitan(body: string): Promise<{ embedding?: number[] }> {
 export async function embedWithTitan(
   text: string,
   dimensions = DEFAULT_EMBED_DIMS,
+  /** AWS region for this call; defaults to BEDROCK_EMBED_REGION / BEDROCK_REGION. */
+  region?: string,
 ): Promise<EmbeddingResult | null> {
   try {
     const parsed = await invokeTitan(
       JSON.stringify({ inputText: text.slice(0, 32_000), dimensions, normalize: true }),
+      region,
     );
     return parsed.embedding?.length ? { embedding: parsed.embedding, modelId: TITAN_EMBED_MODEL } : null;
   } catch (err) {
@@ -89,13 +97,14 @@ export async function embedBulkWithTitan(
   texts: string[],
   dimensions = DEFAULT_EMBED_DIMS,
   concurrency = EMBED_BULK_CONCURRENCY,
+  region?: string,
 ): Promise<(EmbeddingResult | null)[]> {
   const results: (EmbeddingResult | null)[] = new Array(texts.length).fill(null);
   let next = 0;
   const worker = async () => {
     while (next < texts.length) {
       const i = next++;
-      results[i] = await embedWithTitan(texts[i], dimensions);
+      results[i] = await embedWithTitan(texts[i], dimensions, region);
     }
   };
   await Promise.all(Array.from({ length: Math.min(concurrency, texts.length) }, worker));
