@@ -88,7 +88,7 @@ export default function BulkActionBar({
               type="button"
               disabled={pipelineRunning}
               onClick={onRunPipeline}
-              title="Runs T0 structural → T1 profile → T2 semantic on Fargate (sequential), scoped with Limit"
+              title="Runs T0 structural → T1 profile → T2 semantic → embeddings in order, scoped with Limit"
               style={{
                 ...btnBase,
                 background: goldColor,
@@ -105,7 +105,7 @@ export default function BulkActionBar({
               type="button"
               disabled={scheduledRunning}
               onClick={onRunScheduled}
-              title="Start T0→T1→T2 for schemas with scheduled discovery rows in this scope"
+              title="Start T0→T1→T2→embed for schemas with scheduled discovery rows in this scope"
               style={{
                 ...btnBase,
                 background: 'transparent',

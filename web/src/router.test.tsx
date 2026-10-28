@@ -29,6 +29,8 @@ const EXPECTED_PAGES = [
   '/backfill',
   '/databricks',
   '/agent-lab/estate/objects/:id',
+  // Added since the migration: Automate (and the old Flows address), Connections, Knowledge.
+  '/agent-lab/automate', '/agent-lab/flows', '/agent-staging/connections', '/agent-lab/knowledge', '/agent-lab/knowledge/:id',
 ];
 
 /** Page/layout files that would make Next serve HTML again. There must be none under src/app. */
@@ -61,8 +63,8 @@ describe('route table', () => {
   const urls = EXPECTED_PAGES;
 
   it('covers the expected page and legacy redirect URLs', () => {
-    expect(urls.length).toBe(52);
-    expect(new Set(urls).size).toBe(52);
+    expect(urls.length).toBe(57);
+    expect(new Set(urls).size).toBe(57);
   });
 
   it('Next.js serves no pages: src/app holds route handlers only (the UI is the Vite app)', () => {

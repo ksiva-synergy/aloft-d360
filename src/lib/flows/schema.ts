@@ -87,6 +87,9 @@ const retrieveStep = z.object({
   type: z.literal('retrieve'),
   config: z.object({
     query: text,
+    /** Knowledge bases to search (ids from /api/knowledge). The policy check requires at least one. */
+    knowledgeBaseIds: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
+    /** Older drafts only; not used. */
     namespace: z.string().optional(),
     topK: z.number().int().min(1).max(50).default(5),
   }),

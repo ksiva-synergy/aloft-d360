@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({ findFirst: vi.fn(), runCatalogAgent: vi.fn() }));
 
 vi.mock('@/lib/db', () => ({ prisma: { agent_catalog: { findFirst: h.findFirst } } }));
-vi.mock('@/lib/inspector/session-auth', () => ({ guardInspectorChat: async () => null }));
+vi.mock('@/lib/inspector/session-auth', () => ({ guardInspectorChat: async () => null, resolveInspectorPrincipal: async () => ({ kind: 'user', userId: 'u-1' }) }));
 vi.mock('@/lib/inspector/llm-configured', () => ({ inspectorLlmConfigured: () => true }));
 vi.mock('@/lib/construction/catalog-sync', () => ({ runtimeBriefFromCatalog: (a: { config?: { noBrief?: boolean } }) => (a.config?.noBrief ? null : { name: 'x' }) }));
 vi.mock('@/lib/construction/workbench-model', () => ({ resolveWorkbenchModel: () => ({ effectiveModelId: 'm-1' }) }));
@@ -46,7 +46,7 @@ describe('agent chat', () => {
     expect(events.map((e) => e.type)).toEqual(['stream_start', 'query_result', 'text', 'done']);
     expect(events.at(-1)).toEqual({ type: 'done', outcome: 'completed', loops: 2, usage: { inputTokens: 10, outputTokens: 2 }, model: 'm-1' });
     expect(h.runCatalogAgent).toHaveBeenCalledWith(
-      expect.objectContaining({ slug: 'regulatory-decision-tracer', message: 'hi', surface: 'agent_use', role: 'member', history: [{ role: 'user', content: 'earlier' }, { role: 'assistant', content: 'ok' }] }),
+      expect.objectContaining({ slug: 'regulatory-decision-tracer', message: 'hi', surface: 'agent_use', role: 'member', person: { userId: 'u-1', role: 'member' }, history: [{ role: 'user', content: 'earlier' }, { role: 'assistant', content: 'ok' }] }),
     );
   });
 });

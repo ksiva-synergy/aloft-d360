@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
-import { guardInspectorChat } from '@/lib/inspector/session-auth';
+import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
 import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { runtimeBriefFromCatalog } from '@/lib/construction/catalog-sync';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
@@ -72,6 +72,9 @@ export async function POST(request: NextRequest) {
     return new Response('Using an agent requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
   }
   const role = await getSessionUserRole();
+  // Who is chatting, so the agent searches only knowledge bases this person may see.
+  const principal = await resolveInspectorPrincipal(request).catch(() => null);
+  const person = principal?.kind === 'user' ? { userId: principal.userId, role: role ?? 'member' } : null;
   const resolved = resolveWorkbenchModel(body.model, role);
   if (!resolved) return new Response('Model not available', { status: 400 });
   const { effectiveModelId } = resolved;
@@ -107,6 +110,7 @@ export async function POST(request: NextRequest) {
           role,
           model: body.model,
           surface: 'agent_use',
+          person,
           abort: closed,
           onTextChunk: (delta) => emit({ type: 'text', delta }),
           onToolEvent: emit,

@@ -98,6 +98,8 @@ type TryResult = {
   toolCalls: number;
   costUsd: number;
   durationMs: number;
+  /** Knowledge bases the agent could search in this run. */
+  knowledgeBases?: string[];
 };
 
 export function TryAgent({
@@ -162,6 +164,7 @@ export function TryAgent({
           <p className="border-b border-[var(--line-1)] px-3 py-2 text-size-caption text-[var(--ink-2)]">
             <span className="font-semibold text-[var(--ink-1)]">{result.agent.name}</span> · {result.model} · {result.loops} round{result.loops === 1 ? '' : 's'}, {result.toolCalls} data lookup
             {result.toolCalls === 1 ? '' : 's'} · {(result.durationMs / 1000).toFixed(1)} s · about ${result.costUsd.toFixed(3)}
+            {result.knowledgeBases?.length ? ` · knowledge: ${result.knowledgeBases.join(', ')}` : ''}
           </p>
           {result.errorDetail && <p className="px-3 pt-2 text-size-caption text-[var(--bad)]">{result.errorDetail}</p>}
           {answer && result.answer && (

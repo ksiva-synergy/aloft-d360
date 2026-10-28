@@ -69,9 +69,10 @@ CREATE TABLE IF NOT EXISTS "knowledge_documents" (
   CONSTRAINT "ck_kd_status" CHECK ("status" IN ('pending', 'indexing', 'indexed', 'failed', 'superseded'))
 );
 CREATE INDEX IF NOT EXISTS "idx_kd_source_status" ON "knowledge_documents" ("source_id", "status");
--- One current (not superseded) version per path in a knowledge base.
-CREATE UNIQUE INDEX IF NOT EXISTS "uq_kd_source_path_current" ON "knowledge_documents" ("source_id", "path")
-  WHERE "status" <> 'superseded' AND "path" IS NOT NULL;
+-- One row per version of a path. A new version is added next to the current one, which stays
+-- searchable until the new one is indexed and only then is marked superseded (the indexer does that).
+CREATE UNIQUE INDEX IF NOT EXISTS "uq_kd_source_path_version" ON "knowledge_documents" ("source_id", "path", "version")
+  WHERE "path" IS NOT NULL;
 
 -- ── Chunks: link to their document, structure, keyword and vector indexes ─────────────────────
 ALTER TABLE "knowledge_chunks"

@@ -24,6 +24,12 @@ vi.mock('@/lib/lifecycle/log-agent-cost', () => ({ computeCostUsd: () => 0.033 }
 vi.mock('@/lib/flows-copilot/propose', () => ({ proposeFlowEdit }));
 vi.mock('@/lib/inspector/llm-configured', () => ({ inspectorLlmConfigured: llmConfigured }));
 vi.mock('@/lib/connections/service', () => ({ listConnections }));
+vi.mock('@/lib/knowledge/service', () => ({
+  listKnowledgeBases: async () => [
+    { id: 'kb-sms', name: 'Company SMS', description: 'Safety management system manual', scope: 'org', documents: 12, archived: false },
+    { id: 'kb-old', name: 'Old circulars', description: null, scope: 'org', documents: 3, archived: true },
+  ],
+}));
 vi.mock('@/lib/agents/catalog', () => ({ agentStatusMap: async () => new Map([['regulatory-decision-tracer', { name: 'Regulatory Decision Tracer', status: 'live' }]]), listCatalogAgents }));
 
 import { POST } from '../copilot/route';
@@ -166,6 +172,12 @@ describe('flows copilot API', () => {
     expect(sent.history).toHaveLength(20);
     expect(sent.history.at(-1).text).toBe('turn 29');
     expect((await call({ definition: definition(), message: 'x'.repeat(12_001) })).status).toBe(400);
+  });
+
+  it('gives the model the knowledge bases this user may search, not archived ones', async () => {
+    proposeFlowEdit.mockResolvedValue({ kind: 'proposal', reply: 'ok', operations: [] });
+    await call({ definition: definition(), message: 'search the SMS' });
+    expect(proposeFlowEdit.mock.calls[0]![0].knowledgeBases).toEqual([{ id: 'kb-sms', name: 'Company SMS', description: 'Safety management system manual', scope: 'org', documents: 12 }]);
   });
 
   it('gives the model the saved agents, and flags an agent step whose agent does not exist', async () => {

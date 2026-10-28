@@ -2,6 +2,94 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-28 — Fix `next build` typecheck for orphaned queue kick
+
+- **What:** `isOrphanedQueuedJob` accepts `created_at: Date | null` (matches Prisma) and treats null as not orphaned.
+- **Files:** `src/lib/context/kick-queued-workers.ts`.
+- **Why:** `npm run typecheck` and `next build` failed on TS2345 at line 51.
+- **Verified:** `npm run typecheck`, `npm run build`.
+- **Not done:** —
+
+## 2026-10-28 — Automate: inline connection form with Save and test (S3, Blob, SharePoint)
+
+- **What:** The inline **Enter bucket and credentials** form on Automate connector steps now matches Govern → Connections: settings fields and a **Credentials** section per kind (S3 access keys, Azure connection string, SharePoint client secret). **Save and test** creates the connection, calls `POST /api/connections/:id/test`, shows pass/fail, and selects the connection on the step when the test succeeds. **Test again** appears after a failed test.
+- **Files:** `src/components/connections/InlineConnectionCreate.tsx`, `src/lib/connections/form-spec.ts`, `src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Why:** Builders need the same fields and test flow as Blob and SharePoint on the Connections page, without leaving the workflow.
+- **Verified:** `npx vitest run src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Not done:** Org sharing toggle in the inline form (connections stay private); Govern page still duplicates field metadata until it imports `form-spec`.
+
+## 2026-10-28 — Automate: enter S3 connection details on connector steps
+
+- **What:** On connector steps (`document.extract`, `object_store.list`, etc.), the **Connection** field in Automate now has **Enter bucket and credentials**, an inline form for name, bucket/region (or Azure/SharePoint settings), and secrets. It creates the connection via `POST /api/connections` and selects it on the step. Only the connection **id** is stored in the workflow; credentials go to Secrets Manager, not the draft or Copilot.
+- **Files:** `src/lib/connections/form-spec.ts`, `src/components/connections/InlineConnectionCreate.tsx`, `src/views/agent-lab/flows/FlowForm.tsx`, `src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Why:** Builders expected to configure S3 inside the workflow step without opening Govern → Connections first, while keeping secrets off the Copilot model.
+- **Verified:** `npx vitest run src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Not done:** Copilot draft redaction for secrets pasted into JSON/chat; refactor Govern Connections page to share `form-spec` (duplicate field lists remain on that page for now).
+
+## 2026-10-28 — Knowledge bases, Phase 1: personal and organisation knowledge bases in the app, for agents and Automate
+
+- **What:**
+  - **Knowledge page** (Memory → Knowledge; `src/views/agent-lab/knowledge/`; routes `/agent-lab/knowledge` and `/agent-lab/knowledge/:id` in `web/src/router.tsx`; nav entry in `src/components/agent-lab/staging/nav-config.ts`).
+    - Create personal knowledge bases; admins create organisation ones.
+    - Lists are grouped Yours / Organisation, with archived ones folded away.
+    - **Documents tab:**
+      - drop files or whole folders, or choose them;
+      - one request per file with progress and a result per file (added, added as version n, unchanged, refused with the reason, Try again on network or server errors);
+      - two uploads at a time, which carry on while another tab is open, with a warning before leaving mid-upload;
+      - refused before sending: old .doc/.xls/.ppt (with "save as .docx"), unknown types, empty files and files over the limit;
+      - system junk files (`.DS_Store`, `~$` Office lock files) are dropped.
+    - **Document list:**
+      - grouped by folder, with a filter over 8 documents;
+      - states in words (Waiting, Reading, Ready, "Ready, n pages unread" with the page numbers, Failed with the reason and Retry);
+      - "the previous version stays searchable" while a new one indexes;
+      - download and delete; refreshes on its own while documents are being read.
+    - **Q&A tab** to write, edit (new version) and delete questions and answers.
+    - **Try a search** with citations (document, page, section, and whether it matched by meaning, by words or both).
+    - **Agents tab** to choose which saved agents may search the knowledge base.
+    - **Settings:** rename and describe; admins share with the organisation or make personal again; archive and restore; delete for good once archived.
+  - **API** (`src/app/api/knowledge/**`, logic in `src/lib/knowledge/service.ts`):
+    - list, create, update and delete knowledge bases (delete only when archived; files go first, so a bucket error loses nothing);
+    - upload one file per request (multipart `file`, plus `folder` for a dropped folder);
+    - documents: list, retry, Q&A edit, delete (every version and its files), and download (with the access check);
+    - Q&A, search, and agent links.
+    - GETs include `isAdmin` and `uploads: { ready, maxMb }`.
+  - **Access** (`src/lib/knowledge/access.ts`): owners now still see their own archived personal knowledge bases, so they can restore them. Search skips the embedding call when there is nothing to search.
+  - **Storage** (`src/lib/knowledge/store.ts`):
+    - layout `knowledge/<org>/<knowledge base>/<document>/v<version>/<file name>` with object metadata;
+    - delete by knowledge base or by document;
+    - Nordic letters (ø, æ, å, ß…) kept readable in file names.
+    - Documents are keyed by their path inside the knowledge base, so `Chapter 1/Index.pdf` and `Chapter 2/Index.pdf` are two documents, not two versions.
+  - **Agents** (`src/lib/knowledge/agents.ts`, `src/lib/agents/run-catalog-agent.ts`): a saved agent linked to knowledge bases (`knowledge_source_agents`) gets a `search_knowledge` tool and is told to cite (document, page).
+    - It searches only the linked knowledge bases that the person running it may search. A personal knowledge base on a shared agent answers only its owner; a run with no person searches organisation ones only.
+    - Agent chat and Automate's "Try it" pass the person. Whoever manages a knowledge base links agents to it.
+    - Results are clipped and marked as reference material, not instructions.
+  - **Automate** (`src/lib/flows/schema.ts`, `policy.ts`, `edit.ts`, `src/app/api/agent-lab/flows/_shared.ts`, `src/views/agent-lab/flows/KnowledgeStep.tsx`, `FlowForm.tsx`): the Search knowledge step now names its knowledge bases (`knowledgeBaseIds`).
+    - **Publish checks:** none chosen, unknown or not shared, archived, or taken from run data all block publishing.
+    - The step says which knowledge bases it searches.
+    - The panel has a picker and a real **Try it** whose results can become the sample response (`chunks` with `text` and `cite`).
+  - **Copilot** (`src/lib/flows-copilot/propose.ts`, `copilot/route.ts`): gets the knowledge bases this person may search (names, descriptions, scope and document counts; not archived ones). It uses their ids in retrieve steps, or `CHOOSE_KNOWLEDGE`.
+  - **Docs:** `docs/knowledge/setup.md`, covering the bucket settings and why, the folder layout, the IAM policy for the task role, settings, a check list, and who can do what.
+- **Why:** Phase 1 of the knowledge base plan (decisions 2026-10-27): people build their own knowledge from documents and Q&A and use it in agents and automations, with citations, without one person's documents reaching anyone else.
+- **Verified:**
+  - **Tests:**
+    - API routes with an in-memory database: access per scope, every upload case, folders, Q&A versions, delete, retry, download, archive and restore, delete knowledge base, search scope.
+    - Agent knowledge rules and tool, and the runner wiring.
+    - Automate step checks, Copilot context.
+    - Upload helpers; the Knowledge pages and the Automate step panel in jsdom.
+  - **Full checks:**
+    - `vitest`: 893 passed (123 files). Web `vitest`: 63 passed (9 files).
+    - `web/src/router.test.tsx`: its page list gains Automate, the old Flows address, Connections and the two Knowledge pages. It had been failing since Automate and Connections were added.
+    - Typecheck clean (root and `web/`) apart from another session's untracked `src/lib/context/kick-queued-workers.ts`.
+    - ESLint clean on every changed file. The repo-wide lint still fails on 87 files untouched here.
+    - SPA build passes.
+  - **Dev database, read-only:** `knowledge_source_agents` exists with its unique (knowledge base, agent) index and no rows.
+- **Not done / for you:**
+  - Apply `prisma/migrations/20261028_knowledge_phase0/migration.sql`.
+  - Create the bucket and the IAM policy, and set `KNOWLEDGE_BUCKET` (see `docs/knowledge/setup.md`).
+  - Not yet tried against a real bucket or in a browser.
+  - Automate has no live runner yet, so the Search knowledge step runs for real only in Try it.
+  - Teams (Phase 2) and connection folders (Phase 3) are later.
+
 ## 2026-10-28 — Knowledge OCR through ALOFT's LiteLLM gateway; ALOFT and DATA360 kept separate
 
 - **What:**
@@ -61,6 +149,19 @@ Single running log of changes made in this repo, **newest first**.
   - **Section paths not checked live:** the generated test PDF uses one font for everything, so pdf-inspector found no headings; real manuals use heading fonts.
   - **Mistral OCR live call:** ALOFT's Foundry resource (`aif-synde-eastus2`, from `FOUNDRY_ENDPOINT`) accepted the request for `mistral-ocr-4-0` but returned 503 `dependency_timeout` on all three attempts (about 5 minutes). The retries and per-batch failure worked as designed. Confirm the deployment is healthy there, or point `KNOWLEDGE_OCR_ENDPOINT` / `KNOWLEDGE_OCR_API_KEY` at the Foundry resource DATA360 uses. Digital PDFs, Word, Excel, PowerPoint and text need no OCR.
   - **Phase 1 onwards:** upload storage (an S3 bucket for `s3://` references), the Knowledge page, attaching knowledge bases to agents and Automate, teams and access rules, connection folders.
+
+## 2026-10-27 — Catalog pipeline continues after T0 (T1 → T2 → embed)
+
+- **What:** `catalog-pipeline.ts` chain is now T0 → T1 → T2 → embed. `orchestrator.ts` runs the next tier in the same process when Fargate `RunTask` from the harvester fails, and stamps the task id on that job only. `kick-queued-workers.ts` is invoked from `GET …/jobs/queued` so the web process (which can `RunTask`) starts queued chain jobs the harvester could not launch. In-flight `t1_profile` rows for `crewing_shore` and `crewing_dashboard_public` had `embed` appended to `scope.chain`.
+- **Why:** Run pipeline now finished T0 and left T1 queued with no worker. The harvester task has no ECS subnet env / `RunTask` permission, so `advanceChain` enqueued the next tier and the launch failed silently. Embed was not in the catalog chain.
+- **Verified:** `vitest` `catalog-pipeline.test.ts` + `kick-queued-workers.test.ts` (7 tests). Kick launched Fargate task `3b2c3b42`; `crewing_shore` T1 moved to `running`.
+- **Not done:** Rebuild and deploy the harvester image so in-process continuation runs inside Fargate. Until then, the web poller must stay up to launch T2 and embed after profile.
+
+## 2026-10-27 — Dev: ignore `public/spa` in Vite watch (Windows EBUSY)
+
+- **What:** `web/vite.config.ts` — `server.watch.ignored` for `public/spa/**`.
+- **Why:** `npm run build` copies the SPA into `public/spa`; Vite dev watches `public/` and crashed with `EBUSY` on hashed assets; orphaned Next left port 3001 in use.
+- **Verified:** config only; restart `npm run dev` after killing anything on :3001 if needed.
 
 ## 2026-10-27 — CI: add missing estate cockpit + job-scope-flags + T4 sources
 

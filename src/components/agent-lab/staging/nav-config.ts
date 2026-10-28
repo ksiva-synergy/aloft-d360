@@ -3,7 +3,7 @@ import {
   MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon, ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
-  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon,
+  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
@@ -61,10 +61,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Memory',
     railLabel: 'Memory',
-    description: 'What your agents have learned',
+    description: 'What your agents know and have learned',
     id: 'memory',
     icon: BrainIcon,
     items: [
+      { label: 'Knowledge',     href: '/agent-lab/knowledge',            icon: BookBookmarkIcon },
       { label: 'FOER',          href: '/agent-lab/memory',               icon: LightbulbIcon, exact: true },
       { label: 'FOER Ops',      href: '/agent-lab/memory/ops',           icon: PulseIcon },
       { label: 'Contributions', href: '/agent-lab/memory/contributions', icon: UsersThreeIcon },

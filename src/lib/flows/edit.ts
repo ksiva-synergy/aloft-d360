@@ -36,7 +36,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 export function defaultConfig(type: string): Record<string, unknown> {
   switch (type) {
     case 'query': return { semantic: { modelId: '', entityId: '', dimensions: [], measures: [], filters: [], sorts: [] }, maxRows: 1000 };
-    case 'retrieve': return { query: '', topK: 5 };
+    case 'retrieve': return { query: '', knowledgeBaseIds: [], topK: 5 };
     case 'agent': return { prompt: '' };
     case 'transform': return { op: 'filter', input: '', field: '', operator: 'eq', value: '' };
     case 'approval': return { message: '' };

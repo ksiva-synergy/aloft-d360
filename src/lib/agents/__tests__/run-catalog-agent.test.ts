@@ -10,10 +10,21 @@ const h = vi.hoisted(() => ({
   runAgentLoop: vi.fn(),
   flush: vi.fn(),
   executeInspectorTool: vi.fn(),
+  knowledgeForAgent: vi.fn(),
+  runSearch: vi.fn(),
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ prisma: { agent_catalog: { findFirst: h.findFirst }, platformAgent: { update: vi.fn(async () => ({})) } } }));
+vi.mock('@/lib/org', () => ({ getDefaultOrg: () => ({ id: 'org-1' }) }));
+vi.mock('@/lib/knowledge/agents', () => ({
+  SEARCH_KNOWLEDGE_TOOL: 'search_knowledge',
+  knowledgeForAgent: h.knowledgeForAgent,
+  searchKnowledgeTool: () => ({ toolSpec: { name: 'search_knowledge' } }),
+  knowledgePrompt: (kbs: { name: string }[]) => (kbs.length ? `
+KNOWLEDGE: ${kbs.map((k) => k.name).join(', ')}` : ''),
+  runSearchKnowledgeTool: h.runSearch,
+}));
 vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop: h.runAgentLoop }));
 vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop: vi.fn() }));
 vi.mock('@/lib/inspector/prompts', () => ({
@@ -60,6 +71,8 @@ beforeEach(() => {
   h.runAgentLoop.mockReset();
   h.flush.mockReset();
   h.executeInspectorTool.mockReset().mockResolvedValue('{"rows":[]}');
+  h.knowledgeForAgent.mockReset().mockResolvedValue([]);
+  h.runSearch.mockReset().mockResolvedValue('{"results":[]}');
 });
 
 describe('runCatalogAgent', () => {
@@ -123,5 +136,31 @@ describe('runCatalogAgent', () => {
 describe('parseAgentAnswer', () => {
   it('ignores junk and keeps every asked field', () => {
     expect(parseAgentAnswer(answer, 'nonsense')).toEqual({ values: { compliant: null, next_due: null, open_items: null }, missing: ['compliant', 'next_due', 'open_items'], issues: {}, notes: null });
+  });
+
+  it('gives an agent linked to knowledge a search over what the person running it may see', async () => {
+    h.knowledgeForAgent.mockResolvedValue([{ id: 'kb-1', name: 'Company SMS', description: null }]);
+    h.runAgentLoop.mockImplementation(async (loop: Loop) => {
+      expect(loop.tools.tools.map((t) => t.toolSpec.name)).toEqual(['describe_schema', 'execute_tool', 'search_knowledge']);
+      expect(loop.systemPrompt).toContain('KNOWLEDGE: Company SMS');
+      await loop.executeTool('search_knowledge', { question: 'fire pump test interval' }, 'c1');
+      return done({ finalText: 'Weekly (Company SMS.pdf, p. 12).' });
+    });
+    const r = await runCatalogAgent({ slug: 'regulatory-decision-tracer', message: 'How often?', role: 'member', surface: 'agent_use', person: { userId: 'u-1', role: 'member' } });
+    expect(h.knowledgeForAgent).toHaveBeenCalledWith('cat-1', { userId: 'u-1', role: 'member', orgId: 'org-1' }, 'org-1');
+    expect(h.runSearch).toHaveBeenCalledWith({ question: 'fire pump test interval' }, [{ id: 'kb-1', name: 'Company SMS', description: null }], { orgId: 'org-1', userId: 'u-1', surface: 'agent' });
+    expect(r).toMatchObject({ toolCalls: 1, knowledgeBases: ['Company SMS'] });
+  });
+
+  it('runs without knowledge when the links cannot be read', async () => {
+    h.knowledgeForAgent.mockRejectedValue(new Error('relation does not exist'));
+    h.runAgentLoop.mockImplementation(async (loop: Loop) => {
+      expect(loop.tools.tools.map((t) => t.toolSpec.name)).toEqual(['describe_schema', 'execute_tool']);
+      expect(await loop.executeTool('search_knowledge', { question: 'x' }, 'c1')).toMatch(/not available/);
+      return done({ finalText: 'ok' });
+    });
+    const r = await runCatalogAgent({ slug: 'regulatory-decision-tracer', message: 'Hi', role: 'member', surface: 'automation' });
+    expect(r.knowledgeBases).toEqual([]);
+    expect(h.knowledgeForAgent).toHaveBeenCalledWith('cat-1', null, 'org-1');
   });
 });

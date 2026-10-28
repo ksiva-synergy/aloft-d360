@@ -9,7 +9,7 @@ vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop }));
 vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop }));
 vi.mock('@/lib/inspector/llm-configured', async (orig) => ({ ...(await orig<object>()), hasXaiCredentials: hasXai }));
 
-import { proposeFlowEdit, toolCallWrittenAsText } from '../propose';
+import { proposeFlowEdit, renderKnowledgeBases, toolCallWrittenAsText } from '../propose';
 
 const def = { name: 'x', steps: [{ id: 'a', type: 'agent', config: { prompt: 'p' } }] };
 const done = (extra: object = {}) => ({ finalText: null, toolCalls: [], outcome: 'completed', usage: { inputTokens: 0, outputTokens: 0 }, loops: 1, ...extra });
@@ -115,5 +115,15 @@ describe('copilot model adapter', () => {
     expect(prompts[0]).toContain('- agentSlug "regulatory-decision-tracer": "Regulatory Decision Tracer" (live) — Traces regulatory decisions');
     expect(prompts[0]).toContain('- agentSlug "invoice-harmonization-analyst": "Invoice Harmonization Analyst" (draft, can be tried but not published)');
     expect(prompts[1]).toContain('AVAILABLE AGENTS: (could not be loaded');
+  });
+});
+
+describe('knowledge bases in the copilot message', () => {
+  it('lists ids, names and what is in them, and says what to do when there are none', () => {
+    expect(renderKnowledgeBases([{ id: 'kb-sms', name: 'Company SMS', description: 'SMS manual and forms', scope: 'org', documents: 12 }])).toBe(
+      'AVAILABLE KNOWLEDGE BASES (a retrieve step searches these; use the id):\n- id "kb-sms": "Company SMS" (organisation, 12 documents ready) — SMS manual and forms',
+    );
+    expect(renderKnowledgeBases([])).toMatch(/none yet \(use "CHOOSE_KNOWLEDGE"/);
+    expect(renderKnowledgeBases(undefined)).toMatch(/could not be loaded/);
   });
 });

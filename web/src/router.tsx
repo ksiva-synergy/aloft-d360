@@ -79,6 +79,8 @@ export const routes: RouteObject[] = [
               { path: 'agent-lab/automate', lazy: page(() => import('@/views/agent-lab/flows/index')), handle: title('Automate · ALOFT') },
               { path: 'agent-lab/flows', element: <RedirectTo to="/agent-lab/automate" /> },
               { path: 'agent-lab/history', lazy: page(() => import('@/views/agent-lab/history')) },
+              { path: 'agent-lab/knowledge', lazy: page(() => import('@/views/agent-lab/knowledge/index')), handle: title('Knowledge · ALOFT') },
+              { path: 'agent-lab/knowledge/:id', lazy: page(() => import('@/views/agent-lab/knowledge/detail')), handle: title('Knowledge · ALOFT') },
               {
                 path: 'agent-lab/memory',
                 lazy: page(() => import('@/views/agent-lab/memory/index')),

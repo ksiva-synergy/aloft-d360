@@ -20,7 +20,7 @@ export interface RunScheduledHarvestResult {
 
 /**
  * Find estate rows with harvest_state = scheduled, group by catalog.schema,
- * launch sequential T0→T1→T2 per schema (Limit glob), mark rows queued.
+ * launch sequential T0→T1→T2→embed per schema (Limit glob), mark rows queued.
  */
 export async function runScheduledEstateHarvest(
   opts: RunScheduledHarvestOpts,

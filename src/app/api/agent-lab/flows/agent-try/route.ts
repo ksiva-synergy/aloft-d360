@@ -41,6 +41,7 @@ export const POST = handle(async (req) => {
       model: input.model,
       answer: input.answer as CustomField[] | undefined,
       surface: 'automation',
+      person: { userId: actor.userId, role: actor.role },
     });
     await writeAudit({
       actorId: actor.userId,

@@ -181,7 +181,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
         toast.error('Pipeline launch failed', { description: msg });
         return;
       }
-      const steps = 'T0 → T1 → T2';
+      const steps = 'T0 → T1 → T2 → embed';
       toast.success(`Pipeline started for ${label}`, {
         description: `${steps} sequential on Fargate · Limit ${body.includePatterns[0]}`,
       });

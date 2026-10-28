@@ -5,6 +5,25 @@
 
 ---
 
+### 2026-10-27 — Schema Run now stopped after T0 (Cursor)
+
+- **Issues:** Catalog **Run pipeline now** did not continue T0 → T1 → T2 → embed. Operator reported only profile; DB showed T0 succeeded and T1 queued with no `fargate_task_id`.
+- **Files:** `catalog-pipeline.ts`, `catalog-pipeline-launch.ts`, `orchestrator.ts`, `queue.ts` (`claimById`), `kick-queued-workers.ts`, `jobs/queued/route.ts`, `EstateCatalogTab.tsx`, `BulkActionBar.tsx`, tests, docs.
+- **Before → after:** T0 for `crewing_shore` (40) and `crewing_dashboard_public` (12) succeeded; T1 sat queued because the harvester cannot `RunTask` the next tier. Chain is now T0→T1→T2→embed. Web poller launches orphaned queued jobs; new harvester image continues the chain in-process when `RunTask` fails.
+- **Verified:** vitest catalog-pipeline + kick-queued-workers. Chain SQL updated 2 queued T1 rows. Kick launches T1.
+- **Not done:** Harvester image deploy. Web process must stay up to launch T2 and embed on the current image.
+
+```text
+[x] Read docs/jobs/current-status.md
+[x] Identified issue IDs (if any) — chain launch gap; embed omitted from catalog pipeline
+[x] Code/docs change complete
+[x] docs/CHANGELOG.md updated
+[x] docs/jobs/session-log.md updated
+[x] docs/jobs/current-status.md updated (if behavior changed)
+```
+
+---
+
 ### 2026-10-27 — T4 handlers re-implement (Cursor)
 
 - **Issues:** P1-5 T4 stub failures.

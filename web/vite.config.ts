@@ -78,6 +78,11 @@ export default defineConfig(({ mode, command }) => ({
   server: {
     port: Number(process.env.WEB_PORT ?? 3000),
     strictPort: true,
+    // `public/spa` is production UI output (`npm run build` → prepare-spa). Watching it on Windows
+    // causes EBUSY when Next/build touches hashed assets while Vite dev is running.
+    watch: {
+      ignored: ['**/public/spa/**', path.resolve(repoRoot, 'public/spa')],
+    },
     proxy: {
       // The UI and the API share one origin from the browser's point of view, so next-auth cookies
       // stay first-party and there is no CORS. SSE streams (chat, logs) pass through unbuffered.

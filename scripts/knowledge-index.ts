@@ -54,8 +54,7 @@ async function main() {
       console.log(`  ${name}: unchanged, already indexed (version ${current.version})`);
       continue;
     }
-    // A new version takes the path; the previous one is marked superseded once this one is indexed.
-    if (current) await prisma.knowledge_documents.update({ where: { id: current.id }, data: { status: 'superseded' } });
+    // A new version sits next to the current one, which stays searchable until this one is indexed.
     const doc = await prisma.knowledge_documents.create({
       data: {
         source_id: source.id,

@@ -14,12 +14,17 @@ import { runtimeBriefFromCatalog } from '@/lib/construction/catalog-sync';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import { computeCostUsd } from '@/lib/lifecycle/log-agent-cost';
 import { checkCustomFields, typeFieldValue, type CustomField } from '@/lib/extraction/schemas';
+import { getDefaultOrg } from '@/lib/org';
+import { knowledgeForAgent, knowledgePrompt, runSearchKnowledgeTool, searchKnowledgeTool, SEARCH_KNOWLEDGE_TOOL } from '@/lib/knowledge/agents';
 
 // Runs one turn of a saved agent from the agent catalog: its instructions as the system prompt and
 // the read-only data tools (describe_schema, execute_tool). Shared by agent chat and by Automate's
 // "Ask an agent" step, so both run agents the same way and both record what a run used: tokens,
 // rounds, tool calls, duration and outcome go to agent_turn_log / agent_loop_log (surface tells
 // them apart), and the cost is computed from ALOFT's price table.
+//
+// Knowledge: an agent linked to knowledge bases also gets `search_knowledge` over the linked ones
+// the person running it may search (src/lib/knowledge/agents.ts), and is told to cite (document, page).
 //
 // Optional answer fields: the agent must finish by calling `submit_answer` with exactly those
 // fields, typed the same way as document extraction (real dates, numbers), so later steps can
@@ -62,6 +67,8 @@ export type RunCatalogAgentInput = {
   answer?: CustomField[];
   /** agent_turn_log.surface: `agent_use` (chat) or `automation`. */
   surface: string;
+  /** Who is running it: linked knowledge bases are searched only as far as this person may. None = organisation ones only. */
+  person?: { userId: string; role: string } | null;
   abort?: { value: boolean };
   onTextChunk?: (delta: string) => void;
   onToolCallEvent?: (event: ToolCallEvent) => void;
@@ -72,6 +79,8 @@ export type RunCatalogAgentInput = {
 export type RunCatalogAgentResult = {
   agent: { id: string; name: string; slug: string; status: string | null };
   model: string;
+  /** Knowledge bases the agent could search in this run. */
+  knowledgeBases: string[];
   outcome: AgentLoopResult['outcome'];
   text: string;
   answer: AgentAnswer | null;
@@ -175,6 +184,12 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
     /* no warehouse — describe_schema still works */
   }
 
+  const orgId = getDefaultOrg().id;
+  const knowledge = await knowledgeForAgent(agent.id, input.person ? { ...input.person, orgId } : null, orgId).catch((e: unknown) => {
+    console.warn('[agents] linked knowledge unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
+    return [];
+  });
+
   const fields = input.answer ?? null;
   const messages: Message[] = [
     ...(input.history ?? []).map((t) => ({ role: t.role, content: [{ text: t.content } as ContentBlock] })),
@@ -182,6 +197,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   ];
   const systemPrompt = [
     buildRuntimeSystemPrompt({ ...brief, mode: 'live' }),
+    knowledgePrompt(knowledge),
     fields
       ? `\n\nFINAL ANSWER: when you are done, call ${SUBMIT_ANSWER_TOOL} once with every field (${fields.map((f) => f.key).join(', ')}). Use null for anything you could not establish from the data; never guess. Dates as YYYY-MM-DD, numbers as numbers.`
       : '',
@@ -199,12 +215,24 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
     modelId: effectiveModelId,
     systemPrompt,
     messages,
-    tools: { tools: [...INSPECTOR_TOOLS.filter((t) => AGENT_TOOLS.has(t.toolSpec?.name ?? '')), ...(fields ? [answerTool(fields)] : [])] },
+    tools: {
+      tools: [
+        ...INSPECTOR_TOOLS.filter((t) => AGENT_TOOLS.has(t.toolSpec?.name ?? '')),
+        ...(knowledge.length ? [searchKnowledgeTool(knowledge)] : []),
+        ...(fields ? [answerTool(fields)] : []),
+      ],
+    },
     executeTool: (toolName, toolInput, callId) => {
       if (fields && toolName === SUBMIT_ANSWER_TOOL) {
         submitted = toolInput;
         abort.value = true; // the answer is in; skip the follow-up call
         return Promise.resolve('Answer received.');
+      }
+      if (toolName === SEARCH_KNOWLEDGE_TOOL && knowledge.length) {
+        toolCalls++;
+        return withAgentOpsToolLog({ sessionId: agent.id, runId: metrics.turnId, loop: 0, toolName, callId, model: effectiveModelId }, toolInput, () =>
+          runSearchKnowledgeTool(toolInput, knowledge, { orgId, userId: input.person?.userId ?? null, surface: input.surface === 'automation' ? 'automation' : 'agent' }),
+        );
       }
       if (!AGENT_TOOLS.has(toolName)) return Promise.resolve(JSON.stringify({ error: `Tool ${toolName} is not available when using this agent` }));
       toolCalls++;
@@ -260,6 +288,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   return {
     agent: { id: agent.id, name: agent.name, slug: input.slug, status: agent.status ?? null },
     model: effectiveModelId,
+    knowledgeBases: knowledge.map((k) => k.name),
     outcome,
     text,
     answer,

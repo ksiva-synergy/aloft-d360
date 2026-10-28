@@ -87,12 +87,13 @@ export function buildCopilotSystemPrompt(): string {
     '- trigger: { type: "manual" } | { type: "schedule", cron: 5-field UTC cron } | { type: "event", name } | { type: "webhook", name: lowercase-with-dashes }.',
     '- inputs: { name: snake_case, type: string|number|boolean, required, default? }. Reference as {{inputs.name}}.',
     '- step: { id: snake_case unique, type, name?, dependsOn?: [ids], when?: { ref: "{{steps.id.field}}", operator: eq|neq|gt|gte|lt|lte|contains, value }, retries?: 0–5, config }.',
-    '- Reference an earlier step\'s output as {{steps.<id>.<field>}} (query/transform: rows, rowCount; agent: text; retrieve: chunks; object_store.list: objects, each with key; document.extract: fields). A reference creates the dependency automatically.',
+    '- Reference an earlier step\'s output as {{steps.<id>.<field>}} (query/transform: rows, rowCount; agent: text; retrieve: chunks, each with text and cite; object_store.list: objects, each with key; document.extract: fields). A reference creates the dependency automatically.',
     '- REPEAT FOR EACH ITEM: an agent or tool step may set forEach: { items: "{{steps.<id>.<list>}}", maxItems: 1–1000, concurrency?: 1–10 }. It then runs once per item; inside its config use {{item}} or {{item.<field>}} for the current item. Its output is { items: [{ item, output, error? }], total, succeeded, failed }. Use it whenever the user wants something done for every row or every file (e.g. extract each document listed by object_store.list: forEach over {{steps.list_docs.objects}} with input key "{{item.key}}"). A list longer than maxItems fails the step, so pick a realistic limit and say it. A repeating paid step needs a per-run budget: set one (set_budget) if there is none.',
     '',
     'STEP CONFIG BY TYPE',
     '- query: { semantic: { modelId, entityId, dimensions: [{ dimensionId, timeGrain? }], measures: [{ measureId }], filters: [{ fieldId, fieldKind: "dimension"|"measure", op: eq|neq|gt|gte|lt|lte|in|not_in|between|is_null|is_not_null, value }], sorts: [{ fieldId, fieldKind, direction: asc|desc }] }, maxRows } — governed; preferred. Use exactly these keys. Or { sql, maxRows } (raw read-only, needs the flow:sql permission; avoid).',
-    '- retrieve: { query, topK } — search the knowledge base.',
+    '- retrieve: { query, knowledgeBaseIds: [ids], topK } — search knowledge bases (company documents and Q&A). Output chunks: [{ text, cite, document, page, section }]; cite is "document, p. N".',
+    '  - Use ids from AVAILABLE KNOWLEDGE BASES that fit the question (match name and description). If none fits, use ["CHOOSE_KNOWLEDGE"] and tell the user to pick one in the step panel. To answer from the passages, add an agent step whose prompt includes {{steps.<id>.chunks}} and asks it to cite (document, page).',
     '- agent: { prompt, agentSlug?, model?, answer? } — ask AI, or a saved agent (agentSlug) that can look things up with read-only data tools. Data from earlier steps is treated as data, not instructions.',
     '  - Use a saved agent from AVAILABLE AGENTS when one fits the job (match its name and description); prefer ready ones. Never invent a slug.',
     '  - When later steps need specific things back (yes/no, a score, a date, a reason), set answer = [{ key, label, type: text|date|number, description }] with the same rules as document fields; later steps read {{steps.<id>.values.<key>}}. Plain text is in {{steps.<id>.text}}.',
@@ -151,6 +152,16 @@ export function renderConnections(connections: CopilotConnection[] | undefined):
   return ['AVAILABLE CONNECTIONS (the user may use these; "connection" inputs take the id):', ...lines].join('\n');
 }
 
+/** A knowledge base the user may search, as the copilot sees it. */
+export type CopilotKnowledgeBase = { id: string; name: string; description: string | null; scope: string; documents: number };
+
+export function renderKnowledgeBases(kbs: CopilotKnowledgeBase[] | undefined): string {
+  if (!kbs) return 'AVAILABLE KNOWLEDGE BASES: (could not be loaded; use "CHOOSE_KNOWLEDGE")';
+  if (!kbs.length) return 'AVAILABLE KNOWLEDGE BASES: none yet (use "CHOOSE_KNOWLEDGE"; they are created under Memory → Knowledge)';
+  const lines = kbs.map((k) => `- id "${k.id}": ${JSON.stringify(k.name)} (${k.scope === 'org' ? 'organisation' : 'personal'}, ${k.documents} documents ready)${k.description ? ` — ${k.description.slice(0, 160)}` : ''}`);
+  return ['AVAILABLE KNOWLEDGE BASES (a retrieve step searches these; use the id):', ...lines].join('\n');
+}
+
 export type ProposeOutcome =
   /** The model called the tool. `operations` is unparsed. */
   | { kind: 'proposal'; reply: string; operations: unknown }
@@ -188,6 +199,8 @@ export async function proposeFlowEdit(params: {
   connections?: CopilotConnection[];
   /** Saved agents; undefined when they could not be loaded. */
   agents?: CopilotAgent[];
+  /** Knowledge bases the user may search; undefined when they could not be loaded. */
+  knowledgeBases?: CopilotKnowledgeBase[];
 }): Promise<ProposeOutcome> {
   const turns: Message[] = (params.history ?? []).slice(-6).map((t) => ({ role: t.role, content: [{ text: t.text } as ContentBlock] }));
   const userText = [
@@ -199,6 +212,8 @@ export async function proposeFlowEdit(params: {
     renderConnections(params.connections),
     '',
     renderAgents(params.agents),
+    '',
+    renderKnowledgeBases(params.knowledgeBases),
     '',
     params.repairNote ? `Your previous proposal could not be applied:\n${params.repairNote}\nPropose a corrected set of operations for my request.` : '',
     `My request: ${params.message}`,

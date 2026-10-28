@@ -17,6 +17,7 @@ vi.mock('@/middleware/auth', () => ({
 vi.mock('@/lib/lifecycle/log-agent-cost', () => ({ computeCostUsd: () => 0.033 }));
 vi.mock('@/lib/audit', () => ({ writeAudit: h.audit }));
 vi.mock('@/lib/inspector/llm-configured', () => ({ inspectorLlmConfigured: h.llm }));
+vi.mock('@/lib/knowledge/service', () => ({ listKnowledgeBases: async () => [{ id: 'kb-sms', name: 'Company SMS', archived: false }] }));
 vi.mock('@/lib/agents/catalog', () => ({
   agentStatusMap: async () => new Map(),
   listCatalogAgents: async () => [{ slug: 'regulatory-decision-tracer', name: 'Regulatory Decision Tracer', description: null, status: 'live', runnable: true, tags: [] }],

@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-10-27 (T3 scope, multi-source launch, `--process-scheduled`; audit register §0 in [harvest-job-pipeline-issues.md](../audits/harvest-job-pipeline-issues.md))  
+**Last verified:** 2026-10-27 (catalog pipeline T0→T1→T2→embed; chain follow-up launch; audit register §0 in [harvest-job-pipeline-issues.md](../audits/harvest-job-pipeline-issues.md))  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
@@ -109,7 +109,9 @@ Example: `curated_db.db_smac_prod_navitasai_crewing_dashboard_public.*`
 | Endpoint | Role |
 |----------|------|
 | `POST …/jobs/plan` | Split preview; T0 uses discovery count; T1/T2 use Scanned; returns `registry`, `discoveryObjects`, `scannedObjects` |
-| `POST …/jobs/launch` | `assertObjectsInScope` for T0/T1/T2; then enqueue + Fargate |
+| `POST …/jobs/launch` | `assertObjectsInScope` for T0/T1/T2; then enqueue + Fargate. Sequential mode launches **only the first kind**; the worker enqueues the rest via `scope.chain`. |
+| Catalog **Run pipeline now** | Kinds `t0_structural` → `t1_profile` → `t2_semantic` → `embed`, Limit `catalog.schema.*` |
+| `GET …/jobs/queued` | Also starts a worker for top-level queued jobs with no task id (chain follow-ups the harvester could not launch) |
 | `POST …/jobs/trigger` | Enqueue + **launch worker** (P1-9 fixed) |
 | `GET …/jobs/cockpit` | Pipeline health + recommendation |
 
@@ -121,6 +123,7 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 
 | ID | Gap | Impact on schema-only harvest |
 |----|-----|-------------------------------|
+| **Chain follow-up** | Harvester container cannot `RunTask` (no `ECS_SUBNET_IDS` / task-role ECS permission). Next tier is enqueued and stays `queued` until the **web** process launches it, or until a harvester image with in-process continuation is deployed. | Schema pipeline stops after the tier the web launched (seen: T0 done, T1 queued) |
 | **P1-1 / P1-20** | Full 4-step intent wizard | Cockpit strip + recommendations + include-tree mode shipped; intent cards not shipped |
 | **P2-5** | T3 SQL scope | Schema `LIKE` pushdown when Limit/excludes narrow scope; post-filter still applies |
 | **P1-16** | Estate ↔ scanned link | `context_object_id` set on T0 upsert (join in list API still works for legacy rows) |
@@ -153,6 +156,7 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-10-27 | Catalog pipeline includes **embed**; orphaned chain jobs are launched from the web; orchestrator continues in-process when follow-up `RunTask` fails (needs harvester image deploy) |
 | 2026-10-27 | Catalog **Run pipeline now** + **Run scheduled now**; source harvest/inventory/refresh **launch workers**; Jobs **re-run flags**; `POST …/estate/run-scheduled` |
 | 2026-10-26 | Scope batch (T1/T2 excludes, embed/T3 scope, T0 live launch); **P1-11** inventory Limit; **P1-14** source picker; **T1 stale-only**; **P1-19** knowledge_sync |
 | 2026-10-26 | **P0-3** … (Phase 0 bundle — see prior session log) |

@@ -86,4 +86,9 @@ export interface PolicyContext {
    * check flag an unknown agent, or one that is not ready to run in a published flow. Absent: not checked.
    */
   agents?: ReadonlyMap<string, { name: string; status: string | null; hasInstructions?: boolean }>;
+  /**
+   * Knowledge bases the publisher may search, by id, so a Search knowledge step is checked against
+   * them (unknown, not shared or archived). Absent: not checked.
+   */
+  knowledgeBases?: ReadonlyMap<string, { name: string; archived: boolean }>;
 }
