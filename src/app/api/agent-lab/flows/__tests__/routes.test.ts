@@ -1,5 +1,5 @@
 /**
- * Contract tests for the Flows preview API: feature flag, always-enforced auth, permission check,
+ * Contract tests for the Flows preview API: always-enforced auth, permission check,
  * request validation, and one full simulate round-trip through the real flow core.
  * Auth and pricing are mocked; nothing touches a database or the network.
  */
@@ -37,7 +37,6 @@ const simulate = (body: unknown) =>
   );
 
 beforeEach(() => {
-  vi.stubEnv('FLOWS_ENABLED', 'true');
   vi.stubEnv('DEFAULT_ORG_ID', 'org-1');
   vi.stubEnv('FLOWS_EGRESS_EMAIL_DOMAINS', 'example.com');
   resolveAuth.mockReset();
@@ -46,15 +45,6 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('flows preview API', () => {
-  it('is hidden unless FLOWS_ENABLED=true, before any auth work', async () => {
-    vi.stubEnv('FLOWS_ENABLED', '');
-    const res = await getCatalog();
-    expect(res.status).toBe(404);
-    expect((await res.json()).details).toEqual({ code: 'flows_disabled' });
-    expect((await simulate({ definition: {} })).status).toBe(404);
-    expect(resolveAuth).not.toHaveBeenCalled();
-  });
-
   it('requires a signed-in user with inspector:use', async () => {
     resolveAuth.mockRejectedValueOnce(new ApiError(401, 'Unauthenticated'));
     expect((await getCatalog()).status).toBe(401);

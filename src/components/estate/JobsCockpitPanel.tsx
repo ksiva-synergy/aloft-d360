@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { isJobsLaunchWizardEnabled } from '@/lib/estate/job-ui';
 import { inkOf } from '@/lib/typography/tokens';
 
 interface PipelineHealth {
@@ -34,9 +35,11 @@ function fmt(n: number): string {
 export default function JobsCockpitPanel({
   sourceId,
   onLaunched,
+  onOpenWizard,
 }: {
   sourceId?: string | null;
   onLaunched?: () => void;
+  onOpenWizard?: () => void;
 }) {
   const [data, setData] = useState<CockpitResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,7 +145,18 @@ export default function JobsCockpitPanel({
             <div className="text-size-ui font-semibold mt-0.5" style={{ color: 'var(--estate-ink)' }}>{rec.title}</div>
             <div className="text-caption mt-1" style={{ color: 'var(--estate-text-secondary)' }}>{rec.detail}</div>
           </div>
-          <button
+          <div className="flex shrink-0 gap-2">
+            {isJobsLaunchWizardEnabled() && onOpenWizard && (
+              <button
+                type="button"
+                onClick={onOpenWizard}
+                className="px-4 py-2 rounded-lg text-size-ui font-semibold border"
+                style={{ borderColor: 'var(--estate-border)', color: 'var(--estate-text-secondary)' }}
+              >
+                Guided launch
+              </button>
+            )}
+            <button
             type="button"
             disabled={launching || loading}
             onClick={runRecommended}
@@ -151,6 +165,7 @@ export default function JobsCockpitPanel({
           >
             {launching ? 'Launching…' : 'Run on Fargate'}
           </button>
+          </div>
         </div>
       )}
     </div>

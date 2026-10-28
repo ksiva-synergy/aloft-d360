@@ -40,7 +40,6 @@ const call = (body: unknown) =>
   POST(new Request('http://test/api/agent-lab/flows/copilot', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }), undefined);
 
 beforeEach(() => {
-  vi.stubEnv('FLOWS_ENABLED', 'true');
   vi.stubEnv('DEFAULT_ORG_ID', 'org-1');
   resolveAuth.mockReset().mockResolvedValue(member);
   proposeFlowEdit.mockReset();
@@ -51,10 +50,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('flows copilot API', () => {
-  it('is hidden when Flows is off and needs inspector:use', async () => {
-    vi.stubEnv('FLOWS_ENABLED', '');
-    expect((await call({ definition: definition(), message: 'hi' })).status).toBe(404);
-    vi.stubEnv('FLOWS_ENABLED', 'true');
+  it('needs inspector:use', async () => {
     resolveAuth.mockResolvedValueOnce({ userId: 'u-2', role: 'readonly', permissions: new Set(['session:read']) });
     expect((await call({ definition: definition(), message: 'hi' })).status).toBe(403);
     expect(proposeFlowEdit).not.toHaveBeenCalled();

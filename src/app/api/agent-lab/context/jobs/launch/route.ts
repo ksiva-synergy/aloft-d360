@@ -1,5 +1,6 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
@@ -24,6 +25,7 @@ import {
 } from '@/lib/estate/job-ui';
 import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
+import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
 import {
   type JobScopeRunnerFlags,
   mergeJobScopeRunnerFlags,
@@ -97,12 +99,16 @@ async function launchKind(
   includePatterns: string[],
   chain: JobKind[],
   runnerFlags: JobScopeRunnerFlags = {},
+  uiSurface?: string,
+  pipelineRunId?: string,
 ): Promise<{ jobsEnqueued: number; taskArn: string | null; failures: { arn?: string; reason?: string }[] }> {
   let scope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) scope.excludeSchemas = excludeSchemas;
   if (includePatterns.length > 0) scope.includePatterns = includePatterns;
   if (chain.length > 0) scope.chain = chain;
   scope = mergeJobScopeRunnerFlags(scope, runnerFlags);
+  if (uiSurface) scope.ui_surface = uiSurface;
+  if (pipelineRunId) scope.pipeline_run_id = pipelineRunId;
   const scopeOrNull = Object.keys(scope).length > 0 ? scope : null;
 
   let jobsEnqueued = 0;
@@ -168,6 +174,8 @@ async function launchSplitKind(
   includePatterns: string[],
   chain: JobKind[],
   runnerFlags: JobScopeRunnerFlags = {},
+  uiSurface?: string,
+  pipelineRunId?: string,
 ): Promise<{
   parentJobId: string;
   totalChildren: number;
@@ -183,6 +191,8 @@ async function launchSplitKind(
   if (includePatterns.length > 0) baseScope.includePatterns = includePatterns;
   if (chain.length > 0) baseScope.chain = chain;
   baseScope = mergeJobScopeRunnerFlags(baseScope, runnerFlags);
+  if (uiSurface) baseScope.ui_surface = uiSurface;
+  if (pipelineRunId) baseScope.pipeline_run_id = pipelineRunId;
 
   // Create parent + child job rows atomically
   const { parentJobId, childJobIds } = await enqueueWithChildren(
@@ -259,6 +269,12 @@ export async function POST(req: NextRequest) {
     forceReEnrich: body.forceReEnrich === true,
     forceFullScan: body.forceFullScan === true,
   };
+  const uiSurface =
+    typeof body.uiSurface === 'string' && body.uiSurface.trim()
+      ? body.uiSurface.trim()
+      : typeof body.ui_surface === 'string' && body.ui_surface.trim()
+        ? body.ui_surface.trim()
+        : undefined;
   const requestedSourceId =
     typeof body.sourceId === 'string' ? body.sourceId : typeof body.source_id === 'string' ? body.source_id : undefined;
 
@@ -280,6 +296,23 @@ export async function POST(req: NextRequest) {
   try {
     const orgId = await getOrgId();
     const sources = await resolveLaunchSources(orgId, requestedSourceId);
+
+    const pipelineRunId = sequential && kinds.length > 1 ? randomUUID() : undefined;
+
+    for (const src of sources) {
+      const conflict = await findScopedLaunchConflict(src.id, kinds, includePatterns);
+      if (conflict) {
+        return NextResponse.json(
+          {
+            error: 'ACTIVE_JOB_OVERLAP',
+            message: `A ${conflict.job_kind} job is already active for overlapping scope.`,
+            jobId: conflict.id,
+            job_kind: conflict.job_kind,
+          },
+          { status: 409 },
+        );
+      }
+    }
 
     let totalJobsEnqueued = 0;
     let allFailures: { arn?: string; reason?: string }[] = [];
@@ -304,6 +337,8 @@ export async function POST(req: NextRequest) {
               scope.includePatterns,
               chain,
               runnerFlags,
+              uiSurface,
+              pipelineRunId,
             );
             splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
             totalJobsEnqueued += result.totalChildren + 1;
@@ -321,6 +356,8 @@ export async function POST(req: NextRequest) {
           scope.includePatterns,
           chain,
           runnerFlags,
+          uiSurface,
+          pipelineRunId,
         );
         totalJobsEnqueued += result.jobsEnqueued;
         allFailures.push(...result.failures);
@@ -349,6 +386,7 @@ export async function POST(req: NextRequest) {
       sequential,
       jobs_enqueued: totalJobsEnqueued,
       task_arns: taskArns,
+      pipeline_run_id: pipelineRunId,
       split_summaries: splitSummaries.length > 0 ? splitSummaries : undefined,
     });
   } catch (err) {

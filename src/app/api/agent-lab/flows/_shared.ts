@@ -12,11 +12,6 @@ import { listKnowledgeBases, type KnowledgeBaseSummary } from '@/lib/knowledge/s
 
 // Shared by the Flows preview routes. Not a route file: Next only routes `route.ts`.
 
-/** Off unless FLOWS_ENABLED=true (docs/flows-architecture.md §16). */
-export function assertFlowsEnabled(): void {
-  if (process.env.FLOWS_ENABLED !== 'true') throw new ApiError(404, 'Automate is not enabled on this environment', { code: 'flows_disabled' });
-}
-
 /**
  * Platform admins hold every Studio capability permission without needing the permission rows
  * seeded (decision 2026-10-27: creators own their flows, platform admins can do everything).

@@ -2,6 +2,111 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-28 — Automate: remove FLOWS_ENABLED feature flag
+
+- **What:** Removed `assertFlowsEnabled()` and all `FLOWS_ENABLED` checks from `/api/agent-lab/flows/*`. Automate UI no longer shows “set FLOWS_ENABLED=true”. Updated flows API/UI tests; `flows-architecture.md`, `IMPLEMENTATION_STATUS.md`.
+- **Why:** Automate should work in prod without a separate env toggle; `inspector:use` auth remains the gate.
+- **Verified:** `npx vitest run src/app/api/agent-lab/flows/__tests__ src/views/agent-lab/flows/__tests__/FlowsPreviewPage.test.tsx`.
+- **Not done:** Prod still needs flows/connections migrations and LLM keys for Copilot.
+
+## 2026-10-28 — Jobs: embeddings inactive / T0 drop doc (terminology)
+
+- **What:** `embeddings-lifecycle-and-drops.md` §0 — maps operator **inactive / not deleted** to DB **`lifecycle = 'dropped'`** and ignored (not deleted) embedding rows.
+- **Why:** Clarify inactive vs dropped vs deleted (operator wording).
+- **Verified:** Doc only.
+- **Not done:** —
+
+## 2026-10-28 — Jobs: embeddings inactive / T0 drop doc
+
+- **What:** `docs/jobs/embeddings-lifecycle-and-drops.md` — explains dropped objects vs embedding rows, search filters, UI lifecycle, Oct 2026 incident, recovery checklist. Linked from jobs README and related docs.
+- **Why:** Operator question on prior behavior where embeddings/catalog appeared inactive.
+- **Verified:** `harvest.ts`, `describe.ts`, incident doc, CHANGELOG data-fix entry.
+- **Not done:** Automatic embedding cleanup on drop; unified kb_index.
+
+## 2026-10-28 — Jobs: tier timestamps and staleness doc
+
+- **What:** Added `docs/jobs/tier-timestamps-and-staleness.md` — explains `last_t0_at`, `last_t1_at`, `last_t2_at`, meaning of `last_t1_at < last_t0_at`, worked examples, ladder diagram, UI/code map. Linked from jobs README, `current-status.md`, `redundancy-and-skip-behavior.md`.
+- **Why:** Operator request to document how the system knows which steps a table still needs.
+- **Verified:** Aligned with `pipeline-intent.ts`, `harvest.ts`, `schema.prisma`.
+- **Not done:** —
+
+## 2026-10-28 — Jobs: efficient pipeline playbook + brainstorm
+
+- **What:** Added `docs/jobs/efficient-pipeline-playbook.md` (golden paths, UI surface matrix, anti-patterns, eng/product brainstorm). Linked from jobs README and redundancy doc. Updated `schema-harvest-guide.md` for stale-only T1 and Continue-first flow.
+- **Why:** Operators need a single “how to craft the best non-redundant run” guide beyond mechanics-only redundancy doc.
+- **Verified:** Aligned with `pipeline-intent.ts`, remediation phases 4–5.
+- **Not done:** Preflight zero-stale launch block; cockpit CTA rename.
+
+## 2026-10-28 — Jobs: redundancy and stale-skip documentation
+
+- **What:** Added `docs/jobs/redundancy-and-skip-behavior.md` (freshness rules, per-tier skips, force flags, launch paths, operator playbooks, code map). Linked from jobs README and `current-status.md`. Updated `versioning-and-incremental.md` T1 row to match stale-only workers.
+- **Why:** Operators asked how redundant runs are avoided and when jobs still start with little warehouse work.
+- **Verified:** Cross-check with `pipeline-intent.ts`, `harvest.ts`, `enrich.ts`, `embed.ts`, `cockpit.ts`.
+- **Not done:** Phase 5 entry-point unification; honest EMPTY job UX in UI.
+
+## 2026-10-28 — Jobs: guided launch wizard on by default
+
+- **What:** `isJobsLaunchWizardEnabled()` is true unless `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=false`. Updated jobs README and `current-status.md`.
+- **Why:** Guided launch is the intended default; env var is opt-out only (rollback), not opt-in.
+- **Verified:** `src/lib/estate/job-ui.ts`.
+- **Not done:** —
+
+## 2026-10-28 — Applied `platform_connections` on the dev database
+
+- **What:** Created `public.platform_connections` on `aloft-dev-writer` / `aloftdb` from `prisma/migrations/20261027_connections/migration.sql`, then `prisma migrate resolve --applied 20261027_connections`. The table is empty.
+- **Why:** Automate copilot logged `[flows copilot] connections unavailable` and left the canvas with no steps. `platformConnection.findMany` failed with Prisma `P2021` (table did not exist). The route only logs the first 200 characters of the error, which is the Turbopack invocation path, so the log never showed the missing-table sentence.
+- **Verified:** `prisma.platformConnection.findMany({ take: 1 })` returns `OK rows 0`.
+- **Not done:** No storage or SAP connections exist yet. Copilot still needs the PDF fields and the SAP path before it will add steps. The truncated copilot log line is unchanged.
+
+## 2026-10-28 — Jobs: Phase 4 guided launch wizard (flagged) + polish
+
+- **What:** `JobsLaunchWizard` (4 steps: intent, scope, review, run) behind **`NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=true`**; cockpit **Guided launch** button. L1 **Advanced job types** collapsed. Job drawer **plain scope** + JSON details. Active Runs **source** filter. `formatJobScopeHuman` in `job-ui.ts`.
+- **Why:** Phase 4.1–4.6 partial per remediation plan.
+- **Verified:** `npx tsc --noEmit`.
+- **Not done:** Full discovery include-tree in wizard; Phase 0 deploy sign-off; Phase 5 hardening.
+
+## 2026-10-28 — Jobs: Active Runs filters + multi-schema/table Continue (Phase 2–3)
+
+- **What:** Active Runs — kind filter, **Partial (24h)** view, **Retry failed** on orchestrating/partial parents, queued-only via `?activeFilter=queued`. Scanned — schema **checkboxes** (≤12), table **checkboxes** (≤50), **Continue confirm** sheet, multi-pattern intent API. Continue stamps `ui_surface: scanned_continue`.
+- **Why:** Next steps in [remediation-master-plan.md](./jobs/remediation-master-plan.md) phases 2–3.
+- **Verified:** `npx tsc --noEmit`.
+- **Not done:** Phase 0 deploy sign-off; Phase 4 guided wizard; source filter on Active Runs.
+
+## 2026-10-28 — Jobs: Phase 0 doc + Phase 1–3 planned order (DET-2592)
+
+- **What:** `docs/jobs/phase-0-chain-deploy.md` (deploy, chain, failStale runbook). Cockpit scoped `GET …/jobs/cockpit?catalog=&schema=`. Plan `humanSummary` uses stale counts for T1/T2. Sequential launch `pipeline_run_id`. `POST …/jobs/kick-queued`. Intent `ACTIVE_JOB_OVERLAP` blockers. Active Runs: source/updated, cancel, failed 24h, start waiting jobs, stale hint. Scanned facets gap counts; tier filters/counts = needs profile/enrich/embed; overlap banner on Continue; catalog **Run full pipeline (from T0)** label.
+- **Why:** Execute [remediation-master-plan.md](./jobs/remediation-master-plan.md) phases 0→3 in order (repo only, no Jira).
+- **Verified:** `npx vitest run src/lib/estate/pipeline-intent.test.ts src/lib/context/job-scope.test.ts`; `npx tsc --noEmit`.
+- **Not done:** Phase 0 deploy sign-off; Phase 2 retry/logs polish; Phase 3 multi-select; Phase 4 wizard.
+
+## 2026-10-28 — Jobs: pipeline intent, Active Runs, Scanned Continue (Phase 1–2 partial)
+
+- **What:** Server `computePipelineIntent` + scoped health (`src/lib/estate/pipeline-intent.ts`); APIs `GET …/pipeline/intent`, `POST …/pipeline/continue` (returns launch payload), `GET …/jobs/active` (`listActiveJobs`); plan API `staleObjectCount` for T1/T2; launch stamps `ui_surface` and returns **409** on overlapping active scope (`findScopedLaunchConflict`, `includePatternsOverlap`). UI: **Active Runs** tab (`ActiveRunsPanel`), **Continue pipeline** bar on Scanned (`ScannedPipelineScopeBar`), L1 queued strip → Active Runs link.
+- **Why:** DET-2592 — operators need one active-job view and continue T1→T2→embed from Scanned without guessing kinds; honest stale previews and launch debounce.
+- **Verified:** `npx vitest run src/lib/estate/pipeline-intent.test.ts src/lib/context/job-scope.test.ts` (with `server-only` mock); manual API/UI smoke in dev.
+- **Not done:** Phase 0 deploy; cockpit scoped intent; Active Runs cancel/failed filters; multi-schema wizard; full remediation phases 3–5.
+
+## 2026-10-28 — Jobs: master remediation plan (DET-2592)
+
+- **What:** Added `docs/jobs/remediation-master-plan.md` — phased plan to address pipeline reliability, Active runs ops desk, Scanned Continue, guided launch wizard, and remaining audit partials/open items. Includes PR bundles A–I, issue crosswalk, verification matrix, ~6-week timeline. Linked from jobs README and `current-status.md`.
+- **Why:** Single execution plan tying ops gaps, scanned-continue design, and harvest issue register to DET-2592.
+- **Verified:** Doc crosswalk against audit §0 and OPS register.
+- **Not done:** Implementation not started.
+
+## 2026-10-28 — Jobs: ops console gaps and Active runs vision
+
+- **What:** Added `docs/jobs/ops-console-gaps-and-vision.md` — operator playbook for monitoring harvest jobs today (Jobs L1/L2/L3, kick, retry failed, cancel, chain/stuck notes), **OPS-1–OPS-14** gap register, target **Active runs** unified tab, proposed `GET …/jobs/active`, implementation order, acceptance criteria. Linked from `docs/estate-jobs.md`, `docs/jobs/README.md`, `docs/jobs/current-status.md`.
+- **Why:** Need one place to understand running/failed/stuck work; current UI spreads active jobs across kind/date drill-down.
+- **Verified:** Doc review against jobs routes and UI components.
+- **Not done:** Active runs API and UI not implemented.
+
+## 2026-10-28 — Jobs: Scanned Continue pipeline design doc
+
+- **What:** Added `docs/jobs/scanned-continue-pipeline-design.md` — operator UX for **Continue pipeline** from Scanned & beyond (gaps vs completed tiers, multi-schema/table scope), server **pipeline intent** API shape, launch via existing `jobs/launch`, reliability guardrails, phased implementation, tests, and DET-2592 acceptance criteria. Indexed in `docs/jobs/README.md`; linked from `docs/jobs/current-status.md` §6.
+- **Why:** Capture brainstorm for DET-2592 so eng/product can implement without re-deriving scope, stale T1/T2 rules, and safety constraints.
+- **Verified:** Doc links from jobs README and current-status.
+- **Not done:** No application code; phases 1–6 in the design doc remain to build.
+
 ## 2026-10-28 — Fix `next build` typecheck for orphaned queue kick
 
 - **What:** `isOrphanedQueuedJob` accepts `created_at: Date | null` (matches Prisma) and treats null as not orphaned.

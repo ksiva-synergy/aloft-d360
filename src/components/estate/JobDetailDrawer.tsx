@@ -6,7 +6,7 @@ import { ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import LogStreamPanel from './LogStreamPanel';
 import ChildJobsPanel from './ChildJobsPanel';
-import { mapJobStatus, isKickableJob, isOrchestratingParent } from '@/lib/estate/job-ui';
+import { mapJobStatus, isKickableJob, isOrchestratingParent, formatJobScopeHuman } from '@/lib/estate/job-ui';
 import { type, inkOf } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
@@ -650,7 +650,17 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
               Scope
             </h4>
             {activeJob.scope ? (
-              <JsonDisplay data={activeJob.scope} />
+              <>
+                <p className="text-size-ui font-sans px-1" style={{ color: 'var(--estate-text-secondary)' }}>
+                  {formatJobScopeHuman(activeJob.scope)}
+                </p>
+                <details className="rounded-lg border" style={{ borderColor: 'var(--border-default)' }}>
+                  <summary className="text-label cursor-pointer px-3 py-2" style={{ color: 'var(--ink-3)' }}>
+                    Technical scope (JSON)
+                  </summary>
+                  <JsonDisplay data={activeJob.scope} />
+                </details>
+              </>
             ) : (
               <div className="font-sans text-size-body italic text-[var(--text-muted)] p-4 border border-dashed rounded-lg" style={{ borderColor: 'var(--border-default)' }}>
                 No scope defined

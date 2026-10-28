@@ -20,6 +20,7 @@ import {
   t0AllowsLiveScopeWhenDiscoveryEmpty,
 } from '@/lib/estate/job-ui';
 import { getContextHarvesterModelId } from '@/lib/context/harvester-llm';
+import { countStaleObjectsForKind } from '@/lib/estate/pipeline-intent';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,9 +108,25 @@ export async function POST(req: NextRequest) {
       scopeWarning = `Focus still matches ${chunks} schema chunks — widen/narrow your glob if that is unexpected.`;
     }
 
-    const humanSummary = usesEstateObjectPlan(kind)
-      ? `${plan.totalObjects} table(s) in discovery will be scanned`
-      : `${plan.totalObjects} scanned table(s) match this plan`;
+    let staleObjectCount: number | undefined;
+    if (kind === 't1_profile' || kind === 't2_semantic') {
+      staleObjectCount = await countStaleObjectsForKind(
+        orgId,
+        source.id,
+        kind as JobKind,
+        planOpts.includePatterns ?? [],
+        planOpts.excludeSchemas ?? [],
+      );
+    }
+
+    const humanSummary =
+      kind === 't1_profile' && staleObjectCount !== undefined
+        ? `${staleObjectCount.toLocaleString()} scanned table(s) need profiling (stale vs T0)`
+        : kind === 't2_semantic' && staleObjectCount !== undefined
+          ? `${staleObjectCount.toLocaleString()} scanned table(s) need enrich (stale vs profile)`
+          : usesEstateObjectPlan(kind)
+            ? `${plan.totalObjects} table(s) in discovery will be scanned`
+            : `${plan.totalObjects} scanned table(s) match this plan`;
 
     return NextResponse.json({
       needsSplit: plan.needsSplit,
@@ -129,6 +146,7 @@ export async function POST(req: NextRequest) {
       scannedObjects,
       humanSummary,
       sourceId: source.id,
+      ...(staleObjectCount !== undefined ? { staleObjectCount } : {}),
       ...(kind === 't2_semantic'
         ? { harvestModelId: getContextHarvesterModelId() }
         : {}),

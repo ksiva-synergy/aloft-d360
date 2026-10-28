@@ -20,7 +20,7 @@ const json = (status: number, body: unknown) => new Response(JSON.stringify(body
 type SavedRow = { id: string; name: string; status: string; version: number; definition: unknown; owner: string; updatedAt: string };
 type CopilotReply = { reply: string; operations: unknown[] } | { status: number; error: string; code?: string };
 
-function fakeApi(opts: { disabled?: boolean; permissions?: string[]; flows?: SavedRow[]; publishError?: string; copilot?: (message: string) => CopilotReply } = {}) {
+function fakeApi(opts: { permissions?: string[]; flows?: SavedRow[]; publishError?: string; copilot?: (message: string) => CopilotReply } = {}) {
   const flows = opts.flows ?? [];
   const calls: { method: string; path: string; body?: any }[] = [];
   const policy = () => ({ actorId: 'u', tenantId: 'org', permissions: new Set(opts.permissions ?? ['inspector:use']), egress: { emailDomains: ['example.com'] } });
@@ -30,7 +30,6 @@ function fakeApi(opts: { disabled?: boolean; permissions?: string[]; flows?: Sav
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ method, path: url.pathname, body });
     const summary = (f: SavedRow) => ({ id: f.id, name: f.name, status: f.status, version: f.version, owner: f.owner, updatedAt: f.updatedAt });
-    if (opts.disabled) return json(404, { error: 'Flows preview is not enabled', details: { code: 'flows_disabled' } });
     if (url.pathname === '/api/agent-lab/flows') {
       if (method === 'GET') return json(200, { flows: flows.map(summary) });
       const row: SavedRow = { id: `f${flows.length + 1}`, name: body.definition.name, status: 'draft', version: 1, definition: body.definition, owner: 'me', updatedAt: new Date().toISOString() };
@@ -347,12 +346,5 @@ describe('Flows builder', { timeout: 20_000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add the first step' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /Query data/ }));
     expect(within(canvas()).getByRole('button', { name: /^query_1, Query data/ })).toBeTruthy();
-  });
-
-  it('explains how to switch the preview on when it is disabled', async () => {
-    fakeApi({ disabled: true });
-    render(<FlowsPage />);
-    await waitFor(() => expect(screen.getByText('Automate is not switched on here')).toBeTruthy());
-    expect(screen.getByText(/FLOWS_ENABLED=true/)).toBeTruthy();
   });
 });

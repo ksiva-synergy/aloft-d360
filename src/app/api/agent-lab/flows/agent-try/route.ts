@@ -5,7 +5,7 @@ import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { AgentRunError, runCatalogAgent } from '@/lib/agents/run-catalog-agent';
 import type { CustomField } from '@/lib/extraction/schemas';
 import { extractRefs } from '@/lib/flows/validate';
-import { assertFlowsEnabled, flowsRequestContext } from '../_shared';
+import { flowsRequestContext } from '../_shared';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -24,7 +24,6 @@ const body = z.object({
  * fill them, so the person replaces them with sample values first.
  */
 export const POST = handle(async (req) => {
-  assertFlowsEnabled();
   const { actor } = await flowsRequestContext(req);
   const input = parse(body, await req.json().catch(() => ({})));
   const refs = extractRefs(input.prompt);

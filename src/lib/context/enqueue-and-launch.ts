@@ -3,7 +3,7 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { enqueue, type JobKind } from './queue';
 import { launchHarvesterTask } from './launch-harvester';
-import { pathMatchesIncludePatterns, resolveEffectiveScope } from './job-scope';
+import { pathMatchesIncludePatterns, resolveEffectiveScope, includePatternsOverlap } from './job-scope';
 
 export function normalizeJobScope(scope: Record<string, unknown> | null): Record<string, unknown> | null {
   if (!scope) return null;
@@ -68,6 +68,38 @@ export async function findScopedHarvestConflict(
     }
     if (pathMatchesIncludePatterns(fullPath, includePatterns)) {
       return row;
+    }
+  }
+  return null;
+}
+
+const ACTIVE_LAUNCH_STATUSES = ['queued', 'running', 'orchestrating'] as const;
+
+/**
+ * Block launch when an active job of the same kind overlaps the requested Focus scope.
+ */
+export async function findScopedLaunchConflict(
+  sourceId: string,
+  kinds: JobKind[],
+  includePatterns: string[],
+): Promise<{ id: string; job_kind: string } | null> {
+  if (kinds.length === 0) return null;
+
+  const active = await prisma.platformContextJob.findMany({
+    where: {
+      source_id: sourceId,
+      job_kind: { in: kinds },
+      status: { in: [...ACTIVE_LAUNCH_STATUSES] },
+    },
+    select: { id: true, job_kind: true, scope: true },
+    orderBy: { created_at: 'asc' },
+  });
+
+  for (const row of active) {
+    const scope = (row.scope ?? {}) as Record<string, unknown>;
+    const { includePatterns: activePatterns } = resolveEffectiveScope(scope);
+    if (includePatternsOverlap(includePatterns, activePatterns)) {
+      return { id: row.id, job_kind: row.job_kind };
     }
   }
   return null;

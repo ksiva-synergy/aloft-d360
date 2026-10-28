@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ApiError, handle, ok, parse } from '@/lib/http';
 import { builtinCapabilityRegistry } from '@/lib/capabilities/registry';
 import { analyzeFlow } from '@/lib/flows/analyze';
-import { assertFlowsEnabled, estimateAgentCostUsd, flowsPolicyContext, PUBLISHING_STATUS } from '../_shared';
+import { estimateAgentCostUsd, flowsPolicyContext, PUBLISHING_STATUS } from '../_shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,6 @@ const body = z.object({
  * no real data is read and no connector, model or mailbox is called.
  */
 export const POST = handle(async (req) => {
-  assertFlowsEnabled();
   const policy = await flowsPolicyContext(req);
   const text = await req.text();
   if (text.length > MAX_BODY_CHARS) throw new ApiError(413, `Request body is over ${MAX_BODY_CHARS} characters`);
