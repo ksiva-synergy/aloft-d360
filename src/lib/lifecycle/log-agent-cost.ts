@@ -17,7 +17,19 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'deepseek-v4':      { input: 2 / 1_000_000,   output: 6 / 1_000_000 },
   'o3-pro':           { input: 60 / 1_000_000,  output: 240 / 1_000_000 },
   'o3-mini':          { input: 1 / 1_000_000,   output: 4 / 1_000_000 },
+  // Amazon Nova on Bedrock (on-demand list prices at launch; verify against the AWS price list).
+  // Agent runs used `bedrock/nova-pro` and were priced as Sonnet before these entries existed.
+  'nova-pro':         { input: 0.8 / 1_000_000,  output: 3.2 / 1_000_000 },
+  'nova-lite':        { input: 0.06 / 1_000_000, output: 0.24 / 1_000_000 },
+  'nova-micro':       { input: 0.035 / 1_000_000, output: 0.14 / 1_000_000 },
 };
+
+/** Maps provider-specific ids to a MODEL_PRICING key, e.g. `us.amazon.nova-pro-v1:0` → `nova-pro`. */
+export function pricingKey(model: string): string {
+  const nova = model.match(/nova-(pro|lite|micro)\b/);
+  if (nova) return `nova-${nova[1]}`;
+  return model.replace(/^us\.anthropic\./, '').replace(/-\d+-v\d+$/, '').replace(/-\d{8}$/, '');
+}
 
 /**
  * Prompt-cache price as a fraction of the normal input price, by provider family.
@@ -43,7 +55,7 @@ export interface CacheUsage {
  * @param cache       how many of those were cache reads / writes
  */
 export function computeCostUsd(model: string, inputTokens: number, outputTokens: number, cache: CacheUsage = {}): number {
-  const normalizedModel = model.replace(/^us\.anthropic\./, '').replace(/-\d+-v\d+$/, '').replace(/-\d{8}$/, '');
+  const normalizedModel = pricingKey(model);
   const pricing = MODEL_PRICING[normalizedModel] || MODEL_PRICING['claude-sonnet-4'];
   const rates = cacheRates(normalizedModel);
   const read = Math.max(0, cache.readTokens ?? 0);

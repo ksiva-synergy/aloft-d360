@@ -25,6 +25,10 @@ import { StepIcon, btn } from './ui';
 import { TryExtraction } from './TryExtraction';
 import { EXTRACTION_SCHEMAS, getExtractionSchema, type CustomField } from '@/lib/extraction/schemas';
 import { ExtractFieldsEditor } from './ExtractFieldsEditor';
+import { AgentPicker, TryAgent } from './AgentStep';
+import { KnowledgePicker, TryKnowledge } from './KnowledgeStep';
+import { InlineConnectionCreate } from '@/components/connections/InlineConnectionCreate';
+import type { ConnectionKind } from '@/lib/connections/types';
 
 const CUSTOM = '__own_fields';
 
@@ -89,12 +93,25 @@ function JsonField({ id, value, onCommit, rows = 6 }: { id: string; value: unkno
 
 /**
  * Picks one of the user's connections (their own, or one shared with the organisation) for an
- * operation that takes a `connection`. Stores the connection id. Reuse comes first; adding a new
- * one opens the Connections page in a new tab, so the draft here is not lost.
+ * operation that takes a `connection`. Stores the connection id only. Bucket and credentials are
+ * entered in the inline form or on Govern → Connections; they are not stored in the workflow JSON.
  */
-function ConnectionPicker({ id, value, onChange }: { id: string; value: string; onChange: (id: string) => void }) {
+function ConnectionPicker({
+  id,
+  value,
+  onChange,
+  preferredKind,
+}: {
+  id: string;
+  value: string;
+  onChange: (id: string) => void;
+  preferredKind?: ConnectionKind;
+}) {
   const [list, setList] = useState<ConnectionOption[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [reloadAt, setReloadAt] = useState(0);
+  const [showCreate, setShowCreate] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -112,17 +129,18 @@ function ConnectionPicker({ id, value, onChange }: { id: string; value: string; 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadAt]);
 
   const mine = (list ?? []).filter((c) => c.mine !== false);
   const shared = (list ?? []).filter((c) => c.mine === false);
   const label = (c: ConnectionOption) => `${c.name}${c.status === 'error' ? ' (failing)' : c.status === 'untested' ? ' (not tested)' : ''}`;
   const known = (list ?? []).some((c) => c.id === value);
+  const placeholder = value === 'CHOOSE_CONNECTION' ? '' : value;
   return (
     <>
-      <select id={id} className={field} value={value} disabled={!list} onChange={(e) => onChange(e.target.value)}>
+      <select id={id} className={field} value={placeholder} disabled={!list} onChange={(e) => onChange(e.target.value)}>
         <option value="">{list ? 'Choose a connection…' : 'Loading connections…'}</option>
-        {value && list && !known && <option value={value}>{value} (not available to you)</option>}
+        {value && value !== 'CHOOSE_CONNECTION' && list && !known && <option value={value}>{value} (not available to you)</option>}
         {mine.length > 0 && (
           <optgroup label="Yours">
             {mine.map((c) => <option key={c.id} value={c.id}>{label(c)}</option>)}
@@ -135,11 +153,27 @@ function ConnectionPicker({ id, value, onChange }: { id: string; value: string; 
         )}
       </select>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-size-caption text-[var(--ink-3)]">
-        {failed ? 'Could not load your connections.' : list && list.length === 0 ? 'You have no connections yet.' : 'Use one you already have before adding another.'}
+        {failed ? 'Could not load your connections.' : list && list.length === 0 ? 'You have no connections yet.' : 'Pick an existing connection or add one below.'}
+        {!showCreate && (
+          <button type="button" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline" onClick={() => setShowCreate(true)}>
+            <Plus className="h-3 w-3" aria-hidden /> Enter bucket and credentials
+          </button>
+        )}
         <a href="/agent-staging/connections" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline">
           Manage connections <ExternalLink className="h-3 w-3" aria-hidden />
         </a>
       </p>
+      {showCreate && (
+        <InlineConnectionCreate
+          preferredKind={preferredKind}
+          onCancel={() => setShowCreate(false)}
+          onCreated={(c) => {
+            setShowCreate(false);
+            setReloadAt(Date.now());
+            onChange(c.id);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -175,29 +209,53 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
       );
     case 'retrieve':
       return (
-        <div className="grid gap-3 grid-cols-[1fr_5rem]">
-          <Field id={k('query')} label="Search for">
-            <input id={k('query')} className={field} value={c.query ?? ''} onChange={(e) => set({ query: e.target.value })} />
+        <div className="space-y-3">
+          <Field id={k('knowledgeBaseIds')} label="Knowledge bases" hint="Searched with the access of whoever runs the automation.">
+            <KnowledgePicker id={k('knowledgeBaseIds')} value={Array.isArray(c.knowledgeBaseIds) ? (c.knowledgeBaseIds as string[]) : []} onChange={(ids) => set({ knowledgeBaseIds: ids })} />
           </Field>
-          <Field id={k('topK')} label="Results">
-            <input id={k('topK')} type="number" min={1} max={50} className={field} value={c.topK ?? 5} onChange={(e) => set({ topK: Number(e.target.value) })} />
-          </Field>
+          <div className="grid gap-3 grid-cols-[1fr_5rem]">
+            <Field id={k('query')} label="Search for" hint="A question or key words; may use {{…}} references.">
+              <input id={k('query')} className={field} value={c.query ?? ''} onChange={(e) => set({ query: e.target.value })} />
+            </Field>
+            <Field id={k('topK')} label="Results">
+              <input id={k('topK')} type="number" min={1} max={50} className={field} value={c.topK ?? 5} onChange={(e) => set({ topK: Number(e.target.value) })} />
+            </Field>
+          </div>
+          <p className="text-size-caption text-[var(--ink-3)]">Later steps read {'{{steps.' + step.id + '.chunks}}'}: each passage has text and cite (document, page).</p>
         </div>
       );
     case 'agent':
       return (
         <div className="space-y-3">
-          <div className="grid gap-3 grid-cols-2">
-            <Field id={k('agentSlug')} label="Agent" hint="Slug of a saved agent. Blank = plain prompt, no tools.">
-              <input id={k('agentSlug')} className={field} value={c.agentSlug ?? ''} onChange={(e) => set({ agentSlug: e.target.value || undefined })} />
-            </Field>
-            <Field id={k('model')} label="Model" hint="Blank = default.">
-              <input id={k('model')} className={field} value={c.model ?? ''} onChange={(e) => set({ model: e.target.value || undefined })} />
-            </Field>
-          </div>
-          <Field id={k('prompt')} label="Prompt" hint="Use {{steps.<id>.<field>}} and {{inputs.<name>}}. Data from steps is treated as data, not instructions.">
+          <Field id={k('agentSlug')} label="Agent">
+            <AgentPicker id={k('agentSlug')} value={c.agentSlug ?? ''} onChange={(slug) => set({ agentSlug: slug })} />
+          </Field>
+          <Field id={k('model')} label="Model" hint="Blank = default.">
+            <input id={k('model')} className={field} value={c.model ?? ''} onChange={(e) => set({ model: e.target.value || undefined })} />
+          </Field>
+          <Field id={k('prompt')} label="Prompt" hint="Use {{steps.<id>.<field>}}, {{inputs.<name>}} or {{item}}. Data from steps is treated as data, not instructions.">
             <textarea id={k('prompt')} rows={5} className={area} value={c.prompt ?? ''} onChange={(e) => set({ prompt: e.target.value })} />
           </Field>
+          <label className="inline-flex items-center gap-2 text-size-ui text-[var(--ink-1)]">
+            <input
+              type="checkbox"
+              checked={Array.isArray(c.answer)}
+              onChange={(e) => set({ answer: e.target.checked ? [{ key: '', label: '', type: 'text', description: '' }] : undefined })}
+            />
+            Get the answer as specific fields
+          </label>
+          {Array.isArray(c.answer) && (
+            <>
+              <p className="text-size-caption text-[var(--ink-3)]">Later steps can filter, compare and approve on these, e.g. {'{{steps.' + step.id + '.values.<field>}}'}.</p>
+              <ExtractFieldsEditor
+                id={k('answer')}
+                fields={c.answer as CustomField[]}
+                onChange={(answer) => set({ answer })}
+                listLabel="Answer fields"
+                describePlaceholder="What this field means, e.g. yes if the cargo documents comply"
+              />
+            </>
+          )}
         </div>
       );
     case 'transform':
@@ -282,8 +340,17 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
             </select>
           </Field>
           {capabilities.find((x) => x.id === c.capability)?.fields?.connection !== undefined && (
-            <Field id={k('connection')} label="Connection">
-              <ConnectionPicker id={k('connection')} value={typeof c.input?.connection === 'string' ? c.input.connection : ''} onChange={(v) => set({ input: { ...(c.input ?? {}), connection: v } })} />
+            <Field
+              id={k('connection')}
+              label="Connection"
+              hint="Bucket and keys are saved as a connection (not in this workflow). Copilot only sees the connection id, never your credentials."
+            >
+              <ConnectionPicker
+                id={k('connection')}
+                value={typeof c.input?.connection === 'string' ? c.input.connection : ''}
+                preferredKind={c.capability === 'object_store.list' ? 's3' : undefined}
+                onChange={(v) => set({ input: { ...(c.input ?? {}), connection: v } })}
+              />
             </Field>
           )}
           {c.capability === 'document.extract' && (() => {
@@ -509,6 +576,31 @@ export function StepEditor({
       <Section title="Settings">
         <StepConfig step={step} def={def} onChange={onChange} capabilities={capabilities} />
       </Section>
+
+      {step.type === 'agent' && (
+        <Section title="Try it">
+          <TryAgent
+            stepId={step.id}
+            agentSlug={step.config.agentSlug as string | undefined}
+            prompt={String(step.config.prompt ?? '')}
+            answer={Array.isArray(step.config.answer) ? (step.config.answer as CustomField[]) : undefined}
+            model={step.config.model as string | undefined}
+            onUseAsSample={(output) => onFixture(output)}
+          />
+        </Section>
+      )}
+
+      {step.type === 'retrieve' && (
+        <Section title="Try it">
+          <TryKnowledge
+            stepId={step.id}
+            query={String(step.config.query ?? '')}
+            knowledgeBaseIds={Array.isArray(step.config.knowledgeBaseIds) ? (step.config.knowledgeBaseIds as string[]) : []}
+            topK={Number(step.config.topK ?? 5)}
+            onUseAsSample={(output) => onFixture(output)}
+          />
+        </Section>
+      )}
 
       {step.type === 'tool' && step.config.capability === 'document.extract' && (
         <Section title="Try it">

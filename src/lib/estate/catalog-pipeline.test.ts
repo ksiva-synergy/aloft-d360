@@ -15,9 +15,9 @@ describe('catalog-pipeline', () => {
     expect(catalogIncludePattern('curated_db')).toBe('curated_db.*');
   });
 
-  it('launch body chains T0→T1→T2 sequentially', () => {
+  it('launch body chains T0→T1→T2→embed sequentially', () => {
     const body = buildCatalogPipelineLaunchBody('curated_db', 'sales', 'src-1');
-    expect(body.kinds).toEqual(['t0_structural', 't1_profile', 't2_semantic']);
+    expect(body.kinds).toEqual(['t0_structural', 't1_profile', 't2_semantic', 'embed']);
     expect(body.sequential).toBe(true);
     expect(body.includePatterns).toEqual(['curated_db.sales.*']);
     expect(body.sourceId).toBe('src-1');

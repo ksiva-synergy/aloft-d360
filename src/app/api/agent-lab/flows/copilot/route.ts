@@ -6,8 +6,9 @@ import type { PolicyFinding } from '@/lib/flows/policy';
 import { applyOperations, diffFlows, parseOperations } from '@/lib/flows/copilot';
 import type { Def } from '@/lib/flows/edit';
 import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
-import { proposeFlowEdit, type CopilotConnection } from '@/lib/flows-copilot/propose';
+import { proposeFlowEdit, type CopilotAgent, type CopilotConnection, type CopilotKnowledgeBase } from '@/lib/flows-copilot/propose';
 import { listConnections } from '@/lib/connections/service';
+import { listCatalogAgents } from '@/lib/agents/catalog';
 import { assertFlowsEnabled, estimateAgentCostUsd, flowsRequestContext } from '../_shared';
 
 export const dynamic = 'force-dynamic';
@@ -36,7 +37,7 @@ const body = z.object({
  */
 export const POST = handle(async (req) => {
   assertFlowsEnabled();
-  const { policy, actor } = await flowsRequestContext(req);
+  const { policy, actor, knowledge } = await flowsRequestContext(req);
   const text = await req.text();
   if (text.length > MAX_BODY_CHARS) throw new ApiError(413, `Request body is over ${MAX_BODY_CHARS} characters`);
   let json: unknown;
@@ -57,9 +58,19 @@ export const POST = handle(async (req) => {
       console.warn('[flows copilot] connections unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
       return undefined;
     });
+  const agents: CopilotAgent[] | undefined = await listCatalogAgents()
+    .then((list) => list.map(({ slug, name, description, status, runnable, hasInstructions }) => ({ slug, name, description, status, runnable, hasInstructions })))
+    .catch((e: unknown) => {
+      console.warn('[flows copilot] agents unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
+      return undefined;
+    });
+  // Knowledge bases this user may search (loaded with the request context), not archived ones.
+  const knowledgeBases: CopilotKnowledgeBase[] | undefined = knowledge
+    ?.filter((k) => !k.archived)
+    .map(({ id, name, description, scope, documents }) => ({ id, name, description, scope, documents }));
   let repairNote: string | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role, connections }).catch(
+    const proposal = await proposeFlowEdit({ definition: draft, message, history, repairNote, role: actor.role, connections, agents, knowledgeBases }).catch(
       (e: unknown) => ({ kind: 'error', detail: e instanceof Error ? e.message : String(e) }) as const,
     );
     if (proposal.kind === 'error') {

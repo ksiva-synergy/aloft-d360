@@ -2,6 +2,167 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-28 — Fix `next build` typecheck for orphaned queue kick
+
+- **What:** `isOrphanedQueuedJob` accepts `created_at: Date | null` (matches Prisma) and treats null as not orphaned.
+- **Files:** `src/lib/context/kick-queued-workers.ts`.
+- **Why:** `npm run typecheck` and `next build` failed on TS2345 at line 51.
+- **Verified:** `npm run typecheck`, `npm run build`.
+- **Not done:** —
+
+## 2026-10-28 — Automate: inline connection form with Save and test (S3, Blob, SharePoint)
+
+- **What:** The inline **Enter bucket and credentials** form on Automate connector steps now matches Govern → Connections: settings fields and a **Credentials** section per kind (S3 access keys, Azure connection string, SharePoint client secret). **Save and test** creates the connection, calls `POST /api/connections/:id/test`, shows pass/fail, and selects the connection on the step when the test succeeds. **Test again** appears after a failed test.
+- **Files:** `src/components/connections/InlineConnectionCreate.tsx`, `src/lib/connections/form-spec.ts`, `src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Why:** Builders need the same fields and test flow as Blob and SharePoint on the Connections page, without leaving the workflow.
+- **Verified:** `npx vitest run src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Not done:** Org sharing toggle in the inline form (connections stay private); Govern page still duplicates field metadata until it imports `form-spec`.
+
+## 2026-10-28 — Automate: enter S3 connection details on connector steps
+
+- **What:** On connector steps (`document.extract`, `object_store.list`, etc.), the **Connection** field in Automate now has **Enter bucket and credentials**, an inline form for name, bucket/region (or Azure/SharePoint settings), and secrets. It creates the connection via `POST /api/connections` and selects it on the step. Only the connection **id** is stored in the workflow; credentials go to Secrets Manager, not the draft or Copilot.
+- **Files:** `src/lib/connections/form-spec.ts`, `src/components/connections/InlineConnectionCreate.tsx`, `src/views/agent-lab/flows/FlowForm.tsx`, `src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Why:** Builders expected to configure S3 inside the workflow step without opening Govern → Connections first, while keeping secrets off the Copilot model.
+- **Verified:** `npx vitest run src/components/connections/__tests__/InlineConnectionCreate.test.tsx`.
+- **Not done:** Copilot draft redaction for secrets pasted into JSON/chat; refactor Govern Connections page to share `form-spec` (duplicate field lists remain on that page for now).
+
+## 2026-10-28 — Knowledge bases, Phase 1: personal and organisation knowledge bases in the app, for agents and Automate
+
+- **What:**
+  - **Knowledge page** (Memory → Knowledge; `src/views/agent-lab/knowledge/`; routes `/agent-lab/knowledge` and `/agent-lab/knowledge/:id` in `web/src/router.tsx`; nav entry in `src/components/agent-lab/staging/nav-config.ts`).
+    - Create personal knowledge bases; admins create organisation ones.
+    - Lists are grouped Yours / Organisation, with archived ones folded away.
+    - **Documents tab:**
+      - drop files or whole folders, or choose them;
+      - one request per file with progress and a result per file (added, added as version n, unchanged, refused with the reason, Try again on network or server errors);
+      - two uploads at a time, which carry on while another tab is open, with a warning before leaving mid-upload;
+      - refused before sending: old .doc/.xls/.ppt (with "save as .docx"), unknown types, empty files and files over the limit;
+      - system junk files (`.DS_Store`, `~$` Office lock files) are dropped.
+    - **Document list:**
+      - grouped by folder, with a filter over 8 documents;
+      - states in words (Waiting, Reading, Ready, "Ready, n pages unread" with the page numbers, Failed with the reason and Retry);
+      - "the previous version stays searchable" while a new one indexes;
+      - download and delete; refreshes on its own while documents are being read.
+    - **Q&A tab** to write, edit (new version) and delete questions and answers.
+    - **Try a search** with citations (document, page, section, and whether it matched by meaning, by words or both).
+    - **Agents tab** to choose which saved agents may search the knowledge base.
+    - **Settings:** rename and describe; admins share with the organisation or make personal again; archive and restore; delete for good once archived.
+  - **API** (`src/app/api/knowledge/**`, logic in `src/lib/knowledge/service.ts`):
+    - list, create, update and delete knowledge bases (delete only when archived; files go first, so a bucket error loses nothing);
+    - upload one file per request (multipart `file`, plus `folder` for a dropped folder);
+    - documents: list, retry, Q&A edit, delete (every version and its files), and download (with the access check);
+    - Q&A, search, and agent links.
+    - GETs include `isAdmin` and `uploads: { ready, maxMb }`.
+  - **Access** (`src/lib/knowledge/access.ts`): owners now still see their own archived personal knowledge bases, so they can restore them. Search skips the embedding call when there is nothing to search.
+  - **Storage** (`src/lib/knowledge/store.ts`):
+    - layout `knowledge/<org>/<knowledge base>/<document>/v<version>/<file name>` with object metadata;
+    - delete by knowledge base or by document;
+    - Nordic letters (ø, æ, å, ß…) kept readable in file names.
+    - Documents are keyed by their path inside the knowledge base, so `Chapter 1/Index.pdf` and `Chapter 2/Index.pdf` are two documents, not two versions.
+  - **Agents** (`src/lib/knowledge/agents.ts`, `src/lib/agents/run-catalog-agent.ts`): a saved agent linked to knowledge bases (`knowledge_source_agents`) gets a `search_knowledge` tool and is told to cite (document, page).
+    - It searches only the linked knowledge bases that the person running it may search. A personal knowledge base on a shared agent answers only its owner; a run with no person searches organisation ones only.
+    - Agent chat and Automate's "Try it" pass the person. Whoever manages a knowledge base links agents to it.
+    - Results are clipped and marked as reference material, not instructions.
+  - **Automate** (`src/lib/flows/schema.ts`, `policy.ts`, `edit.ts`, `src/app/api/agent-lab/flows/_shared.ts`, `src/views/agent-lab/flows/KnowledgeStep.tsx`, `FlowForm.tsx`): the Search knowledge step now names its knowledge bases (`knowledgeBaseIds`).
+    - **Publish checks:** none chosen, unknown or not shared, archived, or taken from run data all block publishing.
+    - The step says which knowledge bases it searches.
+    - The panel has a picker and a real **Try it** whose results can become the sample response (`chunks` with `text` and `cite`).
+  - **Copilot** (`src/lib/flows-copilot/propose.ts`, `copilot/route.ts`): gets the knowledge bases this person may search (names, descriptions, scope and document counts; not archived ones). It uses their ids in retrieve steps, or `CHOOSE_KNOWLEDGE`.
+  - **Docs:** `docs/knowledge/setup.md`, covering the bucket settings and why, the folder layout, the IAM policy for the task role, settings, a check list, and who can do what.
+- **Why:** Phase 1 of the knowledge base plan (decisions 2026-10-27): people build their own knowledge from documents and Q&A and use it in agents and automations, with citations, without one person's documents reaching anyone else.
+- **Verified:**
+  - **Tests:**
+    - API routes with an in-memory database: access per scope, every upload case, folders, Q&A versions, delete, retry, download, archive and restore, delete knowledge base, search scope.
+    - Agent knowledge rules and tool, and the runner wiring.
+    - Automate step checks, Copilot context.
+    - Upload helpers; the Knowledge pages and the Automate step panel in jsdom.
+  - **Full checks:**
+    - `vitest`: 893 passed (123 files). Web `vitest`: 63 passed (9 files).
+    - `web/src/router.test.tsx`: its page list gains Automate, the old Flows address, Connections and the two Knowledge pages. It had been failing since Automate and Connections were added.
+    - Typecheck clean (root and `web/`) apart from another session's untracked `src/lib/context/kick-queued-workers.ts`.
+    - ESLint clean on every changed file. The repo-wide lint still fails on 87 files untouched here.
+    - SPA build passes.
+  - **Dev database, read-only:** `knowledge_source_agents` exists with its unique (knowledge base, agent) index and no rows.
+- **Not done / for you:**
+  - Apply `prisma/migrations/20261028_knowledge_phase0/migration.sql`.
+  - Create the bucket and the IAM policy, and set `KNOWLEDGE_BUCKET` (see `docs/knowledge/setup.md`).
+  - Not yet tried against a real bucket or in a browser.
+  - Automate has no live runner yet, so the Search knowledge step runs for real only in Try it.
+  - Teams (Phase 2) and connection folders (Phase 3) are later.
+
+## 2026-10-28 — Knowledge OCR through ALOFT's LiteLLM gateway; ALOFT and DATA360 kept separate
+
+- **What:**
+  - **Where OCR requests go** (`src/lib/knowledge/ocr.ts`): knowledge-base OCR now prefers ALOFT's own LiteLLM gateway (`llmlite_base_url` / `llmlite_api_key`; `POST <base>/v1/ocr`, model `azure_ai/mistral-ocr-4-0`, bearer key). Order of preference:
+    1. `KNOWLEDGE_OCR_ENDPOINT` + `KNOWLEDGE_OCR_API_KEY`, if set on purpose;
+    2. the gateway;
+    3. `FOUNDRY_ENDPOINT` + `FOUNDRY_API_KEY` (deployment `mistral-ocr-4-0`).
+    `KNOWLEDGE_OCR_MODEL` overrides the model name. The `api-key` header is now sent only to Foundry.
+  - **ADR-013:** the options to use the DATA360 OCR gateway are withdrawn. The product owner decided ALOFT and DATA360 must stay separate (no calls, settings, keys or logs shared).
+  - **`ocr.ts` comment:** the reference to DATA360 is removed.
+- **Why:** calling the Mistral OCR deployment on ALOFT's Foundry resource (`aif-synde-eastus2`) directly kept failing on 2026-10-27/28. It returned 503 "temporary_upstream_failure … getting deployment headers" for every host, body format, header style and api-version tried. The key itself is valid: an embedding call on the same resource returned 200. The same model through the gateway answered at once.
+- **Verified:**
+  - Tests: endpoint selection order, gateway endpoint building, and the headers sent per route.
+  - **Live** (made-up content): a 36-page PDF with 1 digital page and 35 image-only scanned pages, read end to end through `readDocument` and the gateway. It took 9.2 s and 2 OCR requests (30 + 5 pages), with every scanned page's text on the right page, including both sides of the batch boundary (pages 31 and 32), and no failures.
+- **Not done:** the direct Foundry route remains as the last fallback. Its 503 is outside ALOFT's control.
+
+## 2026-10-28 — Knowledge bases, Phase 0: tables, file readers, OCR in batches, Titan-only embedding, jobs, hybrid search
+
+- **What** (plan in the claude.ai doc "ALOFT knowledge bases — plan"; decisions taken 2026-10-27):
+  - **Migration `prisma/migrations/20261028_knowledge_phase0/migration.sql`** (additive; **not applied**), with matching changes in `prisma/schema.prisma`:
+    - `knowledge_sources` gains owner, scope (personal / team / org; the 8 existing rows become org), team, archived, connection and folder, and approval columns.
+    - New `knowledge_documents` (one row per file version or Q&A entry), `knowledge_jobs` (background work) and `knowledge_queries` (search log).
+    - `knowledge_chunks` gains document, section path, page, chunk type, content hash, a generated full-text column with a GIN index, and an HNSW vector index. `embedding` becomes `vector(1024)`; all 4 existing dev rows were 1024-dimensional.
+  - **Readers** (`src/lib/knowledge/readers.ts`):
+    - **PDF:** digital pages through `@firecrawl/pdf-inspector`, which gives Markdown with headings and tables, as DATA360's OCR module does. Pages without a text layer go to OCR.
+    - **Word:** through `mammoth` (headings, paragraphs, lists, table rows with headers).
+    - **Excel:** through `read-excel-file`, every sheet, row by row with headers, capped at 20,000 rows with a warning. **CSV:** RFC 4180.
+    - **PowerPoint:** through `jszip`, in presentation order, with speaker notes.
+    - **Images:** through OCR. **Text and Markdown:** as they are.
+    - File type is decided from the bytes first; unsupported files are refused with a clear message.
+  - **OCR** (`src/lib/knowledge/ocr.ts`): Mistral OCR 4 (`mistral-ocr-4-0`) on Azure AI Foundry (`POST …/providers/mistral/azure/ocr`, the user's choice for scans).
+    - At most 30 pages per request: longer or mixed documents are split into batches with `pdf-lib`, containing only the pages that need OCR, 2 batches at a time.
+    - Page numbers are mapped back to the original document.
+    - Each batch retries rate limits and server errors; a batch that still fails only fails its own pages.
+    - Settings: `KNOWLEDGE_OCR_ENDPOINT` / `_API_KEY` / `_MODEL` / `_BATCH_PAGES` / `_CONCURRENCY`, falling back to `FOUNDRY_ENDPOINT` / `FOUNDRY_API_KEY`.
+  - **Splitting** (`split.ts`): by structure. Headings and numbered clauses ("4.2 Fire") build a section path, and text is packed within one section and one page (so citations name the right page). Rows, slides and Q&A are each a separate piece. This replaces the fixed 2,000-character cut for knowledge bases.
+  - **Embedding:** Titan v2 only, no fallback outside AWS. `embedForKnowledge` / `embedQuestion` in `src/lib/knowledge/embed.ts` throw a retryable error if Titan fails. `src/lib/azure/embed-client.ts` gains an optional `region` argument, so `KNOWLEDGE_EMBED_REGION` can pin the region; the default is unchanged (us-east-1 today).
+  - **Indexing** (`index-document.ts`, `repo.ts`): read, split, embed only pieces whose content is new to the knowledge base, then replace the document's chunks and update counts in one transaction. Older versions of the same path are marked superseded, not deleted. An unreadable file is failed with the reason; temporary problems are retried.
+  - **Jobs** (`jobs.ts`, `job-queue.ts`): Postgres queue with `FOR UPDATE SKIP LOCKED`, retries backing off 1, 2, 4 … 60 minutes, and stale running jobs reclaimed after 15 minutes.
+  - **Search** (`search.ts`): meaning (vector) and exact words (full text) fused by reciprocal rank, current versions only. Every result is a citation (knowledge base, document, version, section, page, and how it matched), and every query is logged.
+  - **Scripts:** `scripts/knowledge-index.ts` (add local files to a knowledge base and index them) and `scripts/knowledge-search.ts` (ask a question).
+  - `next.config.ts` adds `@firecrawl/pdf-inspector` to `serverExternalPackages`.
+- **Dependencies:** `@firecrawl/pdf-inspector` 1.25.2 (MIT; prebuilt for Alpine x64 and arm64), `mammoth` 1.13.0 (BSD-2), `read-excel-file` 9.3.12 (MIT), `jszip` 3.10.2, `pdf-lib` 1.17.1 (MIT; the version DATA360 uses). `exceljs` was tried and removed: unmaintained since 2023, with an old `uuid` advisory.
+- **Verified:**
+  - **Tests** in `src/lib/knowledge/__tests__/`:
+    - readers on Word, Excel and PowerPoint files built in memory, plus CSV, Markdown, text, and digital and mixed PDFs;
+    - splitting, including never across pages;
+    - OCR: 65 pages sent as batches of 30, 30 and 5, two at a time; pages mapped back; a 429 retried and a 400 not; a failed batch only fails its pages;
+    - the pipeline with an in-memory store (embeddings reused for unchanged sections, Q&A, failures, retries), the job runner, and search citations.
+  - **Live check without the database**, on a generated 300-page manual (made-up content):
+    - pdf-inspector read it in 0.1 s; it split into 300 pieces, one per page; Titan embedded them in 35 s;
+    - three questions each found the exact page at rank 1 (pages 137, 58 and 241).
+    - An earlier run that packed text across pages found only nearby pages, which led to the "never across a page" rule.
+- **Not done:**
+  - **Migration not applied.** The permission system blocks changes to the shared dev database. Run the two commands at the top of the migration file.
+  - **Search SQL not yet run against Postgres** (it needs the tables).
+  - **Section paths not checked live:** the generated test PDF uses one font for everything, so pdf-inspector found no headings; real manuals use heading fonts.
+  - **Mistral OCR live call:** ALOFT's Foundry resource (`aif-synde-eastus2`, from `FOUNDRY_ENDPOINT`) accepted the request for `mistral-ocr-4-0` but returned 503 `dependency_timeout` on all three attempts (about 5 minutes). The retries and per-batch failure worked as designed. Confirm the deployment is healthy there, or point `KNOWLEDGE_OCR_ENDPOINT` / `KNOWLEDGE_OCR_API_KEY` at the Foundry resource DATA360 uses. Digital PDFs, Word, Excel, PowerPoint and text need no OCR.
+  - **Phase 1 onwards:** upload storage (an S3 bucket for `s3://` references), the Knowledge page, attaching knowledge bases to agents and Automate, teams and access rules, connection folders.
+
+## 2026-10-27 — Catalog pipeline continues after T0 (T1 → T2 → embed)
+
+- **What:** `catalog-pipeline.ts` chain is now T0 → T1 → T2 → embed. `orchestrator.ts` runs the next tier in the same process when Fargate `RunTask` from the harvester fails, and stamps the task id on that job only. `kick-queued-workers.ts` is invoked from `GET …/jobs/queued` so the web process (which can `RunTask`) starts queued chain jobs the harvester could not launch. In-flight `t1_profile` rows for `crewing_shore` and `crewing_dashboard_public` had `embed` appended to `scope.chain`.
+- **Why:** Run pipeline now finished T0 and left T1 queued with no worker. The harvester task has no ECS subnet env / `RunTask` permission, so `advanceChain` enqueued the next tier and the launch failed silently. Embed was not in the catalog chain.
+- **Verified:** `vitest` `catalog-pipeline.test.ts` + `kick-queued-workers.test.ts` (7 tests). Kick launched Fargate task `3b2c3b42`; `crewing_shore` T1 moved to `running`.
+- **Not done:** Rebuild and deploy the harvester image so in-process continuation runs inside Fargate. Until then, the web poller must stay up to launch T2 and embed after profile.
+
+## 2026-10-27 — Dev: ignore `public/spa` in Vite watch (Windows EBUSY)
+
+- **What:** `web/vite.config.ts` — `server.watch.ignored` for `public/spa/**`.
+- **Why:** `npm run build` copies the SPA into `public/spa`; Vite dev watches `public/` and crashed with `EBUSY` on hashed assets; orphaned Next left port 3001 in use.
+- **Verified:** config only; restart `npm run dev` after killing anything on :3001 if needed.
+
 ## 2026-10-27 — CI: add missing estate cockpit + job-scope-flags + T4 sources
 
 - **What:** Committed files that `jobs.tsx` and `jobs/launch` already imported but were never pushed: `job-scope-flags.ts`, `JobsCockpitPanel`, `cockpit` API/lib, scheduled harvest + catalog pipeline launch, `t4-handlers` + `src/lib/context/t4/*`.

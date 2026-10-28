@@ -224,8 +224,8 @@ flowchart TB
 | `POST /api/agent-lab/context/jobs/launch` | Yes | Focus, exclude, chain, runner flags | Yes |
 | `POST /api/agent-lab/context/jobs/trigger` | Yes | `normalizeJobScope` (`path` → patterns) | No |
 | `POST /api/agent-lab/context/estate/harvest` | Yes | Per-path `includePatterns` | No |
-| `POST /api/agent-lab/context/estate/run-scheduled` | Yes | Per-schema pipeline Limit | T0→T1→T2 |
-| Catalog **Run pipeline now** | Yes (via launch API) | `catalog.schema.*` | T0→T1→T2 |
+| `POST /api/agent-lab/context/estate/run-scheduled` | Yes | Per-schema pipeline Limit | T0→T1→T2→embed |
+| Catalog **Run pipeline now** | Yes (via launch API) | `catalog.schema.*` | T0→T1→T2→embed |
 | `POST /api/agent-lab/context/objects/[id]/reharvest-all` | Yes | Table glob; T0 chains T1→T2 | Yes |
 | `POST /api/agent-lab/context/objects/[id]/refresh` | Yes | Table glob | No |
 | `POST /api/agent-lab/context/objects/[id]/enrich` | Yes | Table glob (enqueue-and-launch) | No |

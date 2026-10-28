@@ -9,7 +9,7 @@ vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop }));
 vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop }));
 vi.mock('@/lib/inspector/llm-configured', async (orig) => ({ ...(await orig<object>()), hasXaiCredentials: hasXai }));
 
-import { proposeFlowEdit, toolCallWrittenAsText } from '../propose';
+import { proposeFlowEdit, renderKnowledgeBases, toolCallWrittenAsText } from '../propose';
 
 const def = { name: 'x', steps: [{ id: 'a', type: 'agent', config: { prompt: 'p' } }] };
 const done = (extra: object = {}) => ({ finalText: null, toolCalls: [], outcome: 'completed', usage: { inputTokens: 0, outputTokens: 0 }, loops: 1, ...extra });
@@ -92,5 +92,38 @@ describe('copilot model adapter', () => {
     expect(prompts[0]).toContain('- id "c-2": "HR" (SharePoint, shared by a colleague, failing its test)');
     expect(prompts[1]).toContain('AVAILABLE CONNECTIONS: none yet');
     expect(prompts[2]).toContain('AVAILABLE CONNECTIONS: (could not be loaded');
+  });
+
+  it('tells the model which saved agents exist and which can only be tried', async () => {
+    hasXai.mockReturnValue(true);
+    const prompts: string[] = [];
+    dispatchAgentLoop.mockImplementation(async (_m: unknown, loop: Loop & { messages: { content: { text: string }[] }[]; systemPrompt: string }) => {
+      prompts.push(loop.messages.at(-1)!.content[0]!.text);
+      expect(loop.systemPrompt).toMatch(/Use a saved agent from AVAILABLE AGENTS/);
+      expect(loop.systemPrompt).toMatch(/\{\{steps\.<id>\.values\.<key>\}\}/);
+      return done();
+    });
+    await proposeFlowEdit({
+      definition: def,
+      message: 'x',
+      agents: [
+        { slug: 'regulatory-decision-tracer', name: 'Regulatory Decision Tracer', description: 'Traces regulatory decisions', status: 'live', runnable: true },
+        { slug: 'invoice-harmonization-analyst', name: 'Invoice Harmonization Analyst', description: null, status: 'draft', runnable: false },
+      ],
+    });
+    await proposeFlowEdit({ definition: def, message: 'x' });
+    expect(prompts[0]).toContain('- agentSlug "regulatory-decision-tracer": "Regulatory Decision Tracer" (live) — Traces regulatory decisions');
+    expect(prompts[0]).toContain('- agentSlug "invoice-harmonization-analyst": "Invoice Harmonization Analyst" (draft, can be tried but not published)');
+    expect(prompts[1]).toContain('AVAILABLE AGENTS: (could not be loaded');
+  });
+});
+
+describe('knowledge bases in the copilot message', () => {
+  it('lists ids, names and what is in them, and says what to do when there are none', () => {
+    expect(renderKnowledgeBases([{ id: 'kb-sms', name: 'Company SMS', description: 'SMS manual and forms', scope: 'org', documents: 12 }])).toBe(
+      'AVAILABLE KNOWLEDGE BASES (a retrieve step searches these; use the id):\n- id "kb-sms": "Company SMS" (organisation, 12 documents ready) — SMS manual and forms',
+    );
+    expect(renderKnowledgeBases([])).toMatch(/none yet \(use "CHOOSE_KNOWLEDGE"/);
+    expect(renderKnowledgeBases(undefined)).toMatch(/could not be loaded/);
   });
 });

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/agent-lab/context/estate/run-scheduled
  *
- * Starts sequential T0→T1→T2 pipelines for schemas that have scheduled discovery rows.
+ * Starts sequential T0→T1→T2→embed pipelines for schemas that have scheduled discovery rows.
  * Body: { sourceId?: string, catalog?: string, schema?: string, maxSchemas?: number }
  */
 export async function POST(req: NextRequest) {

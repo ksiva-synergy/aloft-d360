@@ -1,6 +1,7 @@
 /** Default Catalog → Jobs pipeline for one schema (or whole catalog). */
 
-export const CATALOG_PIPELINE_KINDS = ['t0_structural', 't1_profile', 't2_semantic'] as const;
+/** Catalog “Run pipeline now” / scheduled schema harvest, in order. */
+export const CATALOG_PIPELINE_KINDS = ['t0_structural', 't1_profile', 't2_semantic', 'embed'] as const;
 
 export function schemaIncludePattern(catalog: string, schema: string): string {
   return `${catalog}.${schema}.*`;

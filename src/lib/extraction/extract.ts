@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { modelJsonSchema, type ExtractionSchema } from './schemas';
+import { modelJsonSchema, typeFieldValue, type ExtractionSchema } from './schemas';
 import type { PageImage } from './render';
 
 // Reads named fields from page images with a vision model in one call, answered as JSON that must
@@ -85,12 +85,6 @@ export function grokVision(): VisionCall {
   };
 }
 
-function isRealDate(s: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const d = new Date(`${s}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
-}
-
 /** Validates the model's JSON against the schema and types each value. Throws if the JSON is unusable. */
 export function parseExtraction(schema: ExtractionSchema, content: string, pageCount: number): Pick<ExtractionResult, 'documentType' | 'values' | 'fields' | 'missing'> {
   let raw: { document_type?: unknown; fields?: Record<string, { value?: unknown; page?: unknown; evidence?: unknown }> };
@@ -106,13 +100,12 @@ export function parseExtraction(schema: ExtractionSchema, content: string, pageC
     const f = raw.fields[key] ?? {};
     const evidence = typeof f.evidence === 'string' && f.evidence.trim() ? f.evidence.trim().slice(0, 500) : null;
     const page = Number.isInteger(f.page) && (f.page as number) >= 1 && (f.page as number) <= pageCount ? (f.page as number) : null;
-    const text = typeof f.value === 'string' && f.value.trim() ? f.value.trim() : typeof f.value === 'number' ? String(f.value) : null;
+    const typed = typeFieldValue(spec.type, f.value);
     const out: ExtractedField = { value: null, page, evidence };
-    if (text !== null) {
+    if (typed.value !== null || typed.issue) {
       if (!evidence) out.issue = 'no supporting text was given, so the value was not accepted';
-      else if (spec.type === 'date' && !isRealDate(text)) out.issue = `"${text}" is not a full date (YYYY-MM-DD)`;
-      else if (spec.type === 'number' && !Number.isFinite(Number(text.replace(/,/g, '')))) out.issue = `"${text}" is not a number`;
-      else out.value = spec.type === 'number' ? Number(text.replace(/,/g, '')) : text;
+      else if (typed.issue) out.issue = typed.issue;
+      else out.value = typed.value;
     }
     fields[key] = out;
   }

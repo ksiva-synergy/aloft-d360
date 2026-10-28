@@ -11,7 +11,7 @@
  */
 
 import prisma from '@/lib/db';
-import { enqueue, claimNext, failStale, finalize, advanceChildren } from '@/lib/context/queue';
+import { enqueue, claimNext, claimById, failStale, finalize, advanceChildren } from '@/lib/context/queue';
 import { runT0Harvest, runT1Profile } from '@/lib/context/harvest';
 import { runT2Enrich } from '@/lib/context/enrich';
 import { runEstateInventory } from '@/lib/context/estate';
@@ -39,10 +39,15 @@ import { runScheduledEstateHarvest } from '@/lib/context/scheduled-estate-harves
  * Enqueue the next kind in a sequential chain and launch a worker for it.
  * Copies excludeSchemas, includePatterns and the remaining chain tail from the
  * parent job's scope so the new container continues with the same settings.
+ *
+ * The harvester task role cannot call RunTask (no ECS network env on the task).
+ * When that launch fails, the next job id is queued for this same process.
  */
 function shouldAdvanceJobChain(status: 'succeeded' | 'failed' | 'partial'): boolean {
   return status === 'succeeded' || status === 'partial';
 }
+
+const inlineChainJobIds: string[] = [];
 
 async function advanceChain(
   orgId: string,
@@ -65,17 +70,45 @@ async function advanceChain(
   const childScopeWithFlags = copyRunnerFlagsToChildScope(parentScope, childScope);
 
   const scopeOrNull = Object.keys(childScopeWithFlags).length > 0 ? childScopeWithFlags : null;
-  await enqueue(nextKind, sourceId, scopeOrNull, 'on_demand', orgId);
-  console.log(`[orchestrator] chain: enqueued ${nextKind} (remaining: ${remaining.join(', ') || 'none'})`);
+  const created = await enqueue(nextKind, sourceId, scopeOrNull, 'on_demand', orgId);
+  console.log(`[orchestrator] chain: enqueued ${nextKind} id=${created.id} (remaining: ${remaining.join(', ') || 'none'})`);
 
   const { taskId, error } = await launchHarvesterTask(['--kind', nextKind]);
   console.log(`[orchestrator] chain: launched ${nextKind} task=${taskId ?? 'none'}${error ? ` error=${error}` : ''}`);
 
   if (taskId) {
-    await prisma.platformContextJob.updateMany({
-      where: { org_id: orgId, job_kind: nextKind, status: 'queued', parent_job_id: null },
-      data: { scope: { ...(scopeOrNull ?? {}), fargate_task_id: taskId } },
-    });
+    await prisma.$executeRaw`
+      UPDATE platform_context_jobs
+      SET scope = COALESCE(scope, '{}'::jsonb) || jsonb_build_object('fargate_task_id', ${taskId}::text)
+      WHERE id = ${created.id}::uuid
+    `;
+    return;
+  }
+
+  console.error(
+    `[orchestrator] chain: no worker for ${nextKind} (${error ?? 'RunTask returned no task'}) — continuing in this process`,
+  );
+  inlineChainJobIds.push(created.id);
+}
+
+/** Run chain follow-ups whose Fargate launch failed, in this process. */
+async function drainInlineChain(orgId: string): Promise<void> {
+  while (inlineChainJobIds.length > 0) {
+    const jobId = inlineChainJobIds.shift();
+    if (!jobId) break;
+    const job = await claimById(jobId);
+    if (!job) {
+      console.log(`[orchestrator] chain: inline job ${jobId} already claimed`);
+      continue;
+    }
+    console.log(`[orchestrator] chain: inline job=${job.id} kind=${job.job_kind}`);
+    try {
+      await dispatchSingleJob(job, orgId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[orchestrator] chain: inline job=${job.id} error:`, msg);
+      try { await finalize(job.id, 'failed', {}, msg); } catch { /* best-effort */ }
+    }
   }
 }
 
@@ -585,6 +618,8 @@ export async function runOrchestratorLoop(
       }
     }
 
+    await drainInlineChain(orgId);
+
     return { processed: 1, t1JobsCreated: job.job_kind === 't1_profile' ? 1 : 0 };
   }
 
@@ -626,6 +661,8 @@ export async function runOrchestratorLoop(
         await finalize(job.id, 'failed', {}, msg);
       } catch { /* best-effort */ }
     }
+
+    await drainInlineChain(orgId);
   }
 
   console.log(`[orchestrator] done — processed=${processed} t1_profile_dispatched=${t1JobsCreated}`);

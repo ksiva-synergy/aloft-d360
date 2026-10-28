@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { buildCatalogPipelineLaunchBody } from '@/lib/estate/catalog-pipeline';
-import { enqueue, type JobKind } from './queue';
+import { buildCatalogPipelineLaunchBody, CATALOG_PIPELINE_KINDS } from '@/lib/estate/catalog-pipeline';
+import { enqueue } from './queue';
 import { launchHarvesterTask } from './launch-harvester';
 import { attachWorkerTaskToJob } from './enqueue-and-launch';
 
 /**
- * Enqueue T0 with chain T1→T2 and start one orchestrator worker (Catalog / scheduled flows).
+ * Enqueue T0 with chain T1→T2→embed and start one orchestrator worker (Catalog / scheduled flows).
  */
 export async function enqueueSequentialSchemaPipeline(
   orgId: string,
@@ -17,7 +17,7 @@ export async function enqueueSequentialSchemaPipeline(
   const body = buildCatalogPipelineLaunchBody(catalog, schema, sourceId);
   const scope: Record<string, unknown> = {
     includePatterns: body.includePatterns,
-    chain: ['t1_profile', 't2_semantic'] satisfies JobKind[],
+    chain: [...CATALOG_PIPELINE_KINDS.slice(1)],
   };
   const job = await enqueue('t0_structural', sourceId, scope, 'on_demand', orgId);
   const { taskId, error } = await launchHarvesterTask(['--kind', 't0_structural']);

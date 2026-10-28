@@ -167,6 +167,19 @@ export async function claimNext(orgId: string, kindFilter?: string): Promise<Pla
   }
 }
 
+/** Claim one queued job by id. Returns null if it was already taken or is not queued. */
+export async function claimById(jobId: string): Promise<PlatformContextJob | null> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    UPDATE platform_context_jobs
+    SET status = 'running', started_at = NOW(), updated_at = NOW()
+    WHERE id = ${jobId}::uuid
+      AND status = 'queued'
+    RETURNING id
+  `;
+  if (rows.length === 0) return null;
+  return prisma.platformContextJob.findUnique({ where: { id: jobId } });
+}
+
 /**
  * Claim the oldest queued child job for a specific parent atomically.
  * Used by the orchestrator after a child completes to pick up the next one.

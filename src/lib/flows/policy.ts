@@ -3,6 +3,7 @@ import type { CapabilityRegistry } from '@/lib/capabilities/registry';
 import { CAPABILITY_PERMISSIONS } from '@/lib/capabilities/builtin';
 import type { FlowDefinition, FlowStep } from './schema';
 import { extractRefs, stepDependencies } from './validate';
+import { checkCustomFields } from '@/lib/extraction/schemas';
 
 // Static policy check over a structurally valid flow: capability contracts, binding rules,
 // permissions, approval gates and budget. Errors block publishing; warnings are shown to the creator.
@@ -57,8 +58,12 @@ export function profileStep(step: FlowStep, opts: PolicyOptions): StepProfile | 
       if (c.semantic) return { ...READ, usesAI: false, estimatedCostUsd: 0, does: `Reads governed data from semantic model "${c.semantic.modelId}"` };
       return { ...READ, requiredPermission: RAW_SQL_PERMISSION, usesAI: false, estimatedCostUsd: 0, does: `Runs a read-only SQL query (up to ${c.maxRows} rows)` };
     }
-    case 'retrieve':
-      return { ...READ, usesAI: false, estimatedCostUsd: 0, does: `Searches the knowledge base for "${clip(step.config.query, 60)}"` };
+    case 'retrieve': {
+      const ids = step.config.knowledgeBaseIds ?? [];
+      const names = ids.map((id) => opts.policy.knowledgeBases?.get(id)?.name).filter(Boolean);
+      const where = names.length === ids.length && names.length ? names.map((n) => `"${n}"`).join(', ') : ids.length === 1 ? 'a knowledge base' : `${ids.length} knowledge bases`;
+      return { ...READ, usesAI: false, estimatedCostUsd: 0, does: `Searches ${where} for "${clip(step.config.query, 60)}"` };
+    }
     case 'agent':
       return {
         ...READ,
@@ -131,6 +136,48 @@ function checkToolBindings(step: Extract<FlowStep, { type: 'tool' }>, def: Capab
   }
 }
 
+/** Agent statuses a published flow may call. A draft or deprecated agent can still be tried and tested. */
+export const RUNNABLE_AGENT_STATUSES = ['live', 'staging', 'preview'] as const;
+
+function checkAgentStep(step: Extract<FlowStep, { type: 'agent' }>, ctx: PolicyContext, out: PolicyFinding[]): void {
+  if (step.config.answer !== undefined) {
+    for (const message of checkCustomFields(step.config.answer)) out.push({ severity: 'error', code: 'invalid_input', stepId: step.id, message: `answer ${message}` });
+  }
+  const slug = step.config.agentSlug;
+  if (!slug || !ctx.agents || hasRef(slug)) return;
+  const agent = ctx.agents.get(slug);
+  if (!agent) {
+    out.push({ severity: 'error', code: 'unknown_agent', stepId: step.id, message: `there is no saved agent "${slug}"` });
+  } else if (agent.hasInstructions === false) {
+    out.push({ severity: 'error', code: 'agent_not_ready', stepId: step.id, message: `agent "${agent.name}" has no instructions yet, so it cannot run` });
+  } else if (!(RUNNABLE_AGENT_STATUSES as readonly string[]).includes(agent.status ?? '')) {
+    out.push({
+      severity: 'error',
+      code: 'agent_not_ready',
+      stepId: step.id,
+      message: `agent "${agent.name}" is ${agent.status ?? 'not released'}; publishing needs a live, staging or preview agent`,
+    });
+  }
+}
+
+function checkRetrieveStep(step: Extract<FlowStep, { type: 'retrieve' }>, ctx: PolicyContext, out: PolicyFinding[]): void {
+  const ids = step.config.knowledgeBaseIds ?? [];
+  if (!ids.length) {
+    out.push({ severity: 'error', code: 'no_knowledge_base', stepId: step.id, message: 'choose which knowledge bases to search' });
+    return;
+  }
+  for (const id of ids) {
+    if (hasRef(id)) {
+      out.push({ severity: 'error', code: 'data_bound_control_field', stepId: step.id, message: 'the knowledge bases to search must be fixed in the definition' });
+      continue;
+    }
+    const kb = ctx.knowledgeBases?.get(id);
+    if (!ctx.knowledgeBases) continue;
+    if (!kb) out.push({ severity: 'error', code: 'unknown_knowledge_base', stepId: step.id, message: `knowledge base "${id}" does not exist or is not shared with you` });
+    else if (kb.archived) out.push({ severity: 'error', code: 'knowledge_base_archived', stepId: step.id, message: `knowledge base "${kb.name}" is archived, so nothing in it is searched` });
+  }
+}
+
 /** Every step id that must finish before `id` runs. */
 function ancestorsOf(flow: FlowDefinition): Map<string, Set<string>> {
   const direct = new Map(flow.steps.map((s) => [s.id, stepDependencies(s)]));
@@ -183,6 +230,8 @@ export function checkFlowPolicy(flow: FlowDefinition, opts: PolicyOptions): Poli
     if (step.type === 'agent' && (hasRef(step.config.agentSlug) || hasRef(step.config.model))) {
       findings.push({ severity: 'error', code: 'data_bound_control_field', stepId: step.id, message: 'agent and model must be fixed in the definition' });
     }
+    if (step.type === 'agent') checkAgentStep(step, opts.policy, findings);
+    if (step.type === 'retrieve') checkRetrieveStep(step, opts.policy, findings);
     if (step.type === 'query' && step.config.sql) {
       findings.push({ severity: 'warning', code: 'raw_sql', stepId: step.id, message: 'raw SQL bypasses the governed semantic layer; prefer a semantic query' });
     }
