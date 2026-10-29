@@ -6,7 +6,47 @@ import 'server-only';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { listObjects, describeObject, profileObject, searchObjects, relationsObject, usageObject } from './describe';
 
-export async function handleDescribeSchema(input: Record<string, unknown>): Promise<string> {
+/** Agent turns fire several describe_schema tools at once; keep them from filling the pool. */
+let describeActive = 0;
+const describeWaiters: Array<() => void> = [];
+const DESCRIBE_SCHEMA_CONCURRENCY = 2;
+
+function withDescribeSlot<T>(fn: () => Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const start = () => {
+      describeActive += 1;
+      fn().then(resolve, reject).finally(() => {
+        describeActive -= 1;
+        describeWaiters.shift()?.();
+      });
+    };
+    if (describeActive < DESCRIBE_SCHEMA_CONCURRENCY) start();
+    else describeWaiters.push(start);
+  });
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+export function handleDescribeSchema(input: Record<string, unknown>): Promise<string> {
+  return withDescribeSlot(() => runDescribeSchema(input));
+}
+
+async function runDescribeSchema(input: Record<string, unknown>): Promise<string> {
   const action = (input.action as string | undefined) ?? '';
   const connection = (input.connection as string | undefined) ?? '';
   const path = input.path as string | undefined;
@@ -83,11 +123,11 @@ export async function handleDescribeSchema(input: Record<string, unknown>): Prom
     }
     const k = typeof input.k === 'number' ? Math.min(Math.max(input.k, 1), 5) : 5;
     const search = await searchObjects({ orgId, query, k });
-    const candidates = await Promise.all(search.results.map(async (candidate) => {
-      const [description, relations] = await Promise.all([
-        describeObject({ orgId, connection, path: candidate.path, detail: 'compact' }),
-        relationsObject({ orgId, connection, path: candidate.path }),
-      ]);
+    // One candidate at a time. Parallel describe + relations across every hit
+    // filled the Prisma pool before the next connection lookup could start.
+    const candidates = await mapWithConcurrency(search.results, 1, async (candidate) => {
+      const description = await describeObject({ orgId, connection, path: candidate.path, detail: 'compact' });
+      const relations = await relationsObject({ orgId, connection, path: candidate.path });
 
       return {
         ...candidate,
@@ -99,7 +139,7 @@ export async function handleDescribeSchema(input: Record<string, unknown>): Prom
         relationships: relations?.items.slice(0, 15) ?? [],
         relationship_evidence_available: relations !== null && relations.items.length > 0,
       };
-    }));
+    });
 
     return JSON.stringify({
       query: search.query,

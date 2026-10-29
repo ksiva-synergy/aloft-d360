@@ -154,6 +154,10 @@ interface SourceMatch {
   displayName: string | null;
 }
 
+/** Same connection is resolved once per research fan-out instead of once per candidate. */
+const sourceMatchCache = new Map<string, { at: number; value: SourceMatch }>();
+const SOURCE_MATCH_TTL_MS = 30_000;
+
 async function findContextSources(
   where: Prisma.PlatformContextSourceWhereInput,
 ): Promise<{ id: string; display_name: string | null }[]> {
@@ -169,6 +173,15 @@ async function findContextSources(
 }
 
 async function resolveSourceIds(orgId: string, connection: string): Promise<SourceMatch> {
+  const key = `${orgId}\0${connection.trim().toLowerCase()}`;
+  const hit = sourceMatchCache.get(key);
+  if (hit && Date.now() - hit.at < SOURCE_MATCH_TTL_MS) return hit.value;
+  const value = await resolveSourceIdsUncached(orgId, connection);
+  sourceMatchCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+async function resolveSourceIdsUncached(orgId: string, connection: string): Promise<SourceMatch> {
   const resolvedName = await resolveConnectionName(connection);
 
   // Try 1: display_name contains the connection string (case-insensitive)

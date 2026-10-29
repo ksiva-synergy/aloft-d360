@@ -2,6 +2,41 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — Invite restores a removed user instead of “Resource already exists”
+
+- **What:** `POST /api/users` reactivates a soft-deleted user with the same email (clears `deletedAt`, sets Active, replaces roles). An email that is still on the Users page returns a plain 409. Invite copy says Microsoft sign-in. `src/app/api/users/route.ts`, `src/components/users/InviteUserModal.tsx`.
+- **Why:** Delete only hides the row. The email stays unique, so inviting `rajmohan.j@synergyship.com` again failed with “Resource already exists”.
+- **Verified:** Code review of the create path against `User.email @unique` and `DELETE` in `src/app/api/users/[id]/route.ts`.
+- **Not done:** Retry the invite in the signed-in Users page.
+
+## 2026-10-29 — Agent chat: keep the message box inside the page
+
+- **What:** The saved-agent chat is pinned to the pane under the app header and Saved agents tabs (`absolute inset-0`) instead of `h-[calc(100vh-4rem)]`. `src/views/agent-lab/agents/use.tsx`, `AgentsLayout.tsx`.
+- **Why:** The chat column was taller than the area under the header, so the message box sat on the bottom edge and was cut off.
+- **Verified:** Layout change. A browser pass reached the login screen only.
+- **Not done:** Confirm on the signed-in SIRE chat.
+
+## 2026-10-29 — Agent replies: record JSON renders as a table
+
+- **What:** `AssistantContent` turns a fenced (or whole-message) JSON array of flat records into the same table used for markdown tables. Nested JSON stays a code block. A JSON control switches back to the source. `src/components/workbench/json-table.ts`, `src/components/workbench/StreamingMessage.tsx`.
+- **Why:** Agents such as SIRE Inspection Reviewer return row lists inside a `json` fence. The chat was painting that as raw JSON. The agent prompt does not need a change.
+- **Verified:** `npx vitest run src/components/workbench/__tests__/json-table.test.ts src/components/workbench/__tests__/AssistantContent.json-table.test.tsx`.
+- **Not done:** Browser pass on the live SIRE thread (session chat is not in a fresh browser).
+
+## 2026-10-29 — describe_schema research: stop exhausting the Prisma pool
+
+- **What:** `research` inspects one catalog candidate at a time. At most two `describe_schema` calls run together. Prisma pool wait is 30s and the limit is at least 15 (`src/lib/db.ts`), even when `DATABASE_URL` sets `connection_limit=10` and no `pool_timeout`. Connection lookup stays cached for 30s.
+- **Why:** Parallel research plus describe still filled the 10-connection pool; the next `findFirst` died after Prisma’s default 10s wait. Vector search on the catalog holds a connection for a long time.
+- **Verified:** Code review of `db.ts` and `dispatch.ts`.
+- **Not done:** Restart the Next dev server and rerun the SIRE research call. Not a harvester image change.
+
+## 2026-10-29 — Scanned tier pills match row dots (done, not gaps)
+
+- **What:** `listScannedObjects` tier counts and click filters for T0/T1/T2/embed count tables where that step **already ran** (same rule as the colored row dots). A zero on the pill uses a hollow dot. Gap counts stay on the schema facet tree and Continue bar.
+- **Why:** The strip showed T1/T2/Embed as **needs** (often 0) while every row dot was colored, so it looked like those processors had not run.
+- **Verified:** Code review of `reads.ts` filters vs `TierDot` `filled` flags in `ScannedObjectsTab.tsx`.
+- **Not done:** Browser check on the live scanned list.
+
 ## 2026-10-29 — CI: typography guard (Jobs estate UI)
 
 - **What:** Replaced five `text-[10px]` literals in `ActiveRunsPanel`, `ScannedPipelineScopeBar`, and `ScannedFacetTree` with `text-caption` (+ `font-mono` where needed).

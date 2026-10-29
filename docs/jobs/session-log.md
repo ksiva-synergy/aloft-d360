@@ -5,6 +5,14 @@
 
 ---
 
+### 2026-10-29 — Scanned tier pill colors match “done” dots
+
+- **Files:** `src/lib/context/reads.ts`, `src/components/estate/ScannedObjectsTab.tsx`, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`.
+- **Why:** Header T1/T2/Embed showed gap counts (0) while row dots were filled, so finished processors looked undone.
+- **Before → after:** Pills and filters count tables that have that tier. Hollow pill dot when the count is 0. Needs-work stays on facets and Continue.
+
+---
+
 ### 2026-10-29 — CI typography guard (estate Jobs UI)
 
 - **Files:** `ActiveRunsPanel.tsx`, `ScannedPipelineScopeBar.tsx`, `ScannedFacetTree.tsx`, `CHANGELOG.md`.

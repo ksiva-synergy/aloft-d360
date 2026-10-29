@@ -95,12 +95,12 @@ const TIER_COLORS = {
 } as const;
 
 const TIER_LABELS: Record<keyof typeof TIER_COLORS, string> = {
-  t0: 'T0 Structural — scanned tables (no T1 yet)',
-  t1: 'Needs profile — stale vs latest T0',
-  t2: 'Needs enrich — stale vs latest profile',
-  embed: 'Needs embed — scanned tables missing object vectors',
-  t3: 'T3 Connected — usage analysis and cross-object connections',
-  t4: 'T4 Modelled — entity + dimension proposals generated',
+  t0: 'T0 Structural — tables with a structural scan (colored dot = done)',
+  t1: 'T1 Profile — tables with a profile (colored dot = done)',
+  t2: 'T2 Semantic — tables with a semantic card (colored dot = done)',
+  embed: 'Embed — tables with an object vector (colored dot = done)',
+  t3: 'T3 Connected — usage analysis recorded (colored dot = done)',
+  t4: 'T4 Modelled — entity proposals recorded (colored dot = done)',
 };
 
 function TierDot({
@@ -161,7 +161,9 @@ function TierLegendPill({
           width: 6,
           height: 6,
           borderRadius: '50%',
-          backgroundColor: color,
+          backgroundColor: count > 0 ? color : 'transparent',
+          border: count > 0 ? 'none' : `1.5px solid ${color}`,
+          boxSizing: 'border-box',
         }}
       />
       <span style={{ color: 'var(--estate-text-secondary)' }}>{tier.toUpperCase()}</span>

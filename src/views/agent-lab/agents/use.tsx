@@ -198,7 +198,7 @@ export default function UseAgentPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-[var(--main-bg)]">
+    <div className="absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-[var(--main-bg)]">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line-1)] px-4 md:px-6">
         <Mark name={name} />
         <div className="min-w-0 flex-1">
