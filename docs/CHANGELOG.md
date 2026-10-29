@@ -2,6 +2,13 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — Removing a user frees the email for a new account
+
+- **What:** Delete rewrites the email to `retired.<id>@removed.local` and clears the Microsoft id. Inviting an address that still belongs to a removed user does the same, then creates a new row. `src/lib/users/release-identity.ts`, `src/app/api/users/route.ts`, `src/app/api/users/[id]/route.ts`.
+- **Why:** A removed user kept the email, so inviting them again restored the old account. That account still could not be replaced with a new one.
+- **Verified:** Code review against `User.email` and `aadObjectId` unique columns.
+- **Not done:** Invite `rajmohan.j@synergyship.com` again on the Users page and choose Platform Admin if he needs everyone’s data.
+
 ## 2026-10-29 — Invite restores a removed user instead of “Resource already exists”
 
 - **What:** `POST /api/users` reactivates a soft-deleted user with the same email (clears `deletedAt`, sets Active, replaces roles). An email that is still on the Users page returns a plain 409. Invite copy says Microsoft sign-in. `src/app/api/users/route.ts`, `src/components/users/InviteUserModal.tsx`.

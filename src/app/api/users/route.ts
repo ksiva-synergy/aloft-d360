@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
+import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -137,63 +138,51 @@ export const POST = handle(async (req) => {
   const email = body.email.toLowerCase();
   const existing = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, deletedAt: true, roles: { select: { role: { select: { name: true } } } } },
+    select: { id: true, deletedAt: true },
   });
 
-  const held = existing?.roles.map((r) => r.role.name) ?? [];
-  const blocked = [...roleNames, ...held].find((role) => !canManageRole(auth.role, role));
+  if (existing && !existing.deletedAt) {
+    throw new ApiError(409, 'A user with this email is already on the Users page');
+  }
+
+  const blocked = roleNames.find((role) => !canManageRole(auth.role, role));
   if (blocked) throw new ApiError(403, `Your role cannot manage the "${blocked}" role`);
 
   const roleLinks = roles.map((r) => ({ roleId: r.id, assignedBy: auth.userId }));
 
-  // Remove only hides the row. The email stays unique, so inviting that address again
-  // restores the same account instead of inserting a second one.
-  if (existing?.deletedAt) {
-    const user = await prisma.$transaction(async (tx) => {
-      await tx.userRole.deleteMany({ where: { userId: existing.id } });
-      return tx.user.update({
+  const user = await prisma.$transaction(async (tx) => {
+    if (existing?.deletedAt) {
+      await tx.user.update({
         where: { id: existing.id },
-        data: {
-          ...(body.name !== undefined ? { name: body.name } : {}),
-          authProvider: 'aad',
-          passwordHash: null,
-          status: 'ACTIVE',
-          isActive: true,
-          deletedAt: null,
-          roles: { create: roleLinks },
-        },
-        select: userSelect,
+        data: releasedIdentityData(existing.id),
       });
-    });
+    }
 
+    return tx.user.create({
+      data: {
+        email,
+        name: body.name ?? null,
+        authProvider: 'aad',
+        passwordHash: null,
+        status: 'ACTIVE',
+        isActive: true,
+        emailVerified: false,
+        roles: { create: roleLinks },
+      },
+      select: userSelect,
+    });
+  });
+
+  if (existing?.deletedAt) {
     await writeAudit({
       actorId: auth.userId,
-      action: 'user.restored',
+      action: 'user.identity_released',
       entityType: 'user',
-      entityId: user.id,
-      after: { email: user.email, roles: roleNames },
+      entityId: existing.id,
+      after: { email, replacedBy: user.id },
       ...clientMeta(req),
     });
-    return created({ user: formatUser(user) });
   }
-
-  if (existing) {
-    throw new ApiError(409, 'A user with this email is already on the Users page');
-  }
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      name: body.name ?? null,
-      authProvider: 'aad',
-      passwordHash: null,
-      status: 'ACTIVE',
-      isActive: true,
-      emailVerified: false,
-      roles: { create: roleLinks },
-    },
-    select: userSelect,
-  });
 
   await writeAudit({
     actorId: auth.userId,
