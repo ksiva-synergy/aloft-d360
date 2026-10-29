@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
-import { PERMISSIONS, resolveRoleLabel } from '@/lib/rbac';
+import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
+import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -134,19 +135,54 @@ export const POST = handle(async (req) => {
   const roles = await prisma.role.findMany({ where: { name: { in: roleNames } } });
   if (roles.length !== roleNames.length) throw new ApiError(400, 'One or more role names are unknown');
 
-  const user = await prisma.user.create({
-    data: {
-      email: body.email.toLowerCase(),
-      name: body.name ?? null,
-      authProvider: 'aad',
-      passwordHash: null,
-      status: 'ACTIVE',
-      isActive: true,
-      emailVerified: false,
-      roles: { create: roles.map((r) => ({ roleId: r.id, assignedBy: auth.userId })) },
-    },
-    select: userSelect,
+  const email = body.email.toLowerCase();
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, deletedAt: true },
   });
+
+  if (existing && !existing.deletedAt) {
+    throw new ApiError(409, 'A user with this email is already on the Users page');
+  }
+
+  const blocked = roleNames.find((role) => !canManageRole(auth.role, role));
+  if (blocked) throw new ApiError(403, `Your role cannot manage the "${blocked}" role`);
+
+  const roleLinks = roles.map((r) => ({ roleId: r.id, assignedBy: auth.userId }));
+
+  const user = await prisma.$transaction(async (tx) => {
+    if (existing?.deletedAt) {
+      await tx.user.update({
+        where: { id: existing.id },
+        data: releasedIdentityData(existing.id),
+      });
+    }
+
+    return tx.user.create({
+      data: {
+        email,
+        name: body.name ?? null,
+        authProvider: 'aad',
+        passwordHash: null,
+        status: 'ACTIVE',
+        isActive: true,
+        emailVerified: false,
+        roles: { create: roleLinks },
+      },
+      select: userSelect,
+    });
+  });
+
+  if (existing?.deletedAt) {
+    await writeAudit({
+      actorId: auth.userId,
+      action: 'user.identity_released',
+      entityType: 'user',
+      entityId: existing.id,
+      after: { email, replacedBy: user.id },
+      ...clientMeta(req),
+    });
+  }
 
   await writeAudit({
     actorId: auth.userId,

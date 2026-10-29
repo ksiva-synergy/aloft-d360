@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { handle, ok, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
+import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -116,19 +117,26 @@ export const PATCH = handle<Ctx>(async (req, ctx) => {
   return ok({ user: formatUser(user) });
 });
 
-// Soft delete — never hard-delete a user row (preserves audit/session FKs).
+// Hide the user and free the email plus Microsoft id so the address can be invited
+// as a new account. The row stays; sessions and audit history point at it.
 export const DELETE = handle<Ctx>(async (req, ctx) => {
   const { id } = await ctx.params;
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.USER_DELETE);
   if (id === auth.userId) throw new ApiError(400, 'You cannot delete your own account');
 
-  const before = await prisma.user.findUnique({ where: { id }, select: { status: true, deletedAt: true } });
+  const before = await prisma.user.findUnique({
+    where: { id },
+    select: { email: true, status: true, deletedAt: true, roles: { select: { role: { select: { name: true } } } } },
+  });
   if (!before) throw new ApiError(404, 'User not found');
+
+  const blocked = before.roles.map((r) => r.role.name).find((role) => !canManageRole(auth.role, role));
+  if (blocked) throw new ApiError(403, `Your role cannot manage the "${blocked}" role`);
 
   await prisma.user.update({
     where: { id },
-    data: { status: 'DEACTIVATED', isActive: false, deletedAt: new Date() },
+    data: releasedIdentityData(id),
   });
 
   await writeAudit({
@@ -136,8 +144,8 @@ export const DELETE = handle<Ctx>(async (req, ctx) => {
     action: 'user.deleted',
     entityType: 'user',
     entityId: id,
-    before,
-    after: { status: 'DEACTIVATED', softDeleted: true },
+    before: { email: before.email, status: before.status, deletedAt: before.deletedAt },
+    after: { status: 'DEACTIVATED', emailReleased: true },
     ...clientMeta(req),
   });
   return ok({ ok: true });

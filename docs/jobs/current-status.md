@@ -9,7 +9,7 @@
 
 | Layer | Reality |
 |-------|---------|
-| **UI** | `Agent Lab → Estate → Jobs` — L1 **Job Types**, **Scanned Objects** (gap tier pills, facet gap counts, Continue + overlap banner), **Active Runs** (kick/cancel, failed 24h, start waiting jobs); catalog **Run full pipeline (from T0)**. |
+| **UI** | `Agent Lab → Estate → Jobs` — L1 **Job Types**, **Scanned Objects** (tier pills = **completed** counts, same meaning as row dots; facet tree still shows **needs** gaps), **Active Runs** (kick/cancel, failed 24h, start waiting jobs); catalog **Run full pipeline (from T0)**. |
 | **Control plane** | `POST …/jobs/launch` (409 overlap, `pipeline_run_id` on sequential chains), `GET …/pipeline/intent`, `POST …/pipeline/continue`, `GET …/jobs/active`, **`POST …/jobs/kick-queued`**. Scoped **`GET …/jobs/cockpit`**. Plan API **staleObjectCount** + honest T1/T2 summaries. |
 | **Workers** | `scripts/context/orchestrator.ts` … **Deploy/runbook:** [phase-0-chain-deploy.md](./phase-0-chain-deploy.md). |
 

@@ -19,6 +19,7 @@ import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { type } from '@/lib/typography/tokens';
+import { recordsFromJson, type JsonTable } from '@/components/workbench/json-table';
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
@@ -387,10 +388,16 @@ function MarkdownTable({
   headers,
   aligns,
   rows,
+  toolbar,
+  footerNote,
+  testId,
 }: {
   headers: string[];
   aligns: ColAlign[];
   rows: string[][];
+  toolbar?: React.ReactNode;
+  footerNote?: string;
+  testId?: string;
 }) {
   const cellPad: React.CSSProperties = {
     padding: '8px 12px',
@@ -407,7 +414,13 @@ function MarkdownTable({
         overflow: 'hidden',
         background: SURFACE2,
       }}
+      data-testid={testId}
     >
+      {toolbar ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+          {toolbar}
+        </div>
+      ) : null}
       <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <table
           style={{
@@ -481,7 +494,7 @@ function MarkdownTable({
             borderTop: `1px solid ${BORDER_SUBTLE}`,
           }}
         >
-          {rows.length} row{rows.length === 1 ? '' : 's'}
+          {footerNote ?? `${rows.length} row${rows.length === 1 ? '' : 's'}`}
         </div>
       )}
     </div>
@@ -608,6 +621,82 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function QuietButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        ...mono,
+        fontSize: 'var(--type-ui-regular-size)',
+        color: MUTED,
+        padding: '2px 6px',
+        borderRadius: 4,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CodeBlockView({ lang, code, extra }: { lang: string; code: string; extra?: React.ReactNode }) {
+  return (
+    <div data-testid="assistant-code-block" style={{ margin: '12px 0', borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER_GOLD}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', background: SURFACE2 }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{lang}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {extra}
+          <CopyButton text={code} />
+        </span>
+      </div>
+      <pre style={{ margin: 0, padding: '12px 14px', ...mono, fontSize: 'var(--type-ui-regular-size)', background: SURFACE2, color: INK, overflowX: 'auto', lineHeight: 1.6 }}>
+        {code}
+      </pre>
+    </div>
+  );
+}
+
+function TabularJsonBlock({ code, table }: { code: string; table: JsonTable }) {
+  const [raw, setRaw] = useState(false);
+  if (raw) {
+    return (
+      <CodeBlockView
+        lang="json"
+        code={code}
+        extra={<QuietButton label="Table" onClick={() => setRaw(false)} />}
+      />
+    );
+  }
+  const footer = table.truncated ? `Showing ${table.rows.length} of ${table.total} rows` : undefined;
+  return (
+    <MarkdownTable
+      testId="assistant-data-table"
+      headers={table.labels}
+      aligns={table.aligns}
+      rows={table.rows}
+      footerNote={footer}
+      toolbar={(
+        <>
+          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>table</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <QuietButton label="JSON" onClick={() => setRaw(true)} />
+            <CopyButton text={code} />
+          </span>
+        </>
+      )}
+    />
+  );
+}
+
+function fencedBlock(lang: string, code: string): React.ReactNode {
+  const tabular = (lang === 'json' || lang === 'text') ? recordsFromJson(code) : null;
+  if (tabular) return <TabularJsonBlock code={code.trim()} table={tabular} />;
+  return <CodeBlockView lang={lang} code={code} />;
+}
+
 function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] {
   const lines = prose.split('\n');
   const out: React.ReactNode[] = [];
@@ -661,6 +750,9 @@ function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] 
 }
 
 export function AssistantContent({ content }: { content: string }) {
+  const wholeTable = !content.includes('```') ? recordsFromJson(content) : null;
+  if (wholeTable) return <TabularJsonBlock code={content.trim()} table={wholeTable} />;
+
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -676,19 +768,9 @@ export function AssistantContent({ content }: { content: string }) {
         </div>,
       );
     }
-    const lang = match[1] || 'text';
+    const lang = (match[1] || 'text').toLowerCase();
     const code = match[2];
-    parts.push(
-      <div key={`c-${match.index}`} style={{ margin: '12px 0', borderRadius: 8, overflow: 'hidden', border: `1px solid ${BORDER_GOLD}` }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 12px', background: SURFACE2 }}>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{lang}</span>
-          <CopyButton text={code} />
-        </div>
-        <pre style={{ margin: 0, padding: '12px 14px', ...mono, fontSize: 'var(--type-ui-regular-size)', background: SURFACE2, color: INK, overflowX: 'auto', lineHeight: 1.6 }}>
-          {code}
-        </pre>
-      </div>,
-    );
+    parts.push(<React.Fragment key={`c-${match.index}`}>{fencedBlock(lang, code)}</React.Fragment>);
     lastIndex = match.index + match[0].length;
   }
 

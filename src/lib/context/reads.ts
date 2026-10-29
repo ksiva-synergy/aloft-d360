@@ -824,22 +824,16 @@ export async function listScannedObjects(
   if (params.tier) {
     switch (params.tier) {
       case 't0':
-        conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL AND o.last_t1_at IS NULL`);
+        conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL`);
         break;
       case 't1':
-        conditions.push(
-          Prisma.sql`o.last_t0_at IS NOT NULL AND (o.last_t1_at IS NULL OR o.last_t1_at < o.last_t0_at)`,
-        );
+        conditions.push(Prisma.sql`o.last_t1_at IS NOT NULL`);
         break;
       case 't2':
-        conditions.push(
-          Prisma.sql`o.last_t1_at IS NOT NULL AND (o.last_t2_at IS NULL OR o.last_t2_at < o.last_t1_at)`,
-        );
+        conditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
         break;
       case 'embed':
-        conditions.push(
-          Prisma.sql`o.last_t0_at IS NOT NULL AND NOT (${SQL_OBJECT_HAS_EMBEDDING})`,
-        );
+        conditions.push(Prisma.sql`${SQL_OBJECT_HAS_EMBEDDING}`);
         break;
       case 't3':
         conditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
@@ -878,17 +872,9 @@ export async function listScannedObjects(
       SELECT
         COUNT(*)::int AS count,
         COUNT(*) FILTER (WHERE o.last_t0_at IS NOT NULL)::int AS t0,
-        COUNT(*) FILTER (
-          WHERE o.last_t0_at IS NOT NULL
-            AND (o.last_t1_at IS NULL OR o.last_t1_at < o.last_t0_at)
-        )::int AS t1,
-        COUNT(*) FILTER (
-          WHERE o.last_t1_at IS NOT NULL
-            AND (o.last_t2_at IS NULL OR o.last_t2_at < o.last_t1_at)
-        )::int AS t2,
-        COUNT(*) FILTER (
-          WHERE o.last_t0_at IS NOT NULL AND NOT (${SQL_OBJECT_HAS_EMBEDDING})
-        )::int AS embed,
+        COUNT(*) FILTER (WHERE o.last_t1_at IS NOT NULL)::int AS t1,
+        COUNT(*) FILTER (WHERE o.last_t2_at IS NOT NULL)::int AS t2,
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_HAS_EMBEDDING})::int AS embed,
         COUNT(*) FILTER (WHERE o.last_t3_at IS NOT NULL)::int AS t3,
         COUNT(*) FILTER (WHERE o.last_t4_at IS NOT NULL)::int AS t4
       FROM platform_context_objects o

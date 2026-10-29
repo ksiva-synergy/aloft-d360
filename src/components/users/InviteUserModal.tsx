@@ -142,7 +142,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
             <DialogTitle className="text-size-body">Invite User</DialogTitle>
           </div>
           <DialogDescription className="text-size-ui">
-            Create a new platform account. The user can sign in with their email and password.
+            Create a platform account. They sign in with Microsoft using this email. Leave the password empty.
           </DialogDescription>
         </DialogHeader>
 
