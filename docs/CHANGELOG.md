@@ -2,6 +2,69 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — Centered chat input on empty Workbench and saved-agent chat
+
+- **What:** Workbench empty state places `InputComposer` in the centered column (`layout="center"`) under the mission heading instead of a dock-only bar with a decorative caret. Saved-agent chat (`use.tsx`) moves the message box into the same centered empty layout; after the first message it stays pinned to the bottom. Composer width capped at **720px** (centered) on Workbench and saved-agent chat (`columnMaxWidth` / `CHAT_COMPOSER_MAX_PX`). `InputComposer.tsx`, `PromptCanvas.tsx`, `use.tsx`.
+- **Why:** The type box felt disconnected (hero in the middle, input stuck at the bottom).
+- **Verified:** Layout review on workbench + agent chat routes.
+- **Not done:** Inspector still uses welcome + bottom composer (unchanged).
+
+## 2026-10-29 — Agents area: drop duplicate Saved agents / Workbench tabs
+
+- **What:** Removed `AgentsSubNav` tab bar from `src/views/agent-lab/agents/AgentsLayout.tsx` (deleted `AgentsSubNav.tsx`). Saved-agent chat (`use.tsx`) gets a back control to the agents list. List page and Workbench header already link to each other (`New agent`, `Agents`).
+- **Why:** The tabs duplicated in-page navigation and stacked under the Workbench chrome, wasting vertical space without a distinct job (Chat opens the use page, not Workbench).
+- **Verified:** Manual route review; list ↔ workbench via existing header actions.
+- **Not done:** No router or nav-config test updates.
+
+## 2026-10-29 — Agent answers name things instead of returning bare codes
+
+- **What:** New shared rule block `ANSWER_COMPLETENESS_RULES` (`src/lib/inspector/answer-rules.ts`), used by saved and test-run agents (`buildRuntimeSystemPrompt` in `src/lib/construction/prompts.ts`) and by both Inspector prompts (`src/lib/inspector/prompts.ts`). It replaces "Keep the final answer concise" and "Keep responses concise and data-focused". Prose stays short, but answers must keep every field needed to act on them. When a row has only an id, code or abbreviation (vessel, port, company, person, status), the model finds the naming table (other columns first, then `describe_schema` relations or search), joins it, and shows the name next to the code. It decodes coded values the same way, says once when no lookup exists, and drops placeholder values (sentinel dates, all-zero scores). No table or field names are hardcoded. The saved-agent step limit `AGENT_MAX_LOOPS` goes from 8 to 10 so the extra lookup query fits.
+- **Why:** The SIRE agent showed only vessel acronyms and bare codes (`00074`, `00013`, status `10`). The platform prompt told it to be concise and never asked it to resolve codes.
+- **Verified:** `catalog-sync.test.ts` (live prompt contains the new rule and no longer says "concise"), `run-catalog-agent.test.ts` (asserts against the constant); 32 files / 211 tests passing; `tsc --noEmit` clean.
+- **Not done:** Not yet re-run against the live SIRE agent. The agent's own saved instructions were not checked. If they ask for brevity or forbid naming people, edit them in Agent Lab.
+
+## 2026-10-29 — Compact data tables with row details
+
+- **What:** JSON row lists no longer flatten into one wide table. `recordsFromJson` splits fields into up to 7 table columns, a "Same for all rows" line for values identical on every row, and per-row details (lists and long text) opened with a chevron or "Expand all". No field names are hardcoded: every decision comes from the values (list or not, average length, how often filled, how many distinct values, same on every row). The first column is the field that best identifies a row: always filled, not a date, most distinct values, earliest on ties. The other columns are the highest-scoring fields (distinct values, fill rate, short values), shown in the agent's order. Labels keep the source casing (`IMO_NO` → "IMO NO") and use the nested field name when it is unique ("Target date" instead of "Nc summary target date"). Tables no longer use the grey `--wb-surface2` fill. `src/components/workbench/json-table.ts`, `StreamingMessage.tsx`, tests.
+- **Why:** The October SIRE answer became a ~20-column table that scrolled sideways, cut off the first columns, and had tall rows of long text.
+- **Verified:** `json-table.test.ts`, `AssistantContent.json-table.test.tsx`; `tsc --noEmit`.
+- **Not done:** Check the live SIRE thread in the browser.
+
+## 2026-10-29 — Wider assistant layout for tables (agents + Inspector)
+
+- **What:** Saved agent chat column widened (`max-w-3xl` → `1400px`); assistant replies use full column width (not `85%`). Inspector/Workbench `PromptCanvas` uses full pane width; data tables wrap text in cells and scroll horizontally when needed. `use.tsx`, `PromptCanvas.tsx`, `StreamingMessage.tsx`, `CopilotPanel.tsx`.
+- **Why:** SIRE-style tables were squeezed into a narrow bubble despite available screen space.
+- **Verified:** Layout/CSS review.
+- **Not done:** Collapsible Workbench config pane for even wider chat.
+
+## 2026-10-29 — Tabular JSON everywhere in assistant UI
+
+- **What:** One shared `AssistantContent` (`src/components/chat/AssistantContent.tsx`) renders row-list JSON as tables in **Inspector, Workbench, saved agents, flow copilot, and test runs**. Detects tables in any ``` fence whose body is JSON, bare JSON in prose, GFM pipe tables, and wrapped `{ rows|results|data: [...] }`. Wide rows cap at 20 columns (long text columns deprioritized). `json-table.ts`, `StreamingMessage.tsx`.
+- **Why:** User expectation — if the answer is a table, show a table; no per-agent output setting.
+- **Verified:** `json-table.test.ts`, `AssistantContent.json-table.test.tsx`.
+- **Not done:** Hard refresh deployed environments.
+
+## 2026-10-29 — Agent chat: nested JSON row lists render as tables
+
+- **What:** `recordsFromJson` flattens one level of nested objects and joins string arrays so SIRE-style inspection rows (e.g. `inspection_dates`, `nc_summary`, `gaps`) render as the default **table** view in agent chat, with JSON toggle. `src/components/workbench/json-table.ts`, tests.
+- **Why:** SIRE Inspection Reviewer returns an array of rich objects; the old detector required flat rows and showed raw JSON. No agent prompt or output-format setting is required.
+- **Verified:** `json-table.test.ts`, `AssistantContent.json-table.test.tsx`.
+- **Not done:** Hard refresh the saved-agent chat and re-run the October SIRE question.
+
+## 2026-10-29 — Estate pipelines: platform admin only
+
+- **What:** Only **`platform_admin`** may launch, continue, schedule, cancel, kick, or retry estate harvest pipelines. API routes call `denyUnlessEstatePipelineOperator()`; Jobs and Catalog UIs hide run/harvest/schedule controls for other roles (view-only + short hint). `src/lib/estate/pipeline-access.ts`, `require-estate-pipeline-operator.ts`, `useEstatePipelineAccess.ts`, estate job/catalog components, `src/app/api/agent-lab/context/jobs/*`, `pipeline/continue`, `estate/harvest`, `estate/schedule`, `estate/run-scheduled`.
+- **Why:** Non–platform users should browse Estate and job status without triggering pipelines.
+- **Verified:** `src/lib/estate/__tests__/pipeline-access.test.ts`; typecheck pending this session.
+- **Not done:** Browser pass signed in as Member vs Platform Admin.
+
+## 2026-10-29 — Users list: fewer parallel RDS connections (P1001)
+
+- **What:** `GET /api/users` runs activity `groupBy` queries in batches of 3 instead of six at once. If metrics fail, the user list still returns with activity counts at zero. `src/app/api/users/route.ts`.
+- **Why:** Local dev against remote RDS (`aloft-dev-writer…`) often hit Prisma `P1001` on this route when the pool or network was already busy (agents, dashboard, Jobs).
+- **Verified:** Code review; same pattern as `runInBatches` on dashboard summary.
+- **Not done:** Confirm VPN / RDS security group if P1001 persists on the first `findMany`.
+
 ## 2026-10-29 — Removing a user frees the email for a new account
 
 - **What:** Delete rewrites the email to `retired.<id>@removed.local` and clears the Microsoft id. Inviting an address that still belongs to a removed user does the same, then creates a new row. `src/lib/users/release-identity.ts`, `src/app/api/users/route.ts`, `src/app/api/users/[id]/route.ts`.

@@ -21,6 +21,7 @@ import {
 } from '@/lib/estate/job-ui';
 import { getContextHarvesterModelId } from '@/lib/context/harvester-llm';
 import { countStaleObjectsForKind } from '@/lib/estate/pipeline-intent';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +32,8 @@ export const dynamic = 'force-dynamic';
  * Used by the confirm modal to show chunk count, wall-clock estimate and cost.
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   let body: Record<string, unknown>;
   try {

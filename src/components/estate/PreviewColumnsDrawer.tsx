@@ -18,9 +18,17 @@ interface PreviewColumnsDrawerProps {
   contextObjectId?: string | null;
   onClose: () => void;
   onHarvest: (paths: string[]) => void;
+  canRunPipeline?: boolean;
 }
 
-export default function PreviewColumnsDrawer({ open, path, contextObjectId, onClose, onHarvest }: PreviewColumnsDrawerProps) {
+export default function PreviewColumnsDrawer({
+  open,
+  path,
+  contextObjectId,
+  onClose,
+  onHarvest,
+  canRunPipeline = false,
+}: PreviewColumnsDrawerProps) {
   const router = useRouter();
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState(false);
@@ -246,7 +254,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             >
               ◆ View Full Detail
             </button>
-          ) : (
+          ) : canRunPipeline ? (
             <button
               type="button"
               onClick={() => { onHarvest([path]); onClose(); }}
@@ -255,7 +263,7 @@ export default function PreviewColumnsDrawer({ open, path, contextObjectId, onCl
             >
               ⛏ Harvest this object
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -62,6 +62,7 @@ interface ScannedObjectsTabProps {
   sourceFilter?: string;
   refreshKey?: number;
   showTestSources?: boolean;
+  canRunPipeline?: boolean;
 }
 
 function relativeTime(iso: string | null): string {
@@ -172,7 +173,12 @@ function TierLegendPill({
   );
 }
 
-export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSources = false }: ScannedObjectsTabProps) {
+export function ScannedObjectsTab({
+  sourceFilter,
+  refreshKey = 0,
+  showTestSources = false,
+  canRunPipeline = false,
+}: ScannedObjectsTabProps) {
   const router = useRouter();
   const [items, setItems] = useState<ScannedObjectItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -357,8 +363,8 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
       <ScannedFacetTree
         selectedCatalog={filters.catalog}
         selectedSchema={filters.schema}
-        pipelineSchemaKeys={pipelineSchemaKeys}
-        onTogglePipelineSchema={handleTogglePipelineSchema}
+        pipelineSchemaKeys={canRunPipeline ? pipelineSchemaKeys : undefined}
+        onTogglePipelineSchema={canRunPipeline ? handleTogglePipelineSchema : undefined}
         onSelect={handleFacetSelect}
         total={total}
         refreshKey={refreshKey}
@@ -368,6 +374,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {(pipelineIncludePatterns.length > 0 || filters.catalog) && (
         <ScannedPipelineScopeBar
+          canRunPipeline={canRunPipeline}
           catalog={pipelineCatalog}
           schema={pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? undefined : filters.schema}
           includePatterns={
@@ -469,7 +476,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 className="sticky top-0 z-10 border-b select-none"
                 style={{ backgroundColor: thBg, borderColor }}
               >
-        <th className="p-3 text-label w-8" style={{ color: labelColor }} />
+        <th className="p-3 text-label w-8" style={{ color: labelColor, display: canRunPipeline ? undefined : 'none' }} />
         <th className="p-3 text-label " style={{ color: labelColor }}>Object Path</th>
         <th className="p-3 text-label w-28" style={{ color: labelColor }}>Kind</th>
         <th className="p-3 text-label w-32" style={{ color: labelColor }}>Source</th>
@@ -492,7 +499,7 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-16 text-center">
+                  <td colSpan={canRunPipeline ? 7 : 6} className="p-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <span className="text-size-title-section opacity-40 font-mono">◆</span>
            <span className="text-label " style={{ color: labelColor }}>
@@ -517,13 +524,15 @@ export function ScannedObjectsTab({ sourceFilter, refreshKey = 0, showTestSource
                   className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150"
                   onClick={() => router.push(`/agent-lab/estate/object/${obj.id}`)}
                 >
-                  <td className="p-3 text-center" onClick={e => e.stopPropagation()}>
+                  <td className="p-3 text-center" onClick={e => e.stopPropagation()} style={{ display: canRunPipeline ? undefined : 'none' }}>
+                    {canRunPipeline && (
                     <input
                       type="checkbox"
                       checked={selectedTablePaths.has(obj.full_path)}
                       onChange={() => toggleTablePath(obj.full_path)}
                       title="Include in Continue pipeline"
                     />
+                    )}
                   </td>
                   <td className="p-3 font-mono text-size-ui max-w-[280px]">
                     <span

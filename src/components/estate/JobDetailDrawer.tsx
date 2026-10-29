@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import LogStreamPanel from './LogStreamPanel';
 import ChildJobsPanel from './ChildJobsPanel';
 import { mapJobStatus, isKickableJob, isOrchestratingParent, formatJobScopeHuman } from '@/lib/estate/job-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 import { type, inkOf } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
@@ -178,6 +179,7 @@ function CopyableId({ value }: { value: string }) {
 }
 
 export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) {
+  const canRunPipeline = useCanRunEstatePipeline();
   const [isOpen, setIsOpen] = useState(false);
   const [activeJob, setActiveJob] = useState<JobItem | null>(null);
   const [copied, setCopied] = useState(false);
@@ -413,7 +415,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
             </div>
 
             {/* Launch button — only for queued jobs with no Fargate task */}
-            {isKickableJob(activeJob) && !(activeJob.scope as any)?.fargate_task_id && (
+            {canRunPipeline && isKickableJob(activeJob) && !(activeJob.scope as any)?.fargate_task_id && (
               <button
                 type="button"
                 onClick={handleKick}

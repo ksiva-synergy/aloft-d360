@@ -5,12 +5,13 @@ import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { pathToIncludePattern } from '@/lib/context/job-scope';
 import { enqueueAndLaunchHarvest } from '@/lib/context/enqueue-and-launch';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const body = await req.json();
   const paths: string[] = body.paths;

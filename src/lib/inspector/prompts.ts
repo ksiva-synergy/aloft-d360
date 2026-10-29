@@ -2,6 +2,7 @@ import type { Tool, ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import schema from '../../lib/studio/chart-dsl.schema.json';
 import type { SemanticContext } from '@/lib/semantic/context-builder';
+import { ANSWER_COMPLETENESS_RULES } from './answer-rules';
 
 /**
  * Inspector explores data; agents are built in Agent Lab. The UI shows an "Open Agent Lab"
@@ -73,8 +74,9 @@ This is not an error — it means the data exists in the warehouse but hasn't be
 
 ${AGENT_BUILD_REQUEST_RULES}
 
+${ANSWER_COMPLETENESS_RULES}
+
 ## RESPONSE FORMAT
-- Keep responses concise and data-focused.
 - Summarize what the data reveals; do not just repeat the raw table.
 - Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
 - Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).
@@ -118,8 +120,9 @@ IDs as confirmed — do not re-run discovery SQL for those objects.
 
 ${AGENT_BUILD_REQUEST_RULES}
 
+${ANSWER_COMPLETENESS_RULES}
+
 ## RESPONSE FORMAT
-- Keep responses concise and data-focused.
 - Summarize what the data reveals; do not just repeat the raw table.
 - Structure the final answer with short \`##\` section headings (e.g. \`## By chapter\`).
 - Use GitHub-flavored markdown tables for rankings and comparisons (header row + \`|---|---:|\` separator; right-align numeric columns with \`---:\`).

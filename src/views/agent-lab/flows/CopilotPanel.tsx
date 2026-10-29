@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowUp, Check, Loader2, Sparkles, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AssistantContent } from '@/components/chat/AssistantContent';
 import type { Def } from '@/lib/flows/edit';
 import type { FlowDiff } from '@/lib/flows/copilot';
 import type { PolicyFinding } from '@/lib/flows/policy';
@@ -92,7 +93,7 @@ export default function CopilotPanel({ def, pendingId, outcomes, onPropose, onAp
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 md:px-8" aria-live="polite">
         {messages.length === 0 && (
           <div className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] p-4">
             <div className="flex items-center gap-2">
@@ -133,12 +134,14 @@ export default function CopilotPanel({ def, pendingId, outcomes, onPropose, onAp
           const status = p ? outcomes[p.id] : undefined;
           const stale = p && !status && p.id !== pendingId;
           return (
-            <div key={i} className="space-y-2">
+            <div key={i} className="w-full max-w-[1400px] space-y-2">
               <div className="flex gap-2">
                 <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]">
                   <Sparkles className="h-3.5 w-3.5" aria-hidden />
                 </span>
-                <p className="min-w-0 whitespace-pre-wrap text-size-ui text-[var(--ink-1)]">{m.text}</p>
+                <div className="min-w-0 flex-1 text-size-ui text-[var(--ink-1)]">
+                  <AssistantContent content={m.text} />
+                </div>
               </div>
               {m.problems && m.problems.length > 0 && (
                 <ul className="ml-8 list-disc space-y-0.5 pl-4 text-size-caption text-[var(--ink-3)]">

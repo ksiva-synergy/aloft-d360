@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { runInBatches } from '@/lib/db/run-in-batches';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
@@ -60,62 +61,87 @@ export const GET = handle(async (req) => {
     select: userSelect,
   });
 
-  // Per-user engagement metrics — aggregated in a handful of groupBy queries
-  // rather than one query per user (avoids N+1 over the whole member list).
-  const now = Date.now();
-  const since7d = new Date(now - 7 * DAY_MS);
-  const since30d = new Date(now - 30 * DAY_MS);
-
-  const [logins7d, logins30d, sessions7d, sessions30d, inspectorChats, memoryContribs] = await Promise.all([
-    // Successful sign-ins (auth logins) — the "did they log in" signal.
-    prisma.loginEvent.groupBy({
-      by: ['userId'],
-      where: { success: true, createdAt: { gte: since7d } },
-      _count: { _all: true },
-    }),
-    prisma.loginEvent.groupBy({
-      by: ['userId'],
-      where: { success: true, createdAt: { gte: since30d } },
-      _count: { _all: true },
-    }),
-    // Workbench/inspector usage sessions — only created when a user actively works.
-    prisma.workbench_sessions.groupBy({
-      by: ['user_id'],
-      where: { created_at: { gte: since7d } },
-      _count: { _all: true },
-    }),
-    prisma.workbench_sessions.groupBy({
-      by: ['user_id'],
-      where: { created_at: { gte: since30d } },
-      _count: { _all: true },
-    }),
-    prisma.workbench_sessions.groupBy({
-      by: ['user_id'],
-      where: { surface: 'inspector' },
-      _count: { _all: true },
-    }),
-    prisma.platformMemoryContribution.groupBy({
-      by: ['userId'],
-      _count: { _all: true },
-    }),
-  ]);
-
-  const l7 = toCountMap(logins7d, 'userId');
-  const l30 = toCountMap(logins30d, 'userId');
-  const s7 = toCountMap(sessions7d, 'user_id');
-  const s30 = toCountMap(sessions30d, 'user_id');
-  const insp = toCountMap(inspectorChats, 'user_id');
-  const mem = toCountMap(memoryContribs, 'userId');
-
   const shaped = users.map((u) => ({
     ...formatUser(u),
-    logins7d: l7.get(u.id) ?? 0,
-    logins30d: l30.get(u.id) ?? 0,
-    sessions7d: s7.get(u.id) ?? 0,
-    sessions30d: s30.get(u.id) ?? 0,
-    inspectorChats: insp.get(u.id) ?? 0,
-    memoriesContributed: mem.get(u.id) ?? 0,
+    logins7d: 0,
+    logins30d: 0,
+    sessions7d: 0,
+    sessions30d: 0,
+    inspectorChats: 0,
+    memoriesContributed: 0,
   }));
+
+  try {
+    const now = Date.now();
+    const since7d = new Date(now - 7 * DAY_MS);
+    const since30d = new Date(now - 30 * DAY_MS);
+
+    // Cap parallel groupBy calls — six at once against remote RDS often triggers P1001
+    // when the pool or network is already busy (same pattern as dashboard summary).
+    const [logins7d, logins30d, sessions7d, sessions30d, inspectorChats, memoryContribs] =
+      await runInBatches(
+        [
+          () =>
+            prisma.loginEvent.groupBy({
+              by: ['userId'],
+              where: { success: true, createdAt: { gte: since7d } },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.loginEvent.groupBy({
+              by: ['userId'],
+              where: { success: true, createdAt: { gte: since30d } },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.workbench_sessions.groupBy({
+              by: ['user_id'],
+              where: { created_at: { gte: since7d } },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.workbench_sessions.groupBy({
+              by: ['user_id'],
+              where: { created_at: { gte: since30d } },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.workbench_sessions.groupBy({
+              by: ['user_id'],
+              where: { surface: 'inspector' },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.platformMemoryContribution.groupBy({
+              by: ['userId'],
+              _count: { _all: true },
+            }),
+        ] as const,
+        3,
+      );
+
+    const l7 = toCountMap(logins7d, 'userId');
+    const l30 = toCountMap(logins30d, 'userId');
+    const s7 = toCountMap(sessions7d, 'user_id');
+    const s30 = toCountMap(sessions30d, 'user_id');
+    const insp = toCountMap(inspectorChats, 'user_id');
+    const mem = toCountMap(memoryContribs, 'userId');
+
+    for (let i = 0; i < shaped.length; i++) {
+      const u = users[i];
+      shaped[i] = {
+        ...shaped[i],
+        logins7d: l7.get(u.id) ?? 0,
+        logins30d: l30.get(u.id) ?? 0,
+        sessions7d: s7.get(u.id) ?? 0,
+        sessions30d: s30.get(u.id) ?? 0,
+        inspectorChats: insp.get(u.id) ?? 0,
+        memoriesContributed: mem.get(u.id) ?? 0,
+      };
+    }
+  } catch (err) {
+    console.warn('[GET /api/users] activity metrics skipped:', err);
+  }
 
   return ok({ users: shaped });
 });

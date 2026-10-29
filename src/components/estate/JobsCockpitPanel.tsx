@@ -34,10 +34,12 @@ function fmt(n: number): string {
 
 export default function JobsCockpitPanel({
   sourceId,
+  canRunPipeline = false,
   onLaunched,
   onOpenWizard,
 }: {
   sourceId?: string | null;
+  canRunPipeline?: boolean;
   onLaunched?: () => void;
   onOpenWizard?: () => void;
 }) {
@@ -146,7 +148,7 @@ export default function JobsCockpitPanel({
             <div className="text-caption mt-1" style={{ color: 'var(--estate-text-secondary)' }}>{rec.detail}</div>
           </div>
           <div className="flex shrink-0 gap-2">
-            {isJobsLaunchWizardEnabled() && onOpenWizard && (
+            {canRunPipeline && isJobsLaunchWizardEnabled() && onOpenWizard && (
               <button
                 type="button"
                 onClick={onOpenWizard}
@@ -156,6 +158,7 @@ export default function JobsCockpitPanel({
                 Guided launch
               </button>
             )}
+            {canRunPipeline && (
             <button
             type="button"
             disabled={launching || loading}
@@ -165,6 +168,7 @@ export default function JobsCockpitPanel({
           >
             {launching ? 'Launching…' : 'Run on Fargate'}
           </button>
+            )}
           </div>
         </div>
       )}

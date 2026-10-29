@@ -15,6 +15,8 @@ interface BulkActionBarProps {
   scheduledRunning?: boolean;
   catalogScope?: string;
   onClear: () => void;
+  /** When false, only selection count / scope label — no harvest, schedule, or pipeline actions. */
+  canRunPipeline?: boolean;
 }
 
 export default function BulkActionBar({
@@ -29,6 +31,7 @@ export default function BulkActionBar({
   scheduledRunning = false,
   catalogScope,
   onClear,
+  canRunPipeline = false,
 }: BulkActionBarProps) {
   const goldColor = 'var(--brand-a)';
   const goldDim = '#9a7a2a';
@@ -43,6 +46,51 @@ export default function BulkActionBar({
   };
 
   if (count === 0 && !catalogScope) return null;
+  if (!canRunPipeline && count === 0 && catalogScope) {
+    return (
+      <div
+        className="flex items-center gap-3 mx-6 mt-2 px-4 py-2.5 rounded-md flex-wrap"
+        style={{
+          background: 'rgba(96, 165, 250, 0.06)',
+          border: `1px solid rgba(96, 165, 250, 0.35)`,
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-secondary)', letterSpacing: '0.04em' }}>
+          Scope: <strong style={{ color: blueColor }}>{catalogScope}</strong>
+          <span className="ml-2 normal-case" style={{ color: 'var(--estate-text-muted)' }}>(view only)</span>
+        </span>
+      </div>
+    );
+  }
+  if (!canRunPipeline && count > 0) {
+    return (
+      <div
+        className="flex items-center gap-3 mx-6 mt-2 px-4 py-2.5 rounded-md flex-wrap"
+        style={{
+          background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+          border: `1px solid ${goldDim}`,
+        }}
+      >
+        <span
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: goldColor, letterSpacing: '0.04em' }}
+        >
+          {count} selected
+        </span>
+        <span className="text-size-ui" style={{ color: 'var(--estate-text-muted)' }}>
+          Platform admin required to run harvest actions
+        </span>
+        <span
+          onClick={onClear}
+          className="ml-auto cursor-pointer transition-colors"
+          style={{ ...type.label, color: 'var(--estate-text-muted)' }}
+          onMouseEnter={e => { e.currentTarget.style.color = goldColor; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--estate-text-muted)'; }}
+        >
+          Clear
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
