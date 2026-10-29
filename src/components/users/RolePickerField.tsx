@@ -74,7 +74,7 @@ export function RolePickerField({
                 </span>
                 <span
                   className={cn(
-                    'text-[11px] font-medium leading-snug line-clamp-1',
+                    'text-size-caption font-medium leading-snug line-clamp-1',
                     ROLE_SUMMARY_ACCENT[value] ?? ROLE_SUMMARY_ACCENT.readonly,
                   )}
                 >
@@ -113,7 +113,7 @@ export function RolePickerField({
                   <div className="mb-1 flex flex-wrap items-center gap-1.5">
                     <RoleBadge role={role} size="sm" />
                     {isCurrent && (
-                      <span className="rounded border border-[var(--estate-border)] bg-[var(--estate-surface)] px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="rounded border border-[var(--estate-border)] bg-[var(--estate-surface)] px-1.5 py-px text-eyebrow uppercase text-muted-foreground">
                         Current
                       </span>
                     )}
@@ -124,7 +124,7 @@ export function RolePickerField({
                   <p className={cn('mt-1 text-size-ui font-medium leading-snug', summaryAccent)}>
                     {copy.summary}
                   </p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground whitespace-normal">
+                  <p className="mt-1.5 text-size-caption leading-relaxed text-muted-foreground whitespace-normal">
                     {copy.detail}
                   </p>
                 </div>
@@ -142,7 +142,7 @@ export function RolePickerField({
           )}
           aria-live="polite"
         >
-          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="mb-1.5 flex items-center gap-1.5 text-eyebrow uppercase text-muted-foreground">
             <Info className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
             About this role
           </div>

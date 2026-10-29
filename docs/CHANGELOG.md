@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — Users role picker: typography tokens (CI guard)
+
+- **What:** Replaced `text-[10px]` / `text-[11px]` in `RolePickerField.tsx`, `RoleBadge.tsx`, `ChangeRoleModal.tsx` with `text-eyebrow`, `text-size-caption`, and related tokens.
+- **Why:** `typography-guard.test.ts` fails CI when arbitrary `text-[Npx]` literals exceed baseline (7 added with the role dropdown work).
+- **Verified:** `npx vitest run src/lib/typography/__tests__/typography-guard.test.ts`.
+
 ## 2026-10-29 — Agent chat composer width 800 → 880px
 
 - **What:** `CHAT_COMPOSER_MAX_PX` / `WORKBENCH_COMPOSER_MAX_PX` in `use.tsx`, `PromptCanvas.tsx`.
