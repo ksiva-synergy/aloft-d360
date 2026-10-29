@@ -218,7 +218,7 @@ export default function ScannedPipelineScopeBar({
             {loading ? 'Loading pipeline gaps…' : summary || 'Select scope to see what is left.'}
           </div>
           {health && !loading && (
-            <div className="text-[10px] font-mono mt-1 flex flex-wrap gap-3" style={{ color: 'var(--estate-text-muted)' }}>
+            <div className="text-caption font-mono mt-1 flex flex-wrap gap-3" style={{ color: 'var(--estate-text-muted)' }}>
               <span>{health.scanned_objects} scanned</span>
               {needsProfile > 0 && <span style={{ color: '#86EFAC' }}>{needsProfile} need profile</span>}
               {health.needs_enrich > 0 && <span style={{ color: '#C084FC' }}>{health.needs_enrich} need enrich</span>}
@@ -257,7 +257,7 @@ export default function ScannedPipelineScopeBar({
             <p className="text-caption mt-2 font-mono" style={{ color: 'var(--brand-a-ink)' }}>
               Tiers: {kindsPreview}
             </p>
-            <p className="text-[10px] mt-2 font-mono truncate" style={{ color: 'var(--estate-text-muted)' }} title={effectivePatterns.join(', ')}>
+            <p className="text-caption mt-2 font-mono truncate" style={{ color: 'var(--estate-text-muted)' }} title={effectivePatterns.join(', ')}>
               Limit: {effectivePatterns.length === 1 ? effectivePatterns[0] : `${effectivePatterns.length} patterns`}
             </p>
             <div className="mt-4 flex justify-end gap-2">

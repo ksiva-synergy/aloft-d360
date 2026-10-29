@@ -5,6 +5,13 @@
 
 ---
 
+### 2026-10-29 — CI typography guard (estate Jobs UI)
+
+- **Files:** `ActiveRunsPanel.tsx`, `ScannedPipelineScopeBar.tsx`, `ScannedFacetTree.tsx`, `CHANGELOG.md`.
+- **Why:** CI failed `typography-guard` (`text-[10px]` ×5); switched to `text-caption`.
+
+---
+
 ### 2026-10-28 — Embeddings inactive / T0 drops doc
 
 - **Files:** `embeddings-lifecycle-and-drops.md`, README, `current-status.md`, `redundancy-and-skip-behavior.md`, CHANGELOG.

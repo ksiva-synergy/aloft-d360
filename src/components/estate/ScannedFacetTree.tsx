@@ -108,7 +108,7 @@ export default function ScannedFacetTree({
           <span>{catalogs.length}</span>
         </div>
         {onTogglePipelineSchema && (
-          <p className="px-5 pb-2 text-[10px] font-mono" style={{ color: textDim }}>
+          <p className="px-5 pb-2 text-caption font-mono" style={{ color: textDim }}>
             Check schemas for multi-schema Continue
           </p>
         )}

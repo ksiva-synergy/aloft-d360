@@ -2,6 +2,13 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — CI: typography guard (Jobs estate UI)
+
+- **What:** Replaced five `text-[10px]` literals in `ActiveRunsPanel`, `ScannedPipelineScopeBar`, and `ScannedFacetTree` with `text-caption` (+ `font-mono` where needed).
+- **Why:** `typography-guard` baseline allows zero arbitrary `text-[Npx]`; CI `npx vitest run` failed on `arbitraryTextSize: 5 > baseline 0`.
+- **Verified:** `npx vitest run src/lib/typography/__tests__/typography-guard.test.ts`.
+- **Not done:** —
+
 ## 2026-10-28 — Automate: remove FLOWS_ENABLED feature flag
 
 - **What:** Removed `assertFlowsEnabled()` and all `FLOWS_ENABLED` checks from `/api/agent-lab/flows/*`. Automate UI no longer shows “set FLOWS_ENABLED=true”. Updated flows API/UI tests; `flows-architecture.md`, `IMPLEMENTATION_STATUS.md`.
