@@ -2,6 +2,44 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-29 — Agent chat composer width 800 → 880px
+
+- **What:** `CHAT_COMPOSER_MAX_PX` / `WORKBENCH_COMPOSER_MAX_PX` in `use.tsx`, `PromptCanvas.tsx`.
+- **Why:** User asked for slightly wider centered message box.
+- **Verified:** Layout constants only.
+
+## 2026-10-29 — Agent chat composer width 720 → 800px
+
+- **What:** `CHAT_COMPOSER_MAX_PX` / `WORKBENCH_COMPOSER_MAX_PX` in `use.tsx`, `PromptCanvas.tsx`.
+- **Why:** Centered message box slightly too narrow after 720px cap.
+- **Verified:** Layout constants only.
+
+## 2026-10-29 — Agent replies: nested lists as sub-tables, single JSON objects as a record view
+
+- **What:**
+  - A field that holds a list of objects (for example a list of findings, each with a code and a description) is kept whole and shown as a small table inside its detail card, with a row count. It used to show "—" whenever an entry was longer than 80 characters. Nested lists are never promoted into a main column. A table may now have a single main column when the rest of the data is in nested lists.
+  - A reply that is one JSON object (not a list) shows as a record. Short fields are grouped as label/value pairs at the top, and lists, long text and nested lists get their own cards. A JSON button switches back to the source. An object with only one field stays as a code block.
+  - Amber "issue" cards also match Findings, Observations, Deficiencies, Discrepancies, Non-conformities, Alerts, Failures, Violations and Exceptions. Gold "action" cards also match Mitigation and Follow-up.
+  - Files: `nestedRecords`, `recordFromJson` and the `details.kinds` field in `src/components/workbench/json-table.ts`. `NestedTable`, `FieldGrid`, `RecordJsonBlock` and `structuredJsonBlock` in `src/components/workbench/StreamingMessage.tsx`, used by Inspector, Workbench, saved agents, Test run and the Flows copilot.
+  - Also fixed a type error from the role dropdown change in `src/components/users/InviteUserModal.tsx`, which sorted roles against the typed `ROLE_ORDER`.
+- **Why:** Different agents return different shapes. Nested lists were being hidden, and a single object was dumped as raw JSON.
+- **Verified:** `npx vitest run src/components/workbench/__tests__/json-table.test.ts src/components/workbench/__tests__/AssistantContent.json-table.test.tsx`, 23 passed. `npx tsc --noEmit` clean.
+- **Not done:** Not checked in the browser. Label matching is English only. Nested lists show at most 10 columns and 50 rows.
+
+## 2026-10-29 — Agent reply tables: expanded row details as cards
+
+- **What:** The expanded row under a JSON record table now shows each detail field as its own card instead of one gray grid. Fields whose label reads as a problem (Gaps, Missing, Issues, Risks…) get an amber card with a warning icon and a count. Fields that read as next steps (Recommended actions, Next steps…) get a full-width gold card at the bottom. Items like `target_date 2026-12-31` or `audit_by=SIRE` render as aligned label/value pairs, with zeros and "No" dimmed. Empty fields collapse into one "Not provided" line. The tone comes from the field label only; no SIRE field names are hardcoded. `detailTone` and `splitDetailItem` in `src/components/workbench/json-table.ts`; `DetailCard` / `DetailList` in `src/components/workbench/StreamingMessage.tsx`.
+- **Why:** Evidence, gaps and actions were rendered in the same font and color, so the expanded row was hard to scan.
+- **Verified:** `npx vitest run src/components/workbench/__tests__/json-table.test.ts src/components/workbench/__tests__/AssistantContent.json-table.test.tsx`, 17 passed.
+- **Not done:** Not checked in the browser on the live SIRE thread.
+
+## 2026-10-29 — Users: readable role dropdown on invite and change role
+
+- **What:** Invite User and Change Role use a role **dropdown** whose **menu** shows four color-tinted cards (gold / blue / slate), each with badge, bold title, accent summary line, and full description—no duplicate panel under the field by default. Shared `role-copy.ts`, `RoleBadge.tsx`, `RolePickerField.tsx`.
+- **Why:** Everything in the open list looked like one font and one gray; popper viewport height also clipped the menu.
+- **Verified:** `ReadLints` clean on touched files.
+- **Not done:** Browser pass on Users invite + change role modals.
+
 ## 2026-10-29 — Centered chat input on empty Workbench and saved-agent chat
 
 - **What:** Workbench empty state places `InputComposer` in the centered column (`layout="center"`) under the mission heading instead of a dock-only bar with a decorative caret. Saved-agent chat (`use.tsx`) moves the message box into the same centered empty layout; after the first message it stays pinned to the bottom. Composer width capped at **720px** (centered) on Workbench and saved-agent chat (`columnMaxWidth` / `CHAT_COMPOSER_MAX_PX`). `InputComposer.tsx`, `PromptCanvas.tsx`, `use.tsx`.

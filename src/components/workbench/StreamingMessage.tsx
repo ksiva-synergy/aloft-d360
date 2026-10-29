@@ -12,6 +12,8 @@ import {
   Copy,
   Check,
   Zap,
+  AlertTriangle,
+  ArrowRight,
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
@@ -19,7 +21,18 @@ import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { type } from '@/lib/typography/tokens';
-import { recordsFromJson, type JsonTable } from '@/components/workbench/json-table';
+import {
+  detailTone,
+  labelForKey,
+  nestedRecords,
+  recordFromJson,
+  recordsFromJson,
+  splitDetailItem,
+  type DetailKind,
+  type DetailTone,
+  type JsonRecord,
+  type JsonTable,
+} from '@/components/workbench/json-table';
 const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
@@ -683,39 +696,268 @@ function TabularJsonBlock({ code, table }: { code: string; table: JsonTable }) {
   return <DataTable code={code} table={table} onShowJson={() => setRaw(true)} />;
 }
 
+function RecordJsonBlock({ code, record }: { code: string; record: JsonRecord }) {
+  const [raw, setRaw] = useState(false);
+  if (raw) {
+    return <CodeBlockView lang="json" code={code} extra={<QuietButton label="Record" onClick={() => setRaw(false)} />} />;
+  }
+  const overview = record.overview.length > 0 && (
+    <section
+      style={{
+        minWidth: 0,
+        gridColumn: '1 / -1',
+        borderRadius: 8,
+        border: `1px solid ${BORDER_SUBTLE}`,
+        background: SURFACE,
+        padding: '10px 12px',
+      }}
+    >
+      <FieldGrid pairs={record.overview} />
+    </section>
+  );
+  return (
+    <div
+      data-testid="assistant-data-record"
+      style={{ margin: '12px 0 16px', borderRadius: 10, border: `1px solid ${BORDER_SUBTLE}`, overflow: 'hidden' }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 4,
+          padding: '6px 14px',
+          borderBottom: `1px solid ${BORDER_SUBTLE}`,
+        }}
+      >
+        <QuietButton label="JSON" onClick={() => setRaw(true)} />
+        <CopyButton text={code} />
+      </div>
+      <div style={{ padding: 12 }}>
+        <DetailList
+          labels={record.sections.map((s) => s.label)}
+          values={record.sections.map((s) => s.value)}
+          kinds={record.sections.map((s) => s.kind)}
+          lead={overview}
+        />
+      </div>
+    </div>
+  );
+}
+
+function structuredJsonBlock(code: string, key?: string): React.ReactNode | null {
+  const table = recordsFromJson(code);
+  if (table) return <TabularJsonBlock key={key} code={code} table={table} />;
+  const record = recordFromJson(code);
+  if (record) return <RecordJsonBlock key={key} code={code} record={record} />;
+  return null;
+}
+
 function rowHasDetails(table: JsonTable, ri: number): boolean {
   return (table.details.rows[ri] ?? []).some((v) => v !== '—');
 }
 
-function DetailList({ labels, values }: { labels: string[]; values: string[] }) {
+const DETAIL_TONE_STYLE: Record<DetailTone, { accent: string; heading: string; bg: string; border: string }> = {
+  issue: {
+    accent: 'var(--warn)',
+    heading: 'var(--warn)',
+    bg: 'var(--warn-bg)',
+    border: 'color-mix(in srgb, var(--warn) 28%, transparent)',
+  },
+  action: {
+    accent: GOLD,
+    heading: GOLD,
+    bg: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
+    border: BORDER_GOLD,
+  },
+  neutral: {
+    accent: 'color-mix(in srgb, var(--wb-muted) 45%, transparent)',
+    heading: MUTED,
+    bg: SURFACE,
+    border: BORDER_SUBTLE,
+  },
+};
+
+const DETAIL_TONE_ORDER: Record<DetailTone, number> = { neutral: 0, issue: 1, action: 2 };
+
+function isZeroValue(value: string): boolean {
+  return /^0+(\.0+)?$/.test(value) || /^(no|false)$/i.test(value);
+}
+
+function FieldGrid({ pairs }: { pairs: Array<{ label: string; value: string }> }) {
   return (
-    <dl
+    <dl style={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0, 1fr)', gap: '4px 14px', margin: 0 }}>
+      {pairs.map(({ label, value }) => (
+        <React.Fragment key={label}>
+          <dt style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>{label}</dt>
+          <dd
+            style={{
+              margin: 0,
+              ...mono,
+              fontSize: 'var(--type-ui-regular-size)',
+              fontVariantNumeric: 'tabular-nums',
+              fontWeight: isZeroValue(value) || value === '—' ? 400 : 600,
+              color: isZeroValue(value) || value === '—' ? MUTED : INK,
+              wordBreak: 'break-word',
+            }}
+          >
+            {value}
+          </dd>
+        </React.Fragment>
+      ))}
+    </dl>
+  );
+}
+
+function NestedTable({ labels, rows, total }: { labels: string[]; rows: string[][]; total: number }) {
+  const cell: React.CSSProperties = {
+    padding: '5px 10px',
+    borderBottom: `1px solid ${BORDER_SUBTLE}`,
+    textAlign: 'left',
+    verticalAlign: 'top',
+  };
+  return (
+    <div style={{ overflowX: 'auto', borderRadius: 6, border: `1px solid ${BORDER_SUBTLE}`, background: SURFACE }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', ...sans, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.45 }}>
+        <thead>
+          <tr>
+            {labels.map((h) => (
+              <th key={h} style={{ ...cell, ...type.label, color: MUTED, whiteSpace: 'nowrap' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((v, ci) => (
+                <td
+                  key={ci}
+                  style={{
+                    ...cell,
+                    borderBottom: ri === rows.length - 1 ? 'none' : cell.borderBottom,
+                    color: v === '—' ? MUTED : INK,
+                    fontWeight: ci === 0 ? 600 : 400,
+                    whiteSpace: v.length <= 24 ? 'nowrap' : 'normal',
+                  }}
+                >
+                  {renderInline(v)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {total > rows.length && (
+        <div style={{ padding: '5px 10px', color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>
+          Showing {rows.length} of {total}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailCard({ label, value, tone, kind = 'text' }: { label: string; value: string; tone: DetailTone; kind?: DetailKind }) {
+  const style = DETAIL_TONE_STYLE[tone];
+  const nested = kind === 'records' ? nestedRecords(value) : null;
+  const items = nested ? [] : value.includes('; ') ? value.split('; ') : [value];
+  const pairs = items.map((item) => splitDetailItem(item));
+  const kv = items.flatMap((_, i) => (pairs[i] ? [pairs[i]!] : []));
+  const text = items.filter((_, i) => !pairs[i]);
+  const Icon = tone === 'issue' ? AlertTriangle : tone === 'action' ? ArrowRight : null;
+  const count = nested ? nested.total : items.length;
+
+  return (
+    <section
       style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-        gap: '12px 24px',
-        margin: 0,
+        minWidth: 0,
+        gridColumn: tone === 'action' || nested ? '1 / -1' : undefined,
+        borderRadius: 8,
+        border: `1px solid ${style.border}`,
+        borderLeft: `3px solid ${style.accent}`,
+        background: style.bg,
+        padding: '10px 12px',
       }}
     >
-      {labels.map((label, i) => {
-        const value = values[i] ?? '—';
-        const items = value.includes('; ') ? value.split('; ') : null;
-        return (
-          <div key={label} style={{ minWidth: 0 }}>
-            <dt style={{ ...type.label, color: MUTED, marginBottom: 4 }}>{label}</dt>
-            <dd style={{ margin: 0, color: value === '—' ? MUTED : INK, lineHeight: 1.5, wordBreak: 'break-word' }}>
-              {items ? (
-                <ul style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {items.map((item, j) => <li key={j}>{renderInline(item)}</li>)}
-                </ul>
-              ) : (
-                renderInline(value)
+      <header style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, ...type.label, color: style.heading }}>
+        {Icon && <Icon size={12} aria-hidden />}
+        <span>{label}</span>
+        {(nested || (tone === 'issue' && count > 1)) && (
+          <span
+            style={{
+              marginLeft: 'auto',
+              ...mono,
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '0 6px',
+              borderRadius: 999,
+              background: tone === 'issue'
+                ? 'color-mix(in srgb, var(--warn) 16%, transparent)'
+                : 'color-mix(in srgb, var(--wb-muted) 14%, transparent)',
+            }}
+          >
+            {count}
+          </span>
+        )}
+      </header>
+
+      {nested && <NestedTable labels={nested.labels} rows={nested.rows} total={nested.total} />}
+
+      {kv.length > 0 && <FieldGrid pairs={kv.map(({ key, value: v }) => ({ label: labelForKey(key), value: v }))} />}
+
+      {text.length > 0 && tone === 'action' && (
+        <div style={{ marginTop: kv.length ? 8 : 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {text.map((t, j) => (
+            <p key={j} style={{ margin: 0, color: INK, fontWeight: 500, lineHeight: 1.55 }}>{renderInline(t)}</p>
+          ))}
+        </div>
+      )}
+
+      {text.length > 0 && tone !== 'action' && (
+        <ul style={{ listStyle: 'none', margin: kv.length ? '8px 0 0' : 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {text.map((t, j) => (
+            <li key={j} style={{ display: 'flex', gap: 8, alignItems: 'baseline', color: INK, lineHeight: 1.5, wordBreak: 'break-word' }}>
+              {items.length > 1 && (
+                <span
+                  aria-hidden
+                  style={{ flexShrink: 0, width: 5, height: 5, borderRadius: 999, background: style.accent, transform: 'translateY(-2px)' }}
+                />
               )}
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
+              <span>{renderInline(t)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function DetailList({
+  labels,
+  values,
+  kinds,
+  lead,
+}: {
+  labels: string[];
+  values: string[];
+  kinds?: DetailKind[];
+  lead?: React.ReactNode;
+}) {
+  const sections = labels
+    .map((label, i) => ({ label, value: values[i] ?? '—', kind: kinds?.[i] ?? 'text', tone: detailTone(label), i }))
+    .filter((s) => s.value !== '—')
+    .sort((a, b) => DETAIL_TONE_ORDER[a.tone] - DETAIL_TONE_ORDER[b.tone] || a.i - b.i);
+  const missing = labels.filter((_, i) => (values[i] ?? '—') === '—');
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+      {lead}
+      {sections.map((s) => <DetailCard key={s.label} label={s.label} value={s.value} tone={s.tone} kind={s.kind} />)}
+      {missing.length > 0 && (
+        <p style={{ gridColumn: '1 / -1', margin: 0, color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>
+          Not provided: {missing.join(', ')}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -866,7 +1108,7 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                   {isOpen && (
                     <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
                       <td colSpan={colSpan} style={{ padding: '4px 14px 16px 50px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-                        <DetailList labels={table.details.labels} values={table.details.rows[ri]} />
+                        <DetailList labels={table.details.labels} values={table.details.rows[ri]} kinds={table.details.kinds} />
                       </td>
                     </tr>
                   )}
@@ -882,19 +1124,16 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
 
 function fencedBlock(lang: string, code: string): React.ReactNode {
   const trimmed = code.trim();
-  const tabular =
-    trimmed.startsWith('[') || trimmed.startsWith('{')
-      ? recordsFromJson(trimmed)
-      : null;
-  if (tabular) return <TabularJsonBlock code={trimmed} table={tabular} />;
+  const structured = trimmed.startsWith('[') || trimmed.startsWith('{') ? structuredJsonBlock(trimmed) : null;
+  if (structured) return structured;
   return <CodeBlockView lang={lang} code={code} />;
 }
 
 function renderProseSection(prose: string, key: string, proseStyle: React.CSSProperties): React.ReactNode {
   const trimmed = prose.trim();
   if (trimmed && (trimmed[0] === '[' || trimmed[0] === '{')) {
-    const table = recordsFromJson(trimmed);
-    if (table) return <TabularJsonBlock key={key} code={trimmed} table={table} />;
+    const structured = structuredJsonBlock(trimmed, key);
+    if (structured) return structured;
   }
   return (
     <div key={key} style={proseStyle}>
@@ -956,8 +1195,8 @@ function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] 
 }
 
 export function AssistantContent({ content }: { content: string }) {
-  const wholeTable = !content.includes('```') ? recordsFromJson(content) : null;
-  if (wholeTable) return <TabularJsonBlock code={content.trim()} table={wholeTable} />;
+  const whole = !content.includes('```') && /^\s*[[{]/.test(content) ? structuredJsonBlock(content.trim()) : null;
+  if (whole) return whole;
 
   const codeBlockRegex = /```(\w+)?\s*\n([\s\S]*?)```/g;
   const parts: React.ReactNode[] = [];

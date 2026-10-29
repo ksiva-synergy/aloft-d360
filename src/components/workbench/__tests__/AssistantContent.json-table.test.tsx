@@ -33,10 +33,38 @@ describe('AssistantContent tabular JSON', () => {
     expect(screen.getByTestId('assistant-data-table')).toBeInTheDocument();
   });
 
-  it('keeps a nested JSON object as a code block', () => {
-    render(<AssistantContent content={'```json\n{"verified":{"status_code":0},"gaps":["none"]}\n```'} />);
+  it('shows a single JSON object as a record and can switch back to JSON', () => {
+    render(<AssistantContent content={'```json\n{"verified":{"status_code":0},"gaps":["no OCIMF reference"]}\n```'} />);
+    expect(screen.getByTestId('assistant-data-record')).toBeInTheDocument();
+    expect(screen.getByText('Status code')).toBeInTheDocument();
+    expect(screen.getByText('Gaps')).toBeInTheDocument();
+    expect(screen.getByText('no OCIMF reference')).toBeInTheDocument();
+    expect(screen.queryByTestId('assistant-code-block')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
     expect(screen.getByTestId('assistant-code-block')).toBeInTheDocument();
-    expect(screen.queryByTestId('assistant-data-table')).not.toBeInTheDocument();
+  });
+
+  it('keeps a one-field JSON object as a code block', () => {
+    render(<AssistantContent content={'```json\n{"only":"one"}\n```'} />);
+    expect(screen.getByTestId('assistant-code-block')).toBeInTheDocument();
+  });
+
+  it('shows a nested list of objects as a small table in the expanded row', () => {
+    const rows = ['PIBA', 'YOSH'].map((vessel) => ({
+      vessel_acronym: vessel,
+      status: vessel === 'PIBA' ? '10' : '220',
+      findings: [
+        { nc_code: 'NC-1', description: 'Mooring line chafed beyond the allowed wear limit', closed: false },
+        { nc_code: 'NC-2', description: 'Fire damper on the engine room vent not closing fully', closed: true },
+      ],
+    }));
+    render(<AssistantContent content={'```json\n' + JSON.stringify(rows) + '\n```'} />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Show details' })[0]);
+    expect(screen.getByText('Findings')).toBeInTheDocument();
+    expect(screen.getByText('Nc code')).toBeInTheDocument();
+    expect(screen.getByText('NC-2')).toBeInTheDocument();
+    expect(screen.getByText('Mooring line chafed beyond the allowed wear limit')).toBeInTheDocument();
   });
 
   it('renders tabular JSON in any fenced language tag', () => {

@@ -1,5 +1,86 @@
 import { describe, expect, it } from 'vitest';
-import { recordsFromJson } from '@/components/workbench/json-table';
+import {
+  detailTone,
+  nestedRecords,
+  recordFromJson,
+  recordsFromJson,
+  splitDetailItem,
+} from '@/components/workbench/json-table';
+
+describe('nested record lists', () => {
+  const rows = [
+    { vessel: 'PIBA', findings: [{ code: 'NC-1', text: 'Mooring line chafed beyond the allowed wear limit' }] },
+    { vessel: 'YOSH', findings: [{ code: 'NC-2', text: 'x' }, { code: 'NC-3', text: 'y' }] },
+  ];
+
+  it('keeps a list of objects as a records detail instead of hiding it', () => {
+    const table = recordsFromJson(JSON.stringify(rows))!;
+    const i = table.details.labels.indexOf('Findings');
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(table.details.kinds[i]).toBe('records');
+    expect(nestedRecords(table.details.rows[1][i])).toEqual({
+      labels: ['Code', 'Text'],
+      rows: [['NC-2', 'x'], ['NC-3', 'y']],
+      total: 2,
+    });
+  });
+
+  it('returns null for values that are not a list of objects', () => {
+    expect(nestedRecords('a; b')).toBeNull();
+    expect(nestedRecords('[]')).toBeNull();
+  });
+});
+
+describe('recordFromJson', () => {
+  it('splits one object into short overview pairs and separate sections', () => {
+    const record = recordFromJson(JSON.stringify({
+      vessel_acronym: 'SORS',
+      status: '305',
+      sire_reference_no: '',
+      gaps: ['blank sire_reference_no', 'port missing'],
+      recommended_actions: ['Obtain the OCIMF SIRE reference before any close.'],
+    }))!;
+    expect(record.overview).toEqual([
+      { label: 'Vessel acronym', value: 'SORS' },
+      { label: 'Status', value: '305' },
+    ]);
+    expect(record.sections.map((s) => s.label)).toEqual(['Sire reference no', 'Gaps', 'Recommended actions']);
+  });
+
+  it('ignores lists, one-field objects and non-JSON', () => {
+    expect(recordFromJson('[{"a":1,"b":2}]')).toBeNull();
+    expect(recordFromJson('{"only":"one"}')).toBeNull();
+    expect(recordFromJson('not json')).toBeNull();
+  });
+});
+
+describe('splitDetailItem', () => {
+  it('splits snake_case keys with =, : or a numeric/date value', () => {
+    expect(splitDetailItem('inspection_audit_by=SIRE')).toEqual({ key: 'inspection_audit_by', value: 'SIRE' });
+    expect(splitDetailItem('number_of_nc 0')).toEqual({ key: 'number_of_nc', value: '0' });
+    expect(splitDetailItem('target_date 2026-12-31')).toEqual({ key: 'target_date', value: '2026-12-31' });
+  });
+
+  it('leaves prose alone', () => {
+    expect(splitDetailItem('sire_reference_no blank')).toBeNull();
+    expect(splitDetailItem('vessel SOUTHERN RESONANCE IMO 1023516')).toBeNull();
+    expect(splitDetailItem('port missing')).toBeNull();
+  });
+});
+
+describe('detailTone', () => {
+  it('reads the tone from the field label', () => {
+    expect(detailTone('Gaps')).toBe('issue');
+    expect(detailTone('Missing fields')).toBe('issue');
+    expect(detailTone('Recommended actions')).toBe('action');
+    expect(detailTone('Evidence')).toBe('neutral');
+    expect(detailTone('Nc summary')).toBe('neutral');
+    expect(detailTone('Deficiencies')).toBe('issue');
+    expect(detailTone('Observations')).toBe('issue');
+    expect(detailTone('Non-conformities')).toBe('issue');
+    expect(detailTone('Follow-up')).toBe('action');
+  });
+});
 
 const vessels = [
   { vessel_acronym: 'SOOS', sire_reference_no: '', inspection_date: '2026-10-01' },

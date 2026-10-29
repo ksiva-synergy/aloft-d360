@@ -5,59 +5,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { Loader2, Shield } from 'lucide-react';
 import type { UserRow } from './UserTable';
+import { RolePickerField } from './RolePickerField';
+import { RoleBadge } from './RoleBadge';
 
 interface ChangeRoleModalProps {
   open: boolean;
   user: UserRow | null;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (userId: string, newRole: string) => void;
-}
-
-const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
-
-// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
-  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-};
-
-const ROLE_DETAILS: Record<string, { label: string; description: string }> = {
-  platform_admin: {
-    label: 'Platform Admin',
-    description: 'Full platform access. Can see and manage all users\' sessions and data.',
-  },
-  admin: {
-    label: 'Admin',
-    description: 'All app actions but scoped to own data. Cannot view other users\' sessions.',
-  },
-  member: {
-    label: 'Member',
-    description: 'Inspector access and read-only access to all other sections.',
-  },
-  readonly: {
-    label: 'Read Only',
-    description: 'Login and view only. No writes — cannot create or modify any content.',
-  },
-};
-
-function RoleBadge({ role }: { role: string }) {
-  const d = ROLE_DETAILS[role] ?? ROLE_DETAILS.readonly;
-  return (
-    <span
-      className={cn(
-        'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-size-ui font-semibold uppercase leading-[1.6] tracking-wide',
-        ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
-      )}
-    >
-      {d.label}
-    </span>
-  );
 }
 
 export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeRoleModalProps) {
@@ -108,7 +65,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm bg-[var(--estate-surface)] border-[var(--estate-border)]">
+      <DialogContent className="max-w-md bg-[var(--estate-surface)] border-[var(--estate-border)]">
         <DialogHeader>
           <div className="flex items-center gap-2.5 mb-1">
             <div
@@ -127,49 +84,23 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
           </DialogDescription>
         </DialogHeader>
 
-        {/* Current role indicator */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-[var(--estate-hover)] border border-[var(--estate-border)] text-size-ui mt-1">
-          <span className="text-muted-foreground">Current role:</span>
-          <RoleBadge role={user.primaryRole} />
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-dashed border-[var(--estate-btn-border)] px-3 py-2.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Current role
+          </span>
+          <RoleBadge role={user.primaryRole} label={user.roleLabel} />
         </div>
 
-        {/* Role options */}
-        <div className="space-y-1.5 mt-1">
-          {ROLE_ORDER.map((role) => {
-            const d = ROLE_DETAILS[role];
-            const isCurrent = role === user.primaryRole;
-            const isSelected = role === selectedRole;
-
-            return (
-              <label
-                key={role}
-                className={cn(
-                  'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
-                  isSelected
-                    ? 'border-[var(--brand-a)] bg-[var(--brand-a)]/[0.07] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] dark:border-[color-mix(in_srgb,var(--brand-a)_60%,transparent)]'
-                    : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value={role}
-                  checked={isSelected}
-                  onChange={() => setSelectedRole(role)}
-                  className="mt-0.5 shrink-0 accent-amber-500"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <RoleBadge role={role} />
-                    {isCurrent && (
-                      <span className="text-size-ui font-mono font-semibold uppercase tracking-wide text-muted-foreground">current</span>
-                    )}
-                  </div>
-                  <p className="text-size-ui text-muted-foreground mt-0.5">{d.description}</p>
-                </div>
-              </label>
-            );
-          })}
+        <div className="mt-3">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            New role
+          </p>
+          <RolePickerField
+            id="change-user-role"
+            value={selectedRole}
+            onChange={setSelectedRole}
+            currentRole={user.primaryRole}
+          />
         </div>
 
         {error && (

@@ -7,6 +7,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Loader2, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { ROLE_ORDER } from './role-copy';
+import { RolePickerField } from './RolePickerField';
 
 interface Role {
   id: string;
@@ -19,37 +21,6 @@ interface InviteUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-}
-
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  platform_admin: 'Full access · sees all users\' data',
-  admin:          'All actions · own data only',
-  member:         'Inspector access · read-only elsewhere',
-  readonly:       'Login and view only · no writes',
-};
-
-// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
-  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-};
-
-const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
-
-function RoleBadge({ role, label }: { role: string; label?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-block whitespace-nowrap rounded border px-1.5 py-px',
-        'font-mono text-size-ui font-semibold uppercase leading-[1.6] tracking-wide',
-        ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
-      )}
-    >
-      {label ?? role}
-    </span>
-  );
 }
 
 export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserModalProps) {
@@ -71,7 +42,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
       .then((r) => r.json())
       .then((d: { roles?: Role[] }) => {
         const sorted = (d.roles ?? []).sort(
-          (a, b) => ROLE_ORDER.indexOf(a.name) - ROLE_ORDER.indexOf(b.name),
+          (a, b) => (ROLE_ORDER as readonly string[]).indexOf(a.name) - (ROLE_ORDER as readonly string[]).indexOf(b.name),
         );
         setRoles(sorted);
       })
@@ -226,36 +197,16 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                 Loading roles…
               </div>
             ) : (
-              <div className="space-y-1.5">
-                {(roles.length > 0 ? roles : ROLE_ORDER.map((r) => ({ id: r, name: r, permissions: [] }))).map((role) => (
-                  <label
-                    key={role.name}
-                    className={cn(
-                      'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
-                      selectedRole === role.name
-                        ? 'border-[var(--brand-a)] bg-[var(--brand-a)]/[0.07] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] dark:border-[color-mix(in_srgb,var(--brand-a)_60%,transparent)]'
-                        : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={role.name}
-                      checked={selectedRole === role.name}
-                      onChange={() => setSelectedRole(role.name)}
-                      className="mt-0.5 shrink-0 accent-amber-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <RoleBadge role={role.name} />
-                      </div>
-                      <p className="text-size-ui text-muted-foreground mt-0.5">
-                        {ROLE_DESCRIPTIONS[role.name] ?? role.description ?? ''}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
+              <RolePickerField
+                id="invite-user-role"
+                value={selectedRole}
+                onChange={setSelectedRole}
+                options={
+                  roles.length > 0
+                    ? roles.map((r) => r.name)
+                    : [...ROLE_ORDER]
+                }
+              />
             )}
           </div>
 
