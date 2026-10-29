@@ -85,14 +85,14 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
         </DialogHeader>
 
         <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-dashed border-[var(--estate-btn-border)] px-3 py-2.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <span className="text-eyebrow uppercase text-muted-foreground">
             Current role
           </span>
           <RoleBadge role={user.primaryRole} label={user.roleLabel} />
         </div>
 
         <div className="mt-3">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="mb-1.5 text-eyebrow uppercase text-muted-foreground">
             New role
           </p>
           <RolePickerField

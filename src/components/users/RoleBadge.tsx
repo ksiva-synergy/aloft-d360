@@ -60,7 +60,7 @@ export function RoleBadge({ role, label, size = 'md', className }: RoleBadgeProp
     <span
       className={cn(
         'inline-flex shrink-0 items-center rounded border font-semibold leading-none',
-        size === 'sm' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-0.5 text-size-ui',
+        size === 'sm' ? 'px-1.5 py-0.5 text-eyebrow normal-case tracking-normal' : 'px-2 py-0.5 text-size-ui',
         ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
         className,
       )}
