@@ -30,7 +30,7 @@ const BORDER_SUBTLE = 'var(--wb-border-subtle)';
 const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const RED = '#ef4444';
 /** Workbench chat column — empty + docked composer share this cap. */
-const WORKBENCH_COMPOSER_MAX_PX = 720;
+const WORKBENCH_COMPOSER_MAX_PX = 880;
 
 // ── Surface copy ──────────────────────────────────────────────
 export type PromptCanvasSurface = 'workbench' | 'inspector';

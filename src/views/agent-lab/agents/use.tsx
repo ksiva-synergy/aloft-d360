@@ -11,7 +11,7 @@ type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string };
 
 const STORAGE_LIMIT = 80_000;
 /** Centered empty-state + thread composer width cap (px) — not full-bleed, not phone-narrow. */
-const CHAT_COMPOSER_MAX_PX = 720;
+const CHAT_COMPOSER_MAX_PX = 880;
 
 function storageKey(slug: string) {
   return `aloft.agentUse.${slug}`;

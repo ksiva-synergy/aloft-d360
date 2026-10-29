@@ -8,11 +8,14 @@
  * - `details`: long text, list-valued, empty, or overflow fields (shown per row on expand)
  */
 
+/** `records` values hold a JSON array of objects, shown as a small table. */
+export type DetailKind = 'text' | 'records';
+
 export type JsonTable = {
   labels: string[];
   aligns: Array<'left' | 'right'>;
   rows: string[][];
-  details: { labels: string[]; rows: string[][] };
+  details: { labels: string[]; kinds: DetailKind[]; rows: string[][] };
   shared: Array<{ label: string; value: string }>;
   total: number;
   truncated: boolean;
@@ -83,7 +86,11 @@ function unwrapList(value: unknown): unknown[] | null {
   return arrays[0][1] as unknown[];
 }
 
-type FieldMeta = { parent: string | null; leaf: string; list: boolean };
+type FieldMeta = { parent: string | null; leaf: string; list: boolean; records?: boolean };
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 function flattenRecord(row: Record<string, unknown>, meta: Map<string, FieldMeta>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -95,8 +102,13 @@ function flattenRecord(row: Record<string, unknown>, meta: Map<string, FieldMeta
       return;
     }
     if (Array.isArray(value)) {
+      if (value.length > 0 && value.every(isPlainObject)) {
+        out[key] = JSON.stringify(value);
+        meta.set(key, { parent, leaf, list: true, records: true });
+        return;
+      }
       out[key] = value.map((entry) => (typeof entry === 'string' ? entry : cellText(entry))).join('; ');
-      meta.set(key, { parent, leaf, list: true });
+      if (!meta.get(key)?.records) meta.set(key, { parent, leaf, list: true });
       return;
     }
     if (value && typeof value === 'object') {
@@ -132,6 +144,99 @@ function columnLabels(keys: string[], meta: Map<string, FieldMeta>): Map<string,
     labels.set(key, labelForKey(descriptiveLeaf ? m.leaf : key));
   }
   return labels;
+}
+
+export type DetailTone = 'issue' | 'action' | 'neutral';
+
+export function detailTone(label: string): DetailTone {
+  const l = label.toLowerCase();
+  if (
+    /\b(gaps?|issues?|problems?|missing|errors?|warnings?|risks?|blockers?|concerns?|flags?|alerts?|failures?|exceptions?|violations?|findings?|observations?|deficienc\w*|discrepanc\w*|non.?conformit\w*)\b/
+      .test(l)
+  ) return 'issue';
+  if (/\b(actions?|recommend\w*|next steps?|todo|to do|remediation|mitigations?|follow.?ups?|fix(es)?)\b/.test(l)) return 'action';
+  return 'neutral';
+}
+
+const MAX_NESTED_COLS = 10;
+const MAX_NESTED_ROWS = 50;
+
+/** A `records` detail value as a small table: flattened one object per row. */
+export function nestedRecords(value: string): { labels: string[]; rows: string[][]; total: number } | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0 || !parsed.every(isPlainObject)) return null;
+
+  const meta = new Map<string, FieldMeta>();
+  const flat = parsed.map((row) => flattenRecord(row, meta));
+  const keys: string[] = [];
+  for (const row of flat) for (const key of Object.keys(row)) if (!keys.includes(key)) keys.push(key);
+  const shown = keys.slice(0, MAX_NESTED_COLS);
+  const labels = columnLabels(shown, meta);
+
+  return {
+    labels: shown.map((key) => labels.get(key)!),
+    rows: flat.slice(0, MAX_NESTED_ROWS).map((row) => shown.map((key) => {
+      const v = row[key];
+      return meta.get(key)?.records && typeof v === 'string' ? `${(JSON.parse(v) as unknown[]).length} items` : cellText(v);
+    })),
+    total: parsed.length,
+  };
+}
+
+export type JsonRecord = {
+  /** Short scalar fields, shown together as label/value pairs. */
+  overview: Array<{ label: string; value: string }>;
+  /** Long text, lists, nested records and empty fields, each in its own section. */
+  sections: Array<{ label: string; value: string; kind: DetailKind }>;
+};
+
+/** One JSON object (not a list) shown as a record card instead of raw JSON. */
+export function recordFromJson(raw: string): JsonRecord | null {
+  const text = raw.trim();
+  if (!text.startsWith('{')) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isPlainObject(parsed)) return null;
+
+  const meta = new Map<string, FieldMeta>();
+  const flat = flattenRecord(parsed, meta);
+  const keys = Object.keys(flat);
+  if (keys.length < MIN_COLS || keys.length > MAX_TOTAL_COLS) return null;
+  const labels = columnLabels(keys, meta);
+
+  const overview: JsonRecord['overview'] = [];
+  const sections: JsonRecord['sections'] = [];
+  for (const key of keys) {
+    const m = meta.get(key);
+    const value = cellText(flat[key]);
+    const label = labels.get(key)!;
+    if (m?.records) sections.push({ label, value, kind: 'records' });
+    else if (m?.list || value === EMPTY || value.length > LONG_CELL_CHARS) sections.push({ label, value, kind: 'text' });
+    else overview.push({ label, value });
+  }
+  return { overview, sections };
+}
+
+/**
+ * Split a detail item such as `target_date 2026-12-31` or `audit_by=SIRE` into a key and value.
+ * A space-separated item only splits when the value is a number, date or yes/no, so prose
+ * like `sire_reference_no blank` stays one phrase.
+ */
+export function splitDetailItem(item: string): { key: string; value: string } | null {
+  const m = /^([a-z][a-z0-9]*(?:_[a-z0-9]+)+)\s*(=|:|\s)\s*(.+)$/.exec(item.trim());
+  if (!m) return null;
+  const [, key, sep, value] = m;
+  if (sep.trim() || /^(-?\d[\d,.:-]*%?|yes|no|true|false)$/i.test(value)) return { key, value };
+  return null;
 }
 
 export function recordsFromJson(raw: string): JsonTable | null {
@@ -222,8 +327,13 @@ export function recordsFromJson(raw: string): JsonTable | null {
     ...keys.filter((key) => chosen.has(key) && key !== keyColumn),
   ];
   const detail = keys.filter((key) => detailSet.has(key));
-  while (primary.length < MIN_COLS && detail.length > 0) primary.push(detail.shift()!);
-  if (primary.length < MIN_COLS) return null;
+  const isRecords = (key: string) => meta.get(key)?.records === true;
+  while (primary.length < MIN_COLS) {
+    const next = detail.findIndex((key) => !isRecords(key));
+    if (next < 0) break;
+    primary.push(detail.splice(next, 1)[0]);
+  }
+  if (primary.length === 0 || (primary.length < MIN_COLS && !detail.some(isRecords))) return null;
 
   const shared = sharedKeys.map((key) => ({ label: labels.get(key)!, value: cells.get(key)![0] }));
 
@@ -240,6 +350,7 @@ export function recordsFromJson(raw: string): JsonTable | null {
     rows,
     details: {
       labels: detail.map((key) => labels.get(key)!),
+      kinds: detail.map((key) => (meta.get(key)?.records ? 'records' as const : 'text' as const)),
       rows: sliced.map((_, ri) => detail.map((key) => cells.get(key)![ri])),
     },
     shared,
