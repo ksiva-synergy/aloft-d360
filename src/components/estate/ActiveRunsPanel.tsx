@@ -216,7 +216,7 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
           {hasStale && view === 'active' && (
             <p className="text-caption mt-1" style={{ color: '#EF4444' }}>
               Stuck running job detected — check CloudWatch for the task id, then see{' '}
-              <code className="text-[10px]">docs/jobs/phase-0-chain-deploy.md</code> §0.4 in the repo.
+              <code className="text-caption font-mono">docs/jobs/phase-0-chain-deploy.md</code> §0.4 in the repo.
             </p>
           )}
         </div>
@@ -379,7 +379,7 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
                     <td className="p-3 text-caption max-w-[200px] truncate" title={row.scope_summary}>
                       {row.scope_summary}
                       {row.chain.length > 0 && (
-                        <span className="block text-[10px] mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
+                        <span className="block text-caption font-mono mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
                           then {row.chain.join(' → ')}
                         </span>
                       )}
