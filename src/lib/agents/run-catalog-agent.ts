@@ -31,7 +31,7 @@ import { knowledgeForAgent, knowledgePrompt, runSearchKnowledgeTool, searchKnowl
 // filter, compare and approve on them instead of reading free text.
 
 export const AGENT_TOOLS = new Set(['describe_schema', 'execute_tool']);
-export const AGENT_MAX_LOOPS = 8;
+export const AGENT_MAX_LOOPS = 10;
 export const SUBMIT_ANSWER_TOOL = 'submit_answer';
 
 export type AgentTurn = { role: 'user' | 'assistant'; content: string };

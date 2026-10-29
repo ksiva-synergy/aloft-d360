@@ -9,9 +9,11 @@ import PreviewColumnsDrawer from './PreviewColumnsDrawer';
 import Pagination from './Pagination';
 import { isTestSourceDisplayName } from '@/lib/context/test-sources';
 import { buildCatalogPipelineLaunchBody, resolveCatalogPipelineScope } from '@/lib/estate/catalog-pipeline';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 import { toast } from 'sonner';
 
 export default function EstateCatalogTab({ refreshKey = 0, showTestSources = false }: { refreshKey?: number; showTestSources?: boolean }) {
+  const canRunPipeline = useCanRunEstatePipeline();
   const [filters, setFilters] = useState<EstateFilterState>({
     sourceId: undefined,
     catalog: undefined,
@@ -243,12 +245,13 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
 
         <BulkActionBar
           count={selectedPaths.size}
+          canRunPipeline={canRunPipeline}
           onHarvest={handleBulkHarvest}
           onSchedule={handleBulkSchedule}
           onUnschedule={handleBulkUnschedule}
           onScheduleCatalog={handleScheduleCatalog}
-          onRunPipeline={filters.catalog ? handleRunPipeline : undefined}
-          onRunScheduled={filters.catalog && filters.sourceId ? handleRunScheduled : undefined}
+          onRunPipeline={canRunPipeline && filters.catalog ? handleRunPipeline : undefined}
+          onRunScheduled={canRunPipeline && filters.catalog && filters.sourceId ? handleRunScheduled : undefined}
           pipelineRunning={pipelineRunning}
           scheduledRunning={scheduledRunning}
           catalogScope={filters.catalog ? (filters.schema ? `${filters.catalog}.${filters.schema}` : filters.catalog) : undefined}
@@ -264,6 +267,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
           onHarvest={handleHarvest}
           onSyncKnowledge={handleSyncKnowledge}
           onScheduleChange={handleScheduleChange}
+          canRunPipeline={canRunPipeline}
           drawerOpen={drawerOpen}
           refreshKey={refreshKey}
           showTestSources={showTestSources}
@@ -283,6 +287,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
         contextObjectId={drawerContextObjectId}
         onClose={() => setDrawerOpen(false)}
         onHarvest={handleHarvest}
+        canRunPipeline={canRunPipeline}
       />
     </div>
   );

@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { useParams } from '@/lib/navigation';
-import { agentsWorkbenchSessionHref } from '@/lib/navigation/agents-routes';
-import { ArrowUp, Bot, Pencil, RotateCcw, Square } from 'lucide-react';
-import { AssistantContent } from '@/components/workbench/StreamingMessage';
+import { AGENTS_LIST_HREF, agentsWorkbenchSessionHref } from '@/lib/navigation/agents-routes';
+import { ArrowLeft, ArrowUp, Bot, Pencil, RotateCcw, Square } from 'lucide-react';
+import { AssistantContent } from '@/components/chat/AssistantContent';
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string };
 
 const STORAGE_LIMIT = 80_000;
+/** Centered empty-state + thread composer width cap (px) — not full-bleed, not phone-narrow. */
+const CHAT_COMPOSER_MAX_PX = 720;
 
 function storageKey(slug: string) {
   return `aloft.agentUse.${slug}`;
@@ -197,9 +199,77 @@ export default function UseAgentPage() {
     setDraft('');
   };
 
+  const composerForm = (
+    <>
+      {runError && (
+        <p className="mb-2 w-full rounded-lg bg-red-500/10 px-3 py-2 text-size-body text-red-500">{runError}</p>
+      )}
+      <form
+        className="mx-auto flex w-full items-end gap-2 rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
+        style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void send();
+        }}
+      >
+        <textarea
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            e.target.style.height = '0px';
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+          rows={1}
+          placeholder={`Message ${name}…`}
+          disabled={running}
+          className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+        />
+        {running ? (
+          <button
+            type="button"
+            onClick={() => ctrlRef.current?.abort()}
+            aria-label="Stop"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)]"
+          >
+            <Square className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            aria-label="Send"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a)] text-white disabled:opacity-40"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </button>
+        )}
+      </form>
+      <p className="mt-2 w-full text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
+        Enter to send · Shift+Enter for a new line
+      </p>
+    </>
+  );
+
+  const emptyChat = messages.length === 0;
+
   return (
     <div className="absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-[var(--main-bg)]">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--line-1)] px-4 md:px-6">
+        <Link
+          href={AGENTS_LIST_HREF}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+          title="All agents"
+          aria-label="All agents"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
         <Mark name={name} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{name}</h1>
@@ -222,91 +292,54 @@ export default function UseAgentPage() {
         )}
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 py-6">
-          {messages.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center pb-8 text-center">
-              <Mark name={name} large />
-              <h2 className="mt-4 text-size-title-section font-semibold text-[var(--ink-1)]">{name}</h2>
-              <p className="mt-1 max-w-md text-size-body leading-relaxed text-[var(--ink-3)]">
+      {emptyChat ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-8 md:px-8">
+          <div
+            className="flex w-full flex-col items-center gap-6 text-center"
+            style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}
+          >
+            <Mark name={name} large />
+            <div>
+              <h2 className="text-size-title-section font-semibold text-[var(--ink-1)]">{name}</h2>
+              <p className="mt-1 text-size-body leading-relaxed text-[var(--ink-3)]">
                 {description || 'Ask a question. This agent answers with the instructions saved from the Workbench.'}
               </p>
-              <div className="mt-6 flex w-full max-w-lg flex-col gap-2">
-                {starters(name).map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => void send(prompt)}
-                    className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-4 py-3 text-left text-size-body text-[var(--ink-2)] transition-colors hover:border-[var(--brand-a)] hover:text-[var(--ink-1)]"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
             </div>
-          ) : (
-            <div className="space-y-5">
-              {messages.map((message) => (
-                <MessageRow key={message.id} message={message} name={name} running={running} />
+            <div className="w-full text-left">{composerForm}</div>
+            <div className="flex w-full flex-col gap-2">
+              {starters(name).map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void send(prompt)}
+                  className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-4 py-3 text-left text-size-body text-[var(--ink-2)] transition-colors hover:border-[var(--brand-a)] hover:text-[var(--ink-1)]"
+                >
+                  {prompt}
+                </button>
               ))}
             </div>
-          )}
-          <div ref={bottomRef} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col px-4 py-6 md:px-8">
+              <div className="space-y-5">
+                {messages.map((message) => (
+                  <MessageRow key={message.id} message={message} name={name} running={running} />
+                ))}
+              </div>
+              <div ref={bottomRef} />
+            </div>
+          </div>
 
-      <div className="shrink-0 px-4 pb-4 pt-2 md:px-6">
-        {runError && (
-          <p className="mx-auto mb-2 max-w-3xl rounded-lg bg-red-500/10 px-3 py-2 text-size-body text-red-500">{runError}</p>
-        )}
-        <form
-          className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-2 shadow-[0_8px_30px_rgba(0,0,0,0.12)]"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <textarea
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              e.target.style.height = '0px';
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            rows={1}
-            placeholder={`Message ${name}…`}
-            disabled={running}
-            className="max-h-40 min-h-[40px] flex-1 resize-none bg-transparent px-2 py-2 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
-          />
-          {running ? (
-            <button
-              type="button"
-              onClick={() => ctrlRef.current?.abort()}
-              aria-label="Stop"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)]"
-            >
-              <Square className="h-3.5 w-3.5" />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!draft.trim()}
-              aria-label="Send"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a)] text-white disabled:opacity-40"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </button>
-          )}
-        </form>
-        <p className="mx-auto mt-2 max-w-3xl text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Enter to send · Shift+Enter for a new line</p>
-      </div>
+          <div className="shrink-0 px-4 pb-4 pt-2 md:px-6">
+            <div className="mx-auto w-full" style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}>
+              {composerForm}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -328,19 +361,19 @@ function MessageRow({ message, name, running }: { message: ChatMessage; name: st
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <p className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
+        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
           {message.content}
         </p>
       </div>
     );
   }
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex w-full items-start gap-3">
       <Mark name={name} />
-      <div className="min-w-0 max-w-[85%] pt-1">
+      <div className="min-w-0 flex-1 pt-1">
         <p className="mb-1 text-size-ui font-medium text-[var(--ink-3)]">{name}</p>
         {message.content ? (
-          <div className="text-size-body leading-relaxed text-[var(--ink-1)]">
+          <div className="w-full min-w-0 text-size-body leading-relaxed text-[var(--ink-1)]">
             <AssistantContent content={message.content} />
           </div>
         ) : running ? (

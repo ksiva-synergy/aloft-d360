@@ -5,6 +5,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { type JobKind } from '@/lib/context/queue';
 import { enqueueAndLaunchHarvest, normalizeJobScope } from '@/lib/context/enqueue-and-launch';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +31,8 @@ const STUB_KINDS = new Set<JobKind>(['mapping', 't3_connected']);
  * Body: { kind: JobKind, source_id?: string, scope?: object }
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const body = await req.json();
   const kind = body.kind as string;

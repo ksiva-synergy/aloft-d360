@@ -379,6 +379,10 @@ export interface InputComposerProps {
   /** When false, the COMMISSION button is greyed out and disabled. Defaults to true. */
   canCommission?: boolean;
   modelOptions?: ModelOption[];
+  /** `center` = empty-state column (no dock chrome); `dock` = pinned footer bar. */
+  layout?: 'dock' | 'center';
+  /** Cap composer width (px) and center in the pane; omit for full-bleed (e.g. Inspector). */
+  columnMaxWidth?: number;
 }
 
 export function InputComposer({
@@ -398,6 +402,8 @@ export function InputComposer({
   minLength = 10,
   canCommission = true,
   modelOptions,
+  layout = 'dock',
+  columnMaxWidth,
 }: InputComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const busy = isStreaming || isCommissioning;
@@ -431,15 +437,23 @@ export function InputComposer({
     ? 'color-mix(in srgb, var(--brand-a) 45%, transparent)'
     : BORDER_SUBTLE;
 
+  const centered = layout === 'center';
+  const widthCap = columnMaxWidth != null && columnMaxWidth > 0 ? columnMaxWidth : undefined;
+
   return (
     <footer style={{
-      borderTop: `1px solid ${BORDER_SUBTLE}`,
-      background: SURFACE,
-      padding: '12px 16px 10px',
+      borderTop: centered ? 'none' : `1px solid ${BORDER_SUBTLE}`,
+      background: centered ? 'transparent' : SURFACE,
+      padding: centered ? 0 : '12px 16px 10px',
       display: 'flex',
       flexDirection: 'column',
       gap: 8,
       flexShrink: 0,
+      width: '100%',
+      maxWidth: widthCap,
+      marginLeft: widthCap ? 'auto' : undefined,
+      marginRight: widthCap ? 'auto' : undefined,
+      boxSizing: 'border-box',
     }}>
       {/* Composer box */}
       <div style={{

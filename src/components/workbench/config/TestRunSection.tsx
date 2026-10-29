@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Play, Square } from 'lucide-react';
 import type { ConstructionState } from '@/lib/construction/constructionState';
-import { AssistantContent } from '@/components/workbench/StreamingMessage';
+import { AssistantContent } from '@/components/chat/AssistantContent';
 import { cn } from '@/lib/utils';
 
 type TestRun = NonNullable<ConstructionState['validation']['lastTestRun']>;

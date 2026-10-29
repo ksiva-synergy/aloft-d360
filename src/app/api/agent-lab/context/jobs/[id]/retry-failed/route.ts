@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import { launchChildTask, type JobKind } from '@/lib/context/queue';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +17,8 @@ type RouteParams = { params: Promise<{ id: string }> };
  * Also resets the parent to 'orchestrating' if it had finalized with failures.
  */
 export async function POST(_req: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const { id } = await params;
 

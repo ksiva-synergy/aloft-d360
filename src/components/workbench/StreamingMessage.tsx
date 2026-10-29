@@ -400,19 +400,29 @@ function MarkdownTable({
   testId?: string;
 }) {
   const cellPad: React.CSSProperties = {
-    padding: '8px 12px',
+    padding: '10px 14px',
     borderBottom: `1px solid ${BORDER_SUBTLE}`,
+    verticalAlign: 'top',
+  };
+  const headerPad: React.CSSProperties = {
+    ...cellPad,
     whiteSpace: 'nowrap',
+  };
+  const bodyCell: React.CSSProperties = {
+    ...cellPad,
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    minWidth: 72,
+    maxWidth: 360,
   };
 
   return (
     <div
       style={{
         margin: '12px 0 16px',
-        borderRadius: 8,
+        borderRadius: 10,
         border: `1px solid ${BORDER_SUBTLE}`,
         overflow: 'hidden',
-        background: SURFACE2,
       }}
       data-testid={testId}
     >
@@ -437,7 +447,7 @@ function MarkdownTable({
                 <th
                   key={i}
                   style={{
-                    ...cellPad,
+                    ...headerPad,
                     ...type.label,
                     color: MUTED,
                     textAlign: aligns[i] ?? 'left',
@@ -465,11 +475,11 @@ function MarkdownTable({
                     <td
                       key={ci}
                       style={{
-                        ...cellPad,
+                        ...bodyCell,
                         textAlign: align,
                         color: INK,
                         fontVariantNumeric: numeric ? 'tabular-nums' : undefined,
-                        ...(numeric ? mono : {}),
+                        ...(numeric ? { ...mono, whiteSpace: 'nowrap', maxWidth: undefined } : {}),
                         ...(numeric ? { fontSize: 'var(--type-ui-regular-size)' } : {}),
                         fontWeight: ci === 0 ? 500 : 400,
                       }}
@@ -670,31 +680,227 @@ function TabularJsonBlock({ code, table }: { code: string; table: JsonTable }) {
       />
     );
   }
-  const footer = table.truncated ? `Showing ${table.rows.length} of ${table.total} rows` : undefined;
+  return <DataTable code={code} table={table} onShowJson={() => setRaw(true)} />;
+}
+
+function rowHasDetails(table: JsonTable, ri: number): boolean {
+  return (table.details.rows[ri] ?? []).some((v) => v !== '—');
+}
+
+function DetailList({ labels, values }: { labels: string[]; values: string[] }) {
   return (
-    <MarkdownTable
-      testId="assistant-data-table"
-      headers={table.labels}
-      aligns={table.aligns}
-      rows={table.rows}
-      footerNote={footer}
-      toolbar={(
-        <>
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>table</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <QuietButton label="JSON" onClick={() => setRaw(true)} />
-            <CopyButton text={code} />
-          </span>
-        </>
+    <dl
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+        gap: '12px 24px',
+        margin: 0,
+      }}
+    >
+      {labels.map((label, i) => {
+        const value = values[i] ?? '—';
+        const items = value.includes('; ') ? value.split('; ') : null;
+        return (
+          <div key={label} style={{ minWidth: 0 }}>
+            <dt style={{ ...type.label, color: MUTED, marginBottom: 4 }}>{label}</dt>
+            <dd style={{ margin: 0, color: value === '—' ? MUTED : INK, lineHeight: 1.5, wordBreak: 'break-word' }}>
+              {items ? (
+                <ul style={{ margin: 0, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {items.map((item, j) => <li key={j}>{renderInline(item)}</li>)}
+                </ul>
+              ) : (
+                renderInline(value)
+              )}
+            </dd>
+          </div>
+        );
+      })}
+    </dl>
+  );
+}
+
+function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable; onShowJson: () => void }) {
+  const [open, setOpen] = useState<Set<number>>(() => new Set());
+  const hasDetails = table.details.labels.length > 0;
+  const expandable = table.rows.map((_, ri) => hasDetails && rowHasDetails(table, ri));
+  const anyExpandable = expandable.some(Boolean);
+  const allOpen = anyExpandable && expandable.every((can, ri) => !can || open.has(ri));
+
+  const toggle = (ri: number) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(ri)) next.delete(ri);
+      else next.add(ri);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setOpen(allOpen ? new Set() : new Set(expandable.flatMap((can, ri) => (can ? [ri] : []))));
+  };
+
+  const cell: React.CSSProperties = {
+    padding: '10px 14px',
+    borderBottom: `1px solid ${BORDER_SUBTLE}`,
+    verticalAlign: 'top',
+    textAlign: 'left',
+  };
+  const colSpan = table.labels.length + (anyExpandable ? 1 : 0);
+  const countLabel = table.truncated
+    ? `Showing ${table.rows.length} of ${table.total} rows`
+    : `${table.total} row${table.total === 1 ? '' : 's'}`;
+
+  return (
+    <div
+      data-testid="assistant-data-table"
+      style={{ margin: '12px 0 16px', borderRadius: 10, border: `1px solid ${BORDER_SUBTLE}`, overflow: 'hidden' }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '8px 14px',
+          borderBottom: `1px solid ${BORDER_SUBTLE}`,
+        }}
+      >
+        <span style={{ ...type.label, color: MUTED }}>{countLabel}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {anyExpandable && <QuietButton label={allOpen ? 'Collapse all' : 'Expand all'} onClick={toggleAll} />}
+          <QuietButton label="JSON" onClick={onShowJson} />
+          <CopyButton text={code} />
+        </span>
+      </div>
+
+      {table.shared.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            gap: '6px 18px',
+            padding: '10px 14px',
+            borderBottom: `1px solid ${BORDER_SUBTLE}`,
+            fontSize: 'var(--type-ui-regular-size)',
+          }}
+        >
+          <span style={{ ...type.label, color: MUTED }}>Same for all rows</span>
+          {table.shared.map((s) => (
+            <span key={s.label} style={{ color: INK_DIM }}>
+              {s.label}: <span style={{ color: INK, fontWeight: 500 }}>{s.value}</span>
+            </span>
+          ))}
+        </div>
       )}
-    />
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', ...sans, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.45 }}>
+          <thead>
+            <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}>
+              {anyExpandable && <th style={{ ...cell, width: 36, borderBottom: `1px solid ${BORDER_GOLD}` }} aria-label="Details" />}
+              {table.labels.map((h, i) => (
+                <th
+                  key={h}
+                  style={{
+                    ...cell,
+                    ...type.label,
+                    color: MUTED,
+                    whiteSpace: 'nowrap',
+                    textAlign: table.aligns[i] ?? 'left',
+                    borderBottom: `1px solid ${BORDER_GOLD}`,
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, ri) => {
+              const isOpen = open.has(ri);
+              const canOpen = expandable[ri];
+              return (
+                <React.Fragment key={ri}>
+                  <tr
+                    onClick={canOpen ? () => toggle(ri) : undefined}
+                    style={{
+                      cursor: canOpen ? 'pointer' : undefined,
+                      background: isOpen ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : undefined,
+                    }}
+                  >
+                    {anyExpandable && (
+                      <td style={{ ...cell, width: 36, paddingRight: 0, borderBottom: isOpen ? 'none' : cell.borderBottom }}>
+                        {canOpen && (
+                          <button
+                            type="button"
+                            aria-expanded={isOpen}
+                            aria-label={isOpen ? 'Hide details' : 'Show details'}
+                            onClick={(e) => { e.stopPropagation(); toggle(ri); }}
+                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: MUTED, display: 'inline-flex' }}
+                          >
+                            {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                        )}
+                      </td>
+                    )}
+                    {row.map((value, ci) => {
+                      const numeric = table.aligns[ci] === 'right';
+                      return (
+                        <td
+                          key={ci}
+                          style={{
+                            ...cell,
+                            borderBottom: isOpen ? 'none' : cell.borderBottom,
+                            textAlign: table.aligns[ci] ?? 'left',
+                            color: value === '—' ? MUTED : INK,
+                            fontWeight: ci === 0 ? 600 : 400,
+                            whiteSpace: numeric || value.length <= 24 ? 'nowrap' : 'normal',
+                            ...(numeric ? { ...mono, fontVariantNumeric: 'tabular-nums' } : {}),
+                          }}
+                        >
+                          {renderInline(value)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {isOpen && (
+                    <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
+                      <td colSpan={colSpan} style={{ padding: '4px 14px 16px 50px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+                        <DetailList labels={table.details.labels} values={table.details.rows[ri]} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
 function fencedBlock(lang: string, code: string): React.ReactNode {
-  const tabular = (lang === 'json' || lang === 'text') ? recordsFromJson(code) : null;
-  if (tabular) return <TabularJsonBlock code={code.trim()} table={tabular} />;
+  const trimmed = code.trim();
+  const tabular =
+    trimmed.startsWith('[') || trimmed.startsWith('{')
+      ? recordsFromJson(trimmed)
+      : null;
+  if (tabular) return <TabularJsonBlock code={trimmed} table={tabular} />;
   return <CodeBlockView lang={lang} code={code} />;
+}
+
+function renderProseSection(prose: string, key: string, proseStyle: React.CSSProperties): React.ReactNode {
+  const trimmed = prose.trim();
+  if (trimmed && (trimmed[0] === '[' || trimmed[0] === '{')) {
+    const table = recordsFromJson(trimmed);
+    if (table) return <TabularJsonBlock key={key} code={trimmed} table={table} />;
+  }
+  return (
+    <div key={key} style={proseStyle}>
+      {renderProseBlocks(prose, key)}
+    </div>
+  );
 }
 
 function renderProseBlocks(prose: string, keyPrefix: string): React.ReactNode[] {
@@ -753,7 +959,7 @@ export function AssistantContent({ content }: { content: string }) {
   const wholeTable = !content.includes('```') ? recordsFromJson(content) : null;
   if (wholeTable) return <TabularJsonBlock code={content.trim()} table={wholeTable} />;
 
-  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+  const codeBlockRegex = /```(\w+)?\s*\n([\s\S]*?)```/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -762,11 +968,7 @@ export function AssistantContent({ content }: { content: string }) {
   while ((match = codeBlockRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       const prose = content.slice(lastIndex, match.index);
-      parts.push(
-        <div key={`p-${lastIndex}`} style={proseStyle}>
-          {renderProseBlocks(prose, `p${lastIndex}`)}
-        </div>,
-      );
+      parts.push(renderProseSection(prose, `p-${lastIndex}`, proseStyle));
     }
     const lang = (match[1] || 'text').toLowerCase();
     const code = match[2];
@@ -777,11 +979,7 @@ export function AssistantContent({ content }: { content: string }) {
   if (lastIndex < content.length || parts.length === 0) {
     const remaining = lastIndex < content.length ? content.slice(lastIndex) : content;
     if (remaining.length > 0 || parts.length === 0) {
-      parts.push(
-        <div key={`p-${lastIndex}`} style={proseStyle}>
-          {renderProseBlocks(remaining, `p${lastIndex}`)}
-        </div>,
-      );
+      parts.push(renderProseSection(remaining, `p-${lastIndex}`, proseStyle));
     }
   }
 
@@ -872,12 +1070,18 @@ export function StreamingMessage({
           border: `1px solid ${BORDER_SUBTLE}`,
           overflow: 'hidden',
           position: 'relative',
+          width: '100%',
+          maxWidth: '100%',
         }}
       >
         <CaptainStatus active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
           toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
           needsClarification={readiness === 'interview'} />
-        {content && <div style={{ padding: '0 20px 16px' }}><AssistantContent content={content} /></div>}
+        {content && (
+          <div style={{ padding: '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>
+            <AssistantContent content={content} />
+          </div>
+        )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
 
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}

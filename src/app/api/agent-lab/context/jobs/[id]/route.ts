@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getJob } from '@/lib/context/reads';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,10 +41,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
  * Running jobs cannot be cancelled via this endpoint.
  */
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const { id } = await params;
   if (!id) {

@@ -1,5 +1,6 @@
 import type { ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import type { ConstructionState } from './constructionState';
+import { ANSWER_COMPLETENESS_RULES } from '@/lib/inspector/answer-rules';
 
 export type AvailableWorkbenchTool = {
   id: string;
@@ -97,7 +98,9 @@ ${sources || '- None declared. Find the right tables with describe_schema.'}
 - Prefer the declared data sources. If a table path is not declared, confirm it with describe_schema (action:'search', then 'describe') before querying.
 - execute_tool runs read-only SQL against synergy_dwh. SELECT / WITH only, always fully qualified table names, always LIMIT (100 or less).
 - Never guess a table or column name. If a query fails, recheck the path with describe_schema.
-- Keep the final answer concise, in markdown, with key numbers in bold. Do not narrate tool steps.`;
+- Answer in markdown with key numbers in bold. Do not narrate tool steps.
+
+${ANSWER_COMPLETENESS_RULES}`;
 }
 
 /** System prompt for a workbench Test run. */

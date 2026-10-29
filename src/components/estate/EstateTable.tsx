@@ -18,6 +18,7 @@ interface EstateTableProps {
   drawerOpen?: boolean;
   refreshKey?: number;
   showTestSources?: boolean;
+  canRunPipeline?: boolean;
 }
 
 export default function EstateTable({
@@ -32,6 +33,7 @@ export default function EstateTable({
   drawerOpen = false,
   refreshKey = 0,
   showTestSources = false,
+  canRunPipeline = false,
 }: EstateTableProps) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,39 @@ export default function EstateTable({
 
   const RowAction = ({ item }: { item: any }) => {
     const lc = computeLifecycle(item.live_harvest_state, item.last_t2_at, item.last_knowledge_sync_at, item.last_t0_at, item.last_t1_at, item.last_t3_at, item.has_embedding, item.last_t4_at);
+
+    const readOnly = (label: string, style?: React.CSSProperties) => (
+      <span
+        style={{ ...type.label, padding: '4px 10px', border: `1px solid ${btnBorder}`, color: textDim, borderRadius: '6px', whiteSpace: 'nowrap', ...style }}
+      >
+        {label}
+      </span>
+    );
+
+    if (!canRunPipeline) {
+      switch (lc) {
+        case 'discovered':
+          return readOnly('Discovered');
+        case 'scheduled':
+          return readOnly('Scheduled', { borderColor: 'rgba(96, 165, 250, 0.4)', color: inkOf('#60a5fa') });
+        case 'queued':
+          return readOnly('In queue');
+        case 'analyzed':
+        case 'enriched':
+          return readOnly('Harvested');
+        case 'embedded':
+        case 'stale':
+          return readOnly('Embedded');
+        case 'connected':
+          return readOnly('✓ Connected', { borderColor: 'rgba(245,158,11,0.3)', color: inkOf('#F59E0B') });
+        case 'published':
+          return readOnly('✓ Published');
+        case 'inaccessible':
+          return readOnly('🔒 Locked', { border: `1px dashed rgba(248, 113, 113, 0.35)`, color: inkOf('#f87171') });
+        default:
+          return null;
+      }
+    }
 
     switch (lc) {
       case 'inaccessible':

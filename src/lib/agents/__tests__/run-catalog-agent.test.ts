@@ -50,7 +50,7 @@ vi.mock('@/lib/construction/workbench-model', () => ({
   resolveWorkbenchModel: () => ({ option: { supportsTools: true }, boostModel: null, effectiveModelId: 'us.amazon.nova-pro-v1:0' }),
 }));
 
-import { AgentRunError, parseAgentAnswer, runCatalogAgent } from '../run-catalog-agent';
+import { AGENT_MAX_LOOPS, AgentRunError, parseAgentAnswer, runCatalogAgent } from '../run-catalog-agent';
 
 type Loop = {
   systemPrompt: string;
@@ -94,7 +94,7 @@ describe('runCatalogAgent', () => {
     h.runAgentLoop.mockImplementation(async (loop: Loop) => {
       expect(loop.systemPrompt).toContain('call submit_answer once with every field (compliant, next_due, open_items)');
       expect(loop.tools.tools.at(-1)!.toolSpec.inputSchema!.json.properties.values.required).toEqual(['compliant', 'next_due', 'open_items']);
-      expect(loop.maxLoops).toBe(9);
+      expect(loop.maxLoops).toBe(AGENT_MAX_LOOPS + 1);
       await loop.executeTool('submit_answer', { values: { compliant: 'no', next_due: '2027-02-30', open_items: '1,204', extra: 'x' }, notes: 'Two clauses missing.' }, 'c2');
       expect(loop.abortSignal.value).toBe(true);
       return done({ outcome: 'truncated' });

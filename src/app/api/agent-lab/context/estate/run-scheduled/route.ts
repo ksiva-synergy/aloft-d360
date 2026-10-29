@@ -1,9 +1,8 @@
-import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { runScheduledEstateHarvest } from '@/lib/context/scheduled-estate-harvest';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +13,8 @@ export const dynamic = 'force-dynamic';
  * Body: { sourceId?: string, catalog?: string, schema?: string, maxSchemas?: number }
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   let body: Record<string, unknown> = {};
   try {

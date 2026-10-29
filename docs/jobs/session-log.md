@@ -5,6 +5,14 @@
 
 ---
 
+### 2026-10-29 — Estate pipeline RBAC (platform admin only)
+
+- **Files:** `src/lib/estate/pipeline-access.ts`, `require-estate-pipeline-operator.ts`, `useEstatePipelineAccess.ts`, Jobs/Catalog UI components, context API launch/continue/harvest/schedule routes, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`.
+- **Why:** User request — on Estate, only platform admins run pipelines; everyone else view-only with no triggers.
+- **Before → after:** Mutating pipeline APIs return 403 for non–platform-admin; Run Job, Continue, cockpit launch, Active Runs kick/cancel, catalog harvest/schedule/pipeline buttons hidden for other roles.
+
+---
+
 ### 2026-10-29 — Scanned tier pill colors match “done” dots
 
 - **Files:** `src/lib/context/reads.ts`, `src/components/estate/ScannedObjectsTab.tsx`, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`.

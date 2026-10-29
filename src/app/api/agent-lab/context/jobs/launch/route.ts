@@ -24,6 +24,7 @@ import {
   t0AllowsLiveScopeWhenDiscoveryEmpty,
 } from '@/lib/estate/job-ui';
 import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
 import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
 import {
@@ -250,8 +251,8 @@ async function launchSplitKind(
  * auto-enqueues the next tier via job.scope.chain on completion.
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const body = await req.json();
 

@@ -50,6 +50,7 @@ interface ActiveRunsPanelProps {
   refreshKey?: number;
   /** When true, show only queued rows (from L1 queued strip link). */
   queuedOnly?: boolean;
+  canRunPipeline?: boolean;
 }
 
 function statusColor(status: string): string {
@@ -83,7 +84,12 @@ function scopeTaskId(scope: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
-export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnly = false }: ActiveRunsPanelProps) {
+export default function ActiveRunsPanel({
+  onSelectJob,
+  refreshKey = 0,
+  queuedOnly = false,
+  canRunPipeline = false,
+}: ActiveRunsPanelProps) {
   const [view, setView] = useState<ViewMode>('active');
   const [kindFilter, setKindFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -266,7 +272,7 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
               ))}
             </select>
           )}
-          {view === 'active' && (
+          {view === 'active' && canRunPipeline && (
             <button
               type="button"
               disabled={kickingOrphans}
@@ -320,8 +326,8 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
                     {row.error ?? '—'}
                   </td>
                   <td className="p-3 text-caption">{relativeTime(row.finished_at)}</td>
-                  <td className="p-3 text-right whitespace-nowrap">
-                    {row.status === 'partial' && (
+                    <td className="p-3 text-right whitespace-nowrap">
+                    {canRunPipeline && row.status === 'partial' && (
                       <button
                         type="button"
                         onClick={() => retryFailed(row.id)}
@@ -398,7 +404,7 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
                     </td>
                     <td className="p-3 text-caption">{relativeTime(row.updated_at)}</td>
                     <td className="p-3 text-right whitespace-nowrap">
-                      {row.status === 'orchestrating' && (row.child_counts?.failed ?? 0) > 0 && (
+                      {canRunPipeline && row.status === 'orchestrating' && (row.child_counts?.failed ?? 0) > 0 && (
                         <button
                           type="button"
                           onClick={() => retryFailed(row.id)}
@@ -408,7 +414,7 @@ export default function ActiveRunsPanel({ onSelectJob, refreshKey = 0, queuedOnl
                           Retry failed
                         </button>
                       )}
-                      {row.status === 'queued' && (
+                      {canRunPipeline && row.status === 'queued' && (
                         <>
                           <button
                             type="button"

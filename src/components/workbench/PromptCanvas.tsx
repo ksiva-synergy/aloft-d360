@@ -29,6 +29,8 @@ const SURFACE = 'var(--wb-surface)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
 const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const RED = '#ef4444';
+/** Workbench chat column — empty + docked composer share this cap. */
+const WORKBENCH_COMPOSER_MAX_PX = 720;
 
 // ── Surface copy ──────────────────────────────────────────────
 export type PromptCanvasSurface = 'workbench' | 'inspector';
@@ -78,8 +80,9 @@ function BlinkCaret() {
 interface EmptyStateProps {
   onTemplateSelect: (starter: string) => void;
   surface: PromptCanvasSurface;
+  composer?: React.ReactNode;
 }
-function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
+function EmptyState({ onTemplateSelect, surface, composer }: EmptyStateProps) {
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   return (
@@ -88,13 +91,21 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: 480 }}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: WORKBENCH_COMPOSER_MAX_PX, width: '100%' }}
       >
         <Companion size={72} />
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ ...type['title-card'], color: MUTED, display: 'flex', alignItems: 'center' }}>
-            {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />
-          </div>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
+          {!composer && (
+            <div style={{ ...type['title-card'], color: MUTED, display: 'flex', alignItems: 'center' }}>
+              {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />
+            </div>
+          )}
+          {composer && (
+            <h2 style={{ ...type['title-section'], color: INK, margin: 0, width: '100%' }}>
+              {SURFACE_COPY[surface].emptyTitle}
+            </h2>
+          )}
+          {composer && <div style={{ width: '100%' }}>{composer}</div>}
           {surface === 'workbench' && (
           <button
             onClick={() => setTemplatesOpen(o => !o)}
@@ -444,11 +455,12 @@ function ConversationThread({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '24px 28px 8px',
+          padding: '24px clamp(16px, 2.5vw, 40px) 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
           minHeight: 0,
+          width: '100%',
         }}
       >
         <AnimatePresence initial={false}>
@@ -479,7 +491,7 @@ function ConversationThread({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', minWidth: 0 }}
               >
                 <StreamingMessage
                   activity={msg.activity}
@@ -675,6 +687,7 @@ export function PromptCanvas({
   modelOptions,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
+  const centeredComposer = !hasMessages && !emptyState;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 
@@ -727,7 +740,36 @@ export function PromptCanvas({
 
       {/* Canvas body */}
       {!hasMessages ? (
-        emptyState ?? <EmptyState onTemplateSelect={handleTemplateSelect} surface={surface} />
+        emptyState ?? (
+          <EmptyState
+            onTemplateSelect={handleTemplateSelect}
+            surface={surface}
+            composer={
+              centeredComposer ? (
+                <InputComposer
+                  layout="center"
+                  columnMaxWidth={WORKBENCH_COMPOSER_MAX_PX}
+                  value={promptValue}
+                  onChange={setPromptValue}
+                  onSubmit={onSubmit}
+                  onCommission={onCommission}
+                  onStop={onStop}
+                  isStreaming={isStreaming}
+                  isCommissioning={isCommissioning}
+                  selectedModel={selectedModel}
+                  onModelChange={onModelChange}
+                  attachedToolIds={attachedToolIds}
+                  onAttachTool={onAttachTool}
+                  onDetachTool={onDetachTool}
+                  canCommission={canCommission}
+                  modelOptions={modelOptions}
+                  placeholder={SURFACE_COPY[surface].placeholder}
+                  minLength={surface === 'inspector' ? 1 : 10}
+                />
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <ConversationThread
           chatError={chatError}
@@ -807,26 +849,29 @@ export function PromptCanvas({
         )}
       </AnimatePresence>
 
-      {/* Composer */}
-      <InputComposer
-        value={promptValue}
-        onChange={setPromptValue}
-        onSubmit={onSubmit}
-        onCommission={onCommission}
-        onStop={onStop}
-        isStreaming={isStreaming}
-        isCommissioning={isCommissioning}
-        selectedModel={selectedModel}
-        onModelChange={onModelChange}
-        attachedToolIds={attachedToolIds}
-        onAttachTool={onAttachTool}
-        onDetachTool={onDetachTool}
-        canCommission={canCommission}
-        modelOptions={modelOptions}
-        placeholder={SURFACE_COPY[surface].placeholder}
-        /* Agent missions need substance; data questions can be short ("revenue by month"). */
-        minLength={surface === 'inspector' ? 1 : 10}
-      />
+      {/* Composer — docked once the thread starts; custom empty states keep the docked bar */}
+      {!centeredComposer && (
+        <InputComposer
+          columnMaxWidth={surface === 'workbench' ? WORKBENCH_COMPOSER_MAX_PX : undefined}
+          value={promptValue}
+          onChange={setPromptValue}
+          onSubmit={onSubmit}
+          onCommission={onCommission}
+          onStop={onStop}
+          isStreaming={isStreaming}
+          isCommissioning={isCommissioning}
+          selectedModel={selectedModel}
+          onModelChange={onModelChange}
+          attachedToolIds={attachedToolIds}
+          onAttachTool={onAttachTool}
+          onDetachTool={onDetachTool}
+          canCommission={canCommission}
+          modelOptions={modelOptions}
+          placeholder={SURFACE_COPY[surface].placeholder}
+          /* Agent missions need substance; data questions can be short ("revenue by month"). */
+          minLength={surface === 'inspector' ? 1 : 10}
+        />
+      )}
 
       <style>{`
         @keyframes pc-blink { 50% { opacity: 0; } }

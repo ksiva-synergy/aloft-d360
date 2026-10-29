@@ -29,6 +29,7 @@ interface ScannedPipelineScopeBarProps {
   includePatterns?: string[];
   scopeLabel?: string;
   sourceId?: string;
+  canRunPipeline?: boolean;
   onLaunched?: () => void;
 }
 
@@ -38,6 +39,7 @@ export default function ScannedPipelineScopeBar({
   includePatterns = [],
   scopeLabel: scopeLabelProp,
   sourceId,
+  canRunPipeline = false,
   onLaunched,
 }: ScannedPipelineScopeBarProps) {
   const [health, setHealth] = useState<PipelineIntentHealth | null>(null);
@@ -226,6 +228,7 @@ export default function ScannedPipelineScopeBar({
             </div>
           )}
         </div>
+        {canRunPipeline && (
         <button
           type="button"
           disabled={!canContinue || launching || loading}
@@ -235,9 +238,10 @@ export default function ScannedPipelineScopeBar({
         >
           {launching ? 'Launching…' : 'Continue pipeline'}
         </button>
+        )}
       </div>
 
-      {confirmOpen && (
+      {canRunPipeline && confirmOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.45)' }}

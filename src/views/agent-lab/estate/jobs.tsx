@@ -21,6 +21,7 @@ import { isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
 import { HARVEST_SCHEDULES, relativeNextRun, getNextRun } from '@/lib/context/schedules';
 import { toast } from 'sonner';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { inkOf } from '@/lib/typography/tokens';
@@ -1991,6 +1992,7 @@ function L1View({
   summaries,
   queuedJobs,
   loading,
+  canRunPipeline,
   onSelectKind,
   onCancelJob,
   onCockpitLaunched,
@@ -2000,6 +2002,7 @@ function L1View({
   summaries: KindSummary[];
   queuedJobs: QueuedJobItem[];
   loading: boolean;
+  canRunPipeline: boolean;
   onSelectKind: (kind: string) => void;
   onCancelJob: (jobId: string, kind: string) => void;
   onCockpitLaunched?: () => void;
@@ -2033,7 +2036,11 @@ function L1View({
     ));
   return (
     <div className="flex-1 overflow-auto p-6">
-      <JobsCockpitPanel onLaunched={onCockpitLaunched} onOpenWizard={onOpenWizard} />
+      <JobsCockpitPanel
+        canRunPipeline={canRunPipeline}
+        onLaunched={onCockpitLaunched}
+        onOpenWizard={canRunPipeline ? onOpenWizard : undefined}
+      />
       {/* Aggregate overview */}
       {!loading && summaries.length > 0 && <AggregateStats summaries={summaries} />}
 
@@ -2060,15 +2067,17 @@ function L1View({
                   style={{ color: inkOf(m.color), backgroundColor: m.bg, borderColor: m.border }}
                 >
                   {m.label}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onCancelJob(qj.id, qj.job_kind); }}
-                    className="ml-0.5 w-3.5 h-3.5 rounded-full inline-flex items-center justify-center transition-colors hover:bg-red-500/20"
-                    title="Cancel this job"
-                  >
-                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                  {canRunPipeline && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onCancelJob(qj.id, qj.job_kind); }}
+                      className="ml-0.5 w-3.5 h-3.5 rounded-full inline-flex items-center justify-center transition-colors hover:bg-red-500/20"
+                      title="Cancel this job"
+                    >
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
                 </span>
               );
             })}
@@ -2626,6 +2635,7 @@ function EstateJobsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const refreshKey = useCatalogRefresh();
+  const canRunPipeline = useCanRunEstatePipeline();
 
   const urlKind = searchParams.get('kind');
   const urlDate = searchParams.get('date');
@@ -2839,7 +2849,13 @@ function EstateJobsPageContent() {
                 Infrastructure active
               </span>
             </div>
-            <RunJobButton onJobQueued={() => { fetchSummaries(); fetchQueued(); }} />
+            {canRunPipeline ? (
+              <RunJobButton onJobQueued={() => { fetchSummaries(); fetchQueued(); }} />
+            ) : (
+              <span className="text-size-ui text-[var(--text-tertiary)] font-sans">
+                View only — platform admin runs pipelines
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -2891,11 +2907,12 @@ function EstateJobsPageContent() {
 
       {/* Content */}
       {level === 'l1' && activeTab === 'scanned' ? (
-        <ScannedObjectsTab refreshKey={refreshKey} />
+        <ScannedObjectsTab refreshKey={refreshKey} canRunPipeline={canRunPipeline} />
       ) : level === 'l1' && activeTab === 'active' ? (
         <ActiveRunsPanel
           refreshKey={refreshKey}
           queuedOnly={urlActiveFilter === 'queued'}
+          canRunPipeline={canRunPipeline}
           onSelectJob={job => setSelectedJob(job as JobItem)}
         />
       ) : level === 'l1' ? (
@@ -2903,6 +2920,7 @@ function EstateJobsPageContent() {
           summaries={summaries}
           queuedJobs={queuedJobs}
           loading={summariesLoading}
+          canRunPipeline={canRunPipeline}
           onSelectKind={selectKind}
           onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
           onOpenActiveRuns={() => pushParams({ tab: 'active', activeFilter: 'queued' })}
@@ -2949,7 +2967,7 @@ function EstateJobsPageContent() {
 
       {/* Detail Drawer */}
       <JobDetailDrawer job={selectedJob} onClose={() => setSelectedJob(null)} />
-      {isJobsLaunchWizardEnabled() && (
+      {canRunPipeline && isJobsLaunchWizardEnabled() && (
         <JobsLaunchWizard
           open={wizardOpen}
           onClose={() => setWizardOpen(false)}

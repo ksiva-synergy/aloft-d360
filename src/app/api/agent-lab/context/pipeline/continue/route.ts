@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import { computePipelineIntent, normalizePipelineScope } from '@/lib/estate/pipeline-intent';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,8 +14,8 @@ export const dynamic = 'force-dynamic';
  * Computes scoped pipeline intent and launches minimum stale tiers via jobs/launch logic.
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   let body: Record<string, unknown>;
   try {

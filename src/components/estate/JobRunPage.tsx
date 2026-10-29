@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import ChildJobsPanel from './ChildJobsPanel';
 import { mapJobStatus, isKickableJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 import { inkOf } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
@@ -1058,6 +1059,7 @@ function ConfigTab({ job }: { job: JobItem }) {
 
 export default function JobRunPage({ job }: { job: JobItem }) {
   const router = useRouter();
+  const canRunPipeline = useCanRunEstatePipeline();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [objectCount, setObjectCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -1163,7 +1165,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                   </h1>
                   <KindBadge kind={job.job_kind} />
                   <StatusChip status={jobStatus} stats={jobLive.stats} jobKind={job.job_kind} />
-                  {isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
+                  {canRunPipeline && isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
                     <button
                       type="button"
                       onClick={handleKick}
