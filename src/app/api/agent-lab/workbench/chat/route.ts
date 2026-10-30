@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
-import { inspectorLlmConfigured, hasXaiCredentials } from '@/lib/inspector/llm-configured';
+import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
-import { resolveBoostModel, resolveWorkbenchModel } from '@/lib/construction/workbench-model';
+import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import {
   buildWorkbenchSystemPrompt,
   buildWorkbenchToolConfig,
@@ -239,14 +239,6 @@ export async function POST(request: NextRequest) {
         let result: AgentLoopResult = boostModel
           ? await dispatchAgentLoop(boostModel, loopParams)
           : await runAgentLoop(loopParams);
-
-        if (!boostModel && result.outcome === 'errored' && hasXaiCredentials()) {
-          const grok = resolveBoostModel('grok-xai');
-          if (grok) {
-            emit({ type: 'text', delta: 'Primary model unavailable — retrying with Grok 4.7…\n\n' });
-            result = await dispatchAgentLoop(grok, { ...loopParams, modelId: grok.modelId });
-          }
-        }
 
         if (result.outcome === 'errored' && result.errorDetail) {
           emit({ type: 'error', message: result.errorDetail, recoverable: true });

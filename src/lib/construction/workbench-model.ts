@@ -1,4 +1,3 @@
-import { hasXaiCredentials } from '@/lib/inspector/llm-configured';
 import { BOOST_MODELS, type BoostModel } from '@/lib/boost/models';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
@@ -7,7 +6,7 @@ import { fromLlmLiteModelKey } from '@/lib/llmlite/keys';
 import { boostModelFromLlmLiteKey, gatewayModelToOption } from '@/lib/llmlite/inspector-models';
 
 /** Model resolution shared by the workbench chat and test-run routes. */
-export const DEFAULT_WORKBENCH_MODEL = hasXaiCredentials() ? DEFAULT_INSPECTOR_MODEL_KEY : 'sonnet-5-5';
+export const DEFAULT_WORKBENCH_MODEL = DEFAULT_INSPECTOR_MODEL_KEY;
 
 const FOUNDRY_MODEL_KEYS = new Set(
   BOOST_MODELS.filter((m) => m.apiType === 'foundry').map((m) => m.key),
@@ -25,8 +24,8 @@ export function resolveBoostModel(modelKey: string): BoostModel | null {
 function resolveBedrockModelId(modelKey: string): string {
   const m = AVAILABLE_MODELS.find((x) => x.key === modelKey);
   if (m?.bedrockId && !FOUNDRY_MODEL_KEYS.has(modelKey)) return m.bedrockId;
-  const fallback = AVAILABLE_MODELS.find((x) => x.key === 'sonnet-5-5');
-  return fallback?.bedrockId ?? 'us.anthropic.claude-sonnet-5-5';
+  const fallback = AVAILABLE_MODELS.find((x) => x.key === DEFAULT_INSPECTOR_MODEL_KEY);
+  return fallback?.bedrockId ?? 'us.anthropic.claude-opus-5-5';
 }
 
 export function resolveWorkbenchModel(requestedKey: string | undefined, role?: string | null) {

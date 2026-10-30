@@ -156,7 +156,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   const resolveDefaultModelKey = (list: typeof AVAILABLE_MODELS) =>
     list.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
       ? DEFAULT_INSPECTOR_MODEL_KEY
-      : (list[1]?.key ?? list[0]?.key ?? 'sonnet-4-6');
+      : (list[1]?.key ?? list[0]?.key ?? 'opus-5-5');
 
   const [previewModel, setPreviewModel] = useState(() => resolveDefaultModelKey(AVAILABLE_MODELS));
 

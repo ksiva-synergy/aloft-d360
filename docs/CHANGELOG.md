@@ -2,6 +2,20 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-30 — Default chat model is Claude Opus 5.5
+
+- **What:** `src/lib/inspector/default-model.ts` — `DEFAULT_INSPECTOR_MODEL_KEY` = `opus-5-5` (was `grok-xai`). `src/app/api/inspector/chat/route.ts` and `src/lib/construction/workbench-model.ts` no longer switch default on xAI credentials. `INSPECTOR_DEFAULT_MODEL` still overrides on the inspector route.
+- **Why:** Requested: Opus 5.5 as default. Non-admin roles are also pinned to this default.
+- **Verified:** `tsc --noEmit` shows no errors in the touched files.
+- **Not done:** Opus 5.5 needs Bedrock access in the deployed env.
+
+## 2026-10-30 — Opus 5.5 (Bedrock) only: removed Grok fallback
+
+- **What:** Removed the "retry with Grok" fallback from `src/app/api/inspector/chat/route.ts` and `src/app/api/agent-lab/workbench/chat/route.ts` (Inspector + Agents/workbench chat); workbench Bedrock fallback id and `useInspectorChat` fallback key now Opus 5.5.
+- **Why:** Requested: Opus 5.5 from Bedrock in agents and Inspector; no silent switch to xAI.
+- **Verified:** `tsc --noEmit` clean for touched files.
+- **Not done:** Non-chat jobs (harvest, judge, blueprint, marcus) still use their own Sonnet models.
+
 ## 2026-10-30 — Launch: table-level Limit no longer plans 0 objects
 
 - **What:** `src/lib/context/queue.ts` — `planSplit` and `planEstateSplit` now go through `filterSchemaGroupsForScope`: schemas matched only by a table-level Limit glob (`catalog.schema.table`) are counted per object path, and partitions carry the matching `objectNames`. `src/lib/context/job-scope.ts` — new `tablePatternsMayMatchSchema`; `catalogSchemaMatchesIncludePatterns` doc corrected (it never matched table-level globs). Tests: `job-scope.test.ts`, new `plan-split-scope.test.ts`.
