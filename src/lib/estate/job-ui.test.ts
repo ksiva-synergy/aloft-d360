@@ -7,6 +7,7 @@ import {
   resolveLaunchScopeFilters,
   resolveModalLaunchScope,
   stripExcludeSchemasForKind,
+  wideScopeTierLaunchBlocked,
   t0AllowsLiveScopeWhenDiscoveryEmpty,
 } from './job-ui';
 
@@ -62,5 +63,12 @@ describe('job-ui', () => {
     expect(isEmptySuccessJob('succeeded', { objects_profiled: 0 }, 't1_profile')).toBe(true);
     expect(resolveDisplayJobStatus('succeeded', { objects_profiled: 0 }, 't1_profile')).toBe('empty');
     expect(formatStatsSummary({ objects_profiled: 0 }, 't1_profile')).toContain('no work');
+  });
+
+  it('wideScopeTierLaunchBlocked requires Limit or opt-in', () => {
+    expect(wideScopeTierLaunchBlocked('t2_semantic', ['a.b.*'], 200, false).blocked).toBe(false);
+    expect(wideScopeTierLaunchBlocked('t2_semantic', [], 51, false).blocked).toBe(true);
+    expect(wideScopeTierLaunchBlocked('t2_semantic', [], 51, true).blocked).toBe(false);
+    expect(wideScopeTierLaunchBlocked('t0_structural', [], 999, false).blocked).toBe(false);
   });
 });

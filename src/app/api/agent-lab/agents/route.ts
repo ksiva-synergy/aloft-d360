@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const rows = await prisma.agent_catalog.findMany({
-      where: { tags: { has: 'workbench' } },
+      where: {
+        tags: { has: 'workbench' },
+        NOT: { status: 'deprecated' },
+      },
       orderBy: { updated_at: 'desc' },
       take: 100,
     });

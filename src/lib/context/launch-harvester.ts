@@ -6,7 +6,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { ECSClient, RunTaskCommand } from '@aws-sdk/client-ecs';
+import { ECSClient, RunTaskCommand, StopTaskCommand } from '@aws-sdk/client-ecs';
 import { ecsRuntimeConfig, isLocalHarvestRuntime } from '@/lib/aws/ecs-runtime-config';
 
 export { isLocalHarvestRuntime };
@@ -130,5 +130,50 @@ async function launchEcs(extraArgs: string[]): Promise<LaunchHarvesterResult> {
     const error = err instanceof Error ? err.message : String(err);
     console.error(`[harvest-runtime] ECS RunTask failed: ${error}`);
     return { taskId: null, taskArn: null, error };
+  }
+}
+
+/**
+ * Best-effort stop of a harvester worker (ECS Fargate or local detached process).
+ * Safe to call if the task already exited.
+ */
+export async function stopHarvesterTask(
+  taskId: string,
+  reason = 'Cancelled by user',
+): Promise<{ stopped: boolean; error?: string }> {
+  if (!taskId?.trim()) {
+    return { stopped: false, error: 'missing task id' };
+  }
+
+  if (taskId.startsWith('local-')) {
+    const pid = Number(taskId.slice('local-'.length));
+    if (!Number.isFinite(pid) || pid <= 0) {
+      return { stopped: false, error: 'invalid local task id' };
+    }
+    try {
+      process.kill(pid, 'SIGTERM');
+      return { stopped: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('ESRCH')) return { stopped: true };
+      return { stopped: false, error: msg };
+    }
+  }
+
+  const { region, cluster } = ecsRuntimeConfig;
+  try {
+    const ecs = new ECSClient({ region });
+    await ecs.send(
+      new StopTaskCommand({
+        cluster,
+        task: taskId,
+        reason: reason.slice(0, 255),
+      }),
+    );
+    return { stopped: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[harvest-runtime] StopTask failed task=${taskId}: ${msg}`);
+    return { stopped: false, error: msg };
   }
 }

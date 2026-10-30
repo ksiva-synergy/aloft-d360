@@ -17,7 +17,11 @@ export function schemaMatchesIncludePatterns(catalog: string, schema: string, pa
   );
 }
 
-/** Schema-level filter for plan split: catalog.schema and table-level Limit globs. */
+/**
+ * Schema-level filter for plan split: matches when every table in catalog.schema is in
+ * scope. Table-level Limit globs (catalog.schema.table) do not match here — see
+ * `tablePatternsMayMatchSchema`.
+ */
 export function catalogSchemaMatchesIncludePatterns(
   catalog: string,
   schema: string,
@@ -27,6 +31,16 @@ export function catalogSchemaMatchesIncludePatterns(
   if (schemaMatchesIncludePatterns(catalog, schema, patterns)) return true;
   const schemaGlob = `${catalog}.${schema}.*`;
   return patterns.some(pat => minimatch(schemaGlob, pat, { dot: true }));
+}
+
+/** True when a table-level glob (catalog.schema.table) could match objects in catalog.schema. */
+export function tablePatternsMayMatchSchema(catalog: string, schema: string, patterns: string[]): boolean {
+  const qualified = `${catalog}.${schema}`;
+  return patterns.some(pat => {
+    const parts = pat.split('.');
+    if (parts.length < 3) return false;
+    return minimatch(qualified, parts.slice(0, 2).join('.'), { dot: true });
+  });
 }
 
 export function pathMatchesIncludePatterns(fullPath: string, patterns: string[]): boolean {

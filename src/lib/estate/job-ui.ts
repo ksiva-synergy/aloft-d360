@@ -28,8 +28,6 @@ export function isKickableJob(job: { status: string; scope?: unknown }): boolean
 
 /** Queued jobs, or active jobs that never got a Fargate worker (no logs, blocks overlap). */
 export function canCancelJob(job: { status: string; scope?: unknown }): boolean {
-  const scope = job.scope as Record<string, unknown> | null | undefined;
-  if (scope?.fargate_task_id) return false;
   const s = job.status.toLowerCase();
   return s === 'queued' || s === 'running' || s === 'orchestrating';
 }
@@ -61,6 +59,39 @@ export function resolveLaunchScopeFilters(
     return { excludeSchemas: [], includePatterns };
   }
   return { excludeSchemas, includePatterns };
+}
+
+/** T1/T2/embed/T3 without a Focus Limit can touch hundreds of tables. */
+export const WIDE_TIER_LAUNCH_THRESHOLD = 50;
+
+const TIER_KINDS_REQUIRING_FOCUS = new Set([
+  't1_profile',
+  't2_semantic',
+  'embed',
+  't3_usage',
+]);
+
+/**
+ * Block launching profile/semantic/embed/usage across a large scanned set unless
+ * the operator set Limit globs or explicitly confirmed full-source launch.
+ */
+export function wideScopeTierLaunchBlocked(
+  kind: string,
+  includePatterns: string[],
+  totalObjects: number,
+  allowFullSourceLaunch?: boolean,
+): { blocked: boolean; message?: string } {
+  if (allowFullSourceLaunch) return { blocked: false };
+  if (!TIER_KINDS_REQUIRING_FOCUS.has(kind)) return { blocked: false };
+  if (includePatterns.length > 0) return { blocked: false };
+  if (totalObjects <= WIDE_TIER_LAUNCH_THRESHOLD) return { blocked: false };
+  return {
+    blocked: true,
+    message:
+      `${kind} would run on ${totalObjects} objects with no Focus Limit. ` +
+      `Set Limit (e.g. catalog.schema.table or catalog.schema.*) in Jobs launch, ` +
+      `or confirm full-source launch.`,
+  };
 }
 
 /** Modal scope: Limit textarea beats include-tree; include-tree beats exclude-tree. */

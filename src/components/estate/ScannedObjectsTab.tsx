@@ -9,6 +9,7 @@ import ScannedPipelineScopeBar, {
 } from './ScannedPipelineScopeBar';
 import Pagination from './Pagination';
 import { schemaIncludePattern } from '@/lib/estate/catalog-pipeline';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { type } from '@/lib/typography/tokens';
@@ -177,8 +178,10 @@ export function ScannedObjectsTab({
   sourceFilter,
   refreshKey = 0,
   showTestSources = false,
-  canRunPipeline = false,
+  canRunPipeline: canRunPipelineProp,
 }: ScannedObjectsTabProps) {
+  const canRunFromSession = useCanRunEstatePipeline();
+  const canRunPipeline = canRunPipelineProp ?? canRunFromSession;
   const router = useRouter();
   const [items, setItems] = useState<ScannedObjectItem[]>([]);
   const [total, setTotal] = useState(0);

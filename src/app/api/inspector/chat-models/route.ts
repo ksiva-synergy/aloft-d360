@@ -7,23 +7,31 @@ import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 
+const NO_STORE = { 'Cache-Control': 'no-store, max-age=0' } as const;
+
 export async function GET() {
   const role = await getSessionUserRole();
   const base = filterChatModelsForRole([...AVAILABLE_MODELS], role);
   if (!isLlmLiteConfigured()) {
-    return NextResponse.json({ models: base, llmLiteEnabled: false });
+    return NextResponse.json({ models: base, llmLiteEnabled: false }, { headers: NO_STORE });
   }
 
   try {
     const gateway = await fetchLlmLiteInspectorModelOptions();
     const merged = filterChatModelsForRole([...base, ...gateway], role);
-    return NextResponse.json({
-      models: merged,
-      llmLiteEnabled: true,
-      llmLiteCount: gateway.length,
-    });
+    return NextResponse.json(
+      {
+        models: merged,
+        llmLiteEnabled: true,
+        llmLiteCount: gateway.length,
+      },
+      { headers: NO_STORE },
+    );
   } catch (err) {
     console.warn('[chat-models] LLM Lite fetch failed:', err);
-    return NextResponse.json({ models: base, llmLiteEnabled: false, llmLiteError: true });
+    return NextResponse.json(
+      { models: base, llmLiteEnabled: false, llmLiteError: true },
+      { headers: NO_STORE },
+    );
   }
 }

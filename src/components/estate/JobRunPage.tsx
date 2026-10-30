@@ -1100,13 +1100,24 @@ export default function JobRunPage({ job }: { job: JobItem }) {
 
   const handleCancel = async () => {
     if (cancelling) return;
-    if (!window.confirm('Cancel this job? You can launch a new run after it is cleared.')) return;
+    const taskId = (jobLive.scope ?? job.scope as Record<string, unknown> | null)?.fargate_task_id;
+    const msg = taskId
+      ? 'Stop this job and its Fargate worker? Work already written stays in the catalog.'
+      : 'Cancel this job? You can launch a new run after it is cleared.';
+    if (!window.confirm(msg)) return;
     setCancelling(true);
     try {
       const res = await fetch(`/api/agent-lab/context/jobs/${job.id}`, { method: 'DELETE' });
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast.success('Job cancelled');
+        const stop = json.worker_stop as { stopped?: boolean; error?: string } | undefined;
+        if (stop && stop.stopped === false && stop.error) {
+          toast.warning('Job marked cancelled', {
+            description: `Worker may still be stopping: ${stop.error}`,
+          });
+        } else {
+          toast.success(taskId ? 'Job stopped' : 'Job cancelled');
+        }
         setJobStatus('failed');
         setJobLive((prev) => ({ ...prev, status: 'failed', error: 'Cancelled by user' }));
       } else {
@@ -1200,7 +1211,11 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                         opacity: cancelling ? 0.7 : 1,
                         cursor: cancelling ? 'default' : 'pointer',
                       }}
-                      title="Stop this job so Continue pipeline can run (no worker attached)"
+                      title={
+                        (jobLive.scope ?? job.scope as Record<string, unknown> | null)?.fargate_task_id
+                          ? 'Stop Fargate worker and mark job cancelled'
+                          : 'Stop this job so you can launch a scoped run'
+                      }
                     >
                       {cancelling
                         ? <><Loader2 size={11} className="animate-spin" /> Cancelling…</>

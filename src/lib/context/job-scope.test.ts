@@ -10,6 +10,7 @@ import {
   schemaMatchesIncludePatterns,
   includePatternsOverlap,
   statementReferencesObject,
+  tablePatternsMayMatchSchema,
   usesEstateObjectPlan,
 } from './job-scope';
 
@@ -83,6 +84,15 @@ describe('job-scope', () => {
       catalogSchemaMatchesIncludePatterns('curated_db', 'db_smac_prod_navitasai_masters_crewing', [pat]),
     ).toBe(true);
     expect(catalogSchemaMatchesIncludePatterns('curated_db', 'other_schema', [pat])).toBe(false);
+  });
+
+  it('table-level Limit globs do not match the whole schema', () => {
+    const pat = 'open_analytics_zone.ash_scratchpad.global_employee_master';
+    expect(catalogSchemaMatchesIncludePatterns('open_analytics_zone', 'ash_scratchpad', [pat])).toBe(false);
+    expect(tablePatternsMayMatchSchema('open_analytics_zone', 'ash_scratchpad', [pat])).toBe(true);
+    expect(tablePatternsMayMatchSchema('open_analytics_zone', 'other', [pat])).toBe(false);
+    expect(tablePatternsMayMatchSchema('curated_db', 'sales', ['curated_db.*'])).toBe(false);
+    expect(tablePatternsMayMatchSchema('curated_db', 'sales_eu', ['curated_db.sales*.orders'])).toBe(true);
   });
 
   it('pathExcludedBySchemas respects catalog.schema keys', () => {

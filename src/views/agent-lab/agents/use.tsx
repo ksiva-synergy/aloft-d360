@@ -6,15 +6,26 @@ import { useParams } from '@/lib/navigation';
 import { AGENTS_LIST_HREF, agentsWorkbenchSessionHref } from '@/lib/navigation/agents-routes';
 import { ArrowLeft, ArrowUp, Bot, Pencil, RotateCcw, Square } from 'lucide-react';
 import { AssistantContent } from '@/components/chat/AssistantContent';
+import { CaptainStatus } from '@/components/companion/CaptainStatus';
+import type { ToolCall } from '@/components/agent-lab/workbench/types';
+import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
+import { ModelSelector } from '@/components/workbench/InputComposer';
+import {
+  isAgentUseChatRunning,
+  persistAgentUseMessages,
+  resetAgentUseChat,
+  startAgentUseChat,
+  stopAgentUseChat,
+  subscribeAgentUseChat,
+  type AgentUseChatMessage,
+} from '@/lib/agents/agent-use-chat-stream';
 
-type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string };
-
-const STORAGE_LIMIT = 80_000;
 /** Centered empty-state + thread composer width cap (px) — not full-bleed, not phone-narrow. */
 const CHAT_COMPOSER_MAX_PX = 880;
 
-function storageKey(slug: string) {
-  return `aloft.agentUse.${slug}`;
+function agentUseModelStorageKey(slug: string) {
+  return `aloft.agentUse.model.${slug}`;
 }
 
 function initials(name: string) {
@@ -30,25 +41,6 @@ function starters(name: string): string[] {
   ];
 }
 
-function loadStored(slug: string): ChatMessage[] {
-  try {
-    const raw = sessionStorage.getItem(storageKey(slug));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.flatMap((item) => {
-      if (!item || typeof item !== 'object') return [];
-      const role = (item as { role?: unknown }).role;
-      const content = (item as { content?: unknown }).content;
-      const id = (item as { id?: unknown }).id;
-      if ((role !== 'user' && role !== 'assistant') || typeof content !== 'string' || !content.trim()) return [];
-      return [{ id: typeof id === 'string' ? id : crypto.randomUUID(), role, content }];
-    });
-  } catch {
-    return [];
-  }
-}
-
 export default function UseAgentPage() {
   const params = useParams();
   const slug = typeof params.slug === 'string' ? params.slug : '';
@@ -57,27 +49,61 @@ export default function UseAgentPage() {
   const [editUrl, setEditUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<AgentUseChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const ctrlRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const { models: chatModels } = useInspectorChatModels();
+  const [previewModel, setPreviewModel] = useState(DEFAULT_INSPECTOR_MODEL_KEY);
+  const modelRef = useRef(previewModel);
+  modelRef.current = previewModel;
 
   useEffect(() => {
     if (!slug) return;
-    setMessages(loadStored(slug));
+    try {
+      const stored = sessionStorage.getItem(agentUseModelStorageKey(slug));
+      if (stored && chatModels.some((m) => m.key === stored)) {
+        setPreviewModel(stored);
+        return;
+      }
+    } catch { /* private mode */ }
+    if (chatModels.some((m) => m.key === previewModel)) return;
+    const fallback = chatModels.find((m) => m.key === DEFAULT_INSPECTOR_MODEL_KEY) ?? chatModels[0];
+    if (fallback) setPreviewModel(fallback.key);
+  }, [slug, chatModels]);
+
+  const onModelChange = (key: string) => {
+    setPreviewModel(key);
+    if (!slug) return;
+    try {
+      sessionStorage.setItem(agentUseModelStorageKey(slug), key);
+    } catch { /* private mode */ }
+  };
+
+  useEffect(() => {
+    if (!slug) return;
+    setHydrated(false);
+    const unsub = subscribeAgentUseChat(slug, (snap) => {
+      setMessages(snap.messages);
+      setRunning(snap.running);
+      setRunError(snap.runError);
+      setToolCalls(snap.toolCalls);
+      setStartedAt(snap.startedAt);
+    });
     setHydrated(true);
+    return unsub;
   }, [slug]);
 
   useEffect(() => {
     if (!hydrated || !slug) return;
-    try {
-      const payload = JSON.stringify(messages);
-      if (payload.length <= STORAGE_LIMIT) sessionStorage.setItem(storageKey(slug), payload);
-    } catch { /* private mode */ }
+    persistAgentUseMessages(slug, messages);
   }, [hydrated, messages, slug]);
 
   useEffect(() => {
@@ -116,64 +142,24 @@ export default function UseAgentPage() {
     bottomRef.current?.scrollIntoView({ block: 'end' });
   }, [messages, running]);
 
-  useEffect(() => () => ctrlRef.current?.abort(), []);
-
-  const send = async (raw?: string) => {
+  const send = (raw?: string) => {
     const text = (raw ?? draft).trim();
-    if (!text || running || !slug) return;
-    const history = messages
+    if (!text || !slug) return;
+    const history = messagesRef.current
       .filter((m) => m.content.trim())
       .map((m) => ({ role: m.role, content: m.content }));
-    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: text };
-    const assistantId = crypto.randomUUID();
-    setMessages((prev) => [...prev, userMsg, { id: assistantId, role: 'assistant', content: '' }]);
     setDraft('');
-    setRunning(true);
     setRunError(null);
-    const ctrl = new AbortController();
-    ctrlRef.current = ctrl;
-
-    try {
-      const res = await fetch('/api/agent-lab/agents/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, message: text, history }),
-        signal: ctrl.signal,
-      });
-      if (!res.ok || !res.body) {
-        const detail = (await res.text().catch(() => '')).slice(0, 300);
-        throw new Error(detail || `Request failed (${res.status})`);
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          let ev: Record<string, unknown>;
-          try { ev = JSON.parse(line.slice(6)); } catch { continue; }
-          if (ev.type === 'text') {
-            const delta = String(ev.delta ?? '');
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + delta } : m));
-          } else if (ev.type === 'error') {
-            setRunError(String(ev.message ?? 'The agent hit an error'));
-          }
-        }
-      }
-    } catch (err: unknown) {
-      if ((err as { name?: string }).name !== 'AbortError') {
-        setRunError(err instanceof Error ? err.message : 'The request failed');
-      }
-    } finally {
-      setRunning(false);
-      setMessages((prev) => prev.filter((m) => m.role !== 'assistant' || m.content.trim() || m.id !== assistantId));
-    }
+    startAgentUseChat({
+      slug,
+      message: text,
+      history,
+      priorMessages: messagesRef.current,
+      model: modelRef.current,
+    });
   };
+
+  const chatBusy = running || isAgentUseChatRunning(slug);
 
   if (loading) {
     return (
@@ -193,10 +179,11 @@ export default function UseAgentPage() {
   }
 
   const clearChat = () => {
-    ctrlRef.current?.abort();
+    resetAgentUseChat(slug);
     setMessages([]);
     setRunError(null);
     setDraft('');
+    setRunning(false);
   };
 
   const composerForm = (
@@ -209,7 +196,7 @@ export default function UseAgentPage() {
         style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}
         onSubmit={(e) => {
           e.preventDefault();
-          void send();
+          send();
         }}
       >
         <textarea
@@ -223,18 +210,27 @@ export default function UseAgentPage() {
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              void send();
+              send();
             }
           }}
           rows={1}
           placeholder={`Message ${name}…`}
-          disabled={running}
+          disabled={chatBusy}
           className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
         />
-        {running ? (
+        <div className="shrink-0 self-end pb-0.5">
+          <ModelSelector
+            selectedModel={previewModel}
+            onModelChange={onModelChange}
+            models={chatModels}
+            disabled={chatBusy || chatModels.length === 0}
+            align="right"
+          />
+        </div>
+        {chatBusy ? (
           <button
             type="button"
-            onClick={() => ctrlRef.current?.abort()}
+            onClick={() => stopAgentUseChat(slug)}
             aria-label="Stop"
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--line-1)] text-[var(--ink-1)]"
           >
@@ -258,6 +254,7 @@ export default function UseAgentPage() {
   );
 
   const emptyChat = messages.length === 0;
+  const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
 
   return (
     <div className="absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-[var(--main-bg)]">
@@ -311,7 +308,7 @@ export default function UseAgentPage() {
                 <button
                   key={prompt}
                   type="button"
-                  onClick={() => void send(prompt)}
+                  onClick={() => send(prompt)}
                   className="rounded-xl border border-[var(--line-1)] bg-[var(--surface-1)] px-4 py-3 text-left text-size-body text-[var(--ink-2)] transition-colors hover:border-[var(--brand-a)] hover:text-[var(--ink-1)]"
                 >
                   {prompt}
@@ -326,7 +323,12 @@ export default function UseAgentPage() {
             <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col px-4 py-6 md:px-8">
               <div className="space-y-5">
                 {messages.map((message) => (
-                  <MessageRow key={message.id} message={message} name={name} running={running} />
+                  <MessageRow
+                    key={message.id}
+                    message={message}
+                    name={name}
+                    status={message.id === lastAssistantId ? { running, toolCalls, startedAt, error: runError } : null}
+                  />
                 ))}
               </div>
               <div ref={bottomRef} />
@@ -357,7 +359,9 @@ function Mark({ name, large = false }: { name: string; large?: boolean }) {
   );
 }
 
-function MessageRow({ message, name, running }: { message: ChatMessage; name: string; running: boolean }) {
+type LiveStatus = { running: boolean; toolCalls: ToolCall[]; startedAt: number | null; error: string | null };
+
+function MessageRow({ message, name, status }: { message: AgentUseChatMessage; name: string; status: LiveStatus | null }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -372,17 +376,22 @@ function MessageRow({ message, name, running }: { message: ChatMessage; name: st
       <Mark name={name} />
       <div className="min-w-0 flex-1 pt-1">
         <p className="mb-1 text-size-ui font-medium text-[var(--ink-3)]">{name}</p>
-        {message.content ? (
+        {message.content && (
           <div className="w-full min-w-0 text-size-body leading-relaxed text-[var(--ink-1)]">
             <AssistantContent content={message.content} />
           </div>
-        ) : running ? (
-          <span className="inline-flex items-center gap-1 py-2" aria-label="Thinking">
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--ink-3)] [animation-delay:0ms]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--ink-3)] [animation-delay:150ms]" />
-            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[var(--ink-3)] [animation-delay:300ms]" />
-          </span>
-        ) : null}
+        )}
+        {/* Live companion trails the reply so a pause for a tool call never looks frozen. */}
+        {status && (
+          <CaptainStatus
+            className="!px-0 !py-1.5"
+            isStreaming={status.running}
+            content={message.content}
+            toolCalls={status.toolCalls}
+            error={status.error}
+            startedAt={status.startedAt}
+          />
+        )}
       </div>
     </div>
   );

@@ -42,7 +42,6 @@ import {
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import {
   hasStaticAwsCredentials,
-  hasXaiCredentials,
   inspectorLlmConfigured,
 } from '@/lib/inspector/llm-configured';
 import type { BoostModel } from '@/lib/boost/models';
@@ -94,22 +93,14 @@ const MODELS_MAP: Record<string, { bedrockId: string; foundryDeployment?: string
 };
 
 const hasAwsCreds = hasStaticAwsCredentials();
-const hasXaiCreds = hasXaiCredentials();
 
 function resolveInspectorDefaultModelKey(): string {
   const explicit = process.env.INSPECTOR_DEFAULT_MODEL?.trim();
   if (explicit && MODELS_MAP[explicit]) return explicit;
-  if (hasXaiCreds) return DEFAULT_INSPECTOR_MODEL_KEY;
-  return 'sonnet-5-5';
+  return DEFAULT_INSPECTOR_MODEL_KEY;
 }
 
 const DEFAULT_MODEL_KEY = resolveInspectorDefaultModelKey();
-
-function resolveGrokBoostModel(): BoostModel {
-  let grok = BOOST_MODELS.find(m => m.key === 'grok-xai')!;
-  const modelId = process.env.XAI_MODEL || 'grok-4.7';
-  return { ...grok, modelId };
-}
 
 function resolveModel(key?: string) {
   if (key) {
@@ -117,7 +108,6 @@ function resolveModel(key?: string) {
     if (gatewayId) return llmLiteInspectorRuntimeConfig(gatewayId);
     if (MODELS_MAP[key]) return MODELS_MAP[key];
   }
-  if (!key && hasXaiCreds) return MODELS_MAP[DEFAULT_INSPECTOR_MODEL_KEY];
   return MODELS_MAP[DEFAULT_MODEL_KEY];
 }
 
@@ -549,33 +539,6 @@ export async function POST(request: NextRequest) {
         let result = isFoundryModel && boostModel
           ? await dispatchAgentLoop(boostModel, loopParams)
           : await runAgentLoop(loopParams);
-
-        if (
-          !isFoundryModel &&
-          result.outcome === 'errored' &&
-          hasXaiCreds
-        ) {
-          console.warn(
-            '[inspector/chat] Bedrock model failed; falling back to Grok',
-            result.errorDetail,
-          );
-          if (!closed.value) {
-            emit({ type: 'text', delta: 'Primary model unavailable — retrying with Grok 4.7…\n\n' });
-          }
-          const grokBoost = resolveGrokBoostModel();
-          const grokCfg = MODELS_MAP['grok-xai'];
-          effectiveModelId = grokBoost.modelId;
-          toolCallSuccessCount = 0;
-          toolCallErrorCount = 0;
-          hasControlBoundaryViolation = false;
-          hasRetryableErrors = false;
-          result = await dispatchAgentLoop(grokBoost, {
-            ...loopParams,
-            modelId: grokBoost.modelId,
-            supportsTools: grokCfg.supportsTools,
-            supportsThinking: grokCfg.supportsThinking,
-          });
-        }
 
         // Cost-log tokens: prefer recorder totals (include prompt-cache split), else provider usage.
         const costTokens = () =>
