@@ -13,6 +13,7 @@ import { schemaIncludePattern } from '@/lib/estate/catalog-pipeline';
 import type { JobRecommendation, PipelineHealth, RecommendationAction } from '@/lib/estate/cockpit';
 import { getPipelineHealth } from '@/lib/estate/cockpit';
 import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
+import { reapOrphanActiveJobs } from '@/lib/context/orphan-jobs';
 
 export interface PipelineScopeInput {
   sourceId: string;
@@ -345,6 +346,7 @@ export async function computePipelineIntent(
           : 'No work in this scope';
 
   if (recommendedKinds.length > 0) {
+    await reapOrphanActiveJobs(orgId);
     const conflict = await findScopedLaunchConflict(
       input.sourceId,
       recommendedKinds,

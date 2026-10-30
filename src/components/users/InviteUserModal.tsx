@@ -113,11 +113,11 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
             <DialogTitle className="text-size-body">Invite User</DialogTitle>
           </div>
           <DialogDescription className="text-size-ui">
-            Create a platform account. They sign in with Microsoft using this email. Leave the password empty.
+            Create a platform account. Use Microsoft SSO, or set a password below for email sign-in on the login page.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-1">
+        <form onSubmit={handleSubmit} className="space-y-3.5 mt-1">
           {/* Email */}
           <div>
             <label className="block text-size-ui font-medium text-[var(--foreground)] mb-1.5">
@@ -160,7 +160,7 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
           {/* Password */}
           <div>
             <label className="block text-size-ui font-medium text-[var(--foreground)] mb-1.5">
-              Password <span className="text-muted-foreground font-normal">(optional — omit for SSO-only)</span>
+              Password <span className="text-muted-foreground font-normal">(optional — for email login; omit for SSO-only)</span>
             </label>
             <div className="relative">
               <input
@@ -201,6 +201,8 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
                 id="invite-user-role"
                 value={selectedRole}
                 onChange={setSelectedRole}
+                layout="compact"
+                showDetailPanel
                 options={
                   roles.length > 0
                     ? roles.map((r) => r.name)

@@ -5,7 +5,19 @@
 
 ---
 
-### 2026-10-29 — Estate pipeline RBAC (platform admin only)
+### 2026-10-29 — Auto-reap orphan active jobs (no Fargate task)
+
+- **Files:** `orphan-jobs.ts`, `kick-queued-workers.ts`, `pipeline-intent.ts`, `jobs/launch/route.ts`.
+- **Why:** User asked why overlap/zombie jobs are not handled automatically (`687b51c…`).
+- **Before → after:** Launch API marks new rows **failed** when RunTask fails; after 10m without worker, reaper clears overlap blockers on intent/kick paths.
+
+---
+
+- **Files:** `JobRunPage.tsx`, `ActiveRunsPanel.tsx`, `job-ui.ts` (`canCancelJob`), `jobs/[id]/route.ts` DELETE.
+- **Why:** User opened overlapping `t2_semantic` from Scanned banner; Job Run had Launch but no Cancel; job had no Fargate task.
+- **Before → after:** Cancel on Job Run and Active Runs when no `fargate_task_id`; API cancels queued/running/orchestrating without a worker.
+
+---
 
 - **Files:** `src/lib/estate/pipeline-access.ts`, `require-estate-pipeline-operator.ts`, `useEstatePipelineAccess.ts`, Jobs/Catalog UI components, context API launch/continue/harvest/schedule routes, `docs/jobs/current-status.md`, `docs/CHANGELOG.md`.
 - **Why:** User request — on Estate, only platform admins run pipelines; everyone else view-only with no triggers.

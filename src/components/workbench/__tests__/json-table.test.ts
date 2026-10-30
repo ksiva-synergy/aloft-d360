@@ -5,6 +5,7 @@ import {
   recordFromJson,
   recordsFromJson,
   splitDetailItem,
+  splitDetailItems,
 } from '@/components/workbench/json-table';
 
 describe('nested record lists', () => {
@@ -199,5 +200,19 @@ describe('recordsFromJson', () => {
       { port: 'AE', observation: 3 },
     ]));
     expect(table?.aligns).toEqual(['left', 'right']);
+  });
+});
+
+describe('splitDetailItems', () => {
+  it('splits on "; " but not inside brackets', () => {
+    expect(splitDetailItems('blank sire_reference_no; unclosed (no closed_by; closure date unusable); port missing')).toEqual([
+      'blank sire_reference_no',
+      'unclosed (no closed_by; closure date unusable)',
+      'port missing',
+    ]);
+  });
+
+  it('returns one item when there is no separator', () => {
+    expect(splitDetailItems('Escalate')).toEqual(['Escalate']);
   });
 });

@@ -227,6 +227,28 @@ export function recordFromJson(raw: string): JsonRecord | null {
 }
 
 /**
+ * Split a `; `-joined detail value into items, ignoring separators inside brackets so
+ * `unclosed (no closed_by; closure date unusable)` stays one item.
+ */
+export function splitDetailItems(value: string): string[] {
+  const items: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === '(' || ch === '[') depth++;
+    else if ((ch === ')' || ch === ']') && depth > 0) depth--;
+    else if (ch === ';' && value[i + 1] === ' ' && depth === 0) {
+      items.push(value.slice(start, i));
+      start = i + 2;
+      i++;
+    }
+  }
+  items.push(value.slice(start));
+  return items.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
  * Split a detail item such as `target_date 2026-12-31` or `audit_by=SIRE` into a key and value.
  * A space-separated item only splits when the value is a number, date or yes/no, so prose
  * like `sire_reference_no blank` stays one phrase.

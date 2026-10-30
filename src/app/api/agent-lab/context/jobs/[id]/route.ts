@@ -37,8 +37,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/agent-lab/context/jobs/:id
  *
- * Cancel a queued job. Only jobs with status='queued' can be cancelled.
- * Running jobs cannot be cancelled via this endpoint.
+ * Cancel queued jobs, or running/orchestrating jobs that never received a Fargate task
+ * (stuck overlap blockers with no CloudWatch logs).
  */
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const denied = await denyUnlessEstatePipelineOperator();
@@ -54,16 +54,29 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const job = await prisma.platformContextJob.findFirst({
       where: { id, org_id: org.id },
-      select: { id: true, status: true, job_kind: true },
+      select: { id: true, status: true, job_kind: true, scope: true },
     });
 
     if (!job) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
 
-    if (job.status !== 'queued') {
+    const scope = (job.scope ?? {}) as Record<string, unknown>;
+    const hasWorker = typeof scope.fargate_task_id === 'string' && scope.fargate_task_id.length > 0;
+    const active = ['queued', 'running', 'orchestrating'].includes(job.status);
+
+    if (!active) {
       return NextResponse.json(
-        { error: 'CANNOT_CANCEL', message: `Job is ${job.status}, only queued jobs can be cancelled.` },
+        { error: 'CANNOT_CANCEL', message: `Job is ${job.status} and cannot be cancelled.` },
+        { status: 409 },
+      );
+    }
+    if (hasWorker) {
+      return NextResponse.json(
+        {
+          error: 'CANNOT_CANCEL',
+          message: 'Job has a running Fargate task — wait for it to finish or use ops runbook to stop the task.',
+        },
         { status: 409 },
       );
     }

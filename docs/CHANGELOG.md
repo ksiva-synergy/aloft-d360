@@ -2,6 +2,84 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-30 — Login: fix Captain's ground shadow offset
+
+- **What:** `src/components/login/AgentScene.tsx` — ground shadow was centred with `-translate-x-1/2`, but the animation loop overwrites `style.transform` (`scaleX`) every frame, so it sat 42px right of the robot. Now centred with `ml-[-42px]`; moved from `bottom-[-6px]` to `bottom-0` (closer under the head); light theme uses a soft navy gradient instead of 55% black.
+- **Why:** User screenshot showed the shadow misplaced to the right.
+- **Verified:** No `tsc` errors. Not checked visually in a browser by the agent.
+
+## 2026-10-30 — Login: Captain without ears, stands off white page, particles always on
+
+- **What:** `src/components/login/AgentScene.tsx` — removed the two ear-pod rects from Captain's SVG. Light theme only: 1px helmet edge (`rgba(30,41,79,.12)`), stronger drop shadow, and a soft sky/indigo radial halo behind the head. Robot colours unchanged. `src/views/login.tsx` — `DotCompanion` now `ambient` (was `ambient={false}`), so the particle aura stays visible instead of only appearing while acting.
+- **Why:** User asked to drop the ears, said the white robot blended into the new white background (without changing robot colour), and wanted particles always on.
+- **Verified:** No `tsc` errors in the files; typography guard passes. ESLint on AgentScene reports only the existing `react-hooks/refs` errors at the `themeRef.current = …` / `props.current = …` lines (not touched). Not checked visually in a browser by the agent.
+
+## 2026-10-30 — Login: white background, corner aurora, frosted card
+
+- **What:** `src/views/login.tsx` — light base `#f4f6fb` → near-white `#fbfcfe` (dark `#0b0a16` → deep navy `#070b18`). Single centred blue bloom replaced by two soft corner glows (sky top-left, indigo bottom-right; `--aurora-a/-b`). Microsoft button + username/password form now sit in a frosted card (`--card`, `--card-edge`, `--card-shadow`, `backdrop-blur-xl`, 28px radius); light field fill `#f6f8fc` so inputs read on the white card; column back to 380px. `src/components/login/AgentScene.tsx` — light-theme dot grid `dotAlpha` 1.15 → 0.75 (fainter texture).
+- **Why:** User found the bluish washed background dull and asked for a cleaner, whiter design.
+- **Verified:** `npm run lint:typography` passes; no `tsc` errors in login files. Not checked visually in a browser by the agent.
+
+## 2026-10-30 — Login: gradient Sign in button
+
+- **What:** `src/views/login.tsx` — **Sign in** pill now uses a sky→indigo gradient (`#0284c7` → `#4f46e5`), white text, soft coloured glow, brighten + lift on hover. Replaces the pale tinted pill.
+- **Why:** User asked for a better submit colour; the gradient picks up the cyan dot field / companion palette and the blue bloom behind the card. White text clears ~4:1 on the lightest stop.
+- **Verified:** `npm run lint:typography` passes. Not checked visually in a browser by the agent.
+
+## 2026-10-30 — Login: pill buttons, username/password form always visible
+
+- **What:** `src/views/login.tsx` — removed the **Admin login** expand toggle; email + password form now shows directly under **Continue with Microsoft**, separated by an "or use username & password" divider. Microsoft button, inputs and **Sign in** are compact pills (`rounded-full`, 40px tall, card narrowed to 340px). **Sign in** is a soft accent-tinted pill (uses the `--focus` theme colour) instead of the bright purple glow, so Microsoft stays the primary action. Inputs keep the field colour under browser autofill (no blue wash). OAuth error copy no longer mentions "Admin login".
+- **Why:** User found the hidden admin form and the clashing blue button out of place on the page; asked for the form inline, pill styling, smaller pills, and "username and password" wording instead of "admin".
+- **Verified:** `npm run lint:typography` passes; no `tsc` errors in the file; eslint shows only the existing `react-hooks/set-state-in-effect` error on the URL-error effect (present in HEAD too). Not checked visually by me — Playwright isn't installed here; dev server on :3000 serves `/login` 200.
+- **Not done:** The pre-existing set-state-in-effect lint error is untouched.
+
+## 2026-10-30 — SSO: sync display name from Entra on link and login
+
+- **What:** `provisionUserByOid` in `src/lib/rbac.ts` sets/updates `User.name` from the AAD token when linking a password-invited account and on each subsequent Microsoft sign-in (when the token includes a name).
+- **Why:** Invited users kept the admin-typed name (or blank) after first SSO.
+- **Verified:** Code review; no dedicated unit test for provisioning.
+- **Not done:** Does not overwrite with empty if Microsoft omits `name` in the token.
+
+## 2026-10-30 — Login: restore prior layout (Microsoft first, Admin login)
+
+- **What:** `src/views/login.tsx` — **Continue with Microsoft** primary; **Admin login** expand/collapse with email, show/hide password, purple **Sign in**; Dot companion **watching** / **privacy** / **peek** on field focus. Keeps theme tokens + credentials auth from same day.
+- **Why:** Recent change put email/password above SSO; user asked for the older design back.
+- **Verified:** Manual UI on login route.
+
+## 2026-10-30 — Email + password login (alongside Microsoft SSO)
+
+- **What:** Restored NextAuth **Credentials** provider (`src/lib/auth-credentials.ts`, `src/lib/auth.ts`). Login page shows email/password + **Sign in with email**, then **Continue with Microsoft**. `POST /api/users` stores `passwordHash` when invite includes a password (`authProvider: credentials`).
+- **Why:** Product had removed credentials UI/API; invited passwords were ignored and only SSO worked.
+- **Verified:** `tsc --noEmit` on auth paths.
+- **Config:** Set `ENABLE_CREDENTIALS_LOGIN=false` (server) or `NEXT_PUBLIC_ENABLE_CREDENTIALS_LOGIN=false` (login UI) to hide password sign-in. Users need a password set at invite (or seed) to use email login.
+
+## 2026-10-30 — Invite user: compact role picker
+
+- **What:** `RolePickerField` `layout="compact"` — single-line trigger, slim menu (badge + summary only; no long paragraphs in the list). Invite modal uses compact + one muted detail line under the field for the selected role only.
+- **Why:** Open role list showed four large cards and felt cluttered inside the invite dialog.
+- **Verified:** Manual UI review on Users invite.
+
+## 2026-10-29 — Auto-reap harvest jobs with no Fargate worker (overlap zombies)
+
+- **What:** `reapOrphanActiveJobs` fails active rows (queued/running/orchestrating) older than **10 minutes** with no `scope.fargate_task_id`. Runs on pipeline **intent** (Scanned Continue bar), after **kick-queued**, and **`launch` fails jobs immediately** when RunTask returns no task id.
+- **Why:** Failed ECS launch left `687b51c…`-style rows “active” forever → overlap banner and no logs; only manual cancel or 30m failStale (if a worker ever started) applied.
+- **Verified:** `src/lib/context/orphan-jobs.test.ts`; wired in `kick-queued-workers.ts`, `pipeline-intent.ts`, `jobs/launch/route.ts`.
+- **Not done:** Split-parent **orchestrating** rows with failed children still need ops review; does not fix root ECS/IAM misconfig (launch error still surfaces in failed job).
+
+## 2026-10-29 — Job Run: Cancel for stuck jobs without a Fargate worker
+
+- **What:** **Cancel** on `JobRunPage` (platform admin). `DELETE …/jobs/:id` cancels **running/orchestrating** jobs when scope has no `fargate_task_id`, not only **queued**. Active Runs shows Cancel for the same cases.
+- **Why:** Overlap banner links to Job Run; logs showed no Fargate task but Continue stayed blocked with no cancel control.
+- **Verified:** `canCancelJob` in `job-ui.ts`; Job Run + Active Runs wiring.
+- **Not done:** Cancel does not stop ECS when `fargate_task_id` is set.
+
+## 2026-10-29 — Agent reply tables: inspector-style expanded row
+
+- **What:** Replaced the card grid in an expanded agent-reply row (and JSON record replies) with full-width bands: section label on the left, content on the right, hairline between bands. Order is Recommended actions → Gaps/issues → facts → nested tables → "Not provided". Facts are a stacked label/value grid; gap items use ring markers and flow into columns when there are more than 3; snake_case field names render as inline code; counts sit beside the label. A guide line drops from the row chevron, and the open-row tint is now neutral (was brand gold). Files: `src/components/workbench/StreamingMessage.tsx` (`DetailBand`, `DetailBody`, `DetailList`, `FieldGrid`, `renderDetailText`, `DataTable`, `RecordJsonBlock`).
+- **Fix:** New `splitDetailItems` in `src/components/workbench/json-table.ts` skips `; ` inside brackets, so `unclosed (no closed_by; closure date unusable)` stays one gap and isn't split in two.
+- **Why:** User found the bordered-card layout generic and hard to scan.
+- **Verified:** `npx vitest run src/components/workbench` (25 pass, incl. new `splitDetailItems` tests); typography guard test; `tsc --noEmit`; eslint on changed files. Not checked visually in the running app.
+
 ## 2026-10-29 — Users role picker: typography tokens (CI guard)
 
 - **What:** Replaced `text-[10px]` / `text-[11px]` in `RolePickerField.tsx`, `RoleBadge.tsx`, `ChangeRoleModal.tsx` with `text-eyebrow`, `text-size-caption`, and related tokens.

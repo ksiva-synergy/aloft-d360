@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
+import { canCancelJob } from '@/lib/estate/job-ui';
 import { inkOf } from '@/lib/typography/tokens';
 
 interface ActiveJobRow {
@@ -414,19 +415,21 @@ export default function ActiveRunsPanel({
                           Retry failed
                         </button>
                       )}
-                      {canRunPipeline && row.status === 'queued' && (
+                      {canRunPipeline && canCancelJob({ status: row.status, scope: row.scope }) && (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => kick(row.id)}
-                            className="text-label mr-2 px-2 py-1 rounded border"
-                            style={{
-                              borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)',
-                              color: 'var(--brand-a-ink)',
-                            }}
-                          >
-                            Kick
-                          </button>
+                          {row.status === 'queued' && (
+                            <button
+                              type="button"
+                              onClick={() => kick(row.id)}
+                              className="text-label mr-2 px-2 py-1 rounded border"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)',
+                                color: 'var(--brand-a-ink)',
+                              }}
+                            >
+                              Kick
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => cancel(row.id)}
