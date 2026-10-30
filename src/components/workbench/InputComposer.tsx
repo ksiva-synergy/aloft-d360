@@ -228,8 +228,6 @@ interface ModelSelectorProps {
 }
 
 const PROVIDER_COLORS: Record<string, string> = {
-
-const PROVIDER_COLORS: Record<string, string> = {
   anthropic: '#f97316',
   mistral:   '#a78bfa',
   openai:    '#22c55e',
