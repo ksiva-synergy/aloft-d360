@@ -6,6 +6,7 @@ import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
 import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
+import { hashPassword } from '@/lib/auth-credentials';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,6 +150,7 @@ export const GET = handle(async (req) => {
 const CreateUser = z.object({
   email: z.string().email(),
   name: z.string().optional(),
+  password: z.string().min(8).optional(),
   roles: z.array(z.string()).optional(), // role names; defaults to ["readonly"]
 });
 
@@ -176,6 +178,9 @@ export const POST = handle(async (req) => {
 
   const roleLinks = roles.map((r) => ({ roleId: r.id, assignedBy: auth.userId }));
 
+  const passwordHash = body.password ? await hashPassword(body.password) : null;
+  const authProvider = passwordHash ? 'credentials' : 'aad';
+
   const user = await prisma.$transaction(async (tx) => {
     if (existing?.deletedAt) {
       await tx.user.update({
@@ -188,11 +193,11 @@ export const POST = handle(async (req) => {
       data: {
         email,
         name: body.name ?? null,
-        authProvider: 'aad',
-        passwordHash: null,
+        authProvider,
+        passwordHash,
         status: 'ACTIVE',
         isActive: true,
-        emailVerified: false,
+        emailVerified: Boolean(passwordHash),
         roles: { create: roleLinks },
       },
       select: userSelect,

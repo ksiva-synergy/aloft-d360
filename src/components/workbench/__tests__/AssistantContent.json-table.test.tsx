@@ -100,9 +100,12 @@ describe('AssistantContent tabular JSON', () => {
     expect(screen.getByText('PIBA')).toBeInTheDocument();
     expect(screen.queryByTestId('assistant-code-block')).not.toBeInTheDocument();
 
-    expect(screen.queryByText('sire_reference_no blank')).not.toBeInTheDocument();
+    // Field names inside gap text render as their own <code>, so match on the whole list item.
+    const gapItem = (_: string, el: Element | null) => el?.tagName === 'LI' && el.textContent === 'sire_reference_no blank';
+    expect(screen.queryByText(gapItem)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    expect(screen.getByText('sire_reference_no blank')).toBeInTheDocument();
+    expect(screen.getByText(gapItem)).toBeInTheDocument();
+    expect(screen.getByText('sire_reference_no').tagName).toBe('CODE');
     expect(screen.getByText('Recommended actions')).toBeInTheDocument();
   });
 });

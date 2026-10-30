@@ -27,6 +27,7 @@ import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
 import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
+import { failJobsAfterLaunchError } from '@/lib/context/orphan-jobs';
 import {
   type JobScopeRunnerFlags,
   mergeJobScopeRunnerFlags,
@@ -114,20 +115,30 @@ async function launchKind(
 
   let jobsEnqueued = 0;
   const sourceIds: (string | null)[] = [];
+  const enqueuedJobIds: string[] = [];
   if (['t0_structural', 't1_profile', 't2_semantic', 'embed', 'estate_inventory', 't3_usage'].includes(kind)) {
     for (const src of sources) {
-      await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId);
+      const row = await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId);
       sourceIds.push(src.id);
+      enqueuedJobIds.push(row.id);
       jobsEnqueued++;
     }
   } else {
     const sid = sources[0]?.id ?? null;
-    await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId);
+    const row = await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId);
     sourceIds.push(sid);
+    enqueuedJobIds.push(row.id);
     jobsEnqueued++;
   }
 
   const { taskId, taskArn, error } = await launchHarvesterTask(['--kind', kind]);
+
+  if (!taskId && enqueuedJobIds.length > 0) {
+    await failJobsAfterLaunchError(
+      enqueuedJobIds,
+      error ?? 'Harvester RunTask failed — no worker started',
+    );
+  }
 
   if (taskId) {
     // Merge fargate_task_id into the existing scope using JSONB || so we don't

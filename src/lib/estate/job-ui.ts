@@ -26,6 +26,14 @@ export function isKickableJob(job: { status: string; scope?: unknown }): boolean
   return job.status === 'queued';
 }
 
+/** Queued jobs, or active jobs that never got a Fargate worker (no logs, blocks overlap). */
+export function canCancelJob(job: { status: string; scope?: unknown }): boolean {
+  const scope = job.scope as Record<string, unknown> | null | undefined;
+  if (scope?.fargate_task_id) return false;
+  const s = job.status.toLowerCase();
+  return s === 'queued' || s === 'running' || s === 'orchestrating';
+}
+
 export function kindUsesEstateExcludeTree(kind: string): boolean {
   return kind === 't0_structural' || kind === 'estate_inventory';
 }

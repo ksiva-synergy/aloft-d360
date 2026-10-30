@@ -229,7 +229,7 @@ const PALETTE = {
   light: {
     rgb: ['8,145,178', '79,70,229', '14,116,144'], bad: '225,29,72', think: '99,102,241', core: '',
     blend: 'source-over' as GlobalCompositeOperation, glow: '8,145,178', glyph: '#0e7490', drop: '#0284c7', spark: '#0891b2', star: '8,145,178',
-    dot: '30,41,79', dotLit: '8,145,178', dotAlpha: 1.15,
+    dot: '30,41,79', dotLit: '8,145,178', dotAlpha: 0.75,
   },
 };
 
@@ -780,6 +780,17 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         @keyframes dot-sheen { 0%,70% { transform: translateX(-90px) } 100% { transform: translateX(110px) } }
         @media (prefers-reduced-motion: reduce) { .dot-companion .sheen { animation: none; } }
       `}</style>
+      {theme === 'light' && (
+        // tinted halo behind the head: gives the white helmet something to sit on
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 h-[230px] w-[230px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            top: DOT_TOP + DOT_H * 0.55,
+            background: 'radial-gradient(closest-side, rgba(56,189,248,.2), rgba(99,102,241,.1) 60%, rgba(99,102,241,0))',
+          }}
+        />
+      )}
       <canvas
         ref={backRef}
         aria-hidden
@@ -794,13 +805,19 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         style={{
           top: DOT_TOP, width: DOT_W, height: DOT_H, marginLeft: -DOT_W / 2,
           // on a light page the white helmet needs a soft shadow to stand off the background
-          filter: theme === 'light' ? 'drop-shadow(0 8px 18px rgba(30,40,90,.16))' : undefined,
+          filter: theme === 'light' ? 'drop-shadow(0 10px 22px rgba(30,40,90,.22))' : undefined,
         }}
       >
         <span
           ref={shadowRef}
-          className="absolute bottom-[-6px] left-1/2 h-[10px] w-[84px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0))', transformOrigin: 'center' }}
+          // centred with a margin, not translate: the animation loop owns `transform` (scaleX)
+          className="absolute bottom-0 left-1/2 ml-[-42px] h-[10px] w-[84px] rounded-full"
+          style={{
+            background: theme === 'light'
+              ? 'radial-gradient(closest-side, rgba(30,41,79,.32), rgba(30,41,79,0))'
+              : 'radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0))',
+            transformOrigin: 'center',
+          }}
         />
         <div ref={headRef} className="absolute inset-0 will-change-transform" style={{ transform: 'scale(0)', transformOrigin: '50% 60%' }}>
           <svg viewBox="0 0 120 110" width="100%" height="100%" className="block overflow-visible" aria-hidden>
@@ -817,11 +834,12 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
                 <rect x="22" y="31" width="76" height="46" rx="21" />
               </clipPath>
             </defs>
-            {/* ear pods */}
-            <rect x="5" y="44" width="9" height="22" rx="4.5" fill="#cfd7ee" />
-            <rect x="106" y="44" width="9" height="22" rx="4.5" fill="#cfd7ee" />
             {/* shell */}
-            <rect x="10" y="14" width="100" height="84" rx="38" fill="url(#dot-shell)" />
+            <rect
+              x="10" y="14" width="100" height="84" rx="38" fill="url(#dot-shell)"
+              // hairline edge so the white helmet doesn't melt into a white page
+              stroke={theme === 'light' ? 'rgba(30,41,79,.12)' : undefined} strokeWidth={1}
+            />
             <ellipse cx="42" cy="22" rx="16" ry="3.5" fill="#fff" opacity=".9" />
             {/* visor */}
             <rect x="22" y="31" width="76" height="46" rx="21" fill="url(#dot-glass)" />

@@ -118,6 +118,12 @@ export function isUsable(user: { status: string; isActive: boolean; deletedAt: D
   return !user.deletedAt && user.status === 'ACTIVE' && user.isActive;
 }
 
+/** Non-empty display name from an AAD token; omit when Microsoft sent nothing. */
+function displayNameFromAad(name: string | null | undefined): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export interface OidClaims {
   oid: string;
   tid?: string | null;
@@ -136,15 +142,19 @@ export interface OidClaims {
 export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAuth> {
   const { oid, tid, email, name, groups } = claims;
   const normalizedEmail = email ? email.toLowerCase() : null;
+  const aadName = displayNameFromAad(name);
 
   let user = await prisma.user.findUnique({ where: { aadObjectId: oid }, include: userAuthInclude });
 
   if (user) {
-    // (1) Known AAD identity — refresh login timestamps and return.
-    //     status/deletedAt gating is enforced by callers via isUsable().
+    // (1) Known AAD identity — refresh login timestamps; keep display name in sync with Entra.
     user = await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), lastSeenAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        lastSeenAt: new Date(),
+        ...(aadName ? { name: aadName } : {}),
+      },
       include: userAuthInclude,
     });
   } else {
@@ -170,6 +180,7 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
             authProvider: 'aad',
             lastLoginAt: new Date(),
             lastSeenAt: new Date(),
+            ...(aadName ? { name: aadName } : {}),
           },
           include: userAuthInclude,
         });
@@ -178,7 +189,12 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
           action: 'user.aad_linked',
           entityType: 'user',
           entityId: user.id,
-          after: { email: normalizedEmail, aadObjectId: oid, aadTenantId: tid ?? null },
+          after: {
+            email: normalizedEmail,
+            aadObjectId: oid,
+            aadTenantId: tid ?? null,
+            ...(aadName ? { name: aadName } : {}),
+          },
         });
         user = await syncPlatformAdminFromGroups(user, groups);
         return user;
@@ -194,7 +210,7 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
           aadTenantId: tid ?? undefined,
           // Guarantee a unique, non-null email even if the token omitted one.
           email: normalizedEmail ?? `${oid}@aad.local`,
-          name: name ?? null,
+          name: aadName ?? null,
           authProvider: 'aad',
           emailVerified: true,
           status: 'ACTIVE',

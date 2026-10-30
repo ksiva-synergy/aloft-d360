@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ChildJobsPanel from './ChildJobsPanel';
-import { mapJobStatus, isKickableJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
+import { mapJobStatus, isKickableJob, canCancelJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
 import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 import { inkOf } from '@/lib/typography/tokens';
 
@@ -1064,6 +1064,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
   const [objectCount, setObjectCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [kicking, setKicking] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [jobStatus, setJobStatus] = useState(job.status);
   const [jobLive, setJobLive] = useState(job);
 
@@ -1095,6 +1096,27 @@ export default function JobRunPage({ job }: { job: JobItem }) {
     navigator.clipboard.writeText(job.id);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCancel = async () => {
+    if (cancelling) return;
+    if (!window.confirm('Cancel this job? You can launch a new run after it is cleared.')) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/agent-lab/context/jobs/${job.id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success('Job cancelled');
+        setJobStatus('failed');
+        setJobLive((prev) => ({ ...prev, status: 'failed', error: 'Cancelled by user' }));
+      } else {
+        toast.error('Cannot cancel', { description: json.message ?? json.error ?? 'Unknown error' });
+      }
+    } catch {
+      toast.error('Network error — could not cancel job');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const handleKick = async () => {
@@ -1165,6 +1187,27 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                   </h1>
                   <KindBadge kind={job.job_kind} />
                   <StatusChip status={jobStatus} stats={jobLive.stats} jobKind={job.job_kind} />
+                  {canRunPipeline && canCancelJob({ status: jobStatus, scope: jobLive.scope ?? job.scope }) && (
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      disabled={cancelling}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded border text-label transition-colors"
+                      style={{
+                        color: '#FCA5A5',
+                        borderColor: cancelling ? 'color-mix(in srgb, #EF4444 25%, transparent)' : 'color-mix(in srgb, #EF4444 40%, transparent)',
+                        backgroundColor: 'color-mix(in srgb, #EF4444 8%, transparent)',
+                        opacity: cancelling ? 0.7 : 1,
+                        cursor: cancelling ? 'default' : 'pointer',
+                      }}
+                      title="Stop this job so Continue pipeline can run (no worker attached)"
+                    >
+                      {cancelling
+                        ? <><Loader2 size={11} className="animate-spin" /> Cancelling…</>
+                        : <><X size={11} /> Cancel</>
+                      }
+                    </button>
+                  )}
                   {canRunPipeline && isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
                     <button
                       type="button"

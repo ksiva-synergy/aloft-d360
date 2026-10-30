@@ -28,6 +28,7 @@ import {
   recordFromJson,
   recordsFromJson,
   splitDetailItem,
+  splitDetailItems,
   type DetailKind,
   type DetailTone,
   type JsonRecord,
@@ -701,20 +702,6 @@ function RecordJsonBlock({ code, record }: { code: string; record: JsonRecord })
   if (raw) {
     return <CodeBlockView lang="json" code={code} extra={<QuietButton label="Record" onClick={() => setRaw(false)} />} />;
   }
-  const overview = record.overview.length > 0 && (
-    <section
-      style={{
-        minWidth: 0,
-        gridColumn: '1 / -1',
-        borderRadius: 8,
-        border: `1px solid ${BORDER_SUBTLE}`,
-        background: SURFACE,
-        padding: '10px 12px',
-      }}
-    >
-      <FieldGrid pairs={record.overview} />
-    </section>
-  );
   return (
     <div
       data-testid="assistant-data-record"
@@ -733,12 +720,12 @@ function RecordJsonBlock({ code, record }: { code: string; record: JsonRecord })
         <QuietButton label="JSON" onClick={() => setRaw(true)} />
         <CopyButton text={code} />
       </div>
-      <div style={{ padding: 12 }}>
+      <div style={{ padding: '4px 16px' }}>
         <DetailList
           labels={record.sections.map((s) => s.label)}
           values={record.sections.map((s) => s.value)}
           kinds={record.sections.map((s) => s.kind)}
-          lead={overview}
+          overview={record.overview}
         />
       </div>
     </div>
@@ -757,54 +744,81 @@ function rowHasDetails(table: JsonTable, ri: number): boolean {
   return (table.details.rows[ri] ?? []).some((v) => v !== '—');
 }
 
-const DETAIL_TONE_STYLE: Record<DetailTone, { accent: string; heading: string; bg: string; border: string }> = {
-  issue: {
-    accent: 'var(--warn)',
-    heading: 'var(--warn)',
-    bg: 'var(--warn-bg)',
-    border: 'color-mix(in srgb, var(--warn) 28%, transparent)',
-  },
-  action: {
-    accent: GOLD,
-    heading: GOLD,
-    bg: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
-    border: BORDER_GOLD,
-  },
-  neutral: {
-    accent: 'color-mix(in srgb, var(--wb-muted) 45%, transparent)',
-    heading: MUTED,
-    bg: SURFACE,
-    border: BORDER_SUBTLE,
-  },
+// Expanded-row detail: one band per section, label column left, content right (inspector layout).
+const DETAIL_TONE_STYLE: Record<DetailTone, { heading: string; marker: string }> = {
+  issue: { heading: 'var(--warn)', marker: 'var(--warn)' },
+  action: { heading: GOLD, marker: GOLD },
+  neutral: { heading: MUTED, marker: 'color-mix(in srgb, var(--wb-muted) 55%, transparent)' },
 };
 
-const DETAIL_TONE_ORDER: Record<DetailTone, number> = { neutral: 0, issue: 1, action: 2 };
+const DETAIL_TONE_ORDER: Record<DetailTone, number> = { action: 0, issue: 1, neutral: 2 };
+
+const OPEN_ROW_BG = 'color-mix(in srgb, var(--wb-ink) 3%, transparent)';
+
+const FIELD_TOKEN = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/g;
 
 function isZeroValue(value: string): boolean {
   return /^0+(\.0+)?$/.test(value) || /^(no|false)$/i.test(value);
 }
 
+/** Detail prose with snake_case field names set in mono, so `closed_by` reads as a column, not a word. */
+function renderDetailText(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(FIELD_TOKEN)) {
+    const at = m.index ?? 0;
+    if (at > last) parts.push(...renderInline(text.slice(last, at)).map((n, i) => <React.Fragment key={`${last}-${i}`}>{n}</React.Fragment>));
+    parts.push(
+      <code
+        key={at}
+        style={{
+          ...type['code-inline'],
+          padding: '0 4px',
+          borderRadius: 4,
+          background: 'color-mix(in srgb, var(--wb-ink) 7%, transparent)',
+          color: INK,
+        }}
+      >
+        {m[0]}
+      </code>,
+    );
+    last = at + m[0].length;
+  }
+  if (last < text.length) parts.push(...renderInline(text.slice(last)).map((n, i) => <React.Fragment key={`${last}-${i}`}>{n}</React.Fragment>));
+  return parts;
+}
+
 function FieldGrid({ pairs }: { pairs: Array<{ label: string; value: string }> }) {
   return (
-    <dl style={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0, 1fr)', gap: '4px 14px', margin: 0 }}>
-      {pairs.map(({ label, value }) => (
-        <React.Fragment key={label}>
-          <dt style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>{label}</dt>
-          <dd
-            style={{
-              margin: 0,
-              ...mono,
-              fontSize: 'var(--type-ui-regular-size)',
-              fontVariantNumeric: 'tabular-nums',
-              fontWeight: isZeroValue(value) || value === '—' ? 400 : 600,
-              color: isZeroValue(value) || value === '—' ? MUTED : INK,
-              wordBreak: 'break-word',
-            }}
-          >
-            {value}
-          </dd>
-        </React.Fragment>
-      ))}
+    <dl
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+        gap: '10px 24px',
+        margin: 0,
+      }}
+    >
+      {pairs.map(({ label, value }) => {
+        const quiet = isZeroValue(value) || value === '—';
+        return (
+          <div key={label} style={{ minWidth: 0 }}>
+            <dt style={{ ...type.caption, color: MUTED, marginBottom: 2 }}>{label}</dt>
+            <dd
+              style={{
+                margin: 0,
+                ...mono,
+                fontSize: 'var(--type-ui-regular-size)',
+                fontVariantNumeric: 'tabular-nums',
+                fontWeight: quiet ? 400 : 600,
+                color: quiet ? MUTED : INK,
+                wordBreak: 'break-word',
+              }}
+            >
+              {value}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
@@ -856,78 +870,119 @@ function NestedTable({ labels, rows, total }: { labels: string[]; rows: string[]
   );
 }
 
-function DetailCard({ label, value, tone, kind = 'text' }: { label: string; value: string; tone: DetailTone; kind?: DetailKind }) {
+function DetailBand({
+  label,
+  tone,
+  count,
+  first,
+  children,
+}: {
+  label: string;
+  tone: DetailTone;
+  count?: number;
+  first: boolean;
+  children: React.ReactNode;
+}) {
   const style = DETAIL_TONE_STYLE[tone];
-  const nested = kind === 'records' ? nestedRecords(value) : null;
-  const items = nested ? [] : value.includes('; ') ? value.split('; ') : [value];
-  const pairs = items.map((item) => splitDetailItem(item));
-  const kv = items.flatMap((_, i) => (pairs[i] ? [pairs[i]!] : []));
-  const text = items.filter((_, i) => !pairs[i]);
   const Icon = tone === 'issue' ? AlertTriangle : tone === 'action' ? ArrowRight : null;
-  const count = nested ? nested.total : items.length;
-
   return (
     <section
       style={{
-        minWidth: 0,
-        gridColumn: tone === 'action' || nested ? '1 / -1' : undefined,
-        borderRadius: 8,
-        border: `1px solid ${style.border}`,
-        borderLeft: `3px solid ${style.accent}`,
-        background: style.bg,
-        padding: '10px 12px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px 20px',
+        padding: '12px 0',
+        borderTop: first ? 'none' : `1px solid ${BORDER_SUBTLE}`,
       }}
     >
-      <header style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, ...type.label, color: style.heading }}>
-        {Icon && <Icon size={12} aria-hidden />}
+      <header
+        style={{
+          flex: '0 0 148px',
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 6,
+          ...type.label,
+          color: style.heading,
+        }}
+      >
+        {Icon && <Icon size={12} aria-hidden style={{ alignSelf: 'center', flexShrink: 0 }} />}
         <span>{label}</span>
-        {(nested || (tone === 'issue' && count > 1)) && (
-          <span
-            style={{
-              marginLeft: 'auto',
-              ...mono,
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '0 6px',
-              borderRadius: 999,
-              background: tone === 'issue'
-                ? 'color-mix(in srgb, var(--warn) 16%, transparent)'
-                : 'color-mix(in srgb, var(--wb-muted) 14%, transparent)',
-            }}
-          >
-            {count}
-          </span>
+        {count != null && (
+          <span style={{ ...type.caption, ...mono, fontVariantNumeric: 'tabular-nums', color: MUTED }}>{count}</span>
         )}
       </header>
+      <div style={{ flex: '1 1 320px', minWidth: 0 }}>{children}</div>
+    </section>
+  );
+}
 
-      {nested && <NestedTable labels={nested.labels} rows={nested.rows} total={nested.total} />}
+function DetailBody({ value, tone, kind }: { value: string; tone: DetailTone; kind: DetailKind }) {
+  const nested = kind === 'records' ? nestedRecords(value) : null;
+  if (nested) return <NestedTable labels={nested.labels} rows={nested.rows} total={nested.total} />;
 
+  const items = splitDetailItems(value);
+  const pairs = items.map((item) => splitDetailItem(item));
+  const kv = items.flatMap((_, i) => (pairs[i] ? [pairs[i]!] : []));
+  const text = items.filter((_, i) => !pairs[i]);
+  const marker = DETAIL_TONE_STYLE[tone].marker;
+
+  if (tone === 'action') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {kv.length > 0 && <FieldGrid pairs={kv.map(({ key, value: v }) => ({ label: labelForKey(key), value: v }))} />}
+        {text.map((t, j) => (
+          <p key={j} style={{ margin: 0, color: INK, fontWeight: 500, lineHeight: 1.55 }}>{renderDetailText(t)}</p>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {kv.length > 0 && <FieldGrid pairs={kv.map(({ key, value: v }) => ({ label: labelForKey(key), value: v }))} />}
-
-      {text.length > 0 && tone === 'action' && (
-        <div style={{ marginTop: kv.length ? 8 : 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {text.length > 0 && (
+        <ul
+          style={{
+            listStyle: 'none',
+            margin: 0,
+            padding: 0,
+            // Issue lists flow into columns so a long gap list stays short.
+            ...(tone === 'issue' && text.length > 3 ? { columns: '260px', columnGap: 28 } : {}),
+          }}
+        >
           {text.map((t, j) => (
-            <p key={j} style={{ margin: 0, color: INK, fontWeight: 500, lineHeight: 1.55 }}>{renderInline(t)}</p>
-          ))}
-        </div>
-      )}
-
-      {text.length > 0 && tone !== 'action' && (
-        <ul style={{ listStyle: 'none', margin: kv.length ? '8px 0 0' : 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {text.map((t, j) => (
-            <li key={j} style={{ display: 'flex', gap: 8, alignItems: 'baseline', color: INK, lineHeight: 1.5, wordBreak: 'break-word' }}>
-              {items.length > 1 && (
+            <li
+              key={j}
+              style={{
+                display: 'flex',
+                gap: 10,
+                alignItems: 'baseline',
+                breakInside: 'avoid',
+                padding: '2px 0',
+                color: tone === 'issue' ? INK : INK_DIM,
+                lineHeight: 1.5,
+                wordBreak: 'break-word',
+              }}
+            >
+              {(tone === 'issue' || text.length > 1) && (
                 <span
                   aria-hidden
-                  style={{ flexShrink: 0, width: 5, height: 5, borderRadius: 999, background: style.accent, transform: 'translateY(-2px)' }}
+                  style={{
+                    flexShrink: 0,
+                    width: 6,
+                    height: 6,
+                    borderRadius: 999,
+                    border: `1.5px solid ${marker}`,
+                    transform: 'translateY(-1px)',
+                  }}
                 />
               )}
-              <span>{renderInline(t)}</span>
+              <span>{renderDetailText(t)}</span>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -935,27 +990,40 @@ function DetailList({
   labels,
   values,
   kinds,
-  lead,
+  overview,
 }: {
   labels: string[];
   values: string[];
   kinds?: DetailKind[];
-  lead?: React.ReactNode;
+  overview?: Array<{ label: string; value: string }>;
 }) {
   const sections = labels
     .map((label, i) => ({ label, value: values[i] ?? '—', kind: kinds?.[i] ?? 'text', tone: detailTone(label), i }))
     .filter((s) => s.value !== '—')
     .sort((a, b) => DETAIL_TONE_ORDER[a.tone] - DETAIL_TONE_ORDER[b.tone] || a.i - b.i);
   const missing = labels.filter((_, i) => (values[i] ?? '—') === '—');
+  const hasOverview = !!overview && overview.length > 0;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
-      {lead}
-      {sections.map((s) => <DetailCard key={s.label} label={s.label} value={s.value} tone={s.tone} kind={s.kind} />)}
+    <div>
+      {hasOverview && (
+        <DetailBand label="Overview" tone="neutral" first>
+          <FieldGrid pairs={overview} />
+        </DetailBand>
+      )}
+      {sections.map((s, n) => {
+        const nested = s.kind === 'records' ? nestedRecords(s.value) : null;
+        const count = nested ? nested.total : s.tone === 'issue' ? splitDetailItems(s.value).length : undefined;
+        return (
+          <DetailBand key={s.label} label={s.label} tone={s.tone} count={count && count > 1 ? count : undefined} first={!hasOverview && n === 0}>
+            <DetailBody value={s.value} tone={s.tone} kind={s.kind} />
+          </DetailBand>
+        );
+      })}
       {missing.length > 0 && (
-        <p style={{ gridColumn: '1 / -1', margin: 0, color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>
-          Not provided: {missing.join(', ')}
-        </p>
+        <DetailBand label="Not provided" tone="neutral" first={!hasOverview && sections.length === 0}>
+          <span style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>{missing.join(', ')}</span>
+        </DetailBand>
       )}
     </div>
   );
@@ -1067,7 +1135,7 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                     onClick={canOpen ? () => toggle(ri) : undefined}
                     style={{
                       cursor: canOpen ? 'pointer' : undefined,
-                      background: isOpen ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : undefined,
+                      background: isOpen ? OPEN_ROW_BG : undefined,
                     }}
                   >
                     {anyExpandable && (
@@ -1106,9 +1174,12 @@ function DataTable({ code, table, onShowJson }: { code: string; table: JsonTable
                     })}
                   </tr>
                   {isOpen && (
-                    <tr style={{ background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)' }}>
-                      <td colSpan={colSpan} style={{ padding: '4px 14px 16px 50px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-                        <DetailList labels={table.details.labels} values={table.details.rows[ri]} kinds={table.details.kinds} />
+                    <tr style={{ background: OPEN_ROW_BG }}>
+                      <td colSpan={colSpan} style={{ padding: '0 14px 12px 20px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+                        {/* Guide line drops from the chevron so the panel reads as this row's children. */}
+                        <div style={{ borderLeft: `1px solid ${BORDER_SUBTLE}`, paddingLeft: 29 }}>
+                          <DetailList labels={table.details.labels} values={table.details.rows[ri]} kinds={table.details.kinds} />
+                        </div>
                       </td>
                     </tr>
                   )}

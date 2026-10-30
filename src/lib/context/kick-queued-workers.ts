@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { launchHarvesterTask } from './launch-harvester';
+import { reapOrphanActiveJobs } from './orphan-jobs';
 
 /** Queued jobs younger than this may still be receiving a task id from the launcher. */
 export const ORPHAN_QUEUE_MIN_AGE_MS = 15_000;
@@ -76,4 +77,6 @@ async function runKick(orgId: string, minAgeMs: number): Promise<void> {
     }
     console.log(`[kick-queued] ${kind} task=${taskId} jobs=${ids.length}`);
   }
+
+  await reapOrphanActiveJobs(orgId);
 }
