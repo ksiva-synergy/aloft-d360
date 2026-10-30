@@ -414,7 +414,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models, 
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: isActive ? 600 : 500 }}>
-                                {m.label}
+                                {m.label.replace(/ \(LLM Lite\)$/, '')}
                               </span>
                               {m.supportsThinking && <span style={chipStyle('#8b5cf6')}>Thinking</span>}
                               {!m.supportsTools && <span style={chipStyle('#94a3b8')}>No tools</span>}
