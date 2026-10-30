@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { runAgentLoop, dispatchAgentLoop, hasXai } = vi.hoisted(() => ({ runAgentLoop: vi.fn(), dispatchAgentLoop: vi.fn(), hasXai: vi.fn() }));
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop }));
 vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop }));
 vi.mock('@/lib/inspector/llm-configured', async (orig) => ({ ...(await orig<object>()), hasXaiCredentials: hasXai }));

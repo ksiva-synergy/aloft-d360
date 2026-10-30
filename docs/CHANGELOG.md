@@ -9,6 +9,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Verified:** `tsc --noEmit` shows no errors in the touched files.
 - **Not done:** Opus 5.5 needs Bedrock access in the deployed env.
 
+## 2026-10-30 — CI test fixes
+
+- **What:** `InputComposer.tsx` tile `fontWeight` 700→600 (typography guard `heavyWeights`); `job-scope-flags.test.ts` expects `allowFullSourceLaunch: false`; `propose.test.ts` mocks `server-only`.
+- **Why:** CI had 3 failing suites (the `act(...)` warning from `AgentPicker` is only a warning).
+- **Verified:** Full `vitest run` 131 files / 937 tests passed; `tsc --noEmit` clean.
+- **Not done:** `act()` warning in `AgentStep.tsx` tests left as is.
+
 ## 2026-10-30 — Model selector redesign
 
 - **What:** `src/components/workbench/InputComposer.tsx` — `ModelSelector` (Inspector + Agents workbench composer): pill trigger with provider dot, 320px rounded popover with search (Enter picks first match, Esc closes), provider groups, provider tiles, Thinking / No tools chips, check on the active model.
