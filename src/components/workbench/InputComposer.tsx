@@ -406,7 +406,7 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models, 
                               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                               background: `color-mix(in srgb, ${color} 14%, transparent)`,
                               border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
-                              color, ...sans, fontSize: 12, fontWeight: 700,
+                              color, ...sans, fontSize: 12, fontWeight: 600,
                             }}
                           >
                             {(PROVIDER_LABELS[provider] ?? provider).charAt(0)}

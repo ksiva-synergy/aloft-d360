@@ -11,6 +11,7 @@ describe('job-scope-flags', () => {
       forceReprofile: true,
       forceReEnrich: false,
       forceFullScan: false,
+      allowFullSourceLaunch: false,
     });
   });
 
