@@ -11,6 +11,8 @@ import {
   Loader2,
   ChevronDown,
   CheckCircle2,
+  Check,
+  Search,
   Zap,
 } from 'lucide-react';
 import { AVAILABLE_MODELS, type ModelOption } from '@/components/agent-lab/workbench/types';
@@ -222,7 +224,10 @@ interface ModelSelectorProps {
   onModelChange: (key: string) => void;
   disabled?: boolean;
   models?: ModelOption[];
+  align?: 'left' | 'right';
 }
+
+const PROVIDER_COLORS: Record<string, string> = {
 
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: '#f97316',
@@ -235,8 +240,33 @@ const PROVIDER_COLORS: Record<string, string> = {
   llmlite:   '#2dd4bf',
 };
 
-export function ModelSelector({ selectedModel, onModelChange, disabled, models }: ModelSelectorProps) {
+const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: 'Anthropic',
+  mistral:   'Mistral',
+  openai:    'OpenAI',
+  xai:       'xAI',
+  moonshot:  'Moonshot',
+  deepseek:  'DeepSeek',
+  qwen:      'Qwen',
+  llmlite:   'LLM Lite',
+};
+
+const chipStyle = (color: string): React.CSSProperties => ({
+  ...type['ui-regular'],
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '1px 6px',
+  borderRadius: 999,
+  color,
+  background: `color-mix(in srgb, ${color} 12%, transparent)`,
+  border: `1px solid color-mix(in srgb, ${color} 22%, transparent)`,
+  lineHeight: 1.4,
+  whiteSpace: 'nowrap',
+});
+
+export function ModelSelector({ selectedModel, onModelChange, disabled, models, align = 'left' }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   const options = models ?? AVAILABLE_MODELS;
   const current = options.find(m => m.key === selectedModel) ?? options[1] ?? options[0];
@@ -248,41 +278,56 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
-  const grouped = options.reduce<Record<string, ModelOption[]>>((acc, m) => {
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? options.filter(m => `${m.label} ${m.provider} ${m.description}`.toLowerCase().includes(q))
+    : options;
+  const grouped = filtered.reduce<Record<string, ModelOption[]>>((acc, m) => {
     acc[m.provider] = acc[m.provider] ? [...acc[m.provider], m] : [m];
     return acc;
   }, {});
+  const close = () => { setOpen(false); setQuery(''); };
+  const pick = (key: string) => { onModelChange(key); close(); };
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         type="button"
-        onClick={() => canPickModel && !disabled && setOpen(o => !o)}
+        onClick={() => { if (canPickModel && !disabled) { setQuery(''); setOpen(o => !o); } }}
         disabled={disabled || !canPickModel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 5,
-          background: 'transparent',
-          border: 'none',
+          gap: 7,
+          background: open ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : SURFACE,
+          border: `1px solid ${open ? BORDER_GOLD : BORDER_SUBTLE}`,
           cursor: disabled || !canPickModel ? 'default' : 'pointer',
-          padding: '4px 6px',
-          borderRadius: 5,
+          padding: '4px 10px 4px 8px',
+          borderRadius: 999,
           opacity: disabled ? 0.5 : 1,
-          transition: 'background 0.15s',
+          transition: 'background 0.15s, border-color 0.15s',
         }}
-        onMouseEnter={e => { if (!disabled && canPickModel) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+        onMouseEnter={e => { if (!disabled && canPickModel && !open) e.currentTarget.style.borderColor = BORDER_GOLD; }}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
       >
-        <Zap size={11} style={{ color: providerColor, flexShrink: 0 }} />
-        <span style={{ ...type['ui-regular'], color: INK_DIM, whiteSpace: 'nowrap' }}>
+        <span style={{ width: 7, height: 7, borderRadius: 999, background: providerColor, boxShadow: `0 0 0 3px color-mix(in srgb, ${providerColor} 18%, transparent)`, flexShrink: 0 }} />
+        <span style={{ ...type['ui-regular'], color: INK, fontWeight: 500, whiteSpace: 'nowrap' }}>
           {current.label}
         </span>
-        {canPickModel && <ChevronDown size={10} style={{ color: MUTED, flexShrink: 0 }} />}
+        {canPickModel && (
+          <ChevronDown size={11} style={{ color: MUTED, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+        )}
       </button>
 
       <AnimatePresence>
@@ -295,63 +340,98 @@ export function ModelSelector({ selectedModel, onModelChange, disabled, models }
             style={{
               position: 'absolute',
               bottom: 'calc(100% + 8px)',
-              left: 0,
+              [align]: 0,
               background: SURFACE2,
-              border: `1px solid ${BORDER_GOLD}`,
-              borderRadius: 8,
+              border: `1px solid ${BORDER_SUBTLE}`,
+              borderRadius: 14,
               overflow: 'hidden',
-              minWidth: 240,
+              width: 320,
               zIndex: 200,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25)',
+              transformOrigin: align === 'right' ? 'bottom right' : 'bottom left',
             }}
           >
-            <div style={{ padding: '8px 12px 6px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
-              <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Model</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderBottom: `1px solid ${BORDER_SUBTLE}` }}>
+              <Search size={13} style={{ color: MUTED, flexShrink: 0 }} />
+              <input
+                autoFocus
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && filtered[0]) { e.preventDefault(); pick(filtered[0].key); }
+                }}
+                placeholder="Search models"
+                aria-label="Search models"
+                style={{ ...type['ui-regular'], flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: INK }}
+              />
             </div>
-            <div style={{ maxHeight: 280, overflowY: 'auto', padding: '4px 0' }}>
-              {Object.entries(grouped).map(([provider, models]) => (
-                <div key={provider}>
-                  <div style={{ padding: '6px 12px 3px', ...type['ui-regular'], color: PROVIDER_COLORS[provider] ?? MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
-                    {provider === 'llmlite' ? 'LLM Lite' : provider}
-                  </div>
-                  {models.map(m => {
-                    const isActive = m.key === selectedModel;
-                    return (
-                      <button
-                        key={m.key}
-                        onClick={() => { onModelChange(m.key); setOpen(false); }}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: 10,
-                          padding: '7px 12px',
-                          background: isActive ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          transition: 'background 0.1s',
-                        }}
-                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 4%, transparent)'; }}
-                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <div style={{ width: 14, paddingTop: 2, flexShrink: 0 }}>
-                          {isActive && <CheckCircle2 size={12} style={{ color: GOLD }} />}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: isActive ? GOLD : INK, fontWeight: isActive ? 600 : 400 }}>
-                            {m.label}
-                            {m.supportsThinking && (
-                              <span style={{ ...type['ui-regular'], color: inkOf('#8b5cf6'), marginLeft: 6, letterSpacing: '0.04em' }}>thinking</span>
-                            )}
+            <div role="listbox" aria-label="Models" style={{ maxHeight: 340, overflowY: 'auto', padding: 6 }}>
+              {filtered.length === 0 && (
+                <div style={{ ...type['ui-regular'], color: MUTED, padding: '16px 8px', textAlign: 'center' }}>No models match</div>
+              )}
+              {Object.entries(grouped).map(([provider, models]) => {
+                const color = PROVIDER_COLORS[provider] ?? MUTED;
+                return (
+                  <div key={provider} style={{ marginBottom: 4 }}>
+                    <div style={{ padding: '8px 8px 4px', ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+                      {PROVIDER_LABELS[provider] ?? provider}
+                    </div>
+                    {models.map(m => {
+                      const isActive = m.key === selectedModel;
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          onClick={() => pick(m.key)}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 8px',
+                            borderRadius: 9,
+                            background: isActive ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 5%, transparent)'; }}
+                          onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <span
+                            aria-hidden
+                            style={{
+                              width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                              background: `color-mix(in srgb, ${color} 14%, transparent)`,
+                              border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+                              color, ...sans, fontSize: 12, fontWeight: 700,
+                            }}
+                          >
+                            {(PROVIDER_LABELS[provider] ?? provider).charAt(0)}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: isActive ? 600 : 500 }}>
+                                {m.label}
+                              </span>
+                              {m.supportsThinking && <span style={chipStyle('#8b5cf6')}>Thinking</span>}
+                              {!m.supportsTools && <span style={chipStyle('#94a3b8')}>No tools</span>}
+                            </div>
+                            <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {m.description}
+                            </div>
                           </div>
-                          <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 1 }}>{m.description}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+                          {isActive && <Check size={14} style={{ color: GOLD, flexShrink: 0 }} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
         )}

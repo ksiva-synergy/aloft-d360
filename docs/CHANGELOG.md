@@ -9,6 +9,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Verified:** `tsc --noEmit` shows no errors in the touched files.
 - **Not done:** Opus 5.5 needs Bedrock access in the deployed env.
 
+## 2026-10-30 — Model selector redesign
+
+- **What:** `src/components/workbench/InputComposer.tsx` — `ModelSelector` (Inspector + Agents workbench composer): pill trigger with provider dot, 320px rounded popover with search (Enter picks first match, Esc closes), provider groups, provider tiles, Thinking / No tools chips, check on the active model.
+- **Why:** Requested; old picker looked dated.
+- **Verified:** `tsc --noEmit` clean; not visually checked in a browser. ESLint's only error is the existing `setLoading` in an effect (line 56).
+- **Not done:** The native `<select>` in `src/views/agent-lab/agents/use.tsx` is unchanged.
+
 ## 2026-10-30 — Opus 5.5 (Bedrock) only: removed Grok fallback
 
 - **What:** Removed the "retry with Grok" fallback from `src/app/api/inspector/chat/route.ts` and `src/app/api/agent-lab/workbench/chat/route.ts` (Inspector + Agents/workbench chat); workbench Bedrock fallback id and `useInspectorChat` fallback key now Opus 5.5.

@@ -10,6 +10,7 @@ import { CaptainStatus } from '@/components/companion/CaptainStatus';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
 import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
+import { ModelSelector } from '@/components/workbench/InputComposer';
 import {
   isAgentUseChatRunning,
   persistAgentUseMessages,
@@ -217,6 +218,15 @@ export default function UseAgentPage() {
           disabled={chatBusy}
           className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
         />
+        <div className="shrink-0 self-end pb-0.5">
+          <ModelSelector
+            selectedModel={previewModel}
+            onModelChange={onModelChange}
+            models={chatModels}
+            disabled={chatBusy || chatModels.length === 0}
+            align="right"
+          />
+        </div>
         {chatBusy ? (
           <button
             type="button"
@@ -237,31 +247,6 @@ export default function UseAgentPage() {
           </button>
         )}
       </form>
-      <div
-        className="mx-auto mt-2 flex w-full flex-wrap items-center gap-x-3 gap-y-1"
-        style={{ maxWidth: CHAT_COMPOSER_MAX_PX }}
-      >
-        <label htmlFor="agent-use-model" className="text-size-ui text-[var(--ink-3)]">
-          Model
-        </label>
-        <select
-          id="agent-use-model"
-          value={previewModel}
-          onChange={(e) => onModelChange(e.target.value)}
-          disabled={chatBusy || chatModels.length === 0}
-          className="min-w-[12rem] max-w-full flex-1 rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)] px-2.5 py-1.5 text-size-ui text-[var(--ink-1)] outline-none focus:border-[var(--brand-a)] disabled:opacity-50"
-        >
-          {chatModels.map((m) => (
-            <option key={m.key} value={m.key}>
-              {m.label}
-              {m.provider === 'llmlite' ? ' (LLM Lite)' : ''}
-            </option>
-          ))}
-        </select>
-        <span className="text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
-          Gateway models refresh from LLM Lite automatically (about every minute, or when you refocus the tab).
-        </span>
-      </div>
       <p className="mt-2 w-full text-center text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
         Enter to send · Shift+Enter for a new line
       </p>
