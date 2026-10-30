@@ -163,6 +163,7 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-10-30 | Table-level Limit (`catalog.schema.table`) plans the matching objects at launch — previously 0 → `NO_OBJECTS_IN_SCOPE` for Continue pipeline / Jobs on a single table |
 | 2026-10-27 | Catalog pipeline includes **embed**; orphaned chain jobs are launched from the web; orchestrator continues in-process when follow-up `RunTask` fails (needs harvester image deploy) |
 | 2026-10-27 | Catalog **Run pipeline now** + **Run scheduled now**; source harvest/inventory/refresh **launch workers**; Jobs **re-run flags**; `POST …/estate/run-scheduled` |
 | 2026-10-26 | Scope batch (T1/T2 excludes, embed/T3 scope, T0 live launch); **P1-11** inventory Limit; **P1-14** source picker; **T1 stale-only**; **P1-19** knowledge_sync |

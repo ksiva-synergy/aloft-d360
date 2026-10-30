@@ -103,7 +103,8 @@ export async function runEstateInventory(
     mode: 'system',
   };
 
-  const catalogsSeen = new Set<string>();
+  /** catalog.schema pairs upserted this run — remove diff is limited to these, not whole catalogs. */
+  const schemasSeen = new Set<string>();
 
   for await (const batch of adapter.inventoryEstate(source)) {
     if (batch.length === 0) continue;
@@ -114,7 +115,7 @@ export async function runEstateInventory(
     if (scopedBatch.length === 0) continue;
 
     for (const row of scopedBatch) {
-      catalogsSeen.add(row.table_catalog);
+      schemasSeen.add(`${row.table_catalog}.${row.table_schema}`);
     }
 
     const { insertCount, updateCount } = await upsertBatch(scopedBatch, sourceId, orgId);
@@ -122,27 +123,29 @@ export async function runEstateInventory(
     stats.updated += updateCount;
   }
 
-  stats.catalogs = catalogsSeen.size;
+  stats.catalogs = new Set(
+    [...schemasSeen].map(key => key.split('.')[0]).filter(Boolean),
+  ).size;
   stats.mode = adapter.queryCount <= 3 ? 'system' : 'per-catalog';
 
-  // Diff soft-delete: within each catalog we actually inventoried this run, mark
-  // active rows that were not refreshed (dropped in Databricks). Do NOT touch
-  // catalogs outside catalogsSeen — a partial sweep (narrow scope, permission
-  // skips, etc.) must not mark the rest of the estate as removed.
-  if (catalogsSeen.size > 0) {
-    const catalogList = Array.from(catalogsSeen);
+  // Diff soft-delete: within each catalog.schema we actually upserted this run,
+  // mark active rows that were not refreshed (gone in Databricks). Do NOT touch
+  // other schemas or catalogs — a partial sweep (one schema, narrow scope, etc.)
+  // must not mark the rest of the estate as removed.
+  if (schemasSeen.size > 0) {
+    const schemaKeyList = Array.from(schemasSeen);
     const removeResult = await prisma.$executeRawUnsafe(
       `UPDATE platform_estate_objects
        SET lifecycle = 'removed'
        WHERE org_id = $1
          AND source_id = $2
          AND lifecycle = 'active'
-         AND catalog_name = ANY($4::text[])
+         AND (catalog_name || '.' || schema_name) = ANY($4::text[])
          AND last_inventoried_at < $3`,
       orgId,
       sourceId,
       sweepStart,
-      catalogList,
+      schemaKeyList,
     );
     stats.removed = removeResult;
   }

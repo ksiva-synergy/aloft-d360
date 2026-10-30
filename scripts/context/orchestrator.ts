@@ -53,21 +53,38 @@ async function advanceChain(
   orgId: string,
   parentScope: Record<string, unknown>,
   sourceId: string,
+  parentJobId: string,
 ) {
-  const chain = Array.isArray(parentScope.chain) ? (parentScope.chain as string[]) : [];
+  const row = await prisma.platformContextJob.findUnique({
+    where: { id: parentJobId },
+    select: { scope: true },
+  });
+  const dbScope = (row?.scope ?? {}) as Record<string, unknown>;
+  const mergedScope: Record<string, unknown> = { ...dbScope, ...parentScope };
+  if (Array.isArray(dbScope.includePatterns) && (dbScope.includePatterns as string[]).length > 0) {
+    mergedScope.includePatterns = dbScope.includePatterns;
+  }
+  if (Array.isArray(dbScope.excludeSchemas) && (dbScope.excludeSchemas as string[]).length > 0) {
+    mergedScope.excludeSchemas = dbScope.excludeSchemas;
+  }
+  if (dbScope.allowFullSourceLaunch === true) {
+    mergedScope.allowFullSourceLaunch = true;
+  }
+
+  const chain = Array.isArray(mergedScope.chain) ? (mergedScope.chain as string[]) : [];
   if (chain.length === 0) return;
 
   const [nextKind, ...remaining] = chain as JobKind[];
 
   const childScope: Record<string, unknown> = {};
-  if (Array.isArray(parentScope.excludeSchemas) && (parentScope.excludeSchemas as string[]).length > 0) {
-    childScope.excludeSchemas = parentScope.excludeSchemas;
+  if (Array.isArray(mergedScope.excludeSchemas) && (mergedScope.excludeSchemas as string[]).length > 0) {
+    childScope.excludeSchemas = mergedScope.excludeSchemas;
   }
-  if (Array.isArray(parentScope.includePatterns) && (parentScope.includePatterns as string[]).length > 0) {
-    childScope.includePatterns = parentScope.includePatterns;
+  if (Array.isArray(mergedScope.includePatterns) && (mergedScope.includePatterns as string[]).length > 0) {
+    childScope.includePatterns = mergedScope.includePatterns;
   }
   if (remaining.length > 0) childScope.chain = remaining;
-  const childScopeWithFlags = copyRunnerFlagsToChildScope(parentScope, childScope);
+  const childScopeWithFlags = copyRunnerFlagsToChildScope(mergedScope, childScope);
 
   const scopeOrNull = Object.keys(childScopeWithFlags).length > 0 ? childScopeWithFlags : null;
   const created = await enqueue(nextKind, sourceId, scopeOrNull, 'on_demand', orgId);
@@ -212,7 +229,7 @@ async function dispatchSingleJob(
       }, result.error);
       console.log(`[t0_structural] source=${job.source_id} objects=${result.objectsSwept} status=${result.status}`);
       if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
-        await advanceChain(orgId, scope, job.source_id);
+        await advanceChain(orgId, scope, job.source_id, job.id);
       }
       return { status: result.status, error: result.error };
     }
@@ -238,7 +255,7 @@ async function dispatchSingleJob(
       }, result.error);
       console.log(`[t1_profile] source=${job.source_id} objects=${result.objectsSwept} status=${result.status}`);
       if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
-        await advanceChain(orgId, scope, job.source_id);
+        await advanceChain(orgId, scope, job.source_id, job.id);
       }
       return { status: result.status, error: result.error };
     }
@@ -252,13 +269,14 @@ async function dispatchSingleJob(
         excludeSchemas: effectiveExcludeSchemas,
         includePatterns: effectiveIncludePatterns,
         ...(runnerFlags.forceReEnrich ? { forceReEnrich: true } : {}),
+        ...(runnerFlags.allowFullSourceLaunch ? { allowFullSourceLaunch: true } : {}),
         ...(partitionCatalog ? { partitionCatalog } : {}),
         ...(partitionSchema ? { partitionSchema } : {}),
         ...(partitionObjects ? { partitionObjects } : {}),
       });
       console.log(`[t2_semantic] source=${job.source_id} objects=${result.objectsEnriched} columns=${result.columnsEnriched} cost=$${result.costUsd.toFixed(4)} status=${result.status}`);
       if (shouldAdvanceJobChain(result.status) && !job.parent_job_id) {
-        await advanceChain(orgId, scope, job.source_id);
+        await advanceChain(orgId, scope, job.source_id, job.id);
       }
       return { status: result.status };
     }
@@ -355,7 +373,7 @@ async function dispatchSingleJob(
         ` skipped=${embedObjResult.skipped + embedColResult.skipped} failed=${embedObjResult.failed + embedColResult.failed} status=${embedStatus}`,
       );
       if (shouldAdvanceJobChain(embedStatus) && !job.parent_job_id) {
-        await advanceChain(orgId, scope, job.source_id);
+        await advanceChain(orgId, scope, job.source_id, job.id);
       }
       return { status: embedStatus };
     }
@@ -448,7 +466,7 @@ async function dispatchSingleJob(
       const status = batch.errors > 0 && batch.synced === 0 ? 'failed' : batch.errors > 0 ? 'partial' : 'succeeded';
       await finalize(job.id, status, batch as unknown as Record<string, unknown>);
       if (shouldAdvanceJobChain(status) && !job.parent_job_id) {
-        await advanceChain(orgId, scope, job.source_id);
+        await advanceChain(orgId, scope, job.source_id, job.id);
       }
       return { status };
     }
@@ -612,7 +630,7 @@ export async function runOrchestratorLoop(
         if (parent && shouldAdvanceJobChain(parent.status as 'succeeded' | 'failed' | 'partial') && parent.source_id) {
           const parentScope = (parent.scope ?? {}) as Record<string, unknown>;
           if (Array.isArray(parentScope.chain) && (parentScope.chain as string[]).length > 0) {
-            await advanceChain(orgId, parentScope, parent.source_id);
+            await advanceChain(orgId, parentScope, parent.source_id, parent.id);
           }
         }
       }

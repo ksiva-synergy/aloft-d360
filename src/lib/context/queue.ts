@@ -9,7 +9,12 @@ import {
 } from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
 import { ESTATE_OBJECTS_BY_SOURCE_SQL } from './estate-source-sql';
-import { catalogSchemaMatchesIncludePatterns, usesEstateObjectPlan } from './job-scope';
+import {
+  catalogSchemaMatchesIncludePatterns,
+  pathMatchesIncludePatterns,
+  tablePatternsMayMatchSchema,
+  usesEstateObjectPlan,
+} from './job-scope';
 
 export type JobKind =
   | 'change_detect'
@@ -356,6 +361,48 @@ export interface SplitPlan {
   discoverySchemaGroups?: DiscoverySchemaGroups;
 }
 
+interface ScopedSchemaGroup {
+  catalog_name: string;
+  schema_name: string;
+  cnt: number;
+  /** Set when only table-level Limit globs matched — the matching object names. */
+  objectNames?: string[];
+}
+
+/**
+ * Apply excludeSchemas + includePatterns to per-schema counts. Schemas matched only by
+ * table-level globs (catalog.schema.table) are counted per object path, so a single-table
+ * Limit plans one object instead of zero.
+ */
+async function filterSchemaGroupsForScope(
+  rows: Array<{ catalog_name: string; schema_name: string; cnt: bigint }>,
+  excludeSchemas: string[],
+  includePatterns: string[],
+  fetchObjects: (catalog: string, schema: string) => Promise<Array<{ object_name: string | null; full_path: string }>>,
+): Promise<ScopedSchemaGroup[]> {
+  const excludeSet = new Set(excludeSchemas);
+  const groups: ScopedSchemaGroup[] = [];
+  for (const r of rows) {
+    const key = `${r.catalog_name}.${r.schema_name}`;
+    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) continue;
+    if (catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) {
+      groups.push({ catalog_name: r.catalog_name, schema_name: r.schema_name, cnt: Number(r.cnt) });
+      continue;
+    }
+    if (!tablePatternsMayMatchSchema(r.catalog_name, r.schema_name, includePatterns)) continue;
+    const objects = await fetchObjects(r.catalog_name, r.schema_name);
+    const names = objects
+      .filter(o => pathMatchesIncludePatterns(o.full_path, includePatterns))
+      .map(o => o.object_name ?? '')
+      .filter(Boolean)
+      .sort();
+    if (names.length > 0) {
+      groups.push({ catalog_name: r.catalog_name, schema_name: r.schema_name, cnt: names.length, objectNames: names });
+    }
+  }
+  return groups;
+}
+
 /**
  * Plan how to split a large job scope into time-budget-bounded partitions.
  * Groups objects by schema first; further splits large schemas alphabetically.
@@ -391,17 +438,18 @@ export async function planSplit(
     sourceId,
   );
 
-  // Apply excludeSchemas filter
-  const excludeSet = new Set(opts.excludeSchemas ?? []);
-  const includePatterns = opts.includePatterns ?? [];
-  const filtered = rows.filter(r => {
-    const key = `${r.catalog_name}.${r.schema_name}`;
-    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
-    if (!catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
-    return true;
-  });
+  const filtered = await filterSchemaGroupsForScope(
+    rows,
+    opts.excludeSchemas ?? [],
+    opts.includePatterns ?? [],
+    (catalog, schema) =>
+      prisma.platformContextObject.findMany({
+        where: { org_id: orgId, source_id: sourceId, catalog_name: catalog, schema_name: schema, lifecycle: 'active' },
+        select: { object_name: true, full_path: true },
+      }),
+  );
 
-  const totalObjects = filtered.reduce((s, r) => s + Number(r.cnt), 0);
+  const totalObjects = filtered.reduce((s, r) => s + r.cnt, 0);
 
   // Determine if split is needed
   if (totalObjects <= maxObjectsPerChild) {
@@ -420,7 +468,7 @@ export async function planSplit(
   const partitions: SplitPartition[] = [];
 
   for (const row of filtered) {
-    const cnt = Number(row.cnt);
+    const cnt = row.cnt;
     const schemaKey = `${row.catalog_name}.${row.schema_name}`;
 
     if (cnt <= maxObjectsPerChild) {
@@ -428,12 +476,12 @@ export async function planSplit(
         schemaKey,
         catalog: row.catalog_name,
         schema: row.schema_name,
-        objectNames: [],
+        objectNames: row.objectNames ?? [],
         objectCount: cnt,
       });
     } else {
       // Schema exceeds child cap — fetch object names and split alphabetically
-      const objects = await prisma.platformContextObject.findMany({
+      const names = row.objectNames ?? (await prisma.platformContextObject.findMany({
         where: {
           org_id: orgId,
           source_id: sourceId,
@@ -443,9 +491,7 @@ export async function planSplit(
         },
         select: { object_name: true },
         orderBy: { object_name: 'asc' },
-      });
-
-      const names = objects.map(o => o.object_name ?? '').filter(Boolean);
+      })).map(o => o.object_name ?? '').filter(Boolean);
       for (let i = 0; i < names.length; i += maxObjectsPerChild) {
         const slice = names.slice(i, i + maxObjectsPerChild);
         partitions.push({
@@ -513,14 +559,18 @@ export async function planEstateSplit(
       return excludeSet.has(key) || excludeSet.has(r.schema_name);
     }).length,
   };
-  const filtered = rows.filter(r => {
-    const key = `${r.catalog_name}.${r.schema_name}`;
-    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
-    if (!catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
-    return true;
-  });
+  const filtered = await filterSchemaGroupsForScope(
+    rows,
+    opts.excludeSchemas ?? [],
+    includePatterns,
+    (catalog, schema) =>
+      prisma.platformEstateObject.findMany({
+        where: { org_id: orgId, source_id: sourceId, catalog_name: catalog, schema_name: schema, lifecycle: 'active' },
+        select: { object_name: true, full_path: true },
+      }),
+  );
 
-  const totalObjects = filtered.reduce((s, r) => s + Number(r.cnt), 0);
+  const totalObjects = filtered.reduce((s, r) => s + r.cnt, 0);
 
   if (totalObjects <= maxObjectsPerChild) {
     return {
@@ -538,7 +588,7 @@ export async function planEstateSplit(
   const partitions: SplitPartition[] = [];
 
   for (const row of filtered) {
-    const cnt = Number(row.cnt);
+    const cnt = row.cnt;
     const schemaKey = `${row.catalog_name}.${row.schema_name}`;
 
     if (cnt <= maxObjectsPerChild) {
@@ -546,11 +596,11 @@ export async function planEstateSplit(
         schemaKey,
         catalog: row.catalog_name,
         schema: row.schema_name,
-        objectNames: [],
+        objectNames: row.objectNames ?? [],
         objectCount: cnt,
       });
     } else {
-      const objects = await prisma.platformEstateObject.findMany({
+      const names = row.objectNames ?? (await prisma.platformEstateObject.findMany({
         where: {
           org_id: orgId,
           source_id: sourceId,
@@ -560,9 +610,7 @@ export async function planEstateSplit(
         },
         select: { object_name: true },
         orderBy: { object_name: 'asc' },
-      });
-
-      const names = objects.map(o => o.object_name ?? '').filter(Boolean);
+      })).map(o => o.object_name ?? '').filter(Boolean);
       for (let i = 0; i < names.length; i += maxObjectsPerChild) {
         const slice = names.slice(i, i + maxObjectsPerChild);
         partitions.push({

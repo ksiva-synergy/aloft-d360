@@ -5,6 +5,7 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { getJob } from '@/lib/context/reads';
 import prisma from '@/lib/db';
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
+import { stopHarvesterTask } from '@/lib/context/launch-harvester';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,8 +38,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/agent-lab/context/jobs/:id
  *
- * Cancel queued jobs, or running/orchestrating jobs that never received a Fargate task
- * (stuck overlap blockers with no CloudWatch logs).
+ * Cancel queued/running/orchestrating jobs. When a Fargate/local worker is attached,
+ * attempts StopTask / SIGTERM then marks the job failed (cancelled).
  */
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   const denied = await denyUnlessEstatePipelineOperator();
@@ -71,14 +72,10 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
         { status: 409 },
       );
     }
+
+    let workerStop: { stopped: boolean; error?: string } | undefined;
     if (hasWorker) {
-      return NextResponse.json(
-        {
-          error: 'CANNOT_CANCEL',
-          message: 'Job has a running Fargate task — wait for it to finish or use ops runbook to stop the task.',
-        },
-        { status: 409 },
-      );
+      workerStop = await stopHarvesterTask(String(scope.fargate_task_id), 'Cancelled by user (Estate UI)');
     }
 
     await prisma.platformContextJob.update({
@@ -86,7 +83,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
       data: { status: 'failed', error: 'Cancelled by user', finished_at: new Date() },
     });
 
-    return NextResponse.json({ id, status: 'cancelled' });
+    return NextResponse.json({
+      id,
+      status: 'cancelled',
+      ...(workerStop ? { worker_stop: workerStop } : {}),
+    });
   } catch (err) {
     console.error('[context/jobs/:id DELETE]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

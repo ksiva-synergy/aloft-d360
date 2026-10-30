@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import { resolveEffectiveScope, pathMatchesIncludePatterns } from '@/lib/context/job-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,7 +127,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       LIMIT 500
     `);
 
-    const objects: TouchedObject[] = rows.map(row => {
+    const jobScope = resolveEffectiveScope((job.scope ?? {}) as Record<string, unknown>);
+    const scopedRows =
+      jobScope.includePatterns.length > 0
+        ? rows.filter(r => pathMatchesIncludePatterns(r.full_path, jobScope.includePatterns))
+        : rows;
+
+    const objects: TouchedObject[] = scopedRows.map(row => {
       const tiers: string[] = [];
       let maxTs = 0;
 
@@ -167,7 +174,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       };
     });
 
-    return NextResponse.json({ data: objects, total: objects.length });
+    return NextResponse.json({
+      data: objects,
+      total: objects.length,
+      ...(jobScope.includePatterns.length > 0
+        ? { scope_filter: jobScope.includePatterns, unscoped_window_matches: rows.length }
+        : {}),
+    });
   } catch (err) {
     console.error('[context/jobs/:id/objects GET]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

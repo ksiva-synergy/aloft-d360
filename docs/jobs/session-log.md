@@ -5,6 +5,38 @@
 
 ---
 
+### 2026-10-30 — Table-level Limit launch returned NO_OBJECTS_IN_SCOPE
+
+- **Files:** `src/lib/context/queue.ts`, `src/lib/context/job-scope.ts`, `job-scope.test.ts`, `plan-split-scope.test.ts`, `docs/CHANGELOG.md`, `current-status.md`.
+- **Why:** Continue pipeline for one Scanned table (`open_analytics_zone.ash_scratchpad.global_employee_master`) failed with 400 on `/jobs/launch`; `planSplit` only matched Limit globs at schema level, so a table path counted 0 objects.
+- **Before → after:** Table-level Limit plans exactly the matching objects (T0 discovery and T1/T2/embed scanned), with matching names in split partitions; schema-level Limits unchanged.
+
+---
+
+### 2026-10-30 — Unscoped T1/T2 launch guard + job Objects scope filter
+
+- **Files:** `job-ui.ts`, `jobs/launch/route.ts`, `enrich.ts`, `orchestrator.ts`, `jobs/[id]/objects/route.ts`, `EstateCatalogTab.tsx`, `job-scope-flags.ts`, tests, `CHANGELOG.md`.
+- **Why:** Single-table Catalog Harvest queued T0 correctly, but separate Jobs launches (no Limit) ran T2 on 100+ objects; Objects tab showed unrelated tables in the job window.
+- **Before → after:** Launch blocked (or API opt-in) when T1/T2/embed/T3 would touch >50 objects without Limit; chain copies Limit from DB parent; Objects tab respects Limit; Harvest toast says T0-only.
+
+---
+
+### 2026-10-30 — Estate inventory partial schema must not remove other schemas
+
+- **Files:** `src/lib/context/estate.ts`, `estate-inventory-remove.test.ts`, `docs/CHANGELOG.md`.
+- **Why:** Scoped `estate_inventory` on `open_analytics_zone.ash_scratchpad.*` reported `removed=1440` — other schemas in the same catalog soft-deleted.
+- **Before → after:** Remove diff uses `schemasSeen` (`catalog.schema` upserted this run), not `catalogsSeen` alone.
+
+---
+
+### 2026-10-30 — Catalog Scanned: Continue pipeline button missing
+
+- **Files:** `src/components/estate/ScannedObjectsTab.tsx`, `docs/CHANGELOG.md`.
+- **Why:** Scope bar on Catalog → Scanned & Beyond showed T1 gaps but no **Continue pipeline**; Jobs embedded tab worked because it passed `canRunPipeline` from session.
+- **Before → after:** Scanned tab resolves platform-admin access from session when prop omitted; run controls match Jobs scanned panel.
+
+---
+
 ### 2026-10-29 — Auto-reap orphan active jobs (no Fargate task)
 
 - **Files:** `orphan-jobs.ts`, `kick-queued-workers.ts`, `pipeline-intent.ts`, `jobs/launch/route.ts`.

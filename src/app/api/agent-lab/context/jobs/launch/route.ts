@@ -22,6 +22,7 @@ import {
   resolveLaunchScopeFilters,
   stripExcludeSchemasForKind,
   t0AllowsLiveScopeWhenDiscoveryEmpty,
+  wideScopeTierLaunchBlocked,
 } from '@/lib/estate/job-ui';
 import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
@@ -38,6 +39,38 @@ class NoObjectsInScopeError extends Error {
   constructor(kind: JobKind) {
     super(`No scanned objects match scope for ${kind}. Check Focus globs and Catalog → Scanned & beyond.`);
     this.kind = kind;
+  }
+}
+
+class WideScopeLaunchError extends Error {
+  kind: JobKind;
+  constructor(kind: JobKind, message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
+async function assertTierLaunchNotTooWide(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  excludeSchemas: string[],
+  includePatterns: string[],
+  allowFullSourceLaunch: boolean,
+): Promise<void> {
+  const scope = resolveLaunchScopeFilters(
+    stripExcludeSchemasForKind(kind, excludeSchemas),
+    includePatterns,
+  );
+  const plan = await planForKind(orgId, kind, sourceId, scope);
+  const { blocked, message } = wideScopeTierLaunchBlocked(
+    kind,
+    scope.includePatterns,
+    plan.totalObjects,
+    allowFullSourceLaunch,
+  );
+  if (blocked && message) {
+    throw new WideScopeLaunchError(kind, message);
   }
 }
 
@@ -280,6 +313,7 @@ export async function POST(req: NextRequest) {
     forceReprofile: body.forceReprofile === true,
     forceReEnrich: body.forceReEnrich === true,
     forceFullScan: body.forceFullScan === true,
+    allowFullSourceLaunch: body.allowFullSourceLaunch === true,
   };
   const uiSurface =
     typeof body.uiSurface === 'string' && body.uiSurface.trim()
@@ -336,6 +370,15 @@ export async function POST(req: NextRequest) {
       const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
 
       for (const src of sources) {
+        await assertTierLaunchNotTooWide(
+          orgId,
+          kind,
+          src.id,
+          strippedExcludes,
+          includePatterns,
+          runnerFlags.allowFullSourceLaunch === true,
+        );
+
         if (SPLITTABLE_KINDS.has(kind)) {
           await assertObjectsInScope(orgId, kind, src.id, strippedExcludes, includePatterns);
           const plan = await planForKind(orgId, kind, src.id, scope);
@@ -408,6 +451,17 @@ export async function POST(req: NextRequest) {
     if (err instanceof NoObjectsInScopeError) {
       return NextResponse.json(
         { error: 'NO_OBJECTS_IN_SCOPE', message: err.message, kind: err.kind },
+        { status: 400 },
+      );
+    }
+    if (err instanceof WideScopeLaunchError) {
+      return NextResponse.json(
+        {
+          error: 'WIDE_SCOPE_LAUNCH_BLOCKED',
+          message: err.message,
+          kind: err.kind,
+          hint: 'Set includePatterns (Limit) on launch, or pass allowFullSourceLaunch: true to confirm.',
+        },
         { status: 400 },
       );
     }

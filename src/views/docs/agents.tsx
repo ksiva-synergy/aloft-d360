@@ -25,7 +25,8 @@ export default function AgentsListPage() {
         const res = await fetch('/api/catalog/agents');
         if (res.ok) {
           const data = await res.json();
-          setAgents(data.items || data);
+          const items: AgentCatalogEntry[] = data.items || data;
+          setAgents(items.filter(a => a.status !== 'deprecated'));
         }
       } catch (err) {
         console.error('Failed to fetch agents:', err);

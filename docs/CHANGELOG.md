@@ -2,6 +2,90 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-10-30 — Launch: table-level Limit no longer plans 0 objects
+
+- **What:** `src/lib/context/queue.ts` — `planSplit` and `planEstateSplit` now go through `filterSchemaGroupsForScope`: schemas matched only by a table-level Limit glob (`catalog.schema.table`) are counted per object path, and partitions carry the matching `objectNames`. `src/lib/context/job-scope.ts` — new `tablePatternsMayMatchSchema`; `catalogSchemaMatchesIncludePatterns` doc corrected (it never matched table-level globs). Tests: `job-scope.test.ts`, new `plan-split-scope.test.ts`.
+- **Why:** Scanned → **Continue pipeline** (and Jobs with Limit `open_analytics_zone.ash_scratchpad.global_employee_master`) returned 400 `NO_OBJECTS_IN_SCOPE`: the planner compared the schema glob `cat.sch.*` against the table pattern and counted 0 objects, while pipeline intent (per-path match) said 1 table needed T1/T2/embed.
+- **Verified:** Vitest `job-scope`, `plan-split-scope`, `plan-estate-split`, `job-ui` (26 passed); `tsc --noEmit` clean for both files; `planForKind` against the dev DB for that table now returns 1 object for T1/T2/embed (was 0). Launch not re-run from the UI by the agent.
+- **Not done:** Needs deploy to aloft-dev for the deployed UI; local dev server (`:3000`) picks it up on reload.
+
+## 2026-10-30 — Job Run: Cancel stops Fargate-backed harvest jobs
+
+- **What:** `canCancelJob` no longer hides Cancel when `scope.fargate_task_id` is set. `DELETE …/jobs/:id` calls `stopHarvesterTask` (ECS StopTask / local SIGTERM) then marks job failed. `launch-harvester.ts` — `stopHarvesterTask`. `JobRunPage` confirm/toast copy for worker stop.
+- **Why:** Running T2 jobs showed no Cancel — prior rule blocked cancel whenever a worker was attached.
+- **Verified:** Code review; requires deploy + IAM `ecs:StopTask` on the web/API role for ECS stop to succeed.
+- **Not done:** Worker stop failure still marks job cancelled in DB (may need ECS console if IAM denies StopTask).
+
+## 2026-10-30 — Prevent unscoped wide T1/T2/embed; fix job Objects tab scope
+
+- **What:** `job-ui.ts` — `wideScopeTierLaunchBlocked` (default max 50 objects without Focus Limit). `jobs/launch/route.ts` returns `WIDE_SCOPE_LAUNCH_BLOCKED` unless `allowFullSourceLaunch: true`. `enrich.ts` refuses unscoped T2 over threshold at runtime. `orchestrator.ts` `advanceChain` re-reads parent scope from DB so `includePatterns` survive Fargate metadata merge. `jobs/[id]/objects` filters by job Limit; `EstateCatalogTab` harvest toast clarifies T0-only. `job-scope-flags.ts` — `allowFullSourceLaunch`.
+- **Why:** Operators selected one Catalog table but saw ~150-object T2/T0 runs: Jobs launched T1/T2 without Limit; Job Objects tab listed every tier touch in the time window; Inventory schema bug (fixed earlier) mass-`removed` discovery rows.
+- **Verified:** Vitest `job-ui.test.ts`, `estate-inventory-remove.test.ts`.
+- **Not done:** Jobs modal checkbox for `allowFullSourceLaunch` (API flag only); cancel still cannot stop active Fargate tasks.
+
+## 2026-10-30 — Estate inventory: schema-scoped remove diff
+
+- **What:** `src/lib/context/estate.ts` — post-inventory soft-delete (`lifecycle = 'removed'`) now keys off **`catalog.schema` pairs actually upserted** (`schemasSeen`), not every row in a touched catalog. Added `src/lib/context/estate-inventory-remove.test.ts` documenting the intended scope.
+- **Why:** Focus inventory on `open_analytics_zone.ash_scratchpad.*` refreshed ~1.4k scratchpad tables but marked **1,440** other `open_analytics_zone` schemas `removed` because `catalogsSeen` only narrowed by catalog name.
+- **Verified:** Vitest `estate-inventory-remove.test.ts`.
+- **Not done:** Rows already marked `removed` by the bad run need DB restore (`lifecycle = 'active'`) or a full-catalog re-inventory; deploy this fix before relying on schema-scoped inventory again.
+
+## 2026-10-30 — Agents + chat: live "working" animation
+
+- **What:** `src/lib/agents/agent-use-chat-stream.ts` — handle `tool_call_running` / `tool_call_result` / `tool_call_error` SSE events (previously dropped); snapshot exposes live `toolCalls` + `startedAt` (not persisted). `src/views/agent-lab/agents/use.tsx` — replaced the three bouncing dots with the user's companion (`CaptainStatus`), trailing the latest reply for the whole run: "Reading your message" → "Using <tool>" → "Writing a response", then success/error pose. `src/components/companion/CaptainStatus.tsx` — optional `startedAt` (elapsed counter after 3s) and `className`; label re-keys so each phase change slides in. `src/components/companion/Captain.module.css` — label slide-in + text shimmer while reading/thinking/tools/writing (also applies to Inspector chat); off under reduced motion.
+- **Why:** User reported no proper animation while agents/chat are working — Agents chat showed dots only until the first token, then nothing during tool calls.
+- **Verified:** Vitest `agent-use-chat-stream.test.ts` (new tool-call test); `tsc --noEmit` clean; eslint clean on companion + stream files. Not checked in the browser by the agent.
+- **Not done:** Stopped (aborted) Agents replies still read "Response ready" — the stream does not report an interrupted flag yet. Agents chat does not list individual tool calls the way Inspector does.
+
+## 2026-10-30 — LLM Lite gateway models: live list in agent/Inspector picker
+
+- **What:** `src/lib/llmlite/fetch-models.ts` — removed 5‑minute server cache; each `/api/inspector/chat-models` call hits gateway `GET /v1/models` with `cache: no-store`. `src/app/api/inspector/chat-models/route.ts` — `Cache-Control: no-store`. `src/hooks/useInspectorChatModels.ts` — refetch on window focus and every 60s while tab visible.
+- **Why:** User expects models added in the LLM gateway to show in Saved Agents (and Inspector/Workbench) without redeploy or long delay.
+- **Verified:** Code review. Not re-checked against a live gateway by the agent.
+- **Not done:** Models tagged `embedding` / `ocr` on the gateway are still excluded from chat pickers.
+
+## 2026-10-30 — Saved agent chat: model picker; remove Invoice agent; LLM Lite models
+
+- **What:** `src/views/agent-lab/agents/use.tsx` — model dropdown (loads `/api/inspector/chat-models`, persists per agent in sessionStorage, sends `model` on chat). `src/lib/construction/workbench-model.ts` — resolve `llm-lite:*` keys for agent/workbench runs. `scripts/remove-workbench-agent-catalog.ts` — hard-delete script for Databricks Jobs + Invoice Harmonization Analyst (replaces `remove-databricks-jobs-agent-catalog.ts`).
+- **Why:** User asked to drop Invoice agent, pick models on saved-agent chat, and use gateway models from LLM Lite when added there.
+- **Verified:** Ran `remove-workbench-agent-catalog.ts --apply` locally (1 Invoice row deleted). Not re-checked model picker in browser by the agent.
+- **Not done:** Non–platform-admin users still only see Grok in the picker (RBAC); production DB delete only if the script is run there.
+
+## 2026-10-30 — Remove Databricks Jobs Agent duplicates from Saved Agents
+
+- **What:** `src/app/api/agent-lab/agents/route.ts` excludes `deprecated` workbench agents (same as Docs library). `scripts/remove-workbench-agent-catalog.ts` hard-deletes targeted catalog rows (see script `TARGETS`), clears `workbench_sessions.saved_agent_id`, and removes matching `platform_agents`.
+- **Why:** User asked to fully remove three deprecated duplicates still shown on **Agent Lab → Agents**.
+- **Verified:** Run `npx tsx --env-file=.env scripts/remove-databricks-jobs-agent-catalog.ts --apply` against local DB. Refresh Saved Agents list.
+- **Not done:** Production DB unless the same script is run there with prod `DATABASE_URL`.
+
+## 2026-10-30 — Saved agent chat: fix starter prompts and suggestion clicks
+
+- **What:** `src/lib/agents/agent-use-chat-stream.ts` — UI listeners live in `listenersBySlug` so the first `startAgentUseChat` notifies the mounted page (previously the in-flight handle got an empty listener set). `src/views/agent-lab/agents/use.tsx` — allow send while a stream is finishing; sync busy state via `isAgentUseChatRunning`.
+- **Why:** Clicking suggested prompts appeared to do nothing: the API ran but React never received stream updates.
+- **Verified:** Vitest `agent-use-chat-stream.test.ts`. Not re-checked in browser by the agent.
+- **Not done:** —
+
+## 2026-10-30 — Saved agent chat: keep streaming when leaving the page
+
+- **What:** `src/lib/agents/agent-use-chat-stream.ts` (module-scoped stream + sessionStorage sync); `src/views/agent-lab/agents/use.tsx` subscribes instead of aborting fetch on unmount. Test: `src/lib/agents/__tests__/agent-use-chat-stream.test.ts`.
+- **Why:** Navigating to another Agent Lab section unmounted the chat page and aborted the in-flight `/api/agent-lab/agents/chat` stream, cutting replies mid-sentence.
+- **Verified:** Vitest on `agent-use-chat-stream.test.ts`. Not re-checked in browser by the agent.
+- **Not done:** Background streams still cancel if the user closes the tab or hits **New chat** (intentional).
+
+## 2026-10-30 — Deprecate Databricks Jobs Agent catalog duplicates; hide deprecated in Agents Library
+
+- **What:** Ran DB update: three `agent_catalog` rows named **Databricks Jobs Agent** (`databricks-jobs-agent-mvc*`) set to `status = deprecated`. `src/views/docs/agents.tsx` — Agents Library list excludes `deprecated` entries.
+- **Why:** User requested removal after admin account was deleted; catalog has no delete UI (API soft-delete only).
+- **Verified:** Local script confirmed 3 rows updated. Flow/agent pickers already omit deprecated via `src/lib/agents/catalog.ts`.
+- **Not done:** Hard `DELETE` from DB; production DB only if the same `DATABASE_URL` was used locally.
+
+## 2026-10-30 — Catalog Scanned tab: show Continue pipeline for platform admins
+
+- **What:** `src/components/estate/ScannedObjectsTab.tsx` — use `useCanRunEstatePipeline()` when `canRunPipeline` prop is omitted (Catalog → Scanned & Beyond). Previously defaulted to `false`, so the scope bar showed gaps but hid **Continue pipeline** and schema/table pipeline pickers even for platform admins; Jobs tab already passed the prop correctly.
+- **Why:** User saw “78 need profile” on the scope bar with no run control on the Catalog scanned view.
+- **Verified:** Logic review; Jobs page still passes explicit `canRunPipeline`. Not re-run in browser by the agent.
+- **Not done:** Non–platform-admin users still cannot launch pipelines (by design).
+
 ## 2026-10-30 — Login: fix Captain's ground shadow offset
 
 - **What:** `src/components/login/AgentScene.tsx` — ground shadow was centred with `-translate-x-1/2`, but the animation loop overwrites `style.transform` (`scaleX`) every frame, so it sat 42px right of the robot. Now centred with `ml-[-42px]`; moved from `bottom-[-6px]` to `bottom-0` (closer under the head); light theme uses a soft navy gradient instead of 55% black.

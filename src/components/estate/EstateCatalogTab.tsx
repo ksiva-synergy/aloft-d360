@@ -85,10 +85,18 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paths }),
       });
-      if (!res.ok) throw new Error('Harvest failed');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Harvest failed');
+      const enqueued = Array.isArray(data.enqueued) ? data.enqueued.length : paths.length;
+      toast.success(`Structural harvest (T0) queued for ${enqueued} table(s)`, {
+        description: 'T0 only. Use Scanned → Continue pipeline or Jobs with a Limit for T1→T2→embed.',
+      });
       setFilters(prev => ({ ...prev }));
     } catch (err) {
       console.error('[EstateCatalogTab] harvest error:', err);
+      toast.error('Harvest failed', {
+        description: err instanceof Error ? err.message : 'Could not enqueue T0',
+      });
     }
   }, []);
 
