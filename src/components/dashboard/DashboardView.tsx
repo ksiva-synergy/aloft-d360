@@ -209,7 +209,7 @@ function Metric({
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1.5">
-            <span className={cn(NUM, 'text-[2rem] leading-none')}>{value}</span>
+            <span className={cn(NUM, 'text-kpi-lg leading-none')}>{value}</span>
             {of && <span className={cn('truncate text-size-ui tabular-nums', MUTED)}>{of}</span>}
           </div>
           <div className={cn('mt-2 truncate text-caption tabular-nums', MUTED)}>{sub}</div>
@@ -388,7 +388,7 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
                   <ChevronRight aria-hidden className={cn('size-3.5', i - 1 === worst ? 'text-[var(--warn)]' : 'text-[var(--line-2)]')} />
                   <span
                     className={cn(
-                      'rounded-full px-1.5 py-px text-[11px] font-medium tabular-nums',
+                      'rounded-full px-1.5 py-px text-caption font-medium tabular-nums',
                       i - 1 === worst ? 'bg-[var(--warn-bg)] text-[var(--warn)]' : 'bg-[var(--surface-2)] text-[var(--ink-3)]',
                     )}
                   >
@@ -401,7 +401,7 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
                   <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: st.s.color }} />
                   {st.s.label}
                 </span>
-                <span className={cn(NUM, 'text-[1.5rem] leading-none')}>{st.n.toLocaleString()}</span>
+                <span className={cn(NUM, 'text-kpi-md leading-none')}>{st.n.toLocaleString()}</span>
                 {jobs && (() => {
                   const kind = STAGE_JOB[st.s.key];
                   const js = jobState(jobs.kinds.find(k => k.kind === kind));
@@ -410,7 +410,7 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
                       href={jobHref(kind)}
                       title={`${jobLabel(kind)} job`}
                       className={cn(
-                        'mt-0.5 inline-flex w-fit max-w-full items-center gap-1.5 truncate text-[11.5px] tabular-nums no-underline transition-colors duration-hover hover:text-[var(--brand-a-ink)]',
+                        'mt-0.5 inline-flex w-fit max-w-full items-center gap-1.5 truncate text-caption tabular-nums no-underline transition-colors duration-hover hover:text-[var(--brand-a-ink)]',
                         js.tone === 'bad' || js.tone === 'warn' ? JOB_TEXT[js.tone] : MUTED,
                       )}
                     >
@@ -498,7 +498,7 @@ function MemoryPanel({ m }: { m: MemorySummary | null }) {
                 <div className="flex items-end justify-between gap-4 px-5 pt-5">
                   <div>
                     <div className="text-caption text-[var(--ink-2)]">Helpful when used</div>
-                    <div className={cn(NUM, 'mt-1.5 text-[2rem] leading-none')}>{rated ? `${helpfulPct}%` : '—'}</div>
+                    <div className={cn(NUM, 'mt-1.5 text-kpi-lg leading-none')}>{rated ? `${helpfulPct}%` : '—'}</div>
                   </div>
                   <div className={cn('pb-0.5 text-right text-caption tabular-nums', MUTED)}>
                     {rated ? <>{m.helpfulTotal} helpful<br />{m.harmfulTotal} not helpful</> : 'No ratings yet'}
@@ -572,7 +572,7 @@ function SpendPanel({ s }: { s: SpendSummary | null }) {
           <>
             <div className="flex items-end justify-between gap-6 px-5 pt-5">
               <div className="min-w-0">
-                <div className={cn(NUM, 'text-[2rem] leading-none')}>{usd(s.last7d)}</div>
+                <div className={cn(NUM, 'text-kpi-lg leading-none')}>{usd(s.last7d)}</div>
                 <div className={cn('mt-2 text-caption tabular-nums', MUTED)}>
                   {change === null ? 'Nothing to compare with last week' : (
                     <><span className="text-[var(--ink-2)]">{change > 0 ? '↑' : change < 0 ? '↓' : ''} {Math.abs(change)}%</span> vs {usd(s.prev7d)} the week before</>
@@ -733,7 +733,7 @@ export function DashboardView({
             <p className={cn('mb-2 text-caption', MUTED)}>
               {[mounted ? dateStr : null, roleLabel].filter(Boolean).join(' · ')}
             </p>
-            <h1 className="text-[1.75rem] font-semibold leading-[1.15] tracking-[-0.025em] sm:text-[2rem]">
+            <h1 className="text-title-page">
               <span className="wl-title">{greeting}, {displayName}.</span>
               <span className="block text-[var(--ink-3)]">{headline}</span>
             </h1>

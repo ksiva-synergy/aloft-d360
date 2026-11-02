@@ -2,6 +2,13 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## CI: commit missing modules referenced by ui-redesign (pipeline, agents, form, LLM Lite)
+
+- **What:** Added previously local-only sources that `761fb233` imported but did not commit: `pipeline-freshness.ts`, `pipeline-change-check.ts`, `cron-label.ts`, `agent-chats.ts`, `inspection.ts`, `client-stream-error.ts`, `answer-inspection.ts`, LLM Lite helpers (`default-model`, `chat`, `model-registry`, `model-settings-store`), `sessions/surfaces.ts`, `memory/curation-access.ts`, `components/form/Select.tsx`, agent chat API routes, model-config API, catalog-ui, AgentAvatar/AnswerInspection, and related tests. Replaced new `text-[Npx]` literals in `DashboardView.tsx`, `jobs.tsx`, and agent-staging models panels with type tokens so `typography-guard` stays at baseline 0.
+- **Why:** GitHub Actions vitest failed with `ERR_MODULE_NOT_FOUND` and `arbitraryTextSize: 11 > baseline 0`.
+- **Verified:** `vitest run` for `typography-guard`, `pipeline-intent`, `agent-use-chat-stream`, `propose`, and `authz-hardening` pass locally.
+- **Not done:** Full `vitest` suite not re-run end-to-end in this session.
+
 ## Estate UI: dual pipeline labels (technical · plain)
 
 - **What:** `src/lib/estate/stages.ts` now defines both **technical** and **plain** names for each tier (`plainLabel`, `estateStageDisplayLabel`, `ESTATE_PIPELINE_TIERS`, `estateTierDisplayLabel`). UI shows combined labels such as **T0 · Structure**, **Embed · Searchable**, **T3 · Linked**, **T4 · In model** on lifecycle badges, scanned-object tier pills, overview legend, Jobs cockpit, and coverage tooltips.
