@@ -172,21 +172,36 @@ module.exports = {
         mono: ['var(--font-mono)'],
       },
       borderRadius: {
-        // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)
-        // Use rounded-sm (4px) for interactive elements, rounded-card (6px) for surfaces
-        'sm':    '6px',
-        'card':  '16px',
-        'brand': '16px',
-        // Intentionally NOT overriding 'md'/'lg'/'xl' — their presence in JSX is a violation;
-        // removing the override here surfaces the violation rather than silencing it.
+        // Radius tiers (values in globals.css "Theme v4"): controls 8px, cards 12px,
+        // dialogs/drawers 16px. Tailwind's lg/xl/2xl defaults match the same tiers.
+        // Bare `rounded` was Tailwind's 4px; legacy pages used it everywhere and read as sharp.
+        'DEFAULT': 'var(--radius-ctl)',
+        'sm':     '6px',
+        'xs':     'var(--radius-xs)',
+        'ctl':    'var(--radius-ctl)',
+        'card':   'var(--radius-card)',
+        'dialog': 'var(--radius-dialog)',
+        'brand':  '16px',
       },
       transitionTimingFunction: {
         'sidebar': 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'out-strong': 'var(--ease-out-strong)',
+        'in-out-strong': 'var(--ease-in-out-strong)',
+        'drawer': 'var(--ease-drawer)',
+      },
+      transitionDuration: {
+        'press': '120ms',
+        'hover': '160ms',
+        'pop': '180ms',
+        'dialog': '220ms',
+        'drawer': '280ms',
       },
       boxShadow: {
         'nav': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'card': 'var(--shadow-card)',
         'pop': 'var(--shadow-pop)',
+        'xs': 'var(--shadow-xs)',
+        'dialog': 'var(--shadow-dialog)',
       },
       keyframes: {
         'fade-in': {

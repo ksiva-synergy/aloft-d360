@@ -15,6 +15,7 @@ import {
   type RawBlueprintItem,
 } from '@/lib/dashboards/blueprint-ground';
 import type { ResolvedIntent, GuidedBlueprint, BlueprintModelStatus } from '@/lib/dashboards/guided-types';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -50,6 +51,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ modelId: string }> },
 ) {
+  const denied = await denyUnlessSessionRole('member');
+  if (denied) return denied;
   try {
     const org = await getDefaultOrg();
     const { modelId } = await params;

@@ -56,7 +56,7 @@ export function StatusDot({ ok, size = 8 }: { ok: boolean; size?: number }) {
 export function SplitBar({ parts }: { parts: { value: number; color: string; label: string }[] }) {
   const total = parts.reduce((s, p) => s + p.value, 0) || 1;
   return (
-    <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: 'var(--wb-border-subtle)', marginTop: 10 }}>
+    <div style={{ display: 'flex', height: 6, borderRadius: 6, overflow: 'hidden', background: 'var(--wb-border-subtle)', marginTop: 10 }}>
       {parts.map((p) => (
         <div key={p.label} title={`${p.label}: ${p.value.toLocaleString()}`} style={{ width: `${(p.value / total) * 100}%`, background: p.color }} />
       ))}

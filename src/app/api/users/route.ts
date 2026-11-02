@@ -7,6 +7,7 @@ import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
 import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
 import { hashPassword } from '@/lib/auth-credentials';
+import { surfaceWhere } from '@/lib/sessions/surfaces';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,6 +70,7 @@ export const GET = handle(async (req) => {
     sessions7d: 0,
     sessions30d: 0,
     inspectorChats: 0,
+    agentChats: 0,
     memoriesContributed: 0,
   }));
 
@@ -77,9 +79,9 @@ export const GET = handle(async (req) => {
     const since7d = new Date(now - 7 * DAY_MS);
     const since30d = new Date(now - 30 * DAY_MS);
 
-    // Cap parallel groupBy calls — six at once against remote RDS often triggers P1001
+    // Cap parallel groupBy calls — seven at once against remote RDS often triggers P1001
     // when the pool or network is already busy (same pattern as dashboard summary).
-    const [logins7d, logins30d, sessions7d, sessions30d, inspectorChats, memoryContribs] =
+    const [logins7d, logins30d, sessions7d, sessions30d, inspectorChats, agentChats, memoryContribs] =
       await runInBatches(
         [
           () =>
@@ -97,19 +99,25 @@ export const GET = handle(async (req) => {
           () =>
             prisma.workbench_sessions.groupBy({
               by: ['user_id'],
-              where: { created_at: { gte: since7d } },
+              where: { created_at: { gte: since7d }, ...surfaceWhere('workbench') },
               _count: { _all: true },
             }),
           () =>
             prisma.workbench_sessions.groupBy({
               by: ['user_id'],
-              where: { created_at: { gte: since30d } },
+              where: { created_at: { gte: since30d }, ...surfaceWhere('workbench') },
               _count: { _all: true },
             }),
           () =>
             prisma.workbench_sessions.groupBy({
               by: ['user_id'],
               where: { surface: 'inspector' },
+              _count: { _all: true },
+            }),
+          () =>
+            prisma.workbench_sessions.groupBy({
+              by: ['user_id'],
+              where: surfaceWhere('agent_use'),
               _count: { _all: true },
             }),
           () =>
@@ -126,6 +134,7 @@ export const GET = handle(async (req) => {
     const s7 = toCountMap(sessions7d, 'user_id');
     const s30 = toCountMap(sessions30d, 'user_id');
     const insp = toCountMap(inspectorChats, 'user_id');
+    const agentChat = toCountMap(agentChats, 'user_id');
     const mem = toCountMap(memoryContribs, 'userId');
 
     for (let i = 0; i < shaped.length; i++) {
@@ -137,6 +146,7 @@ export const GET = handle(async (req) => {
         sessions7d: s7.get(u.id) ?? 0,
         sessions30d: s30.get(u.id) ?? 0,
         inspectorChats: insp.get(u.id) ?? 0,
+        agentChats: agentChat.get(u.id) ?? 0,
         memoriesContributed: mem.get(u.id) ?? 0,
       };
     }

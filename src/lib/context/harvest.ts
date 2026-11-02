@@ -8,6 +8,7 @@ import { saveProfile } from './profile';
 import { countT1Degrade } from './coverage';
 import { makeHeartbeat } from './queue';
 import { selectDroppedPaths } from './scope-match';
+import { isT0Changed } from './pipeline-freshness';
 import type { ContextSource, HarvestConfig, ProfileBudget } from './types';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
@@ -18,7 +19,7 @@ function matchesPatterns(fullPath: string, patterns: string[]): boolean {
 
 // ── Prisma → adapter type bridge ──────────────────────────────────────────────
 
-function toContextSource(row: PlatformContextSource): ContextSource {
+export function toContextSource(row: PlatformContextSource): ContextSource {
   return {
     id: row.id,
     org_id: row.org_id,
@@ -174,6 +175,7 @@ export async function runT0Harvest(
     // ── 6. Upsert objects + columns ───────────────────────────────────────────
     const now = new Date();
     let columnsUpserted = 0;
+    let objectsChanged = 0;
     let objIdx = 0;
     const beat = makeHeartbeat(jobId);
 
@@ -184,6 +186,29 @@ export async function runT0Harvest(
       if (objIdx % 50 === 0 || objIdx === structuralMeta.length) {
         console.log(`[t0_structural] upserted ${objIdx}/${structuralMeta.length} objects (${columnsUpserted} cols so far)`);
       }
+
+      const stored = await prisma.platformContextObject.findUnique({
+        where: { source_id_full_path: { source_id: sourceId, full_path: meta.ref.full_path } },
+        select: {
+          lifecycle: true,
+          last_t0_at: true,
+          source_altered_at: true,
+          object_kind: true,
+          native_comment: true,
+          columns: {
+            where: { lifecycle: 'active' },
+            select: { name: true, ordinal: true, data_type: true, is_nullable: true, native_comment: true },
+          },
+        },
+      });
+      // Unchanged rescans keep last_t0_at so T1/T2/embed are not marked stale.
+      const changed = isT0Changed(stored, {
+        object_kind: meta.object_kind,
+        native_comment: meta.native_comment,
+        source_altered_at: meta.source_altered_at,
+        columns: meta.columns,
+      });
+      if (changed) objectsChanged++;
 
       const obj = await prisma.platformContextObject.upsert({
         where: {
@@ -206,7 +231,7 @@ export async function runT0Harvest(
           object_kind: meta.object_kind,
           native_comment: meta.native_comment,
           source_altered_at: meta.source_altered_at,
-          last_t0_at: now,
+          ...(changed ? { last_t0_at: now } : {}),
           lifecycle: 'active',
         },
         select: { id: true },
@@ -254,7 +279,7 @@ export async function runT0Harvest(
     let droppedObjects = 0;
     if (isFirstRun && refs.length > 0) {
       const activeRows = await prisma.platformContextObject.findMany({
-        where: { source_id: sourceId, lifecycle: 'active' },
+        where: { source_id: sourceId, org_id: orgId, lifecycle: 'active' },
         select: { id: true, full_path: true },
       });
       const dropPaths = new Set(selectDroppedPaths({
@@ -292,7 +317,7 @@ export async function runT0Harvest(
       `[t0_structural] estate sync — inserted=${estateSync.inserted} updated=${estateSync.updated}`,
     );
 
-    console.log(`[t0_structural] done — objects=${structuralMeta.length} cols=${columnsUpserted} dropped=${droppedObjects} queries=${adapter.queryCount}`);
+    console.log(`[t0_structural] done — objects=${structuralMeta.length} changed=${objectsChanged} cols=${columnsUpserted} dropped=${droppedObjects} queries=${adapter.queryCount}`);
 
     // ── 8. Stamp last_sweep_at on the source ──────────────────────────────────
     // Only advance last_sweep_at when this run saw the full allowed scope of the source.
@@ -313,6 +338,7 @@ export async function runT0Harvest(
     // ── 9. Mark job succeeded ─────────────────────────────────────────────────
     const stats = {
       objects_swept: structuralMeta.length,
+      objects_changed: objectsChanged,
       columns_upserted: columnsUpserted,
       queries_issued: adapter.queryCount,
       dropped_objects: droppedObjects,
@@ -530,6 +556,7 @@ export async function runT1Profile(
 
     let queriesIssued = 0;
     let profilesCreated = 0;
+    let profilesUnchanged = 0;
     const objectErrors: string[] = [];
     // Collect the stats blob of each profile we write so we can count degraded
     // objects/columns (partial sweeps, unqueryable views, skipped columns) for
@@ -567,7 +594,7 @@ export async function runT1Profile(
         queriesIssued += (adapter.queryCount - startQueries);
 
         // 5. Persist profile + compute drift via profile.ts
-        await saveProfile(obj.id, orgId, profileResult, 'on_demand');
+        const saved = await saveProfile(obj.id, orgId, profileResult, 'on_demand');
         profileStatsList.push(profileResult.stats as Record<string, unknown>);
 
         // 6. Update PlatformContextObject row_count_est, size_bytes_est, last_t1_at
@@ -577,12 +604,22 @@ export async function runT1Profile(
         const rowCountVal = rawRowCount !== null && rawRowCount !== undefined ? BigInt(rawRowCount as number) : null;
         const sizeBytesVal = rawSizeBytes !== null && rawSizeBytes !== undefined ? BigInt(rawSizeBytes as number) : null;
 
+        // Identical profile + description was current → keep it current (skip needless re-describe).
+        const t1Now = new Date();
+        const carryT2 =
+          saved.statsUnchanged
+          && obj.last_t1_at !== null
+          && obj.last_t2_at !== null
+          && obj.last_t2_at >= obj.last_t1_at;
+        if (carryT2) profilesUnchanged++;
+
         await prisma.platformContextObject.update({
           where: { id: obj.id },
           data: {
             row_count_est: rowCountVal,
             size_bytes_est: sizeBytesVal,
-            last_t1_at: new Date(),
+            last_t1_at: t1Now,
+            ...(carryT2 ? { last_t2_at: t1Now } : {}),
           },
         });
 
@@ -603,6 +640,7 @@ export async function runT1Profile(
     const degrade = countT1Degrade(profileStatsList);
     const stats = {
       objects_profiled: profilesCreated,
+      objects_unchanged: profilesUnchanged,
       objects_failed: objectErrors.length,
       queries_issued: queriesIssued,
       // Additive coverage signal (WS4): green T1 jobs can still hide degraded

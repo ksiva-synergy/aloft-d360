@@ -44,7 +44,7 @@ export function CandidatePanel({
   const [ramaHovered, setRamaHovered] = React.useState(false);
 
   return (
-    <div className="flex flex-col gap-6 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface)] p-5">
+    <div className="flex flex-col gap-6 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface)] p-5">
       {/* Header and Discard Summaries */}
       <div className="flex flex-col gap-4 border-b border-[var(--foer-border-dim)] pb-4">
         <h3 className="font-mono text-size-ui font-semibold tracking-wide text-[var(--foer-text-sec)]">
@@ -127,7 +127,7 @@ export function CandidatePanel({
         </div>
 
         {bullets.length === 0 ? (
-          <div className="flex h-32 flex-col items-center justify-center rounded bg-[var(--foer-surface2)] border border-dashed border-[var(--foer-border-dim)] p-4 text-center">
+          <div className="flex h-32 flex-col items-center justify-center rounded-card bg-[var(--foer-surface2)] border border-dashed border-[var(--foer-border-dim)] p-4 text-center">
             <span className="font-sans text-size-ui text-[var(--foer-text-mut)]">
               No memory bullets retained from this session.
             </span>
@@ -139,7 +139,7 @@ export function CandidatePanel({
               return (
                 <div
                   key={bullet.id}
-                  className="relative flex flex-col gap-2 rounded bg-[var(--foer-card-bg)] p-3 shadow-sm border border-[var(--foer-border-dim)]"
+                  className="relative flex flex-col gap-2 rounded-card bg-[var(--foer-card-bg)] p-3 shadow-sm border border-[var(--foer-border-dim)]"
                   style={{ borderLeftWidth: '3px', borderLeftColor: accentColor }}
                 >
                   {/* Type and Confidence row */}

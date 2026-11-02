@@ -144,13 +144,13 @@ function Row({
       style={{
         display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left',
         background: checked ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none',
-        borderRadius: 3, padding: '4px 6px', cursor: 'pointer',
+        borderRadius: 6, padding: '4px 6px', cursor: 'pointer',
       }}
     >
       <span
         aria-hidden
         style={{
-          width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+          width: 12, height: 12, borderRadius: 6, flexShrink: 0,
           border: `1.5px solid ${checked ? GOLD : 'var(--wb-muted, var(--ink-3))'}`,
           background: checked ? GOLD : 'transparent',
         }}

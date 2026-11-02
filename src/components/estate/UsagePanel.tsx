@@ -314,7 +314,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                   background: 'none',
                   border: 'none',
                   cursor: 'pointer',
-                  borderRadius: 4,
+                  borderRadius: 6,
                 }}
                 className="hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)] transition-colors"
               >
@@ -333,7 +333,7 @@ function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
                 </span>
 
                 {/* Segmented bar */}
-                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', overflow: 'hidden', display: 'flex' }}>
+                <div style={{ flex: 1, height: 8, borderRadius: 6, background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', overflow: 'hidden', display: 'flex' }}>
                   {segTotal > 0 ? (
                     <>
                       {f > 0 && <div style={{ width: `${(f / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.filtered }} />}
@@ -445,7 +445,7 @@ function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
               alignItems: 'center',
               gap: 10,
               padding: '6px 10px',
-              borderRadius: 4,
+              borderRadius: 6,
               border: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)',
               background: 'color-mix(in srgb, var(--brand-a) 3%, transparent)',
             }}
@@ -573,7 +573,7 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
             letterSpacing: '0.04em',
             color: 'var(--brand-a-ink)',
             border: '1px solid var(--brand-a)',
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '2px 7px',
           }}>
             STALE

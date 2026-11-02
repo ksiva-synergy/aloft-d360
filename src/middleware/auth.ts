@@ -151,3 +151,15 @@ export async function denyUnless(req: Request, check: (ctx: AuthContext) => void
     throw e;
   }
 }
+
+/**
+ * Cookie-session role gate for route handlers not wrapped in `handle()` that have no Request
+ * in scope. Re-reads the role from the DB (via authenticateSession), so a demoted or suspended
+ * user is denied even while their JWT is still valid.
+ */
+export async function denyUnlessSessionRole(minRole: 'member' | 'admin' | 'platform_admin'): Promise<Response | null> {
+  const ctx = await authenticateSession();
+  if (!ctx) return error(401, 'Unauthorized');
+  if (roleRank(ctx.role) < roleRank(minRole)) return error(403, 'Forbidden', { requiredRole: minRole });
+  return null;
+}

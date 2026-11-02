@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
+import { roleRank } from '@/lib/rbac';
+import { authenticateSession } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +48,8 @@ export async function DELETE(
   { params }: { params: Promise<{ chartId: string }> },
 ) {
   try {
+    const auth = await authenticateSession();
+    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     const org = await getDefaultOrg();
     const { chartId } = await params;
 
@@ -55,6 +59,9 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json({ error: 'Chart not found' }, { status: 404 });
+    }
+    if (existing.created_by !== auth.userId && roleRank(auth.role) < roleRank('admin')) {
+      return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
     }
 
     await prisma.platform_charts.update({

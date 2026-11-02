@@ -25,6 +25,8 @@ export interface AppBreadcrumbProps {
   dynamicLabels?: Record<string, string>
   /** Additional className for the wrapper */
   className?: string
+  /** Small caption-size trail (used by the shell, which has no header bar) */
+  compact?: boolean
 }
 
 interface BreadcrumbSegment {
@@ -57,7 +59,7 @@ function buildSegments(
 
 const MAX_VISIBLE_ITEMS = 4
 
-export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbProps) {
+export function AppBreadcrumb({ dynamicLabels = {}, className, compact = false }: AppBreadcrumbProps) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -105,7 +107,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbPr
       className={className}
     >
       <Breadcrumb>
-        <BreadcrumbList className="text-size-ui sm:text-size-body">
+        <BreadcrumbList className={compact ? 'gap-1 text-caption sm:gap-1' : 'text-size-ui sm:text-size-body'}>
           {/* Home icon anchor */}
           <BreadcrumbItem>
             <BreadcrumbLink asChild>

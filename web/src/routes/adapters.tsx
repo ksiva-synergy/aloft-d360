@@ -184,6 +184,7 @@ export function MemoryOpsRoute() {
   }
   return (
     <div className="h-full overflow-y-auto">
+      <h1 className="sr-only">Memory operations</h1>
       <Lazy>
         <FoerOpsDashboard topicMap={state.data.topicMap} />
       </Lazy>

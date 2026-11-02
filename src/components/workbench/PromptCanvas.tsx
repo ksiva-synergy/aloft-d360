@@ -101,9 +101,9 @@ function EmptyState({ onTemplateSelect, surface, composer }: EmptyStateProps) {
             </div>
           )}
           {composer && (
-            <h2 style={{ ...type['title-section'], color: INK, margin: 0, width: '100%' }}>
+            <h1 style={{ ...type['title-section'], color: INK, margin: 0, width: '100%' }}>
               {SURFACE_COPY[surface].emptyTitle}
-            </h2>
+            </h1>
           )}
           {composer && <div style={{ width: '100%' }}>{composer}</div>}
           {surface === 'workbench' && (
@@ -232,10 +232,48 @@ interface UserMessageProps {
   msg: WorkbenchMessage;
   onResend: (content: string) => void;
   onEdit: (id: string) => void;
+  /** Agent-chat style: right-aligned brand bubble instead of the gold-rule block. */
+  bubble?: boolean;
 }
-function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
+function UserMessage({ msg, onResend, onEdit, bubble = false }: UserMessageProps) {
   const [hovered, setHovered] = useState(false);
   const ts = new Date(msg.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (bubble) {
+    const shortTs = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="group flex flex-col items-end gap-1"
+      >
+        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
+          {msg.content}
+        </p>
+        <div className="flex items-center gap-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
+          <span className="flex gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={() => onEdit(msg.id)}
+              title="Edit and resend"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+            >
+              <Pencil size={11} /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onResend(msg.content)}
+              title="Resend"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+            >
+              <RotateCcw size={11} /> Resend
+            </button>
+          </span>
+          <span className="px-1">{shortTs}</span>
+        </div>
+      </motion.div>
+    );
+  }
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -266,7 +304,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
-                    borderRadius: 4, transition: 'color 0.15s',
+                    borderRadius: 6, transition: 'color 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
@@ -280,7 +318,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                     display: 'inline-flex', alignItems: 'center', gap: 4,
                     ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
-                    borderRadius: 4, transition: 'color 0.15s',
+                    borderRadius: 6, transition: 'color 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = INK_DIM; }}
                   onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
@@ -358,6 +396,14 @@ interface ConversationThreadProps {
   onAcknowledgeReflection?: (id: string) => void;
   onActReflection?: (id: string, action: any) => void;
   onRestoreReflection?: (id: string) => void;
+  /** Agent-chat presentation (Inspector): user bubbles + assistant name header. */
+  chatStyle?: { assistantName: string; assistantIcon?: React.ReactNode } | null;
+  /** Centre the thread in a column of at most this width (px). */
+  columnMaxWidth?: number;
+  /** Extra content under a finished assistant reply (e.g. admin Inspect). */
+  renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
+  /** Inspector: the raw tool-step list is only there while the reply is still running. */
+  collapseToolCallsWhenIdle?: boolean;
 }
 
 function ConversationThread({
@@ -378,6 +424,10 @@ function ConversationThread({
   onAcknowledgeReflection,
   onActReflection,
   onRestoreReflection,
+  chatStyle = null,
+  columnMaxWidth,
+  renderAfterAssistant,
+  collapseToolCallsWhenIdle = false,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -455,7 +505,10 @@ function ConversationThread({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '24px clamp(16px, 2.5vw, 40px) 8px',
+          // Capped column keeps the scrollbar at the pane edge while centring the content.
+          padding: columnMaxWidth
+            ? `24px max(clamp(16px, 2.5vw, 40px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
+            : '24px clamp(16px, 2.5vw, 40px) 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
@@ -474,6 +527,7 @@ function ConversationThread({
                   msg={msg}
                   onResend={onSend}
                   onEdit={onEditMessage}
+                  bubble={!!chatStyle}
                 />
               );
             }
@@ -493,6 +547,17 @@ function ConversationThread({
                 transition={{ duration: 0.2 }}
                 style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', minWidth: 0 }}
               >
+                {chatStyle && (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]"
+                      aria-hidden
+                    >
+                      {chatStyle.assistantIcon ?? chatStyle.assistantName.slice(0, 1)}
+                    </span>
+                    <span className="text-size-ui font-medium text-[var(--ink-3)]">{chatStyle.assistantName}</span>
+                  </div>
+                )}
                 <StreamingMessage
                   activity={msg.activity}
                   companionActive={isLast}
@@ -501,6 +566,7 @@ function ConversationThread({
                   content={msg.content}
                   thinking={msg.thinking}
                   toolCalls={msg.toolCalls}
+                  showToolCalls={!collapseToolCallsWhenIdle || isLiveStreaming}
                   isStreaming={isLiveStreaming}
                   interrupted={interrupted && isLast && !isStreaming}
                   readiness={isLast ? readiness : undefined}
@@ -509,6 +575,7 @@ function ConversationThread({
                   tokenCount={completionMeta[msg.id]?.tokenCount}
                   modelName={completionMeta[msg.id]?.modelName}
                 />
+                {!isLiveStreaming && renderAfterAssistant?.(msg)}
                 {/* Assumption chips — shown after streaming completes */}
                 {!isLiveStreaming && msgAssumptions.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 2 }}>
@@ -649,6 +716,10 @@ export interface PromptCanvasProps {
   onApplyClass?: (updatedClass: unknown, updatedMemory: unknown) => void;
   onDismissClassSuggestion?: () => void;
   modelOptions?: import('@/components/agent-lab/workbench/types').ModelOption[];
+  /** Agent-chat presentation: user bubbles, assistant header, centred column, no "Next →" strip. */
+  chatStyle?: { assistantName: string; assistantIcon?: React.ReactNode } | null;
+  /** Extra content under each finished assistant reply. */
+  renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
 }
 
 export function PromptCanvas({
@@ -685,9 +756,12 @@ export function PromptCanvas({
   onApplyClass,
   onDismissClassSuggestion,
   modelOptions,
+  chatStyle = null,
+  renderAfterAssistant,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
+  const columnMaxWidth = surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 
@@ -765,6 +839,7 @@ export function PromptCanvas({
                   modelOptions={modelOptions}
                   placeholder={SURFACE_COPY[surface].placeholder}
                   minLength={surface === 'inspector' ? 1 : 10}
+                  variant={surface === 'inspector' ? 'inline' : 'toolbar'}
                 />
               ) : undefined
             }
@@ -795,14 +870,19 @@ export function PromptCanvas({
           onAcknowledgeReflection={acknowledge}
           onActReflection={act}
           onRestoreReflection={restoreReflection}
+          chatStyle={chatStyle}
+          columnMaxWidth={chatStyle ? columnMaxWidth : undefined}
+          renderAfterAssistant={renderAfterAssistant}
+          collapseToolCallsWhenIdle={surface === 'inspector'}
         />
       )}
 
       {banner}
 
-      {/* Next-step suggestion chips — visible above composer once streaming ends */}
+      {/* Next-step suggestion chips — visible above composer once streaming ends.
+          Chat-style surfaces already show them as pills under the last reply. */}
       <AnimatePresence>
-        {!isStreaming && !isCommissioning && suggestions.length > 0 && (
+        {!chatStyle && !isStreaming && !isCommissioning && suggestions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -852,7 +932,7 @@ export function PromptCanvas({
       {/* Composer — docked once the thread starts; custom empty states keep the docked bar */}
       {!centeredComposer && (
         <InputComposer
-          columnMaxWidth={surface === 'workbench' ? WORKBENCH_COMPOSER_MAX_PX : undefined}
+          columnMaxWidth={columnMaxWidth}
           value={promptValue}
           onChange={setPromptValue}
           onSubmit={onSubmit}
@@ -870,6 +950,7 @@ export function PromptCanvas({
           placeholder={SURFACE_COPY[surface].placeholder}
           /* Agent missions need substance; data questions can be short ("revenue by month"). */
           minLength={surface === 'inspector' ? 1 : 10}
+          variant={surface === 'inspector' ? 'inline' : 'toolbar'}
         />
       )}
 

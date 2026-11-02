@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { inkOf } from '@/lib/typography/tokens';
 
@@ -418,7 +419,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
     fontSize: 'var(--type-ui-regular-size)',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
+    borderRadius: 6,
     color: inkColor,
     padding: '5px 24px 5px 8px',
     outline: 'none',
@@ -448,7 +449,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
   if (columns.length === 0) {
     return (
       <div
-        className="border rounded overflow-hidden shadow-sm"
+        className="border rounded-card overflow-hidden shadow-sm"
         style={{ borderColor }}
       >
         {/* Toolbar */}
@@ -470,7 +471,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
   }
 
   return (
-    <div className="border rounded overflow-hidden shadow-sm" style={{ borderColor }}>
+    <div className="border rounded-card overflow-hidden shadow-sm" style={{ borderColor }}>
 
       {/* ── Toolbar ─────────────────────────────────────────── */}
       <div
@@ -517,7 +518,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
 
         {/* Role filter */}
         <div className="relative shrink-0">
-          <select
+          <Select
             style={selectStyle}
             value={roleFilter}
             onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
@@ -526,12 +527,12 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
             {distinctRoles.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* PII filter */}
         <div className="relative shrink-0">
-          <select
+          <Select
             style={selectStyle}
             value={piiFilter}
             onChange={(e) => { setPiiFilter(e.target.value as 'all' | 'pii' | 'non-pii'); setCurrentPage(1); }}
@@ -539,7 +540,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
             <option value="all">PII: All</option>
             <option value="pii">PII only</option>
             <option value="non-pii">Non-PII</option>
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -727,7 +728,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-size-ui" style={{ color: mutedColor }}>Rows:</span>
-            <select
+            <Select
               style={{ ...selectStyle, fontSize: 'var(--type-ui-regular-size)', padding: '3px 22px 3px 6px' }}
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
@@ -735,7 +736,7 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
               {PAGE_SIZE_OPTIONS.map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
             / to search

@@ -287,7 +287,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
 
             {searchOpen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(74,96,128,0.35)', borderRadius: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(74,96,128,0.35)', borderRadius: 6, padding: '4px 8px', background: 'rgba(0,0,0,0.2)' }}>
                   <Search size={11} color={MUTED} />
                   <input
                     type="text"
@@ -318,7 +318,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                         justifyContent: 'space-between',
                         gap: 8,
                         padding: '5px 8px',
-                        borderRadius: 3,
+                        borderRadius: 6,
                         border: '1px solid transparent',
                         background: 'transparent',
                         color: 'var(--wb-ink-dim, #B8C1CF)',

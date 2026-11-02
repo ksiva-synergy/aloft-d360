@@ -2,12 +2,15 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';
-import { X, ArrowUpRight, Table2 } from 'lucide-react';
-import { History, FlaskConical, SquarePen, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { X, ArrowUpRight, Table2, Compass, Clock, BarChart3, Sparkles } from 'lucide-react';
+import { FlaskConical, SquarePen, PanelRightOpen, PanelRightClose, Database } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
-import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
+import { AnswerInspection } from '@/components/agent-lab/AnswerInspection';
+import { buildInspectorInspection } from '@/lib/inspector/answer-inspection';
+import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { Companion } from '@/components/companion/Companion';
 import { DashboardPane } from './DashboardPane';
+import { InspectorChatList } from './InspectorChatList';
 import { SemanticChartCard } from './SemanticChartCard';
 import { DisambiguationCard } from './DisambiguationCard';
 import { ExportReadyCard } from './ExportReadyCard';
@@ -18,7 +21,7 @@ import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
 import { useSession } from 'next-auth/react';
-import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
+import { canViewAgentOpsRole, hasAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { AgentHandoffCard } from './AgentHandoffCard';
 import { detectAgentBuildIntent } from '@/lib/construction/handoff';
@@ -79,12 +82,11 @@ interface InspectorStatusBarProps {
   dbConnected: boolean | null;
   contextMode: 'harvested' | 'warehouse_only';
   onContextModeChange: (mode: 'harvested' | 'warehouse_only') => void;
-  onOpenHistory: () => void;
   onOpenLab: () => void;
   onNewSession: () => void;
 }
 
-function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onContextModeChange, onOpenHistory, onOpenLab, onNewSession }: InspectorStatusBarProps) {
+function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode, onContextModeChange, onOpenLab, onNewSession }: InspectorStatusBarProps) {
   const modes: { id: 'harvested' | 'warehouse_only'; label: string; hint: string }[] = [
     { id: 'harvested', label: 'Catalog + SQL', hint: 'Answer with harvested catalog context (T0/T1/T2) plus live SQL' },
     { id: 'warehouse_only', label: 'SQL only', hint: 'Answer with raw Databricks SQL only' },
@@ -133,15 +135,15 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
         </div>
       </div>
 
-      {/* RIGHT — session actions */}
+      {/* RIGHT — session actions. New session / history live in the chat list (md+);
+          the button stays on small screens where that list is hidden. */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
-        <button type="button" className="insp-btn insp-btn--outline" onClick={onNewSession} style={type.ui}>
-          <SquarePen size={14} />
-          New session
-        </button>
-        <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenHistory} aria-label="Chat history" title="Chat history">
-          <History size={16} />
-        </button>
+        <span className="md:hidden">
+          <button type="button" className="insp-btn insp-btn--outline" onClick={onNewSession} style={type.ui}>
+            <SquarePen size={14} />
+            New session
+          </button>
+        </span>
         <button type="button" className="insp-btn insp-btn--icon" onClick={onOpenLab} aria-label="Performance Lab" title="Performance Lab — compare model metrics">
           <FlaskConical size={16} />
         </button>
@@ -153,31 +155,50 @@ function InspectorStatusBar({ sessionTitle, sessionId, dbConnected, contextMode,
 // ── Welcome (empty conversation) ──────────────────────────────────────────────
 // One empty state for the whole page: a clear question, one line on what Inspector
 // does, and starter questions. Governed models supply their own prompts.
-const GENERIC_STARTERS = [
-  'What data can I explore here?',
-  'Which tables were updated most recently?',
-  'Show the largest tables by row count',
+const GENERIC_STARTERS: { prompt: string; label: string; icon: React.ReactNode }[] = [
+  { prompt: 'What data can I explore here?', label: 'Discover', icon: <Compass size={16} /> },
+  { prompt: 'Which tables were updated most recently?', label: 'Freshness', icon: <Clock size={16} /> },
+  { prompt: 'Show the largest tables by row count', label: 'Size', icon: <BarChart3 size={16} /> },
+  { prompt: 'Chart row counts for my top 10 tables', label: 'Visualize', icon: <Sparkles size={16} /> },
 ];
 
 function InspectorWelcome({ modelId, onPrompt }: { modelId: string | null; onPrompt: (p: string) => void }) {
+  const { data: session } = useSession();
+  const firstName = session?.user?.name?.trim().split(/\s+/)[0];
   return (
-    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', placeItems: 'center', padding: '32px 24px' }}>
-      <div className="insp-welcome" style={{ width: '100%', maxWidth: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
-        <Companion size={56} />
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <h2 style={{ ...type['title-section'], color: 'var(--ink-1)', margin: 0 }}>What do you want to know?</h2>
-          <p style={{ ...type.body, color: 'var(--ink-2)', margin: 0, maxWidth: 440 }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', placeItems: 'center', padding: '32px 24px', position: 'relative' }}>
+      <div className="wl-glow" aria-hidden />
+      <div className="insp-welcome" style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, position: 'relative' }}>
+        <div className="wl-hero">
+          <Companion size={64} />
+        </div>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {firstName && (
+            <span style={{ ...type['ui-regular'], color: 'var(--brand-a-ink)' }}>Hi {firstName}</span>
+          )}
+          <h1 className="wl-title" style={{ ...type['title-section'], margin: 0 }}>What do you want to know?</h1>
+          <p style={{ ...type.body, color: 'var(--ink-2)', margin: '0 auto', maxWidth: 440 }}>
             Ask in plain language. Inspector queries your warehouse, explains the numbers and builds charts.
           </p>
         </div>
         {modelId ? (
           <EmptyStatePrompts modelId={modelId} includeWhatIsThis showHeading={false} onPromptClick={onPrompt} />
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 440 }}>
-            {GENERIC_STARTERS.map((p) => (
-              <button key={p} type="button" className="insp-starter" onClick={() => onPrompt(p)} style={type['ui-regular']}>
-                <ArrowUpRight size={15} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p}</span>
+          <div className="wl-grid">
+            {GENERIC_STARTERS.map((s, i) => (
+              <button
+                key={s.prompt}
+                type="button"
+                className="wl-card"
+                onClick={() => onPrompt(s.prompt)}
+                style={{ ...type['ui-regular'], animationDelay: `${120 + i * 60}ms` }}
+              >
+                <span className="wl-card-icon">{s.icon}</span>
+                <span className="wl-card-text">
+                  <span className="wl-card-label">{s.label}</span>
+                  <span>{s.prompt}</span>
+                </span>
+                <ArrowUpRight size={15} className="wl-card-arrow" />
               </button>
             ))}
           </div>
@@ -192,12 +213,20 @@ interface InspectorShellProps {
   sessionId?: string;
 }
 
+const INSPECTOR_CHAT_STYLE = { assistantName: 'Inspector', assistantIcon: <Database size={14} /> };
+
+/** Admin-only: tables, joins, failed queries and the SQL behind each answer. */
+function renderInspection(msg: WorkbenchMessage) {
+  const note = buildInspectorInspection(msg.toolCalls);
+  if (!note) return null;
+  return <AnswerInspection inspection={note} queries={note.queries} />;
+}
+
 export default function InspectorShell({ sessionId: initialSessionId }: InspectorShellProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [composer, setComposer] = useState('');
   const [sourceChartNotice, setSourceChartNotice] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('');
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
@@ -213,6 +242,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
 
   const { data: authSession } = useSession();
   const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
+  const canInspect = hasAgentOpsRole(authSession?.user?.role);
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
 
@@ -266,16 +296,22 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       .catch(() => setDbConnected(false));
   }, []);
 
-  // Check for candidate semantic models on mount — determines Semantic tab visibility
+  // Check for candidate semantic models on mount — determines Semantic tab visibility.
+  // `?panel=semantic` (e.g. from the home dashboard's review item) opens that tab directly.
+  const panelParam = searchParams?.get('panel') ?? null;
   useEffect(() => {
     fetch('/api/inspector/semantic/candidates')
       .then(r => r.ok ? r.json() : { exists: false, modelId: null })
       .then((d: { exists: boolean; modelId: string | null }) => {
         setHasCandidateModels(d.exists);
         setCandidateModelId(d.modelId);
+        if (d.exists && panelParam === 'semantic') {
+          setRightTab('semantic');
+          setRightCollapsed(false);
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [panelParam]);
 
   // Auto-rename after first and second assistant response
   const renamePhaseRef = useRef(0);
@@ -373,7 +409,6 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
         dbConnected={dbConnected}
         contextMode={contextMode}
         onContextModeChange={setContextMode}
-        onOpenHistory={() => setHistoryOpen(true)}
         onOpenLab={() => {
           router.push('/performance-lab');
         }}
@@ -403,6 +438,13 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
       )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <InspectorChatList
+          activeId={insp.sessionId}
+          disabled={insp.isStreaming}
+          refreshKey={`${insp.sessionId ?? ''}|${sessionTitle}|${insp.isStreaming ? 1 : 0}`}
+          onNew={handleReset}
+          onRenamed={(id, title) => { if (id === insp.sessionId) setSessionTitle(title); }}
+        />
         {/* LEFT — conversation (full width while the results pane is minimized) */}
         <div style={{ flex: rightCollapsed ? 1 : '0 0 60%', minWidth: 0, display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--wb-border-subtle)', overflow: 'hidden', minHeight: 0 }}>
           <PromptCanvas
@@ -436,6 +478,8 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             assumptionLedger={[]}
             classSuggestion={null}
             sessionId={insp.sessionId}
+            chatStyle={INSPECTOR_CHAT_STYLE}
+            renderAfterAssistant={canInspect ? renderInspection : undefined}
           />
         </div>
 
@@ -558,12 +602,6 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
           // Return focus to the EXPAND button that opened the Studio
           requestAnimationFrame(() => expandButtonRef.current?.focus());
         }}
-      />
-
-      <HistoryDrawer
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        currentSessionId={insp.sessionId}
       />
     </div>
   );

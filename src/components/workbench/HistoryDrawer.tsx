@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { X, Plus, Clock, FileText, Pin, PinOff, Trash2, ExternalLink, Loader2, Layers, Database, Users, User, Activity } from 'lucide-react';
 import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { type, inkOf } from '@/lib/typography/tokens';
+import { sessionOpenHref } from '@/lib/sessions/surfaces';
 
 interface Session {
   id: string;
@@ -67,9 +68,10 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
 
   const load = useCallback((allUsers: boolean) => {
     setLoading(true);
+    // Workbench + Inspector only: Teach has its own drawer and agent chats live on the agent's page.
     const url = allUsers && isPlatformAdmin
-      ? '/api/agent-lab/workbench/sessions'
-      : '/api/agent-lab/workbench/sessions?mine=1';
+      ? '/api/agent-lab/workbench/sessions?surface=workbench,inspector'
+      : '/api/agent-lab/workbench/sessions?mine=1&surface=workbench,inspector';
     fetch(url)
       .then(r => r.json())
       .then(data => { setSessions(data.sessions ?? []); setLoading(false); })
@@ -114,8 +116,7 @@ export function HistoryDrawer({ open, onClose, currentSessionId }: HistoryDrawer
 
   const handleOpen = (session: Session) => {
     onClose();
-    const base = session.surface === 'inspector' ? '/inspector' : '/agent-lab/agents/workbench';
-    router.push(`${base}/${session.id}`);
+    router.push(sessionOpenHref(session));
   };
 
   const handleDebugTrace = (e: React.MouseEvent, sessionId: string) => {
@@ -427,7 +428,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                   title="Debug trace"
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    width: 22, height: 22, borderRadius: 4,
+                    width: 22, height: 22, borderRadius: 6,
                     background: 'transparent', border: 'none',
                     color: '#3a5070', cursor: 'pointer', opacity: 0.7,
                   }}
@@ -441,7 +442,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                 title={s.pinned ? 'Unpin' : 'Pin'}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 22, height: 22, borderRadius: 4,
+                  width: 22, height: 22, borderRadius: 6,
                   background: 'transparent', border: 'none',
                   color: s.pinned ? GOLD : '#3a5070', cursor: 'pointer', opacity: 0.7,
                 }}
@@ -454,7 +455,7 @@ function SectionList({ label, items, currentId, deleting, pinning, onOpen, onDel
                 title="Delete"
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 22, height: 22, borderRadius: 4,
+                  width: 22, height: 22, borderRadius: 6,
                   background: 'transparent', border: 'none',
                   color: '#3a5070', cursor: 'pointer', opacity: 0.7,
                 }}

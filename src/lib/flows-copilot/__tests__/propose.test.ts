@@ -25,10 +25,10 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('copilot model adapter', () => {
-  it('uses Grok when xAI is configured and returns the proposal from the tool call', async () => {
-    hasXai.mockReturnValue(true);
-    dispatchAgentLoop.mockImplementation(async (model: { key: string }, loop: Loop) => {
-      expect(model.key).toBe('grok-xai');
+  it('uses the LLM Lite default model and returns the proposal from the tool call', async () => {
+    dispatchAgentLoop.mockImplementation(async (model: { key: string; resource?: string }, loop: Loop) => {
+      expect(model.key).toBe('llm-lite:aws_bedrock--xAI-Grok-4.7');
+      expect(model.resource).toBe('llmlite');
       await loop.executeTool('propose_flow_changes', { reply: 'Done.', operations: [{ op: 'set_name', name: 'y' }] }, 'c1');
       return done();
     });
@@ -47,21 +47,6 @@ describe('copilot model adapter', () => {
     hasXai.mockReturnValue(true);
     dispatchAgentLoop.mockResolvedValue(done({ finalText: '  It runs on a webhook. ' }));
     expect(await proposeFlowEdit({ definition: def, message: 'when does it run?' })).toEqual({ kind: 'text', reply: 'It runs on a webhook.' });
-  });
-
-  it('uses FLOWS_COPILOT_MODEL_ID on Bedrock when set, and falls back to Grok if that call fails', async () => {
-    vi.stubEnv('FLOWS_COPILOT_MODEL_ID', 'us.anthropic.some-model');
-    hasXai.mockReturnValue(true);
-    runAgentLoop.mockImplementation(async (loop: Loop) => {
-      expect(loop.modelId).toBe('us.anthropic.some-model');
-      return done({ outcome: 'errored', errorDetail: 'AccessDenied' });
-    });
-    dispatchAgentLoop.mockImplementation(async (_m: unknown, loop: Loop) => {
-      await loop.executeTool('propose_flow_changes', { reply: 'ok', operations: [] }, 'c1');
-      return done();
-    });
-    expect(await proposeFlowEdit({ definition: def, message: 'x' })).toEqual({ kind: 'proposal', reply: 'ok', operations: [] });
-    expect(dispatchAgentLoop).toHaveBeenCalledTimes(1);
   });
 
   it('accepts a tool call that the model wrote out as text (seen with Grok), and nothing looser', async () => {

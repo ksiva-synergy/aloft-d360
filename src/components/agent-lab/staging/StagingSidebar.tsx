@@ -97,7 +97,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               aria-label="Synergy Group — Data 360 home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
-              <BrandMark size={40} className="!rounded-full" />
+              <BrandMark size={30} className="!rounded-full" />
             </Link>
           </div>
           <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
@@ -139,7 +139,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
             <div className="-mx-2.5 mb-2.5 flex h-[var(--shell-header-h)] shrink-0 items-center gap-2 border-b border-[var(--header-border)] px-2.5">
               <div className="min-w-0 flex-1">
                 <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
-                <h2 className="mt-1 truncate text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
+                <h2 className="mt-0.5 truncate leading-tight text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
                   {isHome ? 'Home' : area.label}
                 </h2>
               </div>
@@ -219,7 +219,7 @@ function RailItem({
     <>
       <span
         className={cn(
-          'relative flex h-8 w-10 items-center justify-center rounded-full transition-all duration-200',
+          'relative flex h-8 w-10 items-center justify-center rounded-full transition duration-200',
           active
             ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)] shadow-[0_6px_16px_-8px_var(--rail-shadow)]'
             : 'text-[var(--rail-ink)] group-hover:bg-[var(--rail-hover)] group-hover:text-[var(--rail-ink-strong)]',

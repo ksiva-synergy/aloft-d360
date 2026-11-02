@@ -356,7 +356,7 @@ function ClusterParentRow({
                 color: MUTED,
                 background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
                 border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
-                borderRadius: 3,
+                borderRadius: 6,
                 padding: '1px 5px',
                 flexShrink: 0,
               }}
@@ -430,7 +430,7 @@ function ClusterParentRow({
                 color: MUTED,
                 background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
                 border: `1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)`,
-                borderRadius: 3,
+                borderRadius: 6,
                 padding: '1px 5px',
                 flexShrink: 0,
               }}
@@ -534,7 +534,7 @@ function KindChip({ r }: { r: CatalogRow }) {
         color: c,
         background: tint(c),
         border: `1px solid ${tint(c, 40)}`,
-        borderRadius: 3,
+        borderRadius: 6,
         padding: '2px 6px',
         whiteSpace: 'nowrap',
       }}
@@ -767,7 +767,7 @@ function IconBtn({
         display: 'flex',
         alignItems: 'center',
         padding: 4,
-        borderRadius: 3,
+        borderRadius: 6,
         border: `1px solid ${BORDER}`,
         background: 'transparent',
         color,

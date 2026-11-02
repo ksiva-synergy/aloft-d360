@@ -285,7 +285,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
             <div key={src.id} className="flex flex-col">
               {/* Source Node */}
               <div
-                className="flex items-center justify-between py-1.5 px-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                className="flex items-center justify-between py-1.5 px-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                 style={{
                   backgroundColor: isSelected ? activeBgColor : 'transparent',
                   borderLeftColor: isSelected ? 'var(--brand-a)' : 'transparent',
@@ -323,7 +323,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                     return (
                       <div key={cat.name} className="flex flex-col">
                         <div
-                          className="flex items-center justify-between py-1.5 pl-8 pr-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                          className="flex items-center justify-between py-1.5 pl-8 pr-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                           style={{
                             backgroundColor: isCatSelected ? activeBgColor : 'transparent',
                             borderLeftColor: isCatSelected ? 'var(--brand-a)' : 'transparent',
@@ -361,7 +361,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                               return (
                                 <div
                                   key={sche.name}
-                                  className="flex items-center justify-between py-1.5 pl-12 pr-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                                  className="flex items-center justify-between py-1.5 pl-12 pr-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                                   style={{
                                     backgroundColor: isScheSelected ? activeBgColor : 'transparent',
                                     borderLeftColor: isScheSelected ? 'var(--brand-a)' : 'transparent',

@@ -118,7 +118,7 @@ export function Waterfall({ calls, colorOf, onOpen }: { calls: InvocationRow[]; 
                       height: 12,
                       left: `${(b.start / span) * 100}%`,
                       width: `max(3px, ${((b.end - b.start) / span) * 100}%)`,
-                      borderRadius: 3,
+                      borderRadius: 6,
                       background: color,
                       opacity: hover == null || active ? 1 : 0.55,
                       transition: 'opacity 120ms',

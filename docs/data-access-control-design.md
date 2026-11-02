@@ -37,7 +37,7 @@ Each item is tagged **[M] mandatory** (the feature is unsafe or meaningless with
 
 | # | Path | What data | Protection today | Gap |
 |---|---|---|---|---|
-| P1 | Inspector chat → `execute_tool` / semantic chart | Live warehouse rows | Login; read-only single statement ([databricks/execute.ts](../src/lib/databricks/execute.ts)); session ownership check **observe-only** unless `INSPECTOR_AUTH_ENFORCE=true` ([session-auth.ts](../src/lib/inspector/session-auth.ts)) | No data grants; model can issue any read-only SQL the shared principal can run |
+| P1 | Inspector chat → `execute_tool` / semantic chart | Live warehouse rows | Login; read-only single statement ([databricks/execute.ts](../src/lib/databricks/execute.ts)); session ownership check **enforced by default** (`INSPECTOR_AUTH_ENFORCE=false` is an observe-only opt-out) ([session-auth.ts](../src/lib/inspector/session-auth.ts)) | No data grants; model can issue any read-only SQL the shared principal can run |
 | P2 | Semantic query (`executeSemanticQuery`) | Live rows via governed definitions | Governed models only on default path; other users' drafts blocked ([semantic/execute.ts](../src/lib/semantic/execute.ts)) | No per-user grant on models, no row filters, no column masks |
 | P3 | CSV export (`/api/inspector/export`) | Up to **100,000 rows** per call ([export-limits.ts](../src/lib/databricks/export-limits.ts)) | Login; read-only; `guardInspectorChat` (observe-only by default) | **Accepts SQL from the browser** (verified, route body `sql`). Any signed-in user can bulk-export anything the shared principal reads |
 | P4 | `/api/databricks/connections` (+ execute) | Credentials and live rows | Login only | Audit **S4 (P0)**: any user can add a connection with a client secret and run SQL as it. Still open today |
@@ -66,7 +66,7 @@ These come from the audit and were re-checked today where noted. An access model
 | S2 | Owner checks on workbench session GET/PATCH | Still open |
 | S3 | Admin-only on policy create/update/delete and catalog create/fork | Still open |
 | S4 | Admin-only on Databricks connections create/test/execute | Still open |
-| S5 | Turn `INSPECTOR_AUTH_ENFORCE` on once S2 lands | Not re-checked |
+| S5 | Turn `INSPECTOR_AUTH_ENFORCE` on once S2 lands | Done: enforced by default (security assessment F6) |
 | S6 | Check `isUsable` and refresh role on ordinary requests, so suspension and demotion apply before the 8-hour JWT expires | Not re-checked |
 | S7 | Remove the `NEXT_PUBLIC_ENABLE_DEV_TAB` override from the server-side role gate | Still open |
 | S8, S9 | Owner checks on memory purge and studio results | Not re-checked |

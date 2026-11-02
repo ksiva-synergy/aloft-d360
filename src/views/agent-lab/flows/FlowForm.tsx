@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AlertTriangle, ExternalLink, Plus, Trash2, X } from 'lucide-react';
 import {
@@ -138,7 +139,7 @@ function ConnectionPicker({
   const placeholder = value === 'CHOOSE_CONNECTION' ? '' : value;
   return (
     <>
-      <select id={id} className={field} value={placeholder} disabled={!list} onChange={(e) => onChange(e.target.value)}>
+      <Select id={id} className={field} value={placeholder} disabled={!list} onChange={(e) => onChange(e.target.value)}>
         <option value="">{list ? 'Choose a connection…' : 'Loading connections…'}</option>
         {value && value !== 'CHOOSE_CONNECTION' && list && !known && <option value={value}>{value} (not available to you)</option>}
         {mine.length > 0 && (
@@ -151,7 +152,7 @@ function ConnectionPicker({
             {shared.map((c) => <option key={c.id} value={c.id}>{label(c)}{c.ownerName ? ` · ${c.ownerName}` : ''}</option>)}
           </optgroup>
         )}
-      </select>
+      </Select>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-size-caption text-[var(--ink-3)]">
         {failed ? 'Could not load your connections.' : list && list.length === 0 ? 'You have no connections yet.' : 'Pick an existing connection or add one below.'}
         {!showCreate && (
@@ -188,10 +189,10 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
       return (
         <div className="space-y-3">
           <Field id={k('mode')} label="Source">
-            <select id={k('mode')} className={field} value={c.sql !== undefined ? 'sql' : 'semantic'} onChange={(e) => onChange(updateStep(def, step.id, { config: e.target.value === 'sql' ? { sql: 'select 1', maxRows: c.maxRows ?? 1000 } : { semantic: { modelId: '', entityId: '', dimensions: [], measures: [], filters: [], sorts: [] }, maxRows: c.maxRows ?? 1000 } }))}>
+            <Select id={k('mode')} className={field} value={c.sql !== undefined ? 'sql' : 'semantic'} onChange={(e) => onChange(updateStep(def, step.id, { config: e.target.value === 'sql' ? { sql: 'select 1', maxRows: c.maxRows ?? 1000 } : { semantic: { modelId: '', entityId: '', dimensions: [], measures: [], filters: [], sorts: [] }, maxRows: c.maxRows ?? 1000 } }))}>
               <option value="semantic">Governed semantic query (recommended)</option>
               <option value="sql">Raw read-only SQL (needs the flow:sql permission)</option>
-            </select>
+            </Select>
           </Field>
           {c.sql !== undefined ? (
             <Field id={k('sql')} label="SQL">
@@ -262,13 +263,13 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
       return (
         <div className="space-y-3">
           <Field id={k('op')} label="Operation">
-            <select id={k('op')} className={field} value={c.op} onChange={(e) => onChange(updateStep(def, step.id, { config: e.target.value === 'filter' ? { op: 'filter', input: c.input ?? '', field: '', operator: 'eq', value: '' } : e.target.value === 'limit' ? { op: 'limit', input: c.input ?? '', count: 10 } : e.target.value === 'count' ? { op: 'count', input: c.input ?? '' } : { op: 'anti_join', input: c.input ?? '', other: '', key: '' } }))}>
+            <Select id={k('op')} className={field} value={c.op} onChange={(e) => onChange(updateStep(def, step.id, { config: e.target.value === 'filter' ? { op: 'filter', input: c.input ?? '', field: '', operator: 'eq', value: '' } : e.target.value === 'limit' ? { op: 'limit', input: c.input ?? '', count: 10 } : e.target.value === 'count' ? { op: 'count', input: c.input ?? '' } : { op: 'anti_join', input: c.input ?? '', other: '', key: '' } }))}>
               {TRANSFORM_OPS.map((o) => (
                 <option key={o} value={o}>
                   {o === 'filter' ? 'Keep rows where…' : o === 'limit' ? 'Keep the first N rows' : o === 'count' ? 'Count rows' : 'Rows with no match in another list'}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field id={k('input')} label="Rows" hint="A reference, e.g. {{steps.query_1.rows}}">
             <input id={k('input')} className={`${field} font-mono`} value={c.input ?? ''} onChange={(e) => set({ input: e.target.value })} />
@@ -279,9 +280,9 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
                 <input id={k('field')} className={field} value={c.field ?? ''} onChange={(e) => set({ field: e.target.value })} />
               </Field>
               <Field id={k('operator')} label="Operator">
-                <select id={k('operator')} className={field} value={c.operator} onChange={(e) => set({ operator: e.target.value })}>
+                <Select id={k('operator')} className={field} value={c.operator} onChange={(e) => set({ operator: e.target.value })}>
                   {OPERATORS.map((o) => <option key={o}>{o}</option>)}
-                </select>
+                </Select>
               </Field>
               <Field id={k('value')} label="Value">
                 <input id={k('value')} className={field} value={String(c.value ?? '')} onChange={(e) => set({ value: /^-?\d+(\.\d+)?$/.test(e.target.value) ? Number(e.target.value) : e.target.value })} />
@@ -334,10 +335,10 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
       return (
         <div className="space-y-3">
           <Field id={k('capability')} label="Connector operation" hint="Connection, method and channel must be fixed values, not references.">
-            <select id={k('capability')} className={field} value={c.capability} onChange={(e) => set({ capability: e.target.value, version: undefined })}>
+            <Select id={k('capability')} className={field} value={c.capability} onChange={(e) => set({ capability: e.target.value, version: undefined })}>
               {!capabilities.some((x) => x.id === c.capability) && <option value={c.capability}>{c.capability}</option>}
               {capabilities.map((x) => <option key={x.id} value={x.id}>{x.title} ({x.id})</option>)}
-            </select>
+            </Select>
           </Field>
           {capabilities.find((x) => x.id === c.capability)?.fields?.connection !== undefined && (
             <Field
@@ -359,7 +360,7 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
             return (
               <>
                 <Field id={k('schema')} label="What to read" hint={own ? 'List the fields to read. Grok reads only these, and says "not found" rather than guessing.' : getExtractionSchema(c.input?.schema)?.description}>
-                  <select
+                  <Select
                     id={k('schema')}
                     className={field}
                     value={own ? CUSTOM : typeof c.input?.schema === 'string' ? c.input.schema : ''}
@@ -370,7 +371,7 @@ function StepConfig({ step, def, onChange, capabilities }: { step: Step; def: De
                     <option value="">Choose what to read…</option>
                     {EXTRACTION_SCHEMAS.map((x) => <option key={x.name} value={x.name}>{x.title}</option>)}
                     <option value={CUSTOM}>My own fields…</option>
-                  </select>
+                  </Select>
                 </Field>
                 {own && <ExtractFieldsEditor id={k('fields')} fields={c.input.fields as CustomField[]} onChange={(fields) => set({ input: { ...rest, fields } })} />}
               </>
@@ -420,12 +421,12 @@ export function WorkflowSettings({ def, onChange, bindings }: { def: Def; onChan
 
       <Section title="When it runs">
         <Field id="trigger-type" label="Trigger">
-          <select id="trigger-type" className={field} value={trigger.type} onChange={(e) => onChange(setTrigger(def, e.target.value))}>
+          <Select id="trigger-type" className={field} value={trigger.type} onChange={(e) => onChange(setTrigger(def, e.target.value))}>
             <option value="manual">Someone starts it</option>
             <option value="schedule">On a schedule</option>
             <option value="webhook">When an external system calls it</option>
             <option value="event">When an ALOFT event is raised</option>
-          </select>
+          </Select>
         </Field>
         {trigger.type === 'schedule' && (
           <Field id="trigger-cron" label="Schedule (cron, UTC)" hint="Five fields, e.g. 0 6 * * 1 = Mondays 06:00. A test run lists the next run times.">
@@ -455,11 +456,11 @@ export function WorkflowSettings({ def, onChange, bindings }: { def: Def; onChan
                 <input id={`inp-${i}-name`} className={`${field} font-mono`} value={inp.name} onChange={(e) => patchInput(i, { name: e.target.value })} />
               </Field>
               <Field id={`inp-${i}-type`} label="Type">
-                <select id={`inp-${i}-type`} className={field} value={inp.type} onChange={(e) => patchInput(i, { type: e.target.value as InputDef['type'], default: undefined })}>
+                <Select id={`inp-${i}-type`} className={field} value={inp.type} onChange={(e) => patchInput(i, { type: e.target.value as InputDef['type'], default: undefined })}>
                   <option>string</option>
                   <option>number</option>
                   <option>boolean</option>
-                </select>
+                </Select>
               </Field>
               <button type="button" aria-label={`Remove input ${inp.name}`} className={`${btn.icon} mb-0.5`} onClick={() => onChange(setInputs(def, inputs.filter((_, n) => n !== i)))}>
                 <Trash2 className="h-4 w-4" />
@@ -633,9 +634,9 @@ export function StepEditor({
               <input id={`${step.id}-wref`} className={`${field} font-mono`} value={when.ref} onChange={(e) => onChange(setWhen(def, step.id, { ...when, ref: e.target.value }))} />
             </Field>
             <Field id={`${step.id}-wop`} label="Is">
-              <select id={`${step.id}-wop`} className={field} value={when.operator} onChange={(e) => onChange(setWhen(def, step.id, { ...when, operator: e.target.value }))}>
+              <Select id={`${step.id}-wop`} className={field} value={when.operator} onChange={(e) => onChange(setWhen(def, step.id, { ...when, operator: e.target.value }))}>
                 {OPERATORS.map((o) => <option key={o}>{o}</option>)}
-              </select>
+              </Select>
             </Field>
             <Field id={`${step.id}-wval`} label="Compared with">
               <input id={`${step.id}-wval`} className={field} value={String(when.value)} onChange={(e) => onChange(setWhen(def, step.id, { ...when, value: /^-?\d+(\.\d+)?$/.test(e.target.value) ? Number(e.target.value) : e.target.value }))} />

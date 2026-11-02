@@ -1,16 +1,35 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import Link from '@/lib/navigation/link';
-import { inkOf } from '@/lib/typography/tokens';
+import { AlertCircle, ArrowRight, Check, Circle, Loader2, RotateCcw, Search, SearchX, Table2, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  CATALOG_BTN,
+  CATALOG_BTN_PRIMARY,
+  CATALOG_SELECT,
+  CATALOG_SELECT_ARROW,
+  ObjectNameCell,
+  OverflowMenu,
+  formatCompactCount,
+} from '@/components/estate/catalog-ui';
+import { LinkStatusPill, SiloStepper, SimilarityMeter, VerdictTag } from '@/components/estate/silo/silo-ui';
 
-const truncateText = (text: string, maxLen: number = 60) => {
-  if (!text) return '';
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 3) + '...';
-};
+const CARD = 'rounded-card border border-[var(--estate-border-gold)] bg-[var(--estate-raised)]';
+const TOP_N_OPTIONS = [5, 10, 15, 20, 25, 30, 40, 50];
+const MIN_SCORE_OPTIONS = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+
+function kindLabel(kind: string | null | undefined): string {
+  const k = (kind ?? '').toLowerCase();
+  if (!k) return 'Table';
+  if (k.includes('materialized')) return 'Materialized view';
+  if (k.includes('view')) return 'View';
+  if (k === 'external') return 'External table';
+  return 'Table';
+}
 
 function SiloFinderContent() {
   const router = useRouter();
@@ -21,7 +40,6 @@ function SiloFinderContent() {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedObject, setSelectedObject] = useState<any | null>(null);
 
   // Scan options
@@ -40,13 +58,6 @@ function SiloFinderContent() {
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [candidatesMap, setCandidatesMap] = useState<Record<string, any>>({});
   const [updatingLinks, setUpdatingLinks] = useState<Record<string, 'confirming' | 'rejecting' | null>>({});
-
-  // Colors / styling tokens
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const raisedBg = 'var(--estate-raised)';
-  const borderColor = 'var(--estate-border-gold)';
-  const activeColor = 'var(--brand-a)';
 
   // 1. Pre-fill object from URL search params
   useEffect(() => {
@@ -68,6 +79,7 @@ function SiloFinderContent() {
                 source_id: obj.source_id,
                 columnsCount: json.data.columns?.length || 0,
                 entity_tags: obj.entity_tags,
+                object_kind: obj.object_kind,
               });
             } else {
               toast.error('Object not found');
@@ -196,6 +208,33 @@ function SiloFinderContent() {
     void loadLinksAndCandidates();
   }, [step, selectedObject?.id]);
 
+  const handleSelectResult = async (item: any) => {
+    try {
+      const res = await fetch(`/api/agent-lab/context/objects/${item.id}`);
+      if (res.ok) {
+        const json = await res.json();
+        const obj = json.data?.object;
+        if (obj) {
+          setSelectedObject({
+            id: obj.id,
+            full_path: obj.full_path,
+            summary: json.data.latestSemanticCard?.card?.summary || 'No summary available.',
+            row_count_est: obj.row_count_est,
+            catalog_name: obj.catalog_name,
+            schema_name: obj.schema_name,
+            source_id: obj.source_id,
+            columnsCount: json.data.columns?.length || 0,
+            entity_tags: obj.entity_tags,
+            object_kind: obj.object_kind,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load object details');
+    }
+  };
+
   const handleRunScan = async () => {
     if (!selectedObject || submitting) return;
 
@@ -278,10 +317,10 @@ function SiloFinderContent() {
   };
 
   const stages = [
-    { key: 'embedding_search', label: 'Embedding search', durKey: 'embedding_search_duration_ms' },
-    { key: 'signal_computation', label: 'Signal computation', durKey: 'signal_computation_duration_ms' },
-    { key: 'llm_adjudication', label: 'LLM adjudication', durKey: 'llm_adjudication_duration_ms' },
-    { key: 'persist', label: 'Persist', durKey: 'persist_duration_ms' },
+    { key: 'embedding_search', label: 'Finding tables with similar meaning', durKey: 'embedding_search_duration_ms' },
+    { key: 'signal_computation', label: 'Comparing columns and types', durKey: 'signal_computation_duration_ms' },
+    { key: 'llm_adjudication', label: 'Reviewing candidates with AI', durKey: 'llm_adjudication_duration_ms' },
+    { key: 'persist', label: 'Saving matches', durKey: 'persist_duration_ms' },
   ];
 
   const getStageStatus = (stageKey: string, index: number) => {
@@ -348,554 +387,573 @@ function SiloFinderContent() {
     return scoreB - scoreA;
   });
 
-  const chipStyle = {
-    backgroundColor: 'var(--estate-hover)',
-    border: `1px solid ${borderColor}`,
-    fontFamily: 'var(--font-mono)',
-    fontSize: 'var(--type-ui-regular-size)',
-    borderRadius: '4px',
-    padding: '4px 8px',
-    color: labelColor,
-  };
+  const showResultList = query.trim().length >= 2;
+  const stageDoneCount = stages.filter((s, i) => getStageStatus(s.key, i) === 'checked').length;
+  const jobFailed = Boolean(jobError) || jobData?.status === 'failed';
+  const reviewCounts = links.reduce(
+    (acc, l) => {
+      if (l.status === 'confirmed') acc.confirmed += 1;
+      else if (l.status === 'rejected') acc.rejected += 1;
+      else acc.open += 1;
+      return acc;
+    },
+    { open: 0, confirmed: 0, rejected: 0 },
+  );
+
+  const selectedHeader = selectedObject && (
+    <div className="flex min-w-0 flex-col gap-1">
+      <span className="text-caption text-[var(--estate-text-muted)]">Compared against</span>
+      <div className="text-ui">
+        <ObjectNameCell path={selectedObject.full_path} kind={selectedObject.object_kind} />
+      </div>
+    </div>
+  );
 
   return (
-    <div className="h-full flex flex-col overflow-y-auto p-6 bg-[var(--background)]" style={{ color: inkColor }}>
-      {/* 1. Step Indicator strip */}
-      <div className="flex items-center gap-4 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
-          {step > 1 ? (
-            <span style={{ color: activeColor }}>✓</span>
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeColor }} />
-          )}
-          <span style={{ color: step === 1 ? inkColor : labelColor }}>Pick object</span>
-        </div>
-        <div className="text-size-ui" style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
-          {step > 2 ? (
-            <span style={{ color: activeColor }}>✓</span>
-          ) : step === 2 ? (
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: activeColor }}></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: activeColor }}></span>
-            </span>
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full border border-[color:color-mix(in_srgb,var(--line-2)_40%,transparent)]" />
-          )}
-          <span style={{ color: step === 2 ? inkColor : labelColor }}>Scan</span>
-        </div>
-        <div className="text-size-ui" style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label " style={{ fontFamily: 'var(--font-mono)' }}>
-          {step === 3 ? (
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeColor }} />
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full border border-[color:color-mix(in_srgb,var(--line-2)_40%,transparent)]" />
-          )}
-          <span style={{ color: step === 3 ? inkColor : labelColor }}>Results</span>
-        </div>
-      </div>
+    <div className="h-full overflow-y-auto bg-[var(--background)] text-[var(--estate-ink)]">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 px-6 py-5">
+        {/* Page header */}
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <SiloStepper step={step} />
+        </header>
 
-      {/* 2. Step Views */}
-      {step === 1 && (
-        <div className="flex flex-col gap-6 max-w-xl">
-     <h2 className="text-label " style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
-            Silo Finder
-          </h2>
-
-          {/* Autocomplete Input */}
-          {!selectedObject && (
-            <div className="relative">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setDropdownOpen(true);
-                }}
-                onFocus={() => setDropdownOpen(true)}
-                placeholder="Search objects by name or description..."
-                className="w-full px-4 py-3 rounded border text-size-ui outline-none focus:border-[var(--brand-a)] transition-colors bg-transparent font-sans"
-                style={{ borderColor, color: inkColor }}
-              />
-
-              {dropdownOpen && query.trim().length >= 2 && (
-                <div
-                  className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded border shadow-lg z-50 flex flex-col"
-                  style={{ backgroundColor: raisedBg, borderColor }}
-                >
-                  {searching && (
-                    <div className="p-3 text-size-ui font-mono" style={{ color: labelColor }}>Searching...</div>
-                  )}
-                  {!searching && searchResults.length === 0 && (
-                    <div className="p-3 text-size-ui font-sans" style={{ color: labelColor }}>No matches found.</div>
-                  )}
-                  {!searching &&
-                    searchResults.map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={async () => {
-                          setDropdownOpen(false);
-                          setQuery('');
-                          try {
-                            const res = await fetch(`/api/agent-lab/context/objects/${item.id}`);
-                            if (res.ok) {
-                              const json = await res.json();
-                              const obj = json.data?.object;
-                              if (obj) {
-                                setSelectedObject({
-                                  id: obj.id,
-                                  full_path: obj.full_path,
-                                  summary: json.data.latestSemanticCard?.card?.summary || 'No summary available.',
-                                  row_count_est: obj.row_count_est,
-                                  catalog_name: obj.catalog_name,
-                                  schema_name: obj.schema_name,
-                                  source_id: obj.source_id,
-                                  columnsCount: json.data.columns?.length || 0,
-                                  entity_tags: obj.entity_tags,
-                                });
-                              }
-                            }
-                          } catch (err) {
-                            console.error(err);
-                            toast.error('Failed to load object details');
-                          }
-                        }}
-                        className="flex items-center justify-between p-3 border-b last:border-b-0 cursor-pointer hover:bg-amber-500/5 transition-all duration-100"
-                        style={{ borderColor }}
-                      >
-                        <span className="truncate pr-4" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}>
-                          {item.full_path}
-                        </span>
-                        <span className="truncate flex-shrink-0" style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }}>
-                          {truncateText(item.semantic_summary || 'No summary available.', 60)}
-                        </span>
-                      </div>
-                    ))}
+        {/* ── Step 1: choose table ─────────────────────────────────────── */}
+        {step === 1 && (
+          <>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+              {/* Search card */}
+              <section className={cn(CARD, 'flex min-h-[360px] flex-col')}>
+                <div className="border-b border-[var(--estate-border)] px-5 pb-4 pt-4">
+                  <h2 className="text-title-card text-[var(--estate-ink)]">Choose a table</h2>
+                  <p className="mt-0.5 text-caption text-[var(--estate-text-muted)]">Search by table name or by what the data is about.</p>
+                  <div className="relative mt-3">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--estate-text-dim)]" />
+                    <input
+                      type="search"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search tables, e.g. customers or orders"
+                      aria-label="Search tables"
+                      className="h-9 w-full rounded-ctl border border-[var(--estate-border)] bg-[var(--estate-surface)] pl-9 pr-9 text-ui text-[var(--estate-ink)] outline-none transition-colors placeholder:text-[var(--estate-text-dim)] focus-visible:border-[var(--brand-a)] focus-visible:shadow-[var(--focus-ring)]"
+                    />
+                    {searching && (
+                      <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-[var(--estate-text-dim)]" />
+                    )}
+                  </div>
                 </div>
-              )}
+
+                <div className="flex-1 overflow-y-auto p-2">
+                  {!showResultList ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+                      <span className="flex size-9 items-center justify-center rounded-full bg-[var(--estate-hover)] text-[var(--estate-text-muted)]">
+                        <Search className="size-4" />
+                      </span>
+                      <p className="text-ui text-[var(--estate-text-secondary)]">Start typing to search your catalog</p>
+                      <p className="text-caption text-[var(--estate-text-muted)]">Type at least 2 characters.</p>
+                    </div>
+                  ) : searching && searchResults.length === 0 ? (
+                    <div className="space-y-1.5 p-2">
+                      {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="h-12 animate-pulse rounded-ctl bg-[var(--estate-hover)]" />
+                      ))}
+                    </div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+                      <span className="flex size-9 items-center justify-center rounded-full bg-[var(--estate-hover)] text-[var(--estate-text-muted)]">
+                        <SearchX className="size-4" />
+                      </span>
+                      <p className="text-ui text-[var(--estate-text-secondary)]">No tables match {'\u201c'}{query.trim()}{'\u201d'}</p>
+                      <p className="text-caption text-[var(--estate-text-muted)]">Try a shorter name or a different word.</p>
+                    </div>
+                  ) : (
+                    <ul className="space-y-0.5" role="listbox" aria-label="Search results">
+                      {searchResults.map((item) => {
+                        const isSelected = selectedObject?.id === item.id;
+                        const rows = formatCompactCount(item.row_count_est);
+                        return (
+                          <li key={item.id}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={isSelected}
+                              onClick={() => void handleSelectResult(item)}
+                              className={cn(
+                                'group relative flex w-full items-start gap-3 rounded-ctl px-3 py-2.5 text-left transition-colors',
+                                isSelected
+                                  ? 'bg-[var(--estate-active-bg)] ring-1 ring-inset ring-[color:color-mix(in_srgb,var(--brand-a)_45%,transparent)]'
+                                  : 'hover:bg-[var(--estate-hover)]',
+                              )}
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="flex min-w-0 items-center gap-3">
+                                  <span className="min-w-0 flex-1">
+                                    <ObjectNameCell path={item.full_path} kind={item.object_kind} />
+                                  </span>
+                                  <span className="shrink-0 text-caption tabular-nums text-[var(--estate-text-muted)]">
+                                    {kindLabel(item.object_kind)}
+                                    {rows ? ` \u00b7 ${rows} rows` : ''}
+                                  </span>
+                                </span>
+                                <span className="mt-0.5 block truncate pl-[22px] text-caption text-[var(--estate-text-muted)]">
+                                  {item.semantic_summary || 'No description yet.'}
+                                </span>
+                              </span>
+                              <span
+                                aria-hidden
+                                className={cn(
+                                  'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors',
+                                  isSelected
+                                    ? 'border-[var(--brand-a)] bg-[var(--brand-a)] text-[var(--on-brand)]'
+                                    : 'border-[var(--estate-border)] group-hover:border-[var(--estate-text-muted)]',
+                                )}
+                              >
+                                {isSelected && <Check className="size-3" strokeWidth={3} />}
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </section>
+
+              {/* Selected table card */}
+              <aside className={cn(CARD, 'flex flex-col self-start p-5')}>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-label text-[var(--estate-text-secondary)]">Selected table</h2>
+                  {selectedObject && (
+                    <button type="button" onClick={handleClear} className={CATALOG_BTN}>
+                      <X className="size-3.5" /> Clear
+                    </button>
+                  )}
+                </div>
+
+                {selectedObject ? (
+                  <div className="mt-3 flex flex-1 flex-col gap-4">
+                    <div className="text-ui">
+                      <ObjectNameCell path={selectedObject.full_path} kind={selectedObject.object_kind} />
+                    </div>
+                    <p className="line-clamp-5 text-ui-regular text-[var(--estate-text-secondary)]">{selectedObject.summary}</p>
+                    <dl className="grid grid-cols-3 gap-2 border-t border-[var(--estate-border)] pt-4">
+                      <div>
+                        <dt className="text-caption text-[var(--estate-text-muted)]">Rows</dt>
+                        <dd className="text-kpi-sm tabular-nums text-[var(--estate-ink)]">
+                          {formatCompactCount(selectedObject.row_count_est) ?? '\u2014'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-caption text-[var(--estate-text-muted)]">Columns</dt>
+                        <dd className="text-kpi-sm tabular-nums text-[var(--estate-ink)]">{selectedObject.columnsCount || '\u2014'}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-caption text-[var(--estate-text-muted)]">Schema</dt>
+                        <dd className="truncate pt-1 font-mono text-ui-regular text-[var(--estate-ink)]" title={selectedObject.schema_name ?? undefined}>
+                          {selectedObject.schema_name || '\u2014'}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center">
+                    <span className="flex size-9 items-center justify-center rounded-full border border-dashed border-[var(--estate-border)] text-[var(--estate-text-dim)]">
+                      <Table2 className="size-4" />
+                    </span>
+                    <p className="text-ui text-[var(--estate-text-secondary)]">No table selected</p>
+                    <p className="max-w-[240px] text-caption text-[var(--estate-text-muted)]">
+                      Pick a table from the list. We will compare it with the rest of your data.
+                    </p>
+                  </div>
+                )}
+              </aside>
             </div>
-          )}
 
-          {/* Selected object card */}
-          {selectedObject && (
-            <div
-              className="p-5 rounded border relative flex flex-col gap-2"
-              style={{ backgroundColor: raisedBg, borderColor }}
-            >
-              <button
-                onClick={handleClear}
-                className="absolute top-4 right-4 text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                style={{ fontFamily: 'var(--font-mono)' }}
-              >
-                [× Clear]
-              </button>
-
-              <div className="pr-16" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-body-size)', fontWeight: 600, color: inkColor }}>
-                {selectedObject.full_path}
+            {/* Options + action */}
+            <section className={cn(CARD, 'flex flex-wrap items-end gap-x-6 gap-y-4 px-5 py-4')}>
+              <div className="flex flex-col gap-1">
+                <span className="text-label text-[var(--estate-ink)]">Options</span>
+                <span className="text-caption text-[var(--estate-text-muted)]">Fine-tune the search.</span>
               </div>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor, lineHeight: '1.5' }}>
-                {selectedObject.summary}
-              </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }}>
-                Rows: {selectedObject.row_count_est !== null ? Number(selectedObject.row_count_est).toLocaleString() : '—'}
-              </div>
-            </div>
-          )}
-
-          {/* Options Row */}
-          <div className="flex flex-col gap-4 py-4 border-t border-dashed" style={{ borderColor }}>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-size-ui uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
-                  Top N results
-                </label>
-                <input
-                  type="number"
-                  min={5}
-                  max={50}
-                  step={1}
+              <label className="flex flex-col gap-1">
+                <span className="text-caption text-[var(--estate-text-muted)]">Max results</span>
+                <Select
                   value={topN}
                   onChange={(e) => setTopN(Math.min(50, Math.max(5, Number(e.target.value) || 5)))}
-                  className="px-3 py-2 rounded border outline-none bg-transparent"
-                  style={{ borderColor, color: inkColor, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)' }}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-size-ui uppercase tracking-wide" style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>
-                  Min similarity
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={minScore}
+                  className={cn(CATALOG_SELECT, 'w-28 tabular-nums')}
+                  style={CATALOG_SELECT_ARROW}
+                >
+                  {(TOP_N_OPTIONS.includes(topN) ? TOP_N_OPTIONS : [...TOP_N_OPTIONS, topN].sort((a, b) => a - b)).map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </Select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-caption text-[var(--estate-text-muted)]">Minimum similarity</span>
+                <Select
+                  value={String(minScore)}
                   onChange={(e) => setMinScore(Math.min(1.0, Math.max(0.0, Number(e.target.value) || 0.0)))}
-                  className="px-3 py-2 rounded border outline-none bg-transparent"
-                  style={{ borderColor, color: inkColor, fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)' }}
+                  className={cn(CATALOG_SELECT, 'w-32 tabular-nums')}
+                  style={CATALOG_SELECT_ARROW}
+                >
+                  {(MIN_SCORE_OPTIONS.includes(minScore) ? MIN_SCORE_OPTIONS : [...MIN_SCORE_OPTIONS, minScore].sort((a, b) => a - b)).map((v) => (
+                    <option key={v} value={String(v)}>{Math.round(v * 100)}% or more</option>
+                  ))}
+                </Select>
+              </label>
+              <label className="flex h-9 cursor-pointer select-none items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeRejected}
+                  onChange={(e) => setIncludeRejected(e.target.checked)}
+                  className="size-3.5 cursor-pointer accent-[var(--brand-a)]"
                 />
+                <span className="text-ui text-[var(--estate-text-secondary)]">Include previously rejected</span>
+              </label>
+
+              <div className="ml-auto flex items-center gap-3">
+                {!selectedObject && <span className="text-caption text-[var(--estate-text-muted)]">Choose a table first</span>}
+                <button
+                  type="button"
+                  onClick={handleRunScan}
+                  disabled={!selectedObject || submitting}
+                  className={CATALOG_BTN_PRIMARY}
+                >
+                  {submitting ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                  {submitting ? 'Starting\u2026' : 'Find similar data'}
+                  {!submitting && <ArrowRight className="size-3.5" />}
+                </button>
+              </div>
+            </section>
+
+            {jobError && (
+              <div role="alert" className="flex items-start gap-2 rounded-card bg-[var(--bad-bg)] px-4 py-3 text-ui text-[var(--bad)]">
+                <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                <span>{jobError}</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Step 2: searching ────────────────────────────────────────── */}
+        {step === 2 && (
+          <section className={cn(CARD, 'mx-auto w-full max-w-[640px] p-6')}>
+            <div className="flex items-start gap-3">
+              <span
+                className={cn(
+                  'flex size-9 shrink-0 items-center justify-center rounded-full',
+                  jobFailed ? 'bg-[var(--bad-bg)] text-[var(--bad)]' : 'bg-[var(--estate-active-bg)] text-[var(--brand-a)]',
+                )}
+              >
+                {jobFailed ? (
+                  <AlertCircle className="size-4" />
+                ) : jobData?.status === 'succeeded' ? (
+                  <Check className="size-4" strokeWidth={2.5} />
+                ) : (
+                  <Loader2 className="size-4 animate-spin" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-title-card text-[var(--estate-ink)]">
+                  {jobFailed ? 'The search stopped' : jobData?.status === 'succeeded' ? 'Search complete' : 'Looking for similar data\u2026'}
+                </h2>
+                {selectedObject && (
+                  <div className="mt-1 text-ui">
+                    <ObjectNameCell path={selectedObject.full_path} kind={selectedObject.object_kind} />
+                  </div>
+                )}
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-size-ui cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeRejected}
-                onChange={(e) => setIncludeRejected(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border outline-none cursor-pointer accent-[var(--brand-a)]"
-                style={{ borderColor }}
+            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-[color:color-mix(in_srgb,var(--estate-text-dim)_18%,transparent)]">
+              <div
+                className={cn('h-full rounded-full transition-[width] duration-500', jobFailed ? 'bg-[var(--bad)]' : 'bg-[var(--brand-a)]')}
+                style={{ width: `${Math.max(6, (stageDoneCount / stages.length) * 100)}%` }}
               />
-              <span style={{ color: labelColor, fontFamily: 'var(--font-sans)' }}>Include previously rejected</span>
-            </label>
-          </div>
+            </div>
 
-          {/* Action button */}
-          <div className="flex flex-col gap-3 items-end">
-            <button
-              onClick={handleRunScan}
-              disabled={!selectedObject || submitting}
-       className="px-6 py-2.5 rounded text-label transition-all duration-200"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: selectedObject && !submitting ? activeColor : raisedBg,
-                color: selectedObject && !submitting ? 'var(--on-brand)' : labelColor,
-                border: selectedObject && !submitting ? 'none' : `1px solid ${borderColor}`,
-                cursor: selectedObject && !submitting ? 'pointer' : 'not-allowed',
-                opacity: selectedObject && !submitting ? 1 : 0.5,
-              }}
-            >
-              {submitting ? 'Starting...' : 'Scan for Similar Data →'}
-            </button>
-
-            {jobError && (
-              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono w-full">
-                Error: {jobError}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="flex flex-col gap-6 max-w-xl">
-          <h2 className="tracking-wide uppercase" style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: activeColor }}>
-            Scanning {selectedObject?.full_path}...
-          </h2>
-
-          <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
-            <div className="flex flex-col gap-3 text-size-ui" style={{ fontFamily: 'var(--font-mono)' }}>
+            <ol className="mt-5 flex flex-col gap-3">
               {stages.map((stage, idx) => {
                 const status = getStageStatus(stage.key, idx);
                 const duration = jobData?.stats?.[stage.durKey];
-
                 return (
-                  <div key={stage.key} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <li key={stage.key} className="flex items-center justify-between gap-3">
+                    <span className="flex items-center gap-3">
                       {status === 'checked' ? (
-                        <span style={{ color: activeColor }} className="font-semibold">✓</span>
-                      ) : status === 'current' ? (
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: activeColor }}></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: activeColor }}></span>
+                        <span className="flex size-5 items-center justify-center rounded-full bg-[var(--brand-a)] text-[var(--on-brand)]">
+                          <Check className="size-3" strokeWidth={3} />
                         </span>
+                      ) : status === 'current' && !jobFailed ? (
+                        <Loader2 className="size-5 animate-spin text-[var(--brand-a)]" />
                       ) : (
-                        <span className="w-2 h-2 rounded-full border border-[color:color-mix(in_srgb,var(--line-2)_40%,transparent)]" />
+                        <Circle className="size-5 text-[var(--estate-border)]" />
                       )}
-                      <span style={{ color: status === 'unchecked' ? labelColor : inkColor }}>
+                      <span
+                        className={cn(
+                          'text-ui',
+                          status === 'unchecked' ? 'text-[var(--estate-text-muted)]' : 'text-[var(--estate-ink)]',
+                          status === 'current' && 'font-medium',
+                        )}
+                      >
                         {stage.label}
                       </span>
-                    </div>
+                    </span>
                     {duration !== undefined && (
-                      <span style={{ color: labelColor }} className="text-size-ui">
-                        {(duration / 1000).toFixed(1)}s
-                      </span>
+                      <span className="text-caption tabular-nums text-[var(--estate-text-muted)]">{(duration / 1000).toFixed(1)}s</span>
                     )}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
-          </div>
+            </ol>
 
-          {jobData?.status === 'succeeded' && (
-            <div className="text-size-ui font-sans" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
-              {jobData.stats?.candidates_found ?? 0} candidates found above threshold · {jobData.scope?.topN ?? jobData.stats?.scanned_count ?? 15} scanned
-            </div>
-          )}
+            {jobData?.status === 'succeeded' && (
+              <p className="mt-5 border-t border-[var(--estate-border)] pt-4 text-ui-regular text-[var(--estate-text-secondary)]">
+                <span className="tabular-nums text-[var(--estate-ink)]">{jobData.stats?.candidates_found ?? 0}</span> possible matches found
+                {' \u00b7 '}
+                <span className="tabular-nums">{jobData.scope?.topN ?? jobData.stats?.scanned_count ?? 15}</span> tables checked. Opening results{'\u2026'}
+              </p>
+            )}
 
-          {(jobError || jobData?.status === 'failed') && (
-            <div className="flex flex-col gap-3 mt-4">
-              <div className="p-5 rounded border border-red-500/30 bg-red-500/5 text-red-400 text-size-ui font-mono">
-                Error: {jobError || jobData?.error || 'Job execution failed.'}
-              </div>
-              <button
-                onClick={handleReset}
-                className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer self-start"
-              >
-                [← Try again]
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="flex flex-col gap-4 max-w-2xl">
-     <h2 className="text-label mb-2" style={{ fontFamily: 'var(--font-sans)', color: labelColor }}>
-            Scan Results
-          </h2>
-
-          {loadingLinks ? (
-            <div className="text-size-ui font-sans animate-pulse" style={{ color: labelColor }}>
-              Loading results...
-            </div>
-          ) : links.length === 0 ? (
-            <div className="flex flex-col gap-4">
-              <div className="text-size-ui font-sans" style={{ color: labelColor }}>
-                No candidates found above threshold.
-              </div>
-              <div>
-                <button
-                  onClick={handleScanAnother}
-                  className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                >
-                  [← Scan another object]
+            {jobFailed && (
+              <div className="mt-5 flex flex-col gap-3 border-t border-[var(--estate-border)] pt-4">
+                <div role="alert" className="flex items-start gap-2 rounded-ctl bg-[var(--bad-bg)] px-3 py-2.5 text-ui text-[var(--bad)]">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0" />
+                  <span>{jobError || jobData?.error || 'Job execution failed.'}</span>
+                </div>
+                <button type="button" onClick={handleReset} className={cn(CATALOG_BTN, 'self-start')}>
+                  <RotateCcw className="size-3.5" /> Try again
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {/* Summary line */}
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor }} className="mb-2">
-                {links.length} results found · {jobData?.scope?.topN ?? topN} scanned
+            )}
+          </section>
+        )}
+
+        {/* ── Step 3: results ──────────────────────────────────────────── */}
+        {step === 3 && (
+          <>
+            <section className={cn(CARD, 'flex flex-wrap items-center gap-x-8 gap-y-4 px-5 py-4')}>
+              <div className="min-w-0 flex-1">{selectedHeader}</div>
+              {!loadingLinks && links.length > 0 && (
+                <dl className="flex items-center gap-6">
+                  <div>
+                    <dt className="text-caption text-[var(--estate-text-muted)]">Matches</dt>
+                    <dd className="text-kpi-sm tabular-nums text-[var(--estate-ink)]">{links.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-caption text-[var(--estate-text-muted)]">To review</dt>
+                    <dd className="text-kpi-sm tabular-nums text-[var(--estate-ink)]">{reviewCounts.open}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-caption text-[var(--estate-text-muted)]">Confirmed</dt>
+                    <dd className="text-kpi-sm tabular-nums text-[var(--ok)]">{reviewCounts.confirmed}</dd>
+                  </div>
+                </dl>
+              )}
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleScanAnother} className={CATALOG_BTN}>
+                  <RotateCcw className="size-3.5" /> Start over
+                </button>
+                {selectedObject?.id && (
+                  <OverflowMenu
+                    items={[
+                      {
+                        label: 'Open table details',
+                        hint: 'Columns, profile and lineage',
+                        onSelect: () => router.push(`/agent-lab/estate/object/${selectedObject.id}`),
+                      },
+                      {
+                        label: 'Change options and search again',
+                        hint: 'Keeps this table selected',
+                        onSelect: handleReset,
+                      },
+                    ]}
+                  />
+                )}
               </div>
+            </section>
 
-              {/* Cards List */}
-              <div className="flex flex-col gap-3">
-                {sortedLinks.map((link, index) => {
-                  const candidateId = link.left_object_id === selectedObject.id ? link.right_object_id : link.left_object_id;
-                  const candidateData = candidatesMap[candidateId];
-                  const candidateObj = candidateData?.object;
-                  const candidatePath = candidateObj?.full_path || 'Loading path...';
-                  const candidateSummary = candidateData?.latestSemanticCard?.card?.summary || 'No summary available.';
+            {loadingLinks ? (
+              <section className={cn(CARD, 'space-y-2 p-4')}>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-12 animate-pulse rounded-ctl bg-[var(--estate-hover)]" />
+                ))}
+              </section>
+            ) : links.length === 0 ? (
+              <section className={cn(CARD, 'flex flex-col items-center gap-2 px-6 py-14 text-center')}>
+                <span className="flex size-10 items-center justify-center rounded-full bg-[var(--estate-hover)] text-[var(--estate-text-muted)]">
+                  <SearchX className="size-5" />
+                </span>
+                <p className="text-ui text-[var(--estate-ink)]">No similar data found</p>
+                <p className="max-w-sm text-caption text-[var(--estate-text-muted)]">
+                  Nothing scored above {Math.round(minScore * 100)}% similarity. Try a lower minimum or another table.
+                </p>
+                <button type="button" onClick={handleScanAnother} className={cn(CATALOG_BTN, 'mt-2')}>
+                  <RotateCcw className="size-3.5" /> Try another table
+                </button>
+              </section>
+            ) : (
+              <section className={cn(CARD, 'overflow-hidden')}>
+                <div className="flex items-center justify-between border-b border-[var(--estate-border)] px-5 py-3">
+                  <h2 className="text-label text-[var(--estate-ink)]">Possible matches</h2>
+                  <span className="text-caption tabular-nums text-[var(--estate-text-muted)]">
+                    {links.length} found {'\u00b7'} {jobData?.scope?.topN ?? topN} checked {'\u00b7'} best match first
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full table-fixed border-collapse text-left">
+                    <colgroup>
+                      <col className="w-[30%]" />
+                      <col className="w-[15%]" />
+                      <col />
+                      <col className="w-[116px]" />
+                      <col className="w-[200px]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-b border-[var(--estate-border)] text-caption text-[var(--estate-text-muted)]">
+                        <th className="px-5 py-2 font-medium">Match</th>
+                        <th className="px-3 py-2 font-medium">Similarity</th>
+                        <th className="px-3 py-2 font-medium">Why</th>
+                        <th className="px-3 py-2 font-medium">Status</th>
+                        <th className="px-5 py-2 text-right font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedLinks.map((link) => {
+                        const candidateId = link.left_object_id === selectedObject.id ? link.right_object_id : link.left_object_id;
+                        const candidateData = candidatesMap[candidateId];
+                        const candidateObj = candidateData?.object;
+                        const candidatePath = candidateObj?.full_path || 'Loading\u2026';
+                        const candidateSummary = candidateData?.latestSemanticCard?.card?.summary || 'No description yet.';
 
-                  const signals = link.signals || {};
-                  const { embedCosine, columnNameOverlap, typeCompatRatio, sharedEntityTags, compositeScore } = signals;
+                        const signals = link.signals || {};
+                        const { embedCosine, columnNameOverlap, typeCompatRatio, sharedEntityTags, compositeScore } = signals;
 
-                  // Derive overlap label
-                  const candidateColumnsCount = candidateData?.columns?.length || 0;
-                  const sourceColumnsCount = selectedObject?.columnsCount || 0;
-                  let colOverlapLabel = '';
-                  if (sourceColumnsCount > 0 && candidateColumnsCount > 0) {
-                    const M = Math.max(sourceColumnsCount, candidateColumnsCount);
-                    const N = Math.round(columnNameOverlap * M);
-                    colOverlapLabel = `${N}/${M} col overlap`;
-                  } else if (columnNameOverlap !== undefined && columnNameOverlap !== null) {
-                    colOverlapLabel = `${(columnNameOverlap * 100).toFixed(0)}% col overlap`;
-                  }
+                        const candidateColumnsCount = candidateData?.columns?.length || 0;
+                        const sourceColumnsCount = selectedObject?.columnsCount || 0;
+                        let colOverlapLabel = '';
+                        if (sourceColumnsCount > 0 && candidateColumnsCount > 0) {
+                          const M = Math.max(sourceColumnsCount, candidateColumnsCount);
+                          const N = Math.round(columnNameOverlap * M);
+                          colOverlapLabel = `${N} of ${M} columns shared`;
+                        } else if (columnNameOverlap !== undefined && columnNameOverlap !== null) {
+                          colOverlapLabel = `${(columnNameOverlap * 100).toFixed(0)}% columns shared`;
+                        }
 
-                  // Derive shared tag names
-                  const sharedTagNames = getSharedTagNames(candidateObj, selectedObject);
+                        const sharedTagNames = getSharedTagNames(candidateObj, selectedObject);
+                        const isSameSchema =
+                          candidateObj?.schema_name === selectedObject?.schema_name &&
+                          candidateObj?.catalog_name === selectedObject?.catalog_name &&
+                          candidateObj?.source_id === selectedObject?.source_id;
 
-                  // Schema location chip
-                  const isSameSchema =
-                    candidateObj?.schema_name === selectedObject?.schema_name &&
-                    candidateObj?.catalog_name === selectedObject?.catalog_name &&
-                    candidateObj?.source_id === selectedObject?.source_id;
+                        const why = [
+                          embedCosine !== undefined && embedCosine !== null
+                            ? `${Math.round(embedCosine * 100)}% similar meaning`
+                            : '',
+                          colOverlapLabel,
+                          typeCompatRatio !== undefined && typeCompatRatio !== null
+                            ? `${(typeCompatRatio * 100).toFixed(0)}% matching types`
+                            : '',
+                          sharedEntityTags > 0
+                            ? sharedTagNames.length > 0
+                              ? `both about ${sharedTagNames.join(', ')}`
+                              : `${sharedEntityTags} shared tags`
+                            : '',
+                        ].filter(Boolean);
 
-                  const schemaTag = isSameSchema ? (
-                    <span style={chipStyle}>
-                      Same schema: {candidateObj?.schema_name || 'default'}
-                    </span>
-                  ) : (
-                    <span style={{ ...chipStyle, backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', borderColor: activeColor, color: activeColor, fontWeight: 600 }}>
-                      ⚠ {candidateObj?.schema_name || 'default'}
-                    </span>
-                  );
+                        const linkState = getLinkState(link);
+                        const isRejected = linkState === 'rejected' || linkState === 'rejected_loading';
+                        const isBusy = linkState === 'confirmed_loading' || linkState === 'rejected_loading';
 
-                  // LLM Verdict styling
-                  const verdict = link.llm_verdict?.verdict;
-                  const reasoning = link.llm_verdict?.reasoning;
-                  let badgeStyle = { backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', color: labelColor, borderColor };
-                  let badgeText = 'UNRELATED';
-
-                  if (verdict === 'silo') {
-                    badgeStyle = { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#EF4444', borderColor: '#EF4444' };
-                    badgeText = 'SILO';
-                  } else if (verdict === 'duplicate') {
-                    badgeStyle = { backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', borderColor: '#F59E0B' };
-                    badgeText = 'DUPLICATE';
-                  } else if (verdict === 'related') {
-                    badgeStyle = { backgroundColor: 'rgba(96, 165, 250, 0.15)', color: '#60A5FA', borderColor: '#60A5FA' };
-                    badgeText = 'RELATED';
-                  } else if (verdict === 'unrelated') {
-                    badgeStyle = { backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', color: labelColor, borderColor };
-                    badgeText = 'UNRELATED';
-                  }
-
-                  const linkState = getLinkState(link);
-                  const isConfirmed = linkState === 'confirmed' || linkState === 'confirmed_loading';
-                  const isRejected = linkState === 'rejected' || linkState === 'rejected_loading';
-
-                  return (
-                    <div
-                      key={link.id}
-                      className={`p-4 rounded border transition-all duration-200 flex flex-col gap-3 ${isRejected ? 'opacity-50' : ''}`}
-                      style={{
-                        backgroundColor: isConfirmed ? 'var(--estate-active-bg)' : raisedBg,
-                        borderColor: isConfirmed ? 'rgba(16, 185, 129, 0.25)' : borderColor,
-                        borderRadius: '4px',
-                      }}
-                    >
-                      {/* Top Row */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 truncate">
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-body-size)', color: activeColor }} className="font-semibold shrink-0">
-                            #{index + 1}
-                          </span>
-                          <Link
-                            href={`/agent-lab/estate/object/${candidateId}`}
-                            className={`hover:underline hover:text-[var(--brand-a-ink)] transition-colors truncate font-semibold ${isRejected ? 'line-through opacity-70' : ''}`}
-                            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }}
-                          >
-                            {candidatePath}
-                          </Link>
-                        </div>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: inkColor }} className="font-semibold shrink-0">
-                          Score: {Number(compositeScore ?? 0).toFixed(2)}
-                        </span>
-                      </div>
-
-                      {/* Candidate Description */}
-                      {candidateSummary && (
-                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: labelColor, lineHeight: '1.5' }}>
-                          {candidateSummary}
-                        </div>
-                      )}
-
-                      {/* Evidence Chips Row */}
-                      {signals && (
-                        <div className="flex flex-wrap gap-2 items-center">
-                          {colOverlapLabel && (
-                            <span style={chipStyle}>
-                              {colOverlapLabel}
-                            </span>
-                          )}
-
-                          {embedCosine !== undefined && embedCosine !== null && (
-                            <span style={chipStyle}>
-                              embed {embedCosine.toFixed(2)}
-                            </span>
-                          )}
-
-                          {typeCompatRatio !== undefined && typeCompatRatio !== null && (
-                            <span style={chipStyle}>
-                              type compat {(typeCompatRatio * 100).toFixed(0)}%
-                            </span>
-                          )}
-
-                          {sharedEntityTags > 0 && (
-                            <span style={chipStyle}>
-                              {sharedTagNames.length > 0 ? `entity: ${sharedTagNames.join(', ')}` : `${sharedEntityTags} shared tags`}
-                            </span>
-                          )}
-
-                          {schemaTag}
-                        </div>
-                      )}
-
-                      {/* LLM Verdict Block */}
-                      {link.llm_verdict && (
-                        <div className="mt-2 p-3 rounded border flex flex-col gap-1.5" style={{ borderColor, backgroundColor: 'var(--estate-hover)' }}>
-                          <div className="flex items-center gap-2">
-              <span className="text-label " style={{ color: labelColor }}>
-                              LLM Verdict:
-                            </span>
-                            <span className="text-size-ui font-mono px-2 py-0.5 rounded border font-semibold" style={badgeStyle}>
-                              {badgeText}
-                            </span>
-                            {link.llm_verdict.confidence !== undefined && (
-                              <span className="text-size-ui font-mono" style={{ color: labelColor }}>
-                                (confidence: {Number(link.llm_verdict.confidence).toFixed(2)})
-                              </span>
+                        return (
+                          <tr
+                            key={link.id}
+                            className={cn(
+                              'border-b border-[var(--estate-border)] align-top transition-colors last:border-b-0 hover:bg-[var(--estate-hover)]',
+                              isRejected && 'opacity-60',
                             )}
-                          </div>
-                          {reasoning && (
-                            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkColor, lineHeight: '1.5' }}>
-                              {reasoning}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Action / State Row */}
-                      <div className="flex justify-end items-center mt-2 pt-2 border-t border-dashed" style={{ borderColor }}>
-                        {linkState === 'confirmed' && (
-                          <span className="text-size-ui font-mono font-semibold" style={{ color: inkOf('#10B981') }}>
-                            Confirmed ✓
-                          </span>
-                        )}
-                        {linkState === 'confirmed_loading' && (
-                          <span className="text-size-ui font-mono font-semibold animate-pulse" style={{ color: inkOf('#10B981') }}>
-                            Confirming...
-                          </span>
-                        )}
-                        {linkState === 'rejected' && (
-                          <span className="text-size-ui font-sans font-semibold" style={{ color: labelColor }}>
-                            Not related
-                          </span>
-                        )}
-                        {linkState === 'rejected_loading' && (
-                          <span className="text-size-ui font-mono font-semibold animate-pulse" style={{ color: labelColor }}>
-                            Rejecting...
-                          </span>
-                        )}
-                        {linkState === 'proposed' && (
-                          <div className="flex items-center gap-3">
-                            <button
-                              onClick={() => handleRejectSilo(link.id)}
-                              className="px-3 py-1.5 rounded border text-size-ui font-mono hover:bg-[color:color-mix(in_srgb,var(--surface-3)_10%,transparent)] transition-all cursor-pointer bg-transparent"
-                              style={{ borderColor, color: labelColor }}
-                            >
-                              [✗ Not Related]
-                            </button>
-                            <button
-                              onClick={() => handleConfirmSilo(link.id)}
-                              className="px-3 py-1.5 rounded border text-size-ui font-mono hover:bg-green-500/10 transition-all cursor-pointer bg-transparent"
-                              style={{ borderColor: 'rgba(16, 185, 129, 0.5)', color: inkOf('#10B981') }}
-                            >
-                              [✓ Confirm Silo]
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Scan another object link */}
-              <div className="mt-6">
-                <button
-                  onClick={handleScanAnother}
-                  className="text-size-ui font-mono text-[var(--brand-a-ink)] hover:underline bg-transparent border-none cursor-pointer"
-                  style={{ fontFamily: 'var(--font-mono)' }}
-                >
-                  [← Scan another object]
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+                          >
+                            <td className="px-5 py-3">
+                              <Link
+                                href={`/agent-lab/estate/object/${candidateId}`}
+                                className="block min-w-0 rounded-xs hover:underline focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                              >
+                                <ObjectNameCell path={candidatePath} kind={candidateObj?.object_kind} />
+                              </Link>
+                              <div className="mt-1 pl-[22px] text-caption">
+                                {candidateObj ? (
+                                  isSameSchema ? (
+                                    <span className="text-[var(--estate-text-muted)]">Same schema</span>
+                                  ) : (
+                                    <span className="font-medium text-[var(--brand-a)]" title="Lives in a different schema or source: a possible silo">
+                                      Other location
+                                    </span>
+                                  )
+                                ) : null}
+                                <p className="mt-0.5 line-clamp-2 text-[var(--estate-text-muted)]" title={candidateSummary}>{candidateSummary}</p>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3.5">
+                              <SimilarityMeter score={compositeScore} />
+                            </td>
+                            <td className="px-3 py-3">
+                              {link.llm_verdict?.verdict && (
+                                <VerdictTag verdict={link.llm_verdict.verdict} confidence={link.llm_verdict.confidence} />
+                              )}
+                              {link.llm_verdict?.reasoning && (
+                                <p className="mt-0.5 line-clamp-2 text-caption text-[var(--estate-text-secondary)]" title={link.llm_verdict.reasoning}>
+                                  {link.llm_verdict.reasoning}
+                                </p>
+                              )}
+                              {why.length > 0 && (
+                                <p className="mt-1 text-caption text-[var(--estate-text-muted)]">{why.join(' \u00b7 ')}</p>
+                              )}
+                            </td>
+                            <td className="px-3 py-3.5">
+                              <LinkStatusPill state={linkState} />
+                            </td>
+                            <td className="px-5 py-3">
+                              {linkState === 'proposed' ? (
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectSilo(link.id)}
+                                    className={CATALOG_BTN}
+                                    title="Mark as not related"
+                                  >
+                                    <X className="size-3.5" /> Reject
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleConfirmSilo(link.id)}
+                                    className={cn(CATALOG_BTN, 'hover:border-[var(--ok)] hover:text-[var(--ok)]')}
+                                    title="Confirm this is the same data"
+                                  >
+                                    <Check className="size-3.5" /> Confirm
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex h-7 items-center justify-end text-caption text-[var(--estate-text-dim)]">
+                                  {isBusy ? 'Saving\u2026' : 'Reviewed'}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function EstateSiloPage() {
   return (
-    <Suspense fallback={<div className="p-6 font-sans text-size-ui text-muted-foreground">Loading Silo Finder...</div>}>
+    <Suspense fallback={<div className="p-6 font-sans text-ui text-[var(--estate-text-muted)]">Loading{'\u2026'}</div>}>
       <SiloFinderContent />
     </Suspense>
   );

@@ -53,11 +53,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ title: fallbackTitle(messages) });
   }
 
-  const modelId = resolveOpenAIChatModelId(TITLE_MODEL);
+  const modelId = resolveOpenAIChatModelId(TITLE_MODEL, 'session_titles');
   const registered = BOOST_MODELS.find(
     (m) => m.modelId === modelId || m.key === TITLE_MODEL || m.modelId === TITLE_MODEL,
   );
-  const tokenParam = registered?.tokenParam ?? 'max_completion_tokens';
+  const tokenParam =
+    registered?.tokenParam ??
+    (modelId.toLowerCase().includes('gpt') || modelId.toLowerCase().includes('o3')
+      ? 'max_completion_tokens'
+      : 'max_tokens');
   const tokenConfig =
     tokenParam === 'max_tokens' ? { max_tokens: 32 } : { max_completion_tokens: 32 };
 

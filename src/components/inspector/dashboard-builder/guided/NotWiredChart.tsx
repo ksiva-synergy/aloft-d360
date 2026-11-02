@@ -80,7 +80,7 @@ export function NotWiredChart({
         <span
           style={{
             ...type.label,
-            color: inkOf(AMBER), border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 4, padding: '2px 7px',
+            color: inkOf(AMBER), border: `1px solid color-mix(in srgb, ${AMBER} 40%, transparent)`, borderRadius: 6, padding: '2px 7px',
           }}
         >
           Not wired
@@ -212,7 +212,7 @@ function LiveChart({
         <span
           style={{
             ...type.label,
-            color: GREEN, border: `1px solid ${withAlpha(GREEN, '55')}`, borderRadius: 4, padding: '2px 6px',
+            color: GREEN, border: `1px solid ${withAlpha(GREEN, '55')}`, borderRadius: 6, padding: '2px 6px',
           }}
         >
           Live
@@ -223,7 +223,7 @@ function LiveChart({
             title="These rows came from an owner-scoped preview of a not-yet-governed definition"
             style={{
               ...type.label,
-              color: VIOLET, border: `1px solid ${withAlpha(VIOLET, '66')}`, borderRadius: 4, padding: '2px 6px',
+              color: VIOLET, border: `1px solid ${withAlpha(VIOLET, '66')}`, borderRadius: 6, padding: '2px 6px',
               display: 'inline-flex', alignItems: 'center', gap: 4,
             }}
           >

@@ -3,7 +3,13 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import type { JobKind } from '@/lib/context/queue';
-import { SQL_OBJECT_HAS_EMBEDDING } from '@/lib/context/embedding-presence';
+import { SQL_OBJECT_EMBEDDING_CURRENT, SQL_OBJECT_HAS_EMBEDDING } from '@/lib/context/embedding-presence';
+import {
+  buildContinueChain,
+  scopeNeedsRescan,
+  type ContinueThrough,
+  type ScopeChangeReport,
+} from '@/lib/context/pipeline-freshness';
 import {
   catalogSchemaMatchesIncludePatterns,
   isSchemaExcluded,
@@ -43,6 +49,10 @@ export interface PipelineIntent {
   humanSummary: string;
   recommendation: JobRecommendation | null;
   blockers: PipelineIntentBlocker[];
+  /** Present when Continue ran the scoped source change check first. */
+  changeCheck?: ScopeChangeReport | null;
+  /** Upper-bound table count per stage in the Continue chain (each stage re-selects at run time). */
+  stagePlan?: Array<{ kind: JobKind; upTo: number }>;
 }
 
 const STALE_RUNNING_MINUTES = 30;
@@ -78,6 +88,7 @@ type ObjectRow = {
   last_t1_at: Date | null;
   last_t2_at: Date | null;
   has_embedding: boolean;
+  embedding_current: boolean;
 };
 
 function rowInScope(
@@ -110,6 +121,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
   let embedded = 0;
   let needsProfile = 0;
   let needsEnrich = 0;
+  let needsEmbed = 0;
 
   for (const o of rows) {
     if (!o.last_t0_at) continue;
@@ -119,9 +131,9 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
     if (o.has_embedding) embedded++;
     if (!o.last_t1_at || !o.last_t0_at || o.last_t1_at < o.last_t0_at) needsProfile++;
     if (!o.last_t2_at || !o.last_t1_at || o.last_t2_at < o.last_t1_at) needsEnrich++;
+    // Missing, or older than the latest semantic card.
+    if (!o.embedding_current) needsEmbed++;
   }
-
-  const needsEmbed = Math.max(0, scanned - embedded);
 
   return {
     scanned_objects: scanned,
@@ -155,7 +167,8 @@ export async function getScopedPipelineHealth(
       o.last_t0_at,
       o.last_t1_at,
       o.last_t2_at,
-      ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding
+      ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding,
+      ${SQL_OBJECT_EMBEDDING_CURRENT} AS embedding_current
     FROM platform_context_objects o
     WHERE o.org_id = ${orgId}
       AND o.lifecycle = 'active'
@@ -297,7 +310,7 @@ function buildRecommendation(
 export async function computePipelineIntent(
   orgId: string,
   input: PipelineScopeInput,
-  opts?: { through?: 't1_profile' | 't2_semantic' | 'embed' },
+  opts?: { through?: ContinueThrough; changeCheck?: ScopeChangeReport | null },
 ): Promise<PipelineIntent> {
   const { includePatterns, excludeSchemas } = normalizePipelineScope(input);
   const health = await getScopedPipelineHealth(orgId, { ...input, includePatterns, excludeSchemas });
@@ -307,13 +320,8 @@ export async function computePipelineIntent(
 
   let recommendedKinds = [...kinds] as JobKind[];
   let sequential = false;
-
-  if (opts?.through && recommendedKinds.length === 0 && health.scanned_objects > 0) {
-    blockers.push({
-      code: 'IDLE',
-      message: 'All tiers through embed are current for this scope.',
-    });
-  }
+  let stagePlan: Array<{ kind: JobKind; upTo: number }> | undefined;
+  const changeCheck = opts?.changeCheck ?? null;
 
   if (health.scanned_objects === 0 && health.discovery_not_scanned === 0 && includePatterns.length > 0) {
     blockers.push({
@@ -322,22 +330,51 @@ export async function computePipelineIntent(
     });
   }
 
-  // Build continue chain when asked to run through embed
-  if (opts?.through && health.scanned_objects > 0) {
-    const chain: JobKind[] = [];
-    if (health.needs_profile > 0) chain.push('t1_profile');
-    if (health.needs_enrich > 0 && (opts.through === 't2_semantic' || opts.through === 'embed')) {
-      chain.push('t2_semantic');
-    }
-    if (health.needs_embed > 0 && opts.through === 'embed') chain.push('embed');
+  // Continue chain: earliest dirty stage → every downstream stage through `through`.
+  if (opts?.through && (health.scanned_objects > 0 || (changeCheck && scopeNeedsRescan(changeCheck)))) {
+    const rescan = changeCheck ? scopeNeedsRescan(changeCheck) : false;
+    const chain = buildContinueChain(
+      {
+        rescan,
+        needsProfile: health.needs_profile,
+        needsEnrich: health.needs_enrich,
+        needsEmbed: health.needs_embed,
+      },
+      opts.through,
+    ) as JobKind[];
+
     if (chain.length > 0) {
       recommendedKinds = chain;
       sequential = chain.length > 1;
+      const rescanCount = changeCheck
+        ? changeCheck.changed.length + changeCheck.added.length + changeCheck.unknown.length
+        : 0;
+      const scopeSize = health.scanned_objects + (changeCheck?.added.length ?? 0);
+      const cap = (n: number) => Math.min(scopeSize, n);
+      const t1 = cap(health.needs_profile + rescanCount);
+      const t2 = cap(Math.max(health.needs_enrich, t1));
+      const embed = cap(Math.max(health.needs_embed, t2));
+      const upTo: Record<string, number> = {
+        t0_structural: rescanCount + (changeCheck?.dropped.length ?? 0),
+        t1_profile: t1,
+        t2_semantic: t2,
+        embed,
+      };
+      stagePlan = chain.map(kind => ({ kind, upTo: upTo[kind] ?? 0 }));
+    } else {
+      recommendedKinds = [];
+      blockers.push({
+        code: 'IDLE',
+        message: changeCheck
+          ? 'No source changes and all tiers through embed are current for this scope.'
+          : 'All tiers through embed are current for this scope.',
+      });
     }
   }
 
-  const humanSummary =
-    staleEstimate > 0
+  const humanSummary = stagePlan
+    ? stagePlan.map(s => `${STAGE_LABEL[s.kind] ?? s.kind} ≤${s.upTo.toLocaleString()}`).join(' → ')
+    : staleEstimate > 0
       ? `Up to ${staleEstimate.toLocaleString()} table(s) in scope need ${through.replace(/_/g, ' ')}`
       : health.scanned_objects > 0
         ? 'Nothing stale to run in this scope for the selected tiers'
@@ -371,8 +408,17 @@ export async function computePipelineIntent(
     humanSummary,
     recommendation,
     blockers,
+    changeCheck,
+    ...(stagePlan ? { stagePlan } : {}),
   };
 }
+
+const STAGE_LABEL: Record<string, string> = {
+  t0_structural: 'Scan',
+  t1_profile: 'Profile',
+  t2_semantic: 'Describe',
+  embed: 'Embed',
+};
 
 /** Stale object count for plan preview (T1/T2 only). */
 export async function countStaleObjectsForKind(

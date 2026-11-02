@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Shield } from 'lucide-react';
 import type { UserRow } from './UserTable';
 import { RolePickerField } from './RolePickerField';
 import { RoleBadge } from './RoleBadge';
+import { cn } from '@/lib/utils';
+import styles from './users.module.css';
+import { UserDialogContent } from './UserDialogContent';
 
 interface ChangeRoleModalProps {
   open: boolean;
@@ -65,16 +68,15 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[var(--estate-surface)] border-[var(--estate-border)]">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5 mb-1">
+      <UserDialogContent open={open} labelledBy="change-role-title">
+        <DialogHeader className={cn(styles.dialogHeader, '!mb-0')}>
+          <div className="flex items-center gap-4 mb-4">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: 'var(--brand-a-ink)' }}
+              className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--brand-a-ink)] flex items-center justify-center shrink-0"
             >
-              <Shield className="h-4 w-4 text-white" />
+              <Shield className="h-4 w-4" />
             </div>
-            <DialogTitle className="text-size-body">Change Role</DialogTitle>
+            <DialogTitle id="change-role-title" className="text-title-section">Change role</DialogTitle>
           </div>
           <DialogDescription className="text-size-ui">
             Updating role for{' '}
@@ -84,39 +86,43 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-dashed border-[var(--estate-btn-border)] px-3 py-2.5">
-          <span className="text-eyebrow uppercase text-muted-foreground">
+        <div className={styles.formBody}>
+        <div className={cn(styles.notice, 'items-center justify-between')}>
+          <span className="text-size-ui text-muted-foreground">
             Current role
           </span>
-          <RoleBadge role={user.primaryRole} label={user.roleLabel} />
+          <RoleBadge role={user.primaryRole} label={user.roleLabel} className="!rounded-full !px-3 !py-1.5" />
         </div>
 
-        <div className="mt-3">
-          <p className="mb-1.5 text-eyebrow uppercase text-muted-foreground">
+        <div>
+          <label htmlFor="change-user-role" className="block mb-3 text-size-ui font-medium">
             New role
-          </p>
+          </label>
           <RolePickerField
             id="change-user-role"
             value={selectedRole}
             onChange={setSelectedRole}
             currentRole={user.primaryRole}
+            layout="compact"
+            showDetailPanel
           />
         </div>
 
         {error && (
-          <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-size-ui text-red-600 dark:text-red-400">
+          <div role="alert" className="rounded-xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-4 py-3 text-size-ui text-red-600 dark:text-red-400">
             {error}
           </div>
         )}
 
-        <DialogFooter className="pt-1">
+        </div>
+        <DialogFooter className={styles.dialogFooter}>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
-            className="text-size-ui"
+            className={cn(styles.secondaryButton, 'text-size-ui')}
           >
             Cancel
           </Button>
@@ -124,7 +130,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
             size="sm"
             onClick={handleConfirm}
             disabled={submitting || noChange}
-            className="text-size-ui gap-1.5"
+            className={cn(styles.primary, 'text-size-ui gap-2')}
           >
             {submitting
               ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Updating…</>
@@ -132,7 +138,7 @@ export function ChangeRoleModal({ open, user, onOpenChange, onSuccess }: ChangeR
             }
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </UserDialogContent>
     </Dialog>
   );
 }

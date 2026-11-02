@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { reconstructSession } from '@/lib/memory/trace/reconstruct';
 import { prisma } from '@/lib/prisma';
+import { canAccessSessionMemory, forbidden, requireMemoryCaller } from '@/lib/memory/curation-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,15 +10,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const caller = await requireMemoryCaller();
+  if (caller instanceof NextResponse) return caller;
 
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ error: 'BAD_REQUEST', message: 'Missing session ID' }, { status: 400 });
   }
+  if (!(await canAccessSessionMemory(caller, id))) return forbidden();
 
   try {
     const org = await getDefaultOrg();

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from '@/lib/navigation';
 import { createId } from '@paralleldrive/cuid2';
@@ -218,11 +219,11 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
                 No editable dashboards. Create one first, then pin here.
               </span>
             ) : (
-              <select value={destination} onChange={(e) => setDestination(e.target.value)} style={inputStyle}>
+              <Select value={destination} onChange={(e) => setDestination(e.target.value)} style={inputStyle}>
                 {dashboards.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
-              </select>
+              </Select>
             )}
           </Field>
 
@@ -234,7 +235,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
             style={{
               ...type.label,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4,
+              background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 6,
               padding: '8px 14px', cursor: (submitting || dashLoading || dashboards.length === 0) ? 'not-allowed' : 'pointer',
               opacity: (submitting || dashLoading || dashboards.length === 0) ? 0.6 : 1, fontWeight: 600,
             }}
@@ -251,7 +252,7 @@ export function PinRawSqlDialog({ chart, onSaved, onClose }: PinRawSqlDialogProp
 const inputStyle: React.CSSProperties = {
   ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
   background: 'var(--wb-canvas)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
-  borderRadius: 4, padding: '6px 8px', color: 'var(--wb-text)', outline: 'none',
+  borderRadius: 6, padding: '6px 8px', color: 'var(--wb-text)', outline: 'none',
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

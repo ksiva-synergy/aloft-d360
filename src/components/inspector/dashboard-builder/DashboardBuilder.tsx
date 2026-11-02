@@ -623,7 +623,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
               ...type.label,
               display: 'flex', alignItems: 'center', gap: 4,
               color: 'var(--ink-3)', background: 'rgba(136,146,164,0.1)',
-              border: '1px solid rgba(136,146,164,0.25)', borderRadius: 3, padding: '2px 7px',
+              border: '1px solid rgba(136,146,164,0.25)', borderRadius: 6, padding: '2px 7px',
             }}
           >
             <Eye size={10} />VIEW ONLY
@@ -661,7 +661,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             style={{
               ...type.label,
               display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
-              borderRadius: 4, border: '1px solid var(--builder-border)',
+              borderRadius: 6, border: '1px solid var(--builder-border)',
               background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
             }}
           >
@@ -673,7 +673,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           onClick={() => setRightPanel(rightPanel === 'history' ? 'config' : 'history')}
           style={{
             ...type.label,
-            display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+            display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
             border: `1px solid ${rightPanel === 'history' ? 'var(--brand-a)' : 'var(--builder-border)'}`,
             background: rightPanel === 'history' ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
             color: rightPanel === 'history' ? 'var(--brand-a)' : 'var(--builder-text)', cursor: 'pointer',
@@ -687,7 +687,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             onClick={() => setShareOpen(true)}
             style={{
               ...type.label,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
             }}
@@ -703,7 +703,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             title="Explore data in this model"
             style={{
               ...type.label,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
               border: `1px solid ${exploreOpen ? 'var(--brand-a)' : 'var(--builder-border)'}`,
               background: exploreOpen ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
               color: exploreOpen ? 'var(--brand-a)' : 'var(--builder-text)', cursor: 'pointer',
@@ -719,7 +719,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             disabled={saving || !dirty}
             style={{
               ...type.label,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
               border: 'none', background: dirty ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 30%, transparent)',
               color: 'var(--on-brand)', cursor: dirty && !saving ? 'pointer' : 'default',
               opacity: saving ? 0.6 : 1, fontWeight: 500,
@@ -750,7 +750,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           {saveErrorType === 'conflict' && (
             <button
               onClick={() => window.location.reload()}
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 6, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               RELOAD
             </button>
@@ -776,7 +776,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Unsaved changes restored — pick up where you left off. Save to commit them as a version.</span>
           <button
             onClick={handleDiscardDraft}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 3, color: inkOf('#93C5FD'), cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 6, color: inkOf('#93C5FD'), cursor: 'pointer', padding: '3px 8px' }}
           >
             DISCARD
           </button>
@@ -797,19 +797,19 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
             </span>
             <button
               onClick={handleKeepDraft}
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--brand-a)', border: 'none', borderRadius: 3, color: 'var(--on-brand)', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--brand-a)', border: 'none', borderRadius: 6, color: 'var(--on-brand)', cursor: 'pointer', padding: '3px 8px', fontWeight: 600 }}
             >
               KEEP DRAFT
             </button>
             <button
               onClick={() => setShowDraftDiff((v) => !v)}
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 6, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               {showDraftDiff ? 'HIDE DIFF' : 'VIEW DIFF'}
             </button>
             <button
               onClick={handleDiscardDraft}
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 3, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'transparent', border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)', borderRadius: 6, color: 'var(--brand-a-ink)', cursor: 'pointer', padding: '3px 8px' }}
             >
               DISCARD
             </button>

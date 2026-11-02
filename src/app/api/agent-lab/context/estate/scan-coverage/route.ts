@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -23,6 +24,8 @@ export interface ScanCoverageResult {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

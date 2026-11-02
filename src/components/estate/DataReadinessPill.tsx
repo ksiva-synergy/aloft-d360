@@ -83,7 +83,7 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
         letterSpacing: '0.04em',
         backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
         border: `1px solid ${withAlpha(badgeColor, '40')}`,
-        borderRadius: 3,
+        borderRadius: 6,
         padding: '2px 8px',
       }}>
         {dataScore.level}

@@ -58,6 +58,7 @@ type Loop = {
   executeTool: (n: string, i: Record<string, unknown>, id: string) => Promise<string>;
   abortSignal: { value: boolean };
   maxLoops: number;
+  onToolCallEvent?: (event: { type: string; callId: string; toolName?: string }) => void;
 };
 const done = (extra: object = {}) => ({ finalText: '', toolCalls: [], outcome: 'completed', usage: { inputTokens: 20000, outputTokens: 1000 }, loops: 3, ...extra });
 const answer = [
@@ -124,6 +125,31 @@ describe('runCatalogAgent', () => {
     await expect(runCatalogAgent({ slug: 's', message: 'm', role: null, surface: 'automation' })).rejects.toBeInstanceOf(AgentRunError);
     await expect(runCatalogAgent({ slug: 's', message: 'm', role: null, surface: 'automation', answer: [{ key: 'Bad Key', type: 'text', description: '' }] })).rejects.toMatchObject({ status: 422 });
     expect(h.runAgentLoop).not.toHaveBeenCalled();
+  });
+
+  it('records an inspection note for agent chat and does not stream that tool call', async () => {
+    const seen: string[] = [];
+    h.runAgentLoop.mockImplementation(async (loop: Loop) => {
+      expect(loop.systemPrompt).toContain('INSPECTION NOTE');
+      expect(loop.tools.tools.map((t) => t.toolSpec.name)).toEqual(['describe_schema', 'execute_tool', 'record_inspection']);
+      expect(loop.maxLoops).toBe(AGENT_MAX_LOOPS + 1);
+      loop.onToolCallEvent?.({ type: 'tool_call_running', callId: 'c9', toolName: 'record_inspection' });
+      await loop.executeTool('record_inspection', { sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' }, 'c9');
+      loop.onToolCallEvent?.({ type: 'tool_call_result', callId: 'c9' });
+      return done({ finalText: 'Plain answer.' });
+    });
+    const r = await runCatalogAgent({
+      slug: 's',
+      message: 'm',
+      role: 'admin',
+      surface: 'agent_use',
+      captureInspection: true,
+      onToolCallEvent: (event) => { if ('toolName' in event && event.toolName) seen.push(event.toolName); },
+    });
+    expect(r.inspection).toEqual({ sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' });
+    expect(r.text).toBe('Plain answer.');
+    expect(r.toolCalls).toBe(0);
+    expect(seen).toEqual([]);
   });
 
   it('records a failed model call as errored', async () => {

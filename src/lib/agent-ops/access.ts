@@ -5,12 +5,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { flattenPermissions, resolvePrimaryRole, userAuthInclude, PERMISSIONS } from '@/lib/rbac';
-import { canViewAgentOpsRole } from './role-gate';
+import { hasAgentOpsRole } from './role-gate';
+import { AGENT_CHAT_SURFACE, canViewAgentChatOwnedBy } from '@/lib/agents/agent-chats';
 
 export { canViewAgentOpsRole } from './role-gate';
 
 export function canViewAgentOpsFromPrimaryRole(primaryRole: string): boolean {
-  return canViewAgentOpsRole(primaryRole);
+  return hasAgentOpsRole(primaryRole);
 }
 
 export async function getAgentOpsAuth() {
@@ -40,9 +41,14 @@ export async function getAgentOpsAuth() {
 export async function assertSessionReadable(sessionId: string, userId: string, canReadAll: boolean) {
   const row = await prisma.workbench_sessions.findUnique({
     where: { id: sessionId },
-    select: { user_id: true },
+    select: { user_id: true, surface: true },
   });
   if (!row) return { ok: false as const, status: 404 as const };
-  if (!canReadAll && row.user_id !== userId) return { ok: false as const, status: 403 as const };
+  if (row.user_id === userId) return { ok: true as const };
+  if (!canReadAll) return { ok: false as const, status: 403 as const };
+  // Other platform admins' agent chats are only ever visible to their owner.
+  if (row.surface === AGENT_CHAT_SURFACE && !(await canViewAgentChatOwnedBy(userId, row.user_id))) {
+    return { ok: false as const, status: 404 as const };
+  }
   return { ok: true as const };
 }

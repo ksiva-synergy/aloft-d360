@@ -262,7 +262,7 @@ export function BanditsDashboard() {
 
   return (
     <div style={{
-      background: BASE,
+      background: 'transparent',
       minWidth: 1280,
       fontFamily: BODY,
       color: TEXT_PRI,
@@ -550,7 +550,7 @@ export function BanditsDashboard() {
                           <span style={{
                             ...providerPillStyle(model.provider),
                             fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
-                            padding: '2px 7px', borderRadius: 4, display: 'inline-block',
+                            padding: '2px 7px', borderRadius: 6, display: 'inline-block',
                           }}>
                             {model.provider}
                           </span>
@@ -651,7 +651,7 @@ export function BanditsDashboard() {
                       {model.model_id === favId && (
                         <span style={{
                           fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),
-                          border: `1px solid ${GOLD}`, borderRadius: 3,
+                          border: `1px solid ${GOLD}`, borderRadius: 6,
                           padding: '1px 5px', letterSpacing: '0.04em',
                         }}>
                           FAVOURITE
@@ -667,7 +667,7 @@ export function BanditsDashboard() {
                       <>
                         {/* 5-segment bar */}
                         <div style={{
-                          display: 'flex', height: 12, borderRadius: 3,
+                          display: 'flex', height: 12, borderRadius: 6,
                           overflow: 'hidden', background: BORDER, marginBottom: 6,
                         }}>
                           {axes.map(axis => {

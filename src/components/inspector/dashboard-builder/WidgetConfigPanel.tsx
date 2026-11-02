@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React from 'react';
 import { Trash2, Plus, ExternalLink, Info } from 'lucide-react';
 import type { WidgetSpec } from '@/lib/dashboards/types';
@@ -76,7 +77,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             readOnly={readOnly}
             style={{
               ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
-              borderRadius: 4, padding: '6px 8px', color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
+              borderRadius: 6, padding: '6px 8px', color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
               width: '100%', outline: 'none', cursor: readOnly ? 'default' : undefined,
             }}
             placeholder="Widget title"
@@ -93,7 +94,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           <pre
             style={{
               ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text)', background: 'var(--builder-surface)',
-              border: '1px solid var(--builder-border)', borderRadius: 4, padding: '8px', margin: 0,
+              border: '1px solid var(--builder-border)', borderRadius: 6, padding: '8px', margin: 0,
               overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 220,
             }}
           >
@@ -113,7 +114,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               onClick={() => removeWidget(widget.widgetId)}
               style={{
                 ...type.label,
-                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 4,
+                display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 6,
                 border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)',
                 color: inkOf('#F87171'), cursor: 'pointer', width: '100%', justifyContent: 'center',
               }}
@@ -244,7 +245,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             fontSize: 'var(--type-ui-regular-size)',
             background: 'var(--builder-surface)',
             border: '1px solid var(--builder-border)',
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '6px 8px',
             color: readOnly ? 'var(--builder-text-muted)' : 'var(--builder-text)',
             width: '100%',
@@ -265,7 +266,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               style={{
                 ...type.label,
                 padding: '4px 8px',
-                borderRadius: 3,
+                borderRadius: 6,
                 border: `1px solid ${widget.chartKind === kind ? 'var(--brand-a)' : 'var(--builder-border)'}`,
                 background: widget.chartKind === kind ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
                 color: widget.chartKind === kind ? 'var(--brand-a)' : 'var(--builder-text-muted)',
@@ -295,7 +296,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                     onClick={() => handleChartKindChange(kind)}
                     style={{
                       ...type.label,
-                      padding: '2px 7px', borderRadius: 3, border: '1px dashed var(--builder-border)',
+                      padding: '2px 7px', borderRadius: 6, border: '1px dashed var(--builder-border)',
                       background: 'transparent', color: 'var(--builder-text)', cursor: 'pointer',
                     }}
                   >
@@ -385,7 +386,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                 alignItems: 'center',
                 gap: 4,
                 padding: '4px 8px',
-                borderRadius: 3,
+                borderRadius: 6,
                 border: '1px solid var(--builder-border)',
                 background: 'transparent',
                 color: 'var(--builder-text-muted)',
@@ -410,7 +411,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
                 onClick={() => handleFreshnessMode(mode)}
                 style={{
                   ...type.label,
-                  flex: 1, padding: '4px 8px', borderRadius: 3,
+                  flex: 1, padding: '4px 8px', borderRadius: 6,
                   border: `1px solid ${active ? 'var(--brand-a)' : 'var(--builder-border)'}`,
                   background: active ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'transparent',
                   color: active ? 'var(--brand-a)' : 'var(--builder-text-muted)',
@@ -436,7 +437,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
               style={{
                 ...MONO, fontSize: 'var(--type-ui-regular-size)', width: 70,
                 background: 'var(--builder-surface)', border: '1px solid var(--builder-border)',
-                borderRadius: 3, padding: '3px 6px', color: 'var(--builder-text)', outline: 'none',
+                borderRadius: 6, padding: '3px 6px', color: 'var(--builder-text)', outline: 'none',
               }}
             />
             <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>sec</span>
@@ -464,7 +465,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
       {drift && drift.status !== 'ok' && (
         <Section label="STATUS">
           {drift.status === 'unavailable' && (
-            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 3, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#F87171' }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 6, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#F87171' }}>
               <strong>Definition unavailable</strong>
               <div style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, color: 'rgba(248,113,113,0.8)' }}>
                 {drift.unavailableIds && drift.unavailableIds.length > 0
@@ -474,7 +475,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             </div>
           )}
           {drift.status === 'changed' && (
-            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 3, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)', color: 'var(--brand-a-ink)' }}>
+            <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '6px 8px', borderRadius: 6, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)', color: 'var(--brand-a-ink)' }}>
               <strong>Definition changed</strong>
               <div style={{ fontSize: 'var(--type-ui-regular-size)', marginTop: 4, color: 'color-mix(in srgb, var(--brand-a) 80%, transparent)' }}>
                 {drift.changedMeasures && drift.changedMeasures.length > 0
@@ -496,7 +497,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             alignItems: 'center',
             gap: 6,
             padding: '8px 12px',
-            borderRadius: 4,
+            borderRadius: 6,
             border: '1px solid rgba(239,68,68,0.3)',
             background: 'rgba(239,68,68,0.06)',
             color: inkOf('#F87171'),
@@ -534,7 +535,7 @@ function FieldChip({ label, onRemove }: { label: string; onRemove: () => void })
         alignItems: 'center',
         gap: 4,
         padding: '3px 8px',
-        borderRadius: 3,
+        borderRadius: 6,
         border: '1px solid var(--builder-border)',
         background: 'var(--builder-surface)',
         color: 'var(--builder-text)',
@@ -569,7 +570,7 @@ function AxisSelect({
       <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', width: 50, flexShrink: 0 }}>
         {label}
       </span>
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
@@ -577,7 +578,7 @@ function AxisSelect({
           fontSize: 'var(--type-ui-regular-size)',
           background: 'var(--builder-surface)',
           border: '1px solid var(--builder-border)',
-          borderRadius: 3,
+          borderRadius: 6,
           padding: '3px 6px',
           color: 'var(--builder-text)',
           flex: 1,
@@ -587,7 +588,7 @@ function AxisSelect({
         {options.map((opt) => (
           <option key={opt.id} value={opt.label}>{opt.label}</option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }
@@ -703,30 +704,30 @@ function FilterRow({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '4px 0', borderBottom: '1px solid var(--builder-border)' }}>
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <select
+        <Select
           value={filter.fieldId}
           onChange={(e) => handleFieldChange(e.target.value)}
           style={{
             ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)',
-            border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)',
+            border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)',
           }}
         >
           {availableFields.map((f) => (
             <option key={f.id} value={f.id}>{f.label}</option>
           ))}
-        </select>
-        <select
+        </Select>
+        <Select
           value={filter.op}
           onChange={(e) => handleOpChange(e.target.value as FilterOp)}
           style={{
             ...MONO, fontSize: 'var(--type-ui-regular-size)', width: 60, background: 'var(--builder-surface)',
-            border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)',
+            border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)',
           }}
         >
           {FILTER_OPS.map((op) => (
             <option key={op.value} value={op.value}>{op.label}</option>
           ))}
-        </select>
+        </Select>
         <button
           onClick={onRemove}
           style={{ background: 'transparent', border: 'none', color: 'var(--builder-text-muted)', cursor: 'pointer', padding: 0, display: 'flex' }}
@@ -747,7 +748,7 @@ function FilterRow({
                   handleValueChange(arr);
                 }}
                 placeholder="from"
-                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)' }}
               />
               <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)' }}>—</span>
               <input
@@ -759,7 +760,7 @@ function FilterRow({
                   handleValueChange(arr);
                 }}
                 placeholder="to"
-                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+                style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)' }}
               />
             </div>
           ) : isArray ? (
@@ -771,7 +772,7 @@ function FilterRow({
                 handleValueChange(items);
               }}
               placeholder="comma-separated values"
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)' }}
             />
           ) : (
             <input
@@ -779,7 +780,7 @@ function FilterRow({
               value={filter.value != null ? String(filter.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="value"
-              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 3, padding: '3px 4px', color: 'var(--builder-text)' }}
+              style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', background: 'var(--builder-surface)', border: '1px solid var(--builder-border)', borderRadius: 6, padding: '3px 4px', color: 'var(--builder-text)' }}
             />
           )}
         </div>

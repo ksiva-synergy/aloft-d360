@@ -676,7 +676,7 @@ Reflect LLM extracts:
 | `BEDROCK_SONNET_MODEL_ID` | — | Synthesis + Marcus model |
 | `MARCUS_REFLECT_ENABLED` | off | Post-session reflection |
 | `MARCUS_FIRST_TURN_ALWAYS` | off | Force first-turn reflection |
-| `INSPECTOR_AUTH_ENFORCE` | off | Require service token |
+| `INSPECTOR_AUTH_ENFORCE` | on (unset) | Enforce session ownership; `false` = observe-only emergency opt-out |
 | `DATABRICKS_MAX_ROWS` | 1000 | SQL row cap |
 | `DATABRICKS_MAX_WAIT_SECS` | 30 | Query timeout |
 

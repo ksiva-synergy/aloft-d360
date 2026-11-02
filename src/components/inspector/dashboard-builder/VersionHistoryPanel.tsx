@@ -171,7 +171,7 @@ export function VersionHistoryPanel({ dashboardId }: VersionHistoryPanelProps) {
                   alignItems: 'center',
                   gap: 3,
                   padding: '4px 8px',
-                  borderRadius: 3,
+                  borderRadius: 6,
                   border: '1px solid var(--builder-border)',
                   background: 'transparent',
                   color: 'var(--builder-text-muted)',

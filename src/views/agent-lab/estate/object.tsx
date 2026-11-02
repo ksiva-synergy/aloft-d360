@@ -64,7 +64,7 @@ export default function EstateObjectDetailPage() {
 
           {/* Header card skeleton */}
           <div
-            className="rounded p-6 border space-y-3"
+            className="rounded-card p-6 border space-y-3"
             style={{ backgroundColor: cardBg, borderColor }}
           >
             <div className="h-6 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-1/2"></div>
@@ -83,7 +83,7 @@ export default function EstateObjectDetailPage() {
             <div className="lg:col-span-2 space-y-6">
               {/* Semantic card skeleton */}
               <div
-                className="rounded p-5 border space-y-4"
+                className="rounded-card p-5 border space-y-4"
                 style={{ backgroundColor: cardBg, borderColor }}
               >
                 <div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-1/4"></div>
@@ -97,7 +97,7 @@ export default function EstateObjectDetailPage() {
               <div className="space-y-2.5">
                 <div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16"></div>
                 <div
-                  className="rounded border p-4 space-y-3"
+                  className="rounded-card border p-4 space-y-3"
                   style={{ backgroundColor: cardBg, borderColor }}
                 >
                   <div className="h-5 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-full"></div>
@@ -110,7 +110,7 @@ export default function EstateObjectDetailPage() {
             <div className="space-y-6">
               {/* Freshness card skeleton */}
               <div
-                className="rounded p-5 border space-y-3"
+                className="rounded-card p-5 border space-y-3"
                 style={{ backgroundColor: cardBg, borderColor }}
               >
                 <div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-1/3"></div>

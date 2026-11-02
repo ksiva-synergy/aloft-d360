@@ -33,7 +33,7 @@ export default function FreshnessCard({ freshness }: FreshnessCardProps) {
 
   return (
     <div
-      className="border rounded p-5 space-y-4 shadow-sm transition-all duration-200"
+      className="border rounded-card p-5 space-y-4 shadow-sm transition duration-200"
       style={{
         backgroundColor: cardBg,
         borderColor: borderCol,

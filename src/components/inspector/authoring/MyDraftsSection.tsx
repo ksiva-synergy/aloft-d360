@@ -154,7 +154,7 @@ export function MyDraftsSection({ scope, authorModelId }: MyDraftsSectionProps) 
             ...type.label,
             display: 'inline-flex', alignItems: 'center', gap: 5,
             background: authorModelId ? GOLD : 'transparent', color: authorModelId ? NAVY : MUTED,
-            border: authorModelId ? 'none' : `1px solid ${DRAFT_BD}`, borderRadius: 4, padding: '5px 11px',
+            border: authorModelId ? 'none' : `1px solid ${DRAFT_BD}`, borderRadius: 6, padding: '5px 11px',
             cursor: authorModelId ? 'pointer' : 'default', fontWeight: 600,
           }}
         >
@@ -241,7 +241,7 @@ function DraftRow({
         <span style={{
           ...type.label,
           background: 'rgba(136,146,164,0.12)', color: MUTED, border: `1px solid ${DRAFT_BD}`,
-          borderRadius: 3, padding: '1px 6px', flexShrink: 0,
+          borderRadius: 6, padding: '1px 6px', flexShrink: 0,
         }}>
           DRAFT
         </span>
@@ -282,7 +282,7 @@ function RowBtn({
       style={{
         ...type.label,
         display: 'inline-flex', alignItems: 'center', gap: 4,
-        background: bg, color, border: `1px solid ${border}`, borderRadius: 3,
+        background: bg, color, border: `1px solid ${border}`, borderRadius: 6,
         padding: '3px 8px', cursor: disabled ? 'default' : 'pointer', fontWeight: accent ? 600 : 400,
       }}
     >

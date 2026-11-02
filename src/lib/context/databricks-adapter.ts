@@ -82,6 +82,26 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
   // Queries: 1 (SHOW CATALOGS) + 1 per candidate catalog
 
   async resolveScope(source: ContextSource): Promise<ObjectRef[]> {
+    const { refs } = await this.listScope(source, false);
+    return refs.map(({ source_altered_at: _alt, ...ref }) => ref);
+  }
+
+  /**
+   * Scoped listing with each table's `last_altered` (metadata only, no data read).
+   * Used by the Continue-pipeline change check. `failedCatalogs` lists catalogs whose
+   * listing failed — callers must not infer drops/changes for those.
+   */
+  async listScopeWithAltered(source: ContextSource): Promise<{
+    refs: Array<ObjectRef & { source_altered_at: Date | null }>;
+    failedCatalogs: string[];
+  }> {
+    return this.listScope(source, true);
+  }
+
+  private async listScope(
+    source: ContextSource,
+    withAltered: boolean,
+  ): Promise<{ refs: Array<ObjectRef & { source_altered_at: Date | null }>; failedCatalogs: string[] }> {
     const includes = source.scope_include ?? ['*.*.*'];
     const excludes = source.scope_exclude ?? [];
 
@@ -96,7 +116,8 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       catalogMatchesIncludes(cat, includes)
     );
 
-    const refs: ObjectRef[] = [];
+    const refs: Array<ObjectRef & { source_altered_at: Date | null }> = [];
+    const failedCatalogs: string[] = [];
 
     for (const catalog of candidateCatalogs) {
       const catSafe = safeId(catalog, 'catalog');
@@ -116,28 +137,34 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       // and a silently truncated listing makes the full-sweep drop pass mark every
       // unlisted table as dropped. A failed page discards the whole catalog so the
       // drop pass never sees a partial listing for it.
-      const catalogRows: Record<string, unknown>[] = [];
-      let catalogFailed = false;
-      for (let offset = 0; ; offset += SCOPE_PAGE_SIZE) {
-        let page;
-        try {
-          page = await this.scopeExec(
-            `SELECT table_catalog, table_schema, table_name ` +
-            `FROM \`${catSafe}\`.information_schema.tables ` +
-            `WHERE ${schemaFilter} ` +
-            `ORDER BY table_schema, table_name ` +
-            `LIMIT ${SCOPE_PAGE_SIZE} OFFSET ${offset}`,
-            { rowLimit: SCOPE_PAGE_SIZE },
-          );
-        } catch (e) {
-          console.warn(`resolveScope: skipping catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
-          catalogFailed = true;
-          break;
+      const listCatalog = async (selectAltered: boolean): Promise<Record<string, unknown>[] | null> => {
+        const rows: Record<string, unknown>[] = [];
+        for (let offset = 0; ; offset += SCOPE_PAGE_SIZE) {
+          let page;
+          try {
+            page = await this.scopeExec(
+              `SELECT table_catalog, table_schema, table_name${selectAltered ? ', last_altered' : ''} ` +
+              `FROM \`${catSafe}\`.information_schema.tables ` +
+              `WHERE ${schemaFilter} ` +
+              `ORDER BY table_schema, table_name ` +
+              `LIMIT ${SCOPE_PAGE_SIZE} OFFSET ${offset}`,
+              { rowLimit: SCOPE_PAGE_SIZE },
+            );
+          } catch (e) {
+            console.warn(`resolveScope: listing failed for catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
+            return null;
+          }
+          rows.push(...page.rows);
+          if (page.rows.length < SCOPE_PAGE_SIZE) return rows;
         }
-        catalogRows.push(...page.rows);
-        if (page.rows.length < SCOPE_PAGE_SIZE) break;
+      };
+
+      // Non-Unity catalogs may lack last_altered — retry the plain listing.
+      const catalogRows = (withAltered ? await listCatalog(true) : null) ?? await listCatalog(false);
+      if (!catalogRows) {
+        failedCatalogs.push(catalog);
+        continue;
       }
-      if (catalogFailed) continue;
 
       for (const row of catalogRows) {
         const cat = String(row['table_catalog'] ?? catalog);
@@ -154,12 +181,13 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
             catalog_name: cat.trim().toLowerCase(),
             schema_name: sch.trim().toLowerCase(),
             object_name: tbl.trim().toLowerCase(),
+            source_altered_at: row['last_altered'] ? new Date(String(row['last_altered'])) : null,
           });
         }
       }
     }
 
-    return refs;
+    return { refs, failedCatalogs };
   }
 
   // ── detectChanges ───────────────────────────────────────────────────────────

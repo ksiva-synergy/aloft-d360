@@ -94,6 +94,15 @@ export const PATCH = handle<Ctx>(async (req, ctx) => {
 
   // Profile / status update (only if name or status is present)
   if (body.name !== undefined || body.status !== undefined) {
+    if (body.status !== undefined && id === auth.userId && body.status !== before.status) {
+      throw new ApiError(400, 'You cannot change your own account status');
+    }
+    // Same no-escalation rule as role changes: the caller cannot edit or suspend someone who outranks them.
+    if (id !== auth.userId) {
+      const targetRoles = await prisma.userRole.findMany({ where: { userId: id }, select: { role: { select: { name: true } } } });
+      const blocked = targetRoles.map((r) => r.role.name).find((r) => !canManageRole(auth.role, r));
+      if (blocked) throw new ApiError(403, `Your role cannot manage the "${blocked}" role`);
+    }
     await prisma.user.update({
       where: { id },
       data: {

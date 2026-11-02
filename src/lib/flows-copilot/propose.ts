@@ -1,8 +1,8 @@
 import type { ContentBlock, Message, Tool, ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import { runAgentLoop, type AgentLoopParams } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
-import { hasXaiCredentials } from '@/lib/inspector/llm-configured';
-import { resolveBoostModel, resolveWorkbenchModel } from '@/lib/construction/workbench-model';
+import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
+import { DEFAULT_LLM_LITE_GATEWAY_MODEL_ID } from '@/lib/llmlite/default-model';
 import type { BoostModel } from '@/lib/boost/models';
 import { BUILTIN_CAPABILITIES } from '@/lib/capabilities/builtin';
 import type { Def } from '@/lib/flows/edit';
@@ -170,24 +170,14 @@ export type ProposeOutcome =
   /** The model call failed. `detail` is the provider's message. */
   | { kind: 'error'; detail: string };
 
-/**
- * The model the copilot uses: `FLOWS_COPILOT_MODEL_ID` (a Bedrock model id) when set; otherwise Grok
- * (XAI_MODEL, default grok-4.7) when xAI is configured (decision 2026-10-27); otherwise the model the
- * Workbench resolves for this user's role.
- */
+/** The model the copilot uses: always the LLM Lite model resolved for `automate_copilot`. */
 function copilotModel(role?: string | null): { modelId: string; boost: BoostModel | null } {
-  const override = process.env.FLOWS_COPILOT_MODEL_ID?.trim();
-  if (override) return { modelId: override, boost: null };
-  const grok = hasXaiCredentials() ? resolveBoostModel('grok-xai') : null;
-  if (grok) return { modelId: grok.modelId, boost: grok };
-  const resolved = resolveWorkbenchModel(undefined, role);
-  return { modelId: resolved?.effectiveModelId ?? 'us.anthropic.claude-sonnet-5-5', boost: resolved?.boostModel ?? null };
+  const resolved = resolveWorkbenchModel(undefined, role, 'automate_copilot');
+  return { modelId: resolved?.effectiveModelId ?? DEFAULT_LLM_LITE_GATEWAY_MODEL_ID, boost: resolved?.boostModel ?? null };
 }
 
 /**
- * One copilot turn. `repairNote` asks the model to fix a previous proposal that failed. When the
- * primary model is not Grok and its call fails, it retries once with Grok if xAI is configured, as
- * the Workbench does.
+ * One copilot turn. `repairNote` asks the model to fix a previous proposal that failed.
  */
 export async function proposeFlowEdit(params: {
   definition: Def;
@@ -249,11 +239,7 @@ export async function proposeFlowEdit(params: {
   };
 
   const { modelId, boost } = copilotModel(params.role);
-  let result = await run(modelId, boost);
-  if (!captured && result.outcome === 'errored' && boost?.key !== 'grok-xai' && hasXaiCredentials()) {
-    const grok = resolveBoostModel('grok-xai');
-    if (grok) result = await run(grok.modelId, grok);
-  }
+  const result = await run(modelId, boost);
   const proposal = captured as { reply: string; operations: unknown } | null;
   if (proposal) return { kind: 'proposal', ...proposal };
   if (result.outcome === 'errored') return { kind: 'error', detail: result.errorDetail ?? 'The model call failed' };

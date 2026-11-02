@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { Plus, Trash2 } from 'lucide-react';
 import { EXTRACTION_FIELD_TYPES, MAX_CUSTOM_FIELDS, checkCustomFields, type CustomField } from '@/lib/extraction/schemas';
 import { btn } from './ui';
@@ -60,13 +61,13 @@ export function ExtractFieldsEditor({
                   <label className="sr-only" htmlFor={`${id}-type-${i}`}>
                     Field {i + 1} type
                   </label>
-                  <select id={`${id}-type-${i}`} className={`${field} w-28 shrink-0`} value={f.type} onChange={(e) => patch(i, { type: e.target.value as CustomField['type'] })}>
+                  <Select id={`${id}-type-${i}`} className={`${field} w-28 shrink-0`} value={f.type} onChange={(e) => patch(i, { type: e.target.value as CustomField['type'] })}>
                     {EXTRACTION_FIELD_TYPES.map((t) => (
                       <option key={t} value={t}>
                         {TYPE_LABEL[t]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <label className="sr-only" htmlFor={`${id}-desc-${i}`}>
                   Field {i + 1} description

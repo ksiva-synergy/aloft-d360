@@ -118,7 +118,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               aria-label="Synergy Group — Data 360 home"
               className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
             >
-              <BrandMark size={40} className="!rounded-xl" />
+              <BrandMark size={30} className="!rounded-xl" />
             </Link>
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
               <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">Data 360</p>

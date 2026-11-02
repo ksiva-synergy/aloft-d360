@@ -3,6 +3,7 @@ import {
   formatStatsSummary,
   isEmptySuccessJob,
   launchUsesEstateExcludeTree,
+  mapJobStatus,
   resolveDisplayJobStatus,
   resolveLaunchScopeFilters,
   resolveModalLaunchScope,
@@ -10,6 +11,18 @@ import {
   wideScopeTierLaunchBlocked,
   t0AllowsLiveScopeWhenDiscoveryEmpty,
 } from './job-ui';
+
+describe('mapJobStatus', () => {
+  it('maps cancelled jobs to cancelled, not queued', () => {
+    expect(mapJobStatus('cancelled')).toBe('cancelled');
+    expect(mapJobStatus('canceled')).toBe('cancelled');
+  });
+
+  it('maps partial to done and unknown statuses to queued', () => {
+    expect(mapJobStatus('partial')).toBe('done');
+    expect(mapJobStatus('something_new')).toBe('queued');
+  });
+});
 
 describe('job-ui', () => {
   it('t0AllowsLiveScopeWhenDiscoveryEmpty for Limit-only T0', () => {

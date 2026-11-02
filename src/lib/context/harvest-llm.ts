@@ -1,26 +1,37 @@
 /**
  * LLM backend for context harvest T2 (semantic) and T3 (usage narratives).
  *
- * Default provider: xAI (Grok) when XAI_API_KEY is set, else bedrock.
- * Override with HARVEST_LLM_PROVIDER=xai|bedrock|groq.
+ * Default provider: LLM Lite gateway (aws_bedrock/xAI-Grok-4.7).
+ * Legacy override with HARVEST_LLM_PROVIDER=llmlite|xai|bedrock|groq.
  */
 
 import OpenAI from 'openai';
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { getLlmLiteApiKey, getLlmLiteBaseUrl, isLlmLiteConfigured } from '@/lib/llmlite/config';
+import { getFeatureGatewayModelIdSync } from '@/lib/llmlite/model-settings-store';
 
-export type HarvestLlmProvider = 'xai' | 'bedrock' | 'groq';
+export type HarvestLlmProvider = 'llmlite' | 'xai' | 'bedrock' | 'groq';
 
 export function getHarvestLlmProvider(): HarvestLlmProvider {
   const explicit = process.env.HARVEST_LLM_PROVIDER?.trim().toLowerCase();
-  if (explicit === 'xai' || explicit === 'bedrock' || explicit === 'groq') return explicit;
-  if (process.env.XAI_API_KEY?.trim()) return 'xai';
-  if (process.env.GROQ_API_KEY?.trim()) return 'groq';
-  return 'bedrock';
+  if (explicit === 'llmlite' || explicit === 'xai' || explicit === 'bedrock' || explicit === 'groq') {
+    return explicit;
+  }
+  if (isLlmLiteConfigured()) return 'llmlite';
+  return 'llmlite';
 }
 
 /** Model id stored on platform_context_semantic.model_id and used for API calls. */
 export function getHarvestLlmModelId(): string {
   const provider = getHarvestLlmProvider();
+  const configuredDefault = getFeatureGatewayModelIdSync('harvest_semantic');
+  if (provider === 'llmlite') {
+    return (
+      process.env.HARVEST_LLMLITE_MODEL?.trim() ||
+      process.env.CONTEXT_HARVEST_MODEL?.trim() ||
+      configuredDefault
+    );
+  }
   if (provider === 'xai') {
     return (
       process.env.HARVEST_XAI_MODEL?.trim() ||
@@ -38,7 +49,7 @@ export function getHarvestLlmModelId(): string {
   return (
     process.env.HARVEST_BEDROCK_MODEL_ID?.trim() ||
     process.env.BEDROCK_SONNET_MODEL_ID?.trim() ||
-    'us.anthropic.claude-sonnet-4-6'
+    configuredDefault
   );
 }
 
@@ -72,6 +83,15 @@ export type HarvestLlmCompleteResult = {
   inputTokens: number;
   outputTokens: number;
 };
+
+function getLlmLiteClient(): OpenAI {
+  const base = getLlmLiteBaseUrl();
+  const apiKey = getLlmLiteApiKey();
+  if (!base || !apiKey) {
+    throw new Error('[harvest-llm] LLMLITE_BASE_URL and LLMLITE_API_KEY are required for LLM Lite harvest');
+  }
+  return new OpenAI({ apiKey, baseURL: `${base}/v1` });
+}
 
 function getXaiClient(): OpenAI {
   const apiKey = process.env.XAI_API_KEY?.trim();
@@ -162,6 +182,7 @@ export async function harvestLlmComplete(
   params: HarvestLlmCompleteParams,
 ): Promise<HarvestLlmCompleteResult> {
   const provider = getHarvestLlmProvider();
+  if (provider === 'llmlite') return completeViaOpenAiCompatible(getLlmLiteClient(), params);
   if (provider === 'xai') return completeViaXai(params);
   if (provider === 'groq') return completeViaGroq(params);
   return completeViaBedrock(params);

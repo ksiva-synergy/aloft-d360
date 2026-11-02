@@ -78,7 +78,7 @@ export function SearchStrip({ onDefine }: Props) {
             placeholder={activeModelGoverned ? `Search or resolve — e.g. "${DEMO}"` : 'Filter definitions…'}
             style={{
               width: '100%', ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK, background: 'rgba(0,0,0,0.2)',
-              border: `1px solid ${BORDER}`, borderRadius: 4, padding: '8px 32px 8px 32px', outline: 'none',
+              border: `1px solid ${BORDER}`, borderRadius: 6, padding: '8px 32px 8px 32px', outline: 'none',
             }}
           />
           {raw && (
@@ -91,7 +91,7 @@ export function SearchStrip({ onDefine }: Props) {
           <button
             onClick={() => void resolve()}
             disabled={!raw.trim() || resolving}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, padding: '8px 14px', borderRadius: 4, cursor: raw.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${GOLD}`, background: raw.trim() && !resolving ? GOLD : 'transparent', color: raw.trim() && !resolving ? '#1A1206' : MUTED }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, padding: '8px 14px', borderRadius: 6, cursor: raw.trim() ? 'pointer' : 'not-allowed', border: `1px solid ${GOLD}`, background: raw.trim() && !resolving ? GOLD : 'transparent', color: raw.trim() && !resolving ? '#1A1206' : MUTED }}
           >
             {resolving ? 'Resolving…' : 'Resolve'}
           </button>

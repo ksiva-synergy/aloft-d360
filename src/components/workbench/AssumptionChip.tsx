@@ -134,7 +134,7 @@ export function AssumptionChip({ entry, onConfirm, onEdit }: AssumptionChipProps
               cursor: 'pointer',
               ...mono, fontSize: 'var(--type-ui-regular-size)', color: GOLD,
               padding: '0 4px',
-              borderRadius: 3,
+              borderRadius: 6,
               lineHeight: 1,
               transition: 'background 0.15s',
             }}

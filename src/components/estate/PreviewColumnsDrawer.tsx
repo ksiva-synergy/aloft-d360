@@ -108,7 +108,8 @@ export default function PreviewColumnsDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="absolute top-4 right-5 text-size-body-lg hover:opacity-100 transition-opacity"
+            aria-label="Close"
+            className="absolute top-3 right-4 grid size-8 place-items-center rounded-ctl text-size-body-lg hover:opacity-100 hover:bg-[color-mix(in_srgb,currentColor_8%,transparent)] transition-[opacity,background-color]"
             style={{ color: textDim, opacity: 0.7 }}
           >
             ✕

@@ -5,6 +5,235 @@
 
 ---
 
+### 2026-11-01: Home dashboard flags jobs that miss their schedule
+
+- **Files:** `src/lib/dashboard/summary.ts` (`fetchJobs` sets `overdue` using the Jobs page rule: no finish within 1.5× the cadence, where the cadence comes from `getNextRuns`, for non-manual `HARVEST_SCHEDULES`), `src/components/dashboard/DashboardView.tsx` (amber stage status and a Briefing item that links to `/agent-lab/estate/jobs?kind=`). See `docs/CHANGELOG.md`.
+- **No change** to orchestrator, schedules or job data. Read-only.
+- **Verified:** ran against the live DB with no overdue jobs, as expected, because every schedule is `manual`.
+
+### 2026-11-01: Themed dropdown for native selects in Jobs UI
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx` and other estate components: `<select>` became the shared `Select` (`src/components/form/Select.tsx`). See `docs/CHANGELOG.md`.
+- **Why:** consistent dropdown design across the app. No change to job logic or APIs. Live UI check not performed.
+
+### 2026-11-05: Continue pipeline: "Scanned tables only" option
+
+- **Files:** `src/app/api/agent-lab/context/pipeline/continue/route.ts` (POST accepts `scannedOnly`), `src/components/estate/ScannedPipelineScopeBar.tsx` (checkbox in the Continue confirm sheet; toggling re-runs the change check).
+- **What:** with the option on, the server resolves the scope to exact table paths for objects with `lifecycle='active'` and `last_t0_at` set (structurally scanned). Discovery-only tables are excluded from the change check, the plan and the launch. Returns `400 NO_SCANNED_TABLES` when none match, and `400 TOO_MANY_TABLES` above 50 tables.
+- **Why:** Continue on a schema otherwise also rescans and profiles every never-scanned table it discovers.
+- **Not done:** the intent GET preview still uses the full scope, so its counts can differ from the scanned-only plan shown in the confirm sheet. A schema with more than 50 scanned tables cannot use this option; narrow the scope instead. No unit test for the scanned-only resolution yet. Live UI check not performed.
+
+### 2026-11-04: Security hardening: role gates on harvest, refresh and log routes (assessment F7)
+
+- **Files:** the 12 harvest/refresh routes listed in [current-status.md](./current-status.md) "Server-side access" now call `denyUnlessEstatePipelineOperator()` (platform_admin). `objects/[id]/enrich` and `jobs/[id]/logs` call the new `denyUnlessSessionRole('admin')` (`src/middleware/auth.ts`). `jobs/[id]/logs` no longer streams raw CloudWatch error text to the client. `silo/scan` and `silo/links/[id]` build the dev-only internal `/process` URL from `NEXTAUTH_URL` instead of the request Host.
+- **Why:** any signed-in member could launch ECS harvest tasks, LLM enrichment or read CloudWatch logs. The UI already hid these controls from non-platform admins, but the APIs did not enforce that.
+- **Behavior change:** members and readonly users get 403 on these APIs. The log stream panel is admin-only.
+- **No change** to orchestrator, tier logic, scheduling or job data.
+- **Verified:** `tsc` clean; `security-hardening.test.ts` + `authz-hardening.test.ts` 37/37; full vitest 1026 pass (1 unrelated typography-guard failure from UI work in progress).
+
+### 2026-11-01: Home dashboard shows job health
+
+- **Files:** `src/lib/dashboard/summary.ts` (new `jobs` section: `listJobKindSummaries(orgId, { sinceDays: 7, detail: true, recentLimit: 1 })` plus `computeJobHealth`), `src/components/dashboard/DashboardView.tsx`.
+- **Change:**
+  - The home dashboard briefing lists job kinds whose last run failed, and overdue memory jobs.
+  - Each estate stage shows the status of the job that feeds it.
+  - New metric: job success over the last 7 days.
+  - Links deep-link to `/agent-lab/estate/jobs?kind=<kind>`.
+- **No change** to job execution or to the Jobs page.
+- **Verified:** adapter tests 13/13; screenshots with mocked data; tsc has no new errors.
+
+### 2026-11-01: Jobs audit fixes (embed batching, reaper heartbeat, status, counts)
+
+- **Files:** `src/lib/context/embed.ts`, `src/lib/context/orphan-jobs.ts`, `src/lib/context/active-jobs.ts`, `src/lib/context/reads.ts`, `src/lib/context/harvest.ts`, `src/lib/estate/job-ui.ts` (+`job-ui.test.ts`), `src/components/estate/ActiveRunsPanel.tsx`, `src/components/estate/JobDetailDrawer.tsx`, `docs/CHANGELOG.md`, `docs/jobs/current-status.md`
+- **What (before → after):**
+  - Embed `IN (...)` lookups with a whole source (about 34k IDs) exceeded Postgres's 32,767 bind-parameter limit → `embedSubjects` splits IDs into chunks of 5,000 and sums the tallies.
+  - Web reaper killed any queued/running job without a task ID that was older than 10 minutes by `created_at`, including live ones → it now uses `updated_at`, which workers refresh with heartbeat every ~3 min.
+  - `cancelled` jobs mapped to "queued" → mapped to `cancelled` (grey chip).
+  - `partial` was green in the drawer and red in the runs panel → amber in both.
+  - Kind filter omitted 6 kinds → lists every `JobKind`.
+  - Summary `queued`/`running` ignored the time window, so `total` did not match the buckets → windowed.
+  - Child counts had no `cancelled`, so `total` did not reconcile → added.
+  - T0 drop pass filtered by source only → also filters by `org_id`.
+- **Example:** an embed of a whole 486-table source (about 34k columns) used to record `columns_embedded: 0` with "too many bind variables… received 32769". Now it runs in 7 chunks.
+- **Verified:** `tsc --noEmit` clean; vitest on `src/lib/context` and `src/lib/estate` passes (19 files, 88+ tests incl. new job-ui cases); ESLint shows only the 2 pre-existing `set-state-in-effect` errors.
+- **Decisions and follow-up (same day):**
+  - Schedules: `change_detect_daily`, `t1_profile_weekly`, `estate_inventory_weekly` changed from `live` to `manual` in [schedules.ts](c:/ALOFT/aloft-ui-redesign/src/lib/context/schedules.ts). Reason: EventBridge deployment unverified. Revert to `live` after `aws events list-rules --name-prefix aloft-` confirms.
+  - Stale profiles: one-off data backfill on `platform_context_objects`, in one transaction. Ran `UPDATE ... SET last_t1_at = last_t0_at WHERE lifecycle='active' AND last_t0_at IS NOT NULL AND last_t1_at IS NOT NULL AND last_t1_at < last_t0_at AND source_altered_at IS NOT NULL AND source_altered_at <= last_t1_at`. Result: 1,695 rows updated; needs-profile count went 2,717 → 1,022. No profile stats changed.
+  - Chain reap (Catalog banner, queued follow-ups) left as is; options documented in the CHANGELOG entry.
+- **Not done / open:**
+  - Catalog banner still reaps queued chain follow-ups after 10 minutes without a kick. Proper fix needs the harvester image with in-process chaining deployed, or a kick-before-reap change.
+  - No live browser check of the Jobs page (CDP connection timed out earlier).
+  - `src/app/api/catalog/tools/*` and `src/app/api/catalog/tools/schema.ts` have uncommitted changes from other work that fail `tsc` (Zod / Prisma JSON types). Not touched here.
+
+---
+
+### 2026-11-01: Continue pipeline checks the source, then cascades
+
+- **Files:** `src/lib/context/pipeline-freshness.ts` (+test), `src/lib/estate/pipeline-change-check.ts`, `src/lib/estate/pipeline-intent.ts`, `src/app/api/agent-lab/context/pipeline/continue/route.ts`, `src/lib/context/databricks-adapter.ts`, `src/lib/context/harvest.ts`, `src/lib/context/profile.ts`, `src/lib/context/embed.ts`, `src/lib/context/embedding-presence.ts`, `scripts/context/orchestrator.ts`, `src/components/estate/ScannedPipelineScopeBar.tsx`
+- **What (before → after):**
+  - Continue only compared local timestamps → it **always** runs a scoped, metadata-only Databricks check first: one `information_schema.tables` listing per catalog in scope, comparing each table's `last_altered` with its stored `source_altered_at`. The check failing stops the run.
+  - Chain was a click-time snapshot (Profile → Embed could skip Describe) → it runs from the earliest stale stage through every downstream stage to Embed. Each stage still picks only its own stale tables when it starts.
+  - T0 rescans always bumped `last_t0_at` (no-op rescans made Profile look stale) → bump only on structure or alter-time change.
+  - Re-profile always made Describe stale → an identical profile keeps Describe current (re-describe only when the profile changed).
+  - "Not searchable" counted only missing embeddings → it also counts embeddings older than the latest semantic card. Embed refreshes the time on unchanged vectors.
+  - Embed job with an empty scope embedded columns for the whole source → no-op.
+  - Continue dialog → preview with the source check result (changed / new / removed / unchanged) and per-stage "up to N", then Run.
+- **Example:** no source change and only embedding missing → the plan is **Embed** only.
+- **Verified:** vitest 18 passed; tsc clean. No live run yet.
+- **Notes:** `[x] current-status read [x] code [x] CHANGELOG [x] session-log [x] current-status updated`. The worker image needs a redeploy for the T0/T1/embed changes.
+
+---
+
+### 2026-11-01: Job type switcher redesign
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx` (`KindDropdown`, new `kindHealthOf`)
+- **What (before → after):** The breadcrumb switcher on the job type page was a coloured monospace pill opening an alphabetical list with kind colour dots and a "current" label → plain trigger with a health dot; the menu has a search box, is grouped by pipeline stage (01 Discover, 02 Scan, …) in pipeline order, shows each job's status (last-run age, or Failing / Overdue / Running / Queued / Never run) with a ✓ on the current job, and supports ↑/↓, Enter and Esc. The coloured stripe beside the job title was removed (matches the table).
+- **Verified:** tsc clean; fixture screenshots light and dark with the menu open.
+### 2026-11-01: Job types table polish
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`, `src/lib/estate/nav-items.ts`
+- **What (before → after):**
+  - Overdue scheduled jobs (missed schedule by >1.5× cadence) showed a green dot and a plain date → amber dot plus "overdue" in Last finished, reason in the tooltip.
+  - Last finished switched to a locale date after 7 days → always relative (`1w ago`, `3mo ago`), exact time in the tooltip (`relativeTime` now covers weeks/months/years everywhere on the page).
+  - Advanced job types that need attention were hidden when the advanced section was collapsed (strip named "Silo Scan" but no row) → those rows always show; toggle reads "Show N more advanced job types".
+  - Success header did not say which window it used → "Success · 7d" (follows `?range=`); value reads "100% 4 runs" instead of "100% /4".
+  - "Manual" vs "On demand" → both "On demand", tooltip explains whether a schedule exists but is switched off.
+  - Cancelled runs looked like empty slots → hollow outlined bar (strip, legend, job-type page chart and legend).
+  - Coloured job-type stripes removed from rows (clashed with status colours); per-row Run shows on row hover/focus only (always on touch devices).
+  - Page title "Pipeline jobs" → "Jobs" (matches the tab).
+- **Verified:** tsc clean; fixture screenshots light and dark. Live data not verified.
+### 2026-11-01: Catalog cleanup touches shared Jobs components
+
+- **Files:** `src/components/estate/ScannedObjectsTab.tsx`, `src/components/estate/Pagination.tsx`
+- **What:** The Jobs page's "Scanned objects" tab uses the redesigned `ScannedObjectsTab`: plain tier names, a pipeline progress bar, and the same table style as the Catalog. `Pagination` now uses sans tabular numbers. Fetching, selection and the harvest/pipeline logic are unchanged.
+- **Verified:** tsc is clean; screenshots with fake API data. Live data is not verified.
+### 2026-10-31: Health tab rebuilt as a full page
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`
+- **What:**
+  - `HealthView` now shows:
+    - a status headline and window switch;
+    - KPI tiles (success rate vs the previous period, runs, objects processed, time spent);
+    - a runs-per-day or per-hour stacked chart;
+    - reliability by job type;
+    - recent failures with error lines, which open the drawer;
+    - needs attention;
+    - upcoming scheduled runs;
+    - the suggested next step with coverage.
+  - Removed `RunHealthCard`.
+  - New helpers: `healthSeg`, `buildRunBuckets`, `RunsPerPeriodChart`, `HealthCard`, `KpiTile`, `WindowSwitch`.
+  - Data comes from the summary API plus the jobs list (`after=<window start>&pageSize=1000`, parents only).
+- **Verified:** `tsc` clean; screenshots for 7d, 30d and 24h, with no page errors.
+
+### 2026-11-03: Health tab; Job types tab shows a one-line health strip
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`, `src/components/estate/JobsCockpitPanel.tsx`, `src/lib/estate/nav-items.ts`, `src/views/agent-lab/estate/EstateNav.tsx`
+- **What:**
+  - Removed the Jobs page subtitle.
+  - New **Health** tab (`?tab=health`), which shows a status dot when job types need attention. It holds `RunHealthCard` (headline, success · runs · failed · running, window select, attention rows with issue + time) and `JobsCockpitPanel` ("Suggested next step" + estate coverage, open by default via `defaultExpanded`).
+  - The Job types tab replaces both cards with `HealthStrip`, a single row: headline, affected job types (each opens its page), stats, window select and **View health**.
+  - The shared `computeRunHealth()` feeds the strip, the card and the tab dot.
+- **Verified:** `tsc` clean; screenshots of `/jobs` and `/jobs?tab=health`, with no page errors.
+
+### 2026-10-31: Job type detail page (`?kind=`) + slimmer Job types table
+
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`
+- **What:**
+  - Job types table: removed the per-row description, the stage-group sentence and the header blurb (descriptions are tooltips now); rows are single-line.
+  - New `JobKindPage` replaces `L2View` (date groups), `L3View` (runs on one date), `DateDropdown` and `JobsDrilldownNav`. It has a header with a health badge, schedule and Run; a Last run card with error excerpt and Retry failed chunks / Run again; a recent-runs duration chart (60 runs); pipeline context (upstream/downstream + coverage); and an All runs table with status / time range / day filters (`?status=`, `?since=`, `?date=`).
+  - `?highlight=<jobId>` now fetches the job, opens its job type page and the drawer (previously only worked on L3, so the harvest action bar links did nothing).
+  - `RunJobButton` gained `hideTrigger` (modal only, used on the job type page) and no longer replays a stale `launchRequest` when it remounts.
+- **Verified:** `tsc --noEmit` clean. Headless screenshots with real DB data (T1, T2, T2 `status=failed`, highlight deep link, Run again modal, L1): no page errors.
+- **Not done:** Dependency map (`KIND_FLOW`) is hand-written from the stage order; the `/jobs/dates` API is now unused by the UI.
+
+---
+
+### 2026-10-31: Jobs L1 redesign (jobs-first layout) + summary API window/detail
+
+- **Files:**
+  - `src/lib/context/reads.ts` (`listJobKindSummaries` options `sinceDays`, `detail`, `recentLimit`)
+  - `src/app/api/agent-lab/context/jobs/summary/route.ts` (`days`, `detail` params)
+  - `src/lib/estate/cockpit.ts` (T0 recommendation wording)
+  - `src/components/estate/JobsCockpitPanel.tsx` (compact Next step bar; coverage funnel behind Details)
+  - `src/components/estate/ScannedObjectsTab.tsx` (`initialTier` prop)
+  - `src/views/agent-lab/estate/jobs.tsx` (RunHealthBar, attention chips, JobStagesTable, per-row Run, `?range=` / `?tier=`)
+  - `docs/jobs/current-status.md`
+- **Why:** Coverage, stats and schedules sat above the jobs, so the job list started about 820px down. Stats had no time window and did not add up (cancelled/partial missing). Rows showed "Never run" (UI read `last_run_at`, API returns `last_finished_at`).
+- **Before → after:**
+  - Coverage funnel + recommendation card (~280px) → one-line Next step bar with coverage % chips; funnel under **Details** (remembered in localStorage).
+  - Four stat tiles + attention box → one run-health bar with time window and deltas; attention chips only when needed.
+  - Kind cards + schedules strip → stage table.
+  - The job table now starts about 450px down at 1440×900.
+- **Verified:**
+  - `tsc --noEmit` clean. Summary SQL run against the real DB (~110 ms warm).
+  - Headless Chromium screenshots with real DB data (auth/API stubbed): L1, Details expanded, stage click → `?tab=scanned&tier=t0`, L2 `?kind=t2_semantic`, `?range=30`, per-row Run opens the confirm modal with the kind preselected. No page errors.
+- **Not done:** Not checked in a live signed-in session. Pre-existing `react-hooks/set-state-in-effect` lint errors remain. `docs/jobs/current-status.md` was accidentally deleted mid-session and restored from HEAD + the 2026-11-02 rows seen earlier in this session; any other uncommitted edits to it from another session would be lost — please diff-check.
+
+---
+
+### 2026-11-02: Estate identity and language overhaul (UI copy and layout only)
+
+- **Files:**
+  - `src/views/agent-lab/estate/jobs.tsx`
+  - `src/components/estate/JobsCockpitPanel.tsx`
+  - `src/lib/context/schedules.ts` (labels only)
+  - `src/lib/estate/cron-label.ts` (+ test)
+  - `src/lib/estate/stages.ts`
+  - `EstateNav.tsx`, `nav-items.ts`, the overview, catalog, entities, lineage, mapper and silo views
+  - estate components: SourceCard, CoverageBar, LifecycleBadge, EstateTable, EstateFilterBar, FilterBar, HarvestActionBar, facet trees, Pagination
+  - `src/lib/breadcrumb-config.ts`
+- **Why:** Users found the estate wording confusing (T0/T1/Harvested/Fargate jargon, raw cron strings, inconsistent headers).
+- **Before → after:**
+  - **Shared estate header:** a visible `h1` and a one-line description for each tab.
+  - **One stage vocabulary:** Discovered, Scanned, Profiled, Described, Searchable.
+  - **Readable schedules**, e.g. "Sundays at 03:00 UTC · next in 11h".
+  - **Jobs tabs** are sentence case. The cockpit health strip is now a stage stepper.
+  - **Fix:** the "Job types used" count only counts known kinds (it showed 13/9 before).
+  - **Labels:** the schedule labels in `schedules.ts` have new names. No schedule IDs, cron values or filter values changed. No orchestrator, API or harvest behaviour changed.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - vitest passes for `src/lib/estate`, `src/components/estate` and `src/views/agent-lab` (15 files, 77 tests, plus 3 new cron cases).
+  - A DOM sweep at 1366px and 390px found 1 `h1` per tab and no horizontal overflow; dark mode was checked.
+- **Not done:** Recommendation text from the cockpit API still says "Run T0 →" (server copy).
+
+---
+
+### 2026-11-01: Estate UI pass (visual and a11y only)
+
+- **Files:**
+  - `src/views/agent-lab/estate/EstateNav.tsx`: segmented tabs; `sr-only` `h1` for catalog/jobs/mapper/silo
+  - `src/views/agent-lab/estate/jobs.tsx`: larger hit areas on the chip remove button and the "View in Active Runs" link
+  - `src/views/agent-lab/estate/entities.tsx`: lineage links get a larger hit area
+  - `src/components/estate/*`: radius tokens
+  - `docs/CHANGELOG.md`
+- **Why:** UI redesign, batch 2.
+- **Before → after:** Styling and accessibility only. No change to harvest, orchestrator or job behaviour, so `current-status.md` is unchanged.
+
+---
+
+### 2026-10-31 — Harvest pipeline cost audit (documentation only)
+
+- **Files:** `docs/audits/performance-and-cost-optimization-report.md` (§7, Area D), `docs/CHANGELOG.md`, `docs/jobs/session-log.md`.
+- **Why:** Platform-wide performance and cost audit. The harvest findings cover:
+  - `npx tsx` start-up in `Dockerfile.harvester`
+  - one Fargate task per child job
+  - per-column Databricks profiling and OFFSET discovery in `databricks-adapter.ts`
+  - full weekly T1 sweep
+  - sequential and repair LLM calls in T2 `enrich.ts`
+  - row-by-row embedding upserts
+  - no Fargate Spot
+- **Before → after:** No runtime behaviour change; `current-status.md` unchanged. Recommendations only (precompiled image, worker reuse, change-driven T1, batched profiling, T2 batching and caching, Spot).
+
+---
+
+### 2026-10-30 — Harvester LLM switched to LLM Lite Grok 4.7
+
+- **Files:** `src/lib/context/harvest-llm.ts`, `src/lib/context/harvester-llm.ts`, `docs/CHANGELOG.md`, `docs/jobs/session-log.md`.
+- **Why:** Direct Bedrock 5.5 models failed and user requested switching harvester LLM calls (T2 semantic, T3 usage, T4 cluster proposals, silo/mapping) to LLM Lite Grok 4.7 (`aws_bedrock/xAI-Grok-4.7`) by default.
+- **Before → after:** `getHarvestLlmProvider()` defaults to `'llmlite'` and `getHarvestLlmModelId()` / `getContextHarvesterModelId()` resolve to `aws_bedrock/xAI-Grok-4.7` against `${LLMLITE_BASE_URL}/v1`.
+
+---
+
 ### 2026-10-30 — Table-level Limit launch returned NO_OBJECTS_IN_SCOPE
 
 - **Files:** `src/lib/context/queue.ts`, `src/lib/context/job-scope.ts`, `job-scope.test.ts`, `plan-split-scope.test.ts`, `docs/CHANGELOG.md`, `current-status.md`.

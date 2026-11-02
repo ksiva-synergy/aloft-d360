@@ -124,6 +124,9 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
   // overwrite those writes — e.g. undo a commission.
   useEffect(() => {
     if (!currentSessionId) return;
+    // Never autosave an opened session before its stored messages have loaded: the initial
+    // empty list would overwrite the saved conversation (slow or failed load = history wiped).
+    if (sessionId && hydratedSessionId !== sessionId) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       fetch(`/api/agent-lab/workbench/sessions/${currentSessionId}`, {
@@ -139,7 +142,7 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [currentSessionId, localMessages, attachedToolIds]);
+  }, [currentSessionId, sessionId, hydratedSessionId, localMessages, attachedToolIds]);
 
   const syncSessionConstruction = useCallback((sid: string) => {
     fetch(`/api/agent-lab/workbench/sessions/${sid}`)

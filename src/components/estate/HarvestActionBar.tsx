@@ -249,7 +249,7 @@ export default function HarvestActionBar({
   const btnBase: React.CSSProperties = {
     fontWeight: 600,
     padding: '4px 10px',
-    borderRadius: 3,
+    borderRadius: 6,
     border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
     background: 'transparent',
     color: 'var(--brand-a-ink)',
@@ -305,7 +305,7 @@ export default function HarvestActionBar({
           style={btnBase}
           title="Per-tier re-harvest options"
         >
-          ↻ Re-harvest {loadingTier ? `(${loadingTier}…)` : '▾'}
+          Rescan {loadingTier ? `(${loadingTier}…)` : '▾'}
         </button>
 
         {open && (
@@ -358,7 +358,7 @@ export default function HarvestActionBar({
                         fontSize: 'var(--type-ui-regular-size)',
                         fontWeight: 600,
                         padding: '2px 5px',
-                        borderRadius: 3,
+                        borderRadius: 6,
                         background: 'var(--estate-ink, var(--brand-a-ink))',
                         color: '#fff',
                         letterSpacing: '0.04em',

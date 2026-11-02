@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useId, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Companion } from './Companion';
@@ -40,14 +41,14 @@ export function CompanionSettings() {
     <div className="my-5 flex flex-wrap items-center gap-5 rounded-xl bg-[var(--surface-2)] p-4">
       <Companion state={state} size={88} />
       <div className="min-w-0 flex-1"><label htmlFor={`${id}-preview`} className="mb-2 block text-size-ui font-semibold text-[var(--ink-2)]">Try an expression</label>
-        <select id={`${id}-preview`} value={state} onChange={e => setState(e.target.value as CompanionState)} className="w-full max-w-52 rounded-md border border-[var(--line-2)] bg-[var(--surface-1)] px-3 py-2 text-size-body text-[var(--ink-1)]">
+        <Select id={`${id}-preview`} value={state} onChange={e => setState(e.target.value as CompanionState)} className="w-full max-w-52 rounded-md border border-[var(--line-2)] bg-[var(--surface-1)] px-3 py-2 text-size-body text-[var(--ink-1)]">
           {STATES.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </select>
+        </Select>
       </div>
     </div>
     <fieldset className="mb-5"><legend className="text-size-ui font-semibold text-[var(--ink-2)]">Character</legend>
       <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {CHARACTERS.map(item => <label key={item.value} className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-[var(--line-1)] p-3 text-center text-size-body text-[var(--ink-1)] has-[:checked]:border-[var(--brand-a)] has-[:checked]:bg-[var(--brand-a-soft)]">
+        {CHARACTERS.map(item => <label key={item.value} className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-[var(--line-1)] p-3 text-center text-size-body text-[var(--ink-1)] transition-[border-color,background-color,box-shadow] duration-hover ease-out-strong hover:border-[var(--line-2)] has-[:checked]:border-[var(--brand-a)] has-[:checked]:bg-[var(--brand-a-soft)] has-[:focus-visible]:shadow-[var(--focus-ring)]">
           <Companion size={56} active={false} preferences={{ ...preferences, character: item.value }} />
           <span className="flex items-center gap-2 font-semibold">
             <input type="radio" name={`${id}-character`} value={item.value} checked={preferences.character === item.value} onChange={() => saveCompanionPreferences({ ...preferences, character: item.value })} className="accent-[var(--brand-a)]" />
@@ -80,7 +81,7 @@ export function CompanionSettings() {
     </fieldset>
     <fieldset className="mt-5"><legend className="text-size-ui font-semibold text-[var(--ink-2)]">Chat personality</legend>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        {PERSONALITIES.map(item => <label key={item.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--line-1)] p-3 text-size-body text-[var(--ink-1)]">
+        {PERSONALITIES.map(item => <label key={item.value} className="flex cursor-pointer items-start gap-2 rounded-lg border border-[var(--line-1)] p-3 text-size-body text-[var(--ink-1)] transition-[border-color,background-color,box-shadow] duration-hover ease-out-strong hover:border-[var(--line-2)] has-[:checked]:border-[var(--brand-a)] has-[:checked]:bg-[var(--brand-a-soft)] has-[:focus-visible]:shadow-[var(--focus-ring)]">
           <input type="radio" name={`${id}-personality`} value={item.value} checked={preferences.personality === item.value} onChange={() => saveCompanionPreferences({ ...preferences, personality: item.value })} className="mt-1 accent-[var(--brand-a)]" />
           <span>{item.label}<span className="mt-1 block text-size-ui leading-5 text-[var(--ink-3)]">{item.detail}</span></span>
         </label>)}

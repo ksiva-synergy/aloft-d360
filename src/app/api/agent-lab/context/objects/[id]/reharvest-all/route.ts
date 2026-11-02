@@ -6,6 +6,7 @@ import { enqueue } from '@/lib/context/queue';
 import { launchHarvesterTask } from '@/lib/context/launch-harvester';
 import { pathToIncludePattern } from '@/lib/context/job-scope';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,8 @@ async function launchWorkerForKind(kind: string): Promise<{ taskId: string | nul
  * T4 is deferred until after T2 has stamped last_t2_at on this object.
  */
 export async function POST(_req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

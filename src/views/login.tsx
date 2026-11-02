@@ -3,9 +3,12 @@
 import { signIn } from 'next-auth/react';
 import { useState, useEffect, useCallback, type CSSProperties, type FormEvent } from 'react';
 import { useRouter } from '@/lib/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { BrandMark } from '@/components/shell/BrandMark';
-import { DotCompanion, DotField, type DotBotMode } from '@/components/login/AgentScene';
+import { DotCompanion, type DotBotMode } from '@/components/login/AgentScene';
+import { LoginBackdrop } from '@/components/login/LoginBackdrop';
+import { LOGIN_COLUMN_MAX_PX } from '@/components/login/layout';
 import { useIsDark } from '@/hooks/useIsDark';
 
 /**
@@ -19,15 +22,18 @@ const THEME_VARS = {
     '--card': 'rgb(255 255 255 / 0.035)', '--card-edge': 'rgb(255 255 255 / 0.08)', '--card-shadow': '0 24px 60px -30px rgb(0 0 0 / 0.8)',
     '--ms-bg': '#ffffff', '--ms-ink': '#0b0a16',
     '--ms-hover': 'rgb(255 255 255 / 0.9)', '--bad': '#ff9fae',
+    '--cta-from': '#0284c7', '--cta-to': '#4f46e5', '--cta-glow': 'rgb(2 132 199 / 0.65)',
     '--toast-bg': '#ffffff', '--toast-ink': '#0b0a16', colorScheme: 'dark',
   },
   light: {
-    '--bg': '#fbfcfe', '--ink': '15 20 48', '--field': '#f6f8fc', '--field-focus': '#ffffff',
-    '--focus': '79 107 255', '--aurora-a': 'rgb(56 189 248 / 0.22)', '--aurora-b': 'rgb(129 140 248 / 0.2)',
-    '--card': 'rgb(255 255 255 / 0.78)', '--card-edge': 'rgb(15 20 48 / 0.07)', '--card-shadow': '0 24px 60px -28px rgb(30 41 79 / 0.22)',
-    '--ms-bg': '#0f1430', '--ms-ink': '#ffffff',
-    '--ms-hover': '#1c2350', '--bad': '#be123c',
-    '--toast-bg': '#0f1430', '--toast-ink': '#ffffff', colorScheme: 'light',
+    // matches the app's day theme ("Sage Studio": sage neutrals + terracotta accent, see globals.css Theme v2)
+    '--bg': '#F4F6F1', '--ink': '26 35 28', '--field': '#FFFFFF', '--field-focus': '#FFFFFF',
+    '--focus': '168 72 31', '--aurora-a': 'rgb(194 101 58 / 0.14)', '--aurora-b': 'rgb(122 150 110 / 0.18)',
+    '--card': '#FFFFFF', '--card-edge': '#E1E6DA', '--card-shadow': '0 24px 60px -28px rgb(26 35 28 / 0.2)',
+    '--ms-bg': '#1A231C', '--ms-ink': '#ffffff',
+    '--ms-hover': '#2A352C', '--bad': '#B42323',
+    '--cta-from': '#A8481F', '--cta-to': '#C2653A', '--cta-glow': 'rgb(168 72 31 / 0.45)',
+    '--toast-bg': '#1A231C', '--toast-ink': '#ffffff', colorScheme: 'light',
   },
 } as const;
 
@@ -42,6 +48,9 @@ const credentialsUiEnabled = process.env.NEXT_PUBLIC_ENABLE_CREDENTIALS_LOGIN !=
 export default function LoginPage() {
   const router = useRouter();
   const theme = useIsDark() ? 'dark' : 'light';
+  const { setTheme } = useTheme();
+  const headerBtn =
+    'relative grid h-9 w-9 place-items-center rounded-full border border-[rgb(var(--ink)/0.12)] bg-[var(--field)] text-[rgb(var(--ink)/0.7)] transition-[transform,background-color,color,border-color] duration-150 ease-out hover:border-[rgb(var(--ink)/0.22)] hover:text-[rgb(var(--ink))] active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--focus)/0.45)]';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -132,26 +141,57 @@ export default function LoginPage() {
       className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--bg)] text-[rgb(var(--ink))] transition-colors duration-300"
       style={THEME_VARS[theme] as CSSProperties}
     >
-      <DotField theme={theme} />
+      {theme === 'dark' && (
+        // night: a fine full-page gradient (deep sapphire top → graphite middle → faint indigo bottom) under the contours
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(120% 70% at 50% 0%, rgba(40,78,160,.30), rgba(40,78,160,0) 60%),' +
+              'linear-gradient(170deg, #0b1530 0%, #080d1d 45%, #0a0a20 75%, #120f2e 100%)',
+          }}
+        />
+      )}
+      <LoginBackdrop theme={theme} />
       {/* aurora: two soft corner glows frame the page instead of washing the centre */}
       <span aria-hidden className="pointer-events-none absolute -left-40 -top-40 h-[560px] w-[560px] rounded-full bg-[var(--aurora-a)] blur-[140px]" />
       <span aria-hidden className="pointer-events-none absolute -bottom-48 -right-40 h-[620px] w-[620px] rounded-full bg-[var(--aurora-b)] blur-[150px]" />
 
-      <header className="relative flex h-[var(--shell-header-h,4rem)] items-center gap-3 px-6 sm:px-10">
+      <header className="relative flex h-16 items-center gap-3 px-6 sm:px-10">
         <BrandMark size={32} />
         <span className="text-size-body font-semibold tracking-tight text-[rgb(var(--ink)/0.9)]">Synergy Group</span>
         <span className="text-size-body text-[rgb(var(--ink)/0.45)]">Data 360</span>
+        <div className="ml-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label={theme === 'dark' ? 'Switch to day theme' : 'Switch to night theme'}
+          title={theme === 'dark' ? 'Day theme' : 'Night theme'}
+          className={headerBtn}
+        >
+          <Sun
+            aria-hidden
+            className={`absolute h-4 w-4 transition-[opacity,transform] duration-200 ease-out ${theme === 'dark' ? 'scale-100 rotate-0 opacity-100' : 'scale-50 -rotate-90 opacity-0'}`}
+          />
+          <Moon
+            aria-hidden
+            className={`absolute h-4 w-4 transition-[opacity,transform] duration-200 ease-out ${theme === 'dark' ? 'scale-50 rotate-90 opacity-0' : 'scale-100 rotate-0 opacity-100'}`}
+          />
+        </button>
+        </div>
       </header>
 
       <section className="relative flex flex-1 items-center justify-center px-4 pb-10">
-        <div className="w-full max-w-[380px]">
+        <div className="w-full" style={{ maxWidth: LOGIN_COLUMN_MAX_PX }}>
           <div className="flex flex-col items-center text-center">
             <DotCompanion
               mode={botMode}
               name=""
               keystrokes={0}
               progress={0}
-              ambient
+              ambient={false}
+              particles={false}
               theme={theme}
             />
             <h1 className="mt-2 text-[length:var(--type-kpi-lg-size)] font-semibold tracking-tight">
@@ -160,14 +200,14 @@ export default function LoginPage() {
             <p className="mt-2 text-[length:var(--type-body-size)] text-[rgb(var(--ink)/0.55)]">Design, stage and operate AI agent pipelines.</p>
           </div>
 
-          <div className="mt-7 rounded-[28px] border border-[var(--card-edge)] bg-[var(--card)] p-6 shadow-[var(--card-shadow)] backdrop-blur-xl">
+          <div className="mt-8 w-full">
             <button
               type="button"
               onClick={handleSSOLogin}
               onMouseEnter={() => setHoverSignIn(true)}
               onMouseLeave={() => setHoverSignIn(false)}
               disabled={ssoLoading || credLoading}
-              className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full bg-[var(--ms-bg)] text-[length:var(--type-body-size)] font-semibold text-[var(--ms-ink)] shadow-[0_8px_20px_-12px_rgb(var(--ink)/0.5)] transition hover:-translate-y-px hover:bg-[var(--ms-hover)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex h-10 w-full items-center justify-center gap-2.5 rounded-full bg-[var(--ms-bg)] px-4 text-[length:var(--type-body-size)] font-semibold text-[var(--ms-ink)] shadow-[0_8px_20px_-12px_rgb(var(--ink)/0.5)] transition hover:-translate-y-px hover:bg-[var(--ms-hover)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {ssoLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -181,10 +221,13 @@ export default function LoginPage() {
 
             {credentialsUiEnabled && (
               <>
-                <div className="my-5 flex items-center gap-3 text-size-ui text-[rgb(var(--ink)/0.4)]" aria-hidden>
-                  <span className="h-px flex-1 bg-[rgb(var(--ink)/0.1)]" />
-                  <span className="whitespace-nowrap">or use username &amp; password</span>
-                  <span className="h-px flex-1 bg-[rgb(var(--ink)/0.1)]" />
+                <div
+                  className="my-5 grid grid-cols-[1fr_auto_1fr] items-center gap-x-2 text-size-ui text-[rgb(var(--ink)/0.4)]"
+                  aria-hidden
+                >
+                  <span className="h-px bg-[rgb(var(--ink)/0.1)]" />
+                  <span className="px-1 text-center leading-snug">or email &amp; password</span>
+                  <span className="h-px bg-[rgb(var(--ink)/0.1)]" />
                 </div>
 
                 <form onSubmit={handleCredentialsLogin} aria-label="Username and password sign in" className="flex flex-col gap-2.5">
@@ -238,7 +281,7 @@ export default function LoginPage() {
                     onMouseEnter={() => setHoverSignIn(true)}
                     onMouseLeave={() => setHoverSignIn(false)}
                     disabled={credLoading || ssoLoading}
-                    className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#0284c7] to-[#4f46e5] text-[length:var(--type-body-size)] font-semibold text-white shadow-[0_8px_22px_-10px_rgb(2_132_199/0.65)] transition hover:-translate-y-px hover:brightness-110 hover:shadow-[0_10px_26px_-10px_rgb(79_70_229/0.7)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-1 flex h-10 w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--cta-from)] to-[var(--cta-to)] text-[length:var(--type-body-size)] font-semibold text-white shadow-[0_8px_22px_-10px_var(--cta-glow)] transition hover:-translate-y-px hover:brightness-110 hover:shadow-[0_10px_26px_-10px_var(--cta-glow)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {credLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {credLoading ? 'Signing in…' : 'Sign in'}
@@ -250,7 +293,7 @@ export default function LoginPage() {
             {error && (
               <p
                 role="alert"
-                className="mt-5 rounded-2xl border border-[#ff6b81]/25 bg-[#ff6b81]/10 px-4 py-3 text-center text-size-body text-[var(--bad)]"
+                className="mt-5 rounded-2xl border border-[#ff6b81]/25 bg-[#ff6b81]/10 px-4 py-3 text-left text-size-ui leading-relaxed text-[var(--bad)] sm:text-size-body"
               >
                 {error}
               </p>

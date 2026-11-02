@@ -7,6 +7,9 @@ import {
   RefreshCw, CheckCircle2, Building2, Ban, Activity, MessagesSquare, Brain,
 } from 'lucide-react';
 import type { UserRow } from './UserTable';
+import { RoleBadge } from './RoleBadge';
+import { useUserDialogFocus } from './useUserDialogFocus';
+import styles from './users.module.css';
 
 interface UserDetailDrawerProps {
   user: UserRow | null;
@@ -20,14 +23,6 @@ interface UserDetailDrawerProps {
   onToggleStatus?: (user: UserRow) => void;
   onDeleteUser?: (user: UserRow) => void;
 }
-
-// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
-  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-};
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string; icon: React.ElementType }> = {
   ACTIVE:      { dot: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Active',      icon: CheckCircle2 },
@@ -51,11 +46,11 @@ function formatDateFull(iso: string | null): string {
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-[var(--estate-border)] last:border-b-0">
+    <div className={styles.detailRow}>
       <Icon className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="text-size-ui uppercase tracking-wide text-muted-foreground mb-0.5 font-medium">{label}</div>
-        <div className="text-size-ui text-[var(--foreground)] break-all">{value}</div>
+      <div className="flex-1 min-w-0 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="text-size-ui text-muted-foreground">{label}</div>
+        <div className="text-size-ui text-[var(--foreground)] break-words sm:max-w-[240px]">{value}</div>
       </div>
     </div>
   );
@@ -65,14 +60,13 @@ function StatTile({
   icon: Icon, value, label, hint,
 }: { icon: React.ElementType; value: number; label: string; hint?: string }) {
   return (
-    <div className="rounded-lg border border-[var(--estate-border)] bg-[var(--estate-hover)] px-3 py-2.5">
+    <div className={styles.detailMetric}>
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3 w-3 shrink-0" />
-        <span className="font-mono text-size-ui uppercase tracking-wide">{label}</span>
+        <span className="text-caption">{label}</span>
       </div>
       <div className={cn(
-        'mt-1 text-[length:var(--type-title-section-size)] font-semibold tabular-nums leading-none',
-        value > 0 ? 'text-[var(--foreground)]' : 'text-muted-foreground/50',
+        'mt-3 text-kpi-md tabular-nums text-[var(--foreground)]',
       )}>
         {value}
       </div>
@@ -95,6 +89,7 @@ export function UserDetailDrawer({
 }: UserDetailDrawerProps) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
+  useUserDialogFocus(open && !!user, drawerRef);
 
   // Reset delete confirm when user changes
   useEffect(() => { setDeleteConfirm(false); }, [user?.id]);
@@ -106,10 +101,16 @@ export function UserDetailDrawer({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
+  if (!user || !open) return null;
 
   const initials = getInitials(user.name, user.email);
-  const roleBadgeClass = ROLE_BADGE_CLASS[user.primaryRole] ?? ROLE_BADGE_CLASS.readonly;
   const status = STATUS_CONFIG[user.status] ?? STATUS_CONFIG.DEACTIVATED;
   const StatusIcon = status.icon;
   const isSelf = user.id === currentUserId;
@@ -118,31 +119,27 @@ export function UserDetailDrawer({
     <>
       {/* Backdrop */}
       <div
-        className={cn(
-          'fixed inset-0 bg-black/40 z-40 transition-opacity duration-200',
-          open ? 'opacity-100' : 'opacity-0 pointer-events-none',
-        )}
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+        aria-hidden="true"
         onClick={onClose}
       />
 
       {/* Drawer */}
       <div
         ref={drawerRef}
-        className={cn(
-          'fixed right-0 top-0 h-full w-[400px] max-w-full z-50',
-          'bg-[var(--estate-surface)]',
-          'border-l border-[var(--estate-border)]',
-          'shadow-2xl flex flex-col overflow-hidden',
-          'transition-transform duration-200 ease-out',
-          open ? 'translate-x-0' : 'translate-x-full',
-        )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-profile-title"
+        tabIndex={-1}
+        className={cn(styles.surface, styles.drawer)}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--estate-border)] shrink-0">
-          <span className="text-size-ui font-semibold text-[var(--foreground)] uppercase tracking-wide">User Profile</span>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--estate-border)] shrink-0">
+          <h2 id="user-profile-title" className="text-title-card">User profile</h2>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] transition-colors"
+            aria-label="Close user profile"
+            className={styles.iconButton}
           >
             <X className="h-4 w-4" />
           </button>
@@ -161,33 +158,25 @@ export function UserDetailDrawer({
           )}
 
           {/* Identity card */}
-          <div className="px-5 py-5 border-b border-[var(--estate-border)]">
-            <div className="flex items-center gap-3.5">
+          <div className={cn(styles.detailSection, 'bg-[var(--surface-2)]')}>
+            <div className="flex items-center gap-5">
               <div
-                className="w-12 h-12 rounded-full flex items-center justify-center text-[length:var(--type-body-lg-size)] font-semibold shrink-0 select-none"
-                style={{ background: 'var(--brand-a-ink)', color: 'var(--brand-a-ink)' }}
+                className={cn(styles.avatar, styles.avatarAdmin, '!w-14 !h-14 !text-title-section')}
+                aria-hidden="true"
               >
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-size-body font-semibold text-[var(--foreground)] truncate">
+                <div className="text-title-section text-[var(--foreground)] break-words">
                   {user.name || <span className="italic text-muted-foreground font-normal text-size-body">No display name</span>}
                   {isSelf && (
-                    <span className="ml-2 text-size-ui font-mono font-semibold uppercase tracking-wide text-[var(--brand-a-ink)]">you</span>
+                    <span className="ml-2 text-caption text-muted-foreground">You</span>
                   )}
                 </div>
-                <div className="text-size-ui text-muted-foreground truncate font-mono mt-0.5">{user.email}</div>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="text-size-ui text-muted-foreground break-all mt-1">{user.email}</div>
+                <div className="flex flex-wrap items-center gap-3 mt-3">
                   {/* Role badge */}
-                  <span
-                    className={cn(
-                      'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-                      'font-mono text-size-ui font-semibold uppercase leading-[1.6] tracking-wide',
-                      roleBadgeClass,
-                    )}
-                  >
-                    {user.roleLabel}
-                  </span>
+                  <RoleBadge role={user.primaryRole} label={user.roleLabel} className="!rounded-full !px-3 !py-1.5 !font-medium" />
                   {/* Status badge */}
                   <span className={cn('inline-flex items-center gap-1 text-size-ui', status.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full', status.dot)} />
@@ -199,8 +188,9 @@ export function UserDetailDrawer({
           </div>
 
           {/* Details */}
-          <div className="px-5 py-1">
-            <InfoRow icon={Mail}      label="Email"         value={<span className="font-mono">{user.email}</span>} />
+          <div className={styles.detailSection}>
+            <h3 className="text-title-card mb-4">Account details</h3>
+            <InfoRow icon={Mail}      label="Email"         value={user.email} />
             <InfoRow icon={Shield}    label="Role"          value={user.roleLabel} />
             <InfoRow icon={StatusIcon} label="Account Status" value={status.label} />
             <InfoRow
@@ -222,12 +212,12 @@ export function UserDetailDrawer({
           </div>
 
           {/* Activity & contributions */}
-          <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-            <div className="flex items-center gap-1.5 text-size-ui uppercase tracking-wide text-muted-foreground font-medium mb-3">
-              <Activity className="h-3 w-3" />
-              Activity &amp; Contributions
+          <div className={styles.detailSection}>
+            <div className="flex items-center gap-2 text-title-card mb-4">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Activity &amp; contributions
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-4">
               <StatTile icon={Clock}          value={user.logins7d ?? 0}            label="Logins"    hint="Last 7 days" />
               <StatTile icon={Clock}          value={user.logins30d ?? 0}           label="Logins"    hint="Last 30 days" />
               <StatTile icon={Calendar}       value={user.sessions7d ?? 0}          label="Workbench" hint="Sessions · 7 days" />
@@ -239,13 +229,13 @@ export function UserDetailDrawer({
 
           {/* Actions */}
           {(canAssignRoles || (canUpdateUsers && !isSelf) || (canDeleteUsers && !isSelf)) && (
-            <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium mb-3">Actions</div>
-              <div className="flex flex-col gap-2">
+            <div className={styles.detailSection}>
+              <h3 className="text-title-card mb-4">Access controls</h3>
+              <div className="flex flex-col gap-3">
                 {canAssignRoles && (
                   <button
                     onClick={() => onChangeRole?.(user)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui text-[var(--foreground)] bg-[var(--estate-hover)] hover:bg-[var(--estate-active-bg)] border border-[var(--estate-border)] transition-colors"
+                    className={cn(styles.profileAction, 'flex items-center gap-3 px-4 text-size-ui text-[var(--foreground)] bg-[var(--surface-2)] hover:bg-[var(--estate-active-bg)] border border-[var(--estate-border)]')}
                   >
                     <Shield className="h-3.5 w-3.5 text-muted-foreground" />
                     Change Role
@@ -255,7 +245,8 @@ export function UserDetailDrawer({
                   <button
                     onClick={() => onToggleStatus?.(user)}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui border transition-colors',
+                      styles.profileAction,
+                      'flex items-center gap-3 px-4 text-size-ui border',
                       user.status === 'SUSPENDED'
                         ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20'
                         : 'text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20',
@@ -273,12 +264,13 @@ export function UserDetailDrawer({
 
           {/* Danger zone */}
           {canDeleteUsers && !isSelf && (
-            <div className="px-5 py-4 border-t border-[var(--estate-border)]">
-              <div className="text-size-ui uppercase tracking-wide text-red-500 dark:text-red-400 font-medium mb-3">Danger Zone</div>
+            <div className={styles.detailSection}>
+              <h3 className="text-title-card mb-2">Remove access</h3>
+              <p className="text-caption text-muted-foreground mb-4">Remove this account from the platform. Existing user data is preserved.</p>
               {!deleteConfirm ? (
                 <button
                   onClick={() => setDeleteConfirm(true)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-md text-size-ui text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full"
+                  className={cn(styles.profileAction, 'flex items-center gap-3 px-4 text-size-ui text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 hover:bg-red-100 dark:hover:bg-red-500/20 w-full')}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove User

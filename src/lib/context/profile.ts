@@ -1,6 +1,7 @@
 import 'server-only';
 import prisma from '@/lib/db';
 import type { ObjectProfile } from './types';
+import { isProfileUnchanged } from './pipeline-freshness';
 
 // ── Drift types ───────────────────────────────────────────────────────────────
 
@@ -36,6 +37,8 @@ export interface SaveProfileResult {
   profileId: string;
   version: number;
   drift: DriftResult | null;
+  /** True when the new stats match the previous version (ignoring run-volatile keys). */
+  statsUnchanged: boolean;
 }
 
 // ── computeDrift ──────────────────────────────────────────────────────────────
@@ -172,5 +175,10 @@ export async function saveProfile(
     });
   }
 
-  return { profileId: newProfile.id, version: newProfile.version, drift };
+  return {
+    profileId: newProfile.id,
+    version: newProfile.version,
+    drift,
+    statsUnchanged: isProfileUnchanged(prevStats, stats),
+  };
 }

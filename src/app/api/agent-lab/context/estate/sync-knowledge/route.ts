@@ -5,6 +5,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { pathToIncludePattern } from '@/lib/context/job-scope';
 import { enqueueAndLaunchHarvest } from '@/lib/context/enqueue-and-launch';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,8 @@ export const dynamic = 'force-dynamic';
  * Object-scoped knowledge sync — enqueues a knowledge_sync job for each path.
  */
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

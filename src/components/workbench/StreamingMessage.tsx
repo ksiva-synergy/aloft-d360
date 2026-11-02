@@ -5,12 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
   ChevronRight,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Terminal,
   Copy,
   Check,
+  X,
   Zap,
   AlertTriangle,
   ArrowRight,
@@ -19,7 +16,6 @@ import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
 import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
-import { withAlpha } from '@/lib/theme/with-alpha';
 import { type } from '@/lib/typography/tokens';
 import {
   detailTone,
@@ -45,9 +41,6 @@ const SURFACE = 'var(--wb-surface)';
 const SURFACE2 = 'var(--wb-surface2)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
 const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
-const VIOLET = '#8b5cf6';
-const VIOLET_BG = 'rgba(139,92,246,0.06)';
-const VIOLET_BORDER = 'rgba(139,92,246,0.22)';
 const GREEN = '#22c55e';
 const RED = '#ef4444';
 
@@ -70,7 +63,7 @@ function ReadinessBadge({ value }: { value: 'interview' | 'plan' | 'build' }) {
       color: meta.color,
       background: meta.bg,
       border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
-      borderRadius: 4,
+      borderRadius: 6,
       padding: '2px 7px',
     }}>
       {meta.label}
@@ -87,49 +80,54 @@ function ThinkingAccordion({
   isStreaming: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const lineCount = thinking.trim().split('\n').length;
   const wordCount = thinking.trim().split(/\s+/).filter(Boolean).length;
+  const lines = thinking.trim().split('\n').map(l => l.trim()).filter(Boolean);
+  const latestLine = lines[lines.length - 1] ?? '';
 
   return (
-    <div style={{
-      marginBottom: 10,
-      borderRadius: 8,
-      border: `1px solid ${VIOLET_BORDER}`,
-      background: VIOLET_BG,
-      overflow: 'hidden',
-    }}>
+    <div className="ld-card" style={{ marginBottom: 10 }}>
+      {isStreaming && <div className="ld-bar" />}
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          padding: '8px 14px',
+          gap: 10,
+          padding: '9px 14px',
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
+          minWidth: 0,
         }}
       >
         {isStreaming ? (
-          <Loader2
-            size={13}
-            style={{ color: VIOLET, animation: 'spin 1s linear infinite', flexShrink: 0 }}
-          />
+          <span className="ld-dot" />
         ) : open ? (
-          <ChevronDown size={13} style={{ color: VIOLET, flexShrink: 0 }} />
+          <ChevronDown size={13} style={{ color: MUTED, flexShrink: 0 }} />
         ) : (
-          <ChevronRight size={13} style={{ color: VIOLET, flexShrink: 0 }} />
+          <ChevronRight size={13} style={{ color: MUTED, flexShrink: 0 }} />
         )}
-        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: VIOLET, fontWeight: 500 }}>
-          {isStreaming ? 'Reasoning…' : 'Thought process'}
+        <span
+          className={isStreaming ? 'ld-shimmer-text' : undefined}
+          style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: isStreaming ? undefined : INK_DIM, flexShrink: 0 }}
+        >
+          {isStreaming ? 'Reasoning' : 'Thought process'}
         </span>
-        {!isStreaming && (
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginLeft: 'auto' }}>
-            {wordCount} words · {lineCount} lines
+        {isStreaming && latestLine && !open ? (
+          <span
+            key={latestLine}
+            style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', animation: 'ld-in 200ms ease-out both' }}
+          >
+            {latestLine}
           </span>
-        )}
+        ) : !isStreaming ? (
+          <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: MUTED, marginLeft: 'auto' }}>
+            {wordCount} words
+          </span>
+        ) : null}
       </button>
 
       <AnimatePresence initial={false}>
@@ -143,10 +141,8 @@ function ThinkingAccordion({
             style={{ overflow: 'hidden' }}
           >
             <div style={{
-              borderTop: `1px solid ${VIOLET_BORDER}`,
-              padding: '12px 14px 14px',
-              borderLeft: `3px solid ${withAlpha(VIOLET, '40')}`,
-              marginLeft: 14,
+              borderTop: '1px solid var(--line-1)',
+              padding: '12px 14px 14px 37px',
             }}>
               <pre style={{
                 ...mono,
@@ -173,21 +169,15 @@ function ThinkingAccordion({
 function ToolCallCard({ tc }: { tc: ToolCall }) {
   const [open, setOpen] = useState(false);
 
-  const statusIcon = tc.status === 'running'
-    ? <Loader2 size={12} style={{ color: GOLD, animation: 'spin 1s linear infinite', flexShrink: 0 }} />
-    : tc.status === 'success'
-    ? <CheckCircle size={12} style={{ color: GREEN, flexShrink: 0 }} />
-    : tc.status === 'error'
-    ? <XCircle size={12} style={{ color: RED, flexShrink: 0 }} />
-    : <Terminal size={12} style={{ color: MUTED, flexShrink: 0 }} />;
-
-  const borderColor = tc.status === 'running'
-    ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)'
-    : tc.status === 'success'
-    ? 'rgba(34,197,94,0.2)'
-    : tc.status === 'error'
-    ? 'rgba(239,68,68,0.2)'
-    : BORDER_SUBTLE;
+  const state = tc.status === 'running' ? 'active'
+    : tc.status === 'success' ? 'done'
+    : tc.status === 'error' ? 'error'
+    : 'pending';
+  const mark = state === 'active' ? <span className="ld-dot" />
+    : state === 'done' ? <Check size={10} strokeWidth={3} />
+    : state === 'error' ? <X size={10} strokeWidth={3} />
+    : null;
+  const name = (tc.toolName || tc.toolId).replace(/^Databricks:\s*/i, '');
 
   const formatOutput = (val: unknown): string => {
     if (val === null || val === undefined) return 'null';
@@ -196,30 +186,14 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
   };
 
   return (
-    <div style={{
-      borderRadius: 6,
-      border: `1px solid ${borderColor}`,
-      background: SURFACE,
-      overflow: 'hidden',
-      marginBottom: 4,
-    }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '7px 12px',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        {statusIcon}
-        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {tc.toolName || tc.toolId}
+    <li className="ld-step" data-state={state}>
+      <button className="ld-step-row" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+        <span className="ld-step-mark">{mark}</span>
+        <span
+          className={state === 'active' ? 'ld-shimmer-text' : undefined}
+          style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {name}
         </span>
         {tc.durationMs != null && tc.status === 'success' && (
           <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>
@@ -241,11 +215,11 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             transition={{ duration: 0.18, ease: 'easeInOut' }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ borderTop: `1px solid ${BORDER_SUBTLE}`, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ margin: '2px 0 8px 27px', padding: 10, borderRadius: 8, background: SURFACE2, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {tc.input !== undefined && (
                 <div>
                   <div style={{ ...type.label, color: MUTED, marginBottom: 4 }}>Input</div>
-                  <pre style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
+                  <pre style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflowY: 'auto', margin: 0, background: SURFACE, padding: '6px 10px', borderRadius: 6 }}>
                     {typeof tc.input === 'object' ? JSON.stringify(tc.input, null, 2) : String(tc.input)}
                   </pre>
                 </div>
@@ -253,13 +227,13 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
               {tc.output !== undefined && (
                 <div>
                   <div style={{ ...type.label, color: MUTED, marginBottom: 4 }}>Output</div>
-                  <pre style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflowY: 'auto', margin: 0, background: SURFACE2, padding: '6px 10px', borderRadius: 4 }}>
+                  <pre style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 160, overflowY: 'auto', margin: 0, background: SURFACE, padding: '6px 10px', borderRadius: 6 }}>
                     {formatOutput(tc.output)}
                   </pre>
                 </div>
               )}
               {tc.error && (
-                <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: RED, background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 4 }}>
+                <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: RED, background: 'rgba(239,68,68,0.08)', padding: '6px 10px', borderRadius: 6 }}>
                   {tc.error}
                 </div>
               )}
@@ -267,7 +241,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </li>
   );
 }
 
@@ -278,48 +252,58 @@ function ToolCallsSection({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; i
   const errorCount = toolCalls.filter(t => t.status === 'error').length;
   const totalDuration = toolCalls.reduce((s, t) => s + (t.durationMs || 0), 0);
   const names = [...new Set(toolCalls.map(t => (t.toolName || t.toolId).replace(/^Databricks:\s*/i, '')))].join(', ');
+  const working = isStreaming && runningCount > 0;
 
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div className="ld-card" style={{ marginBottom: 10 }}>
+      {working && <div className="ld-bar" />}
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          padding: '7px 12px',
-          background: SURFACE,
-          border: `1px solid ${BORDER_SUBTLE}`,
-          borderRadius: 6,
+          gap: 10,
+          padding: '9px 14px',
+          background: 'transparent',
+          border: 'none',
           cursor: 'pointer',
           textAlign: 'left',
-          marginBottom: open ? 4 : 0,
         }}
       >
-        {runningCount > 0
-          ? <Loader2 size={12} style={{ color: GOLD, animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+        {working
+          ? <span className="ld-dot" />
           : errorCount > 0
-          ? <XCircle size={12} style={{ color: RED, flexShrink: 0 }} />
-          : <CheckCircle size={12} style={{ color: GREEN, flexShrink: 0 }} />}
-        <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {isStreaming && runningCount > 0
-            ? `Using ${names}…`
-            : `${toolCalls.length} tool call${toolCalls.length !== 1 ? 's' : ''} — ${names}`}
+          ? <X size={13} strokeWidth={2.5} style={{ color: RED, flexShrink: 0 }} />
+          : <Check size={13} strokeWidth={2.5} style={{ color: GREEN, flexShrink: 0 }} />}
+        <span
+          className={working ? 'ld-shimmer-text' : undefined}
+          style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: working ? undefined : INK_DIM, flexShrink: 0 }}
+        >
+          {working ? 'Working' : `${toolCalls.length} step${toolCalls.length !== 1 ? 's' : ''}`}
         </span>
+        <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {names}
+        </span>
+        {working && (
+          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+            {successCount}/{toolCalls.length}
+          </span>
+        )}
         {!isStreaming && totalDuration > 0 && (
           <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>
             {totalDuration < 1000 ? `${totalDuration}ms` : `${(totalDuration / 1000).toFixed(1)}s`}
           </span>
         )}
         {errorCount > 0 && (
-          <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: RED, background: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: 4, flexShrink: 0 }}>
+          <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--bad)', background: 'var(--bad-bg)', padding: '1px 8px', borderRadius: 999, flexShrink: 0 }}>
             {errorCount} failed
           </span>
         )}
         {open
-          ? <ChevronDown size={11} style={{ color: MUTED, flexShrink: 0 }} />
-          : <ChevronRight size={11} style={{ color: MUTED, flexShrink: 0 }} />}
+          ? <ChevronDown size={12} style={{ color: MUTED, flexShrink: 0 }} />
+          : <ChevronRight size={12} style={{ color: MUTED, flexShrink: 0 }} />}
       </button>
 
       <AnimatePresence initial={false}>
@@ -332,11 +316,11 @@ function ToolCallsSection({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; i
             transition={{ duration: 0.18, ease: 'easeInOut' }}
             style={{ overflow: 'hidden' }}
           >
-            <div style={{ paddingLeft: 12, borderLeft: `2px solid ${BORDER_GOLD}` }}>
+            <ol className="ld-steps" style={{ padding: '2px 14px 8px', borderTop: '1px solid var(--line-1)' }}>
               {toolCalls.map((tc) => (
                 <ToolCallCard key={tc.callId} tc={tc} />
               ))}
-            </div>
+            </ol>
           </motion.div>
         )}
       </AnimatePresence>
@@ -355,7 +339,7 @@ function renderInline(text: string): React.ReactNode[] {
     if (m[2] != null) parts.push(<strong key={m.index} style={{ fontWeight: 600, color: INK }}>{m[2]}</strong>);
     else if (m[3] != null) parts.push(<em key={m.index}>{m[3]}</em>);
     else if (m[4] != null) parts.push(
-      <code key={m.index} style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: 'var(--brand-a)', padding: '1px 5px', borderRadius: 3 }}>
+      <code key={m.index} style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', color: 'var(--brand-a)', padding: '1px 5px', borderRadius: 6 }}>
         {m[4]}
       </code>,
     );
@@ -635,7 +619,7 @@ function CopyButton({ text }: { text: string }) {
         fontSize: 'var(--type-ui-regular-size)',
         color: copied ? GREEN : MUTED,
         padding: '2px 6px',
-        borderRadius: 4,
+        borderRadius: 6,
         transition: 'color 0.2s',
       }}
     >
@@ -658,7 +642,7 @@ function QuietButton({ label, onClick }: { label: string; onClick: () => void })
         fontSize: 'var(--type-ui-regular-size)',
         color: MUTED,
         padding: '2px 6px',
-        borderRadius: 4,
+        borderRadius: 6,
       }}
     >
       {label}
@@ -774,7 +758,7 @@ function renderDetailText(text: string): React.ReactNode[] {
         style={{
           ...type['code-inline'],
           padding: '0 4px',
-          borderRadius: 4,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--wb-ink) 7%, transparent)',
           color: INK,
         }}
@@ -1318,6 +1302,8 @@ export interface StreamingMessageProps {
   tokenCount?: number;
   /** Model identifier used for this message (shown in footer). */
   modelName?: string;
+  /** When false, the raw tool-step list stays hidden. The companion still shows progress. */
+  showToolCalls?: boolean;
 }
 
 export function StreamingMessage({
@@ -1335,6 +1321,7 @@ export function StreamingMessage({
   durationMs,
   tokenCount,
   modelName,
+  showToolCalls = true,
 }: StreamingMessageProps) {
   const [copied, setCopied] = useState(false);
 
@@ -1364,7 +1351,7 @@ export function StreamingMessage({
       )}
 
       {/* Tool calls */}
-      {toolCalls && toolCalls.length > 0 && (
+      {showToolCalls && toolCalls && toolCalls.length > 0 && (
         <ToolCallsSection toolCalls={toolCalls} isStreaming={isStreaming} />
       )}
 
@@ -1392,6 +1379,13 @@ export function StreamingMessage({
             <AssistantContent content={content} />
           </div>
         )}
+        {isStreaming && !content && companionActive && (
+          <div aria-hidden style={{ padding: '2px clamp(12px, 2vw, 24px) 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[92, 80, 56].map((w, i) => (
+              <span key={w} className="ld-skel" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+            ))}
+          </div>
+        )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
 
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}
@@ -1411,7 +1405,7 @@ export function StreamingMessage({
                 <span style={{
                   ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'rgba(239,68,68,0.8)',
                   background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.18)',
-                  borderRadius: 4, padding: '2px 7px', letterSpacing: '0.04em',
+                  borderRadius: 6, padding: '2px 7px', letterSpacing: '0.04em',
                 }}>STOPPED</span>
               )}
               {ts && <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{ts}</span>}

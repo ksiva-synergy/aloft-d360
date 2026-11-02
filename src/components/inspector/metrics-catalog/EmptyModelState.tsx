@@ -50,7 +50,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
           <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em', marginBottom: 8 }}>STARTER QUESTIONS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {STARTERS.map((q) => (
-              <div key={q} style={{ display: 'flex', alignItems: 'center', gap: 8, ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, border: `1px solid ${BORDER}`, borderRadius: 4, padding: '8px 10px' }}>
+              <div key={q} style={{ display: 'flex', alignItems: 'center', gap: 8, ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '8px 10px' }}>
                 <HelpCircle size={13} color={MUTED} style={{ flexShrink: 0 }} /> {q}
               </div>
             ))}

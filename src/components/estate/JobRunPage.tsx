@@ -398,7 +398,7 @@ function TimelineStep({
   return (
     <div className="flex gap-4">
       <div className="flex flex-col items-center">
-        <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-300"
+        <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition duration-300"
           style={{
             borderColor: dotColor,
             backgroundColor: active ? dotColor + '22' : 'var(--card,#1c2128)',
@@ -465,7 +465,7 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
 
   return (
     <div
-      className="rounded-xl border p-4 flex flex-col gap-2 group transition-all duration-150 hover:scale-[1.02]"
+      className="rounded-xl border p-4 flex flex-col gap-2 group transition duration-150 hover:scale-[1.02]"
       style={{
         backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
         borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)',

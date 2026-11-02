@@ -2,7 +2,14 @@
  * Shared job status + launch helpers for Estate Jobs UI and APIs.
  */
 
-export type MappedJobStatus = 'queued' | 'running' | 'orchestrating' | 'done' | 'failed' | 'empty';
+export type MappedJobStatus =
+  | 'queued'
+  | 'running'
+  | 'orchestrating'
+  | 'done'
+  | 'failed'
+  | 'cancelled'
+  | 'empty';
 
 const SPLITTABLE_KINDS = new Set(['t0_structural', 't1_profile', 't2_semantic']);
 
@@ -12,6 +19,7 @@ export function mapJobStatus(status: string): MappedJobStatus {
   if (s === 'running') return 'running';
   if (['succeeded', 'partial', 'completed', 'success', 'done'].includes(s)) return 'done';
   if (['failed', 'error'].includes(s)) return 'failed';
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
   return 'queued';
 }
 

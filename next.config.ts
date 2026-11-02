@@ -9,6 +9,7 @@ import path from "path";
  */
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   // Lets a verification build run beside a developer's `.next` (which `next dev` uses) without touching it.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async rewrites() {
@@ -24,6 +25,19 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // Baseline hardening for every response. The CSP is deliberately limited to directives that cannot
+      // break the SPA (no script/style restrictions); a full CSP should be rolled out via Report-Only first.
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Permissions-Policy", value: "camera=(), geolocation=(), payment=(), usb=()" },
+        ],
+      },
       { source: "/spa/index.html", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },
       { source: "/spa/assets/:file*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     ];

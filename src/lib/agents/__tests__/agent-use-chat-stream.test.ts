@@ -1,99 +1,96 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import {
-  agentUseStorageKey,
   getAgentUseChatSnapshot,
-  persistAgentUseMessages,
+  openAgentUseChat,
   resetAgentUseChat,
   startAgentUseChat,
   subscribeAgentUseChat,
-  type AgentUseChatMessage,
 } from '@/lib/agents/agent-use-chat-stream';
 
-describe('agent-use-chat-stream', () => {
-  const store = new Map<string, string>();
-
-  beforeEach(() => {
-    store.clear();
-    vi.stubGlobal('sessionStorage', {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        store.set(key, value);
-      },
-      removeItem: (key: string) => {
-        store.delete(key);
-      },
-      clear: () => store.clear(),
-    });
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({ done: true, value: undefined }),
-          }),
+function streamOf(events: object[]) {
+  const chunks = events.map((ev) => new TextEncoder().encode(`data: ${JSON.stringify(ev)}\n\n`));
+  return vi.fn(async (_url: string, _init?: RequestInit) => ({
+    ok: true,
+    body: {
+      getReader: () => ({
+        read: async () => {
+          const value = chunks.shift();
+          return value ? { done: false, value } : { done: true, value: undefined };
         },
-      })),
-    );
+      }),
+    },
+  }));
+}
+
+const slug = 'test-agent';
+const CHAT_ID = '11111111-1111-4111-8111-111111111111';
+
+describe('agent-use-chat-stream', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', streamOf([]));
   });
 
   afterEach(() => {
-    resetAgentUseChat('test-agent');
+    resetAgentUseChat(slug);
     vi.unstubAllGlobals();
   });
 
-  it('keeps streaming after unsubscribe (navigation away)', async () => {
-    const slug = 'test-agent';
-    const prior: AgentUseChatMessage[] = [];
-    startAgentUseChat({
-      slug,
-      message: 'hello',
-      history: [],
-      priorMessages: prior,
-    });
-
-    const seen: string[] = [];
-    const unsub = subscribeAgentUseChat(slug, ({ messages, running }) => {
-      const assistant = messages.find((m) => m.role === 'assistant');
-      seen.push(`${running}:${assistant?.content ?? ''}`);
-    });
+  it('keeps streaming after unsubscribe (navigation away) and keeps the chat in memory', async () => {
+    startAgentUseChat({ slug, chatId: null, message: 'hello', priorMessages: [] });
+    const unsub = subscribeAgentUseChat(slug, () => {});
     unsub();
 
-    const handle = getAgentUseChatSnapshot(slug);
-    expect(handle.running).toBe(true);
-
-    await vi.waitFor(() => {
-      expect(getAgentUseChatSnapshot(slug).running).toBe(false);
-    });
-
-    const stored = store.get(agentUseStorageKey(slug));
-    expect(stored).toBeTruthy();
-    persistAgentUseMessages(slug, [{ id: '1', role: 'user', content: 'hello' }]);
-    expect(JSON.parse(store.get(agentUseStorageKey(slug))!).length).toBeGreaterThan(0);
+    expect(getAgentUseChatSnapshot(slug).running).toBe(true);
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false));
+    expect(getAgentUseChatSnapshot(slug).messages.map((m) => m.content)).toEqual(['hello']);
   });
-  it('tracks live tool calls while running and clears them when done', async () => {
-    const slug = 'test-agent';
-    const events = [
-      { type: 'tool_call_running', callId: 'c1', toolName: 'query_sql' },
-      { type: 'tool_call_result', callId: 'c1', durationMs: 40 },
-      { type: 'text', delta: 'Done.' },
-    ];
-    const chunks = events.map((ev) => new TextEncoder().encode(`data: ${JSON.stringify(ev)}
 
-`));
+  it('sends only the chat id and new message (history comes from the server), and adopts the new chat id', async () => {
+    const fetchMock = streamOf([{ type: 'chat', chatId: CHAT_ID }, { type: 'text', delta: 'Hi!' }, { type: 'done' }]);
+    vi.stubGlobal('fetch', fetchMock);
+    const onSettled = vi.fn();
+
+    startAgentUseChat({ slug, chatId: null, message: 'hello', priorMessages: [], model: 'm-1', onSettled });
+    await vi.waitFor(() => expect(onSettled).toHaveBeenCalledWith(CHAT_ID));
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body).toEqual({ slug, message: 'hello', chatId: null, model: 'm-1' });
+    const snap = getAgentUseChatSnapshot(slug);
+    expect(snap.chatId).toBe(CHAT_ID);
+    expect(snap.messages.map((m) => `${m.role}:${m.content}`)).toEqual(['user:hello', 'assistant:Hi!']);
+  });
+
+  it('continues an opened saved chat', async () => {
+    const fetchMock = streamOf([{ type: 'chat', chatId: CHAT_ID }, { type: 'text', delta: 'Again.' }]);
+    vi.stubGlobal('fetch', fetchMock);
+    openAgentUseChat(slug, CHAT_ID, [
+      { id: 'a', role: 'user', content: 'earlier' },
+      { id: 'b', role: 'assistant', content: 'ok' },
+    ]);
+    const opened = getAgentUseChatSnapshot(slug);
+    expect(opened.chatId).toBe(CHAT_ID);
+
+    startAgentUseChat({ slug, chatId: opened.chatId, message: 'more', priorMessages: opened.messages });
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false));
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body)).chatId).toBe(CHAT_ID);
+    expect(getAgentUseChatSnapshot(slug).messages.map((m) => m.content)).toEqual(['earlier', 'ok', 'more', 'Again.']);
+  });
+
+  it('New chat clears the open chat', () => {
+    openAgentUseChat(slug, CHAT_ID, [{ id: 'a', role: 'user', content: 'earlier' }]);
+    resetAgentUseChat(slug);
+    expect(getAgentUseChatSnapshot(slug)).toMatchObject({ chatId: null, messages: [], running: false });
+  });
+
+  it('tracks live tool calls while running and clears them when done', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => {
-              const value = chunks.shift();
-              return value ? { done: false, value } : { done: true, value: undefined };
-            },
-          }),
-        },
-      })),
+      streamOf([
+        { type: 'tool_call_running', callId: 'c1', toolName: 'query_sql' },
+        { type: 'tool_call_result', callId: 'c1', durationMs: 40 },
+        { type: 'text', delta: 'Done.' },
+      ]),
     );
 
     const seen: string[] = [];
@@ -101,7 +98,7 @@ describe('agent-use-chat-stream', () => {
       if (running) expect(startedAt).toEqual(expect.any(Number));
       seen.push(toolCalls.map((t) => `${t.toolName}:${t.status}`).join(','));
     });
-    startAgentUseChat({ slug, message: 'hi', history: [], priorMessages: [] });
+    startAgentUseChat({ slug, chatId: null, message: 'hi', priorMessages: [] });
 
     await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false));
     unsub();
@@ -112,5 +109,21 @@ describe('agent-use-chat-stream', () => {
     expect(done.toolCalls).toEqual([]);
     expect(done.startedAt).toBeNull();
     expect(done.messages.at(-1)?.content).toBe('Done.');
+  });
+
+  it('keeps an inspection note on the reply after the stream ends', async () => {
+    vi.stubGlobal(
+      'fetch',
+      streamOf([
+        { type: 'text', delta: 'Dinesh S is active.' },
+        { type: 'inspection', inspection: { sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' } },
+      ]),
+    );
+    startAgentUseChat({ slug, chatId: null, message: 'hi', priorMessages: [] });
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false));
+    expect(getAgentUseChatSnapshot(slug).messages.at(-1)).toMatchObject({
+      content: 'Dinesh S is active.',
+      inspection: { sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' },
+    });
   });
 });

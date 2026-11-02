@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-10-29 (pipeline RBAC: platform admin only for run/trigger; chain deploy still pending)  
+**Last verified:** 2026-11-05 (Continue "Scanned tables only" option: scanned-only scope resolution, max 50 tables; see session-log). Previously 2026-11-01 (Jobs audit fixes: embed batching, heartbeat-based reaper, cancelled/partial status, windowed summary counts, org-scoped T0 drop pass; Continue pipeline: always-on scoped source change check + cascade chain + preview; T0 no-op rescans keep `last_t0_at`; identical T1 profile keeps T2 current; embed staleness vs latest card). Previously 2026-10-31 (Jobs L1 redesign + summary API `days` / `detail`; pipeline RBAC unchanged: platform admin only for run/trigger; chain deploy still pending)  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
@@ -9,7 +9,8 @@
 
 | Layer | Reality |
 |-------|---------|
-| **UI** | `Agent Lab → Estate → Jobs` — L1 **Job Types**, **Scanned Objects**, **Active Runs**. **Run / Continue / kick / cancel / harvest / schedule** controls visible only for **`platform_admin`**; other roles see status and catalogs view-only. Catalog **Run full pipeline (from T0)** same rule. |
+| **Server-side access** | (security assessment F7, see [SECURITY-ASSESSMENT.md](../security/SECURITY-ASSESSMENT.md)) Every route that launches, refreshes or rescopes harvest work requires **`platform_admin`** (`denyUnlessEstatePipelineOperator`): `context/sources` POST, `sources/[id]` PATCH/POST, `sources/[id]/{harvest,refresh,inventory}`, `objects/[id]/{refresh,reharvest-all}`, `silo/scan`, `mappings/run`, `process`, `estate/{sync-knowledge,scan-coverage}`. `objects/[id]/enrich` and the live **job log stream** (`jobs/[id]/logs`) require **admin**; other roles still see job status, history and catalogs. |
+| **UI** | `Agent Lab → Estate → Jobs` — L1 tabs **Job types**, **Health**, **Scanned objects**, **Active runs** (Health added 2026-11-03; relabelled 2026-11-02; the UI shows plain stage names Discovered → Scanned (T0) → Profiled (T1) → Described (T2) → Searchable (embed), job groups Discover / Scan / Profile, describe & index / Usage & lineage / Business model / Publish & connect, and schedules as readable cron, e.g. "Sundays at 03:00 UTC"). **Run / Continue / kick / cancel / harvest / schedule** controls visible only for **`platform_admin`**; other roles see status and catalogs view-only. Catalog **Run full pipeline (from T0)** same rule. Job types tab layout (2026-11-03): one-line **health strip** (headline, affected job types, success % · runs · failed for 24h/7d/30d/All via `?range=`, **View health**), then the stage **table** (last 14 runs, success % for the selected window with run count, typical time, last finished as relative time with **overdue** flag when a schedule was missed, schedule ("On demand" when unscheduled or schedule switched off), per-row Run on hover; single-line rows, descriptions only as tooltips; advanced job types needing attention stay visible when the advanced section is collapsed; cancelled runs drawn hollow). **Health tab** (`?tab=health`, dot on the tab when something needs attention): status headline + 24h/7d/30d/All switch; KPI tiles (success rate vs previous period, runs, objects processed, time spent running); left column **Runs per day** (per hour for 24h) stacked chart, **Reliability by job type** (least reliable first), **Recent failures** (first error line, opens the run drawer); right column **Needs attention**, **Coming up** (next automatic runs + manual schedules), **Suggested next step** with the estate coverage funnel (open by default, stages link to Scanned objects). "All" uses the last 30 days of runs for the chart, failures and totals. **Job type page** (`?kind=<kind>`, replaces the old per-date L2/L3 drill-down): header (stage, health badge Healthy / Failing / Needs attention / Running / Never run, schedule + next run, Run button), **Last run** card (status, duration, results, trigger, scope, error excerpt, Retry failed chunks for split parents or Run again), **Recent runs** chart (last 60 runs, bar height = duration, colour = status; success %, typical time, objects/run, runs in 7 days), pipeline context (upstream/downstream job types with last status; coverage % for T0/T1/T2/embed linking to Scanned objects), and **All runs** table (status filter `?status=`, time range `?since=1|7|30`, single day `?date=YYYY-MM-DD`, paging, chunk expand, row click opens the run drawer; polls every 10s while runs are active). `?highlight=<jobId>` now works from any page: it opens that job type and the run drawer. |
 | **Control plane** | `POST …/jobs/launch` (409 overlap, `pipeline_run_id` on sequential chains), `GET …/pipeline/intent`, `POST …/pipeline/continue`, `GET …/jobs/active`, **`POST …/jobs/kick-queued`**. Scoped **`GET …/jobs/cockpit`**. Plan API **staleObjectCount** + honest T1/T2 summaries. |
 | **Workers** | `scripts/context/orchestrator.ts` … **Deploy/runbook:** [phase-0-chain-deploy.md](./phase-0-chain-deploy.md). |
 
@@ -47,6 +48,7 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | **Scope** | Source scope + modal `excludeSchemas` + optional Focus `includePatterns` (overrides `scope_include`) |
 | **First run / Focus / `forceFullScan`** | `resolveScope` — full listing for in-scope paths |
 | **Subsequent run (no Focus)** | `detectChanges` since `last_sweep_at` — **delta** only |
+| **`last_t0_at`** | Advanced **only** when the object is new/re-activated, its source `last_altered` moved forward, or its structure (kind, comment, column name/type/nullability/comment) changed (2026-11-01). Unchanged rescans keep it, so T1+ are not marked stale. Job stat `objects_changed`. |
 | **Focus side effect** | Treated like first run for that subset; may run drop pass within listed schemas (P2-1); may skip updating global `last_sweep_at` (P2-2) |
 | **`forceFullScan`** | Supported in `runT0Harvest` opts; **not exposed in Jobs UI** |
 | **Launch gate** | T0 plan/assert uses **discovery** (`planEstateSplit`); T1/T2 still use **Scanned** (`planSplit`) |
@@ -59,6 +61,7 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | **Modal exclude tree** | **Honored at plan/launch** (P1-6 fixed 2026-10-26); Limit still overrides when set |
 | **Incremental** | **Stale-only default** — skips objects where `last_t1_at >= last_t0_at`; opt-in `forceReprofile` for full re-run |
 | **Overwrite** | Re-run re-profiles and **appends** a new `platform_context_profiles.version` (history kept) |
+| **Unchanged profile** | If the new stats equal the previous version (ignoring `query_count` etc.) and T2 was current, `last_t2_at` is carried forward → no re-describe (2026-11-01). Job stat `objects_unchanged`. |
 
 ### 3.4 `t2_semantic`
 
@@ -73,7 +76,9 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | Aspect | Behavior |
 |--------|----------|
 | **Scope** | **Limit + exclude tree** from job scope (P1-2 fixed 2026-10-26) |
-| **Incremental** | Skips unchanged embed text when semantic card unchanged (P2-18) |
+| **Incremental** | Skips unchanged embed text when semantic card unchanged (P2-18); skipped vectors get `created_at` refreshed so they count as current |
+| **Stale = ** | No embedding, or embedding `created_at` older than the latest `platform_context_semantics` row (scoped intent `needs_embed`, 2026-11-01) |
+| **Empty scope** | No in-scope objects → no-op (previously fell back to every column in the source) |
 
 ### 3.6 `t3_usage`
 
@@ -81,6 +86,13 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 |--------|----------|
 | **Scope** | **Limit + exclude tree** on context objects (P0-8 partial fix 2026-10-26); query history still workspace-wide (P2-5) |
 | **Matching** | Substring on `object_name` in SQL text (P0-7) |
+
+### 3.7 Continue pipeline (Catalog → Scanned → selection → **Continue pipeline**)
+
+1. **Always** runs a scoped, metadata-only change check (`checkScopeChanges`): per catalog in scope, one `information_schema.tables` listing with `last_altered`, compared per table with stored `source_altered_at` → changed / new / removed / unknown / unchanged. If the listing fails, it returns 502 `CHANGE_CHECK_FAILED` and nothing launches.
+2. Chain = earliest stale stage → **every** downstream stage through Embed (`buildContinueChain`). Scan runs first only if the check found something.
+3. Each stage re-selects its own stale tables when it starts (T1: t1<t0, T2: t2<t1, embed: missing/older than card).
+4. The UI shows a preview (source check + "up to N" per stage) before **Run** → `jobs/launch` with `sequential: true`.
 
 ---
 
@@ -114,6 +126,7 @@ Example: `curated_db.db_smac_prod_navitasai_crewing_dashboard_public.*`
 | `GET …/jobs/queued` | Also starts a worker for top-level queued jobs with no task id (chain follow-ups the harvester could not launch) |
 | `POST …/jobs/trigger` | Enqueue + **launch worker** (P1-9 fixed) |
 | `GET …/jobs/cockpit` | Pipeline health + recommendation |
+| `GET …/jobs/summary` | Per-kind counts. Optional `days=N` (window for total/succeeded/failed; running/queued never windowed; `running` includes `orchestrating`) and `detail=true` (partial/cancelled/other, `last_status`, `median_duration_s`, previous-window `prev_*`, `recent[]` = last 14 top-level runs). No params = original shape (catalog-refresh poller). |
 
 Splittable kinds may create parent `orchestrating` + child `queued` rows with `partition_*` in scope.
 
@@ -123,7 +136,9 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 
 | ID | Gap | Impact on schema-only harvest |
 |----|-----|-------------------------------|
-| **Chain follow-up** | Harvester container cannot `RunTask` (no `ECS_SUBNET_IDS` / task-role ECS permission). Next tier is enqueued and stays `queued` until the **web** process launches it, or until a harvester image with in-process continuation is deployed. | Schema pipeline stops after the tier the web launched (seen: T0 done, T1 queued) |
+| **Chain follow-up** | Harvester container cannot `RunTask` (no `ECS_SUBNET_IDS` / task-role ECS permission). Next tier is enqueued and stays `queued` until the **web** process launches it, or until a harvester image with in-process continuation is deployed. The Catalog banner path (`pipeline-intent.ts`) reaps queued follow-ups after 10 minutes without kicking them first. | Schema pipeline stops after the tier the web launched (seen: T0 done, T1 queued, then reaped) |
+| **Schedules unverified** | Daily change check, Weekly re-profile and Weekly re-discovery are now labelled `manual` in `schedules.ts` (were `live`), because no EventBridge rule was confirmed (no AWS credentials in the audit session). The DB has no scheduled change_detect/profile runs after 2026-10-18. Switch back to `live` after `aws events list-rules --name-prefix aloft-` confirms the rules. | The UI no longer claims a weekly cadence; no automatic runs until verified |
+| **Stale profiles (backfilled)** | 1,695 objects were stale only because a T0 rescan ran after their last T1 profile while the source was unchanged. One-off backfill set `last_t1_at = last_t0_at` for exactly those rows (`source_altered_at <= last_t1_at`). No profile data was changed. 1,022 objects still need a real T1 profile (source changed or never profiled). | None for the 1,695; the 1,022 are genuine work |
 | **P1-1 / P1-20** | Full 4-step intent wizard | Cockpit strip + recommendations + include-tree mode shipped; intent cards not shipped |
 | **P2-5** | T3 SQL scope | Schema `LIKE` pushdown when Limit/excludes narrow scope; post-filter still applies |
 | **P1-16** | Estate ↔ scanned link | `context_object_id` set on T0 upsert (join in list API still works for legacy rows) |
@@ -163,6 +178,10 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-11-01 | **Jobs audit fixes:** embed id lookups chunked at 5,000 (fixes Postgres 32,767 bind-parameter failure on large embeds); web reaper uses worker heartbeat (`updated_at`) instead of creation time; `cancelled` status shown (was "queued"); `partial` amber in drawer and runs panel; kind filter lists every job kind; summary `queued`/`running` counts windowed; child counts include `cancelled`; T0 drop pass scoped by org. |
+| 2026-11-02 | Jobs UI copy only: stage vocabulary, sentence-case tabs, readable schedules (`describeCron`), `Job types used` count limited to known kinds, schedule labels renamed (Daily change check, Weekly re-profile, Weekly re-discovery, Usage & lineage, Business model draft). No orchestrator or API change. |
+| 2026-10-31 | Jobs L1 redesign (jobs-first): compact Next step bar, run-health bar with time window + attention chips, stage table with run history and per-row Run; schedules strip and stat tiles removed. Fixed rows showing "Never run" (UI read `last_run_at`; API returns `last_finished_at`). |
+| 2026-10-31 | Dedicated job type page (`?kind=`) replaces the date-group (L2) and per-date run list (L3) views; descriptions removed from the Job types table. Fixed `?highlight=<jobId>` links (from the harvest action bar), which only worked on L3. UI only; `/jobs/dates` API is no longer called by the page but is unchanged. |
 | 2026-10-30 | Table-level Limit (`catalog.schema.table`) plans the matching objects at launch — previously 0 → `NO_OBJECTS_IN_SCOPE` for Continue pipeline / Jobs on a single table |
 | 2026-10-27 | Catalog pipeline includes **embed**; orphaned chain jobs are launched from the web; orchestrator continues in-process when follow-up `RunTask` fails (needs harvester image deploy) |
 | 2026-10-27 | Catalog **Run pipeline now** + **Run scheduled now**; source harvest/inventory/refresh **launch workers**; Jobs **re-run flags**; `POST …/estate/run-scheduled` |

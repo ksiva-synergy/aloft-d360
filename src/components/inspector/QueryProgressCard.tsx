@@ -1,93 +1,69 @@
 'use client';
 
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { TrustPanel } from './TrustPanel';
 import type { QueryProgress } from '@/hooks/useInspectorChat';
 import { type } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = {
-  fontFamily: 'var(--font-mono)',
-};
-const GOLD = 'var(--brand-a)';
+const STAGES: Array<{ id: NonNullable<QueryProgress['stage']>; label: string; active: string }> = [
+  { id: 'planning', label: 'Pick metrics', active: 'Identifying relevant metrics' },
+  { id: 'executing', label: 'Query warehouse', active: 'Running query against warehouse' },
+  { id: 'rendering', label: 'Build chart', active: 'Building chart' },
+];
 
-const STAGE_ORDER: Array<QueryProgress['stage']> = ['planning', 'executing', 'rendering'];
-
-const STAGE_COPY: Record<string, string> = {
-  planning: 'Identifying relevant metrics…',
-  executing: 'Running query against warehouse…',
-  rendering: 'Building chart…',
-};
+const CHART_BARS = [42, 68, 52, 84, 60, 92, 74];
 
 /**
  * Progressive loading state for an in-flight semantic chart query (Phase 3A).
  *
- * Replaces the "spinner until done" with a staged reveal: the selected metrics
- * appear first, then the compiled SQL (in a TrustPanel preview) the moment it is
- * available — so the user has something meaningful to read within the first
- * second and can spot issues before the chart renders.
+ * Replaces the "spinner until done" with a staged reveal: a step timeline, the
+ * selected metrics as chips, then the compiled SQL (in a TrustPanel preview) the
+ * moment it is available, and a skeleton chart while the query runs — so the user
+ * has something meaningful to read within the first second.
  */
 export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
-  const activeIdx = progress.stage ? STAGE_ORDER.indexOf(progress.stage) : 0;
+  const activeIdx = Math.max(0, STAGES.findIndex(s => s.id === (progress.stage ?? 'planning')));
+  const current = STAGES[activeIdx];
+  const metrics = progress.definitionsSelected ?? [];
 
   return (
-    <div
-      style={{
-        background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
-        border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
-        borderRadius: 6,
-        overflow: 'hidden',
-        marginBottom: 12,
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 12px',
-          borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
-        }}
-      >
-        <Loader2 size={12} color={GOLD} className="query-progress-spin" />
-        <span
-          style={{
-            ...type.label,
-          }}
-        >
-          {STAGE_COPY[progress.stage ?? 'planning'] ?? 'Working…'}
+    <div className="ld-card" style={{ marginBottom: 12 }}>
+      <div className="ld-bar" />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px' }} role="status" aria-live="polite">
+        <span className="ld-dot" />
+        <span key={current.id} className="ld-shimmer-text" style={{ ...type['ui-regular'], fontWeight: 500 }}>
+          {current.active}
+        </span>
+        <span style={{ ...type['ui-regular'], marginLeft: 'auto', color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>
+          {activeIdx + 1}/{STAGES.length}
         </span>
       </div>
 
-      <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* Stage stepper */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {STAGE_ORDER.map((stage, i) => {
-            const done = i < activeIdx;
-            const active = i === activeIdx;
+      <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <ol className="ld-steps">
+          {STAGES.map((stage, i) => {
+            const state = i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending';
             return (
-              <div
-                key={stage ?? i}
-                style={{
-                  flex: 1,
-                  height: 3,
-                  borderRadius: 2,
-                  background: done || active ? GOLD : 'rgba(74,96,128,0.3)',
-                  opacity: active ? 1 : done ? 0.6 : 1,
-                }}
-              />
+              <li key={stage.id} className="ld-step" data-state={state}>
+                <div className="ld-step-row">
+                  <span className="ld-step-mark">
+                    {state === 'done' ? <Check size={10} strokeWidth={3} /> : state === 'active' ? <span className="ld-dot" /> : null}
+                  </span>
+                  <span style={type['ui-regular']}>{stage.label}</span>
+                </div>
+                {stage.id === 'planning' && metrics.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '0 0 6px 27px' }}>
+                    {metrics.map((m, j) => (
+                      <span key={m} className="ld-chip" style={{ fontFamily: 'var(--font-mono)', animationDelay: `${j * 50}ms` }}>{m}</span>
+                    ))}
+                  </div>
+                )}
+              </li>
             );
           })}
-        </div>
-
-        {/* Selected definitions */}
-        {progress.definitionsSelected && progress.definitionsSelected.length > 0 && (
-          <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink-dim, #B8C1CF)' }}>
-            <span style={{ color: 'var(--wb-muted, var(--ink-3))' }}>Using: </span>
-            {progress.definitionsSelected.join(', ')}
-          </div>
-        )}
+        </ol>
 
         {/* Compiled SQL preview — appears before the chart renders */}
         {progress.compiledSQL && (
@@ -97,12 +73,15 @@ export function QueryProgressCard({ progress }: { progress: QueryProgress }) {
             summaryLabel="Compiled SQL (preview)"
           />
         )}
-      </div>
 
-      <style>{`
-        @keyframes query-progress-spin { to { transform: rotate(360deg); } }
-        .query-progress-spin { animation: query-progress-spin 1s linear infinite; }
-      `}</style>
+        {activeIdx >= 1 && (
+          <div className="ld-chart" aria-hidden>
+            {CHART_BARS.map((h, i) => (
+              <span key={i} className="ld-skel" style={{ height: `${h}%`, animationDelay: `${i * 90}ms` }} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

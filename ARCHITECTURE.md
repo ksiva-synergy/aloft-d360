@@ -1207,7 +1207,7 @@ npm run db:seed
 | `MEMORY_CAVEAT_GUARD_ENABLED` | off | Filter stale caveat bullets |
 | `MARCUS_REFLECT_ENABLED` | off | Post-hoc trajectory reflection |
 | `MARCUS_FIRST_TURN_ALWAYS` | off | Always reflect on first turn |
-| `INSPECTOR_AUTH_ENFORCE` | off | Enforce service token on Inspector API |
+| `INSPECTOR_AUTH_ENFORCE` | on (unset) | Session-ownership enforcement on Inspector routes; set `false` only as an emergency observe-only opt-out |
 | `INSPECTOR_SERVICE_TOKEN` | — | Service-to-service auth token |
 
 ### 14.3 Optional Configuration

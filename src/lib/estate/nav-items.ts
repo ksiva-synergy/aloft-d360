@@ -23,16 +23,20 @@ export interface EstateNavItem {
   href: string;
   icon: ElementType;
   match: 'exact' | 'prefix';
+  /** Page title shown in the estate header (defaults to `label`). */
+  title?: string;
+  /** One plain-language sentence explaining what the page is for (omit to show the title only). */
+  description?: string;
 }
 
 export const ESTATE_NAV_ITEMS: EstateNavItem[] = [
-  { label: 'Overview',    href: '/agent-lab/estate',          icon: Layers,    match: 'exact' },
-  { label: 'Catalog',     href: '/agent-lab/estate/catalog',  icon: BookOpen,  match: 'prefix' },
-  { label: 'Entities',    href: '/agent-lab/estate/entities', icon: Boxes,     match: 'prefix' },
-  { label: 'Lineage',     href: '/agent-lab/estate/lineage',  icon: GitBranch, match: 'prefix' },
-  { label: 'Jobs',        href: '/agent-lab/estate/jobs',     icon: Zap,       match: 'prefix' },
-  { label: 'Mapper',      href: '/agent-lab/estate/mapper',   icon: Route,     match: 'prefix' },
-  { label: 'Silo Finder', href: '/agent-lab/estate/silo',     icon: Server,    match: 'prefix' },
+  { label: 'Overview', href: '/agent-lab/estate', icon: Layers, match: 'exact', title: 'Data Estate' },
+  { label: 'Catalog', href: '/agent-lab/estate/catalog', icon: BookOpen, match: 'prefix' },
+  { label: 'Entities', href: '/agent-lab/estate/entities', icon: Boxes, match: 'prefix' },
+  { label: 'Lineage', href: '/agent-lab/estate/lineage', icon: GitBranch, match: 'prefix' },
+  { label: 'Jobs', href: '/agent-lab/estate/jobs', icon: Zap,   match: 'prefix', title: 'Jobs' },
+  { label: 'Mapper', href: '/agent-lab/estate/mapper', icon: Route, match: 'prefix' },
+  { label: 'Silo Finder', href: '/agent-lab/estate/silo', icon: Server, match: 'prefix' },
 ];
 
 /** True when `pathname` should mark `item` active, per its match mode. */

@@ -537,7 +537,7 @@ export function KeeperChoicePanel() {
                           color:         accent,
                           background:    `${withAlpha(accent, '12')}`,
                           border:        `1px solid ${withAlpha(accent, '35')}`,
-                          borderRadius:  3,
+                          borderRadius:  6,
                           padding:       '1px 4px',
                           whiteSpace:    'nowrap',
                           flexShrink:    0,

@@ -8,8 +8,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Info } from 'lucide-react';
+import { Info, Shield } from 'lucide-react';
 import { ROLE_COPY, ROLE_ORDER, roleCopy, type PlatformRoleName } from './role-copy';
+import styles from './users.module.css';
 import {
   RoleBadge,
   ROLE_DROPDOWN_CARD,
@@ -73,20 +74,19 @@ export function RolePickerField({
           id={id}
           className={cn(
             compact
-              ? 'h-10 gap-2 py-2 pl-3 pr-3'
+              ? 'h-9 gap-2 py-1.5 pl-3 pr-3'
               : 'h-auto min-h-[3rem] gap-2 py-2.5 pl-3 pr-3',
             'border-[var(--estate-btn-border)] bg-[var(--estate-surface)] shadow-sm',
             'text-[var(--estate-ink)] focus:ring-2 focus:ring-[var(--brand-a)]/40 focus:ring-offset-0',
             '[&>svg]:text-muted-foreground',
+            compact && cn(styles.selectTrigger, '!w-full'),
           )}
         >
           <SelectValue placeholder="Choose a role">
             {compact ? (
-              <span className="flex w-full items-center gap-2 text-left">
-                <RoleBadge role={value} size="sm" />
-                <span className="text-size-ui font-medium text-[var(--foreground)] truncate">
-                  {selected.label}
-                </span>
+              <span className="flex w-full items-center gap-3 text-left">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <span className="text-size-body font-medium">{selected.label}</span>
               </span>
             ) : (
               <span className="flex w-full items-center gap-2.5 text-left">
@@ -110,6 +110,7 @@ export function RolePickerField({
         </SelectTrigger>
         <SelectContent
           className={cn(
+            compact && cn(styles.surface, styles.selectMenu),
             'z-[100] min-w-[var(--radix-select-trigger-width)] w-[var(--radix-select-trigger-width)]',
             compact ? 'max-w-[24rem]' : 'max-w-[26rem]',
             'border-[var(--estate-border)] bg-[var(--estate-surface)] shadow-xl',
@@ -131,18 +132,12 @@ export function RolePickerField({
                 <SelectItem
                   key={role}
                   value={role}
-                  className={selectItemShellCompact}
+                  className={cn(selectItemShellCompact, styles.selectItem)}
                   textValue={copy.label}
                 >
-                  <div
-                    className={cn(
-                      'flex items-center gap-2 rounded-sm border-l-[3px] py-2 pl-2.5 pr-1',
-                      cardClass,
-                    )}
-                  >
-                    <RoleBadge role={role} size="sm" />
+                  <div className="flex items-start gap-3">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-size-ui font-medium text-[var(--foreground)] leading-tight">
+                      <span className="block text-size-body font-medium text-[var(--foreground)] leading-tight">
                         {copy.label}
                         {isCurrent && (
                           <span className="ml-1.5 text-eyebrow uppercase text-muted-foreground font-normal">
@@ -151,10 +146,7 @@ export function RolePickerField({
                         )}
                       </span>
                       <span
-                        className={cn(
-                          'block text-size-caption leading-snug line-clamp-1',
-                          summaryAccent,
-                        )}
+                        className="mt-1.5 block text-caption leading-relaxed text-muted-foreground whitespace-normal"
                       >
                         {copy.summary}
                       </span>
@@ -202,7 +194,7 @@ export function RolePickerField({
         <div
           className={cn(
             'rounded-md border border-[var(--estate-border)] px-3 py-2.5',
-            compact ? 'mt-2 bg-[var(--estate-hover)]/60' : cn('border-l-4', panelClass),
+            compact ? 'mt-3 !rounded-xl !p-4 bg-[var(--surface-2)]' : cn('border-l-4', panelClass),
           )}
           aria-live="polite"
         >

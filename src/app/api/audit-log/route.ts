@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { denyUnless, requirePermission } from '@/middleware/auth';
+import { PERMISSIONS } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await denyUnless(req, (c) => requirePermission(c, PERMISSIONS.AUDIT_READ));
+  if (denied) return denied;
   try {
     // Aggregate audit entries from multiple lifecycle tables
     const [runs, deploys, incidents, evals] = await Promise.all([

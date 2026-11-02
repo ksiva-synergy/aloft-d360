@@ -205,7 +205,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
               gap: 2,
               background: 'var(--born-overlay)',
               border: `1px solid ${BORDER}`,
-              borderRadius: 4,
+              borderRadius: 6,
               padding: 2,
             }}>
               {availableOptions.map(opt => {
@@ -219,7 +219,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                       fontSize: 'var(--type-ui-regular-size)',
                       letterSpacing: '0.04em',
                       padding: '3px 9px',
-                      borderRadius: 3,
+                      borderRadius: 6,
                       border: 'none',
                       cursor: 'pointer',
                       background: isActive ? GOLD : 'transparent',

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, Database, Loader2, Pencil, Plus, Search, Wrench, X } from 'lucide-react';
 import type { ConstructionState } from '@/lib/construction/constructionState';
@@ -205,7 +206,7 @@ export function ClassPicker({ value, onSave, disabled }: { value: string | null;
   return (
     <div>
       <div className="flex items-center gap-2">
-        <select
+        <Select
           value={value ?? ''}
           disabled={disabled || saving}
           aria-label="Agent class"
@@ -221,7 +222,7 @@ export function ClassPicker({ value, onSave, disabled }: { value: string | null;
           {options.map((o) => (
             <option key={o.id} value={o.id}>{o.name}</option>
           ))}
-        </select>
+        </Select>
         {saving && <Loader2 className="h-4 w-4 animate-spin text-[var(--ink-3)]" />}
       </div>
       {current && <p className="mt-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{current.hint}</p>}

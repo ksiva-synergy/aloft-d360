@@ -276,7 +276,7 @@ export function DraftChangeCard({
                 disabled={phase === 'applying'}
                 style={{
                   ...type.label,
-                  border: '1px solid rgba(74,96,128,0.35)', borderRadius: 4, padding: '5px 12px',
+                  border: '1px solid rgba(74,96,128,0.35)', borderRadius: 6, padding: '5px 12px',
                   background: 'transparent', color: MUTED, cursor: phase === 'applying' ? 'default' : 'pointer',
                 }}
               >
@@ -287,7 +287,7 @@ export function DraftChangeCard({
                 disabled={phase === 'applying' || nothingChanged}
                 style={{
                   ...type.label,
-                  border: 'none', borderRadius: 4, padding: '5px 14px', fontWeight: 600,
+                  border: 'none', borderRadius: 6, padding: '5px 14px', fontWeight: 600,
                   background: GOLD, color: 'var(--on-brand)',
                   cursor: phase === 'applying' || nothingChanged ? 'default' : 'pointer',
                   opacity: phase === 'applying' || nothingChanged ? 0.6 : 1,
@@ -325,7 +325,7 @@ function WidgetFacet({
         flex: 1,
         minWidth: 0,
         border: `1px solid ${tone === 'gold' ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)' : 'rgba(74,96,128,0.25)'}`,
-        borderRadius: 4,
+        borderRadius: 6,
         padding: '6px 8px',
         display: 'flex',
         flexDirection: 'column',

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getAgentOpsAuth, assertSessionReadable } from '@/lib/agent-ops/access';
 import { buildSessionCockpit } from '@/lib/agent-ops/session-cockpit';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
+import { sessionOpenHref } from '@/lib/sessions/surfaces';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export async function GET(
       user_id: true,
       updated_at: true,
       created_at: true,
+      progress: true,
     },
   });
   if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -78,10 +80,7 @@ export async function GET(
     loopRows,
   });
 
-  const openPath =
-    session.surface === 'inspector'
-      ? `/inspector/${sessionId}`
-      : `/agent-lab/agents/workbench/${sessionId}`;
+  const openPath = sessionOpenHref(session);
 
   return NextResponse.json({
     session: {

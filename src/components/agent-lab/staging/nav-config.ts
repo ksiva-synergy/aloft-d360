@@ -3,7 +3,7 @@ import {
   MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon, ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
-  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon,
+  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon, CpuIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
@@ -93,11 +93,12 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'govern',
     icon: ShieldCheckIcon,
     items: [
-      { label: 'Users',     href: '/agent-staging/users',    icon: UsersIcon },
-      { label: 'Policies',  href: '/agent-staging/policies', icon: ShieldCheckIcon },
+      { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
+      { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
       { label: 'Connections', href: '/agent-staging/connections', icon: PlugsConnectedIcon },
-      { label: 'Audit Log', href: '/agent-staging/audit',    icon: ScrollIcon },
-      { label: 'Docs',      href: '/docs',                   icon: BookOpenIcon },
+      { label: 'Audit Log',   href: '/agent-staging/audit',       icon: ScrollIcon },
+      { label: 'Docs',        href: '/docs',                      icon: BookOpenIcon },
     ],
   },
 ];

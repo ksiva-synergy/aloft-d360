@@ -153,7 +153,7 @@ export async function getJobRecommendations(
         action: 't0_structural',
         title: `Structural scan on ${est.toLocaleString()} discovery table${est !== 1 ? 's' : ''}`,
         detail: sampleSchemas.length
-          ? `Largest gaps: ${sampleSchemas.join(', ')}. Runs T0 on Limit globs when you confirm.`
+          ? `Scans the ${sampleSchemas.length} largest unscanned schema${sampleSchemas.length !== 1 ? 's' : ''} first (structural scan, T0).`
           : 'Tables exist in discovery but are not scanned yet.',
         kinds: ['t0_structural'],
         sequential: false,

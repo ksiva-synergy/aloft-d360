@@ -3,6 +3,8 @@ import 'server-only';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { BOOST_MODELS } from '@/lib/boost/models';
+import { getLlmLiteApiKey, getLlmLiteBaseUrl } from '@/lib/llmlite/config';
+import { getFeatureGatewayModelIdSync } from '@/lib/llmlite/model-settings-store';
 
 export type HarvesterMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -15,7 +17,7 @@ export type HarvesterLlmResult = {
 
 /**
  * Chat model for Data Estate harvest jobs (enrich, usage narratives, silo/mapping adjudication).
- * Defaults to Grok 4.7 (xAI direct when XAI_API_KEY is set, else Foundry deployment name).
+ * Defaults to the configured `harvest_semantic` gateway model (`aws_bedrock/xAI-Grok-4.7`).
  */
 export function getContextHarvesterModelId(): string {
   if (process.env.CONTEXT_HARVEST_MODEL?.trim()) {
@@ -24,14 +26,7 @@ export function getContextHarvesterModelId(): string {
   if (process.env.ESTATE_HARVEST_MODEL?.trim()) {
     return process.env.ESTATE_HARVEST_MODEL.trim();
   }
-  if (process.env.XAI_API_KEY) {
-    return process.env.XAI_MODEL?.trim() || 'grok-4.7';
-  }
-  return (
-    process.env.FOUNDRY_HARVEST_DEPLOYMENT?.trim() ||
-    process.env.FOUNDRY_CHAT_DEPLOYMENT?.trim() ||
-    'grok-4.7'
-  );
+  return getFeatureGatewayModelIdSync('harvest_semantic');
 }
 
 /** USD per 1M tokens (for harvest cost telemetry). */
@@ -47,11 +42,18 @@ export function getContextHarvesterTokenPricing(): { inputPerM: number; outputPe
 function resolveTokenParam(modelId: string): 'max_tokens' | 'max_completion_tokens' {
   const registered = BOOST_MODELS.find((m) => m.modelId === modelId || m.key === modelId);
   if (registered?.tokenParam) return registered.tokenParam;
-  if (modelId.startsWith('grok')) return 'max_tokens';
+  const lower = modelId.toLowerCase();
+  if (lower.includes('grok')) return 'max_tokens';
   return 'max_completion_tokens';
 }
 
 export function getContextHarvesterClient(): OpenAI {
+  const llmLiteBase = getLlmLiteBaseUrl();
+  const llmLiteKey = getLlmLiteApiKey();
+  if (llmLiteBase && llmLiteKey) {
+    return new OpenAI({ apiKey: llmLiteKey, baseURL: `${llmLiteBase}/v1` });
+  }
+
   if (process.env.XAI_API_KEY) {
     const base = (process.env.XAI_BASE_URL || 'https://api.x.ai/v1').replace(/\/$/, '');
     return new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: base });
@@ -84,7 +86,7 @@ export function getContextHarvesterClient(): OpenAI {
   }
 
   throw new Error(
-    'Context harvest LLM requires XAI_API_KEY, or FOUNDRY_ENDPOINT + FOUNDRY_API_KEY, or AZURE_OPENAI_*',
+    'Context harvest LLM requires LLMLITE_BASE_URL + LLMLITE_API_KEY (or legacy XAI_API_KEY / FOUNDRY_* / AZURE_OPENAI_*)',
   );
 }
 

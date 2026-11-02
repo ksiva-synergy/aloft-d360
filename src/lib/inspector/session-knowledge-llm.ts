@@ -23,6 +23,8 @@ function isLlmSummaryEnabled(): boolean {
   const flag = process.env.INSPECTOR_SESSION_SUMMARY_LLM;
   if (flag === 'false' || flag === '0') return false;
   return !!(
+    (process.env.LLMLITE_BASE_URL || process.env.llmlite_base_url) &&
+    (process.env.LLMLITE_API_KEY || process.env.llmlite_api_key) ||
     process.env.BEDROCK_MANTLE_API_KEY ||
     (process.env.FOUNDRY_ENDPOINT && process.env.FOUNDRY_API_KEY) ||
     (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
@@ -81,7 +83,7 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
   const client = getSummaryChatClient();
   if (!client) return null;
 
-  const modelId = resolveOpenAIChatModelId(DEFAULT_SUMMARY_MODEL);
+  const modelId = resolveOpenAIChatModelId(DEFAULT_SUMMARY_MODEL, 'session_titles');
 
   // Prefer registry tokenParam; newer Foundry chat models reject `max_tokens`.
   let tokenParam: 'max_tokens' | 'max_completion_tokens' = 'max_completion_tokens';

@@ -94,7 +94,7 @@ export function AgentPerformanceHeatmap({ agents }: { agents: AgentStat[] }) {
                     <div
                       key={m.key}
                       className={cn(
-                        'px-2 py-2 rounded-md text-center transition-all duration-150 cursor-default',
+                        'px-2 py-2 rounded-md text-center transition duration-150 cursor-default',
                         getCellColor(percentile, m.higherIsBetter),
                         isHovered && 'ring-2 ring-[color:var(--brand-a)] dark:ring-[color:var(--brand-a)] scale-105 z-10'
                       )}

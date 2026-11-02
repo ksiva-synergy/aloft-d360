@@ -547,7 +547,7 @@ function PerTurnDetail({ metrics }: { metrics: RunMetric[] }) {
                   </td>
                   <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                     <span style={{
-                      display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
+                      display: 'inline-block', padding: '1px 6px', borderRadius: 6, fontSize: 'var(--type-ui-regular-size)',
                       background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                       color: isCtx ? GOLD : BLUE,
                       border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -614,7 +614,7 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', color, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>{s.modelLabel}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
                   <span style={{
-                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
+                    display: 'inline-block', padding: '1px 6px', borderRadius: 6, fontSize: 'var(--type-ui-regular-size)',
                     background: isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 14%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
                     border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a-ink) 35%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -649,7 +649,7 @@ function KindBadge({ kind }: { kind: ToolKind }) {
   return (
     <span style={{
       ...type.label,
-      borderRadius: 3,
+      borderRadius: 6,
       padding: '2px 6px',
       width: 78,
       textAlign: 'center',

@@ -156,7 +156,7 @@ The only code that runs a saved agent today is the HTTP route [agents/chat/route
 Plan: extract a function `runAgentOnce({ agentSlug?, prompt, model, signal })` into `src/lib/agents/run-agent-once.ts` that returns `{ text, toolCalls, usage }`, and have both the route and the flow executor call it. With no `agentSlug`, it is a plain prompt step with no persona. Tool use inside the step is limited to the same allowlist the route uses (`describe_schema`, `execute_tool`). Logging uses the existing `withAgentOpsToolLog`/`TurnMetricsRecorder` so costs show up in the same tables.
 
 ### 7.3 Auth and principal
-- Interactive routes call `getServerSession` / `guardInspectorChat`-style checks. **`INSPECTOR_AUTH_ENFORCE` defaults to observe-only** ([session-auth.ts](../src/lib/inspector/session-auth.ts)); Flows routes must always enforce, not follow that flag.
+- Interactive routes call `getServerSession` / `guardInspectorChat`-style checks. **`INSPECTOR_AUTH_ENFORCE` enforces by default** (`false` = observe-only opt-out) ([session-auth.ts](../src/lib/inspector/session-auth.ts)); Flows routes must always enforce, not follow that flag.
 - Scheduled and worker runs have no browser session. `session-auth.ts` already defines a service principal (`INSPECTOR_SERVICE_TOKEN`); a scheduled run executes **as the flow owner's identity recorded on the flow** (not as an unrestricted service), see §12.
 
 ### 7.4 Audit, tracing, cost
@@ -257,7 +257,7 @@ Read from the code, not assumed:
 - **Authorization is coarse.** `PERMISSIONS` in [rbac.ts](../src/lib/rbac.ts) has no per-dataset or per-table permission; `inspector:use` gates the Inspector as a whole. `data_level` appears only on `PlatformAgent` ([platform/agents.ts](../src/lib/platform/agents.ts)) and is not used to restrict data access.
 - **Queries use one shared Databricks credential** (§7.1). Databricks itself cannot tell which ALOFT user asked.
 - **Org resolution is single-org:** `getDefaultOrg()` reads `DEFAULT_ORG_SLUG`.
-- **Route auth can be observe-only** via `INSPECTOR_AUTH_ENFORCE`.
+- **Route auth can be switched to observe-only** via `INSPECTOR_AUTH_ENFORCE=false` (enforced by default).
 
 Consequence: "a flow can only see what its owner can see" is **not automatically true**. It will be true only for what we enforce in ALOFT, which today is: governed semantic definitions (drafts are owner-only), read-only SQL, and route-level login.
 

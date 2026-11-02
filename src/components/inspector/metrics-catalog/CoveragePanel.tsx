@@ -55,7 +55,7 @@ export function CoveragePanel() {
           style={{
             flex: '0 0 100px',
             height: 8,
-            borderRadius: 3,
+            borderRadius: 6,
             overflow: 'hidden',
             background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
             display: 'flex',
@@ -135,7 +135,7 @@ export function CoveragePanel() {
                   fontFamily: 'var(--font-sans)',
                   fontSize: 'var(--type-ui-regular-size)',
                   padding: '4px 9px',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   cursor: 'pointer',
                   border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
                   background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
@@ -144,7 +144,7 @@ export function CoveragePanel() {
               >
                 <AlertTriangle size={11} /> Gaps only {gapCount ? `(${gapCount})` : ''}
               </button>
-              <div style={{ display: 'flex', gap: 2, border: `1px solid ${BORDER}`, borderRadius: 4, padding: 2 }}>
+              <div style={{ display: 'flex', gap: 2, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 2 }}>
                 <ModeBtn active={mode === 'bars'} onClick={() => setMode('bars')} icon={<BarChart3 size={12} />} />
                 <ModeBtn active={mode === 'treemap'} onClick={() => setMode('treemap')} icon={<LayoutGrid size={12} />} />
               </div>
@@ -180,7 +180,7 @@ function ModeBtn({ active, onClick, icon }: { active: boolean; onClick: () => vo
         display: 'flex',
         alignItems: 'center',
         padding: '3px 7px',
-        borderRadius: 3,
+        borderRadius: 6,
         border: 'none',
         cursor: 'pointer',
         background: active ? GOLD : 'transparent',
@@ -211,7 +211,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         width: '100%',
         background: active ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'transparent',
         border: 'none',
-        borderRadius: 4,
+        borderRadius: 6,
         padding: '3px 6px',
         cursor: 'pointer',
         textAlign: 'left',
@@ -237,7 +237,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         style={{
           display: 'flex',
           height: 12,
-          borderRadius: 3,
+          borderRadius: 6,
           overflow: 'hidden',
           background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
@@ -268,7 +268,7 @@ function Treemap({ buckets, activeThemes, onPick }: { buckets: CoverageBucket[];
             style={{
               flex: `1 1 ${basis}px`,
               minHeight: 54,
-              borderRadius: 4,
+              borderRadius: 6,
               padding: '8px 10px',
               cursor: 'pointer',
               textAlign: 'left',

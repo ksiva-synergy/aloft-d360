@@ -210,7 +210,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
             <div key={item.id} className="relative flex flex-col gap-2">
               {/* Dot on line */}
               <div
-                className="absolute -left-[21.5px] top-2.5 w-3.5 h-3.5 rounded-full border-2 transition-all duration-200"
+                className="absolute -left-[21.5px] top-2.5 w-3.5 h-3.5 rounded-full border-2 transition duration-200"
                 style={{
                   backgroundColor: hasDrift ? '#F59E0B' : 'var(--brand-a)',
                   borderColor: entryBg,
@@ -220,7 +220,7 @@ export default function ProfileTimeline({ profileHistory }: ProfileTimelineProps
 
               {/* Entry Card */}
               <div
-                className="border rounded-lg p-4 shadow-sm transition-all duration-200 overflow-hidden"
+                className="border rounded-lg p-4 shadow-sm transition duration-200 overflow-hidden"
                 style={{
                   backgroundColor: entryBg,
                   borderColor: entryBorder,

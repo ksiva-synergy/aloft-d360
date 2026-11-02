@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect } from 'react';
 
 export interface FilterState {
@@ -50,7 +51,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
     fontSize: 'var(--type-ui-regular-size)',
     backgroundColor: raisedBg,
     border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
+    borderRadius: 6,
     color: inkColor,
     padding: '5px 24px 5px 8px',
     outline: 'none',
@@ -76,7 +77,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
     >
       {/* Search Input */}
       <div
-        className="flex-1 flex items-center gap-2 px-3 border rounded h-9 transition-all duration-200"
+        className="flex-1 flex items-center gap-2 px-3 border rounded h-9 transition duration-200"
         style={{
           backgroundColor: raisedBg,
           borderColor: borderColor,
@@ -132,7 +133,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
         {/* Status */}
         <div className="flex items-center gap-1.5">
           <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">Status</span>
-          <select
+          <Select
             style={selectStyle}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -145,13 +146,13 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
             <option value="assumed">assumed</option>
             <option value="confirmed">confirmed</option>
             <option value="certified">certified</option>
-          </select>
+          </Select>
         </div>
 
         {/* Freshness */}
         <div className="flex items-center gap-1.5">
           <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">Freshness</span>
-          <select
+          <Select
             style={selectStyle}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -174,15 +175,15 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
             }}
           >
             <option value="All">All</option>
-            <option value="Stale">Stale</option>
+            <option value="Stale">Out of date</option>
             <option value="Never profiled">Never profiled</option>
-          </select>
+          </Select>
         </div>
 
         {/* PII */}
         <div className="flex items-center gap-1.5">
           <span style={{ color: labelColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }} className="select-none font-medium">PII</span>
-          <select
+          <Select
             style={selectStyle}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -193,7 +194,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
           >
             <option value="All">All</option>
             <option value="Has PII">Has PII</option>
-          </select>
+          </Select>
         </div>
       </div>
     </div>

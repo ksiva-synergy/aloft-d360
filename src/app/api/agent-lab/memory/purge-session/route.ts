@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { prisma } from '@/lib/prisma';
+import { canPurgeSession, forbidden, requireMemoryCaller } from '@/lib/memory/curation-access';
+import { writeAudit } from '@/lib/audit';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -12,10 +12,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const caller = await requireMemoryCaller();
+  if (caller instanceof NextResponse) return caller;
 
   let rawBody: unknown;
   try {
@@ -30,6 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { sessionId } = parsed.data;
+  if (!(await canPurgeSession(caller, sessionId))) return forbidden();
 
   try {
     const org = await getDefaultOrg();
@@ -127,6 +126,14 @@ export async function POST(req: NextRequest) {
       ` edgesDeleted=${result.edgesDeleted} nodesDeleted=${result.nodesDeleted}` +
       ` bulletsDeleted=${result.bulletsDeleted} bulletsUpdated=${result.bulletsUpdated}`,
     );
+
+    void writeAudit({
+      actorId: caller.userId,
+      action: 'memory.session.purged',
+      entityType: 'workbench_session',
+      entityId: sessionId,
+      after: result,
+    });
 
     return NextResponse.json(result);
   } catch (err) {

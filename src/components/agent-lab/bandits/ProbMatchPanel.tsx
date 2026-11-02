@@ -99,7 +99,7 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
             style={{
               fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
               background: 'transparent', border: `1px solid ${BORDER}`,
-              borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
+              borderRadius: 6, padding: '3px 8px', cursor: 'pointer',
               letterSpacing: '0.04em', flexShrink: 0,
             }}
           >

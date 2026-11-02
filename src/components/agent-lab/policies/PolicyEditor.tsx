@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -111,7 +112,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
           <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Type
           </label>
-          <select
+          <Select
             value={type}
             onChange={(e) => setType(e.target.value)}
             className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
@@ -119,14 +120,14 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
             {TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
           <label className="text-size-ui uppercase tracking-wide text-muted-foreground font-medium block mb-1.5">
             Scope
           </label>
-          <select
+          <Select
             value={scope}
             onChange={(e) => setScope(e.target.value)}
             className="w-full px-3 py-1.5 text-size-body border rounded-md bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] dark:border-[var(--line-1)] focus:outline-none focus:ring-1 focus:ring-[color:var(--brand-a)]"
@@ -134,7 +135,7 @@ export function PolicyEditor({ initial, onSave, onCancel }: PolicyEditorProps) {
             {SCOPES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {scope !== 'global' && (

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeftRight, Settings2 } from 'lucide-react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
@@ -76,7 +77,7 @@ function ColChip({ col }: { col: string }) {
         ...MONO,
         fontSize: 'var(--type-ui-regular-size)',
         border: `1px solid ${T.border}`,
-        borderRadius: 3,
+        borderRadius: 6,
         padding: '1px 5px',
         color: T.label,
         letterSpacing: '0.04em',
@@ -111,7 +112,7 @@ function SwapMenu({
         style={{
           background: 'transparent',
           border: `1px solid ${T.border}`,
-          borderRadius: 3,
+          borderRadius: 6,
           color: T.label,
           cursor: 'pointer',
           padding: '2px 4px',
@@ -130,7 +131,7 @@ function SwapMenu({
             marginTop: 4,
             background: 'var(--builder-surface)',
             border: `1px solid ${T.borderBr}`,
-            borderRadius: 4,
+            borderRadius: 6,
             zIndex: 10,
             minWidth: 140,
             padding: 4,
@@ -150,7 +151,7 @@ function SwapMenu({
                 cursor: 'pointer',
                 padding: '4px 8px',
                 ...type.label,
-                borderRadius: 3,
+                borderRadius: 6,
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--brand-a) 8%, transparent)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -191,7 +192,7 @@ function GearMenu({
   const selectStyle: React.CSSProperties = {
     background: 'var(--builder-surface)',
     border: `1px solid ${T.border}`,
-    borderRadius: 3,
+    borderRadius: 6,
     color: T.text,
     padding: '3px 6px',
     ...MONO,
@@ -208,7 +209,7 @@ function GearMenu({
         style={{
           background: 'transparent',
           border: `1px solid ${T.border}`,
-          borderRadius: 3,
+          borderRadius: 6,
           color: T.label,
           cursor: 'pointer',
           padding: '2px 4px',
@@ -227,7 +228,7 @@ function GearMenu({
             marginTop: 4,
             background: 'var(--builder-surface)',
             border: `1px solid ${T.borderBr}`,
-            borderRadius: 4,
+            borderRadius: 6,
             zIndex: 10,
             minWidth: 180,
             padding: 10,
@@ -239,19 +240,19 @@ function GearMenu({
           {spec.x !== undefined && (
             <div>
               <span style={{ ...type.label, }}>X AXIS</span>
-              <select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
+              <Select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
           )}
           {spec.y && spec.y.length > 0 && (
             <div>
               <span style={{ ...type.label, }}>Y AXIS</span>
-              <select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
+              <Select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
                 <option value="">— none —</option>
                 {columnNames.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
           )}
           <button
@@ -259,7 +260,7 @@ function GearMenu({
             style={{
               background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
               border: `1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)`,
-              borderRadius: 3,
+              borderRadius: 6,
               color: inkOf(T.gold),
               cursor: 'pointer',
               padding: '4px 8px',
@@ -555,7 +556,7 @@ export function DashboardGrid({
             style={{
               ...type.label,
               border: `1px solid ${T.border}`,
-              borderRadius: 4,
+              borderRadius: 6,
               padding: '4px 10px',
             }}
           >

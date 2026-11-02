@@ -16,6 +16,7 @@
  * Total preview budget: 1800 tokens.
  */
 
+import { Select } from '@/components/form/Select';
 import { useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -168,7 +169,7 @@ const orbStyle = (ruleType: string, overBudget: boolean): React.CSSProperties =>
   fontFamily: MONO, fontSize: 'var(--type-caption-size)',
   color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)',
   border: `1px solid ${RULE_TYPE_COLORS[ruleType] ?? GOLD}40`,
-  borderRadius: '3px', padding: '2px 6px', cursor: 'default',
+  borderRadius: 6, padding: '2px 6px', cursor: 'default',
   maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   opacity: overBudget ? 0.35 : 1,
 });
@@ -196,7 +197,7 @@ function ShelfGroupView({ groups, accentColor }: { groups: ShelfGroup[]; accentC
         const over   = g.slots.filter((s) => s.overBudget);
         const used   = active.reduce((sum, s) => sum + s.tokens, 0);
         return (
-          <div key={key} style={{ border: `1px solid ${withAlpha(accentColor, '20')}`, borderRadius: '4px', overflow: 'hidden' }}>
+          <div key={key} style={{ border: `1px solid ${withAlpha(accentColor, '20')}`, borderRadius: 6, overflow: 'hidden' }}>
             <div onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.6rem', cursor: 'pointer', background: 'var(--foer-surface2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                 <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: accentColor, letterSpacing: '0.04em' }}>{g.label}</span>
@@ -332,7 +333,7 @@ function PhaseBlurb({ phaseLabel, phaseTag, accentColor, budget, slots, groups, 
                   color: 'var(--foer-text-sec)',
                   background: 'var(--foer-surface2)',
                   border: '1px solid ' + accentColor + '22',
-                  borderRadius: '4px',
+                  borderRadius: 6,
                   padding: '0.75rem 0.9rem',
                   margin: '0.4rem 0 0',
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -522,11 +523,11 @@ export function MountPanel() {
               <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Loading...
             </div>
           ) : (
-            <select id="mount-sig-select" className="foer-select" value={activeSig} onChange={(e) => setSignature(e.target.value)} style={{ maxWidth: '420px', fontFamily: MONO, fontSize: 'var(--type-caption-size)', padding: '6px 10px', borderRadius: '4px', border: '1px solid var(--foer-border)', background: 'var(--foer-surface)', color: 'var(--foer-text-pri)', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27%238a9bb5%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 11L3 6h10l-5 5z%27/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: '28px' }}>
+            <Select id="mount-sig-select" className="foer-select" value={activeSig} onChange={(e) => setSignature(e.target.value)} style={{ maxWidth: '420px', fontFamily: MONO, fontSize: 'var(--type-caption-size)', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--foer-border)', background: 'var(--foer-surface)', color: 'var(--foer-text-pri)', appearance: 'none', WebkitAppearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27%238a9bb5%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 11L3 6h10l-5 5z%27/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', paddingRight: '28px' }}>
               {signatures.map((s) => (
                 <option key={s.taskSignature} value={s.taskSignature} style={{ background: 'var(--foer-surface)', color: 'var(--foer-text-pri)' }}>{s.topicName} · {s.taskSignature.slice(0, 8)}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
         {selectedEntry && (
@@ -544,7 +545,7 @@ export function MountPanel() {
           <span style={{ ...type.label, letterSpacing: '0.08em' }}>Token Budget · 1800t total</span>
           <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: totalPct >= 90 ? '#D9774B' : 'var(--foer-text-sec)' }}>{totalUsed}t used</span>
         </div>
-        <div style={{ height: '6px', borderRadius: '3px', background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>
+        <div style={{ height: '6px', borderRadius: 6, background: 'var(--foer-border-dim)', overflow: 'hidden', display: 'flex' }}>
           <div style={{ width: p0W + '%',  background: 'var(--brand-a)', transition: 'width 0.4s ease' }} title={'Phase 0: ' + p0Used + 't'} />
           <div style={{ width: p1aW + '%', background: '#5E7E96', transition: 'width 0.4s ease' }} title={'Phase 1a: ' + p1aUsed + 't'} />
           <div style={{ width: p1bW + '%', background: '#5FA9AE', transition: 'width 0.4s ease' }} title={'Phase 1b: ' + p1bUsed + 't'} />

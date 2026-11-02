@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
+import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import type { ContentBlock, Message } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
-import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
+import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
@@ -39,8 +40,8 @@ export async function POST(request: NextRequest) {
   if (question.length > 2000) {
     return new Response('Question is too long (max 2000 characters)', { status: 400 });
   }
-  if (!inspectorLlmConfigured()) {
-    return new Response('Test run requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
+  if (!inspectorLlmConfigured() || !hasLlmLiteCredentials()) {
+    return new Response('Test run requires LLM Lite gateway credentials (LLMLITE_BASE_URL and LLMLITE_API_KEY).', { status: 503 });
   }
   const role = await getSessionUserRole();
   const resolved = resolveWorkbenchModel(body.model, role);
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
           : await runAgentLoop(loopParams);
 
         if (result.outcome === 'errored' && result.errorDetail) {
-          emit({ type: 'error', message: result.errorDetail });
+          emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/test-run') });
         }
 
         const testRun = {
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
           model: effectiveModelId,
         });
       } catch (err: unknown) {
-        emit({ type: 'error', message: err instanceof Error ? err.message : 'Test run failed' });
+        emit({ type: 'error', message: clientStreamError(err, 'workbench/test-run') });
         emit({ type: 'done', outcome: 'errored' });
       } finally {
         if (!closed.value) {

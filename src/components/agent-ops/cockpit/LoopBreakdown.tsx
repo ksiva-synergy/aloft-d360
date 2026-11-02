@@ -86,7 +86,7 @@ export function LoopBreakdown({ server }: { server: TurnServerMetrics }) {
             <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)' }}>#{l.loop}</span>
 
             <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'flex', height: 10, width: `${((l.llmMs + l.toolMs) / maxTime) * 100}%`, minWidth: 4, borderRadius: 3, overflow: 'hidden' }}>
+              <span style={{ display: 'flex', height: 10, width: `${((l.llmMs + l.toolMs) / maxTime) * 100}%`, minWidth: 4, borderRadius: 6, overflow: 'hidden' }}>
                 <span style={{ flex: Math.max(l.llmMs, 1), background: LLM_COLOR }} />
                 {l.toolMs > 0 && <span style={{ flex: l.toolMs, background: TOOL_COLOR }} />}
               </span>
@@ -99,7 +99,7 @@ export function LoopBreakdown({ server }: { server: TurnServerMetrics }) {
             </span>
 
             <span style={{ minWidth: 0 }}>
-              <span style={{ display: 'block', height: 6, borderRadius: 3, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
+              <span style={{ display: 'block', height: 6, borderRadius: 6, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
                 <span style={{ display: 'block', height: '100%', width: `${(l.contextChars / maxCtx) * 100}%`, background: 'var(--brand-b)' }} />
               </span>
               <span style={{ ...mono, display: 'block', fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', marginTop: 4 }}>

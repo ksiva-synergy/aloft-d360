@@ -39,7 +39,7 @@ export function RawSqlBadge({
         alignItems: 'center',
         gap: 3,
         padding: size === 'xs' ? '1px 5px' : '2px 6px',
-        borderRadius: 3,
+        borderRadius: 6,
         background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
         color: inkOf(AMBER),
         border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',

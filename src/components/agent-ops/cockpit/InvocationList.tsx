@@ -56,7 +56,7 @@ export function InvocationList({
           <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)', flexShrink: 0 }}>{inv.toolName}</span>
           {hint && <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{hint}</span>}
         </span>
-        <span style={{ height: 6, borderRadius: 3, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
+        <span style={{ height: 6, borderRadius: 6, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
           <span style={{ display: 'block', height: '100%', width: `${Math.max((inv.durationMs / (maxDuration || 1)) * 100, 3)}%`, background: ok ? colorOf(inv.toolName) : ERR }} />
         </span>
         <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink-dim)', textAlign: 'right' }}>{fmtMs(inv.durationMs)}</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useCallback, useMemo, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import type { InvocationRow, SessionAnalytics, SessionCockpitPayload } from '@/lib/agent-ops/session-cockpit';
@@ -506,7 +507,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
             <SectionTitle
               hint={timelineTurn != null ? `Showing turn ${timelineTurn} only.` : 'Every call across the run.'}
               right={
-                <select
+                <Select
                   value={timelineTurn ?? ''}
                   onChange={(e) => setTimelineTurn(e.target.value === '' ? null : Number(e.target.value))}
                   style={{ ...sans, fontSize: 'var(--type-caption-size)', padding: '5px 8px', borderRadius: 6, border: BORDER, background: 'var(--wb-canvas)', color: 'var(--wb-ink)' }}
@@ -517,7 +518,7 @@ export function SessionCockpit({ title, surface, contextMode, cockpit, openHref 
                       Turn {t.turnIndex}
                     </option>
                   ))}
-                </select>
+                </Select>
               }
             >
               Execution timeline

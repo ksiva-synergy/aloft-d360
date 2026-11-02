@@ -5,6 +5,7 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { enqueue } from '@/lib/context/queue';
 import prisma from '@/lib/db';
 import { z } from 'zod';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,8 @@ const scanSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -63,7 +66,11 @@ export async function POST(req: NextRequest) {
 
     // D-24: Only fire process synchronously in development env
     if (process.env.NODE_ENV === 'development') {
-      const processUrl = new URL('/api/agent-lab/context/process', req.url).toString();
+      const processUrl = new URL(
+        '/api/agent-lab/context/process',
+        // Never derive from req.url: the Host header is client-controlled and the cookie is forwarded.
+        process.env.NEXTAUTH_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
+      ).toString();
       const cookie = req.headers.get('cookie') ?? '';
       void fetch(processUrl, {
         method: 'POST',

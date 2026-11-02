@@ -66,24 +66,41 @@ Type tokens (use a token, never a raw size): `display`, `title-page`, `title-sec
 
 ### Border radius
 
-Deliberately small ("Spinor Labs: 4px base, 6px max"):
+Tiered scale (Theme v4 foundations, end of `globals.css`). Pick the tier by the element's role, not its size:
 
 | Token | Value | Usage |
 |---|---|---|
-| `rounded-sm` | `4px` | Interactive elements — inputs, chips, buttons |
-| `rounded-card` | `6px` | Surfaces — cards, panels |
-| `rounded-brand` | `6px` | Max radius — do not exceed |
-| `--radius` (CSS var) | `0.5rem` | shadcn-style base radius |
+| `rounded-xs` / `--radius-xs` | `6px` | Menu items, chips inside controls, tooltips |
+| `rounded-ctl` / `--radius-ctl` | `8px` | Controls: buttons, inputs, selects, tab triggers. Bare `rounded` is also 8px (`borderRadius.DEFAULT`), so older markup inherits the control tier |
+| `rounded-card` / `--radius-card` | `12px` | Surfaces — cards, panels, popovers, select menus |
+| `rounded-dialog` / `--radius-dialog` | `16px` | Dialogs, drawers, sheets |
+| `rounded-full` / `--radius-pill` | `999px` | Badges, avatars, status pills |
 
-> `md`/`lg`/`xl` radii are intentionally **not** overridden — their appearance in JSX is treated as a violation to be surfaced, not silenced.
+Tailwind's default `lg` (8px), `xl` (12px) and `2xl` (16px) line up with the same tiers, so existing JSX is not a violation; prefer the named tokens in new code.
+
+### Control heights
+
+`--ctl-h-sm` 32px · `--ctl-h-md` 36px (default) · `--ctl-h-lg` 40px. `Button` sizes: `xs` h-7, `sm` h-8, `md` h-9, `lg` h-10, `xl` h-11, `icon` 32×32. `Input`, `Textarea`, `SelectTrigger` default to 36px.
+
+### Focus
+
+`--focus-ring` = `0 0 0 3px` brand at 22%. Primitives apply it as `focus-visible:shadow-[var(--focus-ring)]` (inputs on `focus`) together with a brand-coloured border; no offset rings.
 
 ### Shadows
 
-| Token | Value |
+| Token | Usage |
 |---|---|
-| `shadow-nav` (Tailwind) | `0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)` |
-| `.shadow-card` (light) | `0 1px 3px rgba(0,0,0,0.04)` |
-| `.shadow-card` (dark) | `0 1px 3px rgba(0,0,0,0.2)` |
+| `shadow-xs` / `--shadow-xs` | Resting controls, cards, active tab |
+| `shadow-card` | Raised cards |
+| `shadow-pop` / `--shadow-pop` | Popovers, select menus, tooltips |
+| `shadow-dialog` / `--shadow-dialog` | Dialogs and drawers |
+| `shadow-nav` | Navigation chrome |
+
+Light and dark values differ (dark uses deeper, lower-alpha black); see the Theme v4 block in `globals.css`.
+
+### Z-index
+
+`--z-sticky` 20 · `--z-dropdown` 50 · `--z-overlay` 60 · `--z-toast` 70.
 
 ---
 
@@ -398,6 +415,30 @@ Defined in [`globals.css`](../src/app/globals.css):
 
 ## 7. Motion / animation
 
+### Motion system (Theme v4)
+
+Tokens live in `globals.css` and are exposed as Tailwind `duration-*` / `ease-*` utilities.
+
+| Token | Value | Use for |
+|---|---|---|
+| `duration-press` / `--dur-press` | 120ms | `:active` press feedback (`active:scale-[0.97]`) |
+| `duration-hover` / `--dur-hover` | 160ms | Hover / colour / border changes |
+| `duration-pop` / `--dur-pop` | 180ms | Selects, popovers, menus, tab content fade |
+| `duration-dialog` / `--dur-dialog` | 220ms | Dialog enter (exit is 150ms) |
+| `duration-drawer` / `--dur-drawer` | 280ms | Drawers / sheets |
+| `--dur-layout` | 320ms | Rare layout moves; nothing in the UI should exceed this |
+| `ease-out-strong` | `cubic-bezier(0.23,1,0.32,1)` | Default for enter / UI feedback |
+| `ease-in-out-strong` | `cubic-bezier(0.77,0,0.175,1)` | On-screen movement |
+| `ease-drawer` / `ease-sidebar` | `cubic-bezier(0.32,0.72,0,1)` | Drawers, sidebar |
+
+Rules:
+
+- Transition named properties (`transition-[opacity,transform]`, `transition-colors`), never `transition-all`.
+- Animate only `transform` and `opacity` for motion; never `width`/`height`/`padding`.
+- Popovers, selects and tooltips scale from their trigger (`origin-[var(--radix-*-content-transform-origin)]`); dialogs stay centred. Enter from `scale(0.95–0.97)` + `opacity:0`, never `scale(0)`.
+- Exits are faster than enters. No animation on keyboard-driven, high-frequency actions (command palette, shortcuts).
+- `prefers-reduced-motion: reduce` collapses every animation/transition to 1ms globally (end of `globals.css`); components need no per-file media query.
+
 ### Global scrollbar & keyframes in `globals.css`
 
 - **Maritime set** (legacy brand): `wave-rotate`, `wave-flow`, `beacon-rotate`, `cargo-sway`, `shimmer` + utility classes (`.maritime-wave*`, `.maritime-rotate-beacon`, `.compass-rose`, etc.).
@@ -414,7 +455,7 @@ Defined in [`globals.css`](../src/app/globals.css):
 Enter/exit primitives: `fade-in/out`, `slide-in-from-{top,bottom,left,right}` (+ `-2`, `-4`, `-5` distance variants), `zoom-in-95`, `zoom-out-95`.
 Lab set: `lab-glow`, `lab-shimmer`, `lab-float`, `lab-bar-grow`, `lab-ring-spin`, `lab-count-pulse`, `lab-gradient-x`, `lab-stagger-in`, `lab-scale-in`, `lab-slide-in-{left,right}`, `lab-slide-down`.
 Misc: `shimmer`, `progress-slide`, `builder-dot-pulse`, `builder-toast-in/out`.
-Custom easing: `transitionTimingFunction.sidebar = cubic-bezier(0.32, 0.72, 0, 1)`.
+Custom easing: `ease-sidebar` / `ease-drawer`, `ease-out-strong`, `ease-in-out-strong` (see Motion system above).
 
 Plugin: **`tailwindcss-animate`**.
 
@@ -424,7 +465,9 @@ Plugin: **`tailwindcss-animate`**.
 
 - **Prefer semantic CSS vars over raw hex.** Use `var(--card)`, `var(--foreground)`, `var(--border)`, etc. so components track both themes automatically. Reach for a subsystem namespace (`--estate-*`, `--pl-*`, `--builder-*`, `--ag-*`) only inside that subsystem.
 - **Prefer the theme-reactive Tailwind aliases** (`builder.*`, `brand.*`) or `dark:` variants over hardcoded colors.
-- **Radius discipline:** `rounded-sm` (4px) for controls, `rounded-card` (6px) for surfaces; never exceed 6px. `md`/`lg`/`xl` in JSX are considered violations.
+- **Radius discipline:** `rounded-ctl` (8px) for controls, `rounded-card` (12px) for surfaces, `rounded-dialog` (16px) for dialogs/drawers, `rounded-full` for pills. Don't mix tiers inside one component.
+- **Shared primitives** (`packages/aloft-shared/src/components/ui`, imported as `@/components/ui/*`) are built on the tokens above and follow the accent/theme automatically — prefer them over hand-rolled Tailwind palette classes (`slate-*`, `gray-*`, `orange-*`, `indigo-*`).
+- **`cn()`** uses `extendTailwindMerge` so project tokens merge correctly (`text-size-ui` + `text-red-500` keep both; `rounded-ctl` + `rounded-full` → `rounded-full`). Tests: `src/lib/__tests__/cn-merge.test.ts`.
 - **Theme branching in JS:** use `useIsDark()` — do not read `matchMedia` or `localStorage` directly.
 - **Fonts:** Inter (`font-sans`) for all readable text, IBM Plex Mono (`font-mono`) for machine text only (code, ids, paths). Pick a type token; see Typography above.
 - **Two dark identities coexist:** the global `.dark` is a neutral GitHub-style dark; the branded subsystems (Workbench, Data Estate, Performance Lab, BORN) reassert navy/gold. When adding a surface, decide which family it belongs to and reuse that namespace rather than inventing new tokens.

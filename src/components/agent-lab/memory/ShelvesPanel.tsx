@@ -364,7 +364,7 @@ export function ShelvesPanel() {
             color:         ruleTypeColor(tooltip.bullet.ruleType),
             border:        `1px solid ${ruleTypeColor(tooltip.bullet.ruleType)}50`,
             padding:       '1px 5px',
-            borderRadius:  3,
+            borderRadius:  6,
             background:    `${ruleTypeColor(tooltip.bullet.ruleType)}10`,
           }}
         >
@@ -454,7 +454,7 @@ export function ShelvesPanel() {
                     fontSize: 'var(--type-caption-size)',
                     letterSpacing: '0.04em',
                     padding:       '2px 7px',
-                    borderRadius:  3,
+                    borderRadius:  6,
                     border:        `1px solid ${
                       statsRes.flagStatus.coveragePercent >= 90
                         ? 'color-mix(in srgb, var(--ok) 40%, transparent)'
@@ -508,7 +508,7 @@ export function ShelvesPanel() {
                 fontSize: 'var(--type-caption-size)',
                 letterSpacing: '0.04em',
                 padding:         '4px 10px',
-                borderRadius:    3,
+                borderRadius:    6,
                 border:          '1px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
                 background:      reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
                 color:           reclassifyMutation.isPending ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'var(--brand-a-ink)',
@@ -553,7 +553,7 @@ export function ShelvesPanel() {
             color:       'var(--ok)',
             background:  'var(--ok-bg)',
             border:      '1px solid color-mix(in srgb, var(--ok) 25%, transparent)',
-            borderRadius: 3,
+            borderRadius: 6,
             padding:     '6px 12px',
           }}>
             {reclassifyMutation.data.coveragePercent}% classified — {reclassifyMutation.data.clustersCreated} topics created,{' '}
@@ -569,7 +569,7 @@ export function ShelvesPanel() {
             color:       inkOf('#D9774B'),
             background:  'rgba(217,119,75,0.08)',
             border:      '1px solid rgba(217,119,75,0.2)',
-            borderRadius: 3,
+            borderRadius: 6,
             padding:     '6px 12px',
           }}>
             Reclassify failed: {String(reclassifyMutation.error)}
@@ -585,7 +585,7 @@ export function ShelvesPanel() {
             padding:     '8px 12px',
             background:  'color-mix(in srgb, var(--brand-a) 6%, transparent)',
             border:      '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
-            borderRadius: 4,
+            borderRadius: 6,
           }}>
             <button
               onClick={() => { setActiveGroup(null); setActiveGroupName(''); }}
@@ -636,7 +636,7 @@ export function ShelvesPanel() {
                   padding:      '8px 12px',
                   background:   'rgba(217,119,75,0.07)',
                   border:       '1px solid rgba(217,119,75,0.2)',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   fontFamily:   MONO,
                   fontSize: 'var(--type-caption-size)',
                   color:        '#D9774B',
@@ -648,7 +648,7 @@ export function ShelvesPanel() {
                     style={{
                       background:    'none',
                       border:        '1px solid rgba(217,119,75,0.4)',
-                      borderRadius:  3,
+                      borderRadius:  6,
                       padding:       '1px 8px',
                       color:         '#D9774B',
                       cursor:        reclassifyMutation.isPending ? 'not-allowed' : 'pointer',

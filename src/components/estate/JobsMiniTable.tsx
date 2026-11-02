@@ -47,7 +47,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
   if (!lastJobs || lastJobs.length === 0) {
     return (
       <div
-        className="p-8 border border-dashed rounded text-center text-size-ui font-sans shadow-sm select-none"
+        className="p-8 border border-dashed rounded-card text-center text-size-ui font-sans shadow-sm select-none"
         style={{ borderColor, color: labelColor }}
       >
         No recent jobs
@@ -56,7 +56,7 @@ export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
   }
 
   return (
-    <div className="border rounded overflow-hidden shadow-sm" style={{ borderColor }}>
+    <div className="border rounded-card overflow-hidden shadow-sm" style={{ borderColor }}>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-size-ui text-left">
           <thead>
