@@ -39,13 +39,6 @@ export function chooseSelectValue(label: string | RegExp, value: string): void {
   fireEvent.click(option as HTMLElement);
 }
 
-/** Assert an option exists in the open menu (opens the menu if needed). */
-export function expectSelectOption(label: string | RegExp, optionName: string | RegExp): void {
-  openSelect(label);
-  expect(within(selectListbox()).getByRole('option', { name: optionName })).toBeTruthy();
-  closeSelect(label);
-}
-
 /** Option values in menu order (includes empty placeholder). */
 export function selectOptionValues(label: string | RegExp): string[] {
   openSelect(label);

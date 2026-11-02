@@ -8,6 +8,7 @@ Single running log of changes made in this repo, **newest first**.
 - **Why:** Verify job failed with 9 tests (`pick.options is not iterable`, `Unable to find role="option"`, failure drill never applied because `fireEvent.change` on combobox).
 - **Verified:** `npx vitest run src/views/agent-lab/flows/__tests__` and `KnowledgePages.test.tsx` — 40/40 pass locally.
 - **Not done:** Full `npx vitest run` not re-run in this session.
+- **Follow-up:** Removed unused `expectSelectOption` from `form-select.ts` so root `tsc --noEmit` passes (CI runs after vitest).
 
 ## CI: commit missing modules referenced by ui-redesign (pipeline, agents, form, LLM Lite)
 
