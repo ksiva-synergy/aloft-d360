@@ -2100,7 +2100,7 @@ function RunsPerPeriodChart({ buckets, emptyText }: { buckets: HealthBucket[]; e
       <div className="relative">
         {peak > 0 ? (
           <>
-            <span className="absolute -top-0.5 left-0 font-mono text-[10px] tabular-nums text-[var(--estate-text-dim)]">{max}</span>
+            <span className="absolute -top-0.5 left-0 font-mono text-caption tabular-nums text-[var(--estate-text-dim)]">{max}</span>
             <div aria-hidden className="absolute inset-x-0 top-0 border-t border-dashed border-[var(--line-1)]" />
           </>
         ) : (
@@ -2131,7 +2131,7 @@ function RunsPerPeriodChart({ buckets, emptyText }: { buckets: HealthBucket[]; e
       </div>
       <div className="mt-1 flex gap-[3px] pl-6">
         {buckets.map((b, i) => (
-          <div key={b.key} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-[var(--estate-text-muted)]">
+          <div key={b.key} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center text-caption text-[var(--estate-text-muted)]">
             {i % labelEvery === 0 ? b.label : ''}
           </div>
         ))}
@@ -2181,7 +2181,7 @@ function KpiTile({
   return (
     <div title={title} className="min-w-0 rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)] px-4 py-3">
       <div className="text-caption text-[var(--estate-text-muted)]">{label}</div>
-      <div className="mt-1 font-mono text-[22px] font-semibold leading-tight tabular-nums" style={{ color: valueColor ?? 'var(--estate-ink)' }}>
+      <div className="mt-1 font-mono text-kpi-md font-semibold leading-tight tabular-nums" style={{ color: valueColor ?? 'var(--estate-ink)' }}>
         {value}
       </div>
       {sub && <div className="mt-0.5 truncate text-caption text-[var(--estate-text-secondary)]">{sub}</div>}
