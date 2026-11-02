@@ -4,7 +4,8 @@
  * connections and those shared with them (by name, stored as the id); other operations do not.
  */
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { chooseSelectValue, openSelect, selectListbox, selectValue } from '@/test/form-select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StepEditor } from '../FlowForm';
 import type { Def, Step } from '../editor-model';
@@ -38,12 +39,14 @@ describe('connection picker', () => {
       ),
     );
     const onChange = renderTool('object_store.list', { prefix: 'inv/' });
-    const select = screen.getByLabelText('Connection') as HTMLSelectElement;
-    await within(select).findByRole('option', { name: 'My invoices' });
-    expect(within(select).getByRole('group', { name: 'Shared with you' })).toBeTruthy();
-    expect(within(select).getByRole('option', { name: 'Team docs (not tested) · Ana Owner' })).toBeTruthy();
+    await screen.findByLabelText('Connection');
+    openSelect('Connection');
+    const menu = selectListbox();
+    expect(within(menu).getByRole('option', { name: 'My invoices' })).toBeTruthy();
+    expect(within(menu).getByRole('group', { name: 'Shared with you' })).toBeTruthy();
+    expect(within(menu).getByRole('option', { name: 'Team docs (not tested) · Ana Owner' })).toBeTruthy();
 
-    fireEvent.change(select, { target: { value: 'c-team' } });
+    chooseSelectValue('Connection', 'c-team');
     const next = onChange.mock.calls[0]![0] as Def;
     expect(next.steps![0]!.config.input).toEqual({ prefix: 'inv/', connection: 'c-team' });
     expect(screen.getByRole('link', { name: /Manage connections/ }).getAttribute('href')).toBe('/agent-staging/connections');
@@ -53,8 +56,9 @@ describe('connection picker', () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ connections: [] }), { status: 200 }));
     renderTool('object_store.list', { connection: 'c-gone' });
     await screen.findByText('You have no connections yet.');
-    expect((screen.getByLabelText('Connection') as HTMLSelectElement).value).toBe('c-gone');
-    expect(screen.getByRole('option', { name: 'c-gone (not available to you)' })).toBeTruthy();
+    expect(selectValue('Connection')).toBe('c-gone');
+    openSelect('Connection');
+    expect(within(selectListbox()).getByRole('option', { name: 'c-gone (not available to you)' })).toBeTruthy();
   });
 
   it('is not shown for operations without a connection', () => {

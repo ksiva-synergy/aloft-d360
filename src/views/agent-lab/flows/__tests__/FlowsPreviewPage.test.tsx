@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { chooseSelectValue } from '@/test/form-select';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import FlowsPage from '../index';
 import { FLOW_TEMPLATES } from '@/lib/flows/templates';
@@ -125,7 +126,7 @@ describe('Flows builder', { timeout: 20_000 }, () => {
     render(<FlowsPage />);
     await openTemplate(/Order status webhook to REST and alert/);
     fireEvent.click(screen.getByRole('button', { name: /Test run/ }));
-    fireEvent.change(screen.getByLabelText('Failure drill'), { target: { value: 'fetch_order' } });
+    chooseSelectValue('Failure drill', 'fetch_order');
     fireEvent.click(screen.getByRole('button', { name: /Run test/ }));
     await screen.findByText(/The simulated run failed/);
     expect(screen.getByText('Failure drill: simulated outage')).toBeTruthy();
@@ -152,7 +153,7 @@ describe('Flows builder', { timeout: 20_000 }, () => {
     render(<FlowsPage />);
     await openTemplate(/Overdue purchase order follow-up/);
 
-    fireEvent.change(screen.getByLabelText('Trigger', { selector: '#trigger-type' }), { target: { value: 'schedule' } });
+    chooseSelectValue('Trigger', 'schedule');
     fireEvent.change(screen.getByLabelText('Schedule (cron, UTC)'), { target: { value: '0 6 * * 1' } });
     fireEvent.change(screen.getByLabelText('Budget per run (USD)'), { target: { value: '0.5' } });
     expect(within(canvas()).getByRole('button', { name: /Trigger: On a schedule/ })).toBeTruthy();
