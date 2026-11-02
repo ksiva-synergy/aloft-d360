@@ -1,6 +1,8 @@
-﻿'use client';
+'use client';
 
-import React, { useState, useEffect, useRef, Suspense, useCallback } from 'react';
+import { Select } from '@/components/form/Select';
+import { DatePicker } from '@/components/form/DatePicker';
+import React, { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from '@/lib/navigation';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,7 +10,9 @@ import { Pagination, JobDetailDrawer, ScannedObjectsTab, ActiveRunsPanel } from 
 import JobsLaunchWizard from '@/components/estate/JobsLaunchWizard';
 import ChildJobsPanel from '@/components/estate/ChildJobsPanel';
 import {
+  formatJobScopeHuman,
   formatStatsSummary,
+  getJobPrimaryMetric,
   launchUsesEstateExcludeTree,
   resolveDisplayJobStatus,
   resolveModalLaunchScope,
@@ -16,19 +20,21 @@ import {
   stripExcludeSchemasForKind,
   isJobsLaunchWizardEnabled,
 } from '@/lib/estate/job-ui';
-import JobsCockpitPanel from '@/components/estate/JobsCockpitPanel';
+import JobsCockpitPanel, { type ScannedTier } from '@/components/estate/JobsCockpitPanel';
 import { isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
-import { HARVEST_SCHEDULES, relativeNextRun, getNextRun } from '@/lib/context/schedules';
+import { HARVEST_SCHEDULES, relativeNextRun, getNextRun, getNextRuns } from '@/lib/context/schedules';
+import { describeCron } from '@/lib/estate/cron-label';
 import { toast } from 'sonner';
 import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
+import { ESTATE_STAGE, estateStageDisplayLabel } from '@/lib/estate/stages';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 import { inkOf } from '@/lib/typography/tokens';
 // ?? Types ??????????????????????????????????????????????????????????????????????
 
-type ViewLevel = 'l1' | 'l2' | 'l3';
-type ActiveTab = 'jobs' | 'scanned' | 'active';
+type ViewLevel = 'l1' | 'kind';
+type ActiveTab = 'jobs' | 'health' | 'scanned' | 'active';
 
 interface JobItem {
   id: string;
@@ -68,6 +74,15 @@ interface SplitPlanPreview {
   liveScopeLaunch?: boolean;
 }
 
+interface KindRecentRun {
+  id: string;
+  status: string;
+  created_at: string | null;
+  finished_at: string | null;
+  duration_s: number | null;
+  stats: Record<string, unknown> | null;
+}
+
 interface KindSummary {
   kind: string;
   total: number;
@@ -75,18 +90,17 @@ interface KindSummary {
   failed: number;
   running: number;
   queued: number;
-  last_run_at: string | null;
-  last_status: string | null;
-}
-
-interface DateGroup {
-  date: string;
-  total: number;
-  succeeded: number;
-  failed: number;
-  running: number;
-  queued: number;
-  total_duration_s: number | null;
+  last_finished_at: string | null;
+  // Present when the summary API is called with detail=true
+  partial?: number;
+  cancelled?: number;
+  other?: number;
+  last_status?: string | null;
+  median_duration_s?: number | null;
+  prev_total?: number | null;
+  prev_succeeded?: number | null;
+  prev_failed?: number | null;
+  recent?: KindRecentRun[];
 }
 
 interface QueuedJobItem {
@@ -110,7 +124,9 @@ function relativeTime(iso: string | null): string {
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   const days = Math.floor(diff / 86_400_000);
   if (days < 7) return `${days}d ago`;
-  return d.toLocaleDateString();
+  if (days < 60) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
 }
 
 function getDuration(startedAt: string | null, finishedAt: string | null): string {
@@ -125,11 +141,6 @@ function formatDurationS(s: number | null): string {
   if (s === null || s === undefined) return '--';
   if (s < 60) return `${s.toFixed(0)}s`;
   return `${Math.floor(s / 60)}m ${Math.floor(s % 60)}s`;
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 // ?? Kind metadata ??????????????????????????????????????????????????????????????
@@ -329,43 +340,43 @@ const JOB_KIND_GROUPS: JobKindGroup[] = [
   {
     id: 'foundation',
     step: '01',
-    label: 'Estate Foundation',
-    subtitle: 'Catalog discovery & re-inventory',
+    label: 'Discover',
+    subtitle: 'Find every catalog, schema and table in your sources',
     kinds: ['estate_inventory'],
   },
   {
     id: 'structural',
     step: '02',
-    label: 'Structural Harvest',
-    subtitle: 'T0 - schema, columns & change detection',
+    label: 'Scan',
+    subtitle: 'Read columns and types, and detect schema changes',
     kinds: ['t0_structural', 'change_detect'],
   },
   {
     id: 'enrichment',
     step: '03',
-    label: 'Enrichment Pipeline',
-    subtitle: 'T1 -> T2 -> embeddings',
+    label: 'Profile, describe & index',
+    subtitle: 'Compute statistics, write descriptions, make searchable',
     kinds: ['t1_profile', 't2_semantic', 'embed'],
   },
   {
     id: 'usage',
     step: '04',
-    label: 'Usage & Connections',
-    subtitle: 'T3 - query history & lineage',
+    label: 'Usage & lineage',
+    subtitle: 'Learn from query history which tables are used together',
     kinds: ['t3_usage'],
   },
   {
     id: 'entity_model',
     step: '05',
-    label: 'Entity modelling (T4)',
-    subtitle: 'Semantic entities, dimensions & measures from T2 cards',
+    label: 'Business model',
+    subtitle: 'Draft entities, dimensions and metrics from descriptions',
     kinds: ['t4_scan'],
   },
   {
     id: 'knowledge',
     step: '06',
-    label: 'Knowledge & Mapping',
-    subtitle: 'Cross-source links, silos & sync',
+    label: 'Publish & connect',
+    subtitle: 'Publish to Knowledge and link similar data across sources',
     kinds: ['knowledge_sync'],
   },
 ];
@@ -606,7 +617,7 @@ function RunJobConfirmModal({
         {/* Header */}
         <div className="px-7 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border, rgba(255,255,255,0.06))' }}>
      <div className="text-label mb-3" style={{ color: 'var(--text-secondary, #8892A4)' }}>
-            Launching {confirm.kinds.length} job type{confirm.kinds.length !== 1 ? 's' : ''} on Fargate
+            Launching {confirm.kinds.length} job type{confirm.kinds.length !== 1 ? 's' : ''}
           </div>
           <div className="flex flex-wrap gap-2">
             {confirm.kinds.map(k => <KindBadge key={k} kind={k} />)}
@@ -707,7 +718,7 @@ function RunJobConfirmModal({
             {confirm.availableSources.length > 1 && (
               <div className="flex flex-col gap-1.5">
                 <span className="text-size-ui font-sans" style={{ color: 'var(--text-secondary, #8892A4)' }}>Context source</span>
-                <select
+                <Select
                   value={confirm.sourceId ?? ''}
                   onChange={e => onChangeSourceId(e.target.value)}
                   className="rounded border px-3 py-2 text-size-ui font-mono"
@@ -716,7 +727,7 @@ function RunJobConfirmModal({
                   {confirm.availableSources.map(s => (
                     <option key={s.id} value={s.id}>{s.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
 
@@ -954,8 +965,7 @@ function RunJobConfirmModal({
 
               {!splitPlansLoading && activePlan?.harvestModelId && confirm.kinds.includes('t2_semantic') && (
                 <div className="text-[length:var(--type-caption-size)] font-sans pl-1" style={{ color: inkOf('#8892A4') }}>
-                  Harvest LLM model: <span style={{ color: 'var(--ink-1)' }}>{activePlan.harvestModelId}</span>
-                  <span className=""> — runs on Fargate (xAI direct when XAI_API_KEY is set)</span>
+                  Description model: <span style={{ color: 'var(--ink-1)' }}>{activePlan.harvestModelId}</span>
                 </div>
               )}
 
@@ -984,7 +994,7 @@ function RunJobConfirmModal({
 
               {!splitPlansLoading && activePlan?.needsSplit && (
                 <div className="text-size-ui font-sans pt-1" style={{ color: 'var(--text-tertiary, #8892A4)' }}>
-                  {activePlan.chunks} Fargate tasks will be queued{" | "}{activePlan.maxConcurrent}{" run simultaneously | "}remainder queued and launched as tasks complete
+                  Split into {activePlan.chunks} batches. {activePlan.maxConcurrent} run at once; the rest start as earlier batches finish.
                 </div>
               )}
             </div>
@@ -1103,7 +1113,7 @@ function RunJobConfirmModal({
               Cancel
             </button>
             <button onClick={onConfirm} disabled={submitting || confirm.loading || launchBlocked}
-       className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-ui transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+       className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-lg border text-ui transition duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: 'var(--brand-a)', color: '#FFFFFF', borderColor: 'var(--brand-a)' }}>
               {submitting ? (
                 <>
@@ -1115,14 +1125,14 @@ function RunJobConfirmModal({
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
                   </svg>
-                  Launch {activePlan.chunks} chunks on Fargate
+                  Start {activePlan.chunks} batches
                 </>
               ) : (
                 <>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
-                  Launch {confirm.kinds.length} job{confirm.kinds.length !== 1 ? 's' : ''} on Fargate
+                  Start {confirm.kinds.length} job{confirm.kinds.length !== 1 ? 's' : ''}
                 </>
               )}
             </button>
@@ -1133,7 +1143,17 @@ function RunJobConfirmModal({
   );
 }
 
-function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
+function RunJobButton({
+  onJobQueued,
+  launchRequest,
+  hideTrigger = false,
+}: {
+  onJobQueued: () => void;
+  /** Mount only the confirm modal (driven by launchRequest), without the dropdown button. */
+  hideTrigger?: boolean;
+  /** Open the confirm modal for one kind (nonce makes repeat clicks re-trigger). */
+  launchRequest?: { kind: string; nonce: number } | null;
+}) {
   const [open, setOpen] = useState(false);
   const [selectedKinds, setSelectedKinds] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
@@ -1280,6 +1300,15 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
     return () => clearTimeout(timer);
   }, [splitPlanScopeKey, refreshSplitPlans]);
 
+  // Seeded with the request present at mount so a remount (e.g. switching page level) does not replay it.
+  const lastLaunchNonceRef = useRef<number | null>(launchRequest?.nonce ?? null);
+  useEffect(() => {
+    if (!launchRequest || lastLaunchNonceRef.current === launchRequest.nonce) return;
+    lastLaunchNonceRef.current = launchRequest.nonce;
+    void openConfirmation([launchRequest.kind]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [launchRequest]);
+
   function closeConfirm() {
     splitPlanRequestRef.current++;
     splitPlanAbortRef.current?.abort();
@@ -1291,14 +1320,16 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
     setConfirm(null);
   }
 
-  async function openConfirmation() {
+  async function openConfirmation(kindsOverride?: string[]) {
+    const launchKinds = kindsOverride ?? Array.from(selectedKinds);
+    if (kindsOverride) setSelectedKinds(new Set(kindsOverride));
     setOpen(false);
     activeSplitPlanScopeRef.current = null;
     setSplitPlans({});
     setSplitPlanError(null);
     setSplitPlansLoading(false);
     setConfirm({
-      kinds: Array.from(selectedKinds),
+      kinds: launchKinds,
       objectCount: null,
       sourceName: null,
       sourceId: null,
@@ -1310,7 +1341,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       includedSchemas: new Set(),
       scopeTreeMode: 'exclude',
       includePatterns: '',
-      sequential: Array.from(selectedKinds).length > 1,
+      sequential: launchKinds.length > 1,
       forceFullScan: false,
       forceReprofile: false,
       forceReEnrich: false,
@@ -1354,7 +1385,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
       // T1/T2 operate on already-harvested context objects — auto-excluding curated_db
       // (1200+ estate rows) would filter out all 314 harvested tables and profile nothing.
       const autoExclude = new Set<string>();
-      const kindsArray = Array.from(selectedKinds);
+      const kindsArray = launchKinds;
       const needsEstateScope =
         kindsArray.includes('t0_structural') || kindsArray.includes('estate_inventory');
       if (tree && needsEstateScope) {
@@ -1527,11 +1558,11 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
         const hasSplit = data.split_summaries && data.split_summaries.length > 0;
         if (hasSplit) {
           const total = data.split_summaries.reduce((s: number, ss: any) => s + ss.totalChildren, 0);
-          toast.success(`Auto-split: ${total} Fargate tasks launched`, {
+          toast.success(`Started ${total} batches`, {
             description: `${data.split_summaries.map((ss: any) => `${ss.kind}: ${ss.totalChildren} chunks`).join(' | ')} | ${modeLabel}`,
           });
         } else {
-          toast.success(`Launched ${confirm.kinds.length} job type${confirm.kinds.length !== 1 ? 's' : ''} on Fargate`, {
+          toast.success(`Started ${confirm.kinds.length} job type${confirm.kinds.length !== 1 ? 's' : ''}`, {
             description: `${data.jobs_enqueued} job(s) enqueued | ${data.task_arns?.length ?? 0} container(s) started | ${modeLabel}`,
           });
         }
@@ -1559,7 +1590,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           failureReasons || err.error || err.message,
           err,
         );
-        toast.error('Failed to launch Fargate task', {
+        toast.error('Could not start the job', {
           description: failureReasons
             ? `${description}${err.jobs_enqueued ? ` (${err.jobs_enqueued} job(s) left queued)` : ''}`
             : description,
@@ -1575,18 +1606,20 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
 
   return (
     <>
+      {!hideTrigger && (
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setOpen(!open)}
-     className="inline-flex items-center gap-2 px-4 py-2 rounded border text-label transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-          style={{ backgroundColor: 'var(--brand-a)', color: 'var(--on-brand)', borderColor: 'var(--brand-a)' }}
+          aria-expanded={open}
+          className="inline-flex items-center gap-2 h-9 px-3.5 rounded-ctl border text-label transition-[transform,background-color] duration-hover ease-out-strong active:scale-[0.97] hover:bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)]"
+          style={{ backgroundColor: 'var(--card)', color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 45%, transparent)' }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          Run Job
+          Run a job
           {selectedKinds.size > 0 && (
-            <span className="px-1.5 py-0.5 rounded text-size-ui font-semibold" style={{ backgroundColor: '#FFFFFF', color: 'var(--brand-a)' }}>
+            <span className="px-1.5 py-0.5 rounded text-size-ui font-semibold" style={{ backgroundColor: 'var(--brand-a)', color: 'var(--on-brand)' }}>
               {selectedKinds.size}
             </span>
           )}
@@ -1658,7 +1691,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
                           onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--muted, rgba(255,255,255,0.04))'; }}
                           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = checked ? `${withAlpha(meta.color, '10')}` : 'transparent'; }}
                         >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all`}
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition`}
                             style={{
                               borderColor: checked ? meta.color : 'var(--border, rgba(255,255,255,0.2))',
                               backgroundColor: checked ? meta.color : 'transparent',
@@ -1701,8 +1734,8 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
               </span>
               <button
                 disabled={selectedKinds.size === 0}
-                onClick={openConfirmation}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded border text-label transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={() => openConfirmation()}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded border text-label transition duration-150 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'var(--brand-a)', color: 'var(--on-brand)', borderColor: 'var(--brand-a)' }}
               >
                 Review {selectedKinds.size > 0 ? `${selectedKinds.size} ` : ''}job{selectedKinds.size !== 1 ? 's' : ''}
@@ -1714,6 +1747,7 @@ function RunJobButton({ onJobQueued }: { onJobQueued: () => void }) {
           </div>
         )}
       </div>
+      )}
 
       {confirm && (
         <RunJobConfirmModal
@@ -1766,225 +1800,1046 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
   );
 }
 
-// ?? L1: Kind Summary Cards ?????????????????????????????????????????????????????
+// ── L1: overview — stats, attention, stage table ─────────────────────────────
 
-function SuccessRing({ rate, size = 36, stroke = 3, color }: { rate: number; size?: number; stroke?: number; color: string }) {
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const filled = (rate / 100) * circ;
-  return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--ink-1) 6%, transparent)" strokeWidth={stroke} />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-        strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round" className="transition-all duration-700" />
-    </svg>
-  );
+type StatsWindow = '1' | '7' | '30' | 'all';
+
+const STATS_WINDOWS: { value: StatsWindow; label: string; long: string }[] = [
+  { value: '1', label: '24h', long: 'last 24 hours' },
+  { value: '7', label: '7d', long: 'last 7 days' },
+  { value: '30', label: '30d', long: 'last 30 days' },
+  { value: 'all', label: 'All', long: 'all time' },
+];
+
+function parseStatsWindow(raw: string | null): StatsWindow {
+  return raw === '1' || raw === '30' || raw === 'all' ? raw : '7';
 }
 
-function AggregateStats({ summaries }: { summaries: KindSummary[] }) {
-  const totalRuns = summaries.reduce((s, k) => s + k.total, 0);
-  const totalSuccess = summaries.reduce((s, k) => s + k.succeeded, 0);
-  const totalFailed = summaries.reduce((s, k) => s + k.failed, 0);
-  const totalRunning = summaries.reduce((s, k) => s + k.running, 0);
-  const totalQueued = summaries.reduce((s, k) => s + k.queued, 0);
-  const overallRate = totalRuns > 0 ? Math.round((totalSuccess / totalRuns) * 100) : 0;
-  const rateColor = overallRate >= 90 ? '#2DD4A0' : overallRate >= 70 ? 'var(--brand-a-ink)' : '#EF4444';
-  const activeKinds = summaries.filter(s => s.total > 0).length;
+const OK_COLOR = '#2DD4A0';
+const WARN_COLOR = '#F59E0B';
+const FAIL_COLOR = '#EF4444';
+const RECENT_SLOTS = 14;
 
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
-      <div className="flex items-center gap-3 rounded-lg border px-4 py-3"
-        style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
-        <SuccessRing rate={overallRate} color={rateColor} />
-        <div>
-          <div className="text-size-title-section font-mono font-semibold" style={{ color: rateColor }}>{overallRate}%</div>
-     <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Success</div>
-        </div>
-      </div>
-      <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
-        <div className="text-size-title-section font-mono font-semibold" style={{ color: 'var(--estate-ink)' }}>{totalRuns.toLocaleString()}</div>
-    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Total Runs</div>
-      </div>
-      <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: 'rgba(45,212,160,0.15)', backgroundColor: 'rgba(45,212,160,0.04)' }}>
-        <div className="text-size-title-section font-mono font-semibold" style={{ color: inkOf('#2DD4A0') }}>{totalSuccess.toLocaleString()}</div>
-    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Succeeded</div>
-      </div>
-      <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: totalFailed > 0 ? 'rgba(239,68,68,0.2)' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)', backgroundColor: totalFailed > 0 ? 'rgba(239,68,68,0.04)' : 'var(--estate-raised)' }}>
-        <div className="text-size-title-section font-mono font-semibold" style={{ color: totalFailed > 0 ? '#EF4444' : 'var(--estate-text-muted)' }}>{totalFailed}</div>
-    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Failed</div>
-      </div>
-      <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 6%, transparent)', backgroundColor: totalRunning > 0 ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'var(--estate-raised)' }}>
-        <div className="flex items-center gap-2">
-          {totalRunning > 0 && (
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
-            </span>
-          )}
-          <span className="text-size-title-section font-mono font-semibold" style={{ color: totalRunning > 0 ? 'var(--brand-a-ink)' : 'var(--estate-text-muted)' }}>{totalRunning + totalQueued}</span>
-        </div>
-    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Active</div>
-      </div>
-      <div className="flex flex-col justify-center rounded-lg border px-4 py-3"
-        style={{ borderColor: 'var(--line-1)', backgroundColor: 'var(--estate-raised)' }}>
-        <div className="text-size-title-section font-mono font-semibold" style={{ color: 'var(--estate-ink)' }}>{activeKinds}/{ALL_KINDS.length}</div>
-    <div className="text-label " style={{ color: 'var(--estate-text-muted)' }}>Job Types</div>
-      </div>
-    </div>
-  );
+function rateTone(rate: number): string {
+  return rate >= 90 ? OK_COLOR : rate >= 70 ? WARN_COLOR : FAIL_COLOR;
 }
 
-function JobKindGroupHeader({ group, isFirst }: { group: JobKindGroup; isFirst?: boolean }) {
-  return (
-    <div className={cn('col-span-full flex items-center gap-3', isFirst ? 'mb-1' : 'mt-6 mb-1')}>
-      <span
-        className="shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-size-ui font-mono font-semibold"
-        style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)' }}
-      >
-        {group.step}
-      </span>
-      <div className="min-w-0">
-    <div className="text-label " style={{ color: 'var(--estate-text-secondary)' }}>
-          {group.label}
-        </div>
-        <div className="text-caption mt-0.5" style={{ color: 'var(--estate-text-muted)' }}>
-          {group.subtitle}
-        </div>
-      </div>
-      <div className="h-px flex-1" style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 8%, transparent)' }} />
-    </div>
-  );
+function finishedSuccessRate(ok: number, failed: number): number | null {
+  const finished = ok + failed;
+  return finished > 0 ? Math.round((ok / finished) * 100) : null;
 }
 
-function JobKindCard({
-  kind,
-  summary,
-  onSelect,
-}: {
-  kind: string;
-  summary?: KindSummary;
-  onSelect: (kind: string) => void;
-}) {
-  const cardBg = 'var(--estate-raised)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const meta = getKindMeta(kind);
-  const s = summary;
-  const sched = meta.scheduleId ? HARVEST_SCHEDULES.find(h => h.id === meta.scheduleId) : null;
-  const successRate = s && s.total > 0 ? Math.round((s.succeeded / s.total) * 100) : null;
-  const hasFailures = s && s.failed > 0;
-  const isActive = s && (s.running > 0 || s.queued > 0);
+type RunDotStatus = 'done' | 'failed' | 'empty' | 'running' | 'orchestrating' | 'queued' | 'cancelled';
 
+function runDotStatus(run: KindRecentRun, kind: string): RunDotStatus {
+  const s = run.status.toLowerCase();
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
+  return resolveDisplayJobStatus(run.status, run.stats, kind);
+}
+
+const RUN_DOT_STYLE: Record<RunDotStatus, { color: string; label: string }> = {
+  done: { color: OK_COLOR, label: 'succeeded' },
+  failed: { color: FAIL_COLOR, label: 'failed' },
+  empty: { color: WARN_COLOR, label: 'succeeded with 0 objects' },
+  running: { color: 'var(--brand-a)', label: 'running' },
+  orchestrating: { color: '#93C5FD', label: 'orchestrating' },
+  queued: { color: 'color-mix(in srgb, var(--ink-1) 30%, transparent)', label: 'queued' },
+  cancelled: { color: 'color-mix(in srgb, var(--ink-1) 35%, transparent)', label: 'cancelled' },
+};
+
+/** Run-strip bar paint; cancelled runs are hollow so they never read as an empty slot. */
+function runBarStyle(st: RunDotStatus): React.CSSProperties {
+  const color = RUN_DOT_STYLE[st].color;
+  return st === 'cancelled'
+    ? { backgroundColor: 'transparent', boxShadow: `inset 0 0 0 1px ${color}` }
+    : { backgroundColor: color };
+}
+
+function RunDots({ runs, kind }: { runs: KindRecentRun[]; kind: string }) {
+  const ordered = [...runs].slice(0, RECENT_SLOTS).reverse();
+  const pad = RECENT_SLOTS - ordered.length;
+  const counts = ordered.reduce<Record<string, number>>((acc, r) => {
+    const st = runDotStatus(r, kind);
+    acc[st] = (acc[st] ?? 0) + 1;
+    return acc;
+  }, {});
+  const summary = Object.entries(counts).map(([k, n]) => `${n} ${RUN_DOT_STYLE[k as RunDotStatus].label}`).join(', ');
   return (
-    <button
-      onClick={() => onSelect(kind)}
-      className="group text-left rounded-xl border p-5 flex flex-col gap-4 transition-all duration-200 hover:translate-y-[-2px] hover:shadow-lg"
-      style={{
-        borderColor: isActive ? meta.color : meta.border,
-        backgroundColor: cardBg,
-        cursor: 'pointer',
-        boxShadow: isActive ? `0 0 20px ${withAlpha(meta.color, '15')}` : undefined,
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = meta.color; (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 24px ${withAlpha(meta.color, '20')}`; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isActive ? meta.color : meta.border; (e.currentTarget as HTMLElement).style.boxShadow = isActive ? `0 0 20px ${withAlpha(meta.color, '15')}` : 'none'; }}
+    <div
+      className="flex items-center gap-[3px]"
+      role="img"
+      aria-label={ordered.length ? `Last ${ordered.length} runs, oldest first: ${summary}` : 'No runs yet'}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: meta.color, opacity: s ? 1 : 0.3 }} />
-          <div className="min-w-0">
-      <div className="text-label truncate" style={{ color: 'var(--estate-ink)' }}>
-              {meta.label}
-            </div>
-            <div className="text-size-ui leading-snug mt-0.5 line-clamp-1" style={{ color: 'var(--estate-text-secondary)' }}>
-              {meta.description}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {isActive && (
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-label "
-              style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--brand-a)]" />
-              </span>
-              {s!.running > 0 ? `${s!.running} running` : `${s!.queued} queued`}
-            </span>
-          )}
-          {hasFailures && (
-            <span className="px-2 py-1 rounded-md text-size-ui font-mono font-semibold"
-              style={{ color: inkOf('#EF4444'), backgroundColor: 'rgba(239,68,68,0.1)' }}>
-              {s!.failed} failed
-            </span>
-          )}
-        </div>
-      </div>
+      {Array.from({ length: pad }).map((_, i) => (
+        <span key={`pad-${i}`} className="h-3 w-1.5 rounded-[2px] bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]" />
+      ))}
+      {ordered.map(run => {
+        const st = runDotStatus(run, kind);
+        const style = RUN_DOT_STYLE[st];
+        const when = relativeTime(run.finished_at ?? run.created_at);
+        const dur = run.duration_s != null ? ` · ${formatDurationS(Math.round(run.duration_s))}` : '';
+        return (
+          <span
+            key={run.id}
+            title={`${style.label} · ${when}${dur}`}
+            className={cn('w-1.5 rounded-[2px]', st === 'failed' ? 'h-3.5' : 'h-3', (st === 'running' || st === 'orchestrating') && 'animate-pulse')}
+            style={runBarStyle(st)}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
-      {s ? (
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <div className="h-1.5 w-full rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] mb-2">
-              <div className="h-full flex">
-                <div className="h-full transition-all duration-500" style={{ width: `${(s.succeeded / s.total) * 100}%`, backgroundColor: '#2DD4A0' }} />
-                {s.failed > 0 && <div className="h-full transition-all duration-500" style={{ width: `${(s.failed / s.total) * 100}%`, backgroundColor: '#EF4444' }} />}
-                {s.running > 0 && <div className="h-full transition-all duration-500" style={{ width: `${(s.running / s.total) * 100}%`, backgroundColor: 'var(--brand-a)' }} />}
-              </div>
-            </div>
-            <div className="flex items-center gap-4 text-size-ui font-mono">
-              <span style={{ color: 'var(--estate-ink)' }}>{s.total} runs</span>
-              {successRate !== null && (
-                <span style={{ color: successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? 'var(--brand-a-ink)' : '#EF4444' }}>
-                  {successRate}% ok
-                </span>
-              )}
-              {s.succeeded > 0 && <span style={{ color: inkOf('#2DD4A0') }}>{s.succeeded} passed</span>}
-            </div>
-          </div>
-          {successRate !== null && (
-            <SuccessRing rate={successRate} size={40} stroke={3.5}
-              color={successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? 'var(--brand-a-ink)' : '#EF4444'} />
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 py-2">
-          <div className="h-1.5 w-full rounded-full bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)]" />
-          <span className="text-caption shrink-0" style={{ color: mutedColor }}>no runs yet</span>
-        </div>
-      )}
+function InlineStat({
+  label,
+  value,
+  valueColor,
+  delta,
+  sub,
+  title,
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueColor?: string;
+  delta?: React.ReactNode;
+  sub?: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-baseline gap-1.5" title={title}>
+      <span className="font-mono text-ui font-semibold tabular-nums" style={{ color: valueColor ?? 'var(--estate-ink)' }}>
+        {value}
+      </span>
+      <span className="text-caption text-[var(--estate-text-secondary)]">{label}</span>
+      {delta}
+      {sub && <span className="truncate text-caption text-[var(--estate-text-muted)]">{sub}</span>}
+    </div>
+  );
+}
 
-      <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: 'var(--line-1)' }}>
-        <span className="text-size-ui font-mono" style={{ color: 'var(--estate-text-muted)' }}>
-          {s?.last_run_at ? (
-            <>
-              <span style={{ color: 'var(--estate-text-secondary)' }}>Last run </span>
-              {relativeTime(s.last_run_at)}
-            </>
-          ) : (
-            'Never run'
+/** Short, consistent "how long ago" for attention rows (avoids mixing dates and relative times). */
+function agoText(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 3_600_000) return `${Math.max(1, Math.floor(diff / 60_000))}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
+
+/** Window-level run stats + attention list shared by the Health tab card and the Job types strip. */
+function computeRunHealth(summaries: KindSummary[]) {
+  const sum = (pick: (s: KindSummary) => number | null | undefined) =>
+    summaries.reduce((acc, s) => acc + (pick(s) ?? 0), 0);
+  const total = sum(s => s.total);
+  const failed = sum(s => s.failed);
+  const rate = finishedSuccessRate(sum(s => s.succeeded) + sum(s => s.partial), failed);
+  const items = buildAttentionItems(summaries);
+  const kinds = [...new Set(items.map(i => i.kind))];
+  const tone = items.length === 0 ? OK_COLOR : items.some(i => i.severity === 'fail') ? FAIL_COLOR : WARN_COLOR;
+  return {
+    sum, total, failed, rate, items, kinds, tone,
+    runningNow: sum(s => s.running),
+    queuedNow: sum(s => s.queued),
+    headline: items.length === 0
+      ? 'All job types healthy'
+      : `${kinds.length} job type${kinds.length === 1 ? ' needs' : 's need'} attention`,
+  };
+}
+
+function StatsWindowSelect({ value, onChange }: { value: StatsWindow; onChange: (w: StatsWindow) => void }) {
+  return (
+    <Select
+      aria-label="Time window for run statistics"
+      value={value}
+      onChange={e => onChange(e.target.value as StatsWindow)}
+      className="h-7 shrink-0 rounded-ctl border border-[var(--line-1)] bg-[var(--card)] px-2 text-caption text-[var(--estate-ink)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+    >
+      {STATS_WINDOWS.map(w => (
+        <option key={w.value} value={w.value}>{w.value === 'all' ? 'All time' : w.long.replace(/^last/, 'Last')}</option>
+      ))}
+    </Select>
+  );
+}
+
+/** One-line health summary above the Job types table; the full analysis lives on the Health tab. */
+function HealthStrip({
+  summaries,
+  window,
+  onWindowChange,
+  onOpenHealth,
+  onSelectKind,
+}: {
+  summaries: KindSummary[];
+  window: StatsWindow;
+  onWindowChange: (w: StatsWindow) => void;
+  onOpenHealth: () => void;
+  onSelectKind: (kind: string) => void;
+}) {
+  const h = computeRunHealth(summaries);
+  const shownKinds = h.kinds.slice(0, 3);
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)] px-4 py-2 text-size-ui">
+      <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: h.tone }} />
+      <span className="font-medium" style={{ color: h.items.length ? inkOf(h.tone) : 'var(--estate-ink)' }}>{h.headline}</span>
+      {shownKinds.length > 0 && (
+        <span className="flex min-w-0 flex-wrap items-center gap-1">
+          {shownKinds.map(k => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onSelectKind(k)}
+              className="rounded-ctl px-1.5 py-0.5 text-caption text-[var(--estate-text-secondary)] underline-offset-2 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] hover:text-[var(--estate-ink)] hover:underline"
+            >
+              {getKindMeta(k).label}
+            </button>
+          ))}
+          {h.kinds.length > shownKinds.length && (
+            <span className="text-caption text-[var(--estate-text-muted)]">+{h.kinds.length - shownKinds.length}</span>
           )}
         </span>
-        {sched && (
-          sched.deployment === 'manual' ? (
-            <span className="inline-flex items-center gap-1 text-size-ui font-mono px-2 py-0.5 rounded-md"
-              style={{ color: 'var(--estate-text-muted)', backgroundColor: 'rgba(136,146,164,0.1)' }}
-              title="Manual / on-demand — no EventBridge rule deployed">
-              manual
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-size-ui font-mono px-2 py-0.5 rounded-md"
-              style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              {relativeNextRun(sched)}
-            </span>
-          )
+      )}
+      <span className="text-caption text-[var(--estate-text-muted)] tabular-nums">
+        {h.total === 0
+          ? 'No runs'
+          : `${h.rate === null ? '\u2014' : `${h.rate}%`} success \u00b7 ${h.total.toLocaleString()} run${h.total === 1 ? '' : 's'}${h.failed > 0 ? ` \u00b7 ${h.failed.toLocaleString()} failed` : ''}`}
+      </span>
+      <span className="ml-auto flex items-center gap-2">
+        <StatsWindowSelect value={window} onChange={onWindowChange} />
+        <button
+          type="button"
+          onClick={onOpenHealth}
+          className="group inline-flex items-center gap-0.5 whitespace-nowrap text-caption font-medium text-[var(--brand-a-ink)] hover:underline underline-offset-2"
+        >
+          View health
+          <ChevronRight className="size-3.5 transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+// ── Health tab ───────────────────────────────────────────────────────────────
+
+type HealthSegKey = 'done' | 'empty' | 'failed' | 'cancelled' | 'active';
+
+const HEALTH_SEGMENTS: { key: HealthSegKey; label: string; color: string }[] = [
+  { key: 'done', label: 'Succeeded', color: OK_COLOR },
+  { key: 'empty', label: '0 objects', color: WARN_COLOR },
+  { key: 'failed', label: 'Failed', color: FAIL_COLOR },
+  { key: 'cancelled', label: 'Cancelled', color: 'color-mix(in srgb, var(--ink-1) 22%, transparent)' },
+  { key: 'active', label: 'Running / queued', color: 'var(--brand-a)' },
+];
+
+function healthSeg(job: JobItem): HealthSegKey {
+  const st = runDotStatus(
+    { id: job.id, status: job.status, created_at: job.created_at, finished_at: job.finished_at, duration_s: null, stats: job.stats },
+    job.job_kind,
+  );
+  return st === 'done' || st === 'empty' || st === 'failed' || st === 'cancelled' ? st : 'active';
+}
+
+interface HealthBucket {
+  key: string;
+  label: string;
+  tip: string;
+  counts: Record<HealthSegKey, number>;
+}
+
+/** Hourly buckets for the last 24h, otherwise one bucket per local day. */
+function buildRunBuckets(runs: JobItem[], hourly: boolean, n: number): HealthBucket[] {
+  const now = new Date();
+  const keyOf = (d: Date) => (hourly ? `${d.toDateString()} ${d.getHours()}` : d.toDateString());
+  const buckets: HealthBucket[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = hourly
+      ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() - i)
+      : new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    buckets.push({
+      key: keyOf(d),
+      label: hourly
+        ? d.toLocaleTimeString(undefined, { hour: 'numeric' })
+        : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+      tip: hourly
+        ? d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
+        : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+      counts: { done: 0, empty: 0, failed: 0, cancelled: 0, active: 0 },
+    });
+  }
+  const index = new Map(buckets.map((b, i) => [b.key, i]));
+  for (const r of runs) {
+    const i = index.get(keyOf(new Date(r.created_at)));
+    if (i !== undefined) buckets[i].counts[healthSeg(r)]++;
+  }
+  return buckets;
+}
+
+function bucketTotal(b: HealthBucket): number {
+  return HEALTH_SEGMENTS.reduce((n, s) => n + b.counts[s.key], 0);
+}
+
+function formatSpan(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  const mins = Math.round(s / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function formatCount(n: number): string {
+  return n >= 10_000 ? `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : n.toLocaleString();
+}
+
+function RunsPerPeriodChart({ buckets, emptyText }: { buckets: HealthBucket[]; emptyText: string }) {
+  const peak = Math.max(0, ...buckets.map(bucketTotal));
+  const max = Math.max(1, peak);
+  const labelEvery = Math.ceil(buckets.length / 8);
+  return (
+    <div className="px-4 pb-3">
+      <div className="relative">
+        {peak > 0 ? (
+          <>
+            <span className="absolute -top-0.5 left-0 font-mono text-[10px] tabular-nums text-[var(--estate-text-dim)]">{max}</span>
+            <div aria-hidden className="absolute inset-x-0 top-0 border-t border-dashed border-[var(--line-1)]" />
+          </>
+        ) : (
+          <p className="absolute inset-0 flex items-center justify-center text-caption text-[var(--estate-text-muted)]">{emptyText}</p>
+        )}
+        <div className="flex h-32 items-end gap-[3px] border-b border-[var(--line-1)] pl-6">
+          {buckets.map(b => {
+            const total = bucketTotal(b);
+            const parts = HEALTH_SEGMENTS.filter(s => b.counts[s.key] > 0);
+            const tip = total
+              ? `${b.tip}: ${parts.map(s => `${b.counts[s.key]} ${s.label.toLowerCase()}`).join(', ')}`
+              : `${b.tip}: no runs`;
+            return (
+              <div key={b.key} title={tip} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
+                {total === 0 ? (
+                  <div className="h-[2px] w-full max-w-[40px] rounded-sm bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]" />
+                ) : (
+                  <div className="flex w-full max-w-[40px] flex-col-reverse overflow-hidden rounded-t-[3px]" style={{ height: `${Math.max(4, (total / max) * 100)}%` }}>
+                    {parts.map(s => (
+                      <div key={s.key} style={{ flex: `${b.counts[s.key]} 1 0`, backgroundColor: s.color }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="mt-1 flex gap-[3px] pl-6">
+        {buckets.map((b, i) => (
+          <div key={b.key} className="min-w-0 flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-[var(--estate-text-muted)]">
+            {i % labelEvery === 0 ? b.label : ''}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HealthCard({
+  title,
+  hint,
+  action,
+  children,
+}: {
+  title: string;
+  hint?: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section aria-label={title} className="overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)]">
+      <header className="flex items-start justify-between gap-3 px-4 pb-2 pt-3">
+        <div className="min-w-0">
+          <h3 className="text-ui font-medium text-[var(--estate-ink)]">{title}</h3>
+          {hint && <p className="mt-0.5 text-caption text-[var(--estate-text-muted)]">{hint}</p>}
+        </div>
+        {action}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  valueColor,
+  sub,
+  title,
+}: {
+  label: string;
+  value: React.ReactNode;
+  valueColor?: string;
+  sub?: React.ReactNode;
+  title?: string;
+}) {
+  return (
+    <div title={title} className="min-w-0 rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)] px-4 py-3">
+      <div className="text-caption text-[var(--estate-text-muted)]">{label}</div>
+      <div className="mt-1 font-mono text-[22px] font-semibold leading-tight tabular-nums" style={{ color: valueColor ?? 'var(--estate-ink)' }}>
+        {value}
+      </div>
+      {sub && <div className="mt-0.5 truncate text-caption text-[var(--estate-text-secondary)]">{sub}</div>}
+    </div>
+  );
+}
+
+function WindowSwitch({ value, onChange }: { value: StatsWindow; onChange: (w: StatsWindow) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Time window" className="inline-flex shrink-0 rounded-ctl border border-[var(--line-1)] bg-[var(--card)] p-0.5">
+      {STATS_WINDOWS.map(w => {
+        const on = w.value === value;
+        return (
+          <button
+            key={w.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            title={w.long.replace(/^last/, 'Last').replace(/^all/, 'All')}
+            onClick={() => onChange(w.value)}
+            className={cn(
+              'h-7 rounded-[5px] px-3 text-caption transition-colors duration-hover focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              on
+                ? 'bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)] font-medium text-[var(--brand-a-ink)]'
+                : 'text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)]',
+            )}
+          >
+            {w.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const ROW_BUTTON =
+  'group w-full text-left transition-colors duration-hover hover:bg-[color-mix(in_srgb,var(--ink-1)_3%,transparent)] focus-visible:outline-none focus-visible:bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]';
+
+/** Health tab: overall status, KPIs, run volume, per-job reliability, failures, attention, schedule and coverage. */
+function HealthView({
+  summaries,
+  loading,
+  canRunPipeline,
+  statsWindow,
+  reloadKey,
+  onStatsWindowChange,
+  onSelectKind,
+  onSelectJob,
+  onOpenActiveRuns,
+  onCockpitLaunched,
+  onOpenWizard,
+  onStageClick,
+}: {
+  summaries: KindSummary[];
+  loading: boolean;
+  canRunPipeline: boolean;
+  statsWindow: StatsWindow;
+  reloadKey: number;
+  onStatsWindowChange: (w: StatsWindow) => void;
+  onSelectKind: (kind: string) => void;
+  onSelectJob: (job: JobItem) => void;
+  onOpenActiveRuns: () => void;
+  onCockpitLaunched?: () => void;
+  onOpenWizard?: () => void;
+  onStageClick?: (tier: ScannedTier) => void;
+}) {
+  const hourly = statsWindow === '1';
+  const runDays = statsWindow === 'all' ? 30 : Number(statsWindow);
+  const [runs, setRuns] = useState<{ days: number; items: JobItem[] } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const after = new Date(Date.now() - runDays * 86_400_000).toISOString();
+    fetchJson(`/api/agent-lab/context/jobs?after=${encodeURIComponent(after)}&pageSize=1000`).then(json => {
+      if (!cancelled) setRuns({ days: runDays, items: json?.ok ? (json.data?.data?.items ?? []) : [] });
+    });
+    return () => { cancelled = true; };
+  }, [runDays, reloadKey]);
+
+  const runsReady = runs !== null && runs.days === runDays;
+  const items = runsReady ? runs.items : [];
+
+  const h = computeRunHealth(summaries);
+  const windowLong = STATS_WINDOWS.find(w => w.value === statsWindow)?.long ?? '';
+  const period = windowLong.replace('last ', '');
+  const runsScope = statsWindow === 'all' ? 'last 30 days' : windowLong;
+  const prevRate = statsWindow !== 'all' && summaries.some(s => s.prev_total != null)
+    ? finishedSuccessRate(h.sum(s => s.prev_succeeded), h.sum(s => s.prev_failed))
+    : null;
+
+  const finished = items.filter(r => { const k = healthSeg(r); return k === 'done' || k === 'empty' || k === 'failed'; });
+  const emptyRuns = items.filter(r => healthSeg(r) === 'empty').length;
+  const objects = finished.reduce((n, r) => {
+    const v = healthSeg(r) === 'failed' ? null : getJobPrimaryMetric(r.stats, r.job_kind)?.value;
+    return n + (typeof v === 'number' ? v : 0);
+  }, 0);
+  const durations = finished.map(r => ({ r, s: jobDurationS(r) })).filter((x): x is { r: JobItem; s: number } => x.s !== null);
+  const totalTime = durations.reduce((n, x) => n + x.s, 0);
+  const longest = durations.reduce<{ r: JobItem; s: number } | null>((m, x) => (!m || x.s > m.s ? x : m), null);
+  const failures = items
+    .filter(r => healthSeg(r) === 'failed')
+    .sort((a, b) => (b.finished_at ?? b.created_at).localeCompare(a.finished_at ?? a.created_at))
+    .slice(0, 6);
+  const buckets = buildRunBuckets(items, hourly, hourly ? 24 : runDays);
+
+  const reliability = summaries
+    .filter(s => KIND_META[s.kind] && s.total > 0)
+    .map(s => ({ s, rate: finishedSuccessRate((s.succeeded ?? 0) + (s.partial ?? 0), s.failed ?? 0) }))
+    .sort((a, b) => {
+      if (a.rate === null) return 1;
+      if (b.rate === null) return -1;
+      return a.rate - b.rate || b.s.failed - a.s.failed || b.s.total - a.s.total;
+    });
+
+  const upcoming = HARVEST_SCHEDULES
+    .filter(s => s.deployment === 'live')
+    .map(s => ({ sched: s, next: getNextRun(s), kind: s.id.replace(/_(daily|weekly)$/, '') }))
+    .filter((x): x is { sched: (typeof HARVEST_SCHEDULES)[number]; next: Date; kind: string } => x.next !== null)
+    .sort((a, b) => a.next.getTime() - b.next.getTime());
+  const manualSchedules = HARVEST_SCHEDULES.filter(s => s.deployment === 'manual');
+
+  let rateSub: string;
+  if (h.rate === null) rateSub = 'No finished runs';
+  else if (prevRate === null) rateSub = `${(h.total - h.runningNow - h.queuedNow).toLocaleString()} finished runs`;
+  else if (h.rate > prevRate) rateSub = `Up from ${prevRate}% the previous ${period}`;
+  else if (h.rate < prevRate) rateSub = `Down from ${prevRate}% the previous ${period}`;
+  else rateSub = `Same as the previous ${period}`;
+
+  const loadingSummaries = loading && summaries.length === 0;
+  const skeleton = (cls: string) => <div aria-hidden className={cn('animate-pulse rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)]', cls)} />;
+
+  return (
+    <div className="flex-1 overflow-auto p-6">
+      {/* Status headline */}
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: loadingSummaries ? 'var(--line-1)' : h.tone }} />
+            <h2 className="text-title-section" style={{ color: h.items.length ? inkOf(h.tone) : 'var(--estate-ink)' }}>
+              {loadingSummaries ? 'Checking job health\u2026' : h.items.length ? h.headline : 'Everything is running normally'}
+            </h2>
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-caption text-[var(--estate-text-secondary)]">
+            <span>{h.total === 0 ? `No runs in the ${windowLong}` : `Based on ${h.total.toLocaleString()} run${h.total === 1 ? '' : 's'} in the ${windowLong}`}</span>
+            {(h.runningNow > 0 || h.queuedNow > 0) && (
+              <button type="button" onClick={onOpenActiveRuns} className="inline-flex items-center gap-1 text-[var(--brand-a-ink)] hover:underline underline-offset-2">
+                <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-[var(--brand-a)]" />
+                {[h.runningNow > 0 && `${h.runningNow} running now`, h.queuedNow > 0 && `${h.queuedNow} queued`].filter(Boolean).join(', ')}
+                <ChevronRight className="size-3" aria-hidden />
+              </button>
+            )}
+          </p>
+        </div>
+        <WindowSwitch value={statsWindow} onChange={onStatsWindowChange} />
+      </div>
+
+      {/* KPIs */}
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {loadingSummaries ? (
+          [0, 1, 2, 3].map(i => <React.Fragment key={i}>{skeleton('h-[86px]')}</React.Fragment>)
+        ) : (
+          <>
+            <KpiTile
+              label="Success rate"
+              value={h.rate === null ? '\u2014' : `${h.rate}%`}
+              valueColor={h.rate === null ? undefined : inkOf(rateTone(h.rate))}
+              sub={rateSub}
+              title="Finished runs that succeeded (incl. partial), excluding running and cancelled runs"
+            />
+            <KpiTile
+              label="Runs"
+              value={h.total.toLocaleString()}
+              sub={
+                h.failed || emptyRuns
+                  ? [h.failed && `${h.failed} failed`, emptyRuns && `${emptyRuns} with 0 objects`].filter(Boolean).join(' \u00b7 ')
+                  : 'None failed'
+              }
+            />
+            <KpiTile
+              label="Objects processed"
+              value={runsReady ? formatCount(objects) : '\u2026'}
+              sub={statsWindow === 'all' ? 'In the last 30 days' : 'Tables scanned, profiled, described or indexed'}
+            />
+            <KpiTile
+              label="Time spent running"
+              value={runsReady ? (totalTime ? formatSpan(totalTime) : '\u2014') : '\u2026'}
+              sub={longest ? `Longest: ${getKindMeta(longest.r.job_kind).label}, ${longest.s >= 3600 ? formatSpan(longest.s) : formatDurationS(Math.round(longest.s))}` : statsWindow === 'all' ? 'In the last 30 days' : undefined}
+            />
+          </>
         )}
       </div>
-    </button>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        {/* Left column */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <HealthCard
+            title={hourly ? 'Runs per hour' : 'Runs per day'}
+            hint={statsWindow === 'all' ? 'Last 30 days' : windowLong.replace(/^last/, 'Last')}
+            action={
+              <div className="flex flex-wrap justify-end gap-x-3 gap-y-1 text-caption text-[var(--estate-text-muted)]">
+                {HEALTH_SEGMENTS.filter(s => s.key !== 'cancelled').map(s => (
+                  <span key={s.key} className="inline-flex items-center gap-1">
+                    <span aria-hidden className="size-2 rounded-[2px]" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+            }
+          >
+            {runsReady ? <RunsPerPeriodChart buckets={buckets} emptyText={`No runs in the ${runsScope}`} /> : <div className="mx-4 mb-3 h-[150px] animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)]" />}
+          </HealthCard>
+
+          <HealthCard
+            title="Reliability by job type"
+            hint={`Share of finished runs that succeeded, ${statsWindow === 'all' ? 'all time' : `${windowLong}`}. Least reliable first.`}
+          >
+            {reliability.length === 0 ? (
+              <p className="px-4 pb-4 text-caption text-[var(--estate-text-muted)]">No runs in the {windowLong}.</p>
+            ) : (
+              <div role="table" aria-label="Reliability by job type">
+                <div role="row" className="grid grid-cols-[minmax(110px,1.1fr)_minmax(120px,2fr)_48px_52px_76px] gap-3 border-y border-[var(--line-1)] px-4 py-1.5 text-caption text-[var(--estate-text-muted)]">
+                  <span role="columnheader">Job type</span>
+                  <span role="columnheader">Success</span>
+                  <span role="columnheader" className="text-right">Runs</span>
+                  <span role="columnheader" className="text-right">Failed</span>
+                  <span role="columnheader" className="text-right">Typical</span>
+                </div>
+                {reliability.map(({ s, rate }) => (
+                  <button
+                    key={s.kind}
+                    type="button"
+                    role="row"
+                    onClick={() => onSelectKind(s.kind)}
+                    className={cn(ROW_BUTTON, 'grid grid-cols-[minmax(110px,1.1fr)_minmax(120px,2fr)_48px_52px_76px] items-center gap-3 border-b border-[var(--line-1)] px-4 py-2 text-size-ui last:border-0')}
+                  >
+                    <span role="cell" className="flex min-w-0 items-center gap-2">
+                      <span aria-hidden className="h-3.5 w-1 shrink-0 rounded-full" style={{ backgroundColor: getKindMeta(s.kind).color }} />
+                      <span className="truncate font-medium text-[var(--estate-ink)]">{getKindMeta(s.kind).label}</span>
+                    </span>
+                    <span role="cell" className="flex items-center gap-2">
+                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink-1)_7%,transparent)]">
+                        {rate !== null && <span className="block h-full rounded-full" style={{ width: `${Math.max(2, rate)}%`, backgroundColor: rateTone(rate) }} />}
+                      </span>
+                      <span className="w-9 text-right font-mono text-caption tabular-nums" style={{ color: rate === null ? 'var(--estate-text-dim)' : inkOf(rateTone(rate)) }}>
+                        {rate === null ? '\u2014' : `${rate}%`}
+                      </span>
+                    </span>
+                    <span role="cell" className="text-right font-mono tabular-nums text-[var(--estate-text-secondary)]">{s.total}</span>
+                    <span role="cell" className="text-right font-mono tabular-nums" style={{ color: s.failed ? inkOf(FAIL_COLOR) : 'var(--estate-text-dim)' }}>{s.failed || '\u2014'}</span>
+                    <span role="cell" className="text-right font-mono tabular-nums text-[var(--estate-text-secondary)]">
+                      {s.median_duration_s != null ? formatDurationS(Math.round(s.median_duration_s)) : '\u2014'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </HealthCard>
+
+          <HealthCard title="Recent failures" hint={`Newest first, ${runsScope}. Click a run to see its logs.`}>
+            {!runsReady ? (
+              <div className="mx-4 mb-3 h-16 animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)]" />
+            ) : failures.length === 0 ? (
+              <p className="px-4 pb-4 text-caption text-[var(--estate-text-muted)]">No failed runs in the {runsScope}.</p>
+            ) : (
+              <ul className="border-t border-[var(--line-1)]">
+                {failures.map(job => (
+                  <li key={job.id} className="border-b border-[var(--line-1)] last:border-0">
+                    <button type="button" onClick={() => onSelectJob(job)} className={cn(ROW_BUTTON, 'flex flex-col gap-0.5 px-4 py-2')}>
+                      <span className="flex w-full items-center gap-2 text-size-ui">
+                        <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: FAIL_COLOR }} />
+                        <span className="font-medium text-[var(--estate-ink)]">{getKindMeta(job.job_kind).label}</span>
+                        <span className="truncate text-caption text-[var(--estate-text-muted)]">{formatJobScopeHuman(job.scope)}</span>
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-caption text-[var(--estate-text-muted)]">
+                          {agoText(job.finished_at ?? job.created_at)}
+                          <ChevronRight className="size-3.5 text-[var(--estate-text-dim)] transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
+                        </span>
+                      </span>
+                      <span className="line-clamp-2 break-words pl-4 font-mono text-caption" style={{ color: inkOf(FAIL_COLOR) }} title={job.error ?? undefined}>
+                        {job.error ? job.error.split('\n')[0] : 'Failed without an error message'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HealthCard>
+        </div>
+
+        {/* Right column */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <HealthCard
+            title="Needs attention"
+            hint={h.items.length ? 'Based on each job type\u2019s latest runs and schedule.' : undefined}
+          >
+            {h.items.length === 0 ? (
+              <div className="flex items-start gap-2 px-4 pb-4">
+                <span aria-hidden className="mt-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: OK_COLOR }} />
+                <p className="text-caption text-[var(--estate-text-secondary)]">
+                  Nothing to fix. Every job type&rsquo;s last run succeeded and scheduled jobs are on time.
+                </p>
+              </div>
+            ) : (
+              <ul className="border-t border-[var(--line-1)]">
+                {h.items.map(item => (
+                  <li key={item.key} className="border-b border-[var(--line-1)] last:border-0">
+                    <button type="button" onClick={() => onSelectKind(item.kind)} className={cn(ROW_BUTTON, 'flex items-start gap-2.5 px-4 py-2')}>
+                      <span aria-hidden className="mt-1.5 size-2 shrink-0 rounded-full" style={{ backgroundColor: item.severity === 'fail' ? FAIL_COLOR : WARN_COLOR }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-size-ui font-medium text-[var(--estate-ink)]">{getKindMeta(item.kind).label}</span>
+                        <span className="block text-caption text-[var(--estate-text-secondary)]">{item.issue}</span>
+                      </span>
+                      <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-caption text-[var(--estate-text-muted)]">
+                        {agoText(item.when)}
+                        <ChevronRight className="size-3.5 text-[var(--estate-text-dim)] transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </HealthCard>
+
+          <HealthCard title="Coming up" hint="Next automatic runs (times in your local time zone).">
+            <ul className="border-t border-[var(--line-1)]">
+              {upcoming.map(({ sched, next, kind }) => {
+                const meta = KIND_META[kind];
+                const last = summaries.find(s => s.kind === kind)?.recent?.find(r => !['queued', 'running', 'orchestrating'].includes(r.status.toLowerCase()));
+                const lastSt = last ? runDotStatus(last, kind) : null;
+                return (
+                  <li key={sched.id} className="border-b border-[var(--line-1)] last:border-0">
+                    <button
+                      type="button"
+                      disabled={!meta}
+                      onClick={() => meta && onSelectKind(kind)}
+                      title={`${sched.description}\nScope: ${sched.scopeNote}`}
+                      className={cn(ROW_BUTTON, 'flex items-center gap-3 px-4 py-2 disabled:cursor-default')}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5 text-size-ui font-medium text-[var(--estate-ink)]">
+                          {meta ? meta.label : sched.label}
+                          {lastSt && (
+                            <span
+                              aria-label={`Last run ${RUN_DOT_STYLE[lastSt].label}`}
+                              title={`Last run ${RUN_DOT_STYLE[lastSt].label}`}
+                              className="size-1.5 rounded-full"
+                              style={{ backgroundColor: RUN_DOT_STYLE[lastSt].color }}
+                            />
+                          )}
+                        </span>
+                        <span className="block truncate text-caption text-[var(--estate-text-muted)]">{describeCron(sched.cronStandard)}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-size-ui tabular-nums text-[var(--estate-ink)]">{relativeNextRun(sched)}</span>
+                        <span className="block text-caption tabular-nums text-[var(--estate-text-muted)]">
+                          {next.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {manualSchedules.length > 0 && (
+              <p className="border-t border-[var(--line-1)] px-4 py-2 text-caption text-[var(--estate-text-muted)]">
+                Not scheduled, run by hand: {manualSchedules.map(s => s.label).join(', ')}.
+              </p>
+            )}
+          </HealthCard>
+
+          <JobsCockpitPanel
+            canRunPipeline={canRunPipeline}
+            onLaunched={onCockpitLaunched}
+            onOpenWizard={canRunPipeline ? onOpenWizard : undefined}
+            onStageClick={onStageClick}
+            defaultExpanded
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface AttentionItem {
+  key: string;
+  kind: string;
+  severity: 'fail' | 'warn';
+  /** Full sentence incl. job label (tooltips). */
+  text: string;
+  /** Short issue without the job label. */
+  issue: string;
+  /** When the issue happened (last relevant run), if known. */
+  when?: string | null;
+}
+
+/** Expected gap between scheduled runs, from the cron (null for manual). */
+function scheduleCadenceMs(sched: (typeof HARVEST_SCHEDULES)[number]): number | null {
+  const runs = getNextRuns(sched, 2);
+  return runs.length === 2 ? runs[1].getTime() - runs[0].getTime() : null;
+}
+
+function buildAttentionItems(summaries: KindSummary[]): AttentionItem[] {
+  const items: AttentionItem[] = [];
+  const now = Date.now();
+  const push = (kind: string, key: string, severity: AttentionItem['severity'], issue: string, when?: string | null) =>
+    items.push({ key, kind, severity, issue, when, text: `${getKindMeta(kind).label}: ${issue}${when ? ` (${agoText(when)})` : ''}` });
+  for (const s of summaries) {
+    if (!KIND_META[s.kind]) continue;
+    const recent = s.recent ?? [];
+    const finishedRuns = recent.filter(r => !['queued', 'running', 'orchestrating'].includes(r.status.toLowerCase()));
+    const lastFinished = finishedRuns[0];
+    const lastStatus = lastFinished ? runDotStatus(lastFinished, s.kind) : null;
+    const lastAt = lastFinished ? lastFinished.finished_at ?? lastFinished.created_at : null;
+    if (lastStatus === 'failed') {
+      const streak = finishedRuns.findIndex(r => runDotStatus(r, s.kind) !== 'failed');
+      const n = streak === -1 ? finishedRuns.length : streak;
+      push(s.kind, `${s.kind}-failed`, 'fail', n > 1 ? `Last ${n} runs failed` : 'Last run failed', lastAt);
+    } else if (lastStatus === 'empty') {
+      push(s.kind, `${s.kind}-empty`, 'warn', 'Last run processed 0 objects', lastAt);
+    }
+
+    const scheduleId = KIND_META[s.kind]?.scheduleId;
+    const sched = scheduleId ? HARVEST_SCHEDULES.find(h => h.id === scheduleId) : null;
+    if (sched && sched.deployment !== 'manual' && s.kind === sched.id.replace(/_(daily|weekly)$/, '')) {
+      const cadence = scheduleCadenceMs(sched);
+      const last = s.last_finished_at ? new Date(s.last_finished_at).getTime() : null;
+      if (cadence && (last === null || now - last > cadence * 1.5)) {
+        const expected = describeCron(sched.cronStandard);
+        push(
+          s.kind,
+          `${s.kind}-stale`,
+          'warn',
+          last === null
+            ? `Scheduled (${expected}) but never finished`
+            : `Missed its schedule (${expected.charAt(0).toLowerCase()}${expected.slice(1)})`,
+          s.last_finished_at,
+        );
+      }
+    }
+  }
+  return items.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'fail' ? -1 : 1));
+}
+
+function ScheduleCell({ kind }: { kind: string }) {
+  const scheduleId = KIND_META[kind]?.scheduleId;
+  const sched = scheduleId ? HARVEST_SCHEDULES.find(h => h.id === scheduleId) : null;
+  if (!sched) return <span title="No schedule. Runs only when started by hand." className="text-[var(--estate-text-muted)]">On demand</span>;
+  if (sched.deployment === 'manual') {
+    return (
+      <span title={`${sched.description}\nA schedule exists but is not switched on, so it runs only when started by hand.`} className="text-[var(--estate-text-muted)]">
+        On demand
+      </span>
+    );
+  }
+  const relative = relativeNextRun(sched);
+  const next = getNextRun(sched);
+  const imminent = relative.startsWith('in') && (relative.endsWith('m') || relative === 'in 1h');
+  const via = sched.id.replace(/_(daily|weekly)$/, '') === kind ? '' : ` (via ${sched.label})`;
+  return (
+    <span
+      title={`${sched.label}${via}: ${describeCron(sched.cronStandard)}\nScope: ${sched.scopeNote}\nNext: ${next?.toUTCString() ?? 'unknown'}`}
+      className="inline-flex flex-col leading-tight"
+    >
+      <span className={cn('tabular-nums', imminent ? 'font-medium text-[var(--brand-a-ink)]' : 'text-[var(--estate-ink)]')}>
+        {relative.startsWith('in ') ? `Next ${relative}` : relative}
+      </span>
+      <span className="truncate text-caption text-[var(--estate-text-muted)]">{describeCron(sched.cronStandard)}{via ? ' · via change check' : ''}</span>
+    </span>
+  );
+}
+
+function JobStagesTable({
+  summaries,
+  loading,
+  canRunPipeline,
+  statsWindow,
+  onSelectKind,
+  onRunKind,
+}: {
+  summaries: KindSummary[];
+  loading: boolean;
+  canRunPipeline: boolean;
+  statsWindow: StatsWindow;
+  onSelectKind: (kind: string) => void;
+  onRunKind?: (kind: string) => void;
+}) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const summaryByKind: Record<string, KindSummary> = {};
+  summaries.forEach(s => { summaryByKind[s.kind] = s; });
+  const attention = useMemo(() => buildAttentionItems(summaries), [summaries]);
+  const attentionKinds = new Set(attention.map(i => i.kind));
+  const overdueKinds = new Set(attention.filter(i => i.key.endsWith('-stale')).map(i => i.kind));
+  const kindGroups = getJobKindGroups(summaries.map(s => s.kind));
+  const isAdvanced = (g: JobKindGroup) => g.id === 'entity_model' || g.id === 'knowledge' || g.id === 'other';
+  // Advanced job types that need attention stay visible even when the section is collapsed.
+  const visibleGroups = kindGroups
+    .map(g => (showAdvanced || !isAdvanced(g) ? g : { ...g, kinds: g.kinds.filter(k => attentionKinds.has(k)) }))
+    .filter(g => g.kinds.length > 0);
+  const advancedCount = kindGroups.filter(isAdvanced).reduce((n, g) => n + g.kinds.length, 0);
+  const hiddenCount = showAdvanced ? advancedCount : kindGroups.filter(isAdvanced).reduce((n, g) => n + g.kinds.filter(k => !attentionKinds.has(k)).length, 0);
+  const windowLabel = statsWindow === 'all' ? 'all time' : STATS_WINDOWS.find(w => w.value === statsWindow)?.label ?? '';
+  const windowLong = STATS_WINDOWS.find(w => w.value === statsWindow)?.long ?? '';
+  const launchable = new Set(TRIGGERABLE_JOBS.map(j => j.kind).filter(k => !isLaunchDisabledKind(k)));
+  const th = 'px-3 py-2 text-left text-caption font-medium text-[var(--estate-text-muted)]';
+
+  return (
+    <section aria-label="Job types" className="overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)]">
+      <div className="flex items-center justify-between gap-3 border-b border-[var(--line-1)] px-4 py-2.5">
+        <h2 className="text-title-card text-[var(--estate-ink)]">Job types</h2>
+        <div className="hidden items-center gap-3 text-caption text-[var(--estate-text-muted)] md:flex" aria-hidden>
+          {(['done', 'failed', 'empty', 'running', 'cancelled'] as RunDotStatus[]).map(st => (
+            <span key={st} className="inline-flex items-center gap-1">
+              <span className="h-2.5 w-1.5 rounded-[2px]" style={runBarStyle(st)} />
+              {st === 'done' ? 'ok' : st === 'empty' ? '0 objects' : RUN_DOT_STYLE[st].label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-size-ui">
+          <thead>
+            <tr className="border-b border-[var(--line-1)]">
+              <th scope="col" className={cn(th, 'pl-4')}>Job type</th>
+              <th scope="col" className={th}>Last {RECENT_SLOTS} runs</th>
+              <th scope="col" className={cn(th, 'text-right')} title={`Share of finished runs that succeeded, ${windowLong}`}>
+                Success <span className="font-normal text-[var(--estate-text-dim)]">· {windowLabel}</span>
+              </th>
+              <th scope="col" className={cn(th, 'hidden text-right lg:table-cell')}>Typical time</th>
+              <th scope="col" className={th}>Last finished</th>
+              <th scope="col" className={cn(th, 'hidden xl:table-cell')}>Schedule</th>
+              <th scope="col" className={cn(th, 'w-px pr-4')}><span className="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading && summaries.length === 0
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i} className="border-b border-[var(--line-1)] last:border-0">
+                    <td colSpan={7} className="px-4 py-3">
+                      <div className="h-6 animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]" />
+                    </td>
+                  </tr>
+                ))
+              : visibleGroups.map(group => (
+                  <React.Fragment key={group.id}>
+                    <tr className="bg-[color-mix(in_srgb,var(--ink-1)_2.5%,transparent)]">
+                      <th scope="colgroup" colSpan={7} className="px-4 py-1.5 text-left font-normal">
+                        <span className="inline-flex items-baseline gap-2">
+                          <span className="font-mono text-caption text-[var(--brand-a-ink)]">{group.step}</span>
+                          <span className="text-label text-[var(--estate-text-secondary)]" title={group.subtitle}>{group.label}</span>
+                        </span>
+                      </th>
+                    </tr>
+                    {group.kinds.map(kind => {
+                      const meta = getKindMeta(kind);
+                      const s = summaryByKind[kind];
+                      const ok = (s?.succeeded ?? 0) + (s?.partial ?? 0);
+                      const rate = s ? finishedSuccessRate(ok, s.failed) : null;
+                      const lastRun = s?.recent?.find(r => !['queued', 'running', 'orchestrating'].includes(r.status.toLowerCase()));
+                      const lastStatus = lastRun ? runDotStatus(lastRun, kind) : null;
+                      const active = (s?.running ?? 0) + (s?.queued ?? 0);
+                      const canRun = canRunPipeline && onRunKind && launchable.has(kind);
+                      return (
+                        <tr
+                          key={kind}
+                          tabIndex={0}
+                          onClick={() => onSelectKind(kind)}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectKind(kind); } }}
+                          aria-label={`${meta.label} — open run history`}
+                          className="group cursor-pointer border-b border-[var(--line-1)] transition-colors duration-hover last:border-0 hover:bg-[color-mix(in_srgb,var(--ink-1)_3%,transparent)] focus-visible:outline-none focus-visible:bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]"
+                        >
+                          <td className="py-2 pl-4 pr-3">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className={cn('truncate font-medium', s ? 'text-[var(--estate-ink)]' : 'text-[var(--estate-text-muted)]')} title={meta.description}>{meta.label}</span>
+                              {active > 0 && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-caption"
+                                  style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>
+                                  <span className="size-1.5 animate-pulse rounded-full bg-[var(--brand-a)]" />
+                                  {s!.running > 0 ? `${s!.running} running` : `${s!.queued} queued`}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {s?.recent?.length ? <RunDots runs={s.recent} kind={kind} /> : <span className="text-caption text-[var(--estate-text-dim)]">No runs yet</span>}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
+                            {rate === null ? (
+                              <span className="text-[var(--estate-text-dim)]" title="No finished runs in this window">—</span>
+                            ) : (
+                              <span title={`${ok} ok · ${s!.failed} failed, ${windowLong}`} className="whitespace-nowrap">
+                                <span className="font-medium" style={{ color: inkOf(rateTone(rate)) }}>{rate}%</span>
+                                <span className="ml-1.5 text-caption text-[var(--estate-text-muted)]">{(ok + s!.failed).toLocaleString()} run{ok + s!.failed === 1 ? '' : 's'}</span>
+                              </span>
+                            )}
+                          </td>
+                          <td className="hidden px-3 py-2.5 text-right font-mono tabular-nums text-[var(--estate-text-secondary)] lg:table-cell">
+                            {s?.median_duration_s != null ? formatDurationS(Math.round(s.median_duration_s)) : <span className="text-[var(--estate-text-dim)]">—</span>}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {lastRun ? (() => {
+                              const at = lastRun.finished_at ?? lastRun.created_at;
+                              const overdue = overdueKinds.has(kind);
+                              const issue = attention.find(i => i.kind === kind && i.key.endsWith('-stale'))?.issue;
+                              const statusLabel = RUN_DOT_STYLE[lastStatus!].label === 'succeeded' ? '' : RUN_DOT_STYLE[lastStatus!].label;
+                              return (
+                                <span className="inline-flex items-center gap-1.5 whitespace-nowrap" title={`${at ? new Date(at).toLocaleString() : ''}${overdue && issue ? `\n${issue}` : ''}`}>
+                                  <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: overdue && lastStatus === 'done' ? WARN_COLOR : RUN_DOT_STYLE[lastStatus!].color }} />
+                                  <span className="text-[var(--estate-ink)]">{relativeTime(at)}</span>
+                                  {statusLabel && <span className="text-caption text-[var(--estate-text-muted)]">{statusLabel}</span>}
+                                  {overdue && <span className="text-caption font-medium" style={{ color: inkOf(WARN_COLOR) }}>overdue</span>}
+                                </span>
+                              );
+                            })() : (
+                              <span className={overdueKinds.has(kind) ? 'font-medium' : 'text-[var(--estate-text-dim)]'} style={overdueKinds.has(kind) ? { color: inkOf(WARN_COLOR) } : undefined}>Never</span>
+                            )}
+                          </td>
+                          <td className="hidden max-w-[180px] px-3 py-2.5 xl:table-cell">
+                            <ScheduleCell kind={kind} />
+                          </td>
+                          <td className="py-2.5 pl-3 pr-4">
+                            <div className="flex items-center justify-end gap-1">
+                              {canRun && (
+                                <button
+                                  type="button"
+                                  onClick={e => { e.stopPropagation(); onRunKind!(kind); }}
+                                  onKeyDown={e => e.stopPropagation()}
+                                  title={`Run ${meta.label}…`}
+                                  aria-label={`Run ${meta.label}`}
+                                  className="inline-flex h-7 items-center gap-1 rounded-ctl border border-transparent px-2 text-caption text-[var(--brand-a-ink)] opacity-0 transition duration-hover hover:border-[color-mix(in_srgb,var(--brand-a)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                                >
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden><polygon points="6 4 20 12 6 20 6 4" /></svg>
+                                  Run
+                                </button>
+                              )}
+                              <ChevronRight className="size-4 text-[var(--estate-text-dim)] transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
+                ))}
+          </tbody>
+        </table>
+      </div>
+
+      {advancedCount > 0 && (showAdvanced || hiddenCount > 0) && (
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(v => !v)}
+          aria-expanded={showAdvanced}
+          className="flex w-full items-center gap-1.5 border-t border-[var(--line-1)] px-4 py-2.5 text-left text-size-ui text-[var(--estate-text-secondary)] transition-colors duration-hover hover:text-[var(--estate-ink)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        >
+          <ChevronDown className={cn('size-3.5 transition-transform duration-hover', showAdvanced && 'rotate-180')} aria-hidden />
+          {showAdvanced ? 'Hide advanced job types' : `Show ${hiddenCount} more advanced job type${hiddenCount === 1 ? '' : 's'}`} — business model, knowledge sync
+        </button>
+      )}
+    </section>
   );
 }
 
@@ -1993,56 +2848,41 @@ function L1View({
   queuedJobs,
   loading,
   canRunPipeline,
+  statsWindow,
+  onStatsWindowChange,
   onSelectKind,
+  onRunKind,
   onCancelJob,
-  onCockpitLaunched,
   onOpenActiveRuns,
-  onOpenWizard,
+  onOpenHealth,
 }: {
   summaries: KindSummary[];
   queuedJobs: QueuedJobItem[];
   loading: boolean;
   canRunPipeline: boolean;
+  statsWindow: StatsWindow;
+  onStatsWindowChange: (w: StatsWindow) => void;
   onSelectKind: (kind: string) => void;
+  onRunKind?: (kind: string) => void;
   onCancelJob: (jobId: string, kind: string) => void;
-  onCockpitLaunched?: () => void;
   onOpenActiveRuns?: () => void;
-  onOpenWizard?: () => void;
+  onOpenHealth: () => void;
 }) {
   const mutedColor = 'var(--estate-text-muted)';
-  const cardBg = 'var(--estate-raised)';
 
-  const dbKinds = summaries.map(s => s.kind);
-  const kindGroups = getJobKindGroups(dbKinds);
-  const coreGroups = kindGroups.filter(g => g.id !== 'entity_model' && g.id !== 'knowledge');
-  const advancedGroups = kindGroups.filter(g => g.id === 'entity_model' || g.id === 'knowledge');
-
-  const summaryByKind: Record<string, KindSummary> = {};
-  summaries.forEach(s => { summaryByKind[s.kind] = s; });
-
-  const renderKindGroupCards = (groups: typeof kindGroups) =>
-    groups.map((group, groupIdx) => (
-      <React.Fragment key={group.id}>
-        <JobKindGroupHeader group={group} isFirst={groupIdx === 0} />
-        {group.kinds.map(kind => (
-          <JobKindCard
-            key={kind}
-            kind={kind}
-            summary={summaryByKind[kind]}
-            onSelect={onSelectKind}
-          />
-        ))}
-      </React.Fragment>
-    ));
   return (
     <div className="flex-1 overflow-auto p-6">
-      <JobsCockpitPanel
-        canRunPipeline={canRunPipeline}
-        onLaunched={onCockpitLaunched}
-        onOpenWizard={canRunPipeline ? onOpenWizard : undefined}
-      />
-      {/* Aggregate overview */}
-      {!loading && summaries.length > 0 && <AggregateStats summaries={summaries} />}
+      {!loading || summaries.length > 0 ? (
+        <HealthStrip
+          summaries={summaries}
+          window={statsWindow}
+          onWindowChange={onStatsWindowChange}
+          onOpenHealth={onOpenHealth}
+          onSelectKind={onSelectKind}
+        />
+      ) : (
+        <div className="mb-3 h-[42px] animate-pulse rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)]" aria-hidden />
+      )}
 
       {/* Queued badge strip */}
       {queuedJobs.length > 0 && (
@@ -2054,7 +2894,7 @@ function L1View({
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--brand-a)]" />
           </span>
-     <span className="text-label text-[var(--brand-a-ink)]">
+          <span className="text-label text-[var(--brand-a-ink)]">
             {queuedJobs.length} job{queuedJobs.length !== 1 ? 's' : ''} queued
           </span>
           <div className="flex flex-wrap gap-1.5 ml-2">
@@ -2063,15 +2903,16 @@ function L1View({
               return (
                 <span
                   key={qj.id}
-         className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-label group"
+                  className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-label group"
                   style={{ color: inkOf(m.color), backgroundColor: m.bg, borderColor: m.border }}
                 >
                   {m.label}
                   {canRunPipeline && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onCancelJob(qj.id, qj.job_kind); }}
-                      className="ml-0.5 w-3.5 h-3.5 rounded-full inline-flex items-center justify-center transition-colors hover:bg-red-500/20"
+                      className="ml-0.5 w-3.5 h-3.5 rounded-full relative after:absolute after:-inset-1.5 after:content-[''] inline-flex items-center justify-center transition-colors hover:bg-red-500/20"
                       title="Cancel this job"
+                      aria-label={`Cancel queued ${m.label}`}
                     >
                       <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -2089,7 +2930,7 @@ function L1View({
             <button
               type="button"
               onClick={onOpenActiveRuns}
-              className="ml-auto text-label underline-offset-2 hover:underline"
+              className="ml-auto text-label underline-offset-2 hover:underline relative after:absolute after:-inset-1.5 after:content-['']"
               style={{ color: 'var(--brand-a-ink)' }}
             >
               View in Active Runs
@@ -2098,182 +2939,321 @@ function L1View({
         </div>
       )}
 
-      {/* Grouped cards — pipeline order */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(9)].map((_, i) => (
-            <div
-              key={i}
-              className="animate-pulse rounded-xl border p-5 h-44"
-              style={{ borderColor: 'var(--line-1)', backgroundColor: cardBg }}
-            />
-          ))}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {renderKindGroupCards(coreGroups)}
-          </div>
-          {advancedGroups.length > 0 && (
-            <details className="mt-4 rounded-lg border px-4 py-3" style={{ borderColor: 'var(--line-1)', backgroundColor: cardBg }}>
-              <summary className="text-label cursor-pointer py-1" style={{ color: 'var(--estate-text-secondary)' }}>
-                Advanced job types (T4, knowledge sync)
-              </summary>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
-                {renderKindGroupCards(advancedGroups)}
-              </div>
-            </details>
-          )}
-        </>
-      )}
+      <JobStagesTable
+        summaries={summaries}
+        loading={loading}
+        canRunPipeline={canRunPipeline}
+        statsWindow={statsWindow}
+        onSelectKind={onSelectKind}
+        onRunKind={onRunKind}
+      />
     </div>
   );
 }
 
-// ?? L2: Date Groups ????????????????????????????????????????????????????????????
+// ── Job type page (?kind=): status, last run, trends, pipeline context, all runs ──
 
-function L2View({
-  kind,
-  dateGroups,
-  loading,
-  onSelectDate,
-}: {
-  kind: string;
-  dateGroups: DateGroup[];
-  loading: boolean;
-  onSelectDate: (date: string) => void;
-}) {
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const borderColor = 'var(--estate-border-gold)';
-  const thBg = 'var(--estate-th-bg)';
-  const meta = getKindMeta(kind);
+const ACTIVE_JOB_STATUSES = new Set(['queued', 'running', 'orchestrating']);
+const TREND_RUNS = 60;
+const RUNS_PAGE_SIZE = 25;
 
-  const getRowBg = (idx: number) =>
-    idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)';
+function isActiveJob(status: string): boolean {
+  return ACTIVE_JOB_STATUSES.has(status.toLowerCase());
+}
 
+type RunStatusFilter = 'all' | 'failed' | 'succeeded' | 'partial' | 'running' | 'queued' | 'cancelled';
+const RUN_STATUS_FILTERS: { value: RunStatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'succeeded', label: 'Succeeded' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'running', label: 'Running' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+function parseRunStatusFilter(raw: string | null): RunStatusFilter {
+  return RUN_STATUS_FILTERS.some(f => f.value === raw) ? (raw as RunStatusFilter) : 'all';
+}
+
+type RunSince = 'any' | '1' | '7' | '30';
+const RUN_SINCE_OPTIONS: { value: RunSince; label: string }[] = [
+  { value: 'any', label: 'Any time' },
+  { value: '1', label: 'Last 24 hours' },
+  { value: '7', label: 'Last 7 days' },
+  { value: '30', label: 'Last 30 days' },
+];
+
+function parseRunSince(raw: string | null): RunSince {
+  return raw === '1' || raw === '7' || raw === '30' ? raw : 'any';
+}
+
+function jobDurationS(job: { started_at: string | null; finished_at: string | null }): number | null {
+  if (!job.started_at || !job.finished_at) return null;
+  const ms = new Date(job.finished_at).getTime() - new Date(job.started_at).getTime();
+  return Number.isFinite(ms) && ms >= 0 ? ms / 1000 : null;
+}
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const s = [...values].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function jobDotStatus(job: JobItem): RunDotStatus {
+  return runDotStatus(
+    { id: job.id, status: job.status, created_at: job.created_at, finished_at: job.finished_at, duration_s: null, stats: job.stats },
+    job.job_kind,
+  );
+}
+
+function isParentJob(job: JobItem): boolean {
+  return job.status === 'orchestrating' || (job.scope as any)?.is_parent === true;
+}
+
+/** Which pipeline jobs feed this one and which it feeds (best-effort, matches the stage order). */
+const KIND_FLOW: Record<string, { up: string[]; down: string[] }> = {
+  estate_inventory: { up: [], down: ['t0_structural'] },
+  change_detect: { up: ['estate_inventory'], down: ['t0_structural'] },
+  t0_structural: { up: ['estate_inventory', 'change_detect'], down: ['t1_profile', 't3_usage'] },
+  t1_profile: { up: ['t0_structural'], down: ['t2_semantic'] },
+  t2_semantic: { up: ['t1_profile'], down: ['embed', 't4_scan'] },
+  embed: { up: ['t2_semantic'], down: ['knowledge_sync'] },
+  t3_usage: { up: ['t0_structural'], down: [] },
+  t4_scan: { up: ['t2_semantic'], down: ['knowledge_sync'] },
+  knowledge_sync: { up: ['embed', 't4_scan'], down: [] },
+};
+
+type CockpitHealth = Record<string, number>;
+
+/** Coverage this job type produces: numerator / denominator keys of the cockpit health. */
+const KIND_COVERAGE: Record<string, { tier: ScannedTier; label: string; num: string; den: string; denLabel: string }> = {
+  t0_structural: { tier: 't0', label: estateStageDisplayLabel(ESTATE_STAGE.scanned), num: 'scanned_objects', den: 'discovery_objects', denLabel: 'discovered' },
+  t1_profile: { tier: 't1', label: estateStageDisplayLabel(ESTATE_STAGE.profiled), num: 'profiled_objects', den: 'scanned_objects', denLabel: 'scanned' },
+  t2_semantic: { tier: 't2', label: estateStageDisplayLabel(ESTATE_STAGE.enriched), num: 'enriched_objects', den: 'scanned_objects', denLabel: 'scanned' },
+  embed: { tier: 'embed', label: estateStageDisplayLabel(ESTATE_STAGE.searchable), num: 'embedded_objects', den: 'scanned_objects', denLabel: 'scanned' },
+};
+
+const cardClass = 'rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)]';
+
+function KindHealthBadge({ tone, label }: { tone: string; label: string }) {
   return (
-    <div className="flex-1 overflow-auto">
-      <table className="w-full border-collapse text-size-ui text-left">
-        <thead>
-          <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-      <th className="p-3 text-label " style={{ color: labelColor }}>Date</th>
-      <th className="p-3 text-label w-24 text-center" style={{ color: labelColor }}>Runs</th>
-      <th className="p-3 text-label " style={{ color: labelColor }}>Outcome</th>
-      <th className="p-3 text-label w-32 text-right" style={{ color: labelColor }}>Total Duration</th>
-            <th className="p-3 w-16" />
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            [...Array(6)].map((_, idx) => (
-              <tr key={idx} className="animate-pulse border-b" style={{ borderColor, backgroundColor: getRowBg(idx) }}>
-                <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-32" /></td>
-                <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-10 mx-auto" /></td>
-                <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-48" /></td>
-                <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 ml-auto" /></td>
-                <td className="p-3" />
-              </tr>
-            ))
-          ) : dateGroups.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="p-16 text-center">
-                <div className="flex flex-col items-center gap-3">
-                  <span className="text-size-title-section font-sans">no runs yet</span>
-                  <p className="text-size-ui max-w-xs text-center" style={{ color: mutedColor }}>
-                    No {meta.label} jobs have been run yet.
-                  </p>
-                </div>
-              </td>
-            </tr>
-          ) : (
-            dateGroups.map((dg, idx) => {
-              const successRate = dg.total > 0 ? Math.round((dg.succeeded / dg.total) * 100) : 0;
-              const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? 'var(--brand-a-ink)' : '#EF4444';
-              return (
-                <tr
-                  key={dg.date}
-                  onClick={() => onSelectDate(dg.date)}
-                  className="border-b hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors duration-100"
-                  style={{ backgroundColor: getRowBg(idx), borderColor }}
-                >
-                  <td className="p-3 font-medium" style={{ color: inkColor }}>
-                    {formatDate(dg.date)}
-                  </td>
-                  <td className="p-3 text-center font-mono" style={{ color: inkColor }}>
-                    {dg.total}
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5 w-32">
-                        <div
-                          className="h-1.5 rounded-full flex-1 overflow-hidden bg-black/[0.08] dark:bg-white/[0.08]"
-                        >
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${successRate}%`, backgroundColor: rateColor }}
-                          />
-                        </div>
-                        <span className="text-size-ui font-mono w-8 shrink-0" style={{ color: rateColor }}>{successRate}%</span>
-                      </div>
-                      <span className="text-size-ui font-mono" style={{ color: mutedColor }}>
-                        {dg.succeeded > 0 && <span style={{ color: inkOf('#2DD4A0') }}>{dg.succeeded} ok</span>}
-                        {dg.failed > 0 && <span style={{ color: inkOf('#EF4444') }}> {dg.failed} fail</span>}
-                        {dg.running > 0 && <span style={{ color: 'var(--brand-a-ink)' }}> {dg.running} running</span>}
-                        {dg.queued > 0 && <span style={{ color: 'var(--ink-3)' }}> {dg.queued} queued</span>}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: mutedColor }}>
-                    {formatDurationS(dg.total_duration_s)}
-                  </td>
-                  <td className="p-3 text-right">
-                    <span className="text-size-ui font-mono" style={{ color: inkOf(meta.color) }}>View</span>
-                  </td>
-                </tr>
-              );
-            })
-          )}
-        </tbody>
-      </table>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-caption font-medium"
+      style={{ color: inkOf(tone), borderColor: withAlpha(tone, '59'), backgroundColor: withAlpha(tone, '1A') }}
+    >
+      <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: tone }} />
+      {label}
+    </span>
+  );
+}
+
+function RunBars({ runs, onSelect }: { runs: JobItem[]; onSelect: (job: JobItem) => void }) {
+  const ordered = [...runs].reverse();
+  const durations = ordered.map(jobDurationS).filter((d): d is number => d !== null).sort((a, b) => a - b);
+  // Scale to the 90th percentile so one slow outlier does not flatten every other bar.
+  const cap = durations.length ? Math.max(1, durations[Math.floor((durations.length - 1) * 0.9)]) : 1;
+  return (
+    <div className="flex min-h-[80px] flex-1 items-end gap-[2px]" role="list" aria-label="Recent runs, oldest first">
+      {ordered.map(job => {
+        const st = jobDotStatus(job);
+        const dur = jobDurationS(job);
+        const pct = dur === null ? 35 : Math.min(100, Math.max(6, (dur / cap) * 100));
+        const when = job.started_at ?? job.created_at;
+        return (
+          <button
+            key={job.id}
+            type="button"
+            role="listitem"
+            onClick={() => onSelect(job)}
+            title={`${RUN_DOT_STYLE[st].label} · ${new Date(when).toLocaleString()}${dur !== null ? ` · ${formatDurationS(Math.round(dur))}` : ''}\n${formatStatsSummary(job.stats, job.job_kind)}`}
+            aria-label={`${RUN_DOT_STYLE[st].label} run ${relativeTime(when)}`}
+            className={cn(
+              'min-w-[3px] max-w-[14px] flex-1 rounded-t-[2px] transition-opacity duration-hover hover:opacity-70 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+              (st === 'running' || st === 'orchestrating' || st === 'queued') && 'animate-pulse',
+            )}
+            style={{ height: `${pct}%`, ...runBarStyle(st) }}
+          />
+        );
+      })}
     </div>
   );
 }
 
-// ?? L3: Detailed Job Table ?????????????????????????????????????????????????????
+function FlowChip({ kind, summary, onSelect }: { kind: string; summary?: KindSummary; onSelect: (kind: string) => void }) {
+  const meta = getKindMeta(kind);
+  const last = summary?.recent?.[0];
+  const st = last ? runDotStatus(last, kind) : null;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(kind)}
+      title={last ? `${meta.label}: last run ${st ? RUN_DOT_STYLE[st].label : ''} ${relativeTime(last.finished_at ?? last.created_at)}` : `${meta.label}: no runs yet`}
+      className="inline-flex items-center gap-1.5 rounded-ctl border border-[var(--line-1)] px-2 py-1 text-caption text-[var(--estate-ink)] transition-colors duration-hover hover:bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+    >
+      <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: st ? RUN_DOT_STYLE[st].color : 'var(--estate-text-dim)' }} />
+      {meta.label}
+      <span className="text-[var(--estate-text-muted)]">{last ? relativeTime(last.finished_at ?? last.created_at) : 'never'}</span>
+    </button>
+  );
+}
 
-function L3View({
+function JobKindPage({
   kind,
-  date,
-  jobs,
-  total,
-  page,
-  pageSize,
-  loading,
-  activeHighlightId,
+  summaries,
+  canRunPipeline,
+  reloadKey,
+  statusFilter,
+  since,
+  day,
+  highlightId,
+  onFilterChange,
+  onSelectKind,
+  onBack,
+  onRun,
   onSelectJob,
-  onPageChange,
+  onOpenTier,
 }: {
   kind: string;
-  date: string;
-  jobs: JobItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-  loading: boolean;
-  activeHighlightId: string | null;
+  summaries: KindSummary[];
+  canRunPipeline: boolean;
+  reloadKey: number;
+  statusFilter: RunStatusFilter;
+  since: RunSince;
+  day: string | null;
+  highlightId: string | null;
+  onFilterChange: (updates: Record<string, string | null>) => void;
+  onSelectKind: (kind: string) => void;
+  onBack: () => void;
+  onRun: (kind: string) => void;
   onSelectJob: (job: JobItem) => void;
-  onPageChange: (p: number) => void;
+  onOpenTier: (tier: ScannedTier) => void;
 }) {
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const borderColor = 'var(--estate-border-gold)';
-  const thBg = 'var(--estate-th-bg)';
-  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+  const meta = getKindMeta(kind);
+  const summary = summaries.find(s => s.kind === kind);
+  const group = getJobKindGroups([kind]).find(g => g.kinds.includes(kind));
+  const sched = meta.scheduleId ? HARVEST_SCHEDULES.find(h => h.id === meta.scheduleId) : null;
+  const schedVia = sched && sched.id.replace(/_(daily|weekly)$/, '') !== kind ? sched.label : null;
+  const launchable = !isLaunchDisabledKind(kind) && TRIGGERABLE_JOBS.some(j => j.kind === kind);
+  const canRun = canRunPipeline && launchable;
 
-  function toggleParentExpand(jobId: string, e: React.MouseEvent) {
+  const [recent, setRecent] = useState<JobItem[]>([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [runs, setRuns] = useState<JobItem[]>([]);
+  const [runsTotal, setRunsTotal] = useState(0);
+  const [runsLoading, setRunsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [health, setHealth] = useState<CockpitHealth | null>(null);
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
+  const [retrying, setRetrying] = useState(false);
+  const coverage = KIND_COVERAGE[kind];
+
+  useEffect(() => { setPage(1); }, [kind, statusFilter, since, day]);
+
+  const loadRecent = useCallback(async () => {
+    const p = new URLSearchParams({ kind, page: '1', pageSize: String(TREND_RUNS) });
+    const json = await fetchJson(`/api/agent-lab/context/jobs?${p}`);
+    if (json?.ok) setRecent(json.data?.data?.items ?? []);
+    setRecentLoading(false);
+  }, [kind]);
+
+  const loadRuns = useCallback(async () => {
+    const p = new URLSearchParams({ kind, page: String(page), pageSize: String(RUNS_PAGE_SIZE) });
+    if (statusFilter !== 'all') p.set('status', statusFilter);
+    if (day) {
+      p.set('after', new Date(`${day}T00:00:00Z`).toISOString());
+      p.set('before', new Date(`${day}T23:59:59Z`).toISOString());
+    } else if (since !== 'any') {
+      p.set('after', new Date(Date.now() - Number(since) * 86_400_000).toISOString());
+    }
+    const json = await fetchJson(`/api/agent-lab/context/jobs?${p}`);
+    if (json?.ok) {
+      setRuns(json.data?.data?.items ?? []);
+      setRunsTotal(json.data?.data?.total ?? 0);
+    }
+    setRunsLoading(false);
+  }, [kind, page, statusFilter, since, day]);
+
+  useEffect(() => { setRecentLoading(true); setRecent([]); }, [kind]);
+  useEffect(() => { loadRecent(); }, [loadRecent, reloadKey]);
+  useEffect(() => { setRunsLoading(true); loadRuns(); }, [loadRuns, reloadKey]);
+
+  useEffect(() => {
+    if (!coverage) { setHealth(null); return; }
+    let cancelled = false;
+    fetchJson('/api/agent-lab/context/jobs/cockpit').then(json => {
+      if (!cancelled && json?.ok) setHealth(json.data?.health ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [coverage, reloadKey]);
+
+  // Poll while anything for this job type is in flight.
+  const hasActive = recent.some(j => isActiveJob(j.status)) || runs.some(j => isActiveJob(j.status));
+  useEffect(() => {
+    if (!hasActive) return;
+    const id = setInterval(() => { loadRecent(); loadRuns(); }, 10_000);
+    return () => clearInterval(id);
+  }, [hasActive, loadRecent, loadRuns]);
+
+  useEffect(() => {
+    if (!highlightId || runsLoading) return;
+    const t = setTimeout(() => {
+      document.getElementById(`job-row-${highlightId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [highlightId, runsLoading]);
+
+  // ── Derived status
+  const latest = recent[0] ?? null;
+  const finished = recent.filter(j => !isActiveJob(j.status));
+  const lastFinished = finished[0] ?? null;
+  const lastFinishedStatus = lastFinished ? jobDotStatus(lastFinished) : null;
+  const lastSuccess = finished.find(j => { const s = jobDotStatus(j); return s === 'done'; }) ?? null;
+  const attention = summary ? buildAttentionItems([summary]) : [];
+  const activeCount = (summary?.running ?? 0) + (summary?.queued ?? 0) || recent.filter(j => isActiveJob(j.status)).length;
+
+  const badge = activeCount > 0
+    ? { tone: 'var(--brand-a)', label: recent.some(j => j.status === 'running' || j.status === 'orchestrating') ? 'Running' : 'Queued' }
+    : attention.some(a => a.severity === 'fail')
+      ? { tone: FAIL_COLOR, label: 'Failing' }
+      : attention.length > 0
+        ? { tone: WARN_COLOR, label: 'Needs attention' }
+        : recent.length === 0 && !recentLoading
+          ? { tone: 'var(--estate-text-dim)', label: 'Never run' }
+          : { tone: OK_COLOR, label: 'Healthy' };
+
+  // ── Trend stats over the sampled runs
+  const okCount = finished.filter(j => ['done', 'empty'].includes(jobDotStatus(j)) || j.status === 'partial').length;
+  const failCount = finished.filter(j => jobDotStatus(j) === 'failed').length;
+  const rate = finishedSuccessRate(okCount, failCount);
+  const medDur = median(finished.map(jobDurationS).filter((d): d is number => d !== null));
+  const medObjects = median(
+    finished.map(j => getJobPrimaryMetric(j.stats, j.job_kind)?.value).filter((v): v is number => typeof v === 'number'),
+  );
+  const runs7d = recent.filter(j => Date.now() - new Date(j.created_at).getTime() < 7 * 86_400_000).length;
+  const emptyCount = finished.filter(j => jobDotStatus(j) === 'empty').length;
+
+  async function retryFailed(job: JobItem) {
+    setRetrying(true);
+    try {
+      const res = await fetch(`/api/agent-lab/context/jobs/${job.id}/retry-failed`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(body.retried ? `Re-queued ${body.retried} failed chunk(s)` : 'No failed chunks to retry');
+        loadRecent();
+        loadRuns();
+      } else {
+        toast.error('Retry failed', { description: body.message ?? body.error ?? 'Unknown error' });
+      }
+    } catch {
+      toast.error('Network error', { description: 'Could not reach the server.' });
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  function toggleParent(jobId: string, e: React.MouseEvent) {
     e.stopPropagation();
     setExpandedParents(prev => {
       const next = new Set(prev);
@@ -2282,128 +3262,469 @@ function L3View({
     });
   }
 
-  const getRowBg = (idx: number) =>
-    idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)';
+  const flow = KIND_FLOW[kind];
+  const summaryByKind = Object.fromEntries(summaries.map(s => [s.kind, s]));
+  const filtersActive = statusFilter !== 'all' || since !== 'any' || !!day;
+  const th = 'px-3 py-2 text-left text-caption font-medium text-[var(--estate-text-muted)]';
 
   return (
-    <>
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-size-ui text-left">
-          <thead>
-            <tr className="sticky top-0 z-10 border-b select-none" style={{ backgroundColor: thBg, borderColor }}>
-       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Status</th>
-       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Trigger</th>
-       <th className="p-3 text-label " style={{ color: labelColor }}>Scope</th>
-       <th className="p-3 text-label w-28" style={{ color: labelColor }}>Started</th>
-       <th className="p-3 text-label w-20 text-right" style={{ color: labelColor }}>Duration</th>
-       <th className="p-3 text-label w-40" style={{ color: labelColor }}>Stats</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && jobs.length === 0 ? (
-              [...Array(8)].map((_, idx) => (
-                <tr key={idx} className="animate-pulse border-b" style={{ borderColor, backgroundColor: getRowBg(idx) }}>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16" /></td>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20" /></td>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-full" /></td>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20" /></td>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12 ml-auto" /></td>
-                  <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_10%,transparent)] rounded w-3/4" /></td>
-                </tr>
-              ))
-            ) : jobs.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="p-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-          <span className="text-label " style={{ color: labelColor }}>No jobs on this date</span>
-                    <p className="text-size-ui" style={{ color: mutedColor }}>No {getKindMeta(kind).label} jobs ran on {formatDate(date)}.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              jobs.map((job, idx) => {
-                const isHighlighted = job.id === activeHighlightId;
-                const isParent = job.status === 'orchestrating' || (job.scope as any)?.is_parent === true;
-                const isExpanded = expandedParents.has(job.id);
-                const scope = job.scope as any ?? {};
-                const totalChildren = scope.total_children as number | undefined;
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Breadcrumb */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-[var(--nav-border)] bg-[var(--estate-surface)] px-6 py-2">
+        <nav aria-label="Job breadcrumb" className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex shrink-0 items-center gap-1 text-size-ui font-medium text-[var(--estate-text-secondary)] transition-colors hover:text-[var(--estate-ink)]"
+          >
+            <ChevronLeft className="size-3.5" aria-hidden />
+            Job types
+          </button>
+          <ChevronRight className="size-3 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
+          <KindDropdown currentKind={kind} kindMeta={meta} summaries={summaries} onSelectKind={onSelectKind} />
+        </nav>
+      </div>
 
-                return (
-                  <React.Fragment key={job.id}>
-                    <tr
-                      id={`job-row-${job.id}`}
-                      onClick={() => onSelectJob(job)}
-                      className="border-b hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors duration-150"
-                      style={isHighlighted
-                        ? { backgroundColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)', borderLeft: '3px solid var(--brand-a-ink)' }
-                        : { backgroundColor: getRowBg(idx), borderColor }
-                      }
+      <div className="min-h-0 flex-1 overflow-auto">
+        <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-6 py-5">
+          {/* A. Header */}
+          <header className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              {group && (
+                <div className="flex items-center gap-1.5 text-caption text-[var(--estate-text-muted)]">
+                  <span className="font-mono text-[var(--brand-a-ink)]">{group.step}</span>
+                  <span>{group.label}</span>
+                </div>
+              )}
+              <div className="mt-1 flex flex-wrap items-center gap-2.5">
+                <h1 className="text-size-title-section font-semibold text-[var(--estate-ink)]">{meta.label}</h1>
+                <KindHealthBadge tone={badge.tone} label={badge.label} />
+              </div>
+              <p className="mt-1 text-size-ui text-[var(--estate-text-secondary)]">{meta.description}</p>
+              {attention.length > 0 && (
+                <ul className="mt-1.5 space-y-0.5">
+                  {attention.map(a => (
+                    <li key={a.key} className="text-caption" style={{ color: inkOf(a.severity === 'fail' ? FAIL_COLOR : WARN_COLOR) }}>
+                      {a.issue}{a.when ? ` · ${agoText(a.when)}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-4">
+              <div className="text-right">
+                <div className="text-caption text-[var(--estate-text-muted)]">Schedule</div>
+                {sched && sched.deployment !== 'manual' ? (
+                  <div className="text-size-ui text-[var(--estate-ink)]" title={`${sched.label}: ${sched.scopeNote}`}>
+                    {describeCron(sched.cronStandard)}
+                    <span className="ml-1.5 text-[var(--estate-text-muted)]">· next {relativeNextRun(sched)}</span>
+                    {schedVia && <div className="text-caption text-[var(--estate-text-muted)]">via {schedVia}</div>}
+                  </div>
+                ) : (
+                  <div className="text-size-ui text-[var(--estate-text-secondary)]">Manual · on demand</div>
+                )}
+              </div>
+              {canRun && (
+                <button
+                  type="button"
+                  onClick={() => onRun(kind)}
+                  className="inline-flex h-9 items-center gap-2 rounded-ctl px-3.5 text-label transition-transform duration-hover active:scale-[0.97]"
+                  style={{ backgroundColor: 'var(--brand-a)', color: 'var(--on-brand)' }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden><polygon points="6 4 20 12 6 20 6 4" /></svg>
+                  Run {meta.label}
+                </button>
+              )}
+            </div>
+          </header>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* B. Last run */}
+            <section aria-label="Last run" className={cn(cardClass, 'flex flex-col p-4')}>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-label text-[var(--estate-text-secondary)]">Last run</h2>
+                {latest && (
+                  <button type="button" onClick={() => onSelectJob(latest)} className="text-caption text-[var(--brand-a-ink)] hover:underline">
+                    Details &amp; logs →
+                  </button>
+                )}
+              </div>
+              {recentLoading && !latest ? (
+                <div className="mt-3 h-28 animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]" />
+              ) : !latest ? (
+                <p className="mt-3 text-size-ui text-[var(--estate-text-muted)]">This job type has not run yet.</p>
+              ) : (
+                <>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <StatusChip status={latest.status} stats={latest.stats} jobKind={latest.job_kind} />
+                    <span className="text-ui text-[var(--estate-ink)]" title={new Date(latest.started_at ?? latest.created_at).toLocaleString()}>
+                      {isActiveJob(latest.status) ? 'started ' : ''}{relativeTime(latest.started_at ?? latest.created_at)}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-size-ui">
+                    <dt className="text-[var(--estate-text-muted)]">Duration</dt>
+                    <dd className="font-mono tabular-nums text-[var(--estate-ink)]">
+                      {isActiveJob(latest.status)
+                        ? latest.started_at ? `${getDuration(latest.started_at, new Date().toISOString())} so far` : 'waiting to start'
+                        : getDuration(latest.started_at, latest.finished_at)}
+                    </dd>
+                    <dt className="text-[var(--estate-text-muted)]">Results</dt>
+                    <dd className="text-[var(--estate-ink)]">{formatStatsSummary(latest.stats, latest.job_kind)}</dd>
+                    <dt className="text-[var(--estate-text-muted)]">Trigger</dt>
+                    <dd className="text-[var(--estate-ink)]">{latest.trigger ?? '--'}</dd>
+                    <dt className="text-[var(--estate-text-muted)]">Scope</dt>
+                    <dd className="truncate text-[var(--estate-ink)]" title={formatJobScopeHuman(latest.scope)}>{formatJobScopeHuman(latest.scope)}</dd>
+                  </dl>
+                  {latest.status === 'failed' && latest.error && (
+                    <pre
+                      className="mt-3 max-h-20 overflow-hidden whitespace-pre-wrap break-words rounded-ctl border px-2.5 py-2 font-mono text-caption"
+                      style={{ color: inkOf(FAIL_COLOR), borderColor: withAlpha(FAIL_COLOR, '4D'), backgroundColor: withAlpha(FAIL_COLOR, '0F') }}
+                      title={latest.error}
                     >
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <StatusChip status={job.status} stats={job.stats} jobKind={job.job_kind} />
-                          {isParent && (
-                            <button
-                              onClick={e => toggleParentExpand(job.id, e)}
-                              title={isExpanded ? 'Hide child jobs' : 'Show child jobs'}
-               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-label transition-colors"
-                              style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)', color: 'var(--brand-a-ink)', backgroundColor: isExpanded ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}
-                            >
-                              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                                className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                                <polyline points="9 18 15 12 9 6"/>
-                              </svg>
-                              {totalChildren ?? '?'} chunks
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 text-size-ui font-mono" style={{ color: labelColor }}>{job.trigger ?? '--'}</td>
-                      <td className="p-3 font-mono text-size-ui max-w-[240px]" style={{ color: mutedColor }}>
-                        {job.scope ? <ScopeSummary scope={job.scope} /> : '--'}
-                      </td>
-                      <td className="p-3 font-mono text-size-ui" title={job.started_at ? new Date(job.started_at).toLocaleString() : '--'} style={{ color: labelColor }}>
-                        {relativeTime(job.started_at)}
-                      </td>
-                      <td className="p-3 text-right font-mono text-size-ui" style={{ color: inkColor }}>
-                        {getDuration(job.started_at, job.finished_at)}
-                      </td>
-                      <td className="p-3 text-size-ui" style={{ color: labelColor }}>
-                        {formatStatsSummary(job.stats, job.job_kind)}
-                      </td>
-                    </tr>
-                    {isParent && isExpanded && (
-                      <tr style={{ backgroundColor: getRowBg(idx) }}>
-                        <td colSpan={6} className="px-4 pb-4 pt-1">
-                          <ChildJobsPanel jobId={job.id} />
+                      {latest.error.split('\n').slice(0, 3).join('\n')}
+                    </pre>
+                  )}
+                  {jobDotStatus(latest) === 'empty' && (
+                    <p className="mt-3 text-caption" style={{ color: inkOf(WARN_COLOR) }}>
+                      Finished but processed 0 objects — check the scope or upstream jobs.
+                    </p>
+                  )}
+                  {(latest.status === 'failed' || latest.status === 'partial') && canRunPipeline && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {isParentJob(latest) ? (
+                        <button
+                          type="button"
+                          disabled={retrying}
+                          onClick={() => retryFailed(latest)}
+                          className="inline-flex h-8 items-center rounded-ctl border px-3 text-caption font-medium text-[var(--brand-a-ink)] transition-colors hover:bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)] disabled:opacity-50"
+                          style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)' }}
+                        >
+                          {retrying ? 'Retrying…' : 'Retry failed chunks'}
+                        </button>
+                      ) : canRun ? (
+                        <button
+                          type="button"
+                          onClick={() => onRun(kind)}
+                          className="inline-flex h-8 items-center rounded-ctl border px-3 text-caption font-medium text-[var(--brand-a-ink)] transition-colors hover:bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)]"
+                          style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)' }}
+                        >
+                          Run again…
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                  {lastSuccess && lastSuccess.id !== latest.id && (
+                    <p className="mt-auto pt-3 text-caption text-[var(--estate-text-muted)]">
+                      Last successful run {relativeTime(lastSuccess.finished_at ?? lastSuccess.created_at)} ·{' '}
+                      <button type="button" onClick={() => onSelectJob(lastSuccess)} className="text-[var(--brand-a-ink)] hover:underline">open</button>
+                    </p>
+                  )}
+                  {!lastSuccess && lastFinishedStatus === 'failed' && finished.length > 1 && (
+                    <p className="mt-auto pt-3 text-caption text-[var(--estate-text-muted)]">No successful run in the last {finished.length} runs.</p>
+                  )}
+                </>
+              )}
+            </section>
+
+            {/* C. Trends */}
+            <section aria-label="Recent runs" className={cn(cardClass, 'flex flex-col p-4 lg:col-span-2')}>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-label text-[var(--estate-text-secondary)]">Recent runs</h2>
+                <span className="text-caption text-[var(--estate-text-muted)]">
+                  {recent.length > 0 ? `Last ${recent.length} runs · bar height = duration · click a bar for details` : ''}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                <InlineStat
+                  label="success"
+                  value={rate === null ? '—' : `${rate}%`}
+                  valueColor={rate === null ? undefined : inkOf(rateTone(rate))}
+                  sub={rate === null ? undefined : `${okCount} ok · ${failCount} failed`}
+                  title="Succeeded or partial vs failed, over the runs shown"
+                />
+                <InlineStat label="typical time" value={medDur === null ? '—' : formatDurationS(Math.round(medDur))} title="Median duration of finished runs" />
+                <InlineStat label="objects / run" value={medObjects === null ? '—' : Math.round(medObjects).toLocaleString()} title="Median objects processed per finished run" />
+                <InlineStat label="runs in 7 days" value={runs7d} />
+                {emptyCount > 0 && <InlineStat label="with 0 objects" value={emptyCount} valueColor={inkOf(WARN_COLOR)} />}
+              </div>
+              <div className="mt-4 flex flex-1 flex-col">
+                {recentLoading && recent.length === 0 ? (
+                  <div className="h-20 animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]" />
+                ) : recent.length === 0 ? (
+                  <div className="flex h-20 items-center justify-center text-size-ui text-[var(--estate-text-muted)]">No runs yet</div>
+                ) : (
+                  <>
+                    <RunBars runs={recent} onSelect={onSelectJob} />
+                    <div className="mt-1 flex justify-between border-t border-[var(--line-1)] pt-1 text-caption text-[var(--estate-text-muted)]">
+                      <span>{new Date(recent[recent.length - 1].created_at).toLocaleDateString()}</span>
+                      <span className="hidden items-center gap-3 sm:inline-flex" aria-hidden>
+                        {(['done', 'failed', 'empty', 'running', 'cancelled'] as RunDotStatus[]).map(st => (
+                          <span key={st} className="inline-flex items-center gap-1">
+                            <span className="size-2 rounded-[2px]" style={runBarStyle(st)} />
+                            {st === 'done' ? 'ok' : st === 'empty' ? '0 objects' : RUN_DOT_STYLE[st].label}
+                          </span>
+                        ))}
+                      </span>
+                      <span>{new Date(recent[0].created_at).toLocaleDateString()}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Pipeline context + coverage */}
+          {(flow || coverage) && (
+            <section aria-label="Pipeline context" className={cn(cardClass, 'flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5')}>
+              {flow && flow.up.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-caption text-[var(--estate-text-muted)]">Runs after</span>
+                  {flow.up.map(k => <FlowChip key={k} kind={k} summary={summaryByKind[k]} onSelect={onSelectKind} />)}
+                </div>
+              )}
+              {flow && flow.down.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-caption text-[var(--estate-text-muted)]">Feeds</span>
+                  {flow.down.map(k => <FlowChip key={k} kind={k} summary={summaryByKind[k]} onSelect={onSelectKind} />)}
+                </div>
+              )}
+              {coverage && health && (
+                <button
+                  type="button"
+                  onClick={() => onOpenTier(coverage.tier)}
+                  title="Open the scanned objects for this stage"
+                  className="ml-auto inline-flex items-center gap-2 rounded-ctl px-2 py-1 text-caption transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_4%,transparent)]"
+                >
+                  {(() => {
+                    const num = health[coverage.num] ?? 0;
+                    const den = health[coverage.den] ?? 0;
+                    const pct = den > 0 ? Math.round((num / den) * 100) : null;
+                    return (
+                      <>
+                        <span className="text-[var(--estate-text-muted)]">Coverage</span>
+                        <span className="h-1.5 w-24 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--ink-1)_8%,transparent)]">
+                          <span className="block h-full rounded-full" style={{ width: `${pct ?? 0}%`, backgroundColor: meta.color }} />
+                        </span>
+                        <span className="font-mono tabular-nums text-[var(--estate-ink)]">{pct === null ? '—' : `${pct}%`}</span>
+                        <span className="text-[var(--estate-text-muted)]">
+                          {coverage.label} {num.toLocaleString()} of {den.toLocaleString()} {coverage.denLabel}
+                        </span>
+                        <ChevronRight className="size-3.5 text-[var(--estate-text-dim)]" aria-hidden />
+                      </>
+                    );
+                  })()}
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* D. All runs */}
+          <section aria-label="All runs" className={cn(cardClass, 'overflow-hidden')}>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] px-4 py-2.5">
+              <h2 className="text-title-card text-[var(--estate-ink)]">
+                All runs
+                <span className="ml-2 font-mono text-caption font-normal text-[var(--estate-text-muted)]">{runsLoading && runs.length === 0 ? '' : runsTotal.toLocaleString()}</span>
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <div role="radiogroup" aria-label="Filter by status" className="inline-flex flex-wrap rounded-ctl border border-[var(--line-1)] p-0.5">
+                  {RUN_STATUS_FILTERS.map(f => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={statusFilter === f.value}
+                      onClick={() => onFilterChange({ status: f.value === 'all' ? null : f.value })}
+                      className={cn(
+                        'rounded-[5px] px-2 py-0.5 text-caption transition-colors duration-hover',
+                        statusFilter === f.value
+                          ? 'bg-[color-mix(in_srgb,var(--brand-a)_14%,transparent)] text-[var(--brand-a-ink)]'
+                          : 'text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)]',
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <Select
+                  aria-label="Time range"
+                  value={day ? 'any' : since}
+                  disabled={!!day}
+                  onChange={e => onFilterChange({ since: e.target.value === 'any' ? null : e.target.value })}
+                  className="h-7 rounded-ctl border border-[var(--line-1)] bg-[var(--estate-raised)] px-2 text-caption text-[var(--estate-ink)] disabled:opacity-50"
+                >
+                  {RUN_SINCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+                <DatePicker
+                  aria-label="On a specific day"
+                  placeholder="Any day"
+                  value={day ?? ''}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={v => onFilterChange({ date: v || null, since: null })}
+                  className="h-7 rounded-ctl border border-[var(--line-1)] bg-[var(--estate-raised)] px-2 text-caption text-[var(--estate-ink)]"
+                />
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={() => onFilterChange({ status: null, since: null, date: null })}
+                    className="text-caption text-[var(--brand-a-ink)] hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px] border-collapse text-size-ui">
+                <thead>
+                  <tr className="border-b border-[var(--line-1)]">
+                    <th scope="col" className={cn(th, 'pl-4')}>Status</th>
+                    <th scope="col" className={th}>Started</th>
+                    <th scope="col" className={cn(th, 'text-right')}>Duration</th>
+                    <th scope="col" className={th}>Results</th>
+                    <th scope="col" className={th}>Trigger</th>
+                    <th scope="col" className={cn(th, 'pr-4')}>Scope</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runsLoading && runs.length === 0 ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="border-b border-[var(--line-1)] last:border-0">
+                        <td colSpan={6} className="px-4 py-2.5">
+                          <div className="h-5 animate-pulse rounded bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]" />
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
+                    ))
+                  ) : runs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-size-ui text-[var(--estate-text-muted)]">
+                        {filtersActive ? 'No runs match these filters.' : `No ${meta.label} runs yet.`}
+                      </td>
+                    </tr>
+                  ) : (
+                    runs.map(job => {
+                      const parent = isParentJob(job);
+                      const expanded = expandedParents.has(job.id);
+                      const totalChildren = (job.scope as any)?.total_children as number | undefined;
+                      const highlighted = job.id === highlightId;
+                      const when = job.started_at ?? job.created_at;
+                      const recentRun = Date.now() - new Date(when).getTime() < 7 * 86_400_000;
+                      return (
+                        <React.Fragment key={job.id}>
+                          <tr
+                            id={`job-row-${job.id}`}
+                            tabIndex={0}
+                            onClick={() => onSelectJob(job)}
+                            onKeyDown={e => { if (e.key === 'Enter') onSelectJob(job); }}
+                            className={cn(
+                              'cursor-pointer border-b border-[var(--line-1)] transition-colors duration-hover last:border-0 hover:bg-[color-mix(in_srgb,var(--ink-1)_3%,transparent)] focus-visible:outline-none focus-visible:bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]',
+                              highlighted && 'bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]',
+                            )}
+                          >
+                            <td className="py-2 pl-4 pr-3">
+                              <div className="flex items-center gap-2">
+                                <StatusChip status={job.status} stats={job.stats} jobKind={job.job_kind} />
+                                {parent && (
+                                  <button
+                                    type="button"
+                                    onClick={e => toggleParent(job.id, e)}
+                                    aria-expanded={expanded}
+                                    title={expanded ? 'Hide chunks' : 'Show chunks'}
+                                    className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-caption text-[var(--brand-a-ink)]"
+                                    style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 35%, transparent)' }}
+                                  >
+                                    <ChevronRight className={cn('size-3 transition-transform', expanded && 'rotate-90')} aria-hidden />
+                                    {totalChildren ?? '?'} chunks
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-[var(--estate-ink)]" title={new Date(when).toLocaleString()}>
+                              {recentRun ? relativeTime(when) : null}
+                              <span className={cn('text-caption text-[var(--estate-text-muted)]', recentRun && 'ml-1.5')}>
+                                {new Date(when).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--estate-ink)]">{getDuration(job.started_at, job.finished_at)}</td>
+                            <td className="px-3 py-2 text-[var(--estate-text-secondary)]">
+                              {job.status === 'failed' && job.error ? (
+                                <span className="block max-w-[320px] truncate" style={{ color: inkOf(FAIL_COLOR) }} title={job.error}>{job.error.split('\n')[0]}</span>
+                              ) : (
+                                formatStatsSummary(job.stats, job.job_kind)
+                              )}
+                            </td>
+                            <td className="px-3 py-2 font-mono text-caption text-[var(--estate-text-secondary)]">{job.trigger ?? '--'}</td>
+                            <td className="max-w-[240px] py-2 pl-3 pr-4 font-mono text-caption text-[var(--estate-text-muted)]">
+                              {job.scope ? <ScopeSummary scope={job.scope} /> : '--'}
+                            </td>
+                          </tr>
+                          {parent && expanded && (
+                            <tr>
+                              <td colSpan={6} className="px-4 pb-4 pt-1">
+                                <ChildJobsPanel jobId={job.id} />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {runsTotal > RUNS_PAGE_SIZE && (
+              <Pagination page={page} pageSize={RUNS_PAGE_SIZE} total={runsTotal} onPageChange={setPage} />
             )}
-          </tbody>
-        </table>
+          </section>
+        </div>
       </div>
-      <Pagination page={page} pageSize={pageSize} total={total} onPageChange={onPageChange} />
-    </>
+    </div>
   );
 }
 
-// ?? Drill-down context nav (L2/L3) ???????????????????????????????????????????????
+// ── Kind switcher ──
+
+type KindHealth = { tone: string; label: string; pulse?: boolean };
+
+/** One-glance status for a job type, used by the job switcher. */
+function kindHealthOf(s: KindSummary | undefined): KindHealth {
+  if (!s) return { tone: 'var(--estate-text-dim)', label: 'Never run' };
+  if (s.running > 0) return { tone: 'var(--brand-a)', label: 'Running', pulse: true };
+  if (s.queued > 0) return { tone: 'var(--brand-a)', label: 'Queued', pulse: true };
+  const items = buildAttentionItems([s]);
+  if (items.some(i => i.severity === 'fail')) return { tone: FAIL_COLOR, label: 'Failing' };
+  if (items.some(i => i.key.endsWith('-stale'))) return { tone: WARN_COLOR, label: 'Overdue' };
+  if (items.length) return { tone: WARN_COLOR, label: 'Needs attention' };
+  if (!s.last_finished_at && !(s.recent?.length)) return { tone: 'var(--estate-text-dim)', label: 'Never run' };
+  return { tone: OK_COLOR, label: s.last_finished_at ? relativeTime(s.last_finished_at) : 'Healthy' };
+}
 
 function KindDropdown({
+  currentKind,
   kindMeta,
   summaries,
   onSelectKind,
 }: {
+  currentKind: string;
   kindMeta: KindMeta;
   summaries: KindSummary[];
   onSelectKind: (kind: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const summaryByKind = useMemo(() => Object.fromEntries(summaries.map(s => [s.kind, s])) as Record<string, KindSummary>, [summaries]);
+
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return getJobKindGroups(summaries.map(s => s.kind))
+      .map(g => ({ ...g, kinds: g.kinds.filter(k => !q || getKindMeta(k).label.toLowerCase().includes(q) || k.toLowerCase().includes(q)) }))
+      .filter(g => g.kinds.length > 0);
+  }, [summaries, query]);
+  const flat = useMemo(() => groups.flatMap(g => g.kinds), [groups]);
+  const current = kindHealthOf(summaryByKind[currentKind]);
 
   useEffect(() => {
     if (!open) return;
@@ -2414,204 +3735,125 @@ function KindDropdown({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
-  const pillClass =
-    'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-size-ui font-mono font-semibold tracking-wide transition-all hover:opacity-90 cursor-pointer';
-  const pillStyle: React.CSSProperties = {
-    color: 'var(--estate-ink)',
-    backgroundColor: kindMeta.bg,
-    borderColor: kindMeta.border,
-    borderLeftWidth: 3,
-    borderLeftColor: kindMeta.color,
-  };
+  function openMenu() {
+    setQuery('');
+    setActive(Math.max(0, getJobKindGroups(summaries.map(s => s.kind)).flatMap(g => g.kinds).indexOf(currentKind)));
+    setOpen(true);
+  }
 
+  function close(refocus = true) {
+    setOpen(false);
+    if (refocus) triggerRef.current?.focus();
+  }
+
+  function pick(k: string) {
+    close(false);
+    if (k !== currentKind) onSelectKind(k);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    listRef.current?.querySelector(`[data-idx="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [active, open]);
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => Math.min(flat.length - 1, i + 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(i => Math.max(0, i - 1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (flat[active]) pick(flat[active]); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+  }
+
+  let idx = -1;
   return (
     <div ref={ref} className="relative">
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
-        className={pillClass}
-        style={pillStyle}
+        onClick={() => (open ? close() : openMenu())}
+        className="inline-flex h-7 items-center gap-2 rounded-ctl px-2 text-size-ui font-medium text-[var(--estate-ink)] transition-colors duration-hover hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] aria-expanded:bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]"
         aria-haspopup="listbox"
         aria-expanded={open}
+        title={`${kindMeta.label}: ${current.label}. Switch job type`}
       >
+        <span aria-hidden className={cn('size-2 rounded-full', current.pulse && 'animate-pulse')} style={{ backgroundColor: current.tone }} />
         {kindMeta.label}
-        <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
+        <ChevronDown className={cn('size-3.5 text-[var(--estate-text-muted)] transition-transform duration-hover', open && 'rotate-180')} aria-hidden />
       </button>
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded border shadow-lg py-1 overflow-hidden"
-          style={{ backgroundColor: 'var(--estate-surface)', borderColor: 'var(--nav-border)' }}
-          role="listbox"
+          className="absolute left-0 top-full z-50 mt-1.5 w-[320px] overflow-hidden rounded-card border border-[var(--line-1)] bg-[var(--estate-raised)] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)]"
+          onKeyDown={onKeyDown}
         >
-          {summaries.map(s => {
-            const meta = getKindMeta(s.kind);
-            const isCurrent = meta.label === kindMeta.label;
-            return (
-              <button
-                key={s.kind}
-                type="button"
-                role="option"
-                aria-selected={isCurrent}
-                onClick={() => { setOpen(false); if (!isCurrent) onSelectKind(s.kind); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-size-ui font-mono text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]"
-                style={{ color: isCurrent ? inkOf(kindMeta.color) : 'var(--estate-ink)' }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: meta.color }}
-                />
-                {meta.label}
-                {isCurrent && <span className="ml-auto text-size-ui">current</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DateDropdown({
-  urlDate,
-  dateGroups,
-  onSelectDate,
-}: {
-  urlDate: string;
-  dateGroups: DateGroup[];
-  onSelectDate: (date: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1 text-size-body font-sans font-medium text-[var(--estate-ink)] hover:opacity-80 transition-opacity cursor-pointer"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {formatDate(urlDate)}
-        <ChevronDown className="h-3.5 w-3.5 opacity-50" aria-hidden />
-      </button>
-
-      {open && dateGroups.length > 0 && (
-        <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-[200px] rounded border shadow-lg py-1 overflow-hidden"
-          style={{ backgroundColor: 'var(--estate-surface)', borderColor: 'var(--nav-border)' }}
-          role="listbox"
-        >
-          {dateGroups.map(dg => {
-            const isCurrent = dg.date === urlDate;
-            const successRate = dg.total > 0 ? Math.round((dg.succeeded / dg.total) * 100) : 0;
-            const rateColor = successRate >= 90 ? '#2DD4A0' : successRate >= 70 ? 'var(--brand-a-ink)' : '#EF4444';
-            return (
-              <button
-                key={dg.date}
-                type="button"
-                role="option"
-                aria-selected={isCurrent}
-                onClick={() => { setOpen(false); if (!isCurrent) onSelectDate(dg.date); }}
-                className="w-full flex items-center justify-between gap-3 px-3 py-1.5 text-size-ui font-mono text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]"
-                style={{ color: isCurrent ? 'var(--brand-a-ink)' : 'var(--estate-ink)' }}
-              >
-                <span>{formatDate(dg.date)}</span>
-                <span className="shrink-0 text-size-ui" style={{ color: rateColor }}>
-                  {dg.total} run{dg.total !== 1 ? 's' : ''}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function JobsDrilldownNav({
-  level,
-  kindMeta,
-  urlDate,
-  schedForKind,
-  summaries,
-  dateGroups,
-  onBack,
-  onSelectKind,
-  onSelectDate,
-}: {
-  level: 'l2' | 'l3';
-  kindMeta: KindMeta;
-  urlDate: string | null;
-  schedForKind: (typeof HARVEST_SCHEDULES)[number] | null | undefined;
-  summaries: KindSummary[];
-  dateGroups: DateGroup[];
-  onBack: () => void;
-  onSelectKind: (kind: string) => void;
-  onSelectDate: (date: string) => void;
-}) {
-  return (
-    <div className="px-6 py-2.5 border-b flex items-center justify-between gap-4 shrink-0 bg-[var(--estate-surface)] border-[var(--nav-border)]">
-      <nav aria-label="Job drill-down" className="flex items-center gap-2 min-w-0 flex-wrap">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1 shrink-0 text-size-ui font-sans font-medium text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)] transition-colors"
-        >
-          <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {level === 'l3' ? 'Dates' : 'Job types'}
-        </button>
-
-        <ChevronRight className="h-3 w-3 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
-
-        <KindDropdown
-          kindMeta={kindMeta}
-          summaries={summaries}
-          onSelectKind={onSelectKind}
-        />
-
-        {urlDate && (
-          <>
-            <ChevronRight className="h-3 w-3 shrink-0 text-[var(--estate-text-dim)]" aria-hidden />
-            <DateDropdown
-              urlDate={urlDate}
-              dateGroups={dateGroups}
-              onSelectDate={onSelectDate}
+          <div className="border-b border-[var(--line-1)] p-2">
+            <input
+              autoFocus
+              value={query}
+              onChange={e => { setQuery(e.target.value); setActive(0); }}
+              placeholder={'Find a job type\u2026'}
+              aria-label="Find a job type"
+              aria-controls="kind-switcher-list"
+              aria-activedescendant={flat[active] ? `kind-opt-${flat[active]}` : undefined}
+              className="h-8 w-full rounded-ctl border border-[var(--line-1)] bg-[var(--card)] px-2.5 text-size-ui text-[var(--estate-ink)] placeholder:text-[var(--estate-text-dim)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
             />
-          </>
-        )}
-      </nav>
-
-      {schedForKind && (
-        schedForKind.deployment === 'manual' ? (
-          <span
-            className="shrink-0 px-2 py-0.5 rounded border text-size-ui font-sans font-medium text-[var(--estate-text-muted)] border-[var(--nav-border)]"
-            title="Manual / on-demand — no EventBridge rule deployed"
-          >
-            Manual — not scheduled
-          </span>
-        ) : (
-          <span
-            className="shrink-0 px-2 py-0.5 rounded border text-size-ui font-mono font-medium"
-            style={{
-              color: 'var(--estate-status-warning-text)',
-              backgroundColor: 'var(--estate-status-warning-bg)',
-              borderColor: 'var(--estate-status-warning-border)',
-            }}
-          >
-            Next {relativeNextRun(schedForKind)}
-          </span>
-        )
+          </div>
+          <div ref={listRef} id="kind-switcher-list" role="listbox" aria-label="Job types" className="max-h-[360px] overflow-y-auto py-1">
+            {flat.length === 0 && (
+              <div className="px-3 py-6 text-center text-caption text-[var(--estate-text-muted)]">No job types match</div>
+            )}
+            {groups.map(g => (
+              <div key={g.id} role="group" aria-label={g.label}>
+                <div className="flex items-baseline gap-2 px-3 pb-1 pt-2 text-caption text-[var(--estate-text-muted)]">
+                  <span className="font-mono text-[var(--brand-a-ink)]">{g.step}</span>
+                  {g.label}
+                </div>
+                {g.kinds.map(k => {
+                  idx += 1;
+                  const i = idx;
+                  const isCurrent = k === currentKind;
+                  const h = kindHealthOf(summaryByKind[k]);
+                  const muted = h.tone === OK_COLOR || h.tone === 'var(--estate-text-dim)';
+                  return (
+                    <div
+                      key={k}
+                      id={`kind-opt-${k}`}
+                      data-idx={i}
+                      role="option"
+                      aria-selected={isCurrent}
+                      onMouseEnter={() => setActive(i)}
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => pick(k)}
+                      className={cn(
+                        'mx-1 flex cursor-pointer items-center gap-2.5 rounded-ctl px-2 py-1.5 text-size-ui',
+                        i === active && 'bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)]',
+                      )}
+                    >
+                      <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', h.pulse && 'animate-pulse')} style={{ backgroundColor: h.tone }} />
+                      <span className={cn('min-w-0 flex-1 truncate', isCurrent ? 'font-medium text-[var(--estate-ink)]' : 'text-[var(--estate-text-secondary)]')}>
+                        {getKindMeta(k).label}
+                      </span>
+                      <span
+                        className="shrink-0 text-caption tabular-nums"
+                        style={{ color: muted ? 'var(--estate-text-muted)' : inkOf(h.tone) }}
+                      >
+                        {h.label}
+                      </span>
+                      <span aria-hidden className="w-3.5 shrink-0 text-[var(--brand-a-ink)]">
+                        {isCurrent && (
+                          <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center justify-between border-t border-[var(--line-1)] px-3 py-1.5 text-caption text-[var(--estate-text-dim)]">
+            <span>{'\u2191\u2193'} to move · Enter to open</span>
+            <span>Esc to close</span>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2642,30 +3884,26 @@ function EstateJobsPageContent() {
   const urlHighlight = searchParams.get('highlight');
   const urlTab = searchParams.get('tab') as ActiveTab | null;
   const urlActiveFilter = searchParams.get('activeFilter');
+  const urlTier = searchParams.get('tier');
+  const scannedInitialTier: ScannedTier | null =
+    urlTier === 't0' || urlTier === 't1' || urlTier === 't2' || urlTier === 'embed' ? urlTier : null;
+  const statsWindow = parseStatsWindow(searchParams.get('range'));
 
-  const level: ViewLevel = urlKind && urlDate ? 'l3' : urlKind ? 'l2' : 'l1';
+  const level: ViewLevel = urlKind ? 'kind' : 'l1';
   const activeTab: ActiveTab =
-    urlTab === 'scanned' ? 'scanned' : urlTab === 'active' ? 'active' : 'jobs';
+    urlTab === 'scanned' ? 'scanned' : urlTab === 'active' ? 'active' : urlTab === 'health' ? 'health' : 'jobs';
 
   // ?? L1 state
   const [summaries, setSummaries] = useState<KindSummary[]>([]);
   const [summariesLoading, setSummariesLoading] = useState(true);
   const [queuedJobs, setQueuedJobs] = useState<QueuedJobItem[]>([]);
 
-  // ?? L2 state
-  const [dateGroups, setDateGroups] = useState<DateGroup[]>([]);
-  const [dateGroupsLoading, setDateGroupsLoading] = useState(false);
-
-  // ?? L3 state
-  const [jobs, setJobs] = useState<JobItem[]>([]);
-  const [jobsTotal, setJobsTotal] = useState(0);
-  const [jobsLoading, setJobsLoading] = useState(false);
-  const [jobsPage, setJobsPage] = useState(1);
-  const jobsPageSize = 25;
   const [selectedJob, setSelectedJob] = useState<JobItem | null>(null);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
   const highlightedRef = useRef<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [launchRequest, setLaunchRequest] = useState<{ kind: string; nonce: number } | null>(null);
+  const [kindReloadKey, setKindReloadKey] = useState(0);
 
   // ?? Navigation helpers
   function pushParams(updates: Record<string, string | null>) {
@@ -2678,35 +3916,42 @@ function EstateJobsPageContent() {
   }
 
   function selectKind(kind: string) {
-    pushParams({ kind, date: null, highlight: null });
-    setDateGroups([]);
-    setJobs([]);
-    setJobsPage(1);
-  }
-
-  function selectDate(date: string) {
-    pushParams({ date });
-    setJobs([]);
-    setJobsPage(1);
+    pushParams({ kind, date: null, status: null, since: null, highlight: null });
   }
 
   function goBack() {
-    if (level === 'l3') pushParams({ date: null });
-    else if (level === 'l2') pushParams({ kind: null, date: null });
+    pushParams({ kind: null, date: null, status: null, since: null, highlight: null });
   }
 
-  // ?? Fetch L1 summaries
+  function onJobQueued() {
+    fetchSummaries();
+    fetchQueued();
+    setKindReloadKey(k => k + 1);
+  }
+
+  // ?? Fetch L1 summaries (windowed + run history on L1; all-time counts for drill-down nav)
+  const summaryDays = level === 'l1' && statsWindow !== 'all' ? statsWindow : null;
   const fetchSummaries = useCallback(async () => {
     setSummariesLoading(true);
     try {
-      const json = await fetchJson('/api/agent-lab/context/jobs/summary?coverage=false');
+      const p = new URLSearchParams({ coverage: 'false', detail: 'true' });
+      if (summaryDays) p.set('days', summaryDays);
+      const json = await fetchJson(`/api/agent-lab/context/jobs/summary?${p}`);
       if (json?.ok) setSummaries(json.data?.data ?? []);
     } finally {
       setSummariesLoading(false);
     }
-  }, []);
+  }, [summaryDays]);
 
   useEffect(() => { fetchSummaries(); }, [fetchSummaries]);
+
+  // Keep run dots / active counts fresh while jobs are in flight
+  const summariesHaveActive = summaries.some(s => s.running > 0 || s.queued > 0);
+  useEffect(() => {
+    if (!summariesHaveActive || level !== 'l1') return;
+    const id = setInterval(fetchSummaries, 15_000);
+    return () => clearInterval(id);
+  }, [summariesHaveActive, level, fetchSummaries]);
 
   // ?? Fetch queued jobs (poll 15s)
   const fetchQueued = useCallback(async () => {
@@ -2720,194 +3965,108 @@ function EstateJobsPageContent() {
     return () => clearInterval(id);
   }, [fetchQueued]);
 
-  // ?? Fetch L2 date groups when kind changes
+  // ?? Deep link: ?highlight=<jobId> opens that run (and its job type page) from anywhere
   useEffect(() => {
-    if (!urlKind) return;
-    setDateGroupsLoading(true);
-    fetchJson(`/api/agent-lab/context/jobs/dates?kind=${encodeURIComponent(urlKind)}`)
-      .then(json => { if (json?.ok) setDateGroups(json.data?.data ?? []); })
-      .finally(() => setDateGroupsLoading(false));
-  }, [urlKind]);
-
-  // ?? Fetch L3 jobs when kind+date changes
-  useEffect(() => {
-    if (!urlKind || !urlDate) return;
-    setJobsLoading(true);
-    const after = new Date(urlDate + 'T00:00:00Z').toISOString();
-    const before = new Date(urlDate + 'T23:59:59Z').toISOString();
-    const p = new URLSearchParams({
-      kind: urlKind,
-      after,
-      before,
-      page: String(jobsPage),
-      pageSize: String(jobsPageSize),
-    });
-    fetchJson(`/api/agent-lab/context/jobs?${p}`)
-      .then(json => {
-        if (!json?.ok) return;
-        setJobs(json.data?.data?.items ?? []);
-        setJobsTotal(json.data?.data?.total ?? 0);
-      })
-      .finally(() => setJobsLoading(false));
-  }, [urlKind, urlDate, jobsPage]);
-
-  // ?? Auto-refresh L3 when active jobs visible
-  useEffect(() => {
-    if (!urlKind || !urlDate) return;
-    const hasActive = jobs.some(j => j.status === 'queued' || j.status === 'running');
-    if (!hasActive) return;
-    const id = setInterval(async () => {
-      const after = new Date(urlDate + 'T00:00:00Z').toISOString();
-      const before = new Date(urlDate + 'T23:59:59Z').toISOString();
-      const p = new URLSearchParams({ kind: urlKind, after, before, page: String(jobsPage), pageSize: String(jobsPageSize) });
-      const json = await fetchJson(`/api/agent-lab/context/jobs?${p}`);
-      if (json?.ok) {
-        setJobs(json.data?.data?.items ?? []);
-        setJobsTotal(json.data?.data?.total ?? 0);
-      }
-    }, 10_000);
-    return () => clearInterval(id);
-  }, [jobs, urlKind, urlDate, jobsPage]);
-
-  // ?? URL highlight logic for L3
-  useEffect(() => {
-    if (!urlHighlight || jobsLoading || jobs.length === 0) return;
-    if (highlightedRef.current === urlHighlight) return;
+    if (!urlHighlight || highlightedRef.current === urlHighlight) return;
     highlightedRef.current = urlHighlight;
-    const matched = jobs.find(j => j.id === urlHighlight);
-    if (matched) {
-      setSelectedJob(matched);
-      setActiveHighlightId(urlHighlight);
-      setTimeout(() => {
-        document.getElementById(`job-row-${urlHighlight}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 150);
-      const t = setTimeout(() => setActiveHighlightId(null), 2000);
-      return () => clearTimeout(t);
-    }
-  }, [jobs, urlHighlight, jobsLoading]);
+    // No cancel-on-cleanup: the ref guard already dedupes, and StrictMode's re-run would otherwise drop the result.
+    fetchJson(`/api/agent-lab/context/jobs/${encodeURIComponent(urlHighlight)}`).then(json => {
+      if (!json?.ok || !json.data?.data) return;
+      const job = json.data.data as JobItem;
+      setSelectedJob(job);
+      setActiveHighlightId(job.id);
+      if (searchParams.get('kind') !== job.job_kind) {
+        const p = new URLSearchParams(searchParams.toString());
+        p.set('kind', job.job_kind);
+        p.delete('tab');
+        router.replace(`?${p.toString()}`);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlHighlight]);
 
-  // ?? Breadcrumb
-  const kindMeta = urlKind ? getKindMeta(urlKind) : null;
-  const schedForKind = kindMeta?.scheduleId ? HARVEST_SCHEDULES.find(h => h.id === kindMeta!.scheduleId) : null;
+  useEffect(() => {
+    if (!activeHighlightId) return;
+    const t = setTimeout(() => setActiveHighlightId(null), 4000);
+    return () => clearTimeout(t);
+  }, [activeHighlightId]);
+
+  const activeRunCount = summaries.reduce((n, s) => n + s.running + s.queued, 0);
+  const healthTone = summaries.length > 0 ? computeRunHealth(summaries) : null;
 
   return (
     <div className="h-full w-full flex flex-col overflow-hidden bg-[var(--background)]">
-      {/* Top bar: scheduled sweeps (L1 only) */}
+      {/* Tab bar + primary actions (L1 only) */}
       {level === 'l1' && (
-        <div className="px-6 py-3 border-b flex items-center justify-between shrink-0 bg-[var(--nav-hover)] border-[var(--nav-border)]">
-          <div className="flex items-center gap-5 flex-wrap">
-            <div className="flex items-center gap-2 shrink-0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--brand-a-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-       <span className="text-label text-[var(--text-secondary)]">
-                Schedules
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {HARVEST_SCHEDULES.map(sched => {
-                const isManual = sched.deployment === 'manual';
-                const nextRun = getNextRun(sched);
-                const relative = relativeNextRun(sched);
-                const isImminent = !isManual && relative.startsWith('in') && (relative.includes('m') || relative.includes('1h'));
+        <div className="border-b shrink-0 bg-[var(--background)] border-[var(--nav-border)]">
+          <div className="flex items-center justify-between gap-4 px-6 pt-1.5">
+            <div role="tablist" aria-label="Jobs views" className="flex items-center gap-0.5">
+              {(['jobs', 'health', 'scanned', 'active'] as ActiveTab[]).map(tab => {
+                const isActive = activeTab === tab;
+                const label =
+                  tab === 'jobs' ? 'Job types' : tab === 'health' ? 'Health' : tab === 'scanned' ? 'Scanned objects' : 'Active runs';
+                const badge = tab === 'active' && activeRunCount > 0 ? activeRunCount : null;
+                const alertDot = tab === 'health' && healthTone && healthTone.items.length > 0 ? healthTone : null;
                 return (
-                  <span
-                    key={sched.id}
-                    title={isManual
-                      ? `${sched.description}\nScope: ${sched.scopeNote}\nManual / on-demand — no EventBridge rule deployed`
-                      : `${sched.description}\nScope: ${sched.scopeNote}\nCron: ${sched.cronInner}\nNext: ${nextRun?.toUTCString() ?? 'unknown'}`}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-size-ui font-mono transition-all"
-                    style={{
-                      backgroundColor: isImminent ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'var(--card)',
-                      borderColor: isImminent ? 'color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'var(--nav-border)',
-                    }}
-                  >
-                    <span className="font-semibold text-[var(--foreground)]">{sched.label}</span>
-                    <span className="text-[var(--text-tertiary)]">|</span>
-                    {isManual ? (
-                      <span className="font-semibold uppercase tracking-wide text-size-ui text-[var(--text-tertiary)]">
-                        manual · not scheduled
-                      </span>
-                    ) : (
-                      <>
-                        <span className="text-size-ui text-[var(--text-secondary)] tabular-nums">{sched.cronInner}</span>
-                        <span className="text-[var(--text-tertiary)]">|</span>
-                        <span className={`font-semibold ${isImminent ? 'text-[var(--brand-a-ink)]' : 'text-[var(--text-secondary)]'}`}>
-                          {relative}
-                        </span>
-                      </>
+                  <button
+                    key={tab}
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => pushParams({ tab: tab === 'jobs' ? null : tab, tier: null })}
+                    className={cn(
+                      'relative inline-flex h-10 items-center gap-1.5 px-4 text-ui transition-colors duration-hover cursor-pointer border-none bg-transparent',
+                      'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] rounded-t-ctl',
+                      isActive
+                        ? 'text-[var(--brand-a-ink)]'
+                        : 'text-[var(--nav-item-text)] hover:text-[var(--nav-text)]',
                     )}
-                  </span>
+                  >
+                    {label}
+                    {alertDot && (
+                      <span
+                        aria-label={alertDot.headline}
+                        title={alertDot.headline}
+                        className="size-1.5 rounded-full"
+                        style={{ backgroundColor: alertDot.tone }}
+                      />
+                    )}
+                    {badge !== null && (
+                      <span
+                        aria-label={`${badge} active`}
+                        className="inline-flex min-w-[18px] items-center justify-center gap-1 rounded-full px-1.5 py-px font-mono text-caption tabular-nums"
+                        style={{ color: 'var(--on-brand)', backgroundColor: 'var(--brand-a)' }}
+                      >
+                        {badge}
+                      </span>
+                    )}
+                    {isActive && (
+                      <span className="absolute -bottom-px left-3 right-3 h-0.5 rounded-full bg-[var(--brand-a)]" />
+                    )}
+                  </button>
                 );
               })}
             </div>
-          </div>
-          <div className="flex items-center gap-4 shrink-0">
-            <div className="hidden xl:flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-size-ui text-[var(--text-tertiary)] font-sans">
-                Infrastructure active
-              </span>
+            <div className="flex shrink-0 items-center gap-3 pb-1.5">
+              {canRunPipeline ? (
+                <RunJobButton launchRequest={launchRequest} onJobQueued={onJobQueued} />
+              ) : (
+                <span className="text-size-ui text-[var(--text-tertiary)] font-sans">
+                  View only — a platform admin runs pipelines
+                </span>
+              )}
             </div>
-            {canRunPipeline ? (
-              <RunJobButton onJobQueued={() => { fetchSummaries(); fetchQueued(); }} />
-            ) : (
-              <span className="text-size-ui text-[var(--text-tertiary)] font-sans">
-                View only — platform admin runs pipelines
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Drill-down context nav (L2/L3) */}
-      {level !== 'l1' && kindMeta && urlKind && (
-        <JobsDrilldownNav
-          level={level as 'l2' | 'l3'}
-          kindMeta={kindMeta}
-          urlDate={urlDate}
-          schedForKind={schedForKind}
-          summaries={summaries}
-          dateGroups={dateGroups}
-          onBack={goBack}
-          onSelectKind={selectKind}
-          onSelectDate={selectDate}
-        />
-      )}
-
-      {/* Tab bar (only on L1) */}
-      {level === 'l1' && (
-        <div className="border-b shrink-0 bg-[var(--background)] border-[var(--nav-border)]">
-          <div className="flex items-center gap-0.5 px-6 pt-1.5">
-            {(['jobs', 'scanned', 'active'] as ActiveTab[]).map(tab => {
-              const isActive = activeTab === tab;
-              const label =
-                tab === 'jobs' ? 'Job Types' : tab === 'scanned' ? 'Scanned Objects' : 'Active Runs';
-              return (
-                <button
-                  key={tab}
-                  onClick={() => pushParams({ tab: tab === 'jobs' ? null : tab })}
-                  className={cn(
-                    'relative px-5 py-2.5 text-size-ui font-mono font-semibold uppercase tracking-wide transition-colors duration-150 rounded-t cursor-pointer border-none',
-                    isActive
-                      ? 'text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]'
-                      : 'text-[var(--nav-item-text)] bg-transparent hover:text-[var(--nav-text)] hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)]',
-                  )}
-                >
-                  {label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t bg-[var(--brand-a)]" />
-                  )}
-                </button>
-              );
-            })}
           </div>
         </div>
       )}
 
       {/* Content */}
       {level === 'l1' && activeTab === 'scanned' ? (
-        <ScannedObjectsTab refreshKey={refreshKey} canRunPipeline={canRunPipeline} />
+        <ScannedObjectsTab
+          key={scannedInitialTier ?? 'all'}
+          refreshKey={refreshKey}
+          canRunPipeline={canRunPipeline}
+          initialTier={scannedInitialTier}
+        />
       ) : level === 'l1' && activeTab === 'active' ? (
         <ActiveRunsPanel
           refreshKey={refreshKey}
@@ -2915,16 +4074,33 @@ function EstateJobsPageContent() {
           canRunPipeline={canRunPipeline}
           onSelectJob={job => setSelectedJob(job as JobItem)}
         />
+      ) : level === 'l1' && activeTab === 'health' ? (
+        <HealthView
+          summaries={summaries}
+          loading={summariesLoading}
+          canRunPipeline={canRunPipeline}
+          statsWindow={statsWindow}
+          reloadKey={refreshKey + kindReloadKey}
+          onStatsWindowChange={w => pushParams({ range: w === '7' ? null : w })}
+          onSelectKind={selectKind}
+          onSelectJob={setSelectedJob}
+          onOpenActiveRuns={() => pushParams({ tab: 'active' })}
+          onStageClick={tier => pushParams({ tab: 'scanned', tier })}
+          onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
+          onOpenWizard={() => setWizardOpen(true)}
+        />
       ) : level === 'l1' ? (
         <L1View
           summaries={summaries}
           queuedJobs={queuedJobs}
           loading={summariesLoading}
           canRunPipeline={canRunPipeline}
+          statsWindow={statsWindow}
+          onStatsWindowChange={w => pushParams({ range: w === '7' ? null : w })}
           onSelectKind={selectKind}
-          onCockpitLaunched={() => { fetchSummaries(); fetchQueued(); }}
+          onRunKind={kind => setLaunchRequest({ kind, nonce: Date.now() })}
           onOpenActiveRuns={() => pushParams({ tab: 'active', activeFilter: 'queued' })}
-          onOpenWizard={() => setWizardOpen(true)}
+          onOpenHealth={() => pushParams({ tab: 'health' })}
           onCancelJob={async (jobId, kind) => {
             try {
               const res = await fetch(`/api/agent-lab/context/jobs/${jobId}`, { method: 'DELETE' });
@@ -2943,27 +4119,29 @@ function EstateJobsPageContent() {
             }
           }}
         />
-      ) : level === 'l2' && urlKind ? (
-        <L2View
+      ) : urlKind ? (
+        <JobKindPage
           kind={urlKind}
-          dateGroups={dateGroups}
-          loading={dateGroupsLoading}
-          onSelectDate={selectDate}
-        />
-      ) : level === 'l3' && urlKind && urlDate ? (
-        <L3View
-          kind={urlKind}
-          date={urlDate}
-          jobs={jobs}
-          total={jobsTotal}
-          page={jobsPage}
-          pageSize={jobsPageSize}
-          loading={jobsLoading}
-          activeHighlightId={activeHighlightId}
+          summaries={summaries}
+          canRunPipeline={canRunPipeline}
+          reloadKey={kindReloadKey + refreshKey}
+          statusFilter={parseRunStatusFilter(searchParams.get('status'))}
+          since={parseRunSince(searchParams.get('since'))}
+          day={urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) ? urlDate : null}
+          highlightId={activeHighlightId}
+          onFilterChange={pushParams}
+          onSelectKind={selectKind}
+          onBack={goBack}
+          onRun={kind => setLaunchRequest({ kind, nonce: Date.now() })}
           onSelectJob={setSelectedJob}
-          onPageChange={p => { setJobsPage(p); }}
+          onOpenTier={tier => pushParams({ kind: null, date: null, status: null, since: null, highlight: null, tab: 'scanned', tier })}
         />
       ) : null}
+
+      {/* Confirm modal for Run buttons on the job type page */}
+      {level === 'kind' && canRunPipeline && (
+        <RunJobButton hideTrigger launchRequest={launchRequest} onJobQueued={onJobQueued} />
+      )}
 
       {/* Detail Drawer */}
       <JobDetailDrawer job={selectedJob} onClose={() => setSelectedJob(null)} />

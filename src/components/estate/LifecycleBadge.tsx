@@ -1,6 +1,15 @@
 'use client';
 
 import React from 'react';
+import {
+  ESTATE_PIPELINE_TIERS,
+  ESTATE_STAGE,
+  estateStageDisplayLabel,
+  estateTierDisplayLabel,
+} from '@/lib/estate/stages';
+
+const PIPELINE_T3 = ESTATE_PIPELINE_TIERS.find((t) => t.id === 't3')!;
+const PIPELINE_T4 = ESTATE_PIPELINE_TIERS.find((t) => t.id === 't4')!;
 
 export type LifecycleState =
   | 'discovered'
@@ -69,7 +78,7 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
       dotStyle: 'none',
     },
     inaccessible: {
-      label: 'No Access',
+      label: 'No access',
       color: '#f87171',
       borderColor: 'rgba(248, 113, 113, 0.35)',
       bg: 'rgba(248, 113, 113, 0.06)',
@@ -90,35 +99,35 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
       dotStyle: 'pulse',
     },
     analyzed: {
-      label: 'Analyzed',
+      label: estateStageDisplayLabel(ESTATE_STAGE.profiled),
       color: '#34d399',
       borderColor: 'rgba(52, 211, 153, 0.35)',
       bg: 'rgba(52, 211, 153, 0.06)',
       dotStyle: 'solid',
     },
     enriched: {
-      label: 'Enriched',
+      label: estateStageDisplayLabel(ESTATE_STAGE.enriched),
       color: '#a78bfa',
       borderColor: 'rgba(167, 139, 250, 0.35)',
       bg: 'rgba(167, 139, 250, 0.06)',
       dotStyle: 'solid',
     },
     embedded: {
-      label: 'Embedded',
+      label: estateStageDisplayLabel(ESTATE_STAGE.searchable),
       color: '#818CF8',
       borderColor: 'rgba(129, 140, 248, 0.35)',
       bg: 'rgba(129, 140, 248, 0.06)',
       dotStyle: 'solid',
     },
     connected: {
-      label: 'Connected',
+      label: estateTierDisplayLabel(PIPELINE_T3),
       color: '#F59E0B',
       borderColor: 'rgba(245, 158, 11, 0.35)',
       bg: 'rgba(245, 158, 11, 0.06)',
       dotStyle: 'solid',
     },
     modelled: {
-      label: 'Modelled',
+      label: estateTierDisplayLabel(PIPELINE_T4),
       color: '#F472B6',
       borderColor: 'rgba(244, 114, 182, 0.35)',
       bg: 'rgba(244, 114, 182, 0.06)',
@@ -132,7 +141,7 @@ export default function LifecycleBadge({ harvestState, lastT0At, lastT1At, lastT
       dotStyle: 'solid',
     },
     stale: {
-      label: 'Sync stale',
+      label: 'Needs re-sync',
       color: '#f0a830',
       borderColor: 'rgba(240, 168, 48, 0.35)',
       bg: 'transparent',

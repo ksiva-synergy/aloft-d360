@@ -1,18 +1,22 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useRouter } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
 import ScannedFacetTree from './ScannedFacetTree';
 import ScannedPipelineScopeBar, {
   MAX_CONTINUE_SCHEMAS,
   MAX_CONTINUE_TABLES,
 } from './ScannedPipelineScopeBar';
 import Pagination from './Pagination';
+import { CatalogSearch } from './EstateFilterBar';
+import { CATALOG_SELECT, CATALOG_SELECT_ARROW, ObjectNameCell, formatCompactCount, formatFull, formatRelative } from './catalog-ui';
 import { schemaIncludePattern } from '@/lib/estate/catalog-pipeline';
 import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
+import { ESTATE_PIPELINE_TIERS, estateTierDisplayLabel, type ScannedTierId } from '@/lib/estate/stages';
 
-import { withAlpha } from '@/lib/theme/with-alpha';
-import { type } from '@/lib/typography/tokens';
 interface ScannedObjectItem {
   id: string;
   full_path: string;
@@ -47,7 +51,8 @@ interface ScannedEmbeddingTotals {
   column_vector_rows: number;
 }
 
-type TierFilter = 't0' | 't1' | 't2' | 'embed' | 't3' | 't4' | null;
+type TierFilter = ScannedTierId | null;
+type Tier = ScannedTierId;
 
 interface ScannedFilterState {
   catalog?: string;
@@ -64,121 +69,83 @@ interface ScannedObjectsTabProps {
   refreshKey?: number;
   showTestSources?: boolean;
   canRunPipeline?: boolean;
+  /** Pre-select a tier filter (e.g. from a Jobs funnel stage click). */
+  initialTier?: TierFilter;
 }
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return '—';
-  const dateObj = new Date(iso);
-  const diff = Date.now() - dateObj.getTime();
-  if (diff < 0 || diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  const days = Math.floor(diff / 86_400_000);
-  if (days < 7) return `${days}d ago`;
-  return dateObj.toLocaleDateString();
+/** Pipeline steps in order. Colours match the Stage badges on "All objects". */
+const TIERS = ESTATE_PIPELINE_TIERS;
+
+function tierDone(obj: ScannedObjectItem, tier: Tier): boolean {
+  switch (tier) {
+    case 't0': return !!obj.last_t0_at;
+    case 't1': return !!obj.last_t1_at;
+    case 't2': return !!obj.last_t2_at;
+    case 'embed': return obj.has_embedding;
+    case 't3': return !!obj.last_t3_at;
+    case 't4': return !!obj.last_t4_at;
+  }
 }
 
-function formatRowCount(v: string | null): string {
-  if (!v) return '—';
-  const n = Number(v);
-  if (isNaN(n)) return '—';
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return String(n);
+/** First missing core step (structure → profile → description → search). */
+function nextStep(obj: ScannedObjectItem): string | null {
+  if (!obj.last_t1_at) return 'Needs profile';
+  if (!obj.last_t2_at) return 'Needs description';
+  if (!obj.has_embedding) return 'Not searchable';
+  return null;
 }
 
-const TIER_COLORS = {
-  t0: '#60A5FA',
-  t1: '#86EFAC',
-  t2: '#C084FC',
-  embed: '#818CF8',
-  t3: '#F59E0B',
-  t4: '#F472B6',
-} as const;
-
-const TIER_LABELS: Record<keyof typeof TIER_COLORS, string> = {
-  t0: 'T0 Structural — tables with a structural scan (colored dot = done)',
-  t1: 'T1 Profile — tables with a profile (colored dot = done)',
-  t2: 'T2 Semantic — tables with a semantic card (colored dot = done)',
-  embed: 'Embed — tables with an object vector (colored dot = done)',
-  t3: 'T3 Connected — usage analysis recorded (colored dot = done)',
-  t4: 'T4 Modelled — entity proposals recorded (colored dot = done)',
-};
-
-function TierDot({
-  tier,
-  filled,
-  label,
-}: {
-  tier: keyof typeof TIER_COLORS;
-  filled: boolean;
-  label: string;
-}) {
+function PipelineProgress({ obj }: { obj: ScannedObjectItem }) {
+  const next = nextStep(obj);
+  const tip = TIERS.map((t) => `${tierDone(obj, t.id) ? '\u2713' : '\u00b7'} ${estateTierDisplayLabel(t)} (${t.code})`).join('\n');
   return (
-    <span
-      title={label}
-      style={{
-        display: 'inline-block',
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        backgroundColor: filled ? TIER_COLORS[tier] : 'rgba(136, 146, 164, 0.25)',
-        marginRight: 3,
-      }}
-    />
+    <span className="flex items-center gap-2.5" title={tip}>
+      <span className="flex shrink-0 gap-[3px]" aria-label={`Pipeline: ${TIERS.filter((t) => tierDone(obj, t.id)).map((t) => estateTierDisplayLabel(t)).join(', ') || 'nothing yet'}`}>
+        {TIERS.map((t) => (
+          <span
+            key={t.id}
+            className="h-1.5 w-3.5 rounded-full"
+            style={{ background: tierDone(obj, t.id) ? t.color : 'color-mix(in srgb, var(--estate-text-dim) 22%, transparent)' }}
+          />
+        ))}
+      </span>
+      <span className={cn('truncate text-caption', next ? 'text-[var(--estate-text-muted)]' : 'text-[var(--ok)]')}>
+        {next ?? 'Ready'}
+      </span>
+    </span>
   );
 }
 
-function TierLegendPill({
-  tier,
-  count,
-  active,
-  onClick,
-}: {
-  tier: keyof typeof TIER_COLORS;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const color = TIER_COLORS[tier];
-  const label = TIER_LABELS[tier];
+function TierPill({ tier, count, active, onClick }: { tier: (typeof TIERS)[number]; count: number; active: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
-      title={`${label}${active ? ' — click to clear filter' : ' — click to filter'}`}
+      aria-pressed={active}
+      title={`${estateTierDisplayLabel(tier)}: ${tier.desc}. ${active ? 'Click to clear the filter.' : 'Click to show only these.'}`}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-ui transition-all duration-150"
-      style={{
-        color,
-        backgroundColor: active ? `${withAlpha(color, '28')}` : `${withAlpha(color, '14')}`,
-        border: active ? `1px solid ${color}` : `1px solid ${withAlpha(color, '33')}`,
-        outline: 'none',
-        cursor: 'pointer',
-        boxShadow: active ? `0 0 0 1px ${withAlpha(color, '44')}` : 'none',
-      }}
+      className={cn(
+        'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-label transition-colors duration-hover focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        active
+          ? 'border-[var(--brand-a)] bg-[color:color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--estate-ink)]'
+          : 'border-[var(--estate-border)] text-[var(--estate-text-secondary)] hover:border-[var(--estate-btn-border)] hover:text-[var(--estate-ink)]',
+      )}
     >
-      <span
-        style={{
-          display: 'inline-block',
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          backgroundColor: count > 0 ? color : 'transparent',
-          border: count > 0 ? 'none' : `1.5px solid ${color}`,
-          boxSizing: 'border-box',
-        }}
-      />
-      <span style={{ color: 'var(--estate-text-secondary)' }}>{tier.toUpperCase()}</span>
-      <span style={{ color: 'var(--estate-text-muted)' }}>{count.toLocaleString()}</span>
+      <span className="size-1.5 rounded-full" style={{ background: count > 0 ? tier.color : 'transparent', boxShadow: count > 0 ? undefined : `inset 0 0 0 1px ${tier.color}` }} />
+      {estateTierDisplayLabel(tier)}
+      <span className="tabular-nums text-[var(--estate-text-muted)]">{count.toLocaleString()}</span>
     </button>
   );
 }
 
+const TH = 'sticky top-0 z-10 border-b border-[var(--estate-border)] bg-[var(--estate-bg)] px-3 py-2.5 text-left text-caption font-medium uppercase tracking-wide text-[var(--estate-text-muted)] whitespace-nowrap';
+const TD = 'border-b border-[var(--estate-border)] px-3 py-2.5';
+const SKELETON = 'h-3.5 animate-pulse rounded bg-[color:color-mix(in_srgb,var(--line-2)_15%,transparent)]';
 export function ScannedObjectsTab({
   sourceFilter,
   refreshKey = 0,
   showTestSources = false,
   canRunPipeline: canRunPipelineProp,
+  initialTier = null,
 }: ScannedObjectsTabProps) {
   const canRunFromSession = useCanRunEstatePipeline();
   const canRunPipeline = canRunPipelineProp ?? canRunFromSession;
@@ -197,7 +164,7 @@ export function ScannedObjectsTab({
     schema: undefined,
     kind: undefined,
     q: undefined,
-    tier: null,
+    tier: initialTier,
     page: 1,
     pageSize: 50,
   });
@@ -233,14 +200,6 @@ export function ScannedObjectsTab({
     }
     return filters.catalog;
   }, [pipelineSchemaKeys, filters.catalog]);
-
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const borderColor = 'var(--estate-border-gold)';
-  const thBg = 'var(--estate-th-bg)';
-  const surfaceBg = 'var(--estate-surface)';
-  const textDim = 'var(--estate-text-dim)';
 
   // Debounced search
   useEffect(() => {
@@ -336,30 +295,13 @@ export function ScannedObjectsTab({
     setFilters(prev => ({ ...prev, page: newPage }));
   }, []);
 
-  const handleTierClick = useCallback((tier: keyof typeof TIER_COLORS) => {
-    setFilters(prev => ({
-      ...prev,
-      tier: prev.tier === tier ? null : tier,
-      page: 1,
-    }));
+  const handleTierClick = useCallback((tier: Tier) => {
+    setFilters(prev => ({ ...prev, tier: prev.tier === tier ? null : tier, page: 1 }));
   }, []);
 
-  const selectStyle: React.CSSProperties = {
-    ...type.ui,
-    backgroundColor: surfaceBg,
-    border: `1px solid var(--estate-border)`,
-    borderRadius: '6px',
-    color: labelColor,
-    padding: '0 12px',
-    height: '36px',
-    outline: 'none',
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%234a5765'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    paddingRight: '30px',
-  };
+  const multiSource = useMemo(() => new Set(items.map(i => i.source_id)).size > 1, [items]);
+  const colCount = 5 + (canRunPipeline ? 1 : 0) + (multiSource ? 1 : 0);
+  const activeTier = TIERS.find(t => t.id === filters.tier);
 
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -374,209 +316,167 @@ export function ScannedObjectsTab({
         showTestSources={showTestSources}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {(pipelineIncludePatterns.length > 0 || filters.catalog) && (
-        <ScannedPipelineScopeBar
-          canRunPipeline={canRunPipeline}
-          catalog={pipelineCatalog}
-          schema={pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? undefined : filters.schema}
-          includePatterns={
-            pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? pipelineIncludePatterns : undefined
-          }
-          scopeLabel={pipelineScopeLabel}
-          sourceId={sourceFilter && sourceFilter !== 'All' ? sourceFilter : undefined}
-          onLaunched={() => {
-            fetchObjects();
-            setPipelineSchemaKeys(new Set());
-            setSelectedTablePaths(new Set());
-          }}
-        />
-        )}
-        {/* Filter / search bar */}
-        <div
-          className="flex items-center gap-3 px-6 py-3.5 flex-wrap"
-          style={{ background: 'var(--estate-bg)' }}
-        >
-          {/* Search */}
-          <div
-            className="flex-1 min-w-[220px] flex items-center gap-2 h-9 px-3"
-            style={{
-              backgroundColor: surfaceBg,
-              border: `1px solid var(--estate-border)`,
-              borderRadius: '6px',
-            }}
-            onFocusCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-btn-border)'; }}
-            onBlurCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-border)'; }}
-          >
-            <span style={{ color: textDim, fontSize: 'var(--type-body-size)' }}>⌕</span>
-            <input
-              type="text"
-              placeholder={`Search ${total} scanned objects…`}
-              value={searchVal}
-              onChange={e => setSearchVal(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none"
-              style={{
-                color: inkColor,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--type-ui-regular-size)',
-              }}
-            />
-          </div>
-
-          {/* Kind filter */}
-          <select
-            style={selectStyle}
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 px-6 py-3">
+          <CatalogSearch
+            value={searchVal}
+            onChange={setSearchVal}
+            placeholder={`Search ${total.toLocaleString()} scanned objects\u2026`}
+          />
+          <Select
+            aria-label="Object type"
+            className={CATALOG_SELECT}
+            style={CATALOG_SELECT_ARROW}
             value={filters.kind || ''}
             onChange={e => handleFilterChange({ kind: e.target.value || undefined })}
           >
-            <option value="">Kind: All</option>
+            <option value="">Any type</option>
             <option value="table">Table</option>
             <option value="view">View</option>
-            <option value="materialized_view">Materialized View</option>
-          </select>
+            <option value="materialized_view">Materialized view</option>
+          </Select>
         </div>
 
-        {/* Tier coverage strip — pills are clickable filters */}
-        <div
-          className="flex items-center justify-between gap-4 px-6 py-2 border-b flex-wrap"
-          style={{
-            background: 'var(--estate-surface)',
-            borderColor: 'var(--estate-border)',
-          }}
-        >
-          <span className="text-caption" style={{ color: mutedColor }}>
-            {loading && total === 0 ? '—' : `${total.toLocaleString()} scanned object${total !== 1 ? 's' : ''}`}
-            {filters.tier && (
-              <span style={{ color: TIER_COLORS[filters.tier], marginLeft: 6 }}>
-                · {filters.tier.toUpperCase()} filter active
-              </span>
+        {(pipelineIncludePatterns.length > 0 || filters.catalog) && (
+          <ScannedPipelineScopeBar
+            canRunPipeline={canRunPipeline}
+            catalog={pipelineCatalog}
+            schema={pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? undefined : filters.schema}
+            includePatterns={
+              pipelineSchemaKeys.size > 0 || selectedTablePaths.size > 0 ? pipelineIncludePatterns : undefined
+            }
+            scopeLabel={pipelineScopeLabel}
+            sourceId={sourceFilter && sourceFilter !== 'All' ? sourceFilter : undefined}
+            onLaunched={() => {
+              fetchObjects();
+              setPipelineSchemaKeys(new Set());
+              setSelectedTablePaths(new Set());
+            }}
+          />
+        )}
+
+        {/* Pipeline step filter: each pill counts objects that completed that step */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 pb-3">
+          <span className="text-ui-regular text-[var(--estate-text-muted)]">
+            {loading && total === 0 ? '\u2014' : (
+              <>
+                <span className="text-[var(--estate-ink)]">{total.toLocaleString()}</span> scanned object{total !== 1 ? 's' : ''}
+                {activeTier && <> with <span className="text-[var(--estate-ink)]">{estateTierDisplayLabel(activeTier)}</span> done</>}
+              </>
             )}
             {embeddingTotals && embeddingTotals.column_vector_rows > 0 && (
-              <span style={{ marginLeft: 8, color: mutedColor }}>
-                · {embeddingTotals.objects_with_embedding.toLocaleString()} table vectors
-                · {embeddingTotals.column_vector_rows.toLocaleString()} column vectors
+              <span
+                className="ml-2 text-caption"
+                title={`${embeddingTotals.objects_with_embedding.toLocaleString()} table vectors \u00b7 ${embeddingTotals.column_vector_rows.toLocaleString()} column vectors`}
+              >
+                {'\u00b7'} {embeddingTotals.column_vector_rows.toLocaleString()} columns searchable
               </span>
             )}
           </span>
-          <div className="flex items-center gap-2 flex-wrap">
-            {(Object.keys(TIER_COLORS) as Array<keyof typeof TIER_COLORS>).map(tier => (
-              <TierLegendPill
-                key={tier}
-                tier={tier}
-                count={tierCounts[tier]}
-                active={filters.tier === tier}
-                onClick={() => handleTierClick(tier)}
-              />
+          <div className="ml-auto flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by completed step">
+            {TIERS.map(t => (
+              <TierPill key={t.id} tier={t} count={tierCounts[t.id]} active={filters.tier === t.id} onClick={() => handleTierClick(t.id)} />
             ))}
           </div>
         </div>
 
-        {/* Table */}
-        <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse text-size-ui text-left">
+        <div className="flex-1 overflow-auto px-6">
+          <table className="w-full table-fixed border-collapse">
+            <colgroup>
+              {canRunPipeline && <col className="w-10" />}
+              <col />
+              <col className="w-64" />
+              {multiSource && <col className="w-36" />}
+              <col className="w-20" />
+              <col className="w-28" />
+              <col className="w-10" />
+            </colgroup>
             <thead>
-              <tr
-                className="sticky top-0 z-10 border-b select-none"
-                style={{ backgroundColor: thBg, borderColor }}
-              >
-        <th className="p-3 text-label w-8" style={{ color: labelColor, display: canRunPipeline ? undefined : 'none' }} />
-        <th className="p-3 text-label " style={{ color: labelColor }}>Object Path</th>
-        <th className="p-3 text-label w-28" style={{ color: labelColor }}>Kind</th>
-        <th className="p-3 text-label w-32" style={{ color: labelColor }}>Source</th>
-        <th className="p-3 text-label w-20 text-right" style={{ color: labelColor }}>Rows</th>
-        <th className="p-3 text-label w-36" style={{ color: labelColor }}>Last Scanned</th>
-        <th className="p-3 text-label w-24 text-center" style={{ color: labelColor }}>Tiers</th>
+              <tr>
+                {canRunPipeline && <th className={cn(TH, 'pl-3.5')}><span className="sr-only">Select</span></th>}
+                <th className={TH}>Object</th>
+                <th className={TH}>Pipeline</th>
+                {multiSource && <th className={TH}>Source</th>}
+                <th className={cn(TH, 'text-right')}>Rows</th>
+                <th className={TH}>Last scanned</th>
+                <th className={TH}><span className="sr-only">Open</span></th>
               </tr>
             </thead>
             <tbody>
               {loading && items.length === 0 ? (
                 [...Array(8)].map((_, idx) => (
-                  <tr key={idx} className="animate-pulse border-b" style={{ borderColor, backgroundColor: idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)' }}>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-3/4" /></td>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16" /></td>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-24" /></td>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-12 ml-auto" /></td>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-20" /></td>
-                    <td className="p-3"><div className="h-4 bg-[color:color-mix(in_srgb,var(--line-2)_20%,transparent)] rounded w-16 mx-auto" /></td>
+                  <tr key={idx}>
+                    {canRunPipeline && <td className={cn(TD, 'pl-3.5')}><div className={cn(SKELETON, 'w-3.5')} /></td>}
+                    <td className={TD}><div className={cn(SKELETON, 'w-3/5')} /></td>
+                    <td className={TD}><div className={cn(SKELETON, 'w-32')} /></td>
+                    {multiSource && <td className={TD}><div className={cn(SKELETON, 'w-20')} /></td>}
+                    <td className={TD}><div className={cn(SKELETON, 'ml-auto w-10')} /></td>
+                    <td className={TD}><div className={cn(SKELETON, 'w-14')} /></td>
+                    <td className={TD} />
                   </tr>
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={canRunPipeline ? 7 : 6} className="p-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <span className="text-size-title-section opacity-40 font-mono">◆</span>
-           <span className="text-label " style={{ color: labelColor }}>
-                        No Scanned Objects
-                      </span>
-                      <p className="text-size-ui max-w-sm text-center" style={{ color: mutedColor }}>
-                        {filters.q
-                          ? `No objects matching "${filters.q}" found.`
-                          : filters.tier
-                            ? `No objects at tier "${filters.tier.toUpperCase()}" found. Click the tier pill again to clear the filter.`
-                            : filters.kind
-                              ? `No objects of kind "${filters.kind}" have been scanned yet.`
-                              : 'No objects have been T0-scanned yet. Run a Structural Scan job to discover and register objects from your data sources.'}
-                      </p>
-                    </div>
+                  <td colSpan={colCount} className="py-16 text-center">
+                    <p className="text-ui text-[var(--estate-text-secondary)]">
+                      {filters.q || filters.tier || filters.kind ? 'No scanned objects match' : 'Nothing scanned yet'}
+                    </p>
+                    <p className="mx-auto mt-1 max-w-sm text-caption text-[var(--estate-text-muted)]">
+                      {filters.q
+                        ? `Nothing matches \u201c${filters.q}\u201d.`
+                        : activeTier
+                          ? `No objects have reached \u201c${estateTierDisplayLabel(activeTier)}\u201d. Click the pill again to clear the filter.`
+                          : filters.kind
+                            ? `No ${filters.kind.replace('_', ' ')}s have been scanned yet.`
+                            : 'Run a structural scan from All objects or Jobs to read columns from your sources.'}
+                    </p>
                   </td>
                 </tr>
-              ) : items.map((obj, idx) => (
-                <tr
-                  key={obj.id}
-                  style={{ backgroundColor: idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)', borderBottom: `1px solid ${borderColor}`, cursor: 'pointer' }}
-                  className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors duration-150"
-                  onClick={() => router.push(`/agent-lab/estate/object/${obj.id}`)}
-                >
-                  <td className="p-3 text-center" onClick={e => e.stopPropagation()} style={{ display: canRunPipeline ? undefined : 'none' }}>
-                    {canRunPipeline && (
-                    <input
-                      type="checkbox"
-                      checked={selectedTablePaths.has(obj.full_path)}
-                      onChange={() => toggleTablePath(obj.full_path)}
-                      title="Include in Continue pipeline"
-                    />
+              ) : items.map(obj => {
+                const checked = selectedTablePaths.has(obj.full_path);
+                return (
+                  <tr
+                    key={obj.id}
+                    onClick={() => router.push(`/agent-lab/estate/object/${obj.id}`)}
+                    className={cn(
+                      'group cursor-pointer transition-colors duration-100 hover:bg-[var(--estate-hover)]',
+                      checked && 'bg-[color:color-mix(in_srgb,var(--brand-a)_6%,transparent)]',
                     )}
-                  </td>
-                  <td className="p-3 font-mono text-size-ui max-w-[280px]">
-                    <span
-                      style={{ color: inkColor }}
-                      title={obj.full_path}
-                      className="truncate block"
+                  >
+                    {canRunPipeline && (
+                      <td className={cn(TD, 'pl-3.5')} onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleTablePath(obj.full_path)}
+                          title="Include in Continue pipeline"
+                          aria-label={`Include ${obj.full_path} in Continue pipeline`}
+                          className="size-3.5 cursor-pointer align-middle accent-[var(--brand-a)]"
+                        />
+                      </td>
+                    )}
+                    <td className={TD}><ObjectNameCell path={obj.full_path} kind={obj.object_kind} /></td>
+                    <td className={TD}><PipelineProgress obj={obj} /></td>
+                    {multiSource && (
+                      <td className={cn(TD, 'truncate text-ui-regular text-[var(--estate-text-secondary)]')} title={obj.source_name ?? undefined}>
+                        {obj.source_name ?? '\u2014'}
+                      </td>
+                    )}
+                    <td
+                      className={cn(TD, 'text-right font-mono text-ui-regular tabular-nums text-[var(--estate-text-secondary)]')}
+                      title={obj.row_count_est != null ? `${Number(obj.row_count_est).toLocaleString()} rows (estimate)` : undefined}
                     >
-                      {obj.full_path}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span
-           className="px-1.5 py-0.5 rounded border text-label "
-                      style={{
-                        borderColor: 'rgba(96, 165, 250, 0.3)',
-                        color: '#60A5FA',
-                        backgroundColor: 'var(--estate-kind-bg)',
-                      }}
-                    >
-                      {obj.object_kind}
-                    </span>
-                  </td>
-                  <td className="p-3 text-size-ui truncate max-w-[120px]" style={{ color: labelColor }}>
-                    {obj.source_name ?? '—'}
-                  </td>
-                  <td className="p-3 text-right font-mono text-size-ui" style={{ color: mutedColor }}>
-                    {formatRowCount(obj.row_count_est)}
-                  </td>
-                  <td className="p-3 font-mono text-size-ui" title={obj.last_t0_at ? new Date(obj.last_t0_at).toLocaleString() : '—'} style={{ color: labelColor }}>
-                    {relativeTime(obj.last_t0_at)}
-                  </td>
-                  <td className="p-3 text-center">
-                    <TierDot tier="t0" filled={!!obj.last_t0_at} label="T0 Structural" />
-                    <TierDot tier="t1" filled={!!obj.last_t1_at} label="T1 Profile" />
-                    <TierDot tier="t2" filled={!!obj.last_t2_at} label="T2 Semantic" />
-                    <TierDot tier="embed" filled={obj.has_embedding} label="Embed" />
-                    <TierDot tier="t3" filled={!!obj.last_t3_at} label="T3 Connected" />
-                    <TierDot tier="t4" filled={!!obj.last_t4_at} label="T4 Modelled" />
-                  </td>
-                </tr>
-              ))}
+                      {formatCompactCount(obj.row_count_est) ?? '\u2014'}
+                    </td>
+                    <td className={cn(TD, 'text-ui-regular text-[var(--estate-text-muted)]')} title={formatFull(obj.last_t0_at)}>
+                      {formatRelative(obj.last_t0_at)}
+                    </td>
+                    <td className={cn(TD, 'text-right')}>
+                      <ChevronRight aria-hidden className="ml-auto size-4 text-[var(--estate-text-dim)] transition-transform duration-hover group-hover:translate-x-0.5 group-hover:text-[var(--estate-ink)]" />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -2,6 +2,1115 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## Estate UI: dual pipeline labels (technical · plain)
+
+- **What:** `src/lib/estate/stages.ts` now defines both **technical** and **plain** names for each tier (`plainLabel`, `estateStageDisplayLabel`, `ESTATE_PIPELINE_TIERS`, `estateTierDisplayLabel`). UI shows combined labels such as **T0 · Structure**, **Embed · Searchable**, **T3 · Linked**, **T4 · In model** on lifecycle badges, scanned-object tier pills, overview legend, Jobs cockpit, and coverage tooltips.
+- **Why:** Keep Mapper / Silo Finder / tier codes for operators while retaining readable Structure / Profiled / Described / Searchable vocabulary.
+- **Verified:** Central helpers wired through `LifecycleBadge.tsx`, `ScannedObjectsTab.tsx`, `SourceCard.tsx`, `JobsCockpitPanel.tsx`, `index.tsx`, `DashboardView.tsx`, and `jobs.tsx` `KIND_COVERAGE`.
+- **Not done:** Nav items remain **Mapper** and **Silo Finder** only (no dual label there).
+
+## Estate UI: restore technical pipeline labels (Mapper, Silo Finder, T0–T2, Embed)
+
+- **What:** Reverted the plain-language Data Estate vocabulary introduced in late 2026. Navigation and breadcrumbs use **Mapper** and **Silo Finder** again (`src/lib/estate/nav-items.ts`, `src/lib/breadcrumb-config.ts`). Shared stage labels in `src/lib/estate/stages.ts` are **T0 / T1 / T2 / Embed** (not Scanned → Searchable). Matching updates in `LifecycleBadge.tsx`, `ScannedObjectsTab.tsx`, `SourceCard.tsx`, overview column header, `DashboardView.tsx`, Jobs cockpit stage rows, and `BulkActionBar.tsx` tooltip.
+- **Why:** Operators asked to align the UI with job kinds (embed, mapping, silo_scan) and tier names used in engineering docs.
+- **Verified:** Grep confirms no remaining **Similar data**, **Schema mapper**, or **Searchable** stage labels under `src/views/agent-lab/estate` and `src/components/estate` (except unrelated strings such as similarity scores on the silo page).
+- **Not done:** Jobs tab group headings and some job descriptions still use mixed plain English; not changed in this pass.
+
+## Agent icons picked from each agent's purpose
+
+- **What:** New [AgentAvatar.tsx](../src/components/agent-lab/AgentAvatar.tsx). `agentLook(name, hint)` matches the agent's name first, then its description, against about 14 keyword groups. Examples: HR → `Users` / rose, finance → `Wallet` / emerald, support → `LifeBuoy` / amber, customer → `HeartHandshake` / pink, data quality → `DatabaseZap` / cyan, analytics → `BarChart3` / violet. If nothing matches, it picks a stable icon and hue from a fallback set using an FNV hash of the name. The tile tint is `color-mix` (14% background, 24% border, icon mixed toward `--ink-1`), so it reads well in both light and dark themes. Wired into the agents list ([index.tsx](../src/views/agent-lab/agents/index.tsx), `md`) and into the agent chat ([use.tsx](../src/views/agent-lab/agents/use.tsx)): header, welcome hero and message rows, all through `Mark`. The old initials helpers in both files were removed.
+- **Why:** Every agent showed the same orange initials tile, which made agents hard to tell apart. An icon based on what the agent does is easier to scan and costs nothing to generate.
+- **Verified:** `tsc --noEmit` is clean. ESLint shows only the four existing `react-hooks` errors in use.tsx. A `tsx` script confirmed the mapping, e.g. Darwinbox HRMS → Users / rose, Revenue → Wallet, Ticket Triage → LifeBuoy, and Atlas / Nova → stable fallbacks.
+- **Not done:** There is no per-agent override (icon or colour picker in Edit) yet. Not checked in a browser, because the session redirected to login.
+
+## Login: particles removed
+
+- **What:** Dot's particle halo is disabled (`particles={false}`, `ambient={false}`) and the sparkle toggle button and its localStorage state were removed in [login.tsx](../src/views/login.tsx).
+- **Why:** Requested.
+- **Verified:** Code inspection only. Not done: the particle code in `AgentScene.tsx` is left in place, unused.
+
+## Agent chat: pill composer at the bottom, suggestion pills, rebuilt model menu
+
+- **What:**
+  - **Composer** ([use.tsx](../src/views/agent-lab/agents/use.tsx)):
+    - It is now a 52px pill (`rounded-[26px]`), narrowed from 880 to 760px (`CHAT_COMPOSER_MAX_PX`).
+    - The model picker and the round send button sit in a 40px row, so they are centred on one line and stay on the last line when the text wraps.
+    - A brand focus ring shows while typing.
+  - **Empty state:** the agent mark, name and description fill the free space. The composer is docked at the bottom, where it stays once the chat starts.
+  - **Suggestions:** the four starter cards are now short pills above the composer ("What can you do?", "Show a recent example", …). Each pill still sends the full prompt, which is shown on hover.
+  - **Read-only notice and run error:** both are rounded to match the composer.
+  - **Model menu** (`ModelSelector` in [InputComposer.tsx](../src/components/workbench/InputComposer.tsx)), also used by the Workbench composer:
+    - Models are grouped by vendor. The vendor is inferred from the model name and id (Claude → Anthropic, GPT → OpenAI, Grok → xAI, Nova → Amazon, …) because every gateway model reports `provider: 'llmlite'`.
+    - Each model gets a vendor letter mark, on the trigger as well as in the list.
+    - The menu uses theme tokens (`--card`, `--line-1`, `--surface-2`) instead of the old `--wb-surface2` parchment colour.
+    - The search field is a pill.
+    - The menu is compact: 264px wide, 20px vendor marks, 280px list height. The trigger is 32px tall.
+    - Arrow keys move the highlight and Enter picks, with a footer hint and the model count.
+    - The "Thinking" and "No tools" chips are kept.
+- **Why:** In the old menu every model had the same teal dot and no group headings, so the menu was a flat list. Its beige background clashed with the page. In the empty state the composer was large and sat mid-page, so it jumped to the bottom on the first message.
+- **Verified:** `tsc --noEmit` reports no errors. `eslint` on `use.tsx` shows the same 4 errors as before this change (refs read during render and setState in an effect, lines 122–248), none in the edited code.
+- **Not done:** Not checked in a signed-in browser. The `.wl-card` / `.wl-grid` CSS stays because the Inspector welcome still uses it.
+
+## 2026-11-01 — Product positioning: ALOFT vs Grok, Claude Duet
+
+- **What:** Added `docs/product/aloft-vs-general-ai-assistants.md` — honest comparison of general assistants vs ALOFT (overlap, ALOFT-only features, gaps), current feature inventory, planned RBAC/data/automation work, and **proposed** Microsoft 365 / proactive-assistance direction under capability-gateway governance. Brief AgentCore positioning pointer.
+- **Why:** Leadership asked whether ALOFT can match Grok/Duet and whether the platform is the broader business solution; document captures the agreed narrative for stakeholders.
+- **Verified:** Doc links to existing design sources (`data-access-control-design.md`, `IMPLEMENTATION_STATUS.md`, ADR-005, agent-ops plan). No code changes.
+- **Not done:** M365 mail/calendar capabilities are **proposed only**, not implemented. External product URLs not re-fetched after publish date.
+
+## Chat history page redesign
+
+- **What:** Rewrote [ChatHistoryPage.tsx](../src/components/agent-lab/ChatHistoryPage.tsx) (`/agent-lab/history`) on theme tokens and Tailwind type classes, replacing the hand-picked dark/light hex values and `useIsDark` branches.
+  - **Header:** a "My chats / Everyone" segmented control (admins only), Refresh, and New chat.
+  - **Surface tabs:** All, Workbench, Inspector and Teach become underline tabs with counts. Teach gets its own tab when it has sessions.
+  - **Filter bar:** search (`/` to focus, Esc to clear), Type, Model, Owner, a start-date range, Clear filters, a "Show drafts" switch with its count, and Sort. Controls that are narrowing the list get a brand tint. "Drafts" moved from the type pills into the Type menu as "Drafts only".
+  - **List:** one card with columns for Conversation, Model, Messages, Owner and Last active. Each row starts with an icon tile for its surface. The meta line under the title shows surface, type (only when not Agent), Inspector context ("Catalog + SQL" / "SQL only") and the preview. When the title is just a cut-off copy of the message, the full message is shown once instead of twice. Model shows the full name with a colour dot instead of a cut-off badge. Owner shows an initials avatar and appears only when viewing everyone's chats. Last active shows relative time plus "Started <date>". On hover, the Last active cell turns into Debug trace, Rename, Pin, Delete and Open buttons.
+  - **Columns on narrow screens:** below 1180px, Model and Owner are hidden.
+  - **Selection and bulk delete:** checkboxes show on hover, and the header checkbox has a mixed state. Bulk delete moved to a floating action bar with an inline confirm.
+  - **Loading, error and empty states:** loading shows skeleton rows. The error state has a Retry button. "No results" has a Clear filters action.
+- **Why:** The old page was mostly upper-case mono labels (the design system reserves mono for machine text). It showed the surface twice per row, showed the same "AGENT" badge on almost every row, and often repeated the title as the preview. It also squeezed the metadata to the right edge, leaving a large empty gap mid-row, and cut off model names ("llm-li…").
+- **Behaviour changes:** With "Oldest first", the date groups now run Older → Today. Before, they stayed Today-first. Deleting a single row also removes it from the selection. Data loading, filters, pin/rename/delete APIs and localStorage keys are unchanged.
+- **Verified:** `eslint` passes on the file; its only warning is the `useVirtualizer` warning the old file also had. `tsc --noEmit` reports no errors. The typography guard fails on `arbitraryTextSize` (49 > 0). All 48 matches are in other files with uncommitted changes (`DashboardView.tsx`, `agent-staging/models.tsx`, `embeddings-panel.tsx`, `estate/jobs.tsx`); this file has none and lowers `inlineLetterSpacing` by 16.
+- **Not done:** Not checked in a signed-in browser. `HistoryDrawer.tsx` (Workbench side drawer) is unchanged.
+
+## BORN page: quiet light across the canvas
+
+- **What:** Dark mode [bandits.tsx](../src/views/agent-lab/bandits.tsx) uses `.born-page` in [globals.css](../src/app/globals.css). Four low radial washes sit on the page background: warm gold at the top-left, top-right, and mid-left, and a faint brand blue toward the lower right. The dashboard root no longer paints an opaque fill over that wash. Cards keep their own surface color.
+- **Why:** The light only sat in the top-left corner, so the rest of the page read as flat black.
+- **Unchanged:** Light mode stays a flat background. KPI cards, charts, and filters are unchanged.
+- **Verified:** Not re-checked in a signed-in browser.
+
+## Welcome screens: tone down the accent colour
+
+- **What:** In [globals.css](../src/app/globals.css), the `.wl-*` welcome styles no longer use orange decoration. The background glow is now a faint neutral (5% `--ink-1`) instead of a 20% brand haze. The hero glow is removed. The title is plain `--ink-1` with no amber gradient. Starter-card icons are neutral (`--surface-2` / `--ink-2`) and only turn brand-coloured on hover. Card hover is now a neutral `--line-2` border on `--surface-2`, with no orange tint. In [use.tsx](../src/views/agent-lab/agents/use.tsx), the small header `Mark` avatar is neutral, and the disabled send button is neutral `--surface-3` instead of dim brand (brown).
+- **Why:** About 9 accent elements on one screen made the `#0A0A0A` dark theme look warm and muddy. Brand colour is now limited to the hero avatar, the enabled send button, the active nav item, and hover feedback.
+- **Verified:** CSS and class changes only; tsc not affected.
+- **Not done:** The Inspector welcome uses the same classes, so it picks up these changes too; it has not been checked separately.
+
+## Users & access follows the app theme
+
+- **What:** [users.module.css](../src/components/users/users.module.css) no longer paints its own blue-gray surfaces or orange accent. The page, cards, Invite button, and stat icons use the shared theme tokens (`--background`, `--surface-1`, `--brand-a`, `--ok`, `--warn`, `--brand-b`). [RoleBadge.tsx](../src/components/users/RoleBadge.tsx) role chips use those same tokens. Profile and dialog fills that needed a solid second surface use `--surface-2`.
+- **Why:** The directory was a separate cool-gray and orange palette, so in dark mode it did not match Data 360 Night (black surfaces, sapphire accent).
+- **Unchanged:** Layout, spacing, and the directory behaviour.
+- **Verified:** `vitest run src/components/users/__tests__/users.test.tsx` — 12 passed. A dark-theme token preview shows a black page, charcoal cards, and a sapphire Invite button. The signed-in `/agent-staging/users` page could not be opened here; the browser session lands on login.
+
+## Dark sidebar is flat `#0A0A0A`
+
+- **What:** Dark mode `--rail-bg` and `--rail-bg-top` are both `#0A0A0A` in [globals.css](../src/app/globals.css). `MODE_DEFAULTS.dark.rail` in [appearance.ts](../src/lib/theme/appearance.ts) matches.
+- **Why:** The sidebar was a gradient from `#0F0F0F` at the top down to `#0A0A0A`, so the nav looked lighter than the page.
+- **Unchanged:** A sidebar color saved in Profile → Colors still overrides this. Graphite remains a preset.
+- **Verified:** Token change only.
+
+## Dark shell: navbar glow in every browser, no empty black bar on Home
+
+- **What:** Dark mode now sets `--rail-glow: 1` in [globals.css](../src/app/globals.css), so the sidebar aurora is on for the default graphite nav, not only after a custom sidebar color is saved. [AuroraGlow](../src/components/agent-lab/staging/nav-shared.tsx) no longer clips that blur with `overflow: hidden`, which hid it in Chrome. [StagingHeader](../src/components/agent-lab/staging/StagingHeader.tsx) is hidden on desktop when the route has no breadcrumb (Home). The Home wash is a background gradient on the page, so it is not clipped into a black cap.
+- **Why:** Edge had a saved sidebar color, which turns the glow on. Chrome was on the default, which forced the glow off. Home also kept an empty 28px header, which read as a black band above the greeting.
+- **Unchanged:** A custom light sidebar still turns the glow off. The mobile menu button stays on Home.
+- **Verified:** Not re-checked in a signed-in Chrome window.
+
+## Home dashboard: same dark glow as agent welcome
+
+- **What:** [DashboardView.tsx](../src/components/dashboard/DashboardView.tsx) greeting now uses the shared `wl-title` gradient, with one brand glow (`dash-glow`) behind it. Same treatment as the agent and Inspector empty states.
+- **Why:** In dark mode the home page read as a flat black field next to those screens, which carry a soft accent glow.
+- **Unchanged:** Cards, numbers, and briefing layout.
+- **Verified:** The embedded browser reaches the sign-in page, so the glow was not seen on a signed-in dashboard. Reload Home in the dark theme to check it.
+
+## Inspector chat: same plain answer, Inspect for admins
+
+- **What:** Inspector's system prompt now ends with the same stakeholder writing rules as saved agents (`AGENT_ANSWER_VOICE` via [buildSystemPrompt](../src/lib/inspector/prompts.ts)), in both harvested and warehouse-only modes. The written reply no longer lists tables, joins, or catalog caveats. After the reply finishes, the raw tool-step list is hidden ([PromptCanvas](../src/components/workbench/PromptCanvas.tsx), [StreamingMessage](../src/components/workbench/StreamingMessage.tsx)); it still shows while the answer is running. Platform admins and admins keep **Inspect** under the reply, built from the SQL that ran (sources, join, caveats, and the query). The developer tab is unchanged.
+- **Why:** Inspector answers had the same developer presentation as commissioned-agent chats.
+- **Unchanged:** Workbench chat still shows its tool steps. Members do not get Inspect. The note is derived from the queries on the message, not from a second model call.
+- **Verified:** `prompts-voice.test.ts` checks both prompt modes. Not exercised in a signed-in Inspector session.
+
+## Inspector: tighter model menu
+
+- **What:** [InputComposer.tsx](../src/components/workbench/InputComposer.tsx) model popover shrinks from a 320px card to a `max-content` list (176–240px). Rows drop the 28px initial tile for a 6px dot, row padding goes from 8px to 4px, and the list caps at 240px.
+- **Why:** After the gateway line was removed, the panel and the letter tiles still made the menu look oversized.
+- **Verified:** Layout-only change in the picker. Not re-checked in the browser (the Inspector session lands on login).
+
+## Chat loading redesign + agent chat welcome
+
+- **What:** New shared loading system in [globals.css](../src/app/globals.css) (`.ld-*`: pulsing accent dot, shimmer text, skeleton blocks, indeterminate top bar, step timeline, metric chips) and shared welcome classes (`.wl-*`: glow, hero, gradient title, 2-column starter cards).
+  - [StreamingMessage.tsx](../src/components/workbench/StreamingMessage.tsx) (Workbench + Inspector): the violet "Reasoning…" box is now a neutral card with a live preview of the latest reasoning line; tool calls render as a step timeline (dot → check/cross, durations, `n/total`) with a progress bar; skeleton lines appear while waiting for the first token. Spinner icons removed.
+  - [QueryProgressCard.tsx](../src/components/inspector/QueryProgressCard.tsx): labelled 3-step timeline, metrics as chips, skeleton chart while querying.
+  - [InspectorChatList.tsx](../src/components/inspector/InspectorChatList.tsx): skeleton rows instead of a spinner.
+  - [InspectorShell.tsx](../src/components/inspector/InspectorShell.tsx): welcome now uses the shared `.wl-*` classes.
+  - Agent chat [use.tsx](../src/views/agent-lab/agents/use.tsx): same welcome design (glow, gradient name, 4 starter cards with icons), skeletons for agent/chat/chat-list loading, and a live step timeline + answer skeleton during a turn.
+- **Why:** Loading states looked dated (spinners, coloured boxes); agent chat should match Inspector.
+- **Verified:** `tsc` clean for touched files; vitest inspector + workbench suites pass (28 tests). Remaining eslint errors in `use.tsx`/`InspectorShell.tsx` are older `react-hooks` findings in code not touched here. Not checked in a browser.
+- **Not done:** Workbench empty state (mission templates) keeps its layout.
+
+## Inspector: richer welcome screen
+
+- **What:** [InspectorShell.tsx](../src/components/inspector/InspectorShell.tsx) welcome now has an accent glow behind the companion, a "Hi <first name>" line, a gradient title, and four starter cards (icon, category, hover arrow) in a 2-column grid with a staggered entrance (respects reduced motion).
+- **Why:** The centre empty state looked plain.
+- **Verified:** `tsc` shows no errors in this file; not checked visually.
+- **Not done:** Governed-model prompts (`EmptyStatePrompts`) keep their existing layout.
+
+## Dark mode: #0A0A0A base
+
+- **What:** [globals.css](../src/app/globals.css) Night theme (`.dark`, "Data 360 Night neutrals" block) now uses a neutral ramp: background/shell/nav/rail `#0A0A0A`, cards/popovers/surface-1 `#141414`, surface-2/muted `#1A1A1A`, surface-3 `#222222`, borders `#262626`/`#363636`. Earlier superseded `.dark` block aligned too.
+- **Why:** Requested #0A0A0A as the dark base; old values were blue-tinted graphite.
+- **Verified:** Not visually checked in a browser; tokens only.
+- **Not done:** Hard-coded navy colours in some feature panels (estate, inspector canvas, workbench-frame) are unchanged.
+
+## Inspector: model menu shows the model name only
+
+- **What:** [InputComposer.tsx](../src/components/workbench/InputComposer.tsx) model menu drops the “(LLM Lite)” suffix, the “LLM Lite” group heading, and the gateway description under each row. The mark is the model’s own initial. [globals.css](../src/app/globals.css) gives that list a 4px scrollbar (`.model-menu-scroll`).
+- **Why:** Every selectable model comes from the LLM Lite gateway, so the gateway name and the long `Synergy LLM Lite gateway · …` line were noise. The default 10px bar was too heavy in the popover.
+- **Verified:** Code review of the picker. Browser opened `http://localhost:3000/inspector` and landed on the login page, so the open menu was not re-checked there.
+- **Not done:** Admin model-settings pages still name the gateway where that context is useful.
+
+## Login: layout fixes (column token, divider, errors, Captain follow)
+
+- **What:** New `src/components/login/layout.ts` (`LOGIN_COLUMN_MAX_PX = 320`, section pad constant). `login.tsx` uses the token for column width, shortens the divider to "or email & password" with a grid so lines stay balanced, and left-aligns error text at `text-size-ui` in the narrow column. `AgentScene.tsx`: DotCompanion is `w-full` inside that column; gaze and body-follow reach use the same width constants (replacing hard-coded 380 / 340).
+- **Why:** Closes remaining issues from the layout review: width drift between mascot and controls, cramped divider, and stale follow math from the old 380px form.
+- **Verified:** `npm run web:typecheck` (login + AgentScene). Not re-checked in browser this session.
+
+## Login: unified 320px column (SSO, fields, mascot)
+
+- **What:** `src/views/login.tsx` — single `max-w-[320px]` stack for hero, DotCompanion, Microsoft SSO, credentials, and errors (replacing 380px outer + 280px inner). Microsoft button keeps `px-4` for label breathing room.
+- **Why:** Controls felt too wide at 380px; 280px matched pill length but sat narrower than the 320px mascot — one column aligns the layout.
+- **Verified:** Visual/layout change only; not re-checked in browser this session.
+
+## Research report: rich visual chat responses (charts, Mermaid, SVG, sandboxed widgets)
+
+- **What:** New report [reports/Rich visual chat responses.md](../reports/Rich%20visual%20chat%20responses.md). It compares how Claude and ChatGPT render visuals and gives a five-phase ALOFT plan: fenced blocks in `content` as the single persisted format, a server-validated `render_chart` tool with `data_ref`, an `AloftChartSpec` on top of the existing ChartDSL/ECharts pipeline, DOMPurify `SafeSvg`, lazy Mermaid, a sandboxed iframe with a postMessage bridge, and app CSP rollout.
+- **Why:** The engineering team asked for a grounded plan to reach ChatGPT/Claude-quality interactive charts and SVG in ALOFT chat and agent chats.
+- **Verified:** Synthesized from `research_notes/Rich visual chat responses/*`. Re-checked in the tree: the fence regex is at `StreamingMessage.tsx:1272`, `chart_spec` is emitted at `tools.ts:234` and nothing consumes it, `maxTokens: 4096` is at `agent-loop.ts:174`, `compiler.ts`/`profiler.ts`/`validator.ts` import only types, ajv and a JSON schema (browser-safe), Tailwind is ^3.4.17, and esbuild is present while Playwright is not.
+- **Not done:** No code changes. Behavior of srcdoc under the current headers, Bedrock Converse `eager_input_streaming`, and Mermaid 12 browser support are still untested.
+
+## Inspector chat: Agent-chat presentation, richer chat list, admin Inspect
+
+- **What:**
+  - **Thread** ([PromptCanvas.tsx](../src/components/workbench/PromptCanvas.tsx)): new optional `chatStyle` and `renderAfterAssistant` props. With `chatStyle`, user turns render as right-aligned brand bubbles (Edit/Resend on hover or focus), each reply gets an avatar + "Inspector" header, the thread and composer sit in a centred 880px column, and the duplicate "Next →" strip above the composer is hidden (the in-thread suggestion pills remain). Workbench passes none of these and is unchanged.
+  - **Chat list** ([InspectorChatList.tsx](../src/components/inspector/InspectorChatList.tsx)): search box (title + last message), groups Pinned / Today / Yesterday / Previous 7 days / Older, per-row Pin, Rename (inline, Enter/Escape) and Delete (two-step confirm) on hover or focus, and an "All history →" link to `/agent-lab/history`. Deleting the open session starts a new one; renaming it updates the top-bar title.
+  - **Shell** ([InspectorShell.tsx](../src/components/inspector/InspectorShell.tsx)): History button and `HistoryDrawer` removed from the Inspector (the side list replaces them). The top-bar "New session" button now shows only below `md`, where the side list is hidden.
+  - **Admin Inspect**: new [answer-inspection.ts](../src/lib/inspector/answer-inspection.ts) builds Sources (FROM/JOIN tables, CTEs excluded), Join clauses, Caveats (failed tool calls) and the executed SQL from each reply's saved tool calls. [AnswerInspection.tsx](../src/components/agent-lab/AnswerInspection.tsx) gains an optional `queries` prop, rendered as SQL blocks. Shown under finished replies for platform admin / admin only (`canViewAgentOpsRole`), the same gate as the Developer tab.
+- **Why:** The Inspector should look and behave like Agent chat, and admins need to see what an answer was built from.
+- **Note:** Inspect is a UI gate, not a data boundary. The SQL is already in the user's own saved session messages. Platform admins' "all users" history and the per-session debug trace are now reached from **All history** rather than the Inspector drawer.
+- **Verified:** `tsc --noEmit` shows no errors in the touched paths. New tests in [answer-inspection.test.ts](../src/lib/inspector/__tests__/answer-inspection.test.ts) and [InspectorChatList.test.ts](../src/components/inspector/__tests__/InspectorChatList.test.ts) pass (11/11). Existing workbench, inspector and AnswerInspection suites pass (24 files, 141 tests). ESLint reports no new problems (the remaining ones are older `react-hooks` findings). Not checked in a browser (browser tools unavailable).
+
+## Inspector: model picker placed like Agent chat
+
+- **What:** [InputComposer.tsx](../src/components/workbench/InputComposer.tsx) gets `variant="inline"`: one rounded box with the textarea, the model picker on the right, and a round Send/Stop button, the same as the Agents chat composer. [PromptCanvas.tsx](../src/components/workbench/PromptCanvas.tsx) uses it only when `surface === 'inspector'`; Workbench keeps the toolbar layout.
+- **Why:** Same composer and model-picker placement on Agents and the Inspector.
+- **Verified:** `tsc --noEmit` shows no errors in components/workbench or components/inspector. Not checked in a browser (CDP connect timed out).
+
+## Inspector: persistent chat list sidebar (from Agents)
+
+- **What:** New [InspectorChatList.tsx](../src/components/inspector/InspectorChatList.tsx), the Agents chat-list pattern (collapsible rail remembered in localStorage, New button, active highlight, pinned icon, relative times). Mounted at the left of [InspectorShell.tsx](../src/components/inspector/InspectorShell.tsx); it lists the signed-in user's Inspector sessions and refreshes on session, title and stream-end changes. The History drawer button is kept for pin/delete.
+- **Why:** Agents show past chats beside the conversation; the Inspector hid them in a drawer.
+- **Verified:** `tsc --noEmit` shows no errors in components/inspector. Not checked in a browser.
+- **Not done:** Inspector message bubbles, composer and Inspect control are unchanged. They render through the shared workbench `PromptCanvas`/`StreamingMessage`, and the Agents `MessageRow` uses a different message shape.
+
+## Agent chat: Inspect for platform admins and admins
+
+- **What:** Agent chat now asks the model to call `record_inspection` once with the tables, the join, and any caveat. That note is saved on the assistant message ([src/lib/agents/inspection.ts](../src/lib/agents/inspection.ts), [run-catalog-agent.ts](../src/lib/agents/run-catalog-agent.ts), [agents/chat](../src/app/api/agent-lab/agents/chat/route.ts)) and is not part of the reply or the history sent back to the model. The stream and [GET chat](../src/app/api/agent-lab/agents/chats/[id]/route.ts) include it only when the viewer is a platform admin or an admin. Those people get an **Inspect** control under the reply ([AnswerInspection.tsx](../src/components/agent-lab/AnswerInspection.tsx), [use.tsx](../src/views/agent-lab/agents/use.tsx)). The tool call itself is not streamed, so a member never sees the note.
+- **Why:** The stakeholder answer should stay plain, and a platform admin or admin still needs the tables, join, and caveats.
+- **Unchanged:** Automation runs do not record an inspection note. Members and read-only users do not receive one. Older chats have no note until the next reply.
+- **Verified:** unit tests for the note parser, role filter, catalog run, saved-chat GET, and the Inspect control (opens Sources, Join, and Caveats). Not exercised in a signed-in browser, so the next admin chat is the live check.
+
+## Agent replies: write for the person who asked
+
+- **What:** Saved and test-run agents now get a presentation rule, `AGENT_ANSWER_VOICE` in [src/lib/inspector/answer-rules.ts](../src/lib/inspector/answer-rules.ts), appended by [buildRuntimeSystemPrompt](../src/lib/construction/prompts.ts). The final reply leads with the answer and the business facts. Warehouse paths, join keys, catalog disputes, column names, row-count footers, and notes about work the person did not ask for stay out of the reply. A gap that changes the answer is still said once, in plain words. The rule overrides an older instruction that told the agent to print sources and caveats. If the person asks where a figure came from, the agent may name the tables. Knowledge-document citations stay. The workbench prompt now drafts new agent instructions the same way. Inspector chat is unchanged.
+- **Why:** Chats with commissioned agents (for example the Darwinbox HRMS employee analyst) answered correctly but read like a data-engineering log: table paths, assumed joins, and catalog caveats a stakeholder does not need.
+- **Unchanged:** Tool use, SQL rules, and answer completeness (names beside codes, useful fields) are the same. Existing agent instructions in the catalog are not rewritten; the runtime prompt wraps them on the next chat.
+- **Verified:** `npx vitest run src/lib/construction/__tests__/catalog-sync.test.ts` passes (4/4). Not exercised against a live model, so the next chat with a saved agent is the real check.
+
+## Security: generic error text in streaming chat (F17 follow-up)
+
+- **What:**
+  - New [src/lib/inspector/client-stream-error.ts](../src/lib/inspector/client-stream-error.ts): `clientStreamError(err, label)` maps raw model, provider or exception text to a safe category message and appends a short reference (e.g. `(ref 3f9a1c2e)`). The categories are timeout, conversation too long, rate limited, content filtered, rejected/misconfigured, unavailable, and a generic fallback.
+  - The raw text is logged server-side with the same reference, so support can match a user's report to the log line.
+  - Applied to the stream `error` events in [agents/chat](../src/app/api/agent-lab/agents/chat/route.ts), [workbench/chat](../src/app/api/agent-lab/workbench/chat/route.ts), [workbench/test-run](../src/app/api/agent-lab/workbench/test-run/route.ts), [inspector/chat](../src/app/api/inspector/chat/route.ts) and [inspector/teach](../src/app/api/inspector/teach/route.ts). This covers both `result.errorDetail` and the catch blocks.
+- **Why:** these messages could reveal provider names, internal endpoints, env var names and key fragments to the browser.
+- **Unchanged:**
+  - Turn metrics still record the raw `errorDetail`.
+  - `tool_call_error` events still show tool and SQL errors, which the user needs in order to fix a query.
+  - The static "LLM Lite gateway is not configured" message is unchanged.
+- **Verified:**
+  - New `src/lib/inspector/__tests__/client-stream-error.test.ts` passes (8/8).
+  - `vitest run src/app/api src/lib/inspector src/lib/agents src/components/agent-lab` passes (215/215).
+  - `tsc --noEmit` exits 0; eslint is clean on the changed files.
+  - Not exercised against a live model.
+
+## Home dashboard v3: governance, AI spend, team and overdue jobs (P2 complete)
+
+- **What:**
+  - [src/lib/dashboard/summary.ts](../src/lib/dashboard/summary.ts) gains three things:
+    - `governance`: PII-flagged active tables, and how many have no resolution in `platform_sem_audit`. Also the latest candidate semantic model with its candidate entities, dimensions and measures.
+    - `spend` (admins only): LLM cost for the last 7 days vs the 7 before, a daily series, and a split by area. It combines `agent_cost_log` and `platform_context_jobs.stats.cost_usd`.
+    - `jobs.kinds[].overdue`: a job is overdue when it has not finished within 1.5× its schedule's cadence (non-manual schedules only).
+  - [src/components/dashboard/DashboardView.tsx](../src/components/dashboard/DashboardView.tsx):
+    - Briefing adds three items: missed schedules, PII to review (→ Catalog), and business definitions waiting for review (→ `/inspector?panel=semantic`).
+    - Overdue jobs show in amber on the estate stages and the "Other jobs" line.
+    - **Activity timeline removed** (user request). Memory now spans the full width: helpful rate and stats on the left, top topics on the right.
+    - New admin-only row: **AI spend** (weekly total, change vs last week, 7-day bars, by-area bars) and **Team** (active of total, people by role, sign-ins today and this week, failed sign-ins).
+    - The Memory panel shows active, core and learned-from-sessions counts. The Inspector metric shows all-time messages and active people.
+    - Unused timeline helpers removed (`buildEvents`, `clock`, `initials`, `providerLabel`, `PROVIDER_LABELS`).
+  - [src/components/inspector/InspectorShell.tsx](../src/components/inspector/InspectorShell.tsx): `?panel=semantic` opens the Semantic review tab when a candidate model exists.
+- **Why:** finishes the prioritised dashboard plan. Each item points at something a person can act on.
+- **Verified:**
+  - `tsc --noEmit`: clean.
+  - `adapters.test.tsx` passes 13/13.
+  - Playwright screenshots with mocked data look right in light, dark, non-admin, 1024px and empty views.
+  - **Live DB:** ran `getDashboardSummary` via `tsx --conditions=react-server`. Every section returned without errors: 440 PII tables and 440 pending (1 audit row exists, for another card version); no candidate model; spend $10.66 this week vs $5.74 last week, split between Table descriptions and Inspector; no overdue jobs.
+- **Not done:**
+  - Every `HARVEST_SCHEDULES` entry is `manual` today, so "overdue" never fires until a schedule is deployed.
+  - The Catalog page has no URL filter for PII, so the PII item opens the Catalog unfiltered.
+  - Spend does not include `llm_calls`, because nothing writes to that table.
+
+## UI: themed date picker replaces native `<input type="date">`
+
+- **What:** new `DatePicker` ([src/components/form/DatePicker.tsx](../src/components/form/DatePicker.tsx)): popover month calendar with prev/next, Today, Clear, min/max limits, keyboard (arrows, PageUp/PageDown, Esc). Value is `YYYY-MM-DD`; `onChange` gets the string. Replaced the only 3 native date inputs: Jobs run-history "On a specific day" ([jobs.tsx](../src/views/agent-lab/estate/jobs.tsx)) and the Chat History created from/to range ([ChatHistoryPage.tsx](../src/components/agent-lab/ChatHistoryPage.tsx)).
+- **Kinds searched:** `date`, `time`, `datetime-local`, `month`, `week` inputs and `react-day-picker`. Only `type="date"` was used anywhere; `react-day-picker` is installed but unused.
+- **Verified:** `tsc --noEmit` and eslint clean. Not verified in a browser. No range-in-one-calendar or time picking (nothing needs it yet).
+
+## UI: themed dropdown replaces native `<select>` everywhere
+
+- **What:** new `Select` ([src/components/form/Select.tsx](../src/components/form/Select.tsx)), a drop-in for `<select>` (same props, `<option>`/`<optgroup>` children, `e.target.value` onChange). It renders the same menu as the Jobs `KindDropdown`: portal-positioned card, keyboard nav, type-ahead, check on the selected row, group headers, search box above 10 options. All 34 files that used a native `<select>` now use it (the tag was renamed and an import added; no logic changes).
+- **Why:** the OS-native option popup ignored the theme (dark mode, radius, fonts).
+- **Verified:** `tsc --noEmit` clean. Not verified: visual pass in a browser on each page; `multiple`/`size` selects are unsupported (none existed).
+- **Notes:** an inline `backgroundImage` on a select (old chevron) is dropped, since the component draws its own chevron. Lives outside `@/components/ui/*` because that alias maps to `packages/aloft-shared`.
+
+## Estate Continue: "Scanned tables only" option
+
+- **What:** the Continue confirm sheet has a "Scanned tables only" checkbox. When on, the run covers only tables already structurally scanned in the scope; never-scanned discovery-only tables are skipped.
+- **Files:** `src/app/api/agent-lab/context/pipeline/continue/route.ts`, `src/components/estate/ScannedPipelineScopeBar.tsx`.
+- **Why:** the user wanted to run pipeline stages on scanned tables without also scanning and profiling everything discovered.
+- **Limits:** max 50 scanned tables per run (400 `TOO_MANY_TABLES` otherwise); 400 `NO_SCANNED_TABLES` when none. The GET preview does not yet honour the flag.
+- **Verified:** `tsc` shows no errors in the changed files; `vitest run src/lib/context src/lib/estate` passes (19 files, 90 tests, 2 skipped). Not verified: live UI in a browser.
+
+## Security: remediation of the application security assessment (F1–F17, D1)
+
+- **What:** server-side fixes for every finding in [docs/security/SECURITY-ASSESSMENT.md](security/SECURITY-ASSESSMENT.md).
+  - **F1** `agent-lab/workbench/sessions` GET/DELETE: identity only from the cookie session; the forgeable `x-user-id` fallback is gone.
+  - **F2** memory: curate/delete need admin or the author of a personal bullet (`src/lib/memory/curation-access.ts`); purge-session and trace need the session owner, `session:read:all` or admin; browse hides other users' personal bullets. All curation is audited.
+  - **F3** `catalog/agents/[id]/review`: approve/reject/request_changes are admin-only, no self-approval (platform_admin excepted), author comes from the session, approval is audited.
+  - **F4** `catalog/tools` POST and `[id]` PATCH/DELETE: admin-only, zod allow-list (`schema.ts`), audited; GET `orderBy` allow-listed.
+  - **F5** `studio/results`: GET/POST/PATCH check session ownership (PATCH looks the session up from the result).
+  - **F6** `INSPECTOR_AUTH_ENFORCE` now enforces by default; `false` is an emergency observe-only opt-out.
+  - **F7** harvest/refresh routes need platform_admin; enrich, memory synthesize/cluster, boost run-suite/dispatch/score and job logs need admin; guided-dashboard blueprint routes need member (previously no handler auth). New helper `denyUnlessSessionRole` in `src/middleware/auth.ts`.
+  - **F8** `users/[id]` PATCH: status/profile changes cannot target a user whose role outranks the caller, and nobody can change their own status.
+  - **F9** `inspector/charts/[chartId]` DELETE: owner or admin. Chart POST requires a session and never uses the client `createdBy`.
+  - **F10** credentials login: per-account lockout (5 failures / 15 min, in-memory per instance) and a dummy bcrypt compare for unknown accounts.
+  - **F11** JWT role/status is re-read from the DB every 5 minutes (was only at sign-in/update); suspended or deleted users get `revoked` and the API proxy returns 401.
+  - **F12** dev-only internal fetch in `silo/scan` and `silo/links/[id]` uses `NEXTAUTH_URL`, not the request Host.
+  - **F13** `next.config.ts`: X-Frame-Options, CSP `frame-ancestors 'none'; base-uri 'self'; object-src 'none'`, nosniff, Referrer-Policy, HSTS, Permissions-Policy; `poweredByHeader: false`.
+  - **F14** audit-log needs `audit:read`; inspector performance and bandits need admin; digest needs member; marcus reflections GET/PATCH check session ownership.
+  - **F15** server-side Agent Ops checks use `hasAgentOpsRole`; `NEXT_PUBLIC_ENABLE_DEV_TAB` only affects UI visibility.
+  - **F16** GitHub Actions pinned to commit SHAs; `node:20-alpine` digest-pinned in both Dockerfiles; harvester installs `tsx@4.23.1 --no-save`.
+  - **F17** generic catch-all errors in bandits, Databricks execute, inspector export, job logs, memory synthesize/cluster (details logged server-side).
+  - **D1** `npm audit fix` (lockfile only): production audit 4 high + 2 moderate → 1 high (zod) + 1 moderate (minimatch).
+  - Shared: `parse()` in `src/lib/http.ts` accepts schemas whose input type differs from output (transforms).
+- **Docs:** `INSPECTOR_AUTH_ENFORCE` default updated in `ARCHITECTURE.md`, `docs/AI-AGENT-MEMORY.md`, `docs/data-access-control-design.md`, `docs/flows-architecture.md`, `docs/inspector-architecture.html`; Jobs `current-status.md` + `session-log.md`; assessment remediation status.
+- **Why:** user chose "Fix all issues" after the assessment.
+- **Verified:** `tsc --noEmit` clean; new `src/app/api/__tests__/security-hardening.test.ts` + existing `authz-hardening.test.ts` 37/37; full vitest 1026 passed, 1 failure in `typography-guard` (arbitrary `text-[..]` classes in UI files not touched here); eslint clean on changed files.
+- **Not done / compatibility:**
+  - zod 4 upgrade (fixes GHSA-mrhx-c7xc-m3w5) deferred: major version, also used by `openai`.
+  - `infra/beanstalk/Dockerrun.aws.json` keeps `:latest` for manual deploys; CI already deploys a commit-SHA tag.
+  - Login lockout is per instance, not cluster-wide. Full script/style CSP not added (roll out via Report-Only first).
+  - Streaming chat routes still surfaced model/provider error text to the session owner (fixed in the follow-up entry above).
+  - Behavior changes to tell users about: members can no longer approve catalog agents, write tool catalog entries, run memory synthesis/clustering, Boost, enrichment, or view job log streams; `memory/trace` is owner/admin only; deployments relying on observe-only Inspector auth must set `INSPECTOR_AUTH_ENFORCE=false` explicitly.
+  - Digest pins need periodic refresh (e.g. Dependabot for docker and github-actions).
+
+## Home dashboard v2: rewritten around the most useful information, with job health added
+
+- **What:** Rewrote the home dashboard (`DashboardView`). Every piece of data available to it was listed and ranked; the layout shows the most useful first.
+  - **P0, act now:** failed pipeline jobs, overdue memory jobs and running jobs are now on the home page.
+    - The summary API gained a `jobs` section: per-kind 7-day counts and last status from `listJobKindSummaries`, plus memory job staleness from `computeJobHealth`.
+    - The briefing lists each failing job kind first, in red, with a link to `/agent-lab/estate/jobs?kind=<kind>`. Overdue memory jobs appear in amber.
+    - The header shows "N jobs running".
+  - **P1, explain state:**
+    - Each estate stage (Discovered, Scanned, Profiled, Described, Searchable) shows the status of the job that feeds it: Ran 5h ago, Running now, or Failed 3h ago.
+    - Pipeline jobs without a stage are listed in an "Other jobs" row.
+    - A new "Job success, this week" metric (with failed runs in red) replaces "Active users". The active-user count moved to the Activity heading.
+  - **Layout:**
+    - Editorial headline ("N things need your attention").
+    - Four metrics in one panel separated by hairlines.
+    - Estate flow with step-to-step conversion and a "where your tables are" bar.
+    - Activity timeline merging Inspector sessions and sign-ins.
+    - Memory panel: helpful %, top topics, used / blocked / last learned.
+    - Below 1280px the stage row becomes a 5-column grid and hides the conversion chips.
+  - **Empty state:** when no data loads, the page says "Platform data is not available right now." instead of "Everything is running smoothly".
+  - `MemoryCredCard` restyled to the dashboard's neutral tokens. Its data logic is unchanged.
+- **Files:** `src/components/dashboard/DashboardView.tsx`, `src/components/dashboard/MemoryCredCard.tsx`, `src/lib/dashboard/summary.ts`.
+- **Why:** The user asked for a non-generic, finer dashboard that shows the most valuable information in priority order. The most urgent signal, broken jobs, was missing from the home page.
+- **Verified:**
+  - `adapters.test.tsx` passes 13/13.
+  - Playwright screenshots with mocked data look right in light, dark, empty and 1024px views.
+  - `tsc`: the only errors are the two existing ones in `src/app/api/catalog/tools/**`.
+- **Not done:**
+  - P2 items, live-data verification and the schedule-overdue rule were completed in the next entry ("Home dashboard v3").
+
+## Login: Captain's eyes are sharp, with a softer glow
+
+- **What:** The eye halo is smaller and fainter: `drop-shadow` radius `3 + amp·4` → `1.2 + amp·1.8` px, colour at 40% opacity instead of solid. I also removed `will-change-transform` from the body and head wrappers. With it, Chrome rasterized the head once (starting from `scale(0)`) and then stretched that bitmap during squash and follow, and resampled it at sub-pixel offsets, which made the eyes look blurred.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** The user asked for less eye glow and asked why the eyes looked blurred.
+- **Verified:** Headless Edge night-theme screenshots at 1× (zoomed 3×), at rest and while following the cursor, showed crisp eye and visor edges and no page errors.
+- **Not done:** Nothing outstanding.
+
+## Login: Captain goes black and white at night; heart reaction removed
+
+- **What:** In dark mode, Captain is now black and white. The sphere runs from white to graphite (`#FFFFFF → #E2E2E2 → #8A8A8A`), the visor is pure black (`#1C1C1C → #050505`), and the eyes are pure white. The rim, visor bezel and halo are neutral white, and the aura particles, sparks and glyphs use white and grey (red stays for errors). The rest of the dark login page is unchanged; the user chose "robot only". Separately, heart eyes are gone from the click combo, which is now ^ ^ → wink "Hehe." → spin "Wheee!" → dizzy. The `love` reaction, the floating-heart glyph, `ICONS.heart`, `PALETTE.*.heart` and the unused `iconCells` are removed.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** The user felt the blue and lavender night colours didn't suit Captain and asked to drop the heart reaction.
+- **Verified:** Headless Edge screenshots in night theme showed idle, happy and shut eyes, with no page errors. Four dispatched clicks gave the speech "Hehe." → "Wheee!" → "Whoa… dizzy!". `npm run web:typecheck` reported no errors in `AgentScene.tsx`. The only errors were in `src/components/dashboard/DashboardView.tsx`, which another session is editing. The colour-only edits were made after that run.
+- **Not done:** The dark page background and Sign in button stay navy/indigo, as the user asked.
+
+## Login: Captain gets solid vector eyes
+
+- **What:** Captain's everyday eyes are no longer an LED dot grid. Each eye is a solid rounded shape (`<rect>`) that morphs smoothly between expressions, and two masked lids carve the expression: a curved bottom lid makes the happy ^ crescent, and a slanted top lid makes the error frown. Blink, gaze, wink, shut (password), startle, glance and tilt all use the solid eyes. The 7×7 dot display stays only for words, icons (lock, caps, heart) and the dizzy spiral; the solid eyes fade out while it is showing. The old dot-pattern code (`eyePattern`, `PAT`, `openEye`, `snap`) is removed.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** The user wanted solid eyes instead of LED eyes; the earlier "goo" filter attempt still left ^ ^ looking like separate dots.
+- **Verified:** `npm run web:typecheck` passed. Headless Edge screenshots showed idle, gaze, happy, wink, heart and shut eyes, with no page errors.
+- **Not done:** The night theme wasn't screenshotted in this pass.
+
+## Jobs audit fixes: embed batching, reaper heartbeat, status and counts
+
+- **What:**
+  - **Embed batching:** `embedSubjects` in `src/lib/context/embed.ts` splits IDs into chunks of 5,000 before every `IN (...)` lookup. Postgres caps a statement at 32,767 bind parameters, so a whole-source embed (about 76k columns) used to fail with "too many bind variables" and record 0 columns.
+  - **Reaper uses heartbeat:** `reapOrphanActiveJobs` in `src/lib/context/orphan-jobs.ts` judges age by `updated_at` (refreshed by worker heartbeat every ~3 min) instead of `created_at`. A live job without a Fargate task ID is no longer killed just because it started more than 10 minutes ago.
+  - **Cancelled status:** `mapJobStatus` in `src/lib/estate/job-ui.ts` returns `cancelled` instead of `queued`. `JobDetailDrawer.tsx` shows grey "cancelled" chips.
+  - **Partial colour:** `partial` is amber in both `JobDetailDrawer.tsx` and `ActiveRunsPanel.tsx`. It was green in the drawer and red in the panel.
+  - **Kind filter:** `ActiveRunsPanel.tsx` lists every `JobKind` (was missing silo_scan, knowledge_sync, recompute_entity_tags and the T4 kinds).
+  - **Summary counts:** `src/lib/context/reads.ts` applies the window to `queued` and `running` too, so `total` matches the sum of the buckets.
+  - **Child counts:** `src/lib/context/active-jobs.ts` adds `cancelled` to `ActiveJobChildCounts`, so `total` reconciles.
+  - **T0 drop pass:** `src/lib/context/harvest.ts` filters active objects by `org_id` as well as `source_id`.
+- **Files:** `src/lib/context/embed.ts`, `src/lib/context/orphan-jobs.ts`, `src/lib/estate/job-ui.ts`, `src/lib/estate/job-ui.test.ts`, `src/components/estate/ActiveRunsPanel.tsx`, `src/components/estate/JobDetailDrawer.tsx`, `src/lib/context/reads.ts`, `src/lib/context/active-jobs.ts`, `src/lib/context/harvest.ts`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`.
+- **Why:** from the Jobs audit. The embed run on 2026-10-22 failed on the bind limit. Live follow-ups could be reaped by age. Status colours disagreed between views, and counts did not add up.
+- **Verified:** `tsc --noEmit` clean. Vitest on `src/lib/context` and `src/lib/estate` passes (19 files; new job-ui tests included). ESLint shows the same 2 pre-existing `set-state-in-effect` errors.
+- **Not done:**
+  - **Schedules set to `manual`** (`src/lib/context/schedules.ts`): the three weekly/daily rules were `live`, but EventBridge deployment is unverified (no AWS credentials here; no scheduled runs in the DB since 2026-10-18). Switch back to `live` after `aws events list-rules --name-prefix aloft-` confirms them.
+  - **Stale profiles backfilled:** one-off DB update set `last_t1_at = last_t0_at` for 1,695 `platform_context_objects` rows that were stale only because a T0 rescan ran after an unchanged profile (`source_altered_at <= last_t1_at`). Needs-profile count 2,717 → 1,022. No profile stats changed.
+  - Catalog banner still reaps queued chain follow-ups after 10 minutes without a kick (options: kick before reap, or deploy the harvester image with in-process chaining).
+  - `src/app/api/catalog/tools/*` has uncommitted changes from other work that fail `tsc`; not touched in this batch.
+  - **Chain follow-ups still need the web to launch them.** The worker image with in-process chain continuation is not deployed. The Catalog banner path still reaps queued follow-ups after 10 minutes without kicking them first.
+  - **Stale-profile backfill** (about 1,695 objects stale only because of a T0 rescan) has no backfill yet.
+  - No new worker deploy; the embed and reaper changes take effect on the next web deploy.
+
+## Security: full application security assessment (docs only)
+
+- **What:** added a security assessment package covering:
+  - attack-surface inventory of all 190 API routes, grouped by authorization class;
+  - architecture assessment and authN/authZ assessment;
+  - vulnerability register: 17 code findings plus dependency findings. Two are High: F1, `x-user-id` spoofing on `agent-lab/workbench/sessions`; F2, any member can edit org memory rules that are injected into prompts;
+  - AI security assessment, prioritized hardening roadmap (Milestones 1–5), test plan, and coverage/limitations.
+- **Files:** `docs/security/SECURITY-ASSESSMENT.md`, `docs/security/findings.json` (machine-readable register).
+- **Why:** the user asked for a complete security audit and hardening plan, with assessment first and no broad code changes.
+- **Verified:**
+  - Static review by a security-review agent.
+  - F1, F2 and F3 re-checked by hand. F1's exploit path was confirmed against `node_modules/next-auth/jwt/index.js:83-85`, where `getToken` accepts Bearer tokens.
+  - `npm audit` was run, both full and `--omit=dev`.
+- **Not done:**
+  - No fixes have been applied yet; Milestone 1 (F1, F2, F3, F6, F5) is the recommended next step.
+  - Production env flags, deployed IAM/ALB settings, and dynamic testing were not assessed.
+
+## Login: Captain moves calmly; no more big eyes
+
+- **What:**
+  - **Calmer motion:**
+    - Head smoothing slowed (ease rate 7 → 3.5).
+    - Body follow reach cut from 42px to 22px sideways and from 12px to 6px vertically, on a softer, non-bouncy spring (follow k 12 / c 7, return k 6 / c 5).
+    - Lean capped at 4° (was 10°). Speed stretch removed.
+    - Glance fidget is now one smooth sine sweep instead of snapping left and right.
+    - Hop is lower and slower (14px → 7px over 0.7s).
+    - Wake-up lift is 5px (was 10px).
+    - Hover and hop squash kicks are smaller.
+    - Fidgets come every 12–18s (was 8–12s).
+  - **Visor on the ball:** travel capped at ±8 × ±5 SVG units, narrowing at most 10%, so the visor always stays whole on the face. Before, it slid to the edge and was sliced flat by the ball's outline.
+  - **No big eyes:** hover keeps the normal eyes (only the small lift). Waking up and the head-tilt fidget raise the normal eyes by one row instead of showing tall or wide eyes. `bigEye` was removed.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** the user said there was too much sudden, fast movement, the side view of the visor looked off, and the big opening eyes felt weird.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - Headless Edge with the cursor at all four corners: the visor stays fully on the face with a gentle shift, and there were no page errors.
+- **Not done:** the wake-up and fidget reactions were not watched live.
+
+## Login: Captain turns like a real ball; smoother follow; new wake-up eyes
+
+- **What:**
+  - **Sphere turning:** the head no longer uses CSS `rotateY`/`rotateX`. Those squashed the round shell into an oval and moved the visor as one flat plate, so the eyes didn't feel attached to a ball.
+    - Now the shell outline and its highlight stay fixed (the light source doesn't move).
+    - The visor group (`visorRef`) slides across the surface toward where Captain looks (up to 30px sideways and 24px up/down in the SVG's own units) and narrows with `cos(angle)`.
+    - The visor is clipped to the ball (`#dot-ball`), so it wraps round the edge.
+    - The eyes keep a small extra parallax.
+  - **Follow refinements:**
+    - Softer follow spring, so the eyes lead, then the head, then the body. It returns to centre on a gentler spring.
+    - Stays with the cursor for 8s of stillness (was 3.5s), and drifts home when the cursor leaves the window.
+    - Mouse-only: no follow on touch devices.
+    - Reach shrinks on narrow viewports.
+    - Slight stretch when moving fast.
+    - The ground shadow stays on the ground (it cancels the body's vertical drift and shrinks as Captain rises).
+    - Particles and floating glyphs stay where they are when Captain moves, then their springs pull them back, so the aura trails behind like a cloud.
+  - **Wake-up eyes:** the startled ring "O O" eyes are replaced with tall wide-open eyes and a "!" that pops above the head.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** the user said the follow was good but asked to refine it, said the eye patch didn't move in sync with the turning ball, and asked to change the O O eyes.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - Headless Edge against `/login` with the cursor at four corners and the centre: the ball stayed circular, the visor slid and wrapped toward each corner, and there were no page errors.
+- **Not done:** the wake-up "!" was not screenshot-tested (it needs 15s idle).
+
+## Login: Captain's whole body follows the cursor
+
+- **What:**
+  - Captain now moves as one unit toward the cursor: the helmet, glow, particle aura and ground shadow together. It moves up to about 42px sideways and 12px up or down, on a slightly bouncy spring.
+  - It leans into the movement (up to 12°) and straightens up as it arrives.
+  - Its head turns further toward you than before (yaw 12° → 18°, pitch 9° → 10°).
+  - It drifts back to centre when the mouse has been still for 3.5s, while asleep, and in the privacy, peek, loading, error and success states, so it stays centred over the form.
+  - With reduced motion, the body doesn't move.
+- **Files:** `src/components/login/AgentScene.tsx`. Changes:
+  - New `bodyRef` wrapper around the glow, both canvases and the helmet.
+  - `body` spring and `lean` in `frame`.
+  - `onMove` measures from Captain's rest position, so the pull doesn't shrink as it approaches.
+- **Why:** the user asked for the entire robot to move, not just the eyes, and picked the "follow" option.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - Ran headless Edge against `localhost:3000/login` with Playwright: the body moved to −42px (cursor at left) and +42px (cursor at right), leaned while moving, and returned to `0,0` after rest.
+  - No horizontal scrollbar (scrollWidth equals the viewport width) and no page errors.
+- **Not done:** not tested on touch devices; there, the body only follows the occasional emulated mousemove.
+
+## Continue pipeline: source change check + cascade chain
+
+**What:**
+- `src/lib/context/pipeline-freshness.ts` (new, pure) + `pipeline-freshness.test.ts`: `isT0Changed`, `isProfileUnchanged`, `classifyScopeChanges`, `buildContinueChain`.
+- `src/lib/estate/pipeline-change-check.ts` (new): `checkScopeChanges` runs a metadata-only, scoped `information_schema.tables` listing (with `last_altered`) and compares each table with its stored `source_altered_at`. The result is changed / new / dropped / unknown / unchanged.
+- `src/lib/context/databricks-adapter.ts`: `resolveScope` now uses a shared private `listScope`. New `listScopeWithAltered`, which reports failed catalogs.
+- `src/app/api/agent-lab/context/pipeline/continue/route.ts`: always runs the change check first (502 `CHANGE_CHECK_FAILED` on failure, nothing launched); `maxDuration = 120`.
+- `src/lib/estate/pipeline-intent.ts`: the chain now runs from the earliest stale stage through every downstream stage up to `through`. T2 is no longer dropped when only T1 looked stale. New fields `changeCheck` and `stagePlan` (upper-bound counts). `needs_embed` now counts missing **or out-of-date** embeddings.
+- `src/lib/context/embedding-presence.ts`: new `SQL_OBJECT_EMBEDDING_CURRENT` (embedding at/after the latest semantic card).
+- `src/lib/context/harvest.ts`: T0 only advances `last_t0_at` when structure or source alter time changed (new stat `objects_changed`). T1 keeps T2 current when the new profile is identical (new stat `objects_unchanged`). `toContextSource` is exported.
+- `src/lib/context/profile.ts`: `saveProfile` returns `statsUnchanged`.
+- `src/lib/context/embed.ts`: unchanged object embeddings get `created_at` refreshed (verified current).
+- `scripts/context/orchestrator.ts`: an embed job with no in-scope objects no longer falls back to every column in the source.
+- `src/components/estate/ScannedPipelineScopeBar.tsx`: Continue opens a preview, runs the change check, and shows the check result plus the stage plan before **Run**. Retry on check failure.
+
+**Why:** The user found that Continue on part-processed tables (e.g. `landing_zone_dev.sire_2_0`: Described but not searchable) never checked the source. It also re-profiled after no-op rescans, and could skip Describe before Embed. Agreed behaviour: always check, cascade, then fill missing steps; re-describe only when the profile changed; preview first.
+
+**Verified:** `vitest run src/lib/context/pipeline-freshness.test.ts src/lib/context/scope-match.test.ts` (18 passed); `tsc --noEmit` clean. ESLint on touched files shows only 2 pre-existing `react-hooks` errors on the untouched `loadIntent` hook.
+
+**Not done:** No live Databricks/worker run yet. The worker image needs a redeploy for the T0/T1/embed changes. Hand-edited semantic cards are not yet protected from T2 overwrite. The unscoped cockpit `getPipelineHealth` still counts only missing embeddings.
+
+## App shell: compact top header
+
+**What:** `src/components/agent-lab/staging/StagingHeader.tsx`, `src/components/app-breadcrumb.tsx`, `src/app/globals.css`, `src/components/agent-lab/staging/StagingSidebar.tsx`, `src/components/agent-lab/staging/CommandSidebar.tsx`, `src/views/login.tsx`.
+- Header bar replaced by a borderless 28px caption-size breadcrumb line (same background as page content, no sticky bar). `AppBreadcrumb` gained a `compact` prop. Back-arrow button and divider removed (duplicated browser back and breadcrumb parent links). Breadcrumb + Alt+↑ remain; mobile menu toggle kept (mobile only).
+- Sidebar header rows still use `--shell-header-h` (now 2.75rem); BrandMark 40 → 30px to fit.
+- Login header pinned to `h-16` so it is unaffected.
+
+**Why:** User flagged the breadcrumb bar as wasted vertical space on every page.
+
+**Verified:** `tsc --noEmit` shows no errors in touched files. Not visually verified (browser tab unreachable).
+
+**Not done:** Jobs detail view still renders its own second breadcrumb bar (`jobs.tsx` "Job types › kind") under the global one — candidate to merge.
+
+## Jobs page: job type switcher redesign
+
+**What:** `src/views/agent-lab/estate/jobs.tsx`: `KindDropdown` rewritten (search, grouped by pipeline stage, per-job status, ✓ current, keyboard navigation); new `kindHealthOf` helper; colour stripe beside the job title removed.
+
+**Why:** User asked for a better job type switcher (old one was an alphabetical monospace list with decorative colour dots).
+
+**Verified:** `tsc --noEmit` clean; Playwright fixture screenshots light and dark with the menu open.
+
+**Not done:** Live API not verified; keyboard behaviour checked by code review only.
+## Jobs page: Job types table polish
+
+**What:** `src/views/agent-lab/estate/jobs.tsx`, `src/lib/estate/nav-items.ts`.
+- Overdue scheduled jobs flagged in "Last finished" (amber dot + "overdue", reason on hover).
+- Relative times no longer switch to a locale date after 7 days (`1w ago`, `3mo ago`); exact time on hover.
+- Advanced job types that need attention stay visible when the advanced section is collapsed.
+- Success column header shows the window ("Success · 7d"); value shows "N runs" instead of "/N".
+- "Manual" and "On demand" unified to "On demand" with an explanatory tooltip.
+- Cancelled runs drawn as hollow bars (distinct from empty slots) in run strips, charts and legends.
+- Removed decorative job-type colour stripes; per-row Run button appears on hover/focus (always on touch).
+- Page title "Pipeline jobs" renamed "Jobs".
+
+**Why:** User asked for a Jobs page design review; implemented the must-fix and polish items (1–10).
+
+**Verified:** `tsc --noEmit` clean; Playwright fixture screenshots light and dark, no page errors.
+
+**Not done:** Live API not verified. Recent-activity feed and table summary line (proposed items 11–12) not implemented.
+## Estate tabs: Overview, Entities, Lineage, Schema mapper, Similar data redesigned
+
+**What:** Applied the clean Catalog design language to every other Data Estate tab.
+- `src/lib/estate/nav-items.ts`: removed per-tab descriptions (header shows title only).
+- Overview (`src/views/agent-lab/estate/index.tsx`): coverage funnel (Found > Scanned > Profiled > Described > Searchable), a prioritised "Needs attention" list (capped at 4, Show all), and compact source rows.
+- `src/components/estate/SourceCard.tsx`: rewritten as a table row with a stacked stage bar (`StageStack`), Scan now button and overflow menu; exports `SOURCE_GRID`, `queueSourceScan`, `StageStack`, `kindLabel`.
+- Entities (`entities.tsx`): list/detail layout with searchable entity list, stat strip and Metrics/Dimensions tables. New `src/components/estate/semantic-ui.tsx` (approval pill/dot, field ref).
+- Lineage (`lineage.tsx`): picker sidebar, 3-column flow (Source tables > Definitions > Used by) and a details card.
+- Schema mapper (`mapper.tsx`, new `src/components/estate/mapper/mapper-ui.tsx`): stepper, A/B schema cards, review table; bulk threshold is now a dropdown; per-row score bars moved into the confidence tooltip.
+- Similar data (`silo.tsx`, new `src/components/estate/silo/silo-ui.tsx`): stepper, table picker + selected-table panel, options bar, results list; search text persists after picking; overflow menu adds "Open table details" and "Change options and search again".
+- Removed duplicate intro text blocks under the page header on Mapper and Similar data.
+
+**Why:** Consistent, less wordy UI across all Estate tabs; details live in dedicated views.
+
+**Verified:** `tsc --noEmit` clean; Playwright screenshots against fixture API data in light and dark; no page errors.
+
+**Not done:** Not verified against live API (login required). Confirm/Reject flows and error/empty states only partially exercised. Pre-existing ESLint `set-state-in-effect` in mapper SchemaPicker coverage effect left as-is. Dark-mode Searchable vs Profiled stage colours look similar (palette unchanged by request).
+## Catalog tab: one clean design across All objects and Scanned
+
+- **What:**
+  - Both views now share `src/components/estate/catalog-ui.tsx`: search, selects, buttons, the ⋯ menu, object-name cells and the catalog tree.
+  - **Catalog tree:** sans font with chevrons. The active row has a brand bar. On All objects, each catalog and schema has a thin coverage bar showing how much has been scanned; it turns green at 100%. On Scanned, schemas have checkboxes for Continue pipeline. "All catalogs" shows the full count.
+  - **All objects table:** columns are Object (kind icon plus name), Stage, Rows (compact), Last seen (relative) and action. Only real actions remain: Add to scan, Remove from scan, Rescan, Publish. The labels that did nothing (Queued/Linked/Published/No access) and the Type column are gone. The whole row is clickable.
+  - **Bulk bar:** selected rows get one bar with Scan now / Add to schedule / Remove from schedule / Clear. A selected scope shows the object count, **Run full pipeline**, and a ⋯ menu for the scheduled actions.
+  - **Scanned table:** T0–T3/EMBED jargon is replaced by plain words (Structure, Profiled, Described, Searchable, Linked, In model). Tier filter pills are neutral. A 6-step pipeline bar shows the next step for each object. The Source column only appears when there is more than one source. The scope bar is a compact card with a single primary "Continue pipeline" button.
+  - **API:** `listEstateFacets` (`src/lib/context/reads.ts`) now returns `scanned` per catalog and schema, for the coverage bars.
+  - **Smaller changes:** toolbar hint text moved to tooltips (`catalog.tsx`); Catalog description removed from `nav-items.ts`; `Pagination.tsx` uses sans tabular numbers.
+- **Files:** `src/components/estate/{catalog-ui.tsx (new), EstateTable.tsx, EstateFilterBar.tsx, BulkActionBar.tsx, EstateFacetTree.tsx, ScannedFacetTree.tsx, ScannedObjectsTab.tsx, ScannedPipelineScopeBar.tsx, EstateCatalogTab.tsx, Pagination.tsx}`, `src/views/agent-lab/estate/catalog.tsx`, `src/lib/estate/nav-items.ts`, `src/lib/context/reads.ts`.
+- **Why:**
+  - The two views looked inconsistent.
+  - Stage was repeated up to three times per row, including buttons that did nothing.
+  - There was too much colour and jargon, and about 260px of controls before any data.
+- **Verified:**
+  - `tsc --noEmit` is clean.
+  - Playwright screenshots with fake API data (light and dark): All objects, a selected scope, the ⋯ menu, Scanned, and Scanned with a scope. No page errors.
+- **Not done:** Not checked against live API data (needs a login). The SQL change to `listEstateFacets` has not run against a real database.
+## Login: Captain gets a pearl night shell and new reactions
+
+- **What:**
+  - **Night colours:** the round shell is now a glossy pearl sphere (radial gradient `#FFFFFF` → `#DDE3F3` → `#8F99BC`), with a cool-blue edge and a thin sky ring around the visor. The day theme is unchanged.
+  - **Click combo:** quick repeat clicks (within 2.5s) escalate: ^ ^ → wink → heart eyes with floating hearts → a full spin with sparkles → dizzy spiral eyes, a wobble and orbiting stars. The combo then restarts. While a password is being typed, clicks only give the plain ^ ^.
+  - **Hover:** Captain perks up with wide 5×5 eyes that follow the cursor, plus a small lift and swell.
+  - **Wake startle:** waking from sleep shows O O eyes and a hop. Clicking a sleeping Captain only wakes it.
+  - **Idle fidgets:** every 8–12s while idle and the mouse is still, Captain does one of: a glance left and right, a hop, or a curious head tilt with one wide eye.
+  - **Caps Lock:** typing in the password field with Caps Lock on shows an up-arrow on the visor and announces "Caps Lock is on." This repeats at most every 8s.
+  - **Reduced motion:** the eye changes still play, but the motion and glyphs are skipped.
+- **Files:** `src/components/login/AgentScene.tsx`. The new pieces are `ReactKind`/`reactEyes`/`bigEye`, the `heart` and `caps` icons, the `heart` and `orbit` glyphs, and `reactMotion`. Hover, Caps Lock and combo handling are in the effect, with cleanup.
+- **Why:** the user asked for a better night colour pattern (picked option 1, Pearl, from five previews) and more reactions.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - In the browser, clicks 1–5 produced "Hehe." / "Aww, thank you!" / "Wheee!" / "Whoa… dizzy!", and screenshots of every state looked correct.
+  - Hover shows the wide eyes.
+  - A Caps Lock keydown in the password field announces "Caps Lock is on."
+  - No page errors.
+- **Not done:** the startle and fidget reactions were not screenshot-tested; they are covered by the typecheck and code review only.
+
+## Jobs: full Health tab
+
+- **What:** Rebuilt the Jobs **Health** tab (`?tab=health`):
+  - **Top of the page:** a status headline ("3 job types need attention" / "Everything is running normally") with run count and a running-now link, plus a 24h / 7d / 30d / All switch (`?range=`).
+  - **Four metric tiles:**
+    - success rate, compared in words with the previous period;
+    - runs (failed / 0-object counts);
+    - objects processed;
+    - time spent running, with the longest run.
+  - **Left column:**
+    - **Runs per day** (per hour for 24h) stacked by succeeded / 0 objects / failed / running;
+    - **Reliability by job type**: success bar, runs, failed and typical time, least reliable first;
+    - **Recent failures**: job type, scope, time and first error line; click opens the run drawer.
+  - **Right column:**
+    - **Needs attention**;
+    - **Coming up**: next automatic runs with the last-run dot, plus the manual schedules;
+    - **Suggested next step** with estate coverage.
+  - The removed `RunHealthCard` is replaced by these sections.
+  - Runs come from `GET /api/agent-lab/context/jobs?after=<window start>&pageSize=1000`; "All" uses the last 30 days for the chart, failures and totals.
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`; docs `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** User asked for a dedicated, easy-to-read Health page with more useful information.
+- **Verified:** `tsc --noEmit` clean; headless screenshots for 7d, 30d and 24h (empty) on real data with no page errors.
+- **Not done:** Runs whose error is "Cancelled by user" still count as failed (that is their stored status). The run list is capped at 1,000 runs per window.
+
+## Jobs: Health tab; Job types tab focused on jobs
+
+- **What:** Removed the Jobs page subtitle ("Schedules, runs and health of…"). New **Health** tab (`?tab=health`, between Job types and Scanned objects, with a red/amber dot when something needs attention) holds the Run health card (headline, plain stats, attention rows) and the Suggested next step card with estate coverage, which is open by default there. The Job types tab now shows a one-line health strip (headline, affected job types, success / runs / failed, window select, View health) above the table. The cards were also cleaned up: one headline, no delta arrows, short issue rows with consistent "Xh ago" times, and mangled "?" separators replaced with ·, … and —.
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`, `src/components/estate/JobsCockpitPanel.tsx` (`defaultExpanded` prop), `src/lib/estate/nav-items.ts` (`description` optional), `src/views/agent-lab/estate/EstateNav.tsx` (no subtitle line when there is no description); docs `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** User found the top bars confusing and taking space from the jobs list; the analysis now has its own tab.
+- **Verified:** `tsc --noEmit` clean; headless screenshots of Job types and Health (coverage open) on real data with no page errors.
+- **Not done:** Health tab has no trend charts yet (per-job trends are on the job type page).
+
+## Jobs: dedicated job type page, slimmer Job types table
+
+- **What:** Job types table rows are single-line (descriptions moved to tooltips). Clicking a job type opens a dedicated page (`?kind=`) with health, schedule, Run, last run (error, retry), a recent-runs duration chart, upstream/downstream jobs + coverage, and a filterable All runs table (status, time range, day). It replaces the old date-group and per-date drill-down. `?highlight=<jobId>` links now open the run from anywhere.
+- **Files:** `src/views/agent-lab/estate/jobs.tsx`; docs `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** User wanted the small table free of descriptions and a detail page per job that explains what happened.
+- **Verified:** `tsc --noEmit` clean; headless screenshots on real data (T1, T2, filters, deep link, Run again modal, L1) with no page errors.
+- **Not done:** Pipeline dependency map is hand-written; `/api/agent-lab/context/jobs/dates` is now unused by the UI (left in place).
+
+## Login: Captain gets a round body; night shell is moonstone
+
+- **What:** The Captain shell is now a circle (96×96, `rx=48`) instead of a rounded rectangle; the visor, LED eyes and effects are unchanged, and the top highlight is moved to fit the curve. Night theme shell recoloured from blue-white to warm moonstone (`#EFEBE2` → `#AFA99C`, white 30% hairline), chosen by the user from four live previews (frosted, ice, sapphire, moonstone). Pill, porthole, hull and mast shapes were also previewed; the user kept round.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** User found the white robot looked off in dark mode and asked to try a round shape.
+- **Verified:** Screenshots in day and night; no page errors.
+
+## Login: fine full-page gradient in night mode
+
+- **What:** Night theme background goes from flat `#070b18` to a fine full-page gradient. A sapphire wash comes in from the top centre, over a 170° linear gradient: deep sapphire `#0b1530` → graphite `#080d1d` → faint indigo `#120f2e`. It sits under the wavy contours and corner auroras. Day theme unchanged.
+- **Files:** `src/views/login.tsx`.
+- **Why:** User asked for a fine gradient across the entire dark background.
+- **Verified:** Night-mode screenshot; no page errors.
+
+## Login: Captain stands out on both themes
+
+- **What:** Replaced the faint day-only halo with a stronger tinted glow behind Captain on both themes. Day uses terracotta/sage. Night was first a strong sapphire glow plus a blue rim glow; the user disliked it, so night now has only a faint sapphire→violet wash and a plain dark drop shadow. Shell edge is stronger: a darker hairline by day, a sky rim at night. Added a layered drop shadow by day and a sapphire rim glow plus shadow at night. Night LED eyes are now sky blue `#9CCBFF`; day eyes keep the original warm white. Unlit LEDs dimmed from 0.07 to 0.04 opacity so the eye pattern reads cleanly. Concentric rings were tried and then removed at the user's request.
+- **Files:** `src/components/login/AgentScene.tsx`.
+- **Why:** User found the robot hard to see on both themes; the previous halo was too weak.
+- **Verified:** Before/after screenshots in both themes; no page errors; `npm run web:typecheck` passed with the rings still in place. A rerun after removing them failed only in `src/views/agent-lab/estate/jobs.tsx`, which another session is editing; this file was clean.
+
+## Login: Captain particles hidden by default; day-theme effects recoloured to Sage Studio
+
+- **What:** Particles around Captain are now off at rest and only appear while Captain is acting (click/boop for 2.5s, signing in, success, error). The header Sparkles button now means "Keep particles on" (persisted under new key `localStorage['login-particles-always']`, so everyone starts with them off). Day-theme effect palette (particles, sleeping zzz, drop, spark, thinking dots, glow) moved from cyan/violet to Sage Studio ink `#1A231C` / terracotta `#A8481F` / sage `#5E7F6A`. Night palette unchanged.
+- **Files:** `src/views/login.tsx` (particles state + `ambient` prop, button labels), `src/components/login/AgentScene.tsx` (`PALETTE.light`).
+- **Why:** User wanted a calm login with effects only on interaction, in colours matching the day theme.
+- **Verified:** `npm run web:typecheck` passes; in browser the particle canvas alpha sum is 0 at rest and >0 after clicking Captain; terracotta "z" shows after ~15s idle; no page errors.
+- **Not done:** Night robot colour (all three previewed options rejected).
+
+## Login: wavy contours are the only background; mouse effect permanently off
+
+- **What:**
+  - `src/components/login/LoginBackdrop.tsx` is now a single `LoginBackdrop({ theme })` that draws the drifting sea-chart contours. Removed:
+    - the dot-grid variant;
+    - the `variant` and `interactive` props;
+    - all mousemove listening.
+  - `src/views/login.tsx`:
+    - removed the background-switch and mouse-effect header buttons, along with their state;
+    - removed the `login-backdrop` / `login-mouse` localStorage keys and the `?bg=` param;
+    - the header now has only the particles and day/night buttons.
+  - Supersedes the three entries below: switchable backdrops, the Contours ↔ dots switch, and the mouse on/off button.
+- **Why:** the user chose the wavy background as the default, wants no mouse interaction, and doesn't need buttons for either.
+- **Verified:**
+  - In the browser, the header shows only 2 buttons.
+  - `?bg=dots` still renders contours.
+  - No page errors on a fresh load. `npm run web:typecheck` passes.
+- **Not done:** night-mode robot colour. The user rejected the graphite, navy and current-white previews; a new direction is needed.
+
+## Estate Jobs: jobs-first L1 layout, windowed run stats, stage table
+
+- **What:**
+  - `src/lib/context/reads.ts`, `src/app/api/agent-lab/context/jobs/summary/route.ts`: the summary API takes `days=N` and `detail=true` (partial/cancelled/other, last status, median duration, previous-window counts, last 14 runs per kind). The default call is unchanged.
+  - `src/components/estate/JobsCockpitPanel.tsx`: one-line **Next step** bar (recommendation, coverage % chips that open Scanned objects by stage, Run recommended / Choose scope). The full funnel and the schemas the run covers are under **Details** (kept in localStorage).
+  - `src/views/agent-lab/estate/jobs.tsx`:
+    - one-line run-health bar (24h/7d/30d/All via `?range=`, success %, runs, failed, active, deltas vs previous window) with **Needs attention** chips;
+    - stage table (last 14 runs, success %, typical time, last finished, schedule, per-row Run);
+    - tabs and Run a job share one row, with an Active-runs badge;
+    - the schedules strip and stat tiles are removed.
+  - `src/components/estate/ScannedObjectsTab.tsx`: `initialTier` prop. `src/lib/estate/cockpit.ts`: plain-language T0 recommendation.
+  - `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** the user wanted a friendlier, jobs-focused page; coverage already lives on the Overview tab. Also fixes rows showing "Never run" (`last_run_at` → `last_finished_at`).
+- **Verified:** `tsc --noEmit` clean. Summary SQL checked against the real DB. Headless screenshots with real DB data for L1, Details, stage click-through, L2, window switch and per-row Run; no page errors.
+- **Not done:**
+  - Not checked in a live signed-in browser.
+  - Pre-existing set-state-in-effect lint errors are untouched.
+  - `docs/jobs/current-status.md` was accidentally deleted and then restored from HEAD + the 2026-11-02 rows seen earlier. Diff-check it for other uncommitted edits.
+## Login: button to turn off the background's mouse effect
+
+- **What:**
+  - `src/components/login/LoginBackdrop.tsx`: new `interactive` prop (default `true`). When it is `false`, Contours (the cursor "hill") and the dot grid (the cursor glow) ignore the mouse; the slow drift continues.
+  - `src/views/login.tsx`:
+    - new header button (MousePointer2 icon, `aria-pressed`) between the background switch and the particles button;
+    - when off, the icon dims and gets a strike line, matching the particles button;
+    - saved in `localStorage['login-mouse']`.
+- **Why:** the user asked for a way to turn off the mouse interaction.
+- **Verified:**
+  - In the browser, the label flips and "off" survives a reload.
+  - The canvas output differs between on and off with the cursor in the field.
+  - No page errors on a fresh load. `npm run web:typecheck` passes.
+- **Not done:** the night-mode robot colour (graphite vs navy previews rendered, waiting for the user's pick).
+
+## Login: background switch trimmed to Contours ↔ original dot grid
+
+- **What:**
+  - `src/components/login/LoginBackdrop.tsx`:
+    - removed the Constellation and Colour-fields variants;
+    - restored the original dot grid (diagonal wave + cursor glow) as the `dots` variant on the shared canvas loop;
+    - `BackdropVariant` is now `'contours' | 'dots'`.
+  - `src/views/login.tsx`:
+    - the header button now toggles between two options: Waves icon = Contours, Grip icon = Dot grid;
+    - `?bg=contours|dots` still works;
+    - old stored values fall back to Contours.
+- **Why:** the user wanted only the wavy contours and the original design, with a button to switch between them.
+- **Verified:** in the browser, the toggle flips both ways and the choice survives a reload with no page errors. Screenshot of the dot grid taken. `npm run web:typecheck` passes.
+- **Not done:** nothing pending.
+
+## Login: dot grid replaced by three switchable backgrounds
+
+- **What:**
+  - New `src/components/login/LoginBackdrop.tsx` with three variants, each themed for day (Sage) and night:
+    - `contours`: drifting sea-chart depth contours (marching squares). Every fifth line is a terracotta/sky "index" line. The cursor raises a soft hill in the field.
+    - `constellation`: drifting data nodes that link when close. Hubs are ringed and pulse gently, and links near the cursor light up in the accent colour.
+    - `mesh` ("Colour fields"): no pattern. Four slow, blurred colour fields (CSS keyframes) with SVG film grain.
+  - Both canvas variants run at about 30fps, fade out of the centre column, pause when the tab is hidden, and draw one static frame under reduced motion.
+  - `src/views/login.tsx`:
+    - a new header button (Waves / Network / Blend icon) cycles through the backgrounds;
+    - its label reads "Background: X. Switch to Y";
+    - the choice is saved in `localStorage['login-backdrop']`;
+    - `?bg=contours|constellation|mesh` still works as a deep link. The default is contours.
+  - Removed the old `DotField` and its `dot*` palette keys from `src/components/login/AgentScene.tsx`.
+- **Why:** the uniform dot grid felt like a repeated non-design. The user asked for a choice between the options.
+- **Verified:**
+  - Screenshots of all three in day and night at 1440×900.
+  - In the browser, the button cycles Contours → Constellation → Colour fields → Contours, and the choice survives a reload.
+  - No page errors on a fresh load. `npm run web:typecheck` passes.
+- **Not done:** nothing pending.
+
+## Login: particles on/off button + Sage ivory robot (day theme)
+
+- **What:**
+  - **Particles button** (`src/views/login.tsx`):
+    - a sparkles button next to the day/night toggle;
+    - `aria-pressed`, with a label of "Turn off particles" or "Turn on particles";
+    - when off, the icon dims and gets a strike line;
+    - the choice is saved in `localStorage['login-particles']`.
+  - **`DotCompanion`** (`src/components/login/AgentScene.tsx`):
+    - new `particles` prop, a master switch that fades the halo out and keeps it off, even during actions. `ambient=false` still brings the halo back during actions.
+  - **Robot in the day theme:**
+    - the shell gradient goes from `#FFFFFF` to `#E7ECE1` (Sage Studio surface);
+    - the visor is green-black `#26322B` → `#111813`;
+    - the LED eyes are warm cream `#FFF4EC`.
+    - At night the robot is unchanged.
+  - The user picked this look from three rendered options.
+- **Verified:**
+  - In the browser, the toggle hides the halo, persists `off`, and flips the label.
+  - The SVG stops render with the Sage values.
+  - `npm run web:typecheck`.
+- **Not done:** None.
+
+## Login: day/night toggle + day theme matches the app's "Sage Studio" palette
+
+- **What:**
+  - **Toggle** (`src/views/login.tsx`): a sun/moon button at the right of the header.
+    - It calls `next-themes` `setTheme`, so the choice persists into the app after sign-in.
+    - It has an `aria-label`, a focus ring and `active:scale-[0.94]`, and the icon cross-fades with a rotation in 200ms ease-out.
+  - **Day colours:** `THEME_VARS.light` now uses the app's light tokens.
+    - Background `#F4F6F1` with ink `#1A231C`.
+    - Inputs are white; the focus ring is terracotta.
+    - Corner glows are terracotta and sage.
+    - The Microsoft button is ink-black.
+  - **Sign in button:** its gradient is now themed through `--cta-from`, `--cta-to` and `--cta-glow`: terracotta `#A8481F`→`#C2653A` by day, and the original sky→indigo at night.
+  - **Login scene** (`src/components/login/AgentScene.tsx`), light only:
+    - the dot grid is now sage-ink with terracotta highlights;
+    - the robot's glow, drop shadow, floor shadow and outline are retinted to sage/terracotta.
+    - The black and blue particle halo is kept, as requested earlier.
+- **Why:** The login's day theme used its own sky/indigo palette, unrelated to the app's day theme.
+- **Verified:**
+  - In the browser, the toggle switches the `html` class and `localStorage.theme` both ways, and the label updates.
+  - Light-mode screenshot taken.
+  - `npm run web:typecheck`.
+- **Not done:** The night theme still uses the login's own navy/indigo, not the app's graphite/sapphire.
+
+## Login: black + blue particle halo around the robot (day theme)
+
+- **What:** `src/components/login/AgentScene.tsx`: light palette companion particle colours changed to near-black (`17,17,24`), sky blue (`2,132,199`) and blue (`37,99,235`), and the glint stars are black. The particle behaviour, the count and the full-page `DotField` grid are unchanged, and so is the dark theme.
+- **Why:** User asked to keep the existing particles and change only their colour.
+- **Verified:** Typecheck; light-mode screenshot.
+- **Not done:** None.
+
+## Login: removed the floating card around the sign-in form
+
+- **What:** `src/views/login.tsx`: the sign-in controls had a translucent card around them (28px radius, faint border, blur, shadow). The card is removed, so the controls now sit directly under the heading.
+- **Why:** On the dark aurora background the card read as an empty, off-looking box, and its 28px radius was outside the radius scale.
+- **Verified:**
+  - Browser screenshot at 950px: the form is 380px wide with no overflow.
+  - The Microsoft button, divider, inputs and Sign in button are unchanged.
+- **Not done:** None.
+
+## Estate identity and language overhaul
+
+- **What:**
+  - **Shared estate header** (`EstateNav.tsx`, `nav-items.ts`):
+    - Every estate tab now has the "Data Estate" eyebrow, a visible `h1`, a one-line plain description, and an underline tab bar.
+    - Detail routes show only the tabs.
+    - The duplicate page headers in lineage and entities are removed.
+  - **Stage vocabulary** (`src/lib/estate/stages.ts`): Discovered, Scanned, Profiled, Described, Searchable, each with help text and a colour. It is used by `CoverageBar`, `SourceCard`, the overview and the Jobs cockpit stepper. `LifecycleBadge`, `EstateFilterBar` and the `EstateTable` headers (Object, Type, Stage, Last seen) use the same words.
+  - **Overview** (`estate/index.tsx`, `SourceCard.tsx`):
+    - a summary strip (sources, objects found, % scanned, % searchable);
+    - redesigned source cards (a "% searchable" KPI, stage rows, last scan, queued and out-of-date counts, "Refresh profiles" and "Scan now" buttons);
+    - an empty state that links correctly to Connections.
+  - **Catalog:**
+    - an "All objects" / "Scanned" segmented control and a "Show test sources" checkbox;
+    - row actions as words (Add to scan, Rescan, Publish…);
+    - counts with thousands separators.
+  - **Jobs** (`jobs.tsx`, `JobsCockpitPanel.tsx`):
+    - sentence-case tabs;
+    - schedules shown as readable cron via the new `src/lib/estate/cron-label.ts`, which handles `SUN`/`MON` day names;
+    - plain job-group names;
+    - "Run a job";
+    - the "Job types used" count is fixed (it showed 13/9);
+    - Fargate jargon removed from buttons and toasts.
+  - **Schedule labels** (`src/lib/context/schedules.ts`): renamed. IDs and crons are unchanged.
+  - **Entities, lineage, mapper and similar data:** plain copy, and step labels "Choose schemas → Match → Review" / "Choose table → Search → Results".
+  - **Entities fix:** a possibly-undefined `meta.total` is now guarded.
+  - **Breadcrumbs:** labels for estate, silo (Similar data) and mapper.
+- **Why:** The estate section mixed internal tier names (T0–T4, Harvested, Fargate), raw cron strings and inconsistent headers, which made it confusing.
+- **Verified:**
+  - `npm run web:typecheck` passes.
+  - vitest passes for `src/lib/estate`, `src/components/estate` and `src/views/agent-lab`.
+  - A browser DOM sweep at 1366px and 390px found 1 `h1` per tab and no overflow; light and dark modes were checked.
+- **Not done:** The cockpit recommendation string from the API still says "Run T0 →". Harvest and orchestrator behaviour are unchanged.
+
+## UI redesign batch 2: page-by-page pass with dummy data
+
+- **What:**
+  - **Radius (whole app):**
+    - `tailwind.config.js`: `borderRadius.DEFAULT` now uses `var(--radius-ctl)` (8px). Bare `rounded` was Tailwind's 4px and was used about 300 times, mostly in estate and agent-lab, which is why those pages looked sharp.
+    - Inline `borderRadius: 3|4|'4px'` changed to `6` (332 uses in 88 `.tsx` files).
+    - `borderRadius: 5` changed to `8` in `ChatHistoryPage.tsx`.
+    - Card-like containers (bare `rounded` plus `p-4`–`p-6` or a card shadow) changed to `rounded-card` (32 uses in 12 files: estate, agent-lab, staging, docs, inspector).
+    - The `.wb-template-card`, `.wb-mission-input` and `.wb-pill-menu` rules in `src/app/globals.css`, and the `foer-*` CSS in `FoerStoryDashboard.tsx` and `ForgettingPanel.tsx`, now use radius tokens.
+  - **Estate tab bar** (`src/views/agent-lab/estate/EstateNav.tsx`): redesigned as a rounded segmented control.
+    - Icons, a raised active pill, `aria-current="page"` and a `nav` landmark.
+    - Scrolls horizontally on narrow screens instead of clipping "Lineage".
+    - Press feedback (`active:scale-[0.97]`), a focus ring, and transitions that name their properties explicitly.
+    - The "Data Estate System" label shows only at `lg` and up.
+  - **One `h1` per page:**
+    - Visible titles promoted to `h1` in `PromptCanvas.tsx` (workbench), `InspectorShell.tsx` and `BoostTabs.tsx` (performance lab).
+    - `sr-only` `h1`s added for estate catalog/jobs/mapper/silo (through `EstateNav`), and in `bandits.tsx`, `metrics.tsx` and `MemoryOpsRoute` (`web/src/routes/adapters.tsx`).
+  - **Targets and accessible names:**
+    - History: select and select-all buttons get `aria-label`s and a 28px hit area.
+    - Inspector dashboards: the card "more" button gets `aria-label`, `aria-haspopup` and `aria-expanded`, is 28×28, and is revealed on `focus-visible`. Before, it stayed at opacity 0 for keyboard users.
+    - `PreviewColumnsDrawer`: the close button is 32px and has `aria-label`.
+    - Estate entities lineage links and jobs chip buttons: hit areas expanded with `::after`.
+  - Earlier in this batch: `transition-all` removed from about 26 files (56 uses) in favour of explicit properties; dashboard tile and `CompanionSettings` card hover, checked and focus states.
+- **Why:** The user asked for a page-by-page redesign using dummy data, and complained about sharp edges.
+- **Verified:**
+  - Playwright sweep of about 35 routes against a local mock API at 1366px and 390px. Every route has exactly one `h1`, 0 unnamed buttons and no 3–5px radii, apart from 14px checkboxes and 1–2px data-viz cells.
+  - No horizontal overflow, apart from one transient reading on `agent-staging/users` at 390px; no element outside a scroll container overflowed.
+  - Dark mode spot-checked on estate.
+  - `npm run web:typecheck` passes.
+  - vitest: cn and users suites 15/15; inspector, estate and agent-lab suites 179/179.
+- **Not done:**
+  - Hardening pages against malformed (`{}`) API payloads (UI-001, P2).
+  - A deeper restyle of hand-rolled inline-style pages (history, inspector dashboards, memory) onto the shared primitives.
+  - A full keyboard walkthrough.
+  - The dynamic routes have not been swept.
+
+## UI redesign batch 1: design foundations, motion system, shared primitives
+
+- **What:**
+  - `src/app/globals.css`: new "Theme v4: design foundations" block at the end of the file.
+    - Radius tiers: `--radius-xs` 6, `--radius-ctl` 8, `--radius-card` 12, `--radius-dialog` 16, `--radius-pill`.
+    - Control heights (32/36/40), `--focus-ring`, `--shadow-xs` and `--shadow-dialog` (light and dark), z-index scale.
+    - Motion tokens: `--ease-out-strong`, `--ease-in-out-strong`, `--ease-drawer`, and `--dur-press`/`--dur-hover`/`--dur-pop`/`--dur-dialog`/`--dur-drawer`/`--dur-layout`.
+    - A global `prefers-reduced-motion` rule.
+  - `tailwind.config.js`: added `rounded-xs/ctl/card/dialog`, `ease-out-strong/in-out-strong/drawer`, `duration-press/hover/pop/dialog/drawer` and `shadow-xs/dialog`.
+  - `packages/aloft-shared/src/lib/utils.ts`: `cn()` now uses `extendTailwindMerge`, so type tokens and the custom radius/duration/ease/shadow scales merge correctly.
+  - Shared primitives in `packages/aloft-shared/src/components/ui/` moved onto the tokens and stopped using hard-coded slate/gray/orange/indigo, so they follow the accent and the graphite dark theme:
+    - `button.tsx`: height-based sizes; press scale.
+    - `input.tsx`, `textarea.tsx`: 36px, brand focus ring.
+    - `select.tsx`: origin-aware menu, 180ms animation, `rounded-xs` items, chevron rotates when open.
+    - `popover.tsx`, `tooltip.tsx`: inverse-ink tooltip at 125ms.
+    - `dialog.tsx`: `rounded-dialog`, `shadow-dialog`; transitions only opacity and transform; 220ms enter and 150ms exit.
+    - `card.tsx`, `badge.tsx`: tinted pill variants.
+    - `tabs.tsx`: segmented control, no indigo.
+    - `table.tsx`: 40px header, `py-3` cells.
+  - New `src/lib/__tests__/cn-merge.test.ts`.
+  - New `docs/audits/ui-ux-audit.md`: route inventory, first-sweep results, issue register, progress.
+  - `docs/DESIGN_SYSTEM.md`: rewrote the radius, shadow and motion sections; added control heights, focus and z-index; updated the guidance.
+- **Why:** this is the first batch of the whole-app UI/UX redesign. Most pages use their own markup, so global tokens plus primitives built on them give consistent radius, spacing and motion everywhere they're used. Before this, the primitives ignored the theme.
+- **Bugs fixed:**
+  - `dialog.tsx` used `duration-250`, which doesn't exist (it silently fell back to 150ms), together with `transition-all`.
+  - `cn()` dropped `text-size-*` classes when a colour class followed them.
+- **Verified:**
+  - `vitest run src/lib/__tests__/cn-merge.test.ts src/components/users`: 15/15 pass.
+  - `npm run web:typecheck` passes.
+  - Users page and Invite dialog checked in the DOM: inputs 36px, dialog visible after it animates in.
+- **Not done:**
+  - The real-data route sweep is blocked: the integrated browser has no signed-in session.
+  - The first sweep's "crashes" came from a stubbed API and still need checking against real data.
+  - P0/P1 fixes (UI-001 to UI-004), page-by-page restyling, the 61 `transition-all` uses in pages, dark-mode and 390px sweeps.
+
+## Users & access: modern enterprise redesign (compact, rounded)
+
+- **What:**
+  - New `src/components/users/users.module.css` holds the scoped design tokens and classes for light and dark themes.
+  - New helpers:
+    - `useUserDialogFocus.ts`: focus trap and restore.
+    - `UserDialogContent.tsx`: shared dialog wrapper.
+    - `__tests__/users.test.tsx`: 12 jsdom tests.
+  - `src/views/agent-staging/users.tsx`:
+    - stat cards with icon chips
+    - a rounded people-directory card with the toolbar inside it
+    - Radix `DirectoryFilter` selects in place of native `<select>`
+  - `UserTable.tsx`:
+    - simpler metrics and a merged login/joined column
+    - a portaled actions menu with Escape and focus handling
+    - the name opens the profile
+  - The drawer, invite modal and change-role modal are restyled:
+    - The drawer gets dialog semantics, a focus trap and a scroll lock.
+    - The invite modal shows an error when roles fail to load and explains that no email is sent.
+    - The compact `RolePickerField` dropdown is restyled.
+  - Final pass made the layout compact after feedback that it was too large: 36px controls, about 64px table rows, smaller stat cards and avatars, and tighter drawer and dialog padding. Rounded corners are kept.
+- **Why:** The user asked for a full redesign, then for softer and better-spaced styling with nicer dropdowns, then for smaller sizes.
+- **Verified:**
+  - `vitest run src/components/users/__tests__/users.test.tsx`: 12 passed.
+  - `npm run web:typecheck` passes.
+  - Checked in the in-app browser at 1366px (light theme): stat cards about 118px, rows about 64px, inputs 36px. The drawer opens and closes.
+- **Not done / notes:**
+  - Corner radii (10–18px) exceed the 4–6px design-system guideline; the user asked for rounded corners.
+  - Existing `react-hooks/set-state-in-effect` lint errors remain.
+  - `typography-guard` fails because of unrelated `models.tsx` and `embeddings-panel.tsx`.
+  - Dark theme and the 390px mobile width were not re-checked after the compact pass.
+
+## Models & AI Gateway: Embeddings & Vector Stores tab
+
+- **What:**
+  - `src/app/api/model-config/route.ts`: `GET` now returns `embeddings` (Titan v2, Azure fallback, gateway `mode=embedding` models, Mistral OCR config, and per-table vector counts / model_ids for `platform_context_embeddings`, `knowledge_chunks`, `platform_agent_memory`, `platform_nl_intent_embeddings`).
+  - `src/app/api/model-config/test/route.ts`: `kind: 'embedding'` probe (Titan via `embedWithTitan`, gateway via `/v1/embeddings`), returns dimensions and latency.
+  - New `src/views/agent-staging/embeddings-panel.tsx` and a new "Embeddings & Vector Stores" tab in `src/views/agent-staging/models.tsx`.
+- **Why:** Show which embedding models exist, which tables use them, and why everything is pinned to 1024 dims.
+- **Verified:** `npm run web:typecheck` passes.
+- **Not done:** Not run against a live server/DB (vector-count SQL errors fall back to empty rows silently). Embedding models are display and test only; they are not configurable here.
+
+## Agent Use: clearer collapse/expand icons for the chat list
+
+- **What:** `src/views/agent-lab/agents/use.tsx` — replaced `PanelLeftClose`/`PanelLeftOpen` with `ChevronsLeft`/`ChevronsRight` and added hover/press feedback (`active:scale-[0.95]`, 150ms ease-out on background and transform).
+- **Why:** Double chevrons read more clearly as "collapse sidebar / expand sidebar".
+- **Verified:** Icon names exist in lucide-react; no other usages changed. Not visually verified in a browser.
+
+
+## Agent chats: platform admins never see each other's chats
+
+- **What:**
+  - **`src/lib/agents/agent-chats.ts`**: new helpers:
+    - `isPlatformAdminUser`: checks the live `platform_admin` role in the DB.
+    - `canViewAgentChatOwnedBy`: whether a chat can be shown to someone other than its owner.
+    - `hideOtherAdminsAgentChatsWhere`: a filter for admin "all users" lists.
+    - `listAgentChatsForReview` now leaves out every platform admin's chat.
+  - **`src/app/api/agent-lab/agents/chats/route.ts`**: `scope=review` no longer includes platform admins' chats.
+  - **`src/app/api/agent-lab/agents/chats/[id]/route.ts`**: another platform admin's chat returns 404.
+  - The same rule applies to the other admin "read all" paths, so the agent page is not the only guard:
+    - `src/lib/agent-ops/access.ts` (`assertSessionReadable`, used by run detail)
+    - `src/app/api/agent-lab/runs/route.ts` (`scope=all`)
+    - `src/app/api/agent-lab/workbench/sessions/route.ts` (`scope=all`)
+    - `src/app/api/agent-lab/workbench/sessions/[id]/route.ts` (admin read)
+  - **`src/views/agent-lab/agents/use.tsx`**: unchanged tabs (Yours / Review).
+- **Why:** A platform admin's agent chats should be private to that admin, with no override. An env-based "Admins" reviewer tab was built first, then dropped at the user's request.
+- **Recovered:** `chats/route.ts`, which had not been committed yet, was found zero-filled on disk (2,720 NUL bytes), cause unknown. It was rewritten from its last known contents.
+- **Verified:**
+  - `tsc --noEmit` clean.
+  - vitest on `src/lib/agents`, `src/app/api/agent-lab`, `src/lib/sessions` and `authz-hardening`: 11 files, 71 tests pass. New tests in `agent-chats.test.ts` and `chats.route.test.ts`.
+  - ESLint: only the 4 react-hooks errors already in `use.tsx`.
+- **Not done:** Not browser-tested.
+
+## Agent Use: collapsible chat list sidebar and cleaner header
+
+- **What:** `src/views/agent-lab/agents/use.tsx` (`ChatList`):
+  - The chat list sidebar can now collapse to a narrow rail with two buttons: expand and new chat. The state is saved in localStorage under `aloft.agentUse.chatListCollapsed`.
+  - The header now reads "Chats" with New chat and Hide buttons. For admins, the Yours / Review switch has moved to its own full-width row below the header, with icons, normal-case labels and no wrapping. Before, it was a cramped uppercase pill that wrapped "YOUR CHATS".
+- **Why:** The user asked for a collapse toggle and better header spacing.
+- **Verified:** `tsc --noEmit` clean. ESLint shows only the 4 react-hooks errors that were already in this file; no new ones.
+- **Not done:** Not checked in a browser.
+
+## 2026-10-31 — Per-role model allowlists & default model configuration in Models & AI Gateway (`/agent-staging/models`)
+
+- **What:**
+  1. **`src/lib/llmlite/model-registry.ts` (`RoleModelPolicy`):** Added per-role model governance (`rolePolicies` keyed by `platform_admin`, `admin`, `member`, `readonly`) supporting three modes per role:
+     - `all_enabled`: Role can choose any admin-enabled LLM Lite model.
+     - `custom_list`: Role can choose only from a specific allowlist (`allowedModelIds`) configured by an admin.
+     - `locked_default`: Role is locked to its configured `defaultModelId`.
+  2. **`src/lib/inspector/model-access.ts`, `src/app/api/inspector/chat-models/route.ts`, `src/hooks/useInspectorChatModels.ts`:** Updated `chatModelKeyForRole` and `filterChatModelsForRole` so both the UI model picker and server-side chat routes enforce each role's allowed models and per-role default model.
+  3. **`src/views/agent-staging/models.tsx`:** Redesigned the **Role Access & 30-Day Usage** tab into a master-detail role policy editor where selecting any role (`Platform Admin`, `Admin`, `Member`, `Read Only`) lets you switch between `All Enabled Models`, `Custom Allowlist`, or `Locked to Default`, pick that role's default model, and check/uncheck individual LLM Lite models in a 2-column matrix.
+- **Why:** The user asked to configure exactly which models each RBAC role has access to and can use, rather than an all-or-nothing toggle.
+- **Verified:** `npm run web:typecheck` (0 errors).
+- **Not done:** Production deployment verification on Elastic Beanstalk.
+
+## 2026-10-31 — Redesign Models & AI Gateway admin page (`/agent-staging/models`) and fix local Turbopack chunk
+
+- **What:**
+  1. **`src/views/agent-staging/models.tsx` (Full UI Redesign):**
+     - Replaced the 5-column dense table and native clipped `<select>` elements (`Grok 4.7 ( ⌄`) with a custom origin-aware `ModelPickerDropdown` showing the clean model name, upstream provider badge (`AWS Bedrock` / `Azure Foundry`), and full gateway route ID without truncation.
+     - Consolidated the header and 4 oversized KPI boxes into a unified top Gateway Hero Card with live status chip (`Connected · 119 ms`) and a 4-metric strip (`Gateway Endpoint`, `Primary Platform Model`, `Picker-Ready Models`, `Governed Surfaces`).
+     - Grouped the 9 platform surfaces by architectural layer (`Interactive Chat`, `Agent & Flow Authoring`, `Data Estate & Memory`, `Background & Evaluation`) with collapsible file-path pills (`N files`) and inline test result badges.
+     - Redesigned the **LLM Lite Gateway Catalog** tab into a searchable, filterable 2-column card grid (`All`, `Picker Enabled`, `Filtered / Blocked`) showing how many surfaces use each model, key-scope `403` status, and 1-click `Ping` / `Hide from Picker` actions.
+     - Redesigned **Role Access & 30-Day Usage** with interactive role cards and proportional turn-volume bars.
+  2. **`src/app/api/model-config/route.ts`, `src/lib/llmlite/fetch-models.ts`, `src/app/api/model-config/test/route.ts`:** Fixed the stale Turbopack dev chunk (`inspectLlmLiteGatewayCatalog is not a function`) that caused `HTTP 500` on `localhost:3000`, and increased the test probe token budget from `16` to `128` so reasoning models return `"READY"`.
+- **Why:** The initial `/agent-staging/models` table layout clipped `<select>` labels (`Grok 4.7 (`), truncated `aws_bedrock/xAI-Grok-...` in the KPI card, and wrapped badge/file-path columns awkwardly.
+- **Verified:** `npm run web:typecheck` (0 errors), `GET http://localhost:3000/api/model-config` (`200 OK`), and `POST http://localhost:3000/api/model-config/test` (`200 OK`, `reply: "READY"`).
+- **Not done:** Production deployment verification on Elastic Beanstalk.
+
+## 2026-10-31 — Performance documentation pack for review (documentation only)
+
+- **What:** Added `docs/performance/`:
+  - `README.md`: index and one-page summary
+  - `01-runtime-language-research.md`: Node vs Python vs Rust, with sources
+  - `02-capacity-and-cost-model.md`: t4g.medium limits, capacity estimates, token cost worked example, measurement and load-test plan
+  - `03-optimizations-explained.md`: plain-language explanation of every item
+  - `04-implementation-plan.md`: per-item approach, files, risk, rollback and verification; in-process state review for running 2 processes
+  - `05-decisions-and-next-steps.md`: decisions table and timeline
+
+  Linked the audit report to the pack. Corrected audit finding C3: `src/lib/dashboard/summary.ts` already has a 30 s cache.
+- **Why:** The user requested complete documentation, including research, to review before approving implementation.
+- **Verified:** Cross-checked in-process `Map` caches in `src/lib` (grep) for the 2-process plan. Confirmed the `summary.ts` cache TTL. All capacity and saving figures are labelled as estimates.
+- **Not done:** No code or infrastructure changes. Awaiting decisions in `05-decisions-and-next-steps.md`.
+
+## 2026-10-31 — Performance & cost optimization audit report (documentation only)
+
+- **What:** Added `docs/audits/performance-and-cost-optimization-report.md`. It is a ranked audit of LLM token spend, web runtime on the single t4g.medium, database (Prisma/pgvector), harvest/memory background jobs (Fargate/Databricks) and frontend polling, with file references, fixes, impact/effort, a 3-phase roadmap, a measurement plan and the Rust/Python conclusion.
+- **Why:** The team wants to improve performance and cut cost without upsizing the instance.
+- **Verified:** The top findings were confirmed by reading the code. Examples: `src/lib/inspector/tools.ts` returns the full `sqlResult` to the model; prompt caching is enabled in only 2 call sites; `maxTokens` 4096 / thinking on every loop; single `node server.js`; no HNSW index on `platform_context_embeddings` in the migrations. An audit-agent claim that audit-log runs unbounded queries was checked and corrected (those queries are bounded).
+- **Not done:** No code or infrastructure changes. Implementation awaits a decision on which phase or items to start. Percentage savings are estimates until measured (report §10).
+
+## 2026-10-31 — Models & AI Gateway admin page (`/agent-staging/models`) and centralized feature-to-model registry
+
+- **What:**
+  1. **Centralized model registry & persistent store (`src/lib/llmlite/model-registry.ts`, `src/lib/llmlite/model-settings-store.ts`):** Defined `MODEL_FEATURES` covering all 9 LLM-consuming surfaces (`inspector_chat`, `commissioned_agents`, `workbench_chat`, `automate_copilot`, `harvest_semantic`, `teach_reflect`, `foer_synthesis`, `session_titles`, `boost_scorers`), plus `PlatformModelSettings` persisted in `policy_entry` (`slug = 'platform-model-settings'`) with a 15-second server cache.
+  2. **Dedicated Models & AI Gateway admin page (`src/views/agent-staging/models.tsx`, `src/components/agent-lab/staging/nav-config.ts`, `web/src/router.tsx`):** Added **Models** under the **Govern** navigation group (`/agent-staging/models`) with three tabs:
+     - **Where Models Are Used:** View and change the assigned LLM Lite model for each of the 9 platform features (or apply a global default across all features at once), see the exact source files, and run a 1-click live test probe per feature.
+     - **LLM Lite Gateway Catalog:** Live inspection of `GET /v1/models` from `aigw.synergymarinegroup.com`, showing upstream provider, key access status (`403` scope checks), why router aliases (`azure_ai/model-router`, `quick`, `balanced`, `default`) or non-chat models are filtered, admin enable/hide toggle for UI pickers, and 1-click model ping.
+     - **Role Access & 30-Day Usage:** Configure which RBAC roles (`platform_admin`, `admin`, `member`, `readonly`) get the full model picker vs. the Standard User Default Model, alongside 30-day turn/token/error telemetry from `agent_turn_log`.
+  3. **Admin & Probe APIs (`src/app/api/model-config/route.ts`, `src/app/api/model-config/test/route.ts`, `src/lib/llmlite/fetch-models.ts`):** Added `GET / PUT /api/model-config` (with audit logging on save) and `POST /api/model-config/test` for live model ping latency/response checks.
+  4. **Runtime wiring (`src/app/api/inspector/chat-models/route.ts`, `src/app/api/inspector/chat/route.ts`, `src/app/api/agent-lab/agents/chat/route.ts`, `src/lib/agents/run-catalog-agent.ts`, `src/lib/construction/workbench-model.ts`, `src/lib/inspector/model-access.ts`, `src/hooks/useInspectorChatModels.ts`, `src/lib/flows-copilot/propose.ts`, `src/lib/context/harvest-llm.ts`, `src/lib/context/harvester-llm.ts`, `src/app/api/inspector/teach/route.ts`, `src/lib/llmlite/chat.ts`, `src/lib/marcus/reflect.ts`, `src/lib/memory/synthesis/reflect.ts`, `src/lib/bedrock/mantle-openai.ts`, `src/lib/boost/scorers/llm-client.ts`, `src/app/api/agent-lab/workbench/generate-title/route.ts`, `src/lib/inspector/session-knowledge-llm.ts`):** Connected all runtime callers to resolve their feature's configured LLM Lite model and role access rules from the centralized store.
+- **Why:** Model configuration was previously scattered across 15+ files with hardcoded model IDs, making it difficult to see which feature used which model, diagnose gateway/key-access issues, or change defaults without code edits.
+- **Verified:** `npx tsc --noEmit -p .` (0 errors), `npm run web:typecheck` (0 errors), and Vitest unit tests (`propose.test.ts`, `router.test.tsx` — all passing).
+- **Not done:** Live browser E2E click-through of `/agent-staging/models` after deployment to Elastic Beanstalk.
+
+## 2026-10-31 — Agent chats: other people's chats never sit next to your own
+
+- **What:**
+  - **Chat History** (`src/components/agent-lab/ChatHistoryPage.tsx`) no longer lists agent chats (asks for `surface=workbench,inspector,teach`); the "Agent chats" filter is removed.
+  - **Agent page** (`src/views/agent-lab/agents/use.tsx`): "Your chats" stays your own chats only. Platform admins get a separate **Review** tab (other people's chats with this agent, owner name + time, read-only banner, Eye icon). Opening someone else's chat by link switches to Review; New chat switches back.
+  - **API** (`src/app/api/agent-lab/agents/chats/route.ts`, `src/lib/agents/agent-chats.ts`): `?scope=review` lists other people's chats (excludes the caller's, needs `session:read:all`, else 403); responses carry `canReview`. New `listAgentChatsForReview`.
+- **Why:** Mixing your own chats with other people's (admin "All users" in Chat History) was confusing.
+- **Verified:** `tsc --noEmit` clean; `vitest run` on sessions/agents/agent-lab — 6 files / 31 tests pass (`chats.route.test.ts` covers the review scope).
+- **Not done:** Not tried in the browser. Chat History "All users" for Workbench/Inspector sessions is unchanged (still one list when an admin turns it on).
+
+## 2026-10-31 — Agents → Use: chats are saved per person and can be continued
+
+- **What:**
+  1. **Saved chats, no new table:** each Agents → Use conversation is a `workbench_sessions` row with `surface = 'agent_use'` and the agent in `progress.agentUse = { agentId, slug }`. `saved_agent_id` stays empty on purpose (on Workbench rows it makes the Workbench write the draft back into the live agent). Store: `src/lib/agents/agent-chats.ts`.
+  2. **Chat route (`src/app/api/agent-lab/agents/chat/route.ts`):** signed-in callers send `chatId` (or none to start a chat; the id comes back in a `chat` stream event). History is read from the saved chat (last 30 turns / 60k chars via `historyForModel`), never from the request, so long chats no longer fail with "history is limited to 30 messages". The user message and reply are appended atomically (jsonb `||`) when the turn ends, also on Stop or error. Writing into someone else's chat is 403; a chat for another agent is 400. Service callers stay stateless (`history` body, 30-message cap). `runCatalogAgent` takes `sessionId`, so turn/tool logs and Runs link to the chat.
+  3. **New APIs:** `GET /api/agent-lab/agents/chats?slug=` (only the caller's own chats with that agent, admins included) and `GET /api/agent-lab/agents/chats/:id` (owner: continue; `session:read:all`: read-only; anyone else: 404).
+  4. **Agent page (`src/views/agent-lab/agents/use.tsx`, `src/lib/agents/agent-use-chat-stream.ts`):** "Your chats" sidebar, `?chat=<id>` in the URL (reload resumes), New chat, read-only banner when an admin opens another person's chat. sessionStorage persistence removed.
+  5. **Surfaces in one place (`src/lib/sessions/surfaces.ts`):** `sessionOpenHref`, `surfaceWhere`/`surfacesWhere`, `SURFACE_LABEL`. Used by Chat History (new "Agent chats" filter, correct Continue link — Teach sessions also no longer open in the Workbench), the Workbench History drawer (now asks for `surface=workbench,inspector` only), Runs list/detail `open` link, `workbenchContinueHref`, and `GET /api/agent-lab/workbench/sessions` (accepts a comma list). `POST /workbench/sessions` refuses `surface: 'agent_use'`.
+  6. **Users admin (`src/app/api/users/route.ts`, `UserTable.tsx`, `UserDetailDrawer.tsx`):** "Sessions 7d/30d" now counts Workbench sessions only (matching its label; it used to count every surface), plus a separate `agentChats` count/tile.
+- **Why:** Continuing a previous agent conversation did not work: chats only lived in one browser tab's sessionStorage, were silently not saved above 80k chars, and the server rejected history over 30 messages. History must be private per person.
+- **Verified:** `tsc --noEmit` clean; `vitest run` on `src/lib/sessions`, `src/lib/agents`, `src/app/api/agent-lab`, users/workbench/agent-lab components and hooks — 12 files / 79 tests pass (new: `agent-chats.test.ts`, `surfaces.test.ts`, `chats.route.test.ts`; rewritten: `chat.route.test.ts`, `agent-use-chat-stream.test.ts`).
+- **Not done:** Not exercised against a live DB/LLM or in the browser. Chats that existed only in browser sessionStorage are not migrated. Users admin "Sessions" numbers drop for people who used Inspector/Teach (now counted separately / excluded) — intentional correction.
+
+## 2026-10-31 — Workbench autosave no longer wipes history of a session being reopened
+
+- **What:** `src/hooks/useWorkbenchChat.ts` autosave now waits until the opened session's messages have loaded (`hydratedSessionId === sessionId`).
+- **Why:** On "Continue" from Chat History, state starts with empty messages and `currentSessionId` is set immediately; the 2s autosave PATCHed `messages: []` if the load was slow or failed, erasing the saved conversation (it then shows as a draft with 0 messages).
+- **Verified:** Code review only; not run.
+- **Not done:** Agent "Use" chats (`/agents/chat`) are still browser-sessionStorage only, and the 30-message history cap still returns 400.
+
+## 2026-10-31 — LLM Lite only: VPC split-horizon DNS fix, hide model-router & unauthorized models, route secondary LLMs via LLM Lite
+
+- **What:**
+  1. **Production LLM Lite DNS fix (`src/lib/llmlite/config.ts`):** Elastic Beanstalk container logs (`eb-*-stdouterr.log`) showed `[chat-models] LLM Lite fetch failed: getaddrinfo ENOTFOUND aigw.synergymarinegroup.com` because the VPC's private Route 53 hosted zone for `synergymarinegroup.com` shadows the public `aigw.synergymarinegroup.com` record. Added `ensureLlmLiteDnsFallback()` which intercepts `ENOTFOUND`/`EAI_AGAIN` on `dns.lookup` and resolves `aigw.synergymarinegroup.com` via its underlying AWS ELB (`k8s-litellmg-litellmi-eb153028d2-585642608.ap-south-1.elb.amazonaws.com`), public DNS (`1.1.1.1`/`8.8.8.8`), DNS-over-HTTPS (`https://1.1.1.1/dns-query`), and static ELB IPs (`13.207.65.190`, `65.1.207.73`), preserving SNI/TLS hostname verification for `aigw.synergymarinegroup.com`.
+  2. **Hide `model-router` & unauthorized gateway models (`src/lib/llmlite/fetch-models.ts`):** Excluded `azure_ai/model-router` and any `*/model-router` router aliases from the picker, and added `fetchKeyAllowedModelIds()` so models in `/v1/models` that the virtual key is not permitted to invoke (e.g. `aws_bedrock/Claude-Haiku-5.5` returning `key_model_access_denied`) are filtered out.
+  3. **Remove legacy/direct-Bedrock models (`src/components/agent-lab/workbench/types.ts`, `src/app/api/inspector/chat/route.ts`, `src/lib/construction/workbench-model.ts`, removed `src/lib/bedrock/claude-55.ts`):** Removed direct-Bedrock Claude Opus/Sonnet 5.5 and legacy model fallback paths; all chat and workbench model resolution is strictly LLM Lite (`llm-lite:*`).
+  4. **Secondary LLM callers (`src/lib/bedrock/mantle-openai.ts`, `src/lib/boost/scorers/llm-client.ts`, `src/app/api/agent-lab/workbench/generate-title/route.ts`, `src/lib/inspector/session-knowledge-llm.ts`):** Updated `getLunaOpenAIChatClient()` and `resolveOpenAIChatModelId()` to prefer LLM Lite (`aws_bedrock/xAI-Grok-4.7`) so workbench title generation, groundedness/semantic scorers, and session summaries stop failing with `404 DeploymentNotFound` on Azure Foundry in production.
+- **Why:** Production EB logs showed LLM Lite failing with `ENOTFOUND aigw.synergymarinegroup.com`, secondary callers failing with `404 DeploymentNotFound`, `azure_ai/model-router` showing in the model list, and user requested removing all legacy/direct-Bedrock models.
+- **Verified:** `tsc --noEmit`, `npm run web:typecheck`, Vitest unit tests, and live gateway verification against `https://aigw.synergymarinegroup.com/v1/models` and `/v1/chat/completions`.
+- **Not done:** Push/deploy the updated image to Elastic Beanstalk (`main` branch or EB deploy) so production picks up the LLM Lite changes and VPC DNS resolver fallback.
+
+## 2026-10-30 — Harvester LLM (T2/T3/silo/mapping) switched to LLM Lite Grok 4.7
+
+- **What:** Updated `src/lib/context/harvest-llm.ts` and `src/lib/context/harvester-llm.ts` so context harvesting (T2 semantic enrichment, T3 usage narratives, T4 cluster proposals, silo & mapping adjudication) defaults to the LLM Lite gateway (`aws_bedrock/xAI-Grok-4.7`) via `LLMLITE_BASE_URL` and `LLMLITE_API_KEY`.
+- **Why:** User requested changing the harvester model to LLM Lite Grok 4.7 as well.
+- **Verified:** `tsc --noEmit` clean; `vitest run src/lib/context` passes (13 test files, 40 passed).
+- **Not done:** Ensure `LLMLITE_BASE_URL` and `LLMLITE_API_KEY` are injected into the Fargate harvester task definition in AWS.
+
+## 2026-10-30 — LLM Lite only; default is Grok 4.7 (Opus/Sonnet 5.5 removed)
+
+- **What:** Default `DEFAULT_INSPECTOR_MODEL_KEY` = `llm-lite:aws_bedrock--xAI-Grok-4.7` (`src/lib/inspector/default-model.ts`, new `src/lib/llmlite/default-model.ts`). Removed Opus/Sonnet 5.5 (and all other direct Bedrock/Foundry/xAI entries) from `AVAILABLE_MODELS` (`workbench/types.ts`), the inspector chat `MODELS_MAP`, and `BOOST_MODELS`; non-LLM-Lite keys now fall back to the default. `chat-models` route dedupes the static fallback against the gateway list. Teach route runs via `dispatchAgentLoop` on LLM Lite. Marcus reflect (3 calls) and memory synthesis reflect moved from Bedrock Sonnet 5.5 to new `src/lib/llmlite/chat.ts`. Flows copilot always uses the Workbench (LLM Lite) model; xAI/Bedrock override and retry removed.
+- **Why:** Direct-Bedrock Opus/Sonnet 5.5 stopped working; requested LLM Lite only.
+- **Verified:** `tsc --noEmit` clean; vitest for flows-copilot, inspector, llmlite, construction, memory, marcus passes (127).
+- **Not done:** Other Bedrock/Luna call sites (agent-loop chart/compress, harvest-llm, session-knowledge, foer, scorers, extraction, studio insights) still use their own env-configured models. Legacy 5.5 labels kept in history/bandit display maps.
+
 ## 2026-10-30 — Default chat model is Claude Opus 5.5
 
 - **What:** `src/lib/inspector/default-model.ts` — `DEFAULT_INSPECTOR_MODEL_KEY` = `opus-5-5` (was `grok-xai`). `src/app/api/inspector/chat/route.ts` and `src/lib/construction/workbench-model.ts` no longer switch default on xAI credentials. `INSPECTOR_DEFAULT_MODEL` still overrides on the inspector route.
