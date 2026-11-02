@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X, Check, Play, Sparkles, AlertTriangle } from 'lucide-react';
 import { WidgetPreview } from '../dashboard-builder/WidgetPreview';
@@ -461,7 +462,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                     onClick={() => { setTableKind(k); markDirty(); }}
                     style={{
                       ...type.label,
-                      flex: 1, padding: '6px 0', borderRadius: 4, cursor: isEdit ? 'default' : 'pointer',
+                      flex: 1, padding: '6px 0', borderRadius: 6, cursor: isEdit ? 'default' : 'pointer',
                       background: tableKind === k ? GOLD : 'transparent',
                       color: tableKind === k ? NAVY : MUTED,
                       border: `1px solid ${tableKind === k ? GOLD : BORDER_SUBTLE}`,
@@ -476,22 +477,22 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
 
             {/* Entity */}
             <Field label="ENTITY">
-              <select value={entityId} disabled={isEdit} onChange={(e) => { setEntityId(e.target.value); markDirty(); }} style={selectStyle}>
+              <Select value={entityId} disabled={isEdit} onChange={(e) => { setEntityId(e.target.value); markDirty(); }} style={selectStyle}>
                 <option value="">— select entity —</option>
                 {meta.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.entity_label}{e.status !== 'governed' ? ` (${e.status})` : ''}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
 
             {tableKind === 'measure' ? (
               <>
                 <Field label="METRIC TYPE">
-                  <select value={metricType} onChange={(e) => { setMetricType(e.target.value); markDirty(); }} style={selectStyle}>
+                  <Select value={metricType} onChange={(e) => { setMetricType(e.target.value); markDirty(); }} style={selectStyle}>
                     {METRIC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  </Select>
                 </Field>
 
                 {isColumnMetric && (
@@ -511,9 +512,9 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                       {isEdit && <Hint text="Column is structural — not editable after creation." />}
                     </Field>
                     <Field label="AGGREGATE">
-                      <select value={aggregate ?? 'sum'} onChange={(e) => { setAggregate(e.target.value); markDirty(); }} style={selectStyle}>
+                      <Select value={aggregate ?? 'sum'} onChange={(e) => { setAggregate(e.target.value); markDirty(); }} style={selectStyle}>
                         {AGGREGATES.map((a) => <option key={a} value={a}>{a}</option>)}
-                      </select>
+                      </Select>
                     </Field>
                   </>
                 )}
@@ -564,9 +565,9 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                   {isEdit && <Hint text="Column is structural — not editable after creation." />}
                 </Field>
                 <Field label="DIMENSION TYPE">
-                  <select value={dimensionType} onChange={(e) => { setDimensionType(e.target.value); markDirty(); }} style={selectStyle}>
+                  <Select value={dimensionType} onChange={(e) => { setDimensionType(e.target.value); markDirty(); }} style={selectStyle}>
                     {DIMENSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="LABEL">
                   <input value={dimensionLabel} onChange={(e) => { setDimensionLabel(e.target.value); markDirty(); }} placeholder="Region" style={inputStyle} />
@@ -593,21 +594,21 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {tableKind === 'measure' ? (
                 <Field label="GROUP BY (OPTIONAL)">
-                  <select value={groupById} onChange={(e) => { setGroupById(e.target.value); setPreview(null); }} style={selectStyle}>
+                  <Select value={groupById} onChange={(e) => { setGroupById(e.target.value); setPreview(null); }} style={selectStyle}>
                     <option value="">— none (single value) —</option>
                     {(currentEntity?.dimensions ?? []).map((d) => (
                       <option key={d.id} value={d.id}>{d.dimension_label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
               ) : (
                 <Field label="CHART AGAINST MEASURE">
-                  <select value={pairMeasureId} onChange={(e) => { setPairMeasureId(e.target.value); setPreview(null); }} style={selectStyle}>
+                  <Select value={pairMeasureId} onChange={(e) => { setPairMeasureId(e.target.value); setPreview(null); }} style={selectStyle}>
                     <option value="">— select a measure —</option>
                     {(currentEntity?.measures ?? []).map((m) => (
                       <option key={m.id} value={m.id}>{m.measure_label}</option>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
               )}
               <button
@@ -616,7 +617,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                 style={{
                   ...type.label,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '7px 0', borderRadius: 4, border: 'none',
+                  padding: '7px 0', borderRadius: 6, border: 'none',
                   background: (!canSave || previewing) ? SURFACE : GOLD, color: (!canSave || previewing) ? MUTED : NAVY,
                   cursor: (!canSave || previewing) ? 'default' : 'pointer', fontWeight: 600,
                 }}
@@ -634,7 +635,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
                   {preview!.isDraft && (
                     <span style={{
                       position: 'absolute', top: 8, right: 8, ...type.label, background: 'color-mix(in srgb, var(--brand-a) 14%, transparent)', color: inkOf(GOLD),
-                      border: `1px solid ${BORDER_STRONG}`, borderRadius: 4, padding: '3px 8px',
+                      border: `1px solid ${BORDER_STRONG}`, borderRadius: 6, padding: '3px 8px',
                     }}>
                       Draft — not governed
                     </span>
@@ -675,7 +676,7 @@ export function DefineMetricPanel({ modelId, onClose, onSaved, onDefinitionCreat
             disabled={!canSave || saving}
             style={{
               ...type.label,
-              padding: '7px 16px', borderRadius: 4, border: 'none', fontWeight: 600,
+              padding: '7px 16px', borderRadius: 6, border: 'none', fontWeight: 600,
               background: (!canSave || saving) ? SURFACE : GOLD, color: (!canSave || saving) ? MUTED : NAVY,
               cursor: (!canSave || saving) ? 'default' : 'pointer',
             }}
@@ -704,11 +705,11 @@ function Hint({ text }: { text: string }) {
 
 const inputStyle: React.CSSProperties = {
   ...sans, fontSize: 'var(--type-ui-regular-size)', background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
-  borderRadius: 4, color: 'var(--wb-ink)', padding: '6px 8px', width: '100%', boxSizing: 'border-box', outline: 'none',
+  borderRadius: 6, color: 'var(--wb-ink)', padding: '6px 8px', width: '100%', boxSizing: 'border-box', outline: 'none',
 };
 const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
 const iconBtn: React.CSSProperties = { background: 'transparent', border: 'none', color: MUTED, cursor: 'pointer', display: 'flex', alignItems: 'center' };
 const ghostBtn: React.CSSProperties = {
   ...type.label,
-  padding: '7px 14px', borderRadius: 4, background: 'transparent', color: MUTED, border: `1px solid ${BORDER_SUBTLE}`, cursor: 'pointer',
+  padding: '7px 14px', borderRadius: 6, background: 'transparent', color: MUTED, border: `1px solid ${BORDER_SUBTLE}`, cursor: 'pointer',
 };

@@ -11,7 +11,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
   return (
     <div className="h-full w-full flex items-center justify-center p-8 bg-[var(--background)]">
       <div
-        className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-5 transition-all duration-300 shadow-card"
+        className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-5 transition duration-300 shadow-card"
         style={{
           backgroundColor: 'var(--estate-raised)',
           borderColor: 'var(--estate-border-gold)',

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runBenchmarkCase } from '@/lib/boost/runner';
 import { BOOST_SUITE_V1, BOOST_SUITE_V2 } from '@/lib/boost/suite';
 import { BOOST_MODELS } from '@/lib/boost/models';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   const body = await request.json().catch(() => ({})) as {
     caseId?: string;
     modelKey?: string;

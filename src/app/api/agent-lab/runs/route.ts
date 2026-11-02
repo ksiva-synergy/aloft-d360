@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAgentOpsAuth } from '@/lib/agent-ops/access';
 import type { RunListItem } from '@/lib/agent-ops/types';
+import { parseSurfaceParam, surfaceWhere } from '@/lib/sessions/surfaces';
+import { hideOtherAdminsAgentChatsWhere } from '@/lib/agents/agent-chats';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,15 +11,17 @@ export async function GET(request: NextRequest) {
   const auth = await getAgentOpsAuth();
   if (!auth.ok) return NextResponse.json({ error: 'Unauthorized' }, { status: auth.status });
 
-  const surface = request.nextUrl.searchParams.get('surface');
+  const surface = parseSurfaceParam(request.nextUrl.searchParams.get('surface'));
   const statusFilter = request.nextUrl.searchParams.get('status');
   const limit = Math.min(100, parseInt(request.nextUrl.searchParams.get('limit') ?? '50', 10));
   const scopeAll = auth.canReadAllSessions && request.nextUrl.searchParams.get('scope') === 'all';
+  const adminChatFilter = scopeAll ? await hideOtherAdminsAgentChatsWhere(auth.userId) : {};
 
   const sessions = await prisma.workbench_sessions.findMany({
     where: {
       ...(scopeAll ? {} : { user_id: auth.userId }),
-      ...(surface === 'inspector' ? { surface: 'inspector' } : surface === 'workbench' ? { OR: [{ surface: 'workbench' }, { surface: null }] } : {}),
+      ...(surface ? surfaceWhere(surface) : {}),
+      ...adminChatFilter,
     },
     orderBy: { updated_at: 'desc' },
     take: limit,

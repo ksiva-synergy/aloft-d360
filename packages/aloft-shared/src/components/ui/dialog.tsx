@@ -95,18 +95,18 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div 
         className={cn(
-          "absolute inset-0 bg-black/40 backdrop-blur-[6px] transition-opacity duration-250",
-          isAnimating ? "opacity-100" : "opacity-0"
+          "absolute inset-0 bg-black/40 backdrop-blur-[4px] transition-opacity ease-out-strong",
+          isAnimating ? "opacity-100 duration-dialog" : "opacity-0 duration-[150ms]"
         )}
         onClick={() => onOpenChange?.(false)}
       />
       <div 
         onClick={(e) => e.stopPropagation()}
         className={cn(
-        "relative z-10 transition-all duration-250 ease-out w-full flex items-center justify-center",
-        isAnimating 
-          ? "opacity-100 scale-100 translate-y-0" 
-          : "opacity-0 scale-[0.97] translate-y-2"
+        "relative z-10 w-full flex items-center justify-center transition-[opacity,transform] ease-out-strong",
+        isAnimating
+          ? "opacity-100 scale-100 translate-y-0 duration-dialog"
+          : "opacity-0 scale-[0.97] translate-y-2 duration-[150ms]"
       )}>
         {children}
       </div>
@@ -120,7 +120,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(
     <div
       ref={ref}
       className={cn(
-        "relative bg-white dark:bg-slate-800 p-6 shadow-2xl rounded-xl border border-gray-200 dark:border-gray-700 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto",
+        "relative bg-[var(--surface-1)] text-[var(--ink-1)] p-6 shadow-dialog rounded-dialog border border-[var(--line-1)] max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto",
         className
       )}
       {...props}
@@ -152,7 +152,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-size-body text-slate-500 dark:text-slate-400", className)}
+    className={cn("text-size-body text-[var(--ink-2)]", className)}
     {...props}
   />
 ))
@@ -164,7 +164,7 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4",
+      "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end mt-5",
       className
     )}
     {...props}

@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, CircleSlash, FlaskConical, Loader2, Play, Sparkles, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -126,19 +127,19 @@ export default function TestRunPanel({ def, open, onToggle, inputValues, onInput
               <label htmlFor="drill-step" className="mb-1 block text-size-caption font-medium text-[var(--ink-2)]">
                 Failure drill
               </label>
-              <select id="drill-step" value={drill?.stepId ?? ''} onChange={(e) => onDrill(e.target.value ? { stepId: e.target.value, mode: drill?.mode ?? 'always' } : null)} className={field}>
+              <Select id="drill-step" value={drill?.stepId ?? ''} onChange={(e) => onDrill(e.target.value ? { stepId: e.target.value, mode: drill?.mode ?? 'always' } : null)} className={field}>
                 <option value="">None</option>
                 {stepIds.map((id) => (
                   <option key={id} value={id}>
                     {id}
                   </option>
                 ))}
-              </select>
+              </Select>
               {drill && (
-                <select aria-label="Failure mode" value={drill.mode} onChange={(e) => onDrill({ ...drill, mode: e.target.value as Drill['mode'] })} className={cn(field, 'mt-2')}>
+                <Select aria-label="Failure mode" value={drill.mode} onChange={(e) => onDrill({ ...drill, mode: e.target.value as Drill['mode'] })} className={cn(field, 'mt-2')}>
                   <option value="once">fails once, then recovers</option>
                   <option value="always">fails every attempt</option>
-                </select>
+                </Select>
               )}
             </div>
 

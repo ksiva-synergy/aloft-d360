@@ -127,7 +127,7 @@ function BarBtn({ label, icon, onClick, primary, disabled }: { label: string; ic
       disabled={disabled}
       style={{
         display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
-        padding: '6px 12px', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer',
+        padding: '6px 12px', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
         border: `1px solid ${primary && !disabled ? GOLD : BORDER}`,
         background: primary && !disabled ? GOLD : 'transparent',
         color: disabled ? MUTED : primary ? '#1A1206' : INK,

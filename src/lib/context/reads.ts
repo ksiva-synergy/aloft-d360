@@ -1067,37 +1067,99 @@ export interface JobKindSummary {
   succeeded: number;
   failed: number;
   last_finished_at: Date | null;
+  /** Present when `detail` is requested. */
+  partial?: number;
+  cancelled?: number;
+  other?: number;
+  last_status?: string | null;
+  median_duration_s?: number | null;
+  prev_total?: number | null;
+  prev_succeeded?: number | null;
+  prev_failed?: number | null;
+  recent?: JobKindRecentRun[];
 }
 
-export async function listJobKindSummaries(orgId: string): Promise<JobKindSummary[]> {
+export interface JobKindRecentRun {
+  id: string;
+  status: string;
+  created_at: Date | null;
+  finished_at: Date | null;
+  duration_s: number | null;
+  /** Slim stats subset — enough for empty-success detection. */
+  stats: Record<string, unknown> | null;
+}
+
+export interface JobKindSummaryOptions {
+  /** Restrict counts to jobs created in the last N days (null = all time). Active counts are never windowed. */
+  sinceDays?: number | null;
+  /** Include recent run history, median duration, partial/cancelled counts and the previous-window comparison. */
+  detail?: boolean;
+  recentLimit?: number;
+}
+
+export async function listJobKindSummaries(
+  orgId: string,
+  opts: JobKindSummaryOptions = {},
+): Promise<JobKindSummary[]> {
+  const sinceDays = opts.sinceDays && opts.sinceDays > 0 ? opts.sinceDays : null;
+  const now = Date.now();
+  const since = sinceDays ? new Date(now - sinceDays * 86_400_000) : null;
+  const prevSince = sinceDays ? new Date(now - 2 * sinceDays * 86_400_000) : null;
+
   const rows = await prisma.$queryRaw<Array<{
     job_kind: string;
     total: number;
     queued: number;
     running: number;
     succeeded: number;
+    partial: number;
     failed: number;
+    cancelled: number;
+    active_in_window: number;
     last_finished_at: Date | null;
+    last_status: string | null;
+    median_duration_s: number | null;
+    prev_total: number | null;
+    prev_succeeded: number | null;
+    prev_failed: number | null;
   }>>`
+    WITH base AS (
+      SELECT
+        job_kind, status, created_at, started_at, finished_at,
+        (${since}::timestamptz IS NULL OR created_at >= ${since}::timestamptz) AS in_window,
+        (${prevSince}::timestamptz IS NOT NULL
+          AND created_at >= ${prevSince}::timestamptz
+          AND created_at < ${since}::timestamptz) AS in_prev
+      FROM platform_context_jobs
+      WHERE org_id = ${orgId}
+        AND (
+          parent_job_id IS NULL
+          OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
+        )
+    )
     SELECT
       job_kind,
-      COUNT(*)::int AS total,
-      COUNT(CASE WHEN status = 'queued' THEN 1 END)::int AS queued,
-      COUNT(CASE WHEN status = 'running' THEN 1 END)::int AS running,
-      COUNT(CASE WHEN status = 'succeeded' THEN 1 END)::int AS succeeded,
-      COUNT(CASE WHEN status = 'failed' THEN 1 END)::int AS failed,
-      MAX(finished_at) AS last_finished_at
-    FROM platform_context_jobs
-    WHERE org_id = ${orgId}
-      AND (
-        parent_job_id IS NULL
-        OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
-      )
+      COUNT(*) FILTER (WHERE in_window)::int AS total,
+      COUNT(*) FILTER (WHERE in_window AND status = 'queued')::int AS queued,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('running', 'orchestrating'))::int AS running,
+      COUNT(*) FILTER (WHERE in_window AND status = 'succeeded')::int AS succeeded,
+      COUNT(*) FILTER (WHERE in_window AND status = 'partial')::int AS partial,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('failed', 'error'))::int AS failed,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('cancelled', 'canceled'))::int AS cancelled,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('queued', 'running', 'orchestrating'))::int AS active_in_window,
+      MAX(finished_at) AS last_finished_at,
+      (ARRAY_AGG(status ORDER BY created_at DESC NULLS LAST))[1] AS last_status,
+      (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (finished_at - started_at)))
+        FILTER (WHERE in_window AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at))::float8 AS median_duration_s,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev)::int END AS prev_total,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev AND status IN ('succeeded', 'partial'))::int END AS prev_succeeded,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev AND status IN ('failed', 'error'))::int END AS prev_failed
+    FROM base
     GROUP BY job_kind
     ORDER BY job_kind ASC
   `;
 
-  return rows.map((row) => ({
+  const base: JobKindSummary[] = rows.map((row) => ({
     kind: row.job_kind,
     total: row.total,
     queued: row.queued,
@@ -1106,6 +1168,72 @@ export async function listJobKindSummaries(orgId: string): Promise<JobKindSummar
     failed: row.failed,
     last_finished_at: row.last_finished_at,
   }));
+
+  if (!opts.detail) return base;
+
+  const limit = Math.min(Math.max(opts.recentLimit ?? 14, 1), 50);
+  const recentRows = await prisma.$queryRaw<Array<{
+    id: string;
+    job_kind: string;
+    status: string;
+    created_at: Date | null;
+    finished_at: Date | null;
+    duration_s: number | null;
+    stats: Record<string, unknown> | null;
+  }>>`
+    SELECT id::text, job_kind, status, created_at, finished_at, duration_s, stats
+    FROM (
+      SELECT
+        id, job_kind, status, created_at, finished_at,
+        CASE WHEN started_at IS NOT NULL AND finished_at IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (finished_at - started_at))::float8 END AS duration_s,
+        CASE WHEN stats IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object(
+          'objects_swept', stats::jsonb -> 'objects_swept',
+          'objects_profiled', stats::jsonb -> 'objects_profiled',
+          'objects_enriched', stats::jsonb -> 'objects_enriched',
+          'inserted', stats::jsonb -> 'inserted'
+        )) END AS stats,
+        ROW_NUMBER() OVER (PARTITION BY job_kind ORDER BY created_at DESC NULLS LAST) AS rn
+      FROM platform_context_jobs
+      WHERE org_id = ${orgId}
+        AND (
+          parent_job_id IS NULL
+          OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
+        )
+    ) ranked
+    WHERE rn <= ${limit}
+    ORDER BY job_kind, created_at DESC NULLS LAST
+  `;
+
+  const recentByKind = new Map<string, JobKindRecentRun[]>();
+  for (const r of recentRows) {
+    const list = recentByKind.get(r.job_kind) ?? [];
+    list.push({
+      id: r.id,
+      status: r.status,
+      created_at: r.created_at,
+      finished_at: r.finished_at,
+      duration_s: r.duration_s,
+      stats: r.stats,
+    });
+    recentByKind.set(r.job_kind, list);
+  }
+
+  return rows.map((row, i) => {
+    const accounted = row.succeeded + row.partial + row.failed + row.cancelled + row.active_in_window;
+    return {
+      ...base[i],
+      partial: row.partial,
+      cancelled: row.cancelled,
+      other: Math.max(0, row.total - accounted),
+      last_status: row.last_status,
+      median_duration_s: row.median_duration_s,
+      prev_total: row.prev_total,
+      prev_succeeded: row.prev_succeeded,
+      prev_failed: row.prev_failed,
+      recent: recentByKind.get(row.job_kind) ?? [],
+    };
+  });
 }
 
 // ── 11. listJobDateGroups ──────────────────────────────────────────────────────
@@ -1559,34 +1687,42 @@ export async function listEstateFacets(
   orgId: string,
   opts: { excludeTestSources?: boolean; sourceId?: string } = {},
 ): Promise<{
-  catalogs: { name: string; count: number }[];
-  schemas: { catalog: string; name: string; count: number }[];
+  catalogs: { name: string; count: number; scanned: number }[];
+  schemas: { catalog: string; name: string; count: number; scanned: number }[];
 }> {
   const testExclusion = opts.excludeTestSources
-    ? `AND (source_id IS NULL OR source_id NOT IN (
+    ? `AND (peo.source_id IS NULL OR peo.source_id NOT IN (
         SELECT id::text FROM platform_context_sources
         WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
       ))`
     : '';
-  const sourceFilter = opts.sourceId ? 'AND source_id = $2' : '';
+  const sourceFilter = opts.sourceId ? 'AND peo.source_id = $2' : '';
   const params: string[] = [orgId];
   if (opts.sourceId) params.push(opts.sourceId);
 
+  // `scanned` = objects with a structural (T0) scan; same join as listEstateObjects.
+  const from = `FROM platform_estate_objects peo
+       LEFT JOIN platform_context_objects pco
+         ON pco.org_id = peo.org_id
+        AND pco.full_path = peo.full_path
+        AND (peo.source_id IS NULL OR pco.source_id = peo.source_id::uuid)
+       WHERE peo.org_id = $1 AND peo.lifecycle = 'active' ${testExclusion}${sourceFilter}`;
+
   const [catalogs, schemas] = await Promise.all([
-    prisma.$queryRawUnsafe<{ name: string; count: number }[]>(
-      `SELECT catalog_name AS name, COUNT(*)::int AS count
-       FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
-       GROUP BY catalog_name
-       ORDER BY catalog_name`,
+    prisma.$queryRawUnsafe<{ name: string; count: number; scanned: number }[]>(
+      `SELECT peo.catalog_name AS name, COUNT(DISTINCT peo.id)::int AS count,
+              (COUNT(DISTINCT peo.id) FILTER (WHERE pco.last_t0_at IS NOT NULL))::int AS scanned
+       ${from}
+       GROUP BY peo.catalog_name
+       ORDER BY peo.catalog_name`,
       ...params,
     ),
-    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number }[]>(
-      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count
-       FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
-       GROUP BY catalog_name, schema_name
-       ORDER BY catalog_name, schema_name`,
+    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number; scanned: number }[]>(
+      `SELECT peo.catalog_name AS catalog, peo.schema_name AS name, COUNT(DISTINCT peo.id)::int AS count,
+              (COUNT(DISTINCT peo.id) FILTER (WHERE pco.last_t0_at IS NOT NULL))::int AS scanned
+       ${from}
+       GROUP BY peo.catalog_name, peo.schema_name
+       ORDER BY peo.catalog_name, peo.schema_name`,
       ...params,
     ),
   ]);

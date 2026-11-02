@@ -170,7 +170,7 @@ function CopyableId({ value }: { value: string }) {
     >
       {short}
       {copied && (
-        <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded shadow-sm z-10 whitespace-nowrap">
+        <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded-card shadow-sm z-10 whitespace-nowrap">
           Copied!
         </span>
       )}
@@ -296,7 +296,34 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
         </span>
       );
     }
+    if (s.toLowerCase() === 'partial') {
+      return (
+        <span
+          className="inline-flex items-center px-2 py-1 rounded text-label border"
+          style={{
+            borderColor: 'rgba(245, 158, 11, 0.35)',
+            color: inkOf('#F59E0B'),
+            backgroundColor: 'rgba(245, 158, 11, 0.08)',
+          }}
+        >
+          partial
+        </span>
+      );
+    }
     switch (mapped) {
+      case 'cancelled':
+        return (
+          <span
+            className="inline-flex items-center px-2 py-1 rounded text-label border"
+            style={{
+              borderColor: 'var(--estate-status-default-border)',
+              color: 'var(--estate-status-default-text)',
+              backgroundColor: 'var(--estate-status-default-bg)',
+            }}
+          >
+            cancelled
+          </span>
+        );
       case 'queued':
         return (
           <span
@@ -396,7 +423,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 ID: {activeJob.id.slice(0, 8)}...
               </span>
               {copied && (
-                <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded font-mono shadow-sm z-10">
+                <span className="absolute -top-6 left-0 bg-black/85 text-size-ui text-white px-2 py-1 rounded-card font-mono shadow-sm z-10">
                   Copied!
                 </span>
               )}
@@ -423,7 +450,7 @@ export default function JobDetailDrawer({ job, onClose }: JobDetailDrawerProps) 
                 style={{
                   ...type.label,
                   padding: '5px 10px',
-                  borderRadius: 3,
+                  borderRadius: 6,
                   border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)',
                   background: kicking ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
                   color: 'var(--brand-a-ink)',

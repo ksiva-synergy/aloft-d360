@@ -51,15 +51,15 @@ export function ToolTimeBreakdown({
           >
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: colorOf(r.toolName), flexShrink: 0 }} />
+                <span style={{ width: 10, height: 10, borderRadius: 6, background: colorOf(r.toolName), flexShrink: 0 }} />
                 <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.toolName}</span>
               </div>
               <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', marginTop: 3, paddingLeft: 18 }}>
                 {plural(r.calls, 'call')} · avg {fmtMs(r.avgDurationMs)} · max {fmtMs(r.maxDurationMs)}
               </div>
             </div>
-            <div style={{ height: 8, borderRadius: 4, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
-              <div style={{ width: `${Math.max(share * 100, 2)}%`, height: '100%', background: colorOf(r.toolName), borderRadius: 4 }} />
+            <div style={{ height: 8, borderRadius: 6, background: 'var(--wb-border-subtle)', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(share * 100, 2)}%`, height: '100%', background: colorOf(r.toolName), borderRadius: 6 }} />
             </div>
             <div style={{ textAlign: 'right', minWidth: 92 }}>
               <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--wb-ink)' }}>{fmtMs(r.totalDurationMs)}</div>

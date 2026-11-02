@@ -132,7 +132,7 @@ export default function DashboardsListPage() {
             style={{
               ...MONO, display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.04em', textTransform: 'uppercase', background: 'var(--brand-a)',
-              color: 'var(--on-brand)', border: 'none', borderRadius: 4, padding: '8px 16px',
+              color: 'var(--on-brand)', border: 'none', borderRadius: 6, padding: '8px 16px',
               cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.6 : 1, fontWeight: 600,
             }}
           >
@@ -174,7 +174,7 @@ export default function DashboardsListPage() {
               style={{
                 ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
                 background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: '1px solid var(--border-default)',
-                borderRadius: 4, color: 'var(--text-primary)', padding: '6px 8px 6px 28px',
+                borderRadius: 6, color: 'var(--text-primary)', padding: '6px 8px 6px 28px',
                 outline: 'none',
               }}
             />
@@ -184,7 +184,7 @@ export default function DashboardsListPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 4, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
+        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
           {error}
           <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: inkOf('#F87171'), cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>dismiss</button>
         </div>
@@ -238,8 +238,8 @@ export default function DashboardsListPage() {
             <p style={{ ...SANS, fontSize: 'var(--type-body-size)', color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>Delete dashboard?</p>
             <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', marginBottom: 20 }}>This action cannot be undone. All versions and widget configs will be removed.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#FFFFFF', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Delete</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 6, color: '#FFFFFF', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Delete</button>
             </div>
           </div>
         </div>
@@ -258,7 +258,7 @@ function VisibilityBadge({ visibility }: { visibility: DashboardVisibility }) {
   };
   const { icon, label, color } = config[visibility] ?? config.org;
   return (
-    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 3, padding: '2px 5px' }}>
+    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 6, padding: '2px 5px' }}>
       {icon}{label}
     </span>
   );
@@ -271,7 +271,7 @@ function RoleBadge({ role }: { role: string | null }) {
   const colors: Record<string, string> = { owner: GOLD, editor: '#A78BFA', viewer: '#8892A4' };
   const color = colors[role] ?? '#8892A4';
   return (
-    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 3, padding: '2px 5px', textTransform: 'uppercase' }}>
+    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 6, padding: '2px 5px', textTransform: 'uppercase' }}>
       {role}
     </span>
   );
@@ -349,7 +349,7 @@ function DashboardCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           <VisibilityBadge visibility={dashboard.visibility} />
           <RoleBadge role={dashboard.my_role} />
-          <span style={{ ...type.label, color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 3, padding: '2px 6px' }}>
+          <span style={{ ...type.label, color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 6, padding: '2px 6px' }}>
             {dashboard.widget_count} {dashboard.widget_count === 1 ? 'WIDGET' : 'WIDGETS'}
           </span>
           {dashboard.collaborator_count > 1 && (
@@ -374,7 +374,11 @@ function DashboardCard({
       <div style={{ position: 'absolute', top: 10, right: 10 }}>
         <button
           onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-          style={{ background: menuOpen ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center', opacity: hovered || menuOpen ? 1 : 0, transition: 'opacity 0.12s' }}
+          aria-label="Dashboard actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="focus-visible:!opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          style={{ background: menuOpen ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: hovered || menuOpen ? 1 : 0, transition: 'opacity 0.12s' }}
         >
           <MoreHorizontal size={14} />
         </button>

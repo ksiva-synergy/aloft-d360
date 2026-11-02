@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Sparkles, ArrowLeft, Check, ChevronRight, SkipForward, FastForward, Database,
@@ -341,7 +342,7 @@ export function DrillInStage({ modelId, resolvedDefs, onBackToBlueprint, onDone 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ ...UI, fontSize: 'var(--type-body-size)', fontWeight: 600, color: INK }}>{draft?.title}</span>
           {current && drillIn.widgetIdByItemId[current.id] && (
-            <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: GREEN, border: `1px solid ${tint(GREEN, 45)}`, borderRadius: 4, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: GREEN, border: `1px solid ${tint(GREEN, 45)}`, borderRadius: 6, padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Check size={11} /> Added to dashboard
             </span>
           )}
@@ -521,15 +522,15 @@ function FiltersSection({ item, draft, onChange }: { item: ChartBlueprint; draft
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {draft.filters.map((f, i) => (
           <div key={i} data-testid="filter-row" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <select value={f.fieldId} onChange={(e) => patchAt(i, { fieldId: e.target.value, fieldKind: fields.find((x) => x.id === e.target.value)?.kind ?? f.fieldKind })} style={selectStyle()} aria-label="Filter field">
+            <Select value={f.fieldId} onChange={(e) => patchAt(i, { fieldId: e.target.value, fieldKind: fields.find((x) => x.id === e.target.value)?.kind ?? f.fieldKind })} style={selectStyle()} aria-label="Filter field">
               {fields.map((fl) => <option key={fl.id} value={fl.id}>{fl.label}</option>)}
               {!fields.some((fl) => fl.id === f.fieldId) && <option value={f.fieldId}>{labelFor(f.fieldId)}</option>}
-            </select>
-            <select value={f.op} onChange={(e) => patchAt(i, { op: e.target.value as FilterOp })} style={{ ...selectStyle(), width: 62, flex: 'none' }} aria-label="Filter operator">
+            </Select>
+            <Select value={f.op} onChange={(e) => patchAt(i, { op: e.target.value as FilterOp })} style={{ ...selectStyle(), width: 62, flex: 'none' }} aria-label="Filter operator">
               {(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in', 'between', 'is_null', 'is_not_null'] as FilterOp[]).map((op) => (
                 <option key={op} value={op}>{op}</option>
               ))}
-            </select>
+            </Select>
             {f.op !== 'is_null' && f.op !== 'is_not_null' && (
               <input value={String(f.value ?? '')} onChange={(e) => patchAt(i, { value: e.target.value })} placeholder="value" aria-label="Filter value" style={{ ...selectStyle(), width: 60, flex: 'none' }} />
             )}
@@ -626,12 +627,12 @@ function PolishSection({ draft, onChange }: { draft: DrillDraft; onChange: (patc
       </div>
 
       <label style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED }}>Number format</label>
-      <select value={draft.format} onChange={(e) => onChange({ format: e.target.value as NumFmt })} aria-label="Number format" style={{ ...selectStyle(), width: '100%', marginTop: 4 }}>
+      <Select value={draft.format} onChange={(e) => onChange({ format: e.target.value as NumFmt })} aria-label="Number format" style={{ ...selectStyle(), width: '100%', marginTop: 4 }}>
         <option value="auto">Auto</option>
         <option value="compact">Compact (1.2k)</option>
         <option value="percent">Percent</option>
         <option value="currency">Currency</option>
-      </select>
+      </Select>
       <span style={{ ...UI, fontSize: 'var(--type-ui-regular-size)', color: MUTED, display: 'block', marginTop: 5, lineHeight: 1.4 }}>
         Applied to the chart once it renders with data.
       </span>

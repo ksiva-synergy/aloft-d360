@@ -6,7 +6,7 @@
 # and next build under QEMU (about 25 min vs about 3 min native). The runner
 # stage stays on TARGETPLATFORM so the image Node binary matches t4g.
 
-FROM --platform=$BUILDPLATFORM node:20-alpine AS deps
+FROM --platform=$BUILDPLATFORM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS deps
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json ./
@@ -15,7 +15,7 @@ COPY prisma ./prisma
 # GHA sets NODE_ENV=production; @aloft/shared build needs devDependencies (tsup).
 RUN npm ci --include=dev
 
-FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS builder
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 COPY --from=deps /app/node_modules ./node_modules
@@ -26,7 +26,7 @@ RUN npm run build --workspace=@aloft/shared
 # Next.js serves the SPA for every page URL and keeps serving /api/**.
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runner
 WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production

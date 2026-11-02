@@ -23,22 +23,22 @@ export function useInspectorChatModels() {
   );
 
   useEffect(() => {
-    setModels((current) => filterChatModelsForRole(current, role));
-  }, [role]);
+    setModels((current) => (current.length > 0 ? current : roleFilteredFallback));
+  }, [roleFilteredFallback]);
 
   const refreshModels = useCallback(() => {
     return fetch('/api/inspector/chat-models', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : { models: roleFilteredFallback }))
       .then((data: { models?: ModelOption[]; llmLiteEnabled?: boolean }) => {
         if (Array.isArray(data.models) && data.models.length > 0) {
-          setModels(filterChatModelsForRole(data.models, role));
+          setModels(data.models);
         }
         setLlmLiteEnabled(!!data.llmLiteEnabled);
       })
       .catch(() => {
         setModels(roleFilteredFallback);
       });
-  }, [role, roleFilteredFallback]);
+  }, [roleFilteredFallback]);
 
   useEffect(() => {
     let cancelled = false;

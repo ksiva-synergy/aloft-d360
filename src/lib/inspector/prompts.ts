@@ -2,7 +2,7 @@ import type { Tool, ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import schema from '../../lib/studio/chart-dsl.schema.json';
 import type { SemanticContext } from '@/lib/semantic/context-builder';
-import { ANSWER_COMPLETENESS_RULES } from './answer-rules';
+import { AGENT_ANSWER_VOICE, ANSWER_COMPLETENESS_RULES } from './answer-rules';
 
 /**
  * Inspector explores data; agents are built in Agent Lab. The UI shows an "Open Agent Lab"
@@ -448,9 +448,11 @@ export function buildSystemPrompt(
   semanticContext?: SemanticContext,
 ): string {
   const base = contextMode === 'warehouse_only' ? INSPECTOR_WAREHOUSE_ONLY_PROMPT : INSPECTOR_SYSTEM_PROMPT;
-  if (!semanticContext || semanticContext.entities.length === 0) return base;
-  const semanticSection = buildSemanticPromptSection(semanticContext);
-  return `${base}\n\n${semanticSection}`;
+  const withSemantic = !semanticContext || semanticContext.entities.length === 0
+    ? base
+    : `${base}\n\n${buildSemanticPromptSection(semanticContext)}`;
+  // Last, so it overrides any earlier instruction to print tables, joins, or catalog notes.
+  return `${withSemantic}\n\n${AGENT_ANSWER_VOICE}`;
 }
 
 export async function buildInsightsContext(sessionId: string | undefined): Promise<string> {

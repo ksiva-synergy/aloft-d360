@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { AGENTS_WORKBENCH_HREF } from '@/lib/navigation/agents-routes';
 import { Bot, MessageCircle, Pencil, Plus, Search } from 'lucide-react';
+import { AgentAvatar } from '@/components/agent-lab/AgentAvatar';
 
 type SavedAgent = {
   id: string;
@@ -23,11 +24,6 @@ function when(iso: string | null): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? 'A') + (parts.length > 1 ? parts[1][0] : '')).toUpperCase();
 }
 
 export default function SavedAgentsPage() {
@@ -122,9 +118,7 @@ export default function SavedAgentsPage() {
             <li key={agent.id}>
               <article className="flex h-full flex-col rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-4 transition-colors hover:border-[color-mix(in_srgb,var(--brand-a)_55%,var(--line-1))]">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--brand-a-soft)] text-size-body font-semibold text-[var(--brand-a-ink)]">
-                    {initials(agent.name)}
-                  </span>
+                  <AgentAvatar name={agent.name} hint={[agent.description, agent.agentClass].filter(Boolean).join(' ')} size="md" />
                   <div className="min-w-0">
                     <h2 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{agent.name}</h2>
                     <p className="mt-0.5 truncate text-size-ui text-[var(--ink-3)]">

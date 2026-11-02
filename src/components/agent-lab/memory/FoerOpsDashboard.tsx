@@ -7,6 +7,7 @@
  * All colors from foer-tokens.ts.
  */
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Link from '@/lib/navigation/link';
@@ -543,7 +544,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                     background: 'var(--foer-gold)',
                     color: 'var(--on-brand, #fff)',
                     border: 'none',
-                    borderRadius: '4px',
+                    borderRadius: 6,
                     padding: '4px 9px',
                     fontFamily: MONO,
                     fontSize: 'var(--type-ui-regular-size)',
@@ -588,7 +589,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
           <div style={{ background: 'var(--foer-surface)', border: '1px solid var(--foer-border)', borderRadius: '6px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', color: 'var(--foer-text-mut)' }}>MEMORY CANARY · FULLPOOL + λ STATUS</span>
-              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : inkOf('#d9774b'), background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: '4px', padding: '2px 7px', letterSpacing: '0.04em' }}>
+              <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: canaryData.fullPoolEnabled ? 'var(--foer-green)' : inkOf('#d9774b'), background: canaryData.fullPoolEnabled ? 'rgba(34,197,94,0.08)' : 'rgba(217,119,75,0.08)', border: `1px solid ${canaryData.fullPoolEnabled ? 'var(--foer-green)' : '#d9774b'}`, borderRadius: 6, padding: '2px 7px', letterSpacing: '0.04em' }}>
                 FULLPOOL {canaryData.fullPoolEnabled ? 'ON' : 'OFF'}
               </span>
               {canaryData.fullPoolOrgs.length > 0 && (
@@ -890,7 +891,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                         style={{
                           flex: 'none',
                           border: `1px solid ${ruleTypeColor(b.ruleType)}`,
-                          borderRadius: '4px',
+                          borderRadius: 6,
                           padding: '1px 5px',
                           fontFamily: MONO,
                           fontSize: 'var(--type-ui-regular-size)',
@@ -996,7 +997,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       <span style={{ textAlign: 'right', color: hasPhantom ? 'var(--foer-gold)' : 'var(--foer-text-mut)', display: 'inline-flex', justifyContent: 'flex-end', alignItems: 'center', gap: '5px' }}>
                         {r.phantomsBlocked}
                         {hasPhantom && (
-                          <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '1px 5px', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>phantom</span>
+                          <span style={{ border: '1px solid var(--foer-gold)', borderRadius: 6, padding: '1px 5px', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: 'var(--foer-gold)' }}>phantom</span>
                         )}
                       </span>
                       <span style={{ textAlign: 'right', color: r.errors > 0 ? 'var(--foer-gold)' : 'var(--foer-text-mut)' }}>{r.errors}</span>
@@ -1068,7 +1069,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                                     <span style={{ textAlign: 'right', color: hasDetailPhantom ? 'var(--foer-gold)' : 'var(--foer-text-mut)' }}>
                                       {detail.phantomsBlocked}
                                       {hasDetailPhantom && (
-                                        <span style={{ border: '1px solid var(--foer-gold)', borderRadius: '4px', padding: '0 4px', fontSize: 'var(--type-ui-regular-size)', marginLeft: '5px', color: 'var(--foer-gold)' }}>phantom</span>
+                                        <span style={{ border: '1px solid var(--foer-gold)', borderRadius: 6, padding: '0 4px', fontSize: 'var(--type-ui-regular-size)', marginLeft: '5px', color: 'var(--foer-gold)' }}>phantom</span>
                                       )}
                                     </span>
                                     <span style={{ color: 'var(--foer-text-mut)' }}>{detail.skippedReason || '—'}</span>
@@ -1111,14 +1112,14 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                 <label htmlFor="ops-sig-select" style={{ ...type.label, flexShrink: 0 }}>
                   Task Signature
                 </label>
-                <select
+                <Select
                   id="ops-sig-select"
                   value={activeSig}
                   onChange={e => setInjSig(e.target.value)}
                   style={{
                     background:   'var(--foer-surface2)',
                     border:       '1px solid var(--foer-border)',
-                    borderRadius: '4px',
+                    borderRadius: 6,
                     padding:      '4px 8px',
                     fontFamily:   MONO,
                     fontSize: 'var(--type-caption-size)',
@@ -1133,7 +1134,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                       {s.topicName} · {s.taskSignature.slice(0, 8)}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)' }}>
                   {rankedForInj.length} rule{rankedForInj.length !== 1 ? 's' : ''} · {rankedForInj.filter(b => !b.overBudget).length} within budget (2000t total)
                 </span>
@@ -1169,7 +1170,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                             background:   b.overBudget ? 'var(--foer-surface2)' : 'transparent',
                           }}
                         >
-                          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: accent, background: `${withAlpha(accent, '14')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
+                          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: accent, background: `${withAlpha(accent, '14')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 6, padding: '1px 5px', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
                             {b.ruleType.replace('_', ' ')}
                           </span>
                           <span style={{ flex: 1, fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: b.overBudget ? 'var(--foer-text-mut)' : 'var(--foer-text-pri)', lineHeight: 1.5 }}>
@@ -1178,7 +1179,7 @@ function FoerOpsInner({ topicMap }: InnerProps) {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                             <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--foer-text-mut)' }}>{b.tokens}t</span>
                             {b.overBudget && (
-                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE), background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '18')}`, border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '40')}`, borderRadius: 3, padding: '1px 4px' }}>
+                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(RULE_TYPE_COLORS.FAILURE_MODE), background: `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '18')}`, border: `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '40')}`, borderRadius: 6, padding: '1px 4px' }}>
                                 over budget
                               </span>
                             )}

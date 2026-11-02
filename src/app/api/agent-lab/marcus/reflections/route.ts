@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPendingReflections } from '@/lib/marcus/dal';
+import { guardSessionRead } from '@/lib/inspector/session-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,9 @@ export async function GET(request: NextRequest) {
   if (process.env.MARCUS_REFLECT_ENABLED !== 'true') {
     return NextResponse.json({ pendingReflections: [] });
   }
+
+  const denied = await guardSessionRead(request, sessionId, { route: 'marcus/reflections' });
+  if (denied) return denied;
 
   try {
     const pending = await getPendingReflections(sessionId);

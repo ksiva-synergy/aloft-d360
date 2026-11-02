@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X, Download } from 'lucide-react';
 import {
@@ -337,7 +338,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
 
   const selectStyle: React.CSSProperties = {
     background: SURF, border: `1px solid ${LINE}`,
-    color: TXT, borderRadius: 4, padding: '3px 6px',
+    color: TXT, borderRadius: 6, padding: '3px 6px',
     ...mono, fontSize: 'var(--type-ui-regular-size)', outline: 'none', cursor: 'pointer',
     flex: 1, minWidth: 0,
   };
@@ -351,7 +352,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
         {CHART_TYPES.map(ct => (
           <button key={ct} onClick={() => setChartType(ct)} style={{
             ...type.label,
-            padding: '3px 8px', borderRadius: 3, border: 'none',
+            padding: '3px 8px', borderRadius: 6, border: 'none',
             background: chartType === ct ? NAVY : 'transparent',
             color: chartType === ct ? '#ffffff' : TXT2,
             cursor: 'pointer', outline: 'none', transition: 'all 0.12s',
@@ -367,24 +368,24 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>X</span>
-            <select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
+            <Select value={xCol} onChange={e => setXCol(e.target.value)} style={selectStyle}>
               {colNames.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </Select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Y</span>
-            <select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
+            <Select value={yCol} onChange={e => setYCol(e.target.value)} style={selectStyle}>
               <option value="">— select —</option>
               {numericCols.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </Select>
           </div>
           {chartType !== 'area' && chartType !== 'pie' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2, width: 18, textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.6 }}>Y2</span>
-              <select value={y2Col} onChange={e => setY2Col(e.target.value)} style={{ ...selectStyle, opacity: 0.75 }}>
+              <Select value={y2Col} onChange={e => setY2Col(e.target.value)} style={{ ...selectStyle, opacity: 0.75 }}>
                 <option value="">— none —</option>
                 {numericCols.filter(c => c !== yCol).map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
           )}
         </div>
@@ -440,7 +441,7 @@ function ChartBuilder({ columns, rows, sql, latestQuestion, graduateModelId }: C
 
           {/* Save dialog — name + the question this answers */}
           {showSaveDialog && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 4, background: SURF }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', border: `1px solid ${LINE}`, borderRadius: 6, background: SURF }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ ...type.label, }}>SAVE RAW-SQL CHART</span>
                 <button onClick={() => { setShowSaveDialog(false); setSaveError(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: TXT2, display: 'flex' }}>
@@ -492,7 +493,7 @@ function rawActionBtn(primary: boolean): React.CSSProperties {
     ...type.label,
     display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer',
     border: `1px solid ${primary ? GOLD : 'color-mix(in srgb, var(--brand-a-ink) 49%, transparent)'}`,
-    borderRadius: 3, padding: '3px 8px',
+    borderRadius: 6, padding: '3px 8px',
     background: primary ? 'var(--brand-a)' : 'transparent',
     color: primary ? 'var(--on-brand)' : GOLD,
     fontWeight: primary ? 600 : 400,
@@ -502,7 +503,7 @@ function rawActionBtn(primary: boolean): React.CSSProperties {
 
 const rawInput: React.CSSProperties = {
   ...mono, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
-  background: BG, border: `1px solid ${LINE}`, borderRadius: 3,
+  background: BG, border: `1px solid ${LINE}`, borderRadius: 6,
   padding: '5px 7px', color: TXT, outline: 'none',
 };
 
@@ -525,7 +526,7 @@ function SqlBadge({ sql }: { sql: string }) {
       {open && (
         <pre style={{
           ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT, background: BG,
-          border: `1px solid ${LINE}`, borderRadius: 4,
+          border: `1px solid ${LINE}`, borderRadius: 6,
           padding: '8px 10px', margin: '4px 0 2px',
           overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
         }}>
@@ -552,7 +553,7 @@ function ResultStrip({ results, activeIdx, onSelect }: ResultStripProps) {
     }}>
       {results.map((r, i) => (
         <button key={i} onClick={() => onSelect(i)} style={{
-          ...mono, fontSize: 'var(--type-ui-regular-size)', padding: '2px 7px', borderRadius: 3, border: 'none',
+          ...mono, fontSize: 'var(--type-ui-regular-size)', padding: '2px 7px', borderRadius: 6, border: 'none',
           background: i === activeIdx ? NAVY : 'transparent',
           color: i === activeIdx ? '#ffffff' : TXT2,
           cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
@@ -673,7 +674,7 @@ export function DashboardPane({
                 border: `0.5px solid ${GOLD}`,
                 background: exporting ? 'color-mix(in srgb, var(--brand-a-ink) 17%, transparent)' : 'transparent',
                 color: GOLD,
-                borderRadius: '4px',
+                borderRadius: 6,
                 padding: '2px 8px',
                 display: 'flex',
                 alignItems: 'center',
@@ -698,7 +699,7 @@ export function DashboardPane({
               border: '0.5px solid var(--builder-border-bright)',
               background: 'transparent',
               color: TXT2,
-              borderRadius: '4px',
+              borderRadius: 6,
               padding: '2px 6px',
               display: 'flex',
               alignItems: 'center',

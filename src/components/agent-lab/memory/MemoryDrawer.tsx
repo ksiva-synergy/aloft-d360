@@ -261,7 +261,7 @@ export function MemoryDrawer() {
                     fontSize: 'var(--type-ui-regular-size)',
                     letterSpacing: '0.04em',
                     padding: '2px 6px',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     border: `1px solid ${color}`,
                     color: color,
                     background: `${withAlpha(color, '10')}`,
@@ -276,7 +276,7 @@ export function MemoryDrawer() {
                     fontSize: 'var(--type-ui-regular-size)',
                     letterSpacing: '0.04em',
                     padding: '2px 6px',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     color:
                       bullet.status === 'ACTIVE'
                         ? TOPIC_COLORS[3]
@@ -303,7 +303,7 @@ export function MemoryDrawer() {
                     fontFamily: MONO,
                     fontSize: 'var(--type-ui-regular-size)',
                     background: 'var(--foer-border-dim)',
-                    borderRadius: 3,
+                    borderRadius: 6,
                     padding: '1px 5px',
                     color: 'var(--foer-text-mut)',
                   }}
@@ -328,7 +328,7 @@ export function MemoryDrawer() {
               <div
                 style={{
                   height: 6,
-                  borderRadius: 3,
+                  borderRadius: 6,
                   background: 'var(--foer-border-dim)',
                   overflow: 'hidden',
                   display: 'flex',
@@ -364,7 +364,7 @@ export function MemoryDrawer() {
                 style={{
                   background: 'var(--foer-surface2)',
                   border: '1px solid var(--foer-border-dim)',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   padding: 10,
                   marginTop: 4,
                 }}
@@ -415,7 +415,7 @@ export function MemoryDrawer() {
                       fontSize: 'var(--type-ui-regular-size)',
                       background: 'var(--foer-surface2)',
                       border: '1px solid var(--foer-border-dim)',
-                      borderRadius: 4,
+                      borderRadius: 6,
                       padding: '2px 8px',
                       color: 'var(--foer-text-sec)',
                       cursor: 'pointer',
@@ -464,7 +464,7 @@ export function MemoryDrawer() {
                     color: 'var(--foer-gold)',
                     background: 'var(--foer-surface2)',
                     border: '1px solid var(--foer-border-dim)',
-                    borderRadius: 4,
+                    borderRadius: 6,
                     padding: '6px 10px',
                     marginTop: 4,
                   }}
@@ -491,7 +491,7 @@ export function MemoryDrawer() {
                   color: 'var(--foer-text-sec)',
                   background: 'var(--foer-surface2)',
                   border: '1px solid var(--foer-border-dim)',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   padding: 10,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',

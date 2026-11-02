@@ -16,6 +16,7 @@ import { computeCostUsd } from '@/lib/lifecycle/log-agent-cost';
 import { checkCustomFields, typeFieldValue, type CustomField } from '@/lib/extraction/schemas';
 import { getDefaultOrg } from '@/lib/org';
 import { knowledgeForAgent, knowledgePrompt, runSearchKnowledgeTool, searchKnowledgeTool, SEARCH_KNOWLEDGE_TOOL } from '@/lib/knowledge/agents';
+import { INSPECTION_PROMPT, parseInspection, RECORD_INSPECTION_TOOL, type AgentInspection } from '@/lib/agents/inspection';
 
 // Runs one turn of a saved agent from the agent catalog: its instructions as the system prompt and
 // the read-only data tools (describe_schema, execute_tool). Shared by agent chat and by Automate's
@@ -67,8 +68,12 @@ export type RunCatalogAgentInput = {
   answer?: CustomField[];
   /** agent_turn_log.surface: `agent_use` (chat) or `automation`. */
   surface: string;
+  /** Saved chat this turn belongs to; metrics and tool logs are keyed by it. Defaults to the agent id. */
+  sessionId?: string;
   /** Who is running it: linked knowledge bases are searched only as far as this person may. None = organisation ones only. */
   person?: { userId: string; role: string } | null;
+  /** Agent chat only: record tables, join, and caveats beside the reply, for an admin to inspect. */
+  captureInspection?: boolean;
   abort?: { value: boolean };
   onTextChunk?: (delta: string) => void;
   onToolCallEvent?: (event: ToolCallEvent) => void;
@@ -83,6 +88,8 @@ export type RunCatalogAgentResult = {
   knowledgeBases: string[];
   outcome: AgentLoopResult['outcome'];
   text: string;
+  /** Tables, join, and caveats. Null when the agent did not record one. */
+  inspection: AgentInspection | null;
   answer: AgentAnswer | null;
   /** Why answer fields were asked for but none came back. */
   answerProblem?: string;
@@ -94,6 +101,26 @@ export type RunCatalogAgentResult = {
   durationMs: number;
   turnId: string;
 };
+
+function inspectionTool(): Tool {
+  return {
+    toolSpec: {
+      name: RECORD_INSPECTION_TOOL,
+      description: 'Record the tables, join, and caveats behind this answer for an administrator. Call once, before the final reply. Do not put this note in the reply.',
+      inputSchema: {
+        json: {
+          type: 'object',
+          properties: {
+            sources: { type: 'string', description: 'Tables queried, one fully qualified path per line.' },
+            joins: { type: 'string', description: 'Join used, and whether the catalog verifies it.' },
+            caveats: { type: 'string', description: 'Gaps or assumptions that change how much to trust the answer.' },
+          },
+          required: ['sources'],
+        },
+      },
+    },
+  };
+}
 
 function answerTool(fields: CustomField[]): Tool {
   return {
@@ -157,7 +184,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
     const problems = checkCustomFields(input.answer);
     if (problems.length) throw new AgentRunError(422, `The answer fields are not valid: ${problems.join('; ')}`);
   }
-  const resolved = resolveWorkbenchModel(input.model, input.role);
+  const resolved = resolveWorkbenchModel(input.model, input.role, 'commissioned_agents');
   if (!resolved) throw new AgentRunError(400, 'Model not available');
   const { option, boostModel, effectiveModelId } = resolved;
 
@@ -191,6 +218,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   });
 
   const fields = input.answer ?? null;
+  const captureInspection = input.captureInspection === true;
   const messages: Message[] = [
     ...(input.history ?? []).map((t) => ({ role: t.role, content: [{ text: t.content } as ContentBlock] })),
     { role: 'user' as const, content: [{ text: input.message } as ContentBlock] },
@@ -198,15 +226,19 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   const systemPrompt = [
     buildRuntimeSystemPrompt({ ...brief, mode: 'live' }),
     knowledgePrompt(knowledge),
+    captureInspection ? `\n\n${INSPECTION_PROMPT}` : '',
     fields
       ? `\n\nFINAL ANSWER: when you are done, call ${SUBMIT_ANSWER_TOOL} once with every field (${fields.map((f) => f.key).join(', ')}). Use null for anything you could not establish from the data; never guess. Dates as YYYY-MM-DD, numbers as numbers.`
       : '',
   ].join('');
 
-  const metrics = new TurnMetricsRecorder({ sessionId: agent.id, surface: input.surface });
+  const runSessionId = input.sessionId ?? agent.id;
+  const metrics = new TurnMetricsRecorder({ sessionId: runSessionId, surface: input.surface });
   const abort = input.abort ?? { value: false };
   const queryResults: QueryResult[] = [];
   let submitted: unknown = null;
+  let inspection: AgentInspection | null = null;
+  const inspectionCallIds = new Set<string>();
   let toolCalls = 0;
   let toolErrors = 0;
   const started = Date.now();
@@ -219,10 +251,15 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
       tools: [
         ...INSPECTOR_TOOLS.filter((t) => AGENT_TOOLS.has(t.toolSpec?.name ?? '')),
         ...(knowledge.length ? [searchKnowledgeTool(knowledge)] : []),
+        ...(captureInspection ? [inspectionTool()] : []),
         ...(fields ? [answerTool(fields)] : []),
       ],
     },
     executeTool: (toolName, toolInput, callId) => {
+      if (captureInspection && toolName === RECORD_INSPECTION_TOOL) {
+        inspection = parseInspection(toolInput) ?? inspection;
+        return Promise.resolve('Recorded. Write the answer for the person who asked. Do not repeat these notes.');
+      }
       if (fields && toolName === SUBMIT_ANSWER_TOOL) {
         submitted = toolInput;
         abort.value = true; // the answer is in; skip the follow-up call
@@ -230,13 +267,13 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
       }
       if (toolName === SEARCH_KNOWLEDGE_TOOL && knowledge.length) {
         toolCalls++;
-        return withAgentOpsToolLog({ sessionId: agent.id, runId: metrics.turnId, loop: 0, toolName, callId, model: effectiveModelId }, toolInput, () =>
+        return withAgentOpsToolLog({ sessionId: runSessionId, runId: metrics.turnId, loop: 0, toolName, callId, model: effectiveModelId }, toolInput, () =>
           runSearchKnowledgeTool(toolInput, knowledge, { orgId, userId: input.person?.userId ?? null, surface: input.surface === 'automation' ? 'automation' : 'agent' }),
         );
       }
       if (!AGENT_TOOLS.has(toolName)) return Promise.resolve(JSON.stringify({ error: `Tool ${toolName} is not available when using this agent` }));
       toolCalls++;
-      return withAgentOpsToolLog({ sessionId: agent.id, runId: metrics.turnId, loop: 0, toolName, callId, model: effectiveModelId }, toolInput, () =>
+      return withAgentOpsToolLog({ sessionId: runSessionId, runId: metrics.turnId, loop: 0, toolName, callId, model: effectiveModelId }, toolInput, () =>
         executeInspectorTool(
           toolName,
           toolInput,
@@ -245,11 +282,11 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
             if (event.type === 'query_result') queryResults.push(event as unknown as QueryResult);
             input.onToolEvent?.(event);
           },
-          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: agent.id, connectionId },
+          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId },
         ),
       );
     },
-    maxLoops: fields ? AGENT_MAX_LOOPS + 1 : AGENT_MAX_LOOPS,
+    maxLoops: AGENT_MAX_LOOPS + (fields ? 1 : 0) + (captureInspection ? 1 : 0),
     supportsTools: option.supportsTools,
     supportsThinking: false,
     abortSignal: abort,
@@ -258,6 +295,11 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
       input.onTextChunk?.(delta);
     },
     onToolCallEvent: (event) => {
+      if ('toolName' in event && event.toolName === RECORD_INSPECTION_TOOL) {
+        inspectionCallIds.add(event.callId);
+        return;
+      }
+      if ('callId' in event && inspectionCallIds.has(event.callId)) return;
       if (event.type === 'tool_call_error') toolErrors++;
       input.onToolCallEvent?.(event);
     },
@@ -291,6 +333,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
     knowledgeBases: knowledge.map((k) => k.name),
     outcome,
     text,
+    inspection,
     answer,
     answerProblem,
     errorDetail: result.errorDetail,

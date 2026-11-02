@@ -1,5 +1,6 @@
-﻿'use client';
+'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useCallback } from 'react';
 import { BOOST_MODELS, type BoostModel, type ModelTier } from '@/lib/boost/models';
 import { BOOST_SUITE_V1, BOOST_SUITE_V2, type BoostCase } from '@/lib/boost/suite';
@@ -49,7 +50,7 @@ function JoinPathBlock({ joinPath }: { joinPath: NonNullable<BoostCase['joinPath
           <span key={t} style={{
             ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#93c5fd',
             border: '1px solid rgba(147,197,253,0.35)',
-            borderRadius: 4, padding: '2px 7px',
+            borderRadius: 6, padding: '2px 7px',
             background: 'rgba(147,197,253,0.06)',
           }}>
             {t}
@@ -69,7 +70,7 @@ function HarnessStrengthBadge({ strength }: { strength: NonNullable<BoostCase['h
   return (
     <span style={{
       ...type.label,
-      borderRadius: 4, padding: '2px 8px', border: '1px solid',
+      borderRadius: 6, padding: '2px 8px', border: '1px solid',
       color: isStrong ? GOLD : TXT2,
       borderColor: isStrong ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'rgba(136,146,164,0.4)',
       background: isStrong ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'rgba(136,146,164,0.06)',
@@ -191,7 +192,7 @@ function ModePill({ mode }: { mode: string }) {
   return (
     <span style={{
       ...type.label,
-      borderRadius: 4, padding: '3px 8px', border: '1px solid',
+      borderRadius: 6, padding: '3px 8px', border: '1px solid',
       color: ctx ? GOLD : BLUE,
       borderColor: ctx ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : 'rgba(58,123,213,0.5)',
       background: ctx ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'rgba(58,123,213,0.10)',
@@ -319,14 +320,14 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
   return (
     <div>
       <div style={{ ...type.label, color: TXT2, marginBottom: 8 }}>A/B Isolation · one task · two modes</div>
-      <h2 style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-title-section-size)', margin: '0 0 4px', letterSpacing: '-0.01em', color: TXT }}>The same model. The same question. Context on, context off.</h2>
+      <h1 style={{ fontFamily: 'var(--font-sans)', fontWeight: 600, fontSize: 'var(--type-title-section-size)', margin: '0 0 4px', letterSpacing: '-0.01em', color: TXT }}>The same model. The same question. Context on, context off.</h1>
       <p style={{ color: TXT2, fontSize: 'var(--type-ui-regular-size)', maxWidth: '70ch', margin: '0 0 20px' }}>Identical task, two modes. The warehouse run may show fewer tokens precisely because it died early. Outcome gates everything else.</p>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' as const }}>
         {/* Model selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ ...type.label, }}>Model</span>
-          <select value={activeModel} onChange={e => setSelectedModel(e.target.value)} style={{
+          <Select value={activeModel} onChange={e => setSelectedModel(e.target.value)} style={{
             ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT, background: SURF2, border: `1px solid ${BORDER2}`,
             borderRadius: 6, padding: '6px 12px', cursor: 'pointer', outline: 'none',
           }}>
@@ -334,14 +335,14 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
               const m = BOOST_MODELS.find(x => x.key === mk);
               return <option key={mk} value={mk}>{m?.label ?? mk} ({m?.tier ?? ''})</option>;
             })}
-          </select>
+          </Select>
         </div>
 
         {/* Case selector */}
         {caseList.length > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ ...type.label, }}>Case</span>
-            <select value={activeCase} onChange={e => setSelectedCase(e.target.value)} style={{
+            <Select value={activeCase} onChange={e => setSelectedCase(e.target.value)} style={{
               ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT, background: SURF2, border: `1px solid ${BORDER2}`,
               borderRadius: 6, padding: '6px 12px', cursor: 'pointer', outline: 'none',
             }}>
@@ -349,7 +350,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
                 const bc = getCaseById(c);
                 return <option key={c} value={c}>{c.replace(/_/g, ' ')}{bc?.difficulty ? ` (${bc.difficulty})` : ''}</option>;
               })}
-            </select>
+            </Select>
           </div>
         )}
       </div>
@@ -359,7 +360,7 @@ export function ContextBoostTab({ data, loading }: { data: BoostResultsPayload |
           <div style={{ ...type.label, color: TXT2, marginBottom: 5 }}>Task · {caseLabel}</div>
           <div style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT }}>Case: {activeCase}</div>
         </div>
-        {model && <span style={{ ...type.label, borderRadius: 4, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: 'var(--brand-a)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
+        {model && <span style={{ ...type.label, borderRadius: 6, padding: '3px 8px', border: '1px solid color-mix(in srgb, var(--brand-a) 50%, transparent)', color: 'var(--brand-a)', background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)' }}>{model.label}</span>}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -453,7 +454,7 @@ export function ModelMatrixTab({ data, loading }: { data: BoostResultsPayload | 
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{
                   ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em', fontWeight: 600,
-                  color: tier.color, padding: '3px 10px', borderRadius: 4,
+                  color: tier.color, padding: '3px 10px', borderRadius: 6,
                   border: `1px solid ${withAlpha(tier.color, '55')}`, background: `${withAlpha(tier.color, '11')}`,
                 }}>
                   {tier.label}
@@ -678,7 +679,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
           {SUITE_OPTIONS.map(s => (
             <button key={s.id} onClick={() => setSelectedSuiteId(s.id)} style={{
               ...mono, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.08em',
-              padding: '4px 12px', borderRadius: 4, cursor: 'pointer',
+              padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
               border: `1px solid ${selectedSuiteId === s.id ? 'color-mix(in srgb, var(--brand-a) 60%, transparent)' : 'rgba(136,146,164,0.3)'}`,
               color: selectedSuiteId === s.id ? GOLD : TXT2,
               background: selectedSuiteId === s.id ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent',
@@ -734,7 +735,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
                       <span style={{ ...type.label, color: isCtx ? GOLD : BLUE }}>{isCtx ? 'CTX' : 'SQL'}</span>
                     </td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)' }}>
-                      <span style={{ ...type.label, borderRadius: 4, padding: '3px 8px', border: '1px solid', color: ok ? GREEN : RED, borderColor: ok ? 'rgba(34,197,94,0.4)' : 'rgba(244,63,94,0.4)' }}>{run.outcome}</span>
+                      <span style={{ ...type.label, borderRadius: 6, padding: '3px 8px', border: '1px solid', color: ok ? GREEN : RED, borderColor: ok ? 'rgba(34,197,94,0.4)' : 'rgba(244,63,94,0.4)' }}>{run.outcome}</span>
                     </td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)', textAlign: 'right', ...mono, fontSize: 'var(--type-ui-regular-size)', color: ok ? TXT : RED }}>{run.tool_calls_total}</td>
                     <td style={{ padding: '11px 12px', borderBottom: isExpanded ? 'none' : '1px solid var(--pl-hair2)', textAlign: 'right', ...mono, fontSize: 'var(--type-ui-regular-size)', color: run.tool_calls_discovery > 0 ? RED : GREEN }}>{run.tool_calls_discovery}</td>
@@ -763,7 +764,7 @@ export function BenchmarkSuiteTab({ data, loading }: { data: BoostResultsPayload
                             {boostCase.difficulty && (
                               <span style={{
                                 ...type.label,
-                                borderRadius: 4, padding: '2px 7px', border: '1px solid',
+                                borderRadius: 6, padding: '2px 7px', border: '1px solid',
                                 color: boostCase.difficulty === 'hard' ? RED : boostCase.difficulty === 'medium' ? GOLD : GREEN,
                                 borderColor: boostCase.difficulty === 'hard' ? 'rgba(244,63,94,0.4)' : boostCase.difficulty === 'medium' ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'rgba(34,197,94,0.4)',
                                 background: 'transparent',

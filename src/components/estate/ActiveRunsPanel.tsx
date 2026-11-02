@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
@@ -34,17 +35,28 @@ interface RecentFailedRow {
   error: string | null;
 }
 
+import type { JobKind } from '@/lib/context/queue';
+
 type ViewMode = 'active' | 'failed24h' | 'partial24h';
 
-const HARVEST_KINDS = [
+/** Every kind a job can have, so the filter can show any existing job. */
+const JOB_KIND_FILTER: JobKind[] = [
+  'change_detect',
   't0_structural',
   't1_profile',
   't2_semantic',
   'embed',
-  'estate_inventory',
+  'mapping',
+  'silo_scan',
+  't3_connected',
   't3_usage',
-  'change_detect',
-] as const;
+  'recompute_entity_tags',
+  'estate_inventory',
+  'knowledge_sync',
+  't4_scan',
+  't4_entity_propose',
+  't4_dim_propose',
+];
 
 interface ActiveRunsPanelProps {
   onSelectJob?: (job: { id: string; job_kind: string; status: string; scope?: unknown }) => void;
@@ -63,8 +75,9 @@ function statusColor(status: string): string {
     case 'queued':
       return '#8892A4';
     case 'failed':
-    case 'partial':
       return '#EF4444';
+    case 'partial':
+      return '#F59E0B';
     default:
       return '#8892A4';
   }
@@ -248,7 +261,7 @@ export default function ActiveRunsPanel({
             ))}
           </div>
           {view === 'active' && (
-            <select
+            <Select
               value={sourceFilter}
               onChange={e => setSourceFilter(e.target.value)}
               className="text-label px-2 py-1.5 rounded border max-w-[140px]"
@@ -258,20 +271,20 @@ export default function ActiveRunsPanel({
               {sources.map(s => (
                 <option key={s.id} value={s.id}>{s.display_name ?? s.id.slice(0, 8)}</option>
               ))}
-            </select>
+            </Select>
           )}
           {view === 'active' && (
-            <select
+            <Select
               value={kindFilter}
               onChange={e => setKindFilter(e.target.value)}
               className="text-label px-2 py-1.5 rounded border"
               style={{ borderColor: 'var(--estate-border)', color: 'var(--estate-text-secondary)' }}
             >
               <option value="">All kinds</option>
-              {HARVEST_KINDS.map(k => (
+              {JOB_KIND_FILTER.map(k => (
                 <option key={k} value={k}>{k.replace(/_/g, ' ')}</option>
               ))}
-            </select>
+            </Select>
           )}
           {view === 'active' && canRunPipeline && (
             <button

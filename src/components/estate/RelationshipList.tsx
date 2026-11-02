@@ -80,7 +80,7 @@ function ActionPair({
         style={{
           ...type.label,
           padding: '2px 7px',
-          borderRadius: 3,
+          borderRadius: 6,
           background: chipStyle.bg,
           color: chipStyle.color,
           border: chipStyle.border,
@@ -123,7 +123,7 @@ function ActionPair({
     fontSize: 'var(--type-ui-regular-size)',
     fontWeight: 600,
     padding: '2px 8px',
-    borderRadius: 3,
+    borderRadius: 6,
     border: 'none',
     cursor: loading ? 'not-allowed' : 'pointer',
     opacity: loading ? 0.5 : 1,

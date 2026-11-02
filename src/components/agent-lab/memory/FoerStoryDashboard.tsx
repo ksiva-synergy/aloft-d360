@@ -8,6 +8,7 @@
  * Theme follows global sidebar toggle via next-themes; CSS variables drive styling.
  */
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useMemo } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Link from '@/lib/navigation/link';
@@ -243,7 +244,7 @@ function FoerStoryInner() {
         .foer-filter-btn {
           background:    var(--foer-filter-bg);
           border:        1px solid var(--foer-border-dim);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding:       0.3rem 0.75rem;
           font-size:     0.75rem;
           font-family:   ${MONO};
@@ -262,7 +263,7 @@ function FoerStoryInner() {
         .foer-select {
           background:    var(--foer-filter-bg);
           border:        1px solid var(--foer-border-dim);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding:       0.3rem 0.65rem;
           font-size:     0.75rem;
           font-family:   ${MONO};
@@ -290,7 +291,7 @@ function FoerStoryInner() {
 
         .foer-skeleton {
           background:    var(--foer-surface);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           animation:     foer-pulse-gold 1.6s ease-in-out infinite;
         }
       `}</style>
@@ -508,7 +509,7 @@ function FoerStoryInner() {
           >
             Topic
           </label>
-          <select
+          <Select
             id="foer-filter-topic"
             className="foer-select"
             value={topicParam}
@@ -523,7 +524,7 @@ function FoerStoryInner() {
                 </option>
               ))
             )}
-          </select>
+          </Select>
         </div>
 
         {/* Window filter */}

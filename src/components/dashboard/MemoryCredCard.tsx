@@ -21,7 +21,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Trophy, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types (mirror the API's wire shape — note: no userId) ──────────────────────
@@ -52,15 +52,14 @@ interface LeaderboardResponse {
 
 // ── Design tokens (shared with DashboardView) ──────────────────────────────────
 
-const SERIF = "'Inter Variable', 'Inter', system-ui, sans-serif";
 const SANS = "'Inter Variable', sans-serif";
-const MONO = "'IBM Plex Mono', monospace";
+const MONO = "'Inter Variable', sans-serif"; // numbers get tabular figures from the .mcred rule
 
-const ACCENT = '#A78BFA'; // memory purple — ties this card to the Memory module
-const TEAL = '#2DD4A0'; // promotion / climbing
+const ACCENT = 'var(--brand-a)';
+const TEAL = 'var(--ok)'; // promotion / climbing
 const GOLD = 'var(--brand-a)'; // elite cred
-const RUST = '#D9774B'; // demotion / dropping
-const MUTED = 'var(--estate-text-muted)';
+const RUST = 'var(--warn)'; // demotion / dropping
+const MUTED = 'var(--ink-3)';
 
 const LEAGUE_MIN = 12; // below this, show one unlabelled board (no "league" wording)
 const TOP_N = 5; // compact: show the top few on the dashboard
@@ -69,8 +68,7 @@ const TOP_N = 5; // compact: show the top few on the dashboard
 // unearned role prior never masquerades as an earned score.
 function credColor(cred: number, provisional: boolean): string {
   if (provisional) return MUTED;
-  if (cred >= 85) return GOLD;
-  return TEAL;
+  return GOLD;
 }
 
 function initials(name: string): string {
@@ -113,8 +111,8 @@ function Avatar({ name, color, size = 26 }: { name: string; color: string; size?
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: MONO, fontSize: size <= 26 ? 9.5 : 11, fontWeight: 600,
-        color: 'var(--estate-ink)', background: 'var(--estate-hover)',
-        border: `1.5px solid ${color}`,
+        color: 'var(--ink-2)', background: 'var(--surface-2)',
+        border: `1px solid ${color === MUTED ? 'var(--line-1)' : `color-mix(in srgb, ${color} 45%, transparent)`}`,
       }}
     >
       {initials(name)}
@@ -128,7 +126,7 @@ function YouTag() {
       style={{
         ...type.label,
         color: inkOf(TEAL), border: `1px solid color-mix(in srgb, ${TEAL} 55%, transparent)`,
-        borderRadius: 4, padding: '1px 4px', marginLeft: 6,
+        borderRadius: 6, padding: '1px 4px', marginLeft: 6,
       }}
     >
       you
@@ -155,7 +153,7 @@ function BoardRow({ e }: { e: Entry }) {
       <span style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
         <Avatar name={e.displayName} color={credColor(e.cred, e.provisional)} />
         <span style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {e.displayName}
           </span>
           {e.isYou && <YouTag />}
@@ -166,7 +164,7 @@ function BoardRow({ e }: { e: Entry }) {
         <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', minWidth: 62, color: e.provisional ? MUTED : credColor(e.cred, false) }}>
           {e.provisional ? 'provisional' : e.cred}
         </span>
-        <span className="mcred-hide-sm" style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-ink)', width: 44, textAlign: 'right' }}>
+        <span className="mcred-hide-sm" style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', width: 44, textAlign: 'right' }}>
           {e.seasonXp}<span style={{ color: MUTED, fontSize: 'var(--type-ui-regular-size)' }}>xp</span>
         </span>
         <span className="mcred-hide-sm" style={{ width: 34, textAlign: 'right' }}><Movement m={e.movement} /></span>
@@ -183,15 +181,15 @@ function RankedState({ view }: { view: View }) {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
             padding: '10px 12px', borderRadius: 9,
-            background: `color-mix(in srgb, ${TEAL} 7%, var(--estate-hover))`,
-            border: '1px solid var(--estate-border)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line-1)',
           }}
         >
-          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-secondary)' }}>
+          <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-2)' }}>
             Your standing
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--estate-ink)' }}>
+            <span style={{ fontFamily: MONO, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--ink-1)' }}>
               #{view.you.rank} <span style={{ color: MUTED, fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>of {view.leagueSize}</span>
             </span>
             <Movement m={view.you.movement} />
@@ -232,9 +230,9 @@ function Legend({ color, label, dashed }: { color: string; label: string; dashed
 function NascentState({ view }: { view: View }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <p style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.55, color: 'var(--estate-text-secondary)', margin: 0, maxWidth: '60ch' }}>
+      <p style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.55, color: 'var(--ink-2)', margin: 0, maxWidth: '60ch' }}>
         Cred is earned, not given. Contribute memory in{' '}
-        <span style={{ fontFamily: MONO, color: 'var(--estate-ink)' }}>{view.domain}</span> that proves helpful on
+        <span style={{ fontFamily: MONO, color: 'var(--ink-1)' }}>{view.domain}</span> that proves helpful on
         real runs and meters fill in. Everyone here is provisional until they have a track record.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
@@ -243,14 +241,14 @@ function NascentState({ view }: { view: View }) {
             key={`${e.rank}-${e.displayName}`}
             style={{
               display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: 10,
-              background: 'var(--estate-hover)',
-              border: `1px solid ${e.isYou ? `color-mix(in srgb, ${TEAL} 55%, transparent)` : 'var(--estate-border)'}`,
+              background: 'var(--surface-2)',
+              border: `1px solid ${e.isYou ? `color-mix(in srgb, ${TEAL} 55%, transparent)` : 'var(--line-1)'}`,
             }}
           >
             <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar name={e.displayName} color={MUTED} size={30} />
               <span style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {e.displayName}
                 </span>
                 {e.isYou && <YouTag />}
@@ -263,7 +261,7 @@ function NascentState({ view }: { view: View }) {
           </div>
         ))}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, borderTop: '1px solid var(--estate-border)', paddingTop: 14 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, borderTop: '1px solid var(--line-1)', paddingTop: 14 }}>
         <HowRow sym="+" text="helpful on a run → cred rises in that class" />
         <HowRow sym="−" text="harmful → cred falls harder than help raises it" />
         <HowRow sym="↻" text="idle cred fades over ~120 days" />
@@ -278,7 +276,7 @@ function HowRow({ sym, text }: { sym: string; text: string }) {
       <span
         style={{
           display: 'inline-flex', width: 20, height: 20, flexShrink: 0, alignItems: 'center', justifyContent: 'center',
-          border: '1px solid var(--estate-border)', borderRadius: 5, fontFamily: MONO, color: 'var(--estate-ink)', fontSize: 'var(--type-ui-regular-size)',
+          border: '1px solid var(--line-1)', borderRadius: 5, fontFamily: MONO, color: 'var(--ink-1)', fontSize: 'var(--type-ui-regular-size)',
         }}
       >
         {sym}
@@ -349,38 +347,25 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: reduce ? 0 : 0.05 * index, ease: 'easeOut' }}
-      className="mcred rounded-xl border shadow-card"
-      style={{ background: 'var(--estate-raised)', borderColor: 'var(--estate-border-gold)', padding: 22, display: 'flex', flexDirection: 'column', gap: 18 }}
+      className="mcred flex flex-col rounded-card border border-[var(--line-1)] bg-[var(--surface-1)]"
       aria-label="Memory cred leaderboard"
     >
       <style>{SCOPED_CSS}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-          <span
-            style={{
-              width: 38, height: 38, borderRadius: 10, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: `color-mix(in srgb, ${ACCENT} 14%, transparent)`, border: `1px solid color-mix(in srgb, ${ACCENT} 30%, transparent)`,
-            }}
-          >
-            <Trophy size={18} style={{ color: ACCENT }} />
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line-1)] px-5 py-3">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h2 className="shrink-0 text-title-card font-semibold text-[var(--ink-1)]">Memory cred</h2>
+          <span className="truncate text-caption text-[var(--ink-3)]">
+            Trust earned per agent class
+            {view ? ` · ${view.leagueSize} contributor${view.leagueSize === 1 ? '' : 's'}` : ''}
+            {showLeague ? ` · league ${view!.league + 1}` : ''}
           </span>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: 'var(--estate-ink)', margin: 0, lineHeight: 1.2 }}>
-              Memory Cred
-            </h2>
-            <p style={{ fontFamily: SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)', margin: '2px 0 0' }}>
-              Trust earned per agent class
-              {view ? ` · ${view.leagueSize} contributor${view.leagueSize === 1 ? '' : 's'}` : ''}
-              {showLeague ? ` · league ${view!.league + 1}` : ''}
-            </p>
-          </div>
         </div>
 
         {/* Domain tabs */}
         {domains.length > 0 && (
-          <div role="tablist" aria-label="Agent class" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div role="tablist" aria-label="Agent class" className="inline-flex flex-wrap gap-0.5 rounded-ctl bg-[var(--surface-2)] p-0.5">
             {domains.map((d) => {
               const on = d === domain;
               return (
@@ -391,10 +376,10 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
                   className="mcred-tab"
                   onClick={() => selectDomain(d)}
                   style={{
-                    fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', cursor: 'pointer', borderRadius: 7, padding: '4px 10px',
-                    border: `1px solid ${on ? `color-mix(in srgb, ${ACCENT} 45%, transparent)` : 'var(--estate-border)'}`,
-                    background: on ? `color-mix(in srgb, ${ACCENT} 14%, transparent)` : 'transparent',
-                    color: on ? 'var(--estate-ink)' : 'var(--estate-text-muted)',
+                    fontSize: 'var(--type-ui-regular-size)', cursor: 'pointer', borderRadius: 6, padding: '3px 10px', border: 0,
+                    background: on ? 'var(--surface-1)' : 'transparent',
+                    boxShadow: on ? '0 1px 2px rgba(0,0,0,0.10)' : 'none',
+                    color: on ? 'var(--ink-1)' : 'var(--ink-3)', fontWeight: on ? 600 : 400, textTransform: 'capitalize',
                   }}
                 >
                   {d}
@@ -406,12 +391,14 @@ export function MemoryCredCard({ index = 4 }: { index?: number }) {
       </div>
 
       {/* Body */}
+      <div className="px-5 py-4">
       {status === 'loading' && <Note text="Loading leaderboard…" />}
       {status === 'error' && <Note text="Couldn’t load the leaderboard right now." dashed />}
       {status === 'ready' && !view && (
         <Note text="No agent classes in memory yet — the board appears once memory is synthesised." dashed />
       )}
       {status === 'ready' && view && (nascent ? <NascentState view={view} /> : <RankedState view={view} />)}
+      </div>
     </motion.section>
   );
 }
@@ -420,7 +407,7 @@ function Note({ text, dashed }: { text: string; dashed?: boolean }) {
   return (
     <div
       style={{
-        border: `1px ${dashed ? 'dashed' : 'solid'} var(--estate-border-gold)`, borderRadius: 8, padding: '20px 16px',
+        border: `1px ${dashed ? 'dashed' : 'solid'} var(--line-1)`, borderRadius: 8, padding: '20px 16px',
         textAlign: 'center', fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)',
       }}
     >
@@ -430,7 +417,8 @@ function Note({ text, dashed }: { text: string; dashed?: boolean }) {
 }
 
 const SCOPED_CSS = `
-.mcred .mcred-meter{position:relative;background:var(--estate-hover);border:1px solid var(--estate-border);border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle}
+.mcred{font-variant-numeric:tabular-nums}
+.mcred .mcred-meter{position:relative;background:var(--surface-2);border:1px solid var(--line-1);border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle}
 .mcred .mcred-meter-fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
 .mcred .mcred-meter-prov{position:absolute;left:0;top:0;bottom:0;border-radius:6px;opacity:.55;background:repeating-linear-gradient(90deg,var(--estate-text-muted) 0 3px,transparent 3px 7px)}
 .mcred .mcred-tab:focus-visible{outline:2px solid ${ACCENT};outline-offset:2px}

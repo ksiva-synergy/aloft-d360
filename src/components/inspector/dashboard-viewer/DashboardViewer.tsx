@@ -242,7 +242,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             onClick={() => router.push(`/inspector/dashboards/${dashboardId}/builder`)}
             style={{
               ...type.label,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
               border: '1px solid var(--builder-border)', background: 'transparent',
               color: 'var(--builder-text)', cursor: 'pointer',
             }}
@@ -258,7 +258,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
             title="Explore data in this model"
             style={{
               ...type.label,
-              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 4,
+              display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 6,
               border: `1px solid ${exploreOpen ? 'var(--brand-a-ink)' : 'var(--builder-border)'}`,
               background: exploreOpen ? 'color-mix(in srgb, var(--brand-a-ink) 11%, transparent)' : 'transparent',
               color: exploreOpen ? 'var(--brand-a-ink)' : 'var(--builder-text)', cursor: 'pointer',
@@ -295,7 +295,7 @@ export function DashboardViewer({ dashboardId }: { dashboardId: string }) {
           <span style={{ flex: 1 }}>Failed to load widget data: {error}</span>
           <button
             onClick={() => refetch()}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: inkOf('#F87171'), cursor: 'pointer', padding: '3px 8px' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: inkOf('#F87171'), cursor: 'pointer', padding: '3px 8px' }}
           >
             RETRY
           </button>
@@ -442,7 +442,7 @@ function WidgetBody({
         </span>
         <button
           onClick={onRetry}
-          style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, color: inkOf('#F87171'), cursor: 'pointer', padding: '2px 8px' }}
+          style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6, color: inkOf('#F87171'), cursor: 'pointer', padding: '2px 8px' }}
         >
           RETRY
         </button>

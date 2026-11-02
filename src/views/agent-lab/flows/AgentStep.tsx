@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useEffect, useState } from 'react';
 import { Bot, ExternalLink, Loader2 } from 'lucide-react';
 import { extractRefs } from '@/lib/flows/validate';
@@ -45,7 +46,7 @@ export function AgentPicker({ id, value, onChange }: { id: string; value: string
   const label = (a: AgentOption) => ((list ?? []).filter((x) => x.name === a.name).length > 1 ? `${a.name} (${a.slug})` : a.name);
   return (
     <>
-      <select id={id} className={field} value={value} disabled={!list} onChange={(e) => onChange(e.target.value || undefined)}>
+      <Select id={id} className={field} value={value} disabled={!list} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">{list ? 'No saved agent (plain AI prompt, no tools)' : 'Loading agents…'}</option>
         {value && list && !chosen && <option value={value}>{value} (not found)</option>}
         {ready.length > 0 && (
@@ -75,7 +76,7 @@ export function AgentPicker({ id, value, onChange }: { id: string; value: string
             ))}
           </optgroup>
         )}
-      </select>
+      </Select>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-size-caption text-[var(--ink-3)]">
         {failed ? 'Could not load the saved agents.' : chosen?.description ? chosen.description : 'A saved agent can look things up with read-only data tools.'}
         <a href="/agent-lab/agents" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-[var(--brand-a)] hover:underline">

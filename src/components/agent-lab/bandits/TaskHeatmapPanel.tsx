@@ -264,7 +264,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             <div style={{
               height: 6,
               width: 160,
-              borderRadius: 3,
+              borderRadius: 6,
               background: `linear-gradient(to right, #1a1a2e, ${TEAL}, ${GOLD})`,
             }} />
             <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>100%</span>

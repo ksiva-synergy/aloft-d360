@@ -81,14 +81,14 @@ function BulletCard({ bullet, dimmed = false }: { bullet: TraceBullet; dimmed?: 
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-        <span style={{ ...type.label, letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+        <span style={{ ...type.label, letterSpacing: '0.04em', color: accent, background: `${withAlpha(accent, '12')}`, border: `1px solid ${withAlpha(accent, '35')}`, borderRadius: 6, padding: '1px 4px', whiteSpace: 'nowrap' }}>
           {ruleTypeLabel(bullet.ruleType)}
         </span>
         <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-mut)' }}>
           {(bullet.confidence * 100).toFixed(0)}% conf
         </span>
         {bullet.version > 1 && (
-          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: LEARNED_STEEL, background: `${withAlpha(LEARNED_STEEL, '14')}`, border: `1px solid ${withAlpha(LEARNED_STEEL, '35')}`, borderRadius: 3, padding: '1px 4px' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: LEARNED_STEEL, background: `${withAlpha(LEARNED_STEEL, '14')}`, border: `1px solid ${withAlpha(LEARNED_STEEL, '35')}`, borderRadius: 6, padding: '1px 4px' }}>
             v{bullet.version}
           </span>
         )}
@@ -224,7 +224,7 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
         onClick={() => summary && setOpen(v => !v)}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: c, background: `${withAlpha(c, '14')}`, border: `1px solid ${withAlpha(c, '35')}`, borderRadius: 3, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', fontWeight: 600, color: c, background: `${withAlpha(c, '14')}`, border: `1px solid ${withAlpha(c, '35')}`, borderRadius: 6, padding: '1px 4px', whiteSpace: 'nowrap' }}>
             {node.nodeType}
           </span>
           {node.edgeType && (
@@ -254,7 +254,7 @@ function TraceNodeRow({ node, isLast }: { node: TraceNode; isLast: boolean }) {
           </p>
         )}
         {open && node.nodeType === 'ACTION' && node.payload?.toolParams != null ? (
-          <pre style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)', borderRadius: 4, padding: '0.4rem', marginTop: '0.35rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          <pre style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: 'var(--foer-text-sec)', background: 'var(--foer-surface2)', borderRadius: 6, padding: '0.4rem', marginTop: '0.35rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
             {JSON.stringify(node.payload.toolParams, null, 2)}
           </pre>
         ) : null}
@@ -378,7 +378,7 @@ export function SessionDetailDrawer({
                   {sessionLabel ?? sessionId?.slice(0, 8) ?? '—'}
                 </span>
                 {topicName && (
-                  <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: GOLD, background: `color-mix(in srgb, ${GOLD} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`, borderRadius: 3, padding: '1px 6px' }}>
+                  <span style={{ fontFamily: MONO, fontSize: 'var(--type-caption-size)', color: GOLD, background: `color-mix(in srgb, ${GOLD} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${GOLD} 19%, transparent)`, borderRadius: 6, padding: '1px 6px' }}>
                     {topicName}
                   </span>
                 )}

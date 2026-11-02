@@ -263,6 +263,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
           pipelineRunning={pipelineRunning}
           scheduledRunning={scheduledRunning}
           catalogScope={filters.catalog ? (filters.schema ? `${filters.catalog}.${filters.schema}` : filters.catalog) : undefined}
+          scopeTotal={total}
           onClear={() => setSelectedPaths(new Set())}
         />
 

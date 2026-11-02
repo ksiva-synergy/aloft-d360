@@ -14,6 +14,7 @@ import {
 import { credentialsLoginEnabled, verifyCredentialsLogin } from '@/lib/auth-credentials';
 
 const SESSION_MAX_AGE_DEFAULT = 8 * 60 * 60; // 8 hours
+const ROLE_RECHECK_MS = 5 * 60_000;
 
 async function recordLoginEvent(params: {
   email: string;
@@ -248,10 +249,12 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // On every token refresh (trigger === 'update' or subsequent requests), re-resolve the
-      // role from the DB so that role changes by an admin take effect without requiring
-      // the user to sign out and back in.
-      if (trigger !== undefined && token.id) {
+      // Re-resolve the role from the DB on sign-in/update and at most every ROLE_RECHECK_MS on
+      // ordinary requests (trigger is undefined then), so demotions and suspensions take effect
+      // within minutes instead of at the 8h token expiry.
+      const lastCheck = typeof token.roleCheckedAt === 'number' ? token.roleCheckedAt : 0;
+      const recheckDue = Date.now() - lastCheck > ROLE_RECHECK_MS;
+      if (token.id && (trigger !== undefined || recheckDue)) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
@@ -261,9 +264,14 @@ export const authOptions: NextAuthOptions = {
             const role = resolvePrimaryRole(dbUser);
             token.role = role;
             token.roleLabel = resolveRoleLabel(role);
+            token.revoked = false;
+          } else {
+            // Deleted, suspended or deactivated: the proxy rejects revoked tokens on /api.
+            token.revoked = true;
           }
+          token.roleCheckedAt = Date.now();
         } catch {
-          // Non-critical: keep existing token.role on DB error
+          // Non-critical: keep existing token.role on DB error and retry on the next request
         }
       }
 
@@ -271,7 +279,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      if (token && session.user) {
+      if (token && session.user && !token.revoked) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.roleLabel = token.roleLabel as string;

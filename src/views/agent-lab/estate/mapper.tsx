@@ -1,8 +1,42 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect } from 'react';
 import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowLeftRight,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Download,
+  Loader2,
+  SearchX,
+  X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  CATALOG_BTN,
+  CATALOG_BTN_PRIMARY,
+  CATALOG_SELECT,
+  CATALOG_SELECT_ARROW,
+  ObjectNameCell,
+  formatCompactCount,
+} from '@/components/estate/catalog-ui';
+import {
+  CARD,
+  ConfidenceBar,
+  ErrorNotice,
+  FieldLabel,
+  MapperStepper,
+  MappingStatusPill,
+  StageList,
+  formatPct,
+  type StageRow,
+} from '@/components/estate/mapper/mapper-ui';
 
 interface Source {
   id: string;
@@ -95,13 +129,6 @@ export default function EstateMapperPage() {
   const [expandedRemainder, setExpandedRemainder] = useState<Record<string, boolean>>({});
   const [thresholds, setThresholds] = useState<Record<string, string>>({});
   const [bulkConfirming, setBulkConfirming] = useState<Record<string, string>>({});
-
-  // Style tokens
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const raisedBg = 'var(--estate-raised)';
-  const borderColor = 'var(--estate-border-gold)';
-  const activeColor = 'var(--brand-a)';
 
   // Load sources on mount
   useEffect(() => {
@@ -423,10 +450,10 @@ export default function EstateMapperPage() {
   const isJobSucceeded = jobData?.status === 'succeeded' || jobData?.status === 'done';
 
   const stages = [
-    { key: 'candidate_generation', label: 'Candidate generation', durKey: 'candidate_generation_duration_ms' },
-    { key: 'value_overlap', label: 'Value overlap (Jaccard)', durKey: 'value_overlap_duration_ms' },
-    { key: 'llm_adjudication', label: 'LLM adjudication', durKey: 'llm_adjudication_duration_ms' },
-    { key: 'persist', label: 'Persist', durKey: 'persist_duration_ms' },
+    { key: 'candidate_generation', label: 'Find candidates', hint: 'Pair up columns with similar names, types and meaning', durKey: 'candidate_generation_duration_ms' },
+    { key: 'value_overlap', label: 'Compare values', hint: 'Check how many sample values the columns share', durKey: 'value_overlap_duration_ms' },
+    { key: 'llm_adjudication', label: 'AI review', hint: 'Score each likely match and explain why', durKey: 'llm_adjudication_duration_ms' },
+    { key: 'persist', label: 'Save results', hint: 'Store the suggested matches for review', durKey: 'persist_duration_ms' },
   ];
 
   const getStageStatus = (stageKey: string, index: number) => {
@@ -439,437 +466,481 @@ export default function EstateMapperPage() {
     return 'unchecked';
   };
 
+  const sourceName = (id: string | undefined) => {
+    const s = sources.find((x) => x.id === id);
+    return s ? s.display_name || s.connection_kind : '';
+  };
+  const schemaLabel = (p: PickerState | null) => (p ? `${p.catalogName}.${p.schemaName}` : '');
+
+  const stageRows: StageRow[] = stages.map((stage, idx) => ({
+    key: stage.key,
+    label: stage.label,
+    hint: stage.hint,
+    status: getStageStatus(stage.key, idx) as StageRow['status'],
+    durationMs: jobData?.stats?.[stage.durKey],
+  }));
+
+  const allAligned = groupedPairs.flatMap((g) => g.mappings);
+  const confirmedCount = allAligned.filter((m) => m.status === 'confirmed').length;
+  const toReviewCount = allAligned.filter((m) => m.status === 'proposed').length;
+
+  const resetToStart = () => {
+    setStep(1);
+    setJobId(null);
+    setJobError(null);
+    setJobData(null);
+  };
+
   return (
-    <div className="h-full flex flex-col overflow-y-auto p-6" style={{ color: inkColor }}>
-      {/* 1. Step indicator strip */}
-      <div className="flex items-center gap-8 mb-8 pb-4 border-b border-dashed" style={{ borderColor }}>
-    <div className="flex items-center gap-2 text-label ">
-          {step > 1 ? (
-            <span style={{ color: activeColor }}>✓</span>
-          ) : (
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeColor }} />
-          )}
-          <span style={{ color: step === 1 ? activeColor : labelColor }}>Pick pair</span>
-        </div>
-        <div style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label ">
-          {step > 2 ? (
-            <span style={{ color: activeColor }}>✓</span>
-          ) : step === 2 ? (
-            <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: activeColor }} />
-          ) : (
-            <span className="w-2 h-2 rounded-full border" style={{ borderColor: labelColor }} />
-          )}
-          <span style={{ color: step === 2 ? activeColor : labelColor }}>Run</span>
-        </div>
-        <div style={{ color: borderColor }}>→</div>
-    <div className="flex items-center gap-2 text-label ">
-          {step === 3 ? (
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeColor }} />
-          ) : (
-            <span className="w-2 h-2 rounded-full border" style={{ borderColor: labelColor }} />
-          )}
-          <span style={{ color: step === 3 ? activeColor : labelColor }}>Review</span>
-        </div>
-      </div>
-
-      {step === 1 && (
-        <div className="flex flex-col gap-6 max-w-4xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Picker */}
-            <SchemaPicker
-              title="Left Schema"
-              sources={sources}
-              value={leftPicker}
-              onChange={setLeftPicker}
-              borderColor={borderColor}
-              raisedBg={raisedBg}
-              inkColor={inkColor}
-              labelColor={labelColor}
-            />
-
-            {/* Right Picker */}
-            <SchemaPicker
-              title="Right Schema"
-              sources={sources}
-              value={rightPicker}
-              onChange={setRightPicker}
-              borderColor={borderColor}
-              raisedBg={raisedBg}
-              inkColor={inkColor}
-              labelColor={labelColor}
-            />
+    <div className="h-full overflow-y-auto px-6 py-5 text-[var(--estate-ink)]">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
+        {/* Header */}
+        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex min-w-0 flex-col gap-3">
+            <MapperStepper step={step} />
           </div>
-
-          {/* Warnings & identical guard */}
-          {isIdenticalPair && (
-            <div className="text-red-500 text-size-ui font-sans font-semibold">
-              Cannot map a schema to itself
-            </div>
-          )}
-
-          {jobError && (
-            <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono">
-              Error: {jobError}
-            </div>
-          )}
-
-          {/* Run config row */}
-          <div className="flex items-center gap-3 py-4 border-t border-dashed" style={{ borderColor }}>
-            <label className="flex items-center gap-2 text-size-ui cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeRejected}
-                onChange={(e) => setIncludeRejected(e.target.checked)}
-                className="w-3.5 h-3.5 rounded border outline-none cursor-pointer accent-[var(--brand-a)]"
-                style={{ borderColor }}
-              />
-              <span style={{ color: labelColor }}>Include previously rejected mappings</span>
-            </label>
-          </div>
-
-          {/* Action button */}
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={handleRunMapping}
-              disabled={!canRun}
-       className="px-6 py-2.5 rounded text-label transition-all duration-200"
-              style={{
-                backgroundColor: canRun ? activeColor : raisedBg,
-                color: canRun ? 'var(--on-brand)' : labelColor,
-                border: canRun ? 'none' : `1px solid ${borderColor}`,
-                cursor: canRun ? 'pointer' : 'not-allowed',
-                opacity: canRun ? 1 : 0.5,
-              }}
-            >
-              {submitting ? 'Starting...' : 'Run Mapping →'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="flex flex-col gap-6 max-w-xl">
-     <h2 className="text-label ">Job Execution</h2>
-          
-          <div className="p-5 rounded border flex flex-col gap-4" style={{ borderColor, backgroundColor: raisedBg }}>
-            <div className="flex flex-col gap-3 font-mono text-size-ui">
-              {stages.map((stage, idx) => {
-                const status = getStageStatus(stage.key, idx);
-                const duration = jobData?.stats?.[stage.durKey];
-                
-                return (
-                  <div key={stage.key} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {status === 'checked' ? (
-                        <span style={{ color: activeColor }} className="font-semibold">✓</span>
-                      ) : status === 'current' ? (
-                        <span className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: activeColor }} />
-                      ) : (
-                        <span className="w-2 h-2 rounded-full border" style={{ borderColor: labelColor }} />
-                      )}
-                      <span style={{ color: status === 'unchecked' ? labelColor : inkColor }}>
-                        {stage.label}
-                      </span>
-                    </div>
-                    {duration !== undefined && (
-                      <span style={{ color: labelColor }} className="text-size-ui">
-                        {(duration / 1000).toFixed(1)}s
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {jobError && (
-            <div className="flex flex-col gap-3">
-              <div className="p-3 rounded border border-red-500/20 bg-red-500/5 text-red-400 text-size-ui font-mono">
-                Error: {jobError}
-              </div>
-              <button
-                onClick={() => {
-                  setStep(1);
-                  setJobId(null);
-                  setJobError(null);
-                  setJobData(null);
-                }}
-        className="px-4 py-2 border rounded self-start text-label hover:border-[var(--brand-a)] transition-colors"
-                style={{ borderColor, color: inkColor }}
-              >
-                ← Try again
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="flex flex-col gap-6 max-w-5xl">
-          <div className="flex justify-between items-center pb-2 border-b" style={{ borderColor }}>
-      <h2 className="text-label ">Mapping Review</h2>
+          {step === 3 && (
             <Link
               href="/api/agent-lab/context/mappings/export?format=md"
               download
-       className="px-4 py-1.5 border rounded text-label hover:border-[var(--brand-a)] transition-all"
-              style={{ borderColor, color: inkColor }}
+              className={cn(CATALOG_BTN, 'h-8')}
             >
-              Export as Markdown ↓
+              <Download className="size-3.5" />
+              Export as Markdown
             </Link>
-          </div>
+          )}
+        </header>
 
-          {loadingMappings ? (
-            <div className="text-size-ui font-sans animate-pulse" style={{ color: labelColor }}>
-              Loading mappings results...
+        {/* STEP 1 — choose schemas */}
+        {step === 1 && (
+          <section className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <SchemaPicker
+                badge="A"
+                title="First schema"
+                sources={sources}
+                loadingSources={loadingSources}
+                value={leftPicker}
+                onChange={setLeftPicker}
+              />
+              <div className="flex items-center justify-center" aria-hidden>
+                <span className="flex size-8 items-center justify-center rounded-full border border-[var(--estate-border)] bg-[var(--estate-surface)] text-[var(--estate-text-muted)]">
+                  <ArrowLeftRight className="size-4" />
+                </span>
+              </div>
+              <SchemaPicker
+                badge="B"
+                title="Second schema"
+                sources={sources}
+                loadingSources={loadingSources}
+                value={rightPicker}
+                onChange={setRightPicker}
+              />
             </div>
-          ) : groupedPairs.length === 0 ? (
-            <div className="text-size-ui font-sans" style={{ color: labelColor }}>
-              No proposed mappings found between the selected schemas.
+
+            {isIdenticalPair && <ErrorNotice>Pick two different schemas to compare.</ErrorNotice>}
+            {jobError && <ErrorNotice>{jobError}</ErrorNotice>}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--estate-border)] pt-4">
+              <label className="flex cursor-pointer select-none items-center gap-2 text-ui-regular text-[var(--estate-text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={includeRejected}
+                  onChange={(e) => setIncludeRejected(e.target.checked)}
+                  className="size-3.5 cursor-pointer accent-[var(--brand-a)]"
+                />
+                Include matches I rejected before
+              </label>
+              <button type="button" onClick={handleRunMapping} disabled={!canRun} className={CATALOG_BTN_PRIMARY}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Starting{'\u2026'}
+                  </>
+                ) : (
+                  <>
+                    Find matching columns
+                    <ArrowRight className="size-3.5" />
+                  </>
+                )}
+              </button>
             </div>
-          ) : (
-            <div className="flex flex-col gap-6">
-              {groupedPairs.map((group) => {
-                const isExpanded = expandedGroups[group.key] !== false;
-                const isRemainderExpanded = expandedRemainder[group.key] === true;
-                const threshold = thresholds[group.key] || '0.85';
-                const confirmingState = bulkConfirming[group.key];
+          </section>
+        )}
 
-                // Calculate group stats
-                const scores = group.mappings.map((m) => m.confidence ?? 0);
-                const avgConf = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(3) : '0.000';
+        {/* STEP 2 — matching in progress */}
+        {step === 2 && (
+          <section className={cn(CARD, 'w-full max-w-[640px]')}>
+            <div className="flex items-start gap-3 border-b border-[var(--estate-border)] px-5 py-4">
+              {jobError ? (
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[var(--bad)]" />
+              ) : (
+                <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-[var(--brand-a)]" />
+              )}
+              <div className="min-w-0">
+                <h2 className="text-title-card text-[var(--estate-ink)]">
+                  {jobError ? 'Matching stopped' : 'Finding matching columns'}
+                </h2>
+                <p className="mt-0.5 text-caption text-[var(--estate-text-muted)]">
+                  Comparing <span className="font-mono">{schemaLabel(leftPicker)}</span>
+                  {' \u2192 '}
+                  <span className="font-mono">{schemaLabel(rightPicker)}</span>
+                  {!jobError && '. This page updates on its own.'}
+                </p>
+              </div>
+            </div>
+            <div className="px-5 py-4">
+              <StageList stages={stageRows} />
+            </div>
+            {jobError && (
+              <div className="flex flex-col gap-3 border-t border-[var(--estate-border)] px-5 py-4">
+                <ErrorNotice>{jobError}</ErrorNotice>
+                <button type="button" onClick={resetToStart} className={cn(CATALOG_BTN, 'self-start')}>
+                  <ArrowLeft className="size-3.5" />
+                  Try again
+                </button>
+              </div>
+            )}
+          </section>
+        )}
 
-                return (
-                  <div key={group.key} className="border rounded flex flex-col overflow-hidden" style={{ borderColor, backgroundColor: raisedBg }}>
-                    {/* Group Header */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3 border-b cursor-pointer select-none"
-                      style={{ borderColor, backgroundColor: 'var(--estate-bg)' }}
-                      onClick={() =>
-                        setExpandedGroups((prev) => ({ ...prev, [group.key]: !isExpanded }))
-                      }
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className="text-size-ui">{isExpanded ? '▼' : '▶'}</span>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-size-ui font-semibold">
-                            {group.leftObjectPath} ↔ {group.rightObjectPath}
-                          </span>
-                          <span className="text-size-ui font-sans" style={{ color: labelColor }}>
-                            avg confidence: {avgConf} · {group.mappings.length} column mappings
-                          </span>
-                        </div>
-                      </div>
+        {/* STEP 3 — review */}
+        {step === 3 && (
+          <section className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <div className="min-w-0 text-ui-regular text-[var(--estate-text-secondary)]">
+                <span className="text-[var(--estate-text-muted)]">{sourceName(leftPicker?.sourceId)}</span>{' '}
+                <span className="font-mono text-[var(--estate-ink)]">{schemaLabel(leftPicker)}</span>
+                <ArrowRight className="mx-2 inline size-3.5 align-[-2px] text-[var(--estate-text-dim)]" />
+                <span className="text-[var(--estate-text-muted)]">{sourceName(rightPicker?.sourceId)}</span>{' '}
+                <span className="font-mono text-[var(--estate-ink)]">{schemaLabel(rightPicker)}</span>
+              </div>
+              {!loadingMappings && groupedPairs.length > 0 && (
+                <div className="text-ui-regular tabular-nums text-[var(--estate-text-muted)]">
+                  <span className="text-[var(--estate-ink)]">{groupedPairs.length}</span>{' '}
+                  {groupedPairs.length === 1 ? 'table pair' : 'table pairs'}
+                  {' \u00b7 '}
+                  <span className="text-[var(--estate-ink)]">{allAligned.length}</span> suggested matches
+                  {' \u00b7 '}
+                  <span className="text-[var(--ok)]">{confirmedCount}</span> confirmed
+                  {' \u00b7 '}
+                  <span className="text-[var(--estate-ink)]">{toReviewCount}</span> to review
+                </div>
+              )}
+            </div>
 
-                      {/* Bulk actions */}
-                      <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-size-ui font-mono" style={{ color: labelColor }}>
-                            Bulk confirm ≥
+            {loadingMappings ? (
+              <div className={cn(CARD, 'flex flex-col gap-3 p-5')} aria-busy>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-8 animate-pulse rounded-ctl bg-[var(--estate-hover)]" />
+                ))}
+              </div>
+            ) : groupedPairs.length === 0 ? (
+              <div className={cn(CARD, 'flex flex-col items-center gap-2 px-6 py-12 text-center')}>
+                <SearchX className="size-6 text-[var(--estate-text-dim)]" />
+                <div className="text-ui text-[var(--estate-ink)]">No matches found between these schemas</div>
+                <div className="max-w-md text-caption text-[var(--estate-text-muted)]">
+                  The two schemas may not share any data, or every match was rejected earlier.
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {groupedPairs.map((group) => {
+                  const isExpanded = expandedGroups[group.key] !== false;
+                  const isRemainderExpanded = expandedRemainder[group.key] === true;
+                  const threshold = thresholds[group.key] || '0.85';
+                  const confirmingState = bulkConfirming[group.key];
+
+                  const scores = group.mappings.map((m) => m.confidence ?? 0);
+                  const avgConf = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+                  const groupConfirmed = group.mappings.filter((m) => m.status === 'confirmed').length;
+                  const eligible = group.mappings.filter(
+                    (m) => m.status === 'proposed' && (m.confidence ?? 0) >= (parseFloat(threshold) || 0.85)
+                  ).length;
+
+                  const leftAll = objectColumns[group.leftObjectId]?.map((c) => c.name) || [];
+                  const leftMapped = new Set(group.mappings.map((m) => m.leftColName));
+                  const leftUnmapped = leftAll.filter((name) => !leftMapped.has(name));
+                  const rightAll = objectColumns[group.rightObjectId]?.map((c) => c.name) || [];
+                  const rightMapped = new Set(group.mappings.map((m) => m.rightColName));
+                  const rightUnmapped = rightAll.filter((name) => !rightMapped.has(name));
+
+                  const toggleGroup = () =>
+                    setExpandedGroups((prev) => ({ ...prev, [group.key]: !isExpanded }));
+
+                  return (
+                    <div key={group.key} className={cn(CARD, 'overflow-hidden')}>
+                      {/* Pair header */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={toggleGroup}
+                          aria-expanded={isExpanded}
+                          className="flex min-w-0 flex-1 items-center gap-3 rounded-ctl text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                        >
+                          <ChevronRight
+                            className={cn(
+                              'size-4 shrink-0 text-[var(--estate-text-muted)] transition-transform duration-hover',
+                              isExpanded && 'rotate-90'
+                            )}
+                          />
+                          <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="grid min-w-0 grid-cols-[minmax(0,auto)_auto_minmax(0,auto)] items-center justify-start gap-2">
+                              <ObjectNameCell path={group.leftObjectPath} />
+                              <ArrowRight className="size-3.5 shrink-0 text-[var(--estate-text-dim)]" />
+                              <ObjectNameCell path={group.rightObjectPath} />
+                            </span>
+                            <span className="text-caption tabular-nums text-[var(--estate-text-muted)]">
+                              {group.mappings.length} {group.mappings.length === 1 ? 'match' : 'matches'}
+                              {' \u00b7 '}average confidence {formatPct(avgConf)}
+                              {' \u00b7 '}
+                              {groupConfirmed} confirmed
+                            </span>
                           </span>
-                          <input
-                            type="number"
-                            step="0.05"
-                            min="0.0"
-                            max="1.0"
+                        </button>
+
+                        {/* Bulk confirm */}
+                        <div className="flex shrink-0 items-center gap-2">
+                          <label
+                            htmlFor={`thr-${group.key}`}
+                            className="text-caption text-[var(--estate-text-muted)]"
+                          >
+                            Confirm all at or above
+                          </label>
+                          <Select
+                            id={`thr-${group.key}`}
                             value={threshold}
                             onChange={(e) =>
                               setThresholds((prev) => ({ ...prev, [group.key]: e.target.value }))
                             }
-                            className="w-12 h-6 border rounded px-1 text-size-ui font-mono outline-none text-center bg-transparent"
-                            style={{ borderColor, color: inkColor }}
-                          />
-                        </div>
-                        <button
-                          disabled={!!confirmingState}
-                          onClick={() => handleBulkConfirm(group)}
-             className="px-3 py-1 bg-[var(--brand-a)] text-[#FFFFFF] rounded text-label hover:brightness-110 disabled:opacity-50"
-                        >
-                          {confirmingState || 'Confirm'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="flex flex-col">
-                        {/* Rows */}
-                        <div className="flex flex-col divide-y transition-colors duration-200" style={{ borderColor }}>
-                          {group.mappings.map((m) => {
-                            const isConfirmed = m.status === 'confirmed';
-                            const isRejected = m.status === 'rejected';
-
-                            const signals = (m.signals || {}) as Record<string, any>;
-                            const embedVal = signals.embed_sim ?? 0;
-                            const nameVal = signals.name_sim ?? 0;
-                            const typeVal = signals.type_compat ?? 0;
-                            const jaccardVal = signals.value_overlap_jaccard ?? 0;
-
-                            const verdict = (m.llm_verdict || {}) as Record<string, any>;
-                            const rationale = verdict.rationale || verdict.verdict || '';
-                            const truncRationale = rationale.length > 80 ? rationale.slice(0, 77) + '...' : rationale;
-
-                            return (
-                              <div
-                                key={m.id}
-                                className={`grid grid-cols-1 md:grid-cols-12 gap-4 px-4 py-3 items-center text-size-ui transition-all duration-200 ${
-                                  isConfirmed ? 'bg-green-500/5' : isRejected ? 'opacity-40' : ''
-                                }`}
-                              >
-                                {/* Aligned Column names */}
-                                <div className="col-span-3 font-mono font-semibold flex flex-wrap items-center gap-1.5">
-                                  <span className={isRejected ? 'line-through' : ''}>{m.leftColName}</span>
-                                  <span style={{ color: labelColor }}>↔</span>
-                                  <span className={isRejected ? 'line-through' : ''}>{m.rightColName}</span>
-                                </div>
-
-                                {/* Signals bars */}
-                                <div className="col-span-3 flex items-center gap-3">
-                                  <div className="flex flex-col gap-1 w-full">
-                                    <div className="grid grid-cols-4 gap-1 text-size-ui font-mono text-center" style={{ color: labelColor }}>
-                                      <div>EMB</div>
-                                      <div>NAM</div>
-                                      <div>TYP</div>
-                                      <div>JAC</div>
-                                    </div>
-                                    <div className="grid grid-cols-4 gap-1.5">
-                                      {/* Embed */}
-                                      <div className="h-1 bg-[color:color-mix(in_srgb,var(--surface-3)_20%,transparent)] rounded overflow-hidden">
-                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${embedVal * 100}%` }} />
-                                      </div>
-                                      {/* Name */}
-                                      <div className="h-1 bg-[color:color-mix(in_srgb,var(--surface-3)_20%,transparent)] rounded overflow-hidden">
-                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${nameVal * 100}%` }} />
-                                      </div>
-                                      {/* Type */}
-                                      <div className="h-1 bg-[color:color-mix(in_srgb,var(--surface-3)_20%,transparent)] rounded overflow-hidden">
-                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${typeVal * 100}%` }} />
-                                      </div>
-                                      {/* Jaccard */}
-                                      <div className="h-1 bg-[color:color-mix(in_srgb,var(--surface-3)_20%,transparent)] rounded overflow-hidden">
-                                        <div className="h-full bg-[var(--brand-a)]" style={{ width: `${jaccardVal * 100}%` }} />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Rationale */}
-                                <div
-                                  className="col-span-3 text-size-ui truncate select-none"
-                                  style={{ color: labelColor }}
-                                  title={rationale}
-                                >
-                                  {truncRationale}
-                                </div>
-
-                                {/* Confidence */}
-                                <div className="col-span-1 font-mono text-center font-semibold">
-                                  {(m.confidence ?? 0).toFixed(3)}
-                                </div>
-
-                                {/* Action buttons */}
-                                <div className="col-span-2 flex justify-end items-center gap-2">
-                                  {isConfirmed ? (
-                                    <span className="text-green-500 font-mono font-semibold">Confirmed ✓</span>
-                                  ) : isRejected ? (
-                                    <span style={{ color: labelColor }} className="font-mono">Rejected</span>
-                                  ) : (
-                                    <>
-                                      <button
-                                        onClick={() => handleUpdateStatus(m.id, 'confirmed')}
-                    className="px-2.5 py-1 rounded border border-green-500/30 text-green-500 hover:bg-green-500/10 text-label "
-                                      >
-                                        Confirm
-                                      </button>
-                                      <button
-                                        onClick={() => handleUpdateStatus(m.id, 'rejected')}
-                    className="px-2.5 py-1 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 text-label "
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Collapsible Unmapped Remainder Panel */}
-                        <div className="border-t p-3" style={{ borderColor }}>
-                          <div
-              className="flex items-center gap-2 text-label cursor-pointer select-none"
-                            style={{ color: labelColor }}
-                            onClick={() =>
-                              setExpandedRemainder((prev) => ({ ...prev, [group.key]: !isRemainderExpanded }))
-                            }
+                            className={cn(CATALOG_SELECT, 'h-7 pl-2 pr-6 tabular-nums')}
+                            style={CATALOG_SELECT_ARROW}
                           >
-                            <span>{isRemainderExpanded ? '▼' : '▶'}</span>
-                            <span>Unmapped columns remainder</span>
+                            {['0.95', '0.9', '0.85', '0.8', '0.75', '0.7', '0.6', '0.5'].map((t) => (
+                              <option key={t} value={t}>
+                                {formatPct(parseFloat(t))}
+                              </option>
+                            ))}
+                          </Select>
+                          <button
+                            type="button"
+                            disabled={!!confirmingState}
+                            onClick={() => handleBulkConfirm(group)}
+                            className={CATALOG_BTN}
+                          >
+                            {confirmingState ? (
+                              <>
+                                <Loader2 className="size-3.5 animate-spin" />
+                                {confirmingState}
+                              </>
+                            ) : (
+                              <>
+                                <Check className="size-3.5" />
+                                Confirm {eligible > 0 ? eligible : ''}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <>
+                          <div className="overflow-x-auto border-t border-[var(--estate-border)]">
+                            <table className="w-full min-w-[860px] table-fixed text-left">
+                              <thead>
+                                <tr className="text-caption text-[var(--estate-text-muted)]">
+                                  <th className="w-[20%] px-4 py-2 font-medium">Column in first schema</th>
+                                  <th className="w-7 py-2" aria-label="maps to" />
+                                  <th className="w-[20%] px-3 py-2 font-medium">Column in second schema</th>
+                                  <th className="px-3 py-2 font-medium">Why it matches</th>
+                                  <th className="w-[124px] px-3 py-2 font-medium">Confidence</th>
+                                  <th className="w-[112px] px-3 py-2 font-medium">Status</th>
+                                  <th className="w-[150px] px-4 py-2 text-right font-medium">
+                                    <span className="sr-only">Actions</span>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {group.mappings.map((m) => {
+                                  const isConfirmed = m.status === 'confirmed';
+                                  const isRejected = m.status === 'rejected';
+
+                                  const signals = (m.signals || {}) as Record<string, any>;
+                                  const signalHint = [
+                                    `Meaning ${formatPct(signals.embed_sim ?? 0)}`,
+                                    `Name ${formatPct(signals.name_sim ?? 0)}`,
+                                    `Type ${formatPct(signals.type_compat ?? 0)}`,
+                                    `Shared values ${formatPct(signals.value_overlap_jaccard ?? 0)}`,
+                                  ].join(' \u00b7 ');
+
+                                  const verdict = (m.llm_verdict || {}) as Record<string, any>;
+                                  const rationale: string = verdict.rationale || verdict.verdict || '';
+
+                                  return (
+                                    <tr
+                                      key={m.id}
+                                      className={cn(
+                                        'border-t border-[var(--estate-border)] align-middle transition-colors duration-hover',
+                                        isConfirmed && 'bg-[color:color-mix(in_srgb,var(--ok)_5%,transparent)]',
+                                        isRejected && 'opacity-55',
+                                        !isConfirmed && !isRejected && 'hover:bg-[var(--estate-hover)]'
+                                      )}
+                                    >
+                                      <td className="px-4 py-2.5">
+                                        <span
+                                          className={cn(
+                                            'block truncate font-mono text-ui-regular text-[var(--estate-ink)]',
+                                            isRejected && 'line-through'
+                                          )}
+                                          title={m.leftColName}
+                                        >
+                                          {m.leftColName}
+                                        </span>
+                                      </td>
+                                      <td className="py-2.5 text-[var(--estate-text-dim)]">
+                                        <ArrowRight className="size-3.5" />
+                                      </td>
+                                      <td className="px-3 py-2.5">
+                                        <span
+                                          className={cn(
+                                            'block truncate font-mono text-ui-regular text-[var(--estate-ink)]',
+                                            isRejected && 'line-through'
+                                          )}
+                                          title={m.rightColName}
+                                        >
+                                          {m.rightColName}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2.5">
+                                        <span
+                                          className="line-clamp-2 text-caption text-[var(--estate-text-muted)]"
+                                          title={rationale || undefined}
+                                        >
+                                          {rationale || '\u2014'}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2.5">
+                                        <ConfidenceBar value={m.confidence} title={signalHint} />
+                                      </td>
+                                      <td className="px-3 py-2.5">
+                                        <MappingStatusPill status={m.status} />
+                                      </td>
+                                      <td className="px-4 py-2.5">
+                                        {!isConfirmed && !isRejected && (
+                                          <div className="flex items-center justify-end gap-1.5">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateStatus(m.id, 'confirmed')}
+                                              className={cn(CATALOG_BTN, 'hover:border-[var(--ok)] hover:text-[var(--ok)]')}
+                                            >
+                                              <Check className="size-3.5" />
+                                              Confirm
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleUpdateStatus(m.id, 'rejected')}
+                                              aria-label={`Reject ${m.leftColName} to ${m.rightColName}`}
+                                              title="Reject"
+                                              className={cn(
+                                                CATALOG_BTN,
+                                                'w-7 justify-center px-0 hover:border-[var(--bad)] hover:text-[var(--bad)]'
+                                              )}
+                                            >
+                                              <X className="size-3.5" />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
                           </div>
 
-                          {isRemainderExpanded && (
-                            <div className="mt-2.5 flex flex-col gap-2 pl-4 text-size-ui font-mono">
-                              {(() => {
-                                const leftAll = objectColumns[group.leftObjectId]?.map((c) => c.name) || [];
-                                const leftMapped = new Set(group.mappings.map((m) => m.leftColName));
-                                const leftUnmapped = leftAll.filter((name) => !leftMapped.has(name));
+                          {/* Unmatched columns */}
+                          <div className="border-t border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-2.5">
+                            <button
+                              type="button"
+                              aria-expanded={isRemainderExpanded}
+                              onClick={() =>
+                                setExpandedRemainder((prev) => ({ ...prev, [group.key]: !isRemainderExpanded }))
+                              }
+                              className="flex items-center gap-1.5 rounded-ctl text-label text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                            >
+                              <ChevronRight
+                                className={cn('size-3.5 transition-transform duration-hover', isRemainderExpanded && 'rotate-90')}
+                              />
+                              Columns without a match
+                              <span className="font-normal tabular-nums text-[var(--estate-text-muted)]">
+                                ({leftUnmapped.length + rightUnmapped.length})
+                              </span>
+                            </button>
 
-                                const rightAll = objectColumns[group.rightObjectId]?.map((c) => c.name) || [];
-                                const rightMapped = new Set(group.mappings.map((m) => m.rightColName));
-                                const rightUnmapped = rightAll.filter((name) => !rightMapped.has(name));
-
-                                return (
-                                  <>
-                                    <div>
-                                      <span className="font-semibold">Left unmapped ({leftUnmapped.length}):</span>{' '}
-                                      {leftUnmapped.length > 0 ? leftUnmapped.join(', ') : 'none'}
+                            {isRemainderExpanded && (
+                              <div className="mt-3 grid grid-cols-1 gap-4 pb-1 md:grid-cols-2">
+                                {[
+                                  { label: 'Only in first schema', path: group.leftObjectPath, cols: leftUnmapped },
+                                  { label: 'Only in second schema', path: group.rightObjectPath, cols: rightUnmapped },
+                                ].map((side) => (
+                                  <div key={side.label} className="min-w-0">
+                                    <div className="mb-1.5 text-caption text-[var(--estate-text-muted)]">
+                                      {side.label}{' '}
+                                      <span className="font-mono">{side.path.split('.').pop()}</span>
+                                      {' \u00b7 '}
+                                      <span className="tabular-nums">{side.cols.length}</span>
                                     </div>
-                                    <div>
-                                      <span className="font-semibold">Right unmapped ({rightUnmapped.length}):</span>{' '}
-                                      {rightUnmapped.length > 0 ? rightUnmapped.join(', ') : 'none'}
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                                    {side.cols.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {side.cols.map((name) => (
+                                          <span
+                                            key={name}
+                                            className="rounded-full border border-[var(--estate-border)] bg-[var(--estate-raised)] px-2 py-0.5 font-mono text-caption text-[var(--estate-text-secondary)]"
+                                          >
+                                            {name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-caption text-[var(--estate-text-dim)]">Every column has a match.</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
 
 // extracted SchemaPicker component
 interface SchemaPickerProps {
+  badge: string;
   title: string;
   sources: Source[];
+  loadingSources: boolean;
   value: PickerState | null;
   onChange: (val: PickerState | null) => void;
-  borderColor: string;
-  raisedBg: string;
-  inkColor: string;
-  labelColor: string;
 }
 
 function SchemaPicker({
+  badge,
   title,
   sources,
+  loadingSources,
   value,
   onChange,
-  borderColor,
-  raisedBg,
-  inkColor,
-  labelColor,
 }: SchemaPickerProps) {
-  const activeColor = 'var(--brand-a)';
   const [catalogs, setCatalogs] = useState<string[]>([]);
   const [schemas, setSchemas] = useState<string[]>([]);
   const [loadingCatalogs, setLoadingCatalogs] = useState(false);
@@ -880,23 +951,8 @@ function SchemaPicker({
   const [enrichedObjects, setEnrichedObjects] = useState<number | null>(null);
   const [loadingCoverage, setLoadingCoverage] = useState(false);
 
-  // Dropdown style
-  const selectStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--type-ui-regular-size)',
-    backgroundColor: raisedBg,
-    border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
-    color: inkColor,
-    padding: '8px 24px 8px 12px',
-    outline: 'none',
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%238892A4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 10px center',
-    width: '100%',
-  };
+  const selectCls = cn(CATALOG_SELECT, 'w-full disabled:cursor-not-allowed disabled:opacity-60');
+  const idBase = `picker-${badge}`;
 
   const handleSourceChange = async (sourceId: string) => {
     if (!sourceId) {
@@ -1006,104 +1062,121 @@ function SchemaPicker({
     void fetchCoverage();
   }, [value?.sourceId, value?.catalogName, value?.schemaName]);
 
-  return (
-    <div className="flex flex-col gap-4 p-4 rounded border" style={{ borderColor, backgroundColor: raisedBg }}>
-   <h3 className="text-label " style={{ color: activeColor }}>
-        {title}
-      </h3>
+  const ready = !!(value?.sourceId && value?.catalogName && value?.schemaName);
+  const missing =
+    totalObjects !== null && enrichedObjects !== null && enrichedObjects < totalObjects
+      ? totalObjects - enrichedObjects
+      : 0;
 
-      <div className="flex flex-col gap-3">
-        {/* 1. Source selector */}
+  return (
+    <div className={cn(CARD, 'flex min-w-0 flex-col')}>
+      <div className="flex items-center gap-2.5 border-b border-[var(--estate-border)] px-4 py-3">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[color:color-mix(in_srgb,var(--brand-a)_12%,transparent)] text-caption font-semibold text-[var(--brand-a)]">
+          {badge}
+        </span>
+        <h2 className="text-title-card text-[var(--estate-ink)]">{title}</h2>
+      </div>
+
+      <div className="flex flex-col gap-3 px-4 py-4">
         <div className="flex flex-col gap-1">
-     <label className="text-label " style={{ color: labelColor }}>
-            Source
-          </label>
-          <select
-            style={selectStyle}
+          <FieldLabel htmlFor={`${idBase}-source`}>Source</FieldLabel>
+          <Select
+            id={`${idBase}-source`}
+            className={selectCls}
+            style={CATALOG_SELECT_ARROW}
             value={value?.sourceId || ''}
             onChange={(e) => handleSourceChange(e.target.value)}
           >
-            <option value="">Select source...</option>
+            <option value="">{loadingSources ? 'Loading sources\u2026' : 'Choose a source'}</option>
             {sources.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.display_name || s.connection_kind} ({s.status})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
-        {/* 2. Catalog selector */}
-        <div className="flex flex-col gap-1">
-     <label className="text-label " style={{ color: labelColor }}>
-            Catalog
-          </label>
-          <select
-            style={selectStyle}
-            disabled={!value?.sourceId || loadingCatalogs}
-            value={value?.catalogName || ''}
-            onChange={(e) => handleCatalogChange(e.target.value)}
-          >
-            <option value="">
-              {loadingCatalogs ? 'Loading catalogs...' : 'Select catalog...'}
-            </option>
-            {catalogs.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1">
+            <FieldLabel htmlFor={`${idBase}-catalog`}>Catalog</FieldLabel>
+            <Select
+              id={`${idBase}-catalog`}
+              className={selectCls}
+              style={CATALOG_SELECT_ARROW}
+              disabled={!value?.sourceId || loadingCatalogs}
+              value={value?.catalogName || ''}
+              onChange={(e) => handleCatalogChange(e.target.value)}
+            >
+              <option value="">{loadingCatalogs ? 'Loading\u2026' : 'Choose a catalog'}</option>
+              {catalogs.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-        {/* 3. Schema selector */}
-        <div className="flex flex-col gap-1">
-     <label className="text-label " style={{ color: labelColor }}>
-            Schema
-          </label>
-          <select
-            style={selectStyle}
-            disabled={!value?.catalogName || loadingSchemas}
-            value={value?.schemaName || ''}
-            onChange={(e) => handleSchemaChange(e.target.value)}
-          >
-            <option value="">
-              {loadingSchemas ? 'Loading schemas...' : 'Select schema...'}
-            </option>
-            {schemas.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="flex min-w-0 flex-col gap-1">
+            <FieldLabel htmlFor={`${idBase}-schema`}>Schema</FieldLabel>
+            <Select
+              id={`${idBase}-schema`}
+              className={selectCls}
+              style={CATALOG_SELECT_ARROW}
+              disabled={!value?.catalogName || loadingSchemas}
+              value={value?.schemaName || ''}
+              onChange={(e) => handleSchemaChange(e.target.value)}
+            >
+              <option value="">{loadingSchemas ? 'Loading\u2026' : 'Choose a schema'}</option>
+              {schemas.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* Coverage summaries */}
-      {value?.sourceId && value?.catalogName && value?.schemaName && (
-        <div className="mt-2 pt-2 border-t text-size-ui font-mono" style={{ borderColor }}>
-          {loadingCoverage ? (
-            <span style={{ color: labelColor }} className="animate-pulse">Loading coverage stats...</span>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <div>
-                {totalObjects ?? 0} objects · {enrichedObjects ?? 0} enriched{' '}
-                {enrichedObjects === totalObjects ? (
-                  <span className="text-green-500 font-semibold">✓</span>
-                ) : (
-                  <span className="text-amber-500 font-semibold">⚠</span>
-                )}
-              </div>
-              {totalObjects !== null && enrichedObjects !== null && enrichedObjects < totalObjects && (
-                <div className="text-amber-500 mt-1">
-                  ⚠ {totalObjects - enrichedObjects} objects not enriched — mapping quality may be reduced.{' '}
-                  <Link href="/agent-lab/estate/catalog" className="underline hover:text-[var(--brand-a-ink)] transition-colors">
-                    [Enrich now →]
-                  </Link>
-                </div>
+      <div className="mt-auto border-t border-[var(--estate-border)] px-4 py-3 text-caption">
+        {!ready ? (
+          <span className="text-[var(--estate-text-muted)]">Pick a source, catalog and schema.</span>
+        ) : loadingCoverage ? (
+          <span className="flex items-center gap-1.5 text-[var(--estate-text-muted)]">
+            <Loader2 className="size-3 animate-spin" />
+            Checking tables{'\u2026'}
+          </span>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 tabular-nums text-[var(--estate-text-secondary)]">
+              {missing === 0 ? (
+                <CheckCircle2 className="size-3.5 text-[var(--ok)]" />
+              ) : (
+                <AlertTriangle className="size-3.5 text-[var(--warn)]" />
               )}
+              <span>
+                <span className="text-[var(--estate-ink)]">{formatCompactCount(totalObjects ?? 0)}</span>{' '}
+                {totalObjects === 1 ? 'table' : 'tables'}
+                {' \u00b7 '}
+                <span className="text-[var(--estate-ink)]">{formatCompactCount(enrichedObjects ?? 0)}</span> with
+                descriptions
+              </span>
             </div>
-          )}
-        </div>
-      )}
+            {missing > 0 && (
+              <div className="text-[var(--estate-text-muted)]">
+                {missing.toLocaleString()} {missing === 1 ? 'table has' : 'tables have'} no description yet, so
+                matches may be less accurate.{' '}
+                <Link
+                  href="/agent-lab/estate/catalog"
+                  className="inline-flex items-center gap-0.5 text-[var(--brand-a)] hover:underline"
+                >
+                  Add descriptions in Catalog
+                  <ArrowRight className="size-3" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

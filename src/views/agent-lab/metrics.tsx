@@ -17,6 +17,7 @@ import { MetricsCatalog } from '@/components/inspector/metrics-catalog/MetricsCa
 export default function MetricsPage() {
   return (
     <div className="metrics-catalog" style={{ height: '100%' }}>
+      <h1 className="sr-only">Metrics catalog</h1>
       {/* Suspense boundary required because MetricsCatalog reads useSearchParams
           (model/lens URL sync) — Next 15 de-opts static rendering otherwise. */}
       <React.Suspense fallback={null}>

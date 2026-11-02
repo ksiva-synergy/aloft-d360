@@ -464,7 +464,7 @@ function DefineItPlaceholder({ term, provenance }: { term: string; provenance?: 
 function typeChip(color: string): React.CSSProperties {
   return {
     fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase',
-    padding: '2px 7px', borderRadius: 4,
+    padding: '2px 7px', borderRadius: 6,
     border: `1px solid ${tint(color, 50)}`, background: tint(color, 18), color,
     whiteSpace: 'nowrap', fontWeight: 600, pointerEvents: 'none',
     flexShrink: 0,

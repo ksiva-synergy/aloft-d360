@@ -81,7 +81,7 @@ export function ArmLeaderboard({ models }: { models: ModelStat[] }) {
                       <div className="flex items-center justify-end gap-2">
                         <div className="w-16 h-1.5 rounded-full bg-[color:var(--surface-2)] dark:bg-[var(--line-1)] overflow-hidden">
                           <div
-                            className="h-full rounded-full transition-all duration-700"
+                            className="h-full rounded-full transition-[width] duration-700 ease-out-strong"
                             style={{
                               width: `${model.success_rate * 100}%`,
                               backgroundColor: getModelColor(model.model_name),

@@ -400,7 +400,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
           text-transform: uppercase;
           white-space: nowrap;
           pointer-events: none;
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding: 4px 10px;
           z-index: 20;
         }
@@ -489,7 +489,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── B. LIFECYCLE RULES (3 cards) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: DEDUP */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -507,7 +507,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         </div>
 
         {/* Card 2: DECAY TTL */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -531,7 +531,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         </div>
 
         {/* Card 3: CONFLICT GC */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shield-shake">
@@ -560,7 +560,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
           <div className="grid grid-cols-3 gap-3">
             {/* ACTIVE Bucket */}
             <div
-              className="rounded p-4 flex flex-col gap-1 border"
+              className="rounded-card p-4 flex flex-col gap-1 border"
               style={{
                 borderColor: `color-mix(in srgb, ${GOLD} 25%, transparent)`,
                 backgroundColor: 'var(--foer-surface2)',
@@ -578,7 +578,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
             </div>
 
             {/* SUPERSEDED Bucket */}
-            <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
+            <div className="rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
               <span className="text-size-ui font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 SUPERSEDED
               </span>
@@ -591,7 +591,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
             </div>
 
             {/* EXPIRED Bucket */}
-            <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
+            <div className="rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
               <span className="text-size-ui font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 EXPIRED
               </span>
@@ -606,7 +606,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         </div>
 
         {/* Store-Size Sparkline (Right, span 1 column) */}
-        <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded p-4 h-full min-h-[140px] justify-between">
+        <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded-card p-4 h-full min-h-[140px] justify-between">
           <div className="flex flex-col gap-0.5">
             <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
               Store Growth Series (30d)
@@ -790,7 +790,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                   }}
                 >
                   <div
-                    className="rounded px-2.5 py-1.5 shadow-md"
+                    className="rounded-card px-2.5 py-1.5 shadow-md"
                     style={{
                       backgroundColor: TOOLTIP_BG,
                       border: `1px solid ${RULE_TYPE_COLORS[orb.type]}${orb.zone === 'active' ? '60' : '40'}`,

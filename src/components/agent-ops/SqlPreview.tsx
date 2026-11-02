@@ -38,7 +38,7 @@ export function SqlPreview({ sql, maxLen = 280 }: { sql: string; maxLen?: number
             background: 'transparent',
             border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)',
             color: 'var(--brand-a)',
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '2px 6px',
             cursor: 'pointer',
           }}

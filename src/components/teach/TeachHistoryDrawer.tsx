@@ -176,7 +176,7 @@ export function TeachHistoryDrawer({
                     onClick={(e) => handleDelete(e, s.id)}
                     disabled={deleting === s.id}
                     title="Delete"
-                    style={{ position: 'absolute', top: 7, right: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 4, background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: 0.7 }}
+                    style={{ position: 'absolute', top: 7, right: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: 0.7 }}
                   >
                     {deleting === s.id ? <Loader2 size={10} style={{ animation: 'tm-spin 1s linear infinite' }} /> : <Trash2 size={10} />}
                   </button>

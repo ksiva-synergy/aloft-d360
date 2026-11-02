@@ -164,7 +164,7 @@ export function ShareDialog({
                   onClick={() => canShare && handleVisibilityChange(opt.value)}
                   disabled={!canShare}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 4,
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 6,
                     background: visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
                     border: `1px solid ${visibility === opt.value ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--border-default)'}`,
                     cursor: canShare ? 'pointer' : 'default', textAlign: 'left', transition: 'all 0.12s',
@@ -192,13 +192,13 @@ export function ShareDialog({
                   onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
                   placeholder="Email address…"
-                  style={{ ...SANS, flex: 1, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 4, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
+                  style={{ ...SANS, flex: 1, fontSize: 'var(--type-ui-regular-size)', background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${inviteError ? 'rgba(239,68,68,0.5)' : 'var(--border-default)'}`, borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', outline: 'none' }}
                 />
                 <RoleSelect value={inviteRole} onChange={setInviteRole} />
                 <button
                   onClick={handleInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
+                  style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '8px 12px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 6, cursor: inviting || !inviteEmail.trim() ? 'not-allowed' : 'pointer', fontWeight: 600, letterSpacing: '0.04em', whiteSpace: 'nowrap', opacity: (!inviteEmail.trim() || inviting) ? 0.5 : 1, flexShrink: 0, textTransform: 'uppercase' }}
                 >
                   <UserPlus size={12} />{inviting ? '…' : 'Invite'}
                 </button>
@@ -235,11 +235,11 @@ export function ShareDialog({
                         {email && <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</p>}
                       </div>
                       {isOwner ? (
-                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 3, padding: '2px 6px', letterSpacing: '0.04em', flexShrink: 0 }}>OWNER</span>
+                        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 6, padding: '2px 6px', letterSpacing: '0.04em', flexShrink: 0 }}>OWNER</span>
                       ) : canShare ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           <RoleSelect value={c.role as CollabRole} onChange={(r) => handleRoleChange(c.user_id, r, email)} small />
-                          <button onClick={() => handleRemove(c.user_id)} style={{ background: 'transparent', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', borderRadius: 3 }} title="Remove">
+                          <button onClick={() => handleRemove(c.user_id)} style={{ background: 'transparent', border: 'none', color: 'var(--ink-3)', cursor: 'pointer', padding: 3, display: 'flex', alignItems: 'center', borderRadius: 6 }} title="Remove">
                             <Trash2 size={12} />
                           </button>
                         </div>
@@ -258,13 +258,13 @@ export function ShareDialog({
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-default)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             onClick={handleCopyLink}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6, color: copied ? '#34D399' : 'var(--text-muted)', cursor: 'pointer', letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             <Link2 size={12} />{copied ? 'COPIED!' : 'COPY LINK'}
           </button>
           <button
             onClick={onClose}
-            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 16px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+            style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 16px', background: GOLD, color: 'var(--on-brand)', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
           >
             DONE
           </button>
@@ -288,12 +288,12 @@ function RoleSelect({ value, onChange, small }: { value: CollabRole; onChange: (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        style={{ ...MONO, fontSize: small ? 9 : 10, display: 'flex', alignItems: 'center', gap: 4, padding: small ? '4px 8px' : '7px 10px', background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
+        style={{ ...MONO, fontSize: small ? 9 : 10, display: 'flex', alignItems: 'center', gap: 4, padding: small ? '4px 8px' : '7px 10px', background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-primary)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}
       >
         {selected?.label}<ChevronDown size={10} />
       </button>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-surface, #111322)', border: '1px solid var(--border-default)', borderRadius: 4, minWidth: 100, zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+        <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-surface, #111322)', border: '1px solid var(--border-default)', borderRadius: 6, minWidth: 100, zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
           {ROLES.map((r) => (
             <button
               key={r.value}

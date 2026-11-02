@@ -125,14 +125,14 @@ export function BornDistributionPanel({
               <div style={{
                 height: 10,
                 background: 'var(--born-overlay)',
-                borderRadius: 3,
+                borderRadius: 6,
                 overflow: 'hidden',
               }}>
                 <div style={{
                   height: '100%',
                   width: `${widthPct}%`,
                   background: color,
-                  borderRadius: 3,
+                  borderRadius: 6,
                   transition: 'width 300ms ease',
                   opacity: isFav ? 1 : 0.75,
                 }} />

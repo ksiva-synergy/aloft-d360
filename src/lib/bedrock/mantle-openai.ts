@@ -1,6 +1,9 @@
 import 'server-only';
 
 import OpenAI from 'openai';
+import { getLlmLiteApiKey, getLlmLiteBaseUrl } from '@/lib/llmlite/config';
+import type { ModelFeatureId } from '@/lib/llmlite/model-registry';
+import { getFeatureGatewayModelIdSync } from '@/lib/llmlite/model-settings-store';
 
 /**
  * In-region Mantle id. GPT-6 Luna on Mantle exists only in us-east-1.
@@ -65,20 +68,36 @@ export function getBedrockRuntimeOpenAIClient(): OpenAI | null {
   });
 }
 
-/** Map Luna aliases to the global runtime profile when a Bedrock API key is set. */
-export function resolveOpenAIChatModelId(model: string): string {
+/** Map Luna aliases to the gateway feature default when LLM Lite is configured, or the global runtime profile when a Bedrock API key is set. */
+export function resolveOpenAIChatModelId(model: string, feature: ModelFeatureId = 'session_titles'): string {
+  if (getLlmLiteBaseUrl() && getLlmLiteApiKey()) {
+    if (LUNA_ALIASES.has(model) || !model.includes('/')) {
+      return getFeatureGatewayModelIdSync(feature);
+    }
+    return model;
+  }
   if (LUNA_ALIASES.has(model) && getBedrockApiKey()) {
     return BEDROCK_GPT_6_LUNA_MODEL_ID;
   }
   return model;
 }
 
+function getLlmLiteOpenAIChatClient(): OpenAI | null {
+  const base = getLlmLiteBaseUrl();
+  const apiKey = getLlmLiteApiKey();
+  if (!base || !apiKey) return null;
+  return new OpenAI({
+    apiKey,
+    baseURL: `${base}/v1`,
+  });
+}
+
 /**
  * OpenAI-compatible chat client for small Luna calls (scorers, titles, session summary).
- * Uses global bedrock-runtime so the call works from ap-south-1. Falls back to Azure Foundry.
+ * Prefers the Synergy LLM Lite gateway when configured, then global bedrock-runtime, then Azure Foundry.
  */
 export function getLunaOpenAIChatClient(): OpenAI | null {
-  return getBedrockRuntimeOpenAIClient() ?? getFoundryOpenAIChatClient();
+  return getLlmLiteOpenAIChatClient() ?? getBedrockRuntimeOpenAIClient() ?? getFoundryOpenAIChatClient();
 }
 
 function getFoundryOpenAIChatClient(): OpenAI | null {

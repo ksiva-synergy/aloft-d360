@@ -37,7 +37,7 @@ export function BanditsEmptyState() {
 
         <Link
           href="/agent-lab/estate/jobs"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-size-body font-medium bg-gradient-to-r from-[var(--brand-a)] to-[var(--brand-a-2)] text-white hover:from-[var(--brand-a)] hover:to-[var(--brand-a-2)] shadow-sm hover:shadow-md transition-all"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-size-body font-medium bg-gradient-to-r from-[var(--brand-a)] to-[var(--brand-a-2)] text-white hover:from-[var(--brand-a)] hover:to-[var(--brand-a-2)] shadow-sm hover:shadow-md transition"
         >
           Go to Backfill
           <ArrowRight className="h-3.5 w-3.5" />

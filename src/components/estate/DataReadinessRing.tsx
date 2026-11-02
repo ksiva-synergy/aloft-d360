@@ -86,8 +86,8 @@ function DimScoreBar({ dim, score, color }: { dim: string; score: number; color:
       }}>
         {DIMENSION_SHORT[dim]}
       </span>
-      <div style={{ flex: 1, height: 5, borderRadius: 3, background: TRACK_COLOR, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3, transition: 'width 0.4s ease' }} />
+      <div style={{ flex: 1, height: 5, borderRadius: 6, background: TRACK_COLOR, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 6, transition: 'width 0.4s ease' }} />
       </div>
       <span style={{
         fontFamily: 'var(--font-mono)',
@@ -225,7 +225,7 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
           marginBottom: 8,
           backgroundColor: GATING_CHIP_BG,
           border: `1px solid ${GATING_CHIP_COLOR}`,
-          borderRadius: 3,
+          borderRadius: 6,
           padding: '2px 7px',
         }}>
           <span style={{

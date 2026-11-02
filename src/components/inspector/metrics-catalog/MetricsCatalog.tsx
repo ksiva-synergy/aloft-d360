@@ -176,7 +176,7 @@ export function MetricsCatalog() {
         <Centered>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
             <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-res-unrecognized)' }}>ERROR: {error}</span>
-            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
+            <button onClick={() => void reload()} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}>RETRY</button>
           </div>
         </Centered>
       ) : noModel ? (

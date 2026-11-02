@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import OpenAI from 'openai';
+import { getLlmLiteApiKey, getLlmLiteBaseUrl } from '@/lib/llmlite/config';
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions';
 import type { ResponseInputItem } from 'openai/resources/responses/responses';
 import type { ToolConfiguration, Message } from '@aws-sdk/client-bedrock-runtime';
@@ -33,14 +34,10 @@ const RESOURCE_CONFIG = {
   },
   llmlite: {
     getBaseURL: (_: string) => {
-      const base =
-        process.env.LLMLITE_BASE_URL?.trim() ||
-        process.env.llmlite_base_url?.trim() ||
-        '';
-      return `${base.replace(/\/$/, '')}/v1`;
+      const base = getLlmLiteBaseUrl() ?? '';
+      return `${base}/v1`;
     },
-    getApiKey: () =>
-      (process.env.LLMLITE_API_KEY || process.env.llmlite_api_key || '').trim(),
+    getApiKey: () => getLlmLiteApiKey() ?? '',
     getDefaultQuery: (): Record<string, string> => ({}),
   },
   xai: {

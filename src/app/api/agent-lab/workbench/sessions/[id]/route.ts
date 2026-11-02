@@ -7,6 +7,7 @@ import { getPendingReflections } from '@/lib/marcus/dal';
 import { guardSessionRead } from '@/lib/inspector/session-auth';
 import { authenticateSession } from '@/middleware/auth';
 import { PERMISSIONS } from '@/lib/rbac';
+import { AGENT_CHAT_SURFACE, canViewAgentChatOwnedBy } from '@/lib/agents/agent-chats';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,13 @@ async function guardOwner(request: NextRequest, id: string, mode: 'read' | 'writ
   const blocked = await guardSessionRead(request, id, { route: ROUTE });
   if (!blocked || mode === 'write' || blocked.status !== 403) return blocked;
   const auth = await authenticateSession();
-  return auth?.permissions.has(PERMISSIONS.SESSION_READ_ALL) ? null : blocked;
+  if (!auth?.permissions.has(PERMISSIONS.SESSION_READ_ALL)) return blocked;
+  // Other platform admins' agent chats are only ever visible to their owner.
+  const row = await prisma.workbench_sessions.findUnique({ where: { id }, select: { user_id: true, surface: true } });
+  if (row?.surface === AGENT_CHAT_SURFACE && !(await canViewAgentChatOwnedBy(auth.userId, row.user_id))) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+  }
+  return null;
 }
 
 export async function GET(

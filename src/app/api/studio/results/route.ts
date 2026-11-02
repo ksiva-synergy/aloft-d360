@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
+import { guardSessionRead } from '@/lib/inspector/session-auth';
 
 export const dynamic = 'force-dynamic';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isUniqueSessionSeqError(err: unknown): boolean {
   return (
@@ -24,6 +27,8 @@ export async function GET(request: NextRequest) {
   if (!sessionId) {
     return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
   }
+  const denied = await guardSessionRead(request, sessionId, { route: '/api/studio/results', allowReadAll: true });
+  if (denied) return denied;
 
   try {
     const results = await prisma.studio_query_results.findMany({
@@ -60,6 +65,8 @@ export async function POST(request: NextRequest) {
     if (!sessionId || !sql) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+    const denied = await guardSessionRead(request, sessionId, { route: '/api/studio/results' });
+    if (denied) return denied;
 
     let seq = await nextResultSeq(sessionId);
     let result;
@@ -94,11 +101,16 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
-  if (!id) {
+  if (!id || !UUID_RE.test(id)) {
     return NextResponse.json({ error: 'id required' }, { status: 400 });
   }
 
   try {
+    const existing = await prisma.studio_query_results.findUnique({ where: { id }, select: { session_id: true } });
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const denied = await guardSessionRead(request, existing.session_id ?? undefined, { route: '/api/studio/results' });
+    if (denied) return denied;
+
     const body = await request.json();
     const updates: Record<string, unknown> = {};
     if (body.profiles !== undefined) updates.profiles = body.profiles;

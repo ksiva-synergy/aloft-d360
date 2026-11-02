@@ -89,7 +89,7 @@ export function TrustPanel({
       style={{
         ...MONO,
         border: '1px solid rgba(74,96,128,0.25)',
-        borderRadius: 4,
+        borderRadius: 6,
         background: 'rgba(0,0,0,0.15)',
         ...style,
       }}
@@ -172,7 +172,7 @@ export function TrustPanel({
                 gap: 4,
                 cursor: 'pointer',
                 border: '1px solid rgba(74,96,128,0.35)',
-                borderRadius: 3,
+                borderRadius: 6,
                 padding: '2px 7px',
                 background: 'transparent',
                 color: copied ? '#86EFAC' : GOLD,
@@ -191,7 +191,7 @@ export function TrustPanel({
               margin: 0,
               padding: '8px',
               background: 'rgba(0,0,0,0.25)',
-              borderRadius: 3,
+              borderRadius: 6,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
               maxHeight: 260,

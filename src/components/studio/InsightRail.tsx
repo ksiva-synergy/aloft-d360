@@ -70,7 +70,7 @@ function SkeletonCard() {
         style={{
           height: 10,
           width: '60%',
-          borderRadius: 3,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 10,
         }}
@@ -83,7 +83,7 @@ function SkeletonCard() {
         style={{
           height: 14,
           width: '90%',
-          borderRadius: 3,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 6,
         }}
@@ -93,7 +93,7 @@ function SkeletonCard() {
         style={{
           height: 14,
           width: '70%',
-          borderRadius: 3,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)',
           marginBottom: 12,
         }}
@@ -104,7 +104,7 @@ function SkeletonCard() {
         style={{
           height: 11,
           width: '100%',
-          borderRadius: 3,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
           marginBottom: 4,
         }}
@@ -114,7 +114,7 @@ function SkeletonCard() {
         style={{
           height: 11,
           width: '80%',
-          borderRadius: 3,
+          borderRadius: 6,
           background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
       />
@@ -162,7 +162,7 @@ function InsightCard({
             fontSize: 'var(--type-ui-regular-size)',
             color: T.label,
             border: `1px solid ${T.border}`,
-            borderRadius: 3,
+            borderRadius: 6,
             padding: '1px 5px',
             letterSpacing: '0.04em',
           }}
@@ -485,7 +485,7 @@ export function InsightRail({
                 color: T.gold,
                 background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)',
-                borderRadius: 3,
+                borderRadius: 6,
                 padding: '1px 5px',
                 letterSpacing: '0.04em',
               }}

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
     console.error('[databricks/connections/:id/execute POST]', err);
     return NextResponse.json(
-      { error: 'INTERNAL', message: err instanceof Error ? err.message : String(err) },
+      { error: 'INTERNAL', message: 'Query execution failed' },
       { status: 500 },
     );
   }

@@ -170,7 +170,7 @@ function HistoricalSection({ stats }: { stats: HistoricalStat[] }) {
                 <td style={{ padding: '5px 8px', textAlign: 'right', color: GOLD, borderBottom: `1px solid var(--pl-hair2)` }}>{s.modelLabel}</td>
                 <td style={{ padding: '5px 8px', textAlign: 'right', borderBottom: `1px solid var(--pl-hair2)` }}>
                   <span style={{
-                    display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontSize: 'var(--type-ui-regular-size)',
+                    display: 'inline-block', padding: '1px 6px', borderRadius: 6, fontSize: 'var(--type-ui-regular-size)',
                     background: isCtx ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'rgba(58,123,213,0.12)',
                     color: isCtx ? GOLD : BLUE,
                     border: `1px solid ${isCtx ? 'color-mix(in srgb, var(--brand-a) 25%, transparent)' : 'rgba(58,123,213,0.3)'}`,
@@ -251,7 +251,7 @@ export default function PerformanceLabPage() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <span style={{
             ...type.label,
-            borderRadius: 4, padding: '4px 10px', border: `1px solid ${BORDER}`,
+            borderRadius: 6, padding: '4px 10px', border: `1px solid ${BORDER}`,
             color: TXT2, background: 'transparent',
           }}>
             v0.2

@@ -410,7 +410,7 @@ export function SuperpositionPanel({
           style={{
             fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT,
             background: 'transparent', border: `1px solid ${BORDER}`,
-            borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
+            borderRadius: 6, padding: '3px 8px', cursor: 'pointer',
             letterSpacing: '0.04em',
           }}
         >
@@ -738,7 +738,7 @@ export function SuperpositionPanel({
               onClick={resetMeasure}
               style={{
                 fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
-                padding: '5px 12px', borderRadius: 4,
+                padding: '5px 12px', borderRadius: 6,
                 border: `1px solid ${BORDER}`,
                 background: 'transparent', color: TEXT_MUT,
                 cursor: 'pointer',

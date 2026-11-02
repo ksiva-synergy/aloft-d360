@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { AVAILABLE_MODELS } from "@/components/agent-lab/workbench/types";
+import { denyUnlessSessionRole } from "@/middleware/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 // Reads from agent_cost_log (one row per chat response, agentName = InspectorChat)
 // Joins via run_id -> workbench_sessions.id to get context_mode
 export async function GET() {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   try {
     const rows = await prisma.agent_cost_log.findMany({
       where: { agent_name: "InspectorChat" },

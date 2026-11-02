@@ -132,7 +132,7 @@ const DARK_SURFACE = "#1A1B1D";
 /** The defaults in globals.css, per mode. */
 export const MODE_DEFAULTS = {
   light: { accent: "#A8481F", rail: "#ECEFE6" }, // Sage Studio shell-bg
-  dark:  { accent: "#3B78FF", rail: "#16171A" }, // Data 360 Night sidebar (graphite)
+  dark:  { accent: "#3B78FF", rail: "#0A0A0A" }, // Data 360 Night sidebar (same black as the page)
 } as const;
 
 type Mode = "light" | "dark";

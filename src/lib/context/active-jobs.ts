@@ -15,6 +15,7 @@ export interface ActiveJobChildCounts {
   succeeded: number;
   failed: number;
   partial: number;
+  cancelled: number;
 }
 
 export interface ActiveJobRow {
@@ -101,6 +102,7 @@ export async function listActiveJobs(
         succeeded: number;
         failed: number;
         partial: number;
+        cancelled: number;
       }>
     >(Prisma.sql`
       SELECT
@@ -110,7 +112,8 @@ export async function listActiveJobs(
         COUNT(*) FILTER (WHERE status = 'running')::int AS running,
         COUNT(*) FILTER (WHERE status = 'succeeded')::int AS succeeded,
         COUNT(*) FILTER (WHERE status = 'failed')::int AS failed,
-        COUNT(*) FILTER (WHERE status = 'partial')::int AS partial
+        COUNT(*) FILTER (WHERE status = 'partial')::int AS partial,
+        COUNT(*) FILTER (WHERE status IN ('cancelled', 'canceled'))::int AS cancelled
       FROM platform_context_jobs
       WHERE org_id = ${orgId}
         AND parent_job_id = ANY(${parentIds}::uuid[])
@@ -124,6 +127,7 @@ export async function listActiveJobs(
         succeeded: c.succeeded,
         failed: c.failed,
         partial: c.partial,
+        cancelled: c.cancelled,
       });
     }
   }

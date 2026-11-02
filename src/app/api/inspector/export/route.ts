@@ -169,10 +169,9 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       );
     }
-    const msg = err instanceof Error ? err.message : 'Export failed';
-    console.error('[inspector/export]', msg);
+    console.error('[inspector/export]', err);
     return new Response(
-      JSON.stringify({ error: 'EXPORT_FAILED', message: msg }),
+      JSON.stringify({ error: 'EXPORT_FAILED', message: 'Export failed' }),
       { status: 502, headers: { 'Content-Type': 'application/json' } },
     );
   }

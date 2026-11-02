@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/org';
 import { runCluster } from '@/lib/foer/run-cluster';
 import { currentPeriod } from '@/lib/foer/topics';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,8 @@ export const dynamic = 'force-dynamic';
  *   error                string | null
  */
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -62,7 +65,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[memory/cluster POST]', err);
     return NextResponse.json(
-      { error: 'INTERNAL', detail: String(err) },
+      { error: 'INTERNAL', message: 'Clustering failed' },
       { status: 500 },
     );
   }

@@ -14,13 +14,6 @@ export type BoostModel = {
 };
 
 export const BOOST_MODELS: BoostModel[] = [
-  // ── Bedrock Converse — Claude 5.5 (recommended) ─────────────
-  { key: 'opus-5-5',    label: 'Claude Opus 5.5',   provider: 'bedrock',
-    apiType: 'converse', modelId: 'us.anthropic.claude-opus-5-5',
-    tier: 'frontier' },
-  { key: 'sonnet-5-5',  label: 'Claude Sonnet 5.5', provider: 'bedrock',
-    apiType: 'converse', modelId: 'us.anthropic.claude-sonnet-5-5',
-    tier: 'production' },
   // ── Bedrock Converse — Claude 4.x (legacy) ──────────────────
   { key: 'opus-4-6',    label: 'Claude Opus 4.6',   provider: 'bedrock',
     apiType: 'converse', modelId: 'us.anthropic.claude-opus-4-6-v1',

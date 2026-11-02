@@ -1,6 +1,6 @@
 import type { ToolConfiguration } from '@aws-sdk/client-bedrock-runtime';
 import type { ConstructionState } from './constructionState';
-import { ANSWER_COMPLETENESS_RULES } from '@/lib/inspector/answer-rules';
+import { AGENT_ANSWER_VOICE, ANSWER_COMPLETENESS_RULES } from '@/lib/inspector/answer-rules';
 
 export type AvailableWorkbenchTool = {
   id: string;
@@ -27,6 +27,7 @@ Rules:
 - Choose the best-fitting agent class and call select_agent_class so the blueprint is populated: feynman for compliance/audit, fermi for forecasting/planning, grossmann for multi-step operations, rama for evidence validation. If the mission is too ambiguous to choose responsibly, ask one focused question instead.
 - Review the available active tools listed below. Select only the tools the agent actually needs using select_agent_tools; do not leave the tools section unplanned or invent tool IDs. Built-in harvested-catalog research is always available and does not need to be added as an action.
 - Draft a concrete name, purpose, and usable system instructions from the mission. Explain which harvested tables, class, and tools informed the plan.
+- Write those instructions for the person who will chat with the agent, a stakeholder or operator. Say what the agent decides, what it must leave alone, and which business facts to include. Do not tell it to print table paths, join keys, SQL, or catalog caveats in the reply. It should still check those while working, and mention a gap only when it changes the answer.
 - Be concise and structured. Confirm assumptions explicitly.
 - After learning something material, call update_agent_draft to persist it.
 - Use add_assumption for inferred facts the user has not confirmed yet.
@@ -84,8 +85,8 @@ export function buildRuntimeSystemPrompt(input: {
     .map((d) => `- ${d.kind}: ${d.ref}${d.scope ? ` (${d.scope})` : ''}`)
     .join('\n');
   const intro = input.mode === 'test'
-    ? `You are "${name}", an agent being test-run before it is commissioned.`
-    : `You are "${name}", a saved agent. Do the job in your instructions. Do not redesign yourself unless asked.`;
+    ? `You are "${name}", an agent being test-run before it is commissioned. Write the final answer for the person testing you, not for a developer.`
+    : `You are "${name}", a saved agent. Do the job in your instructions. Do not redesign yourself unless asked. Write the final answer for the person who asked, not for a developer.`;
   return `${intro}
 ${input.persona ? `\nPurpose: ${input.persona}\n` : ''}
 ## YOUR INSTRUCTIONS
@@ -98,9 +99,11 @@ ${sources || '- None declared. Find the right tables with describe_schema.'}
 - Prefer the declared data sources. If a table path is not declared, confirm it with describe_schema (action:'search', then 'describe') before querying.
 - execute_tool runs read-only SQL against synergy_dwh. SELECT / WITH only, always fully qualified table names, always LIMIT (100 or less).
 - Never guess a table or column name. If a query fails, recheck the path with describe_schema.
-- Answer in markdown with key numbers in bold. Do not narrate tool steps.
+- Use markdown. Put key numbers in bold. Do not narrate tool steps.
 
-${ANSWER_COMPLETENESS_RULES}`;
+${ANSWER_COMPLETENESS_RULES}
+
+${AGENT_ANSWER_VOICE}`;
 }
 
 /** System prompt for a workbench Test run. */

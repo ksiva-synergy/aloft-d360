@@ -90,7 +90,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span style={{
       ...type.label,
-      background: bg, border: `1px solid ${bd}`, color, borderRadius: 4, padding: '2px 7px',
+      background: bg, border: `1px solid ${bd}`, color, borderRadius: 6, padding: '2px 7px',
       flexShrink: 0,
     }}>
       {label}
@@ -158,7 +158,7 @@ function EditableField({
           style={{
             ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
-            borderRadius: 4, color: 'var(--wb-ink)', padding: '4px 6px',
+            borderRadius: 6, color: 'var(--wb-ink)', padding: '4px 6px',
             resize: 'vertical', width: '100%',
           }}
         />
@@ -171,7 +171,7 @@ function EditableField({
           style={{
             ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
-            borderRadius: 4, color: 'var(--wb-ink)', padding: '3px 6px',
+            borderRadius: 6, color: 'var(--wb-ink)', padding: '3px 6px',
           }}
         />
       )}
@@ -182,7 +182,7 @@ function EditableField({
           style={{
             ...type['ui-regular'],
             background: saving ? SURFACE : GOLD, color: saving ? MUTED : NAVY,
-            border: 'none', borderRadius: 4, padding: '3px 10px', cursor: saving ? 'default' : 'pointer',
+            border: 'none', borderRadius: 6, padding: '3px 10px', cursor: saving ? 'default' : 'pointer',
           }}
         >
           {saving ? 'SAVING…' : 'SAVE'}
@@ -192,7 +192,7 @@ function EditableField({
           style={{
             ...type['ui-regular'],
             background: 'transparent', color: MUTED,
-            border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+            border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
           }}
         >
           CANCEL
@@ -311,7 +311,7 @@ function EntityCard({
                 ...type['ui-regular'],
                 background: acting === 'promote' ? SURFACE : GOLD,
                 color: acting === 'promote' ? MUTED : NAVY,
-                border: 'none', borderRadius: 4, padding: '4px 10px',
+                border: 'none', borderRadius: 6, padding: '4px 10px',
                 cursor: acting !== null ? 'default' : 'pointer',
               }}
             >
@@ -326,7 +326,7 @@ function EntityCard({
               style={{
                 ...type['ui-regular'],
                 background: 'transparent', color: MUTED,
-                border: `1px solid ${ARCH_BD}`, borderRadius: 4, padding: '4px 10px',
+                border: `1px solid ${ARCH_BD}`, borderRadius: 6, padding: '4px 10px',
                 cursor: acting !== null ? 'default' : 'pointer',
               }}
             >
@@ -369,7 +369,7 @@ function EntityCard({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {entity.dimensions.map(d => (
-                  <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
+                  <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{d.dimension_type}</span>
@@ -400,7 +400,7 @@ function EntityCard({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {entity.measures.map(m => (
-                  <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
+                  <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
                       <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
                       <span style={{ ...type['ui-regular'], color: MUTED }}>{m.aggregate}</span>
@@ -433,7 +433,7 @@ function EntityCard({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {entity.joins.map(j => (
-                  <div key={j.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '5px 8px' }}>
+                  <div key={j.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '5px 8px' }}>
                     <span style={{ ...type['ui-regular'], color: MUTED }}>{j.join_type.toUpperCase()}</span>
                     <span style={{ ...type['ui-regular'], color: 'var(--wb-ink-dim)', marginLeft: 8 }}>{j.join_on_sql}</span>
                   </div>
@@ -601,7 +601,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
                 ...type['ui-regular'],
                 background: bulkActing ? SURFACE : GOLD,
                 color: bulkActing ? MUTED : NAVY,
-                border: 'none', borderRadius: 4, padding: '5px 12px',
+                border: 'none', borderRadius: 6, padding: '5px 12px',
                 cursor: bulkActing ? 'default' : 'pointer',
                 flexShrink: 0,
               }}

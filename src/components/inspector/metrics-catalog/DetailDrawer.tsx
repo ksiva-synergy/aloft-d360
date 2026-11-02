@@ -123,7 +123,7 @@ export function DetailDrawer({ onRowAction }: Props) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: kindC, background: tint(kindC), border: `1px solid ${tint(kindC, 40)}`, borderRadius: 3, padding: '2px 6px' }}>{kindLabel(row.kind)}</span>
+                <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: kindC, background: tint(kindC), border: `1px solid ${tint(kindC, 40)}`, borderRadius: 6, padding: '2px 6px' }}>{kindLabel(row.kind)}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...MONO, fontSize: 'var(--type-ui-regular-size)', color: statusC }}>
                   <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusC }} /> {statusLabel(row.status)}
                 </span>
@@ -147,7 +147,7 @@ export function DetailDrawer({ onRowAction }: Props) {
               {row.description || row.expression || <span style={{ color: MUTED }}>No description yet.</span>}
             </p>
             {row.kind === 'measure' && (row.aggregate || row.expression) && (
-              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-kind-measure)', marginTop: 8, background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', border: `1px solid ${BORDER}`, borderRadius: 4, padding: '6px 9px' }}>
+              <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--mc-kind-measure)', marginTop: 8, background: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '6px 9px' }}>
                 {row.expression ? row.expression : `${row.aggregate}(${row.column ?? ''})`}{row.unit ? ` · ${row.unit}` : ''}
               </div>
             )}
@@ -163,7 +163,7 @@ export function DetailDrawer({ onRowAction }: Props) {
             <Section title={row.kind === 'entity' ? 'Dimensions' : 'Available breakdowns'}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {entityDims.slice(0, 24).map((d) => (
-                  <button key={d.rowKey} onClick={() => openDrawer(d.rowKey)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'transparent', border: 'none', borderRadius: 3, padding: '4px 2px', cursor: 'pointer', textAlign: 'left' }}>
+                  <button key={d.rowKey} onClick={() => openDrawer(d.rowKey)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, background: 'transparent', border: 'none', borderRadius: 6, padding: '4px 2px', cursor: 'pointer', textAlign: 'left' }}>
                     <span style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK }}>{d.label}</span>
                     <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{d.dimensionType ?? 'categorical'} · {d.column ?? '—'}</span>
                   </button>
@@ -276,7 +276,7 @@ function FooterBtn({ label, icon, onClick, primary }: { label: string; icon: Rea
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 6, ...MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
-        padding: '7px 13px', borderRadius: 4, cursor: 'pointer',
+        padding: '7px 13px', borderRadius: 6, cursor: 'pointer',
         border: `1px solid ${primary ? GOLD : BORDER}`,
         background: primary ? GOLD : 'transparent',
         color: primary ? '#1A1206' : INK,

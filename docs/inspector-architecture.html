@@ -528,7 +528,7 @@ sequenceDiagram
           <li>Not durable runs — no worker resumes a turn after disconnect or API restart.</li>
           <li><code>policy_entry</code> is not consulted by the loop (CRUD API only).</li>
           <li>SQL runs as the <strong>connection service principal</strong>, not per-user warehouse identity; read-only enforcement is in <code>execute.ts</code>.</li>
-          <li>Session ownership on chat is <strong>observe mode</strong> unless <code>INSPECTOR_AUTH_ENFORCE=true</code> (see platform audit for auth gaps on session GET).</li>
+          <li>Session ownership on chat is <strong>enforced by default</strong>; <code>INSPECTOR_AUTH_ENFORCE=false</code> switches to observe mode (see platform audit for auth gaps on session GET).</li>
         </ul>
       </section>
 

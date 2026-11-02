@@ -19,12 +19,12 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
   const borderColor = 'var(--estate-border-gold)';
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    fontFamily: 'var(--font-mono)',
+    fontFamily: 'var(--font-sans)',
     fontSize: 'var(--type-ui-regular-size)',
     color: disabled ? 'var(--estate-text-muted)' : inkColor,
     backgroundColor: 'transparent',
     border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
+    borderRadius: 6,
     padding: '5px 12px',
     cursor: disabled ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.4 : 1,
@@ -39,7 +39,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
       {/* Range Info */}
       <span className="font-sans text-size-ui" style={{ color: mutedColor }}>
         Showing <span style={{ color: inkColor }}>{from}–{to}</span> of{' '}
-        <span style={{ color: inkColor }}>{total}</span> objects
+        <span style={{ color: inkColor }}>{total.toLocaleString()}</span> objects
       </span>
 
       {/* Nav Controls */}
@@ -54,7 +54,7 @@ export default function Pagination({ page, pageSize, total, onPageChange }: Pagi
           &lsaquo; Prev
         </button>
 
-        <span className="font-mono text-size-ui px-2" style={{ color: inkColor }}>
+        <span className="font-sans tabular-nums text-size-ui px-2" style={{ color: inkColor }}>
           Page <span className="font-semibold">{page}</span> of {totalPages}
         </span>
 

@@ -140,7 +140,7 @@ export function DefinitionPicker({
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Tab bar — matches Palette.tsx pattern exactly */}
       <div style={{ display: 'flex', gap: 2, padding: '8px 8px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', borderRadius: 4 }}>
+        <div style={{ display: 'flex', gap: 2, flex: 1, padding: 2, background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', borderRadius: 6 }}>
           {(['definitions', 'charts'] as PickerTab[]).map((tab) => (
             <button
               key={tab}
@@ -150,7 +150,7 @@ export function DefinitionPicker({
                 textAlign: 'center',
                 padding: '4px 0',
                 ...type.label,
-                borderRadius: 3,
+                borderRadius: 6,
                 cursor: 'pointer',
                 border: 'none',
                 transition: 'all 0.15s',
@@ -176,7 +176,7 @@ export function DefinitionPicker({
                 gap: 6,
                 background: 'var(--builder-surface)',
                 border: '1px solid var(--builder-border)',
-                borderRadius: 4,
+                borderRadius: 6,
                 padding: '6px 8px',
               }}
             >
@@ -278,7 +278,7 @@ function ChartCard({ chart, onClick }: { chart: SavedChart; onClick: () => void 
         width: '100%',
         background: 'transparent',
         border: '1px solid var(--builder-border)',
-        borderRadius: 4,
+        borderRadius: 6,
         color: 'var(--builder-text)',
         cursor: 'pointer',
         padding: '8px',
@@ -357,7 +357,7 @@ function EntityGroup({
           color: 'var(--builder-text)',
           cursor: 'pointer',
           padding: '6px 4px',
-          borderRadius: 3,
+          borderRadius: 6,
         }}
       >
         <ChevronRight
@@ -451,7 +451,7 @@ function DefinitionRow({
         color: isCandidate ? 'var(--builder-text-muted)' : 'var(--builder-text)',
         cursor: 'pointer',
         padding: '4px 4px',
-        borderRadius: 3,
+        borderRadius: 6,
         opacity: isCandidate ? 0.7 : 1,
         textAlign: 'left',
       }}

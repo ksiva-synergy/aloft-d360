@@ -161,7 +161,7 @@ export function SynonymEditor({
             minWidth: 0,
             background: 'rgba(0,0,0,0.2)',
             border: '1px solid rgba(74,96,128,0.35)',
-            borderRadius: 4,
+            borderRadius: 6,
             color: 'var(--wb-ink, #E6ECF5)',
             padding: '4px 8px',
             outline: 'none',
@@ -181,7 +181,7 @@ export function SynonymEditor({
             background: input.trim() && !saving ? GOLD : 'transparent',
             color: input.trim() && !saving ? NAVY : MUTED,
             border: `1px solid ${input.trim() && !saving ? GOLD : 'rgba(136,146,164,0.35)'}`,
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '4px 9px',
             cursor: input.trim() && !saving ? 'pointer' : 'default',
           }}

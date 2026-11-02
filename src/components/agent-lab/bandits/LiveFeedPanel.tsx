@@ -144,7 +144,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
             fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
             color: TEXT_MUT, 
             background: 'var(--born-overlay)',
-            padding: '2px 8px', borderRadius: 3,
+            padding: '2px 8px', borderRadius: 6,
             border: '1px solid var(--born-border)',
           }}>
             auto-scroll
@@ -216,7 +216,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                   borderBottom: `1px solid rgba(22,39,61,0.6)`,
                   padding: '8px 0',
                   transition: 'background 0.15s ease',
-                  borderRadius: 3,
+                  borderRadius: 6,
                   cursor: 'default',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--born-hover)'; }}
@@ -257,7 +257,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                   {srcConfig && (
                     <span style={{
                       fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
-                      padding: '1px 6px', borderRadius: 3,
+                      padding: '1px 6px', borderRadius: 6,
                       flexShrink: 0,
                       background: srcConfig.bg,
                       color: srcConfig.color,
@@ -294,7 +294,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                     fontWeight: composite != null ? 600 : 400,
                     padding: composite != null && composite >= 0.85 ? '1px 4px' : undefined,
                     background: composite != null && composite >= 0.85 ? 'rgba(74,222,128,0.08)' : undefined,
-                    borderRadius: 3,
+                    borderRadius: 6,
                   }}>
                     {composite != null ? composite.toFixed(2) : '--'}
                   </span>

@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
+import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
-import { inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
+import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import {
@@ -41,8 +42,8 @@ export async function POST(request: NextRequest) {
     return new Response('sessionId required', { status: 400 });
   }
 
-  if (!inspectorLlmConfigured()) {
-    return new Response('Workbench chat requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
+  if (!inspectorLlmConfigured() || !hasLlmLiteCredentials()) {
+    return new Response('Workbench chat requires LLM Lite gateway credentials (LLMLITE_BASE_URL and LLMLITE_API_KEY).', { status: 503 });
   }
 
   const role = await getSessionUserRole();
@@ -241,7 +242,7 @@ export async function POST(request: NextRequest) {
           : await runAgentLoop(loopParams);
 
         if (result.outcome === 'errored' && result.errorDetail) {
-          emit({ type: 'error', message: result.errorDetail, recoverable: true });
+          emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/chat'), recoverable: true });
         }
 
         toolErrorCount = result.toolCalls.filter((t) => t.status === 'error').length;
@@ -288,7 +289,7 @@ export async function POST(request: NextRequest) {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Workbench stream failed';
         void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: toolErrorCount, error: msg });
-        emit({ type: 'error', message: msg, recoverable: true });
+        emit({ type: 'error', message: clientStreamError(err, 'workbench/chat'), recoverable: true });
         emit({
           type: 'done',
           outcome: 'errored',

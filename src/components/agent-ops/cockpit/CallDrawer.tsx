@@ -177,7 +177,7 @@ function Detail({
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-          <span style={{ width: 12, height: 12, borderRadius: 4, background: colorOf(inv.toolName) }} />
+          <span style={{ width: 12, height: 12, borderRadius: 6, background: colorOf(inv.toolName) }} />
           <h3 style={{ ...mono, fontSize: 'var(--type-title-section-size)', fontWeight: 500, margin: 0, color: 'var(--wb-ink)' }}>{inv.toolName}</h3>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>

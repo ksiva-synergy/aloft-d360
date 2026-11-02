@@ -5,12 +5,15 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { pathToIncludePattern } from '@/lib/context/job-scope';
 import { enqueueAndLaunchHarvest, findScopedHarvestConflict } from '@/lib/context/enqueue-and-launch';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(_req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

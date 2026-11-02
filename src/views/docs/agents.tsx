@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useState, useEffect, useMemo } from 'react';
 import Link from '@/lib/navigation/link';
 import { Search, Bot, ArrowLeft, Filter } from 'lucide-react';
@@ -103,7 +104,7 @@ export default function AgentsListPage() {
         </div>
         <div className="relative">
           <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--ink-3)]" />
-          <select
+          <Select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
             className="pl-8 pr-8 py-2.5 text-size-ui rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] bg-[color:var(--surface-1)] dark:bg-[var(--background)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] appearance-none focus:outline-none focus:ring-2 focus:ring-[color:color-mix(in_srgb,var(--brand-a)_50%,transparent)]"
@@ -111,7 +112,7 @@ export default function AgentsListPage() {
             {agentTypes.map(type => (
               <option key={type} value={type}>{type || 'All Types'}</option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -135,7 +136,7 @@ export default function AgentsListPage() {
                   <Link
                     key={agent.id}
                     href={`/docs/agents/${agent.slug}`}
-                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition-all hover:shadow-md"
+                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition hover:shadow-md"
                   >
                     <h3 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] group-hover:text-[color:var(--brand-a-ink)] dark:group-hover:text-[color:var(--brand-a-ink)] truncate mb-1.5">
                       {agent.name}

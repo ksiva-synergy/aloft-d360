@@ -124,7 +124,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                   flexDirection: 'column',
                   gap: 2,
                   padding: '6px 8px',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   border: `1px solid ${c.id === d.chosenId ? GREEN : 'rgba(136,146,164,0.25)'}`,
                   background: c.id === d.chosenId ? 'rgba(52,211,153,0.08)' : 'transparent',
                   color: 'var(--wb-ink, #E6ECF5)',
@@ -148,7 +148,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
               style={{
                 ...type.label,
                 padding: '6px 8px',
-                borderRadius: 4,
+                borderRadius: 6,
                 border: `1px solid ${VIOLET}`,
                 background: 'rgba(196,181,253,0.10)',
                 color: VIOLET,

@@ -124,7 +124,7 @@ export default function TrustActionBar({
           fontWeight: 600,
           letterSpacing: '0.08em',
           padding: '3px 8px',
-          borderRadius: 4,
+          borderRadius: 6,
           textTransform: 'uppercase',
           ...chipStyle,
         }}
@@ -151,7 +151,7 @@ export default function TrustActionBar({
             style={{
               ...type.label,
               padding: '3px 10px',
-              borderRadius: 3,
+              borderRadius: 6,
               border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
               background: 'transparent',
               color: loading ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',

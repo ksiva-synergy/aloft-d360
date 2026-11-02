@@ -106,7 +106,7 @@ export function ClassSuggestionChip({
         <span style={{
           ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#1a1205',
           background: GOLD,
-          borderRadius: 3,
+          borderRadius: 6,
           padding: '2px 8px',
           letterSpacing: '0.08em',
           textTransform: 'uppercase' as const,
@@ -145,7 +145,7 @@ export function ClassSuggestionChip({
             background: NAVY,
             color: '#ffffff',
             border: `1px solid ${NAVY2}`,
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '8px 16px',
             cursor: applying ? 'wait' : 'pointer',
             opacity: applying ? 0.7 : 1,

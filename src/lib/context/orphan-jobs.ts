@@ -10,7 +10,10 @@ export function jobScopeHasWorker(scope: unknown): boolean {
 }
 
 /**
- * Fail queued/running/orchestrating jobs that never received `scope.fargate_task_id`.
+ * Fail queued/running/orchestrating jobs that never received `scope.fargate_task_id`
+ * and have not sent a heartbeat (`updated_at`) within `maxAgeMs`.
+ * Workers call heartbeat() every ~3 minutes, so a live job with no task id (e.g.
+ * an in-process chain follow-up) is not reaped just because it started long ago.
  * Prevents overlap blockers when ECS RunTask failed or the web never attached a worker.
  */
 export async function reapOrphanActiveJobs(
@@ -22,7 +25,7 @@ export async function reapOrphanActiveJobs(
     where: {
       org_id: orgId,
       status: { in: ['queued', 'running', 'orchestrating'] },
-      created_at: { lt: cutoff },
+      updated_at: { lt: cutoff },
     },
     select: { id: true, scope: true },
     take: 200,

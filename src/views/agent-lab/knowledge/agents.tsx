@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useCallback, useEffect, useState } from 'react';
 import { Bot, ExternalLink, Loader2, Plus, X } from 'lucide-react';
 import Link from '@/lib/navigation/link';
@@ -55,7 +56,7 @@ export function AgentsTab({ kb, canEdit, notify, onCount }: { kb: KnowledgeBase;
       </p>
       {canEdit && (
         <div className="flex flex-wrap gap-2">
-          <select className={`${field} max-w-sm`} aria-label="Agent to add" value={choice} onChange={(e) => setChoice(e.target.value)}>
+          <Select className={`${field} max-w-sm`} aria-label="Agent to add" value={choice} onChange={(e) => setChoice(e.target.value)}>
             <option value="">{available.length ? 'Choose a saved agent…' : 'No other saved agents'}</option>
             {available.map((a) => (
               <option key={a.slug} value={a.slug}>
@@ -63,7 +64,7 @@ export function AgentsTab({ kb, canEdit, notify, onCount }: { kb: KnowledgeBase;
                 {a.status ? ` · ${a.status}` : ''}
               </option>
             ))}
-          </select>
+          </Select>
           <button type="button" className={`${btn.primary} h-9`} disabled={!choice || busy} onClick={() => void add()}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add agent
           </button>

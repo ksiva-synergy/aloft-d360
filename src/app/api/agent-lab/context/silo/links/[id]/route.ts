@@ -92,7 +92,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       // D-24: Only fire process synchronously in development env
       if (process.env.NODE_ENV === 'development') {
-        const processUrl = new URL('/api/agent-lab/context/process', req.url).toString();
+        const processUrl = new URL(
+        '/api/agent-lab/context/process',
+        // Never derive from req.url: the Host header is client-controlled and the cookie is forwarded.
+        process.env.NEXTAUTH_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
+      ).toString();
         const cookie = req.headers.get('cookie') ?? '';
         void fetch(processUrl, {
           method: 'POST',

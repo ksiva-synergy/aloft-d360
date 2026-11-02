@@ -1,5 +1,6 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import { useState, useEffect, useMemo } from 'react';
 import Link from '@/lib/navigation/link';
 import { Search, Wrench, Bot, BookOpen, Filter } from 'lucide-react';
@@ -116,7 +117,7 @@ export default function DocsHubPage() {
         <div className="flex items-center gap-2">
           <div className="relative">
             <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--ink-3)]" />
-            <select
+            <Select
               value={typeFilter}
               onChange={e => setTypeFilter(e.target.value)}
               className="pl-8 pr-8 py-2.5 text-size-ui rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] bg-[color:var(--surface-1)] dark:bg-[var(--background)] text-[color:var(--ink-2)] dark:text-[color:var(--ink-2)] appearance-none focus:outline-none focus:ring-2 focus:ring-[color:color-mix(in_srgb,var(--brand-a)_50%,transparent)]"
@@ -124,7 +125,7 @@ export default function DocsHubPage() {
               {TOOL_TYPE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="flex rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] overflow-hidden">
             {(['all', 'tools', 'agents'] as const).map(section => (
@@ -176,7 +177,7 @@ export default function DocsHubPage() {
                   <Link
                     key={tool.id}
                     href={`/docs/tools/${tool.slug}`}
-                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition-all hover:shadow-md"
+                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] group-hover:text-[color:var(--brand-a-ink)] dark:group-hover:text-[color:var(--brand-a-ink)] truncate">
@@ -235,7 +236,7 @@ export default function DocsHubPage() {
                   <Link
                     key={agent.id}
                     href={`/docs/agents/${agent.slug}`}
-                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition-all hover:shadow-md"
+                    className="group p-4 rounded-lg border border-[color:var(--line-1)] dark:border-[var(--line-1)] hover:border-[color:color-mix(in_srgb,var(--brand-a)_35%,transparent)] dark:hover:border-[color:var(--brand-a)] bg-[color:var(--surface-1)] dark:bg-[var(--surface-1)] transition hover:shadow-md"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)] group-hover:text-[color:var(--brand-a-ink)] dark:group-hover:text-[color:var(--brand-a-ink)] truncate">

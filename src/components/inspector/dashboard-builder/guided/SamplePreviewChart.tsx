@@ -278,7 +278,7 @@ function Chip({ color, label, icon, testId }: { color: string; label: string; ic
       data-testid={testId}
       style={{
         fontFamily: UI_FONT, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase',
-        color, border: `1px solid ${withAlpha(color, '66')}`, background: `${withAlpha(color, '14')}`, borderRadius: 4,
+        color, border: `1px solid ${withAlpha(color, '66')}`, background: `${withAlpha(color, '14')}`, borderRadius: 6,
         padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600,
       }}
     >
@@ -302,7 +302,7 @@ function ChartSkeleton({ kind, height }: { kind: CanonKind; height: number }) {
         <div style={{ margin: 'auto', width: Math.min(height - 40, 120), height: Math.min(height - 40, 120), borderRadius: '50%', border: `12px solid ${bar}` }} />
       ) : (
         [0.5, 0.8, 0.35, 0.65, 0.9, 0.45].map((h, i) => (
-          <div key={i} style={{ flex: 1, height: `${h * 100}%`, borderRadius: 3, background: bar }} />
+          <div key={i} style={{ flex: 1, height: `${h * 100}%`, borderRadius: 6, background: bar }} />
         ))
       )}
     </div>

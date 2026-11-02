@@ -166,7 +166,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
           style={{
             ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, minWidth: 0, resize: 'vertical',
             background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(74,96,128,0.35)',
-            borderRadius: 4, color: 'var(--wb-ink, #E6ECF5)', padding: '5px 8px', outline: 'none',
+            borderRadius: 6, color: 'var(--wb-ink, #E6ECF5)', padding: '5px 8px', outline: 'none',
           }}
         />
         <button
@@ -177,7 +177,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
             ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', display: 'inline-flex', alignItems: 'center', gap: 3,
             background: input.trim() && !busy ? GOLD : 'transparent', color: input.trim() && !busy ? NAVY : MUTED,
             border: `1px solid ${input.trim() && !busy ? GOLD : 'rgba(136,146,164,0.35)'}`,
-            borderRadius: 4, padding: '5px 9px', cursor: input.trim() && !busy ? 'pointer' : 'default', flexShrink: 0,
+            borderRadius: 6, padding: '5px 9px', cursor: input.trim() && !busy ? 'pointer' : 'default', flexShrink: 0,
           }}
         >
           <Plus size={10} /> TEACH
@@ -193,13 +193,13 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
         {rules.map((r) => {
           const isOrg = r.visibility === 'org';
           return (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 8px', border: `1px solid ${BORDER}`, borderRadius: 4, background: SURFACE }}>
+            <div key={r.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '5px 8px', border: `1px solid ${BORDER}`, borderRadius: 6, background: SURFACE }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #E6ECF5)', lineHeight: 1.4 }}>{r.ruleText}</div>
                 <span style={{
                   ...type.label,
                   color: isOrg ? GREEN : MUTED, border: `1px solid ${isOrg ? 'rgba(34,197,94,0.3)' : 'rgba(136,146,164,0.3)'}`,
-                  borderRadius: 3, padding: '1px 5px', marginTop: 3, display: 'inline-block',
+                  borderRadius: 6, padding: '1px 5px', marginTop: 3, display: 'inline-block',
                 }}>
                   {isOrg ? 'ORG-WIDE' : 'PERSONAL'}
                 </span>
@@ -210,7 +210,7 @@ function RulesSubsection({ rules, onChanged }: { rules: ContribRule[]; onChanged
                     onClick={() => promote(r.id)}
                     disabled={busy}
                     title="Promote to org-wide (reputation-gated)"
-                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: inkOf(GOLD), border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 3, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
+                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', display: 'inline-flex', alignItems: 'center', gap: 3, background: 'transparent', color: inkOf(GOLD), border: `1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)`, borderRadius: 6, padding: '2px 6px', cursor: busy ? 'default' : 'pointer' }}
                   >
                     <ArrowUpCircle size={10} /> PROMOTE
                   </button>

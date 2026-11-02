@@ -321,13 +321,13 @@ async function dispatchSingleJob(
         )
         .map((o) => o.id);
 
-      const embedAllColRows = await prisma.platformContextColumn.findMany({
+      const embedAllColRows = embedObjectIds.length === 0 ? [] : await prisma.platformContextColumn.findMany({
         where: {
           org_id: orgId,
           lifecycle: 'active',
           object: {
             source_id: job.source_id,
-            ...(embedObjectIds.length > 0 ? { id: { in: embedObjectIds } } : {}),
+            id: { in: embedObjectIds },
           },
         },
         select: { id: true, semantic: true },

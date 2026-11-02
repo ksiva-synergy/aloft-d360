@@ -289,7 +289,7 @@ export function BlueprintDetailDrawer({
         {pd && (
           <div style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${tint(GOLD, 28)}`, background: tint(GOLD, 6), display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, border: `1px solid ${tint(MUTED, 40)}`, borderRadius: 3, padding: '1px 6px' }}>
+              <span style={{ fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', textTransform: 'uppercase', color: MUTED, border: `1px solid ${tint(MUTED, 40)}`, borderRadius: 6, padding: '1px 6px' }}>
                 {pd.tier}
               </span>
               <span style={{ fontSize: 'var(--type-ui-regular-size)', color: INK }}>{pd.label}</span>
