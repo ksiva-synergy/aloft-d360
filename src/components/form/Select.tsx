@@ -146,7 +146,7 @@ export function Select({
   }, [open, place]);
 
   React.useEffect(() => {
-    if (open) menuRef.current?.querySelector(`[data-idx="${active}"]`)?.scrollIntoView({ block: 'nearest' });
+    if (open) menuRef.current?.querySelector(`[data-idx="${active}"]`)?.scrollIntoView?.({ block: 'nearest' });
   }, [active, open]);
 
   function move(from: number, dir: 1 | -1) {
@@ -195,6 +195,7 @@ export function Select({
         autoFocus={autoFocus}
         disabled={disabled}
         style={style && { ...style, backgroundImage: 'none' }}
+        data-value={current}
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -248,10 +249,13 @@ export function Select({
                 return (
                   <React.Fragment key={`${o.group ?? ''}:${o.value}:${i}`}>
                     {header && (
-                      <div className="px-3 pb-1 pt-2 text-caption text-[var(--ink-3)]" role="presentation">{header}</div>
+                      <div className="px-3 pb-1 pt-2 text-caption text-[var(--ink-3)]" role="group" aria-label={header}>
+                        {header}
+                      </div>
                     )}
                     <div
                       role="option"
+                      data-value={o.value}
                       data-idx={i}
                       aria-selected={isSel}
                       aria-disabled={o.disabled || undefined}

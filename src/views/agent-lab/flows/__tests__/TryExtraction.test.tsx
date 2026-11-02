@@ -5,6 +5,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { chooseSelectValue, selectValue } from '@/test/form-select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StepEditor } from '../FlowForm';
 import type { Def, Step } from '../editor-model';
@@ -45,7 +46,8 @@ describe('try extraction', () => {
       });
     });
     const { onFixture } = renderExtract({ connection: 'c-1', schema: 'seafarer_certificate', key: '{{item.key}}' });
-    expect((screen.getByLabelText('What to read') as HTMLSelectElement).value).toBe('seafarer_certificate');
+    await screen.findByLabelText('What to read');
+    expect(selectValue('What to read')).toBe('seafarer_certificate');
 
     // A ref is not a file path, so the box starts empty.
     const path = screen.getByLabelText('File path') as HTMLInputElement;
@@ -72,7 +74,8 @@ describe('try extraction', () => {
     const { onChange } = renderExtract({ connection: 'CHOOSE_CONNECTION', key: 'a.pdf' });
     expect(screen.getByText('Choose a connection first.')).toBeTruthy();
     expect((screen.getByRole('button', { name: /Try on a file/ }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText('What to read'), { target: { value: 'seafarer_medical' } });
+    await screen.findByLabelText('What to read');
+    chooseSelectValue('What to read', 'seafarer_medical');
     expect((onChange.mock.calls[0]![0] as Def).steps![0]!.config.input).toMatchObject({ schema: 'seafarer_medical', key: 'a.pdf' });
   });
 });

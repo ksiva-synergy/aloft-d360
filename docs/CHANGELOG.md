@@ -2,6 +2,14 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## CI: fix vitest for themed Select combobox (flows + knowledge)
+
+- **What:** Added `src/test/form-select.ts` helpers for `@/components/form/Select` (open menu, choose by `data-value`, read `data-value` on trigger). Updated flows/knowledge tests that still assumed native `<select>`. `Select.tsx` exposes `data-value` on trigger and options, uses `role="group"` for optgroups, guards `scrollIntoView` in jsdom.
+- **Why:** Verify job failed with 9 tests (`pick.options is not iterable`, `Unable to find role="option"`, failure drill never applied because `fireEvent.change` on combobox).
+- **Verified:** `npx vitest run src/views/agent-lab/flows/__tests__` and `KnowledgePages.test.tsx` — 40/40 pass locally.
+- **Not done:** Full `npx vitest run` not re-run in this session.
+- **Follow-up:** Removed unused `expectSelectOption` from `form-select.ts` so root `tsc --noEmit` passes (CI runs after vitest).
+
 ## CI: commit missing modules referenced by ui-redesign (pipeline, agents, form, LLM Lite)
 
 - **What:** Added previously local-only sources that `761fb233` imported but did not commit: `pipeline-freshness.ts`, `pipeline-change-check.ts`, `cron-label.ts`, `agent-chats.ts`, `inspection.ts`, `client-stream-error.ts`, `answer-inspection.ts`, LLM Lite helpers (`default-model`, `chat`, `model-registry`, `model-settings-store`), `sessions/surfaces.ts`, `memory/curation-access.ts`, `components/form/Select.tsx`, agent chat API routes, model-config API, catalog-ui, AgentAvatar/AnswerInspection, and related tests. Replaced new `text-[Npx]` literals in `DashboardView.tsx`, `jobs.tsx`, and agent-staging models panels with type tokens so `typography-guard` stays at baseline 0.

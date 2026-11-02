@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { chooseSelectValue, closeSelect, openSelect, selectListbox } from '@/test/form-select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StepEditor } from '../FlowForm';
 import type { Def, Step } from '../editor-model';
@@ -60,14 +61,17 @@ describe('agent step', () => {
     const onFixture = vi.fn();
     render(<Harness config={{ prompt: 'Does voyage {{item.voyage}} comply?' }} onDef={(d) => (def = d)} onFixture={onFixture} />);
 
-    const picker = screen.getByLabelText('Agent') as HTMLSelectElement;
-    await within(picker).findByRole('option', { name: 'Regulatory Decision Tracer' });
-    expect(within(picker).getByRole('group', { name: 'Drafts (can be tried, not published)' })).toBeTruthy();
+    await screen.findByLabelText('Agent');
+    openSelect('Agent');
+    const pickerMenu = selectListbox();
+    expect(within(pickerMenu).getByRole('option', { name: 'Regulatory Decision Tracer' })).toBeTruthy();
+    expect(within(pickerMenu).getByRole('group', { name: 'Drafts (can be tried, not published)' })).toBeTruthy();
     // Same name twice: the slug tells them apart.
-    expect(within(picker).getByRole('option', { name: 'Databricks Jobs Agent (databricks-jobs-agent-a) · draft' })).toBeTruthy();
+    expect(within(pickerMenu).getByRole('option', { name: 'Databricks Jobs Agent (databricks-jobs-agent-a) · draft' })).toBeTruthy();
     // A catalog entry with no instructions is shown but cannot be chosen.
-    expect(within(within(picker).getByRole('group', { name: 'Not set up (no instructions)' })).getByRole('option', { name: 'Demand Signal Forecaster' }).hasAttribute('disabled')).toBe(true);
-    fireEvent.change(picker, { target: { value: 'regulatory-decision-tracer' } });
+    expect(within(pickerMenu).getByRole('option', { name: 'Demand Signal Forecaster' }).getAttribute('aria-disabled')).toBe('true');
+    closeSelect('Agent');
+    chooseSelectValue('Agent', 'regulatory-decision-tracer');
     expect(def!.steps![0]!.config.agentSlug).toBe('regulatory-decision-tracer');
     expect(screen.getByText('Traces regulatory decisions to their source')).toBeTruthy();
 

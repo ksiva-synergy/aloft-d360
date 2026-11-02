@@ -5,6 +5,7 @@
  */
 import React, { useState } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { chooseSelectValue } from '@/test/form-select';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { StepEditor } from '../FlowForm';
 import { fieldKey } from '../ExtractFieldsEditor';
@@ -50,17 +51,18 @@ describe('own fields', () => {
     let def: Def | undefined;
     render(<Harness initial={{ connection: 'c-1', key: 'reports/a.pdf', schema: 'seafarer_certificate' }} onDef={(d) => (def = d)} />);
 
-    fireEvent.change(screen.getByLabelText('What to read'), { target: { value: '__own_fields' } });
+    await screen.findByLabelText('What to read');
+    chooseSelectValue('What to read', '__own_fields');
     expect(def!.steps![0]!.config.input).toEqual({ connection: 'c-1', key: 'reports/a.pdf', fields: [{ key: '', label: '', type: 'text', description: '' }] });
     expect(screen.getByText('Finish the field list first.')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Field 1 name'), { target: { value: 'Inspection date' } });
-    fireEvent.change(screen.getByLabelText('Field 1 type'), { target: { value: 'date' } });
+    chooseSelectValue('Field 1 type', 'date');
     fireEvent.change(screen.getByLabelText('Field 1 description'), { target: { value: 'Date of the inspection' } });
     expect(screen.getByText('values.inspection_date')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Add field/ }));
     fireEvent.change(screen.getByLabelText('Field 2 name'), { target: { value: 'Deficiencies' } });
-    fireEvent.change(screen.getByLabelText('Field 2 type'), { target: { value: 'number' } });
+    chooseSelectValue('Field 2 type', 'number');
     fireEvent.change(screen.getByLabelText('Field 2 description'), { target: { value: 'Number of deficiencies' } });
 
     expect(def!.steps![0]!.config.input).toEqual({

@@ -7,6 +7,7 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { chooseSelectValue, selectOptionValues } from '@/test/form-select';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -206,9 +207,9 @@ describe('A knowledge base', () => {
     const list = await screen.findByRole('list', { name: 'Agents using this knowledge base' });
     expect(within(list).getByText('QHSE advisor')).toBeTruthy();
     expect(screen.getByText(/only people who can see it get answers from it/)).toBeTruthy();
-    const pick = screen.getByLabelText('Agent to add') as HTMLSelectElement;
-    expect([...pick.options].map((o) => o.value)).toEqual(['', 'crew-helper']); // already linked ones not offered
-    fireEvent.change(pick, { target: { value: 'crew-helper' } });
+    await screen.findByLabelText('Agent to add');
+    expect(selectOptionValues('Agent to add')).toEqual(['', 'crew-helper']); // already linked ones not offered
+    chooseSelectValue('Agent to add', 'crew-helper');
     fireEvent.click(screen.getByRole('button', { name: /Add agent/ }));
     await waitFor(() => expect(calls.find((c) => c.method === 'POST' && c.path.endsWith('/agents'))?.body).toEqual({ agentSlug: 'crew-helper' }));
     expect(await within(list).findByText('Crew helper')).toBeTruthy();
