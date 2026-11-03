@@ -78,6 +78,19 @@ describe('job-ui', () => {
     expect(formatStatsSummary({ objects_profiled: 0 }, 't1_profile')).toContain('no work');
   });
 
+  it('flags empty T3/T4 success', () => {
+    expect(
+      resolveDisplayJobStatus(
+        'succeeded',
+        { objectsInScope: 1, objectsProcessed: 0, skipped: 1, snapshotsWritten: 0 },
+        't3_usage',
+      ),
+    ).toBe('empty');
+    expect(
+      resolveDisplayJobStatus('succeeded', { clusters_enqueued: 0, tables_total: 0 }, 't4_scan'),
+    ).toBe('empty');
+  });
+
   it('wideScopeTierLaunchBlocked requires Limit or opt-in', () => {
     expect(wideScopeTierLaunchBlocked('t2_semantic', ['a.b.*'], 200, false).blocked).toBe(false);
     expect(wideScopeTierLaunchBlocked('t2_semantic', [], 51, false).blocked).toBe(true);

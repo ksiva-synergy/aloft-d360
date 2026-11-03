@@ -94,7 +94,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
             <Link
               href="/dashboard"
-              aria-label="Synergy Group — Data 360 home"
+              aria-label="Synergy Group — ALOFT home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
               <BrandMark size={30} className="!rounded-full" />
@@ -196,7 +196,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               <BrandMark size={28} className="!rounded-full" />
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="truncate text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]">Synergy Group</p>
-                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">Data 360 · Agent Lab</p>
+                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">ALOFT · Agent Lab</p>
               </div>
               <NavStyleToggle
                 current="rail"

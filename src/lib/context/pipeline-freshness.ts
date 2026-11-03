@@ -4,6 +4,7 @@
  * unit-tested and shared by the API and the worker.
  */
 import { selectDroppedPaths } from './scope-match';
+import type { JobKind } from './queue';
 
 // ── T0: structure signature ─────────────────────────────────────────────────
 
@@ -175,6 +176,37 @@ export function scopeNeedsRescan(r: Pick<ScopeChangeReport, 'changed' | 'added' 
 export type ContinueStage = 't0_structural' | 't1_profile' | 't2_semantic' | 'embed';
 export type ContinueThrough = 't1_profile' | 't2_semantic' | 'embed';
 
+/** UI / API tier ids for Continue pipeline (maps to JobKind). */
+export type ContinueTierId = 't0' | 't1' | 't2' | 'embed' | 't3' | 't4';
+
+export const CONTINUE_TIER_ORDER: readonly ContinueTierId[] = ['t0', 't1', 't2', 'embed', 't3', 't4'];
+
+const TIER_TO_KIND: Record<ContinueTierId, JobKind> = {
+  t0: 't0_structural',
+  t1: 't1_profile',
+  t2: 't2_semantic',
+  embed: 'embed',
+  t3: 't3_usage',
+  t4: 't4_scan',
+};
+
+export function continueTierToKind(tier: ContinueTierId): JobKind {
+  return TIER_TO_KIND[tier];
+}
+
+/** Parse and normalize tier ids from a launch request (stable pipeline order). */
+export function parseContinueTierIds(raw: unknown): ContinueTierId[] | null {
+  if (!Array.isArray(raw)) return null;
+  const picked = new Set<ContinueTierId>();
+  for (const x of raw) {
+    if (typeof x === 'string' && (CONTINUE_TIER_ORDER as readonly string[]).includes(x)) {
+      picked.add(x as ContinueTierId);
+    }
+  }
+  if (picked.size === 0) return null;
+  return CONTINUE_TIER_ORDER.filter(t => picked.has(t));
+}
+
 export interface ContinueStageNeeds {
   rescan: boolean;
   needsProfile: number;
@@ -195,4 +227,42 @@ export function buildContinueChain(needs: ContinueStageNeeds, through: ContinueT
   const first = dirty.findIndex((d, i) => d && i <= lastIdx);
   if (first < 0) return [];
   return order.slice(first, lastIdx + 1);
+}
+
+/**
+ * Build a sequential job list from operator-selected tiers.
+ * T0–Embed: cascade from earliest stale work through the highest selected embed tier.
+ * T3/T3: appended when selected (scoped at launch via includePatterns).
+ */
+export function buildContinueKindsFromTierSelection(args: {
+  selectedTiers: ContinueTierId[];
+  needs: ContinueStageNeeds;
+  scannedObjects: number;
+  notInModel: number;
+}): JobKind[] {
+  const selected = new Set(args.selectedTiers);
+  const embedTiers: ContinueTierId[] = ['t0', 't1', 't2', 'embed'];
+  const selectedEmbed = embedTiers.filter(t => selected.has(t));
+  const kinds: JobKind[] = [];
+
+  if (selectedEmbed.length > 0) {
+    const maxIdx = Math.max(...selectedEmbed.map(t => embedTiers.indexOf(t)));
+    const through: ContinueThrough =
+      maxIdx <= 1 ? 't1_profile' : maxIdx === 2 ? 't2_semantic' : 'embed';
+    kinds.push(...(buildContinueChain(args.needs, through) as JobKind[]));
+  }
+
+  if (selected.has('t3') && args.scannedObjects > 0) {
+    kinds.push('t3_usage');
+  }
+  if (selected.has('t4') && args.scannedObjects > 0) {
+    kinds.push('t4_scan');
+  }
+
+  const seen = new Set<JobKind>();
+  return kinds.filter(k => {
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }

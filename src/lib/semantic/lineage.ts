@@ -19,6 +19,8 @@
  */
 
 import prisma from '@/lib/db';
+import { withPrismaReadRetry } from '@/lib/db/with-prisma-read-retry';
+import { getCachedCatalog, getCachedConsumers } from './lineage-cache';
 import { compileSemanticQuery, toAlias } from './compiler';
 import type { SemanticModel } from './types';
 import {
@@ -182,12 +184,14 @@ export interface LoadedCatalog {
 export async function resolveGovernedModel(
   orgId: string,
 ): Promise<{ id: string; name: string; status: string } | null> {
-  const model = await prisma.platform_semantic_models.findFirst({
-    where: { org_id: orgId, status: 'governed' },
-    select: { id: true, name: true, status: true },
-    orderBy: { created_at: 'desc' },
+  return withPrismaReadRetry(async () => {
+    const model = await prisma.platform_semantic_models.findFirst({
+      where: { org_id: orgId, status: 'governed' },
+      select: { id: true, name: true, status: true },
+      orderBy: { created_at: 'desc' },
+    });
+    return model;
   });
-  return model;
 }
 
 /**
@@ -196,82 +200,91 @@ export async function resolveGovernedModel(
  * non-archived def inside an archived/draft entity cannot leak), then dims/
  * measures scoped to the surviving entity ids, all NOT IN ('archived','draft').
  */
+async function loadCatalogFromDb(
+  orgId: string,
+  modelId: string,
+): Promise<LoadedCatalog | null> {
+  return withPrismaReadRetry(async () => {
+    const model = await prisma.platform_semantic_models.findFirst({
+      where: { id: modelId, org_id: orgId, status: 'governed' },
+      select: { id: true, name: true, status: true },
+    });
+    if (!model) return null;
+
+    const entities = await prisma.platform_sem_entities.findMany({
+      where: { model_id: modelId, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
+      orderBy: { created_at: 'asc' },
+    });
+    const entityIds = entities.map((e) => e.id);
+
+    const [dimensions, measures, joins] = await Promise.all([
+      prisma.platform_sem_dimensions.findMany({
+        where: { entity_id: { in: entityIds }, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
+        orderBy: { created_at: 'asc' },
+      }),
+      prisma.platform_sem_measures.findMany({
+        where: { entity_id: { in: entityIds }, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
+        orderBy: { created_at: 'asc' },
+      }),
+      prisma.platform_sem_joins.findMany({
+        where: { model_id: modelId, org_id: orgId },
+      }),
+    ]);
+
+    return {
+      model,
+      entities: entities.map((e) => ({
+        id: e.id,
+        full_path: e.full_path,
+        entity_label: e.entity_label,
+        description: e.description,
+        ai_context: e.ai_context,
+        synonyms: e.synonyms,
+        status: e.status,
+      })),
+      dimensions: dimensions.map((d) => ({
+        id: d.id,
+        entity_id: d.entity_id,
+        column_name: d.column_name,
+        dimension_label: d.dimension_label,
+        dimension_type: d.dimension_type,
+        description: d.description,
+        ai_context: d.ai_context,
+        synonyms: d.synonyms,
+        format_hint: d.format_hint,
+        status: d.status,
+      })),
+      measures: measures.map((m) => ({
+        id: m.id,
+        entity_id: m.entity_id,
+        column_name: m.column_name,
+        measure_label: m.measure_label,
+        aggregate: m.aggregate,
+        expression: m.expression,
+        metric_type: m.metric_type,
+        description: m.description,
+        ai_context: m.ai_context,
+        synonyms: m.synonyms,
+        unit: m.unit,
+        format_hint: m.format_hint,
+        status: m.status,
+      })),
+      joins: joins.map((j) => ({
+        id: j.id,
+        from_entity_id: j.from_entity_id,
+        to_entity_id: j.to_entity_id,
+        join_type: j.join_type,
+        join_on_sql: j.join_on_sql,
+      })),
+    };
+  });
+}
+
 export async function loadCatalog(
   orgId: string,
   modelId: string,
 ): Promise<LoadedCatalog | null> {
-  const model = await prisma.platform_semantic_models.findFirst({
-    where: { id: modelId, org_id: orgId, status: 'governed' },
-    select: { id: true, name: true, status: true },
-  });
-  if (!model) return null;
-
-  const entities = await prisma.platform_sem_entities.findMany({
-    where: { model_id: modelId, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
-    orderBy: { created_at: 'asc' },
-  });
-  const entityIds = entities.map((e) => e.id);
-
-  const [dimensions, measures, joins] = await Promise.all([
-    prisma.platform_sem_dimensions.findMany({
-      where: { entity_id: { in: entityIds }, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
-      orderBy: { created_at: 'asc' },
-    }),
-    prisma.platform_sem_measures.findMany({
-      where: { entity_id: { in: entityIds }, org_id: orgId, status: { notIn: ['archived', 'draft'] } },
-      orderBy: { created_at: 'asc' },
-    }),
-    prisma.platform_sem_joins.findMany({
-      where: { model_id: modelId, org_id: orgId },
-    }),
-  ]);
-
-  return {
-    model,
-    entities: entities.map((e) => ({
-      id: e.id,
-      full_path: e.full_path,
-      entity_label: e.entity_label,
-      description: e.description,
-      ai_context: e.ai_context,
-      synonyms: e.synonyms,
-      status: e.status,
-    })),
-    dimensions: dimensions.map((d) => ({
-      id: d.id,
-      entity_id: d.entity_id,
-      column_name: d.column_name,
-      dimension_label: d.dimension_label,
-      dimension_type: d.dimension_type,
-      description: d.description,
-      ai_context: d.ai_context,
-      synonyms: d.synonyms,
-      format_hint: d.format_hint,
-      status: d.status,
-    })),
-    measures: measures.map((m) => ({
-      id: m.id,
-      entity_id: m.entity_id,
-      column_name: m.column_name,
-      measure_label: m.measure_label,
-      aggregate: m.aggregate,
-      expression: m.expression,
-      metric_type: m.metric_type,
-      description: m.description,
-      ai_context: m.ai_context,
-      synonyms: m.synonyms,
-      unit: m.unit,
-      format_hint: m.format_hint,
-      status: m.status,
-    })),
-    joins: joins.map((j) => ({
-      id: j.id,
-      from_entity_id: j.from_entity_id,
-      to_entity_id: j.to_entity_id,
-      join_type: j.join_type,
-      join_on_sql: j.join_on_sql,
-    })),
-  };
+  return getCachedCatalog(orgId, modelId, () => loadCatalogFromDb(orgId, modelId));
 }
 
 // ── Consumer scan (Pin #2 — the def→dashboard edge, one read two directions) ──
@@ -295,23 +308,24 @@ export interface ConsumerLink {
  *              (see coReferencedMeasures()).
  * Raw-SQL widgets reference no governed defs and are skipped.
  */
-export async function scanConsumers(orgId: string): Promise<ConsumerLink[]> {
-  const dashboards = await prisma.platform_dashboards.findMany({
-    where: { org_id: orgId, deleted_at: null },
-    select: {
-      id: true,
-      name: true,
-      visibility: true,
-      current_version_id: true,
-      platform_semantic_models: { select: { status: true } },
-      platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions: {
-        select: { widgets: true },
+async function scanConsumersFromDb(orgId: string): Promise<ConsumerLink[]> {
+  return withPrismaReadRetry(async () => {
+    const dashboards = await prisma.platform_dashboards.findMany({
+      where: { org_id: orgId, deleted_at: null },
+      select: {
+        id: true,
+        name: true,
+        visibility: true,
+        current_version_id: true,
+        platform_semantic_models: { select: { status: true } },
+        platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions: {
+          select: { widgets: true },
+        },
       },
-    },
-  });
+    });
 
-  const links: ConsumerLink[] = [];
-  for (const d of dashboards) {
+    const links: ConsumerLink[] = [];
+    for (const d of dashboards) {
     const version =
       d.platform_dashboard_versions_platform_dashboards_current_version_idToplatform_dashboard_versions;
     if (!d.current_version_id || !version) continue;
@@ -344,6 +358,11 @@ export async function scanConsumers(orgId: string): Promise<ConsumerLink[]> {
     });
   }
   return links;
+  });
+}
+
+export async function scanConsumers(orgId: string): Promise<ConsumerLink[]> {
+  return getCachedConsumers(orgId, () => scanConsumersFromDb(orgId));
 }
 
 /**

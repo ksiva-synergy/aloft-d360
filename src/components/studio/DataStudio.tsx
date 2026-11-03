@@ -294,8 +294,6 @@ export function DataStudio({ open, results, onClose, sessionId }: DataStudioProp
           }}
         >
           {/* Breadcrumb */}
-          <span style={{ color: 'var(--builder-text-label)' }}>DATA 360</span>
-          <span style={{ color: 'var(--builder-text-label)', opacity: 0.5 }}>/</span>
           <span style={{ color: 'var(--builder-text-label)' }}>INSPECTOR</span>
           <span style={{ color: 'var(--builder-text-label)', opacity: 0.5 }}>/</span>
           <span style={{ color: 'var(--builder-text)', fontWeight: 500 }}>DATA STUDIO</span>

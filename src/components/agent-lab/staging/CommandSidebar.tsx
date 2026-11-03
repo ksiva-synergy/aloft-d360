@@ -115,13 +115,13 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
           <div className="-mx-3 flex h-[var(--shell-header-h)] shrink-0 items-center gap-3 border-b border-[var(--header-border)] px-3">
             <Link
               href="/dashboard"
-              aria-label="Synergy Group — Data 360 home"
+              aria-label="Synergy Group — ALOFT home"
               className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
             >
               <BrandMark size={30} className="!rounded-xl" />
             </Link>
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">Data 360</p>
+              <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">ALOFT</p>
               <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
             </div>
             <button

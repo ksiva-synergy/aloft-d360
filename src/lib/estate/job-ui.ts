@@ -11,7 +11,13 @@ export type MappedJobStatus =
   | 'cancelled'
   | 'empty';
 
-const SPLITTABLE_KINDS = new Set(['t0_structural', 't1_profile', 't2_semantic']);
+const SPLITTABLE_KINDS = new Set([
+  't0_structural',
+  't1_profile',
+  't2_semantic',
+  't3_usage',
+  't4_scan',
+]);
 
 export function mapJobStatus(status: string): MappedJobStatus {
   const s = status.toLowerCase();
@@ -172,6 +178,12 @@ export function getJobPrimaryMetric(
   }
   if (kind === 't2_semantic' && typeof s.objects_enriched === 'number') {
     return { key: 'objects_enriched', value: s.objects_enriched };
+  }
+  if (kind === 't3_usage' && typeof s.objectsProcessed === 'number') {
+    return { key: 'objectsProcessed', value: s.objectsProcessed };
+  }
+  if (kind === 't4_scan' && typeof s.clusters_enqueued === 'number') {
+    return { key: 'clusters_enqueued', value: s.clusters_enqueued };
   }
 
   if (typeof s.objects_swept === 'number') return { key: 'objects_swept', value: s.objects_swept };

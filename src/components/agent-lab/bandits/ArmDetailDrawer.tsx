@@ -417,7 +417,7 @@ export function ArmDetailDrawer({
               <span style={{
                 ...providerPillStyle(stat.provider),
                 fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em',
-                padding: '2px 7px', borderRadius: 6,
+                padding: '2px 7px', borderRadius: 999,
               }}>
                 {stat.provider}
               </span>
@@ -430,7 +430,7 @@ export function ArmDetailDrawer({
               {isFav && (
                 <span style={{
                   fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD),
-                  border: `1px solid ${GOLD}`, borderRadius: 6,
+                  border: `1px solid ${GOLD}`, borderRadius: 999,
                   padding: '1px 5px', letterSpacing: '0.04em',
                 }}>
                   FAVOURITE

@@ -1,0 +1,458 @@
+{
+  "assessment": "ALOFT D360 security assessment",
+  "date": "2026-11-01",
+  "method": "static review + npm audit; no dynamic testing",
+  "report": "SECURITY-ASSESSMENT.md",
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "High",
+      "confidence": 9,
+      "cwe": [
+        "CWE-290",
+        "CWE-639"
+      ],
+      "status": "confirmed",
+      "title": "x-user-id header fallback allows reading/deleting other users' workbench sessions",
+      "files": [
+        "src/app/api/agent-lab/workbench/sessions/route.ts:17",
+        "src/app/api/agent-lab/workbench/sessions/route.ts:93-100",
+        "node_modules/next-auth/jwt/index.js:83-85"
+      ],
+      "scenario": "Send own session JWE as Authorization: Bearer (no cookie); proxy getToken accepts it; getServerSession returns null; x-user-id selects victim.",
+      "impact": "Cross-user session listing and bulk deletion.",
+      "fix": "Remove header fallback; use authenticateSession(); 401 without identity.",
+      "test": "Bearer + x-user-id:victim -> 401; victim rows intact.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F2",
+      "severity": "High",
+      "confidence": 8,
+      "cwe": [
+        "CWE-285",
+        "CWE-1427"
+      ],
+      "status": "confirmed",
+      "title": "Any member can edit/approve/retire/delete org memory rules injected into all users' prompts; purge any session trace",
+      "files": [
+        "src/app/api/agent-lab/memory/[id]/curate/route.ts",
+        "src/app/api/agent-lab/memory/[id]/route.ts",
+        "src/app/api/agent-lab/memory/purge-session/route.ts",
+        "src/lib/memory/retrieve.ts"
+      ],
+      "impact": "Persistent cross-user prompt injection; guardrail removal; audit evidence destruction.",
+      "fix": "Owner check for personal bullets; admin/curator permission for org/HARD_RULE; owner or SESSION_READ_ALL for purge; audit rows.",
+      "test": "Member edit of org bullet -> 403.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F3",
+      "severity": "Medium-High",
+      "confidence": 8,
+      "cwe": [
+        "CWE-863"
+      ],
+      "status": "confirmed",
+      "title": "Catalog review approve publishes any agent without auth; author spoofable",
+      "files": [
+        "src/app/api/catalog/agents/[id]/review/route.ts:20-45"
+      ],
+      "fix": "requireRole(admin); author from session; block self-approval.",
+      "test": "Member approve -> 403.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F4",
+      "severity": "Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-915",
+        "CWE-285"
+      ],
+      "status": "confirmed",
+      "title": "Tool catalog writable by any member with mass assignment",
+      "files": [
+        "src/app/api/catalog/tools/route.ts:38-47",
+        "src/app/api/catalog/tools/[id]/route.ts:21-55"
+      ],
+      "fix": "Admin-only writes + zod field allow-list.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F5",
+      "severity": "Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-639"
+      ],
+      "status": "confirmed",
+      "title": "Studio results IDOR (read + inject)",
+      "files": [
+        "src/app/api/studio/results/route.ts"
+      ],
+      "fix": "guardSessionRead on GET and POST.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F6",
+      "severity": "Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-285",
+        "CWE-639"
+      ],
+      "status": "confirmed (prod env unknown)",
+      "title": "Session ownership guard observe-only unless INSPECTOR_AUTH_ENFORCE=true",
+      "files": [
+        "src/lib/inspector/session-auth.ts:122-139"
+      ],
+      "affectedRoutes": [
+        "agent-lab/agents",
+        "agent-lab/agents/chat",
+        "agent-lab/construction",
+        "agent-lab/construction/class",
+        "agent-lab/workbench/chat",
+        "agent-lab/workbench/commission",
+        "agent-lab/workbench/test-run",
+        "inspector/export",
+        "inspector/teach",
+        "inspector/teach/candidates"
+      ],
+      "fix": "Enforce by default; keep env opt-out.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F7",
+      "severity": "Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-285",
+        "CWE-400"
+      ],
+      "status": "confirmed",
+      "title": "Harvest/ECS/Bedrock workloads triggerable by members, bypassing pipeline-access gate; no LLM quotas",
+      "files": [
+        "src/app/api/agent-lab/context/sources/[id]/harvest/route.ts",
+        "src/app/api/agent-lab/context/objects/[id]/reharvest-all/route.ts",
+        "src/app/api/inspector/boost/run-suite/route.ts",
+        "src/app/api/inspector/semantic/[modelId]/blueprint/route.ts",
+        "src/lib/estate/pipeline-access.ts"
+      ],
+      "fix": "denyUnlessEstatePipelineOperator on all launch routes; per-user LLM quotas.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F8",
+      "severity": "Medium",
+      "confidence": 7,
+      "cwe": [
+        "CWE-269"
+      ],
+      "status": "confirmed",
+      "title": "admin can suspend platform_admin (status branch skips canManageRole)",
+      "files": [
+        "src/app/api/users/[id]/route.ts:94-113"
+      ],
+      "fix": "Apply canManageRole before status change; forbid self-suspension.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F9",
+      "severity": "Low-Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-639"
+      ],
+      "status": "confirmed",
+      "title": "Chart DELETE IDOR",
+      "files": [
+        "src/app/api/inspector/charts/[chartId]/route.ts:44-63"
+      ],
+      "fix": "Owner or admin check.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F10",
+      "severity": "Medium",
+      "confidence": 7,
+      "cwe": [
+        "CWE-307"
+      ],
+      "status": "confirmed (prod env unknown)",
+      "title": "Credentials login on by default without throttling; bypasses Entra MFA",
+      "files": [
+        "src/lib/auth-credentials.ts:10",
+        "src/lib/auth.ts:100-115"
+      ],
+      "fix": "Default off in prod or add throttling/lockout.",
+      "remediation": "mitigated (per-instance lockout; not cluster-wide)",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F11",
+      "severity": "Low-Medium",
+      "confidence": 8,
+      "cwe": [
+        "CWE-613"
+      ],
+      "status": "confirmed",
+      "title": "Disabled/downgraded users retain access up to 8h on session-only routes",
+      "files": [
+        "src/lib/auth.ts:243-292",
+        "src/proxy.ts"
+      ],
+      "fix": "Re-check isUsable/role in proxy (cached) or migrate to authenticateSession.",
+      "remediation": "fixed (5-min DB re-check; revoked tokens rejected by proxy)",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F12",
+      "severity": "Low",
+      "confidence": 6,
+      "cwe": [
+        "CWE-918"
+      ],
+      "status": "unverified",
+      "title": "Internal URL derived from request Host with cookie forwarding",
+      "files": [
+        "src/app/api/agent-lab/context/silo/scan/route.ts:66-70",
+        "src/app/api/agent-lab/context/silo/links/[id]/route.ts:97"
+      ],
+      "fix": "Configured internal base URL or direct lib call.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F13",
+      "severity": "Low",
+      "confidence": 9,
+      "cwe": [
+        "CWE-1021",
+        "CWE-693"
+      ],
+      "status": "confirmed",
+      "title": "No CSP / X-Frame-Options / HSTS / Referrer-Policy",
+      "files": [
+        "next.config.ts:25-30"
+      ],
+      "fix": "Add headers() for /:path*.",
+      "remediation": "fixed (baseline headers; full CSP pending Report-Only rollout)",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F14",
+      "severity": "Low",
+      "confidence": 8,
+      "cwe": [
+        "CWE-862"
+      ],
+      "status": "confirmed",
+      "title": "Telemetry/catalog metadata readable by all members; marcus reflections PATCH open",
+      "files": [
+        "src/app/api/audit-log/route.ts",
+        "src/app/api/marcus/reflections/[id]/route.ts",
+        "src/app/api/inspector/performance/route.ts",
+        "src/app/api/inspector/digest/route.ts"
+      ],
+      "fix": "Role checks consistent with UI gating.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F15",
+      "severity": "Low",
+      "confidence": 8,
+      "cwe": [
+        "CWE-489"
+      ],
+      "status": "confirmed (prod env unknown)",
+      "title": "NEXT_PUBLIC_ENABLE_DEV_TAB overrides server-side role gate",
+      "files": [
+        "src/lib/agent-ops/role-gate.ts:3",
+        "src/lib/agent-ops/access.ts:26"
+      ],
+      "fix": "Do not use NEXT_PUBLIC_ flags in server authZ.",
+      "remediation": "fixed",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F16",
+      "severity": "Low",
+      "confidence": 8,
+      "cwe": [
+        "CWE-1357",
+        "CWE-494"
+      ],
+      "status": "confirmed",
+      "title": "Mutable action tags, undigested base images, unpinned tsx install, :latest deploy tag",
+      "files": [
+        ".github/workflows/ecr-push.yml",
+        ".github/workflows/oidc-diagnose.yml",
+        "Dockerfile",
+        "Dockerfile.harvester:20",
+        "infra/beanstalk/Dockerrun.aws.json:4"
+      ],
+      "fix": "SHA-pin actions, digest-pin images, lockfile tsx, immutable tags.",
+      "remediation": "fixed (Dockerrun.aws.json :latest kept for manual deploys; CI deploys SHA tag)",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "F17",
+      "severity": "Info",
+      "confidence": 7,
+      "cwe": [
+        "CWE-209"
+      ],
+      "status": "confirmed",
+      "title": "17 routes return err.message to clients",
+      "files": [
+        "src/app/api/databricks/connections/[id]/execute/route.ts",
+        "src/app/api/jobs/launch/route.ts"
+      ],
+      "fix": "Generic messages; log details server-side.",
+      "remediation": "fixed for catch-all handlers and streaming chat error events (clientStreamError, 2026-11-01)",
+      "remediatedOn": "2026-11-04"
+    },
+    {
+      "id": "D1",
+      "severity": "Medium",
+      "confidence": 7,
+      "cwe": [
+        "CWE-1395"
+      ],
+      "status": "confirmed (reachability unverified)",
+      "title": "Vulnerable production dependencies",
+      "packages": [
+        {
+          "name": "zod",
+          "installed": "3.25.76",
+          "severity": "high",
+          "direct": true,
+          "fix": "4.6.7 (major)"
+        },
+        {
+          "name": "fast-uri",
+          "installed": "3.1.3",
+          "severity": "high",
+          "direct": false,
+          "via": "ajv",
+          "fix": "npm audit fix"
+        },
+        {
+          "name": "brace-expansion",
+          "severity": "high",
+          "direct": false,
+          "fix": "npm audit fix"
+        },
+        {
+          "name": "source-map-js",
+          "severity": "high",
+          "direct": false,
+          "fix": "npm audit fix"
+        },
+        {
+          "name": "minimatch",
+          "severity": "moderate",
+          "direct": true
+        },
+        {
+          "name": "baseline-browser-mapping",
+          "severity": "moderate",
+          "direct": false
+        }
+      ],
+      "auditTotals": {
+        "all": {
+          "critical": 0,
+          "high": 7,
+          "moderate": 20,
+          "low": 1
+        },
+        "prod": {
+          "critical": 0,
+          "high": 4,
+          "moderate": 2,
+          "low": 0
+        }
+      },
+      "remediation": "partially fixed (npm audit fix; zod 4 major upgrade deferred)",
+      "remediatedOn": "2026-11-04"
+    }
+  ],
+  "routeInventory": {
+    "total": 190,
+    "publicByDesign": [
+      "auth/[...nextauth]",
+      "health"
+    ],
+    "noHandlerAuthProxyOnly": [
+      "marcus/reflections",
+      "marcus/reflections/[id]",
+      "workbench/tools",
+      "audit-log",
+      "backfill/agent-lab/bandits",
+      "catalog/agents/[id]/review",
+      "catalog/agents/[id]/versions",
+      "catalog/agents/[id]/diff/[otherId]",
+      "catalog/tools",
+      "catalog/tools/[id]",
+      "inspector/boost/dispatch",
+      "inspector/boost/results",
+      "inspector/boost/run-suite",
+      "inspector/boost/score",
+      "inspector/charts/[chartId]",
+      "inspector/chat-models",
+      "inspector/digest",
+      "inspector/performance",
+      "inspector/semantic/[modelId]/blueprint",
+      "inspector/semantic/[modelId]/blueprint/refine-item",
+      "inspector/semantic/[modelId]/definitions",
+      "inspector/semantic/[modelId]/intents",
+      "inspector/semantic/[modelId]/resolve-intent",
+      "inspector/semantic/[modelId]/review",
+      "inspector/semantic/candidates",
+      "studio/results"
+    ],
+    "observeOnlyOwnership": [
+      "agent-lab/agents",
+      "agent-lab/agents/chat",
+      "agent-lab/construction",
+      "agent-lab/construction/class",
+      "agent-lab/workbench/chat",
+      "agent-lab/workbench/commission",
+      "agent-lab/workbench/test-run",
+      "inspector/export",
+      "inspector/teach",
+      "inspector/teach/candidates"
+    ],
+    "counts": {
+      "roleEnforced": 33,
+      "authnPlusObjectChecks": 30,
+      "ownershipEnforced": 2,
+      "ownershipObserveOnly": 10,
+      "sessionOnly": 87,
+      "proxyOnly": 26,
+      "public": 2
+    }
+  },
+  "notAssessed": [
+    "production env flag values",
+    "ALB/TLS/Host handling",
+    "Entra app assignment",
+    "deployed IAM/S3/SG/RDS",
+    "line-by-line review of all 87 session-only routes",
+    "web/src and packages beyond grep",
+    "dependency reachability",
+    "dynamic testing"
+  ]
+}

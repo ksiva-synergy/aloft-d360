@@ -12,8 +12,8 @@ export function StagingHeader() {
   const bare = noBreadcrumbRoutes.has(pathname ?? '');
   return (
     <header className={bare
-      ? 'flex h-11 shrink-0 items-center bg-[var(--main-bg)] px-4 md:hidden'
-      : 'flex h-7 shrink-0 items-center gap-1.5 bg-[var(--main-bg)] px-4 pt-1.5 md:px-6'}>
+      ? 'flex h-11 shrink-0 items-center bg-transparent px-4 md:hidden'
+      : 'flex h-7 shrink-0 items-center gap-1.5 bg-transparent px-4 pt-1.5 md:px-6'}>
       <button
         onClick={toggleMobileNav}
         aria-label="Open menu"

@@ -121,12 +121,18 @@ export function UserMenu({
 
   // Use server-provided session immediately to avoid loading flash
   const resolvedSession = session ?? initialSession;
-  const user = resolvedSession?.user as {
-    name?: string | null;
-    email?: string | null;
-    role?: string;
-    roleLabel?: string;
-  } | undefined;
+  const sessionOk =
+    !!resolvedSession?.user &&
+    !!(resolvedSession.user as { id?: string }).id &&
+    resolvedSession.error !== 'SessionRevoked';
+  const user = sessionOk
+    ? (resolvedSession!.user as {
+        name?: string | null;
+        email?: string | null;
+        role?: string;
+        roleLabel?: string;
+      })
+    : undefined;
   const initials = getInitials(user?.name, user?.email);
   const isLoading = status === 'loading' && !initialSession;
   const displayRole = user?.roleLabel ?? user?.role ?? null;
@@ -152,7 +158,9 @@ export function UserMenu({
       >
         <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rail-active)] text-[length:var(--type-ui-regular-size)] font-semibold tracking-wide text-[var(--rail-ink-strong)] ring-1 ring-[var(--rail-line)]">
           {isLoading ? '…' : initials}
-          <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-2 border-[var(--rail-bg)] bg-emerald-400" />
+          {sessionOk && (
+            <span className="absolute -bottom-px -right-px h-3 w-3 rounded-full border-2 border-[var(--rail-bg)] bg-emerald-400" />
+          )}
         </span>
         {showLabel && (
           <span className="min-w-0 flex-1">

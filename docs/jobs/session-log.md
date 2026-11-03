@@ -5,6 +5,34 @@
 
 ---
 
+### 2026-11-02: DB verify pipeline 8942f51f… (Navitas 7 schemas)
+
+- **Queried:** `platform_context_jobs`, `platform_context_objects` via `verify-pipeline-run.ts`.
+- **Finding:** Job `670f5878…` is **`t3_usage`** (Fargate `da6440ed…`), **not** `t4_scan`. Scope **`chain: ["t4_scan"]`** is the *pending* step. Stats: **496 skipped**, 0 processed, 0 snapshots; window 2026-10-22→2026-11-02. **No `t4_scan` row** exists for this `pipeline_run_id` or source since Nov 1 → **T4 never enqueued** (orchestrator chain not executed on worker). Objects: **496 scanned, 496 not_in_model, ever_t3=0** in those schemas.
+- **Root causes:** (1) T3 idle — no qualified query history in window; (2) **T4 missing** — chain advance failure or pre-fix orchestrator; (3) UI reads like a T4 job because **chain** is shown next to kind.
+- **Files:** `pipeline-chain.ts`, `orchestrator.ts`, verify script/SQL.
+
+### 2026-11-02: Verify T3 empty run + UI empty state
+
+- **Question:** Scoped `t3_usage` (and T4) finished green with `skipped: 1`, other stats zero — bug or expected?
+- **Finding:** Expected when one table is in scope, Databricks was queried, but **no query history** in the incremental window (`since` = that table's `last_t3_at`) matches qualified SQL (`catalog.schema.table` or `schema.table`). Table can still show **T3 · Linked** from an earlier harvest. T4 **succeeded empty** when no rows match `last_t4_at IS NULL OR last_t4_at < last_t2_at` in scope (already modeled).
+- **Files:** `usage.ts` (`objectsInScope` stat), `job-ui.ts` (empty display for `t3_usage` / `t4_scan`).
+- **Not done:** Force 7-day / 30-day re-harvest from Continue; DB status still `succeeded`.
+
+### 2026-11-02: Continue pipeline tier selection (T3/T4)
+
+- **Issues:** Continue could not run Usage or Business model; Run was disabled with no path forward.
+- **Files:** `pipeline-freshness.ts`, `pipeline-intent.ts`, `ScannedPipelineScopeBar.tsx`, `pipeline/continue/route.ts`, `orchestrator.ts` (T3 chain advance).
+- **Before → after:** Modal lists six stages; default checks T3+T4 when tables are not in the model. Run launches `t3_usage` → `t4_scan` sequentially with the same Limit. T0–Embed still cascade only when stale.
+- **Not done:** Live UI verification.
+
+### 2026-11-02: T3 and T4 stay on the selected tables
+
+- **Issues:** Continue said "Nothing stale" while T4 was missing; `t4_scan` ignored Limit; scoped T3 used the source-wide `last_t3_at` and an unfiltered lineage pull.
+- **Files:** `src/lib/context/t4/cluster.ts`, `scan-estate.ts`, `run.ts`; `src/lib/context/usage.ts`; `src/lib/context/job-scope.ts`; `src/lib/context/databricks-adapter.ts`; `src/lib/estate/pipeline-intent.ts`; tests; `docs/jobs/current-status.md`.
+- **Before → after:** Business model on one table drafted every unfinished table on the source; it now drafts only the Limit. A scoped usage run reads that scope's history window and lineage. The Scanned bar says how many described tables are not in the business model. Continue still stops at Embed.
+- **Not done:** Continue does not launch T3 or T4. Scopes larger than 40 tables still push a schema `LIKE` for query history. Live Catalog check not performed in this session.
+
 ### 2026-11-01: Home dashboard flags jobs that miss their schedule
 
 - **Files:** `src/lib/dashboard/summary.ts` (`fetchJobs` sets `overdue` using the Jobs page rule: no finish within 1.5× the cadence, where the cadence comes from `getNextRuns`, for non-manual `HARVEST_SCHEDULES`), `src/components/dashboard/DashboardView.tsx` (amber stage status and a Briefing item that links to `/agent-lab/estate/jobs?kind=`). See `docs/CHANGELOG.md`.

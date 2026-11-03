@@ -129,14 +129,47 @@ function sqlLiteral(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+/** Escape `%` and `_` for LIKE patterns on lineage table names (not query history). */
+function sqlLikeLiteral(value: string): string {
+  return sqlLiteral(value).replace(/[%_]/g, ch => `\\${ch}`);
+}
+
+/** Normalized statement_text for warehouse pushdown (matches post-filter in usage.ts). */
+function queryHistoryStatementExpr(): string {
+  return "replace(lower(statement_text), '`', '')";
+}
+
+/** Literal substring match — avoids LIKE `_`/`%` wildcards and ESCAPE dialect issues. */
+function queryHistoryContainsFragment(pathLower: string): string {
+  return `contains(${queryHistoryStatementExpr()}, '${sqlLiteral(pathLower)}')`;
+}
+
 /**
- * Optional SQL fragment for `system.query.history` when T3 scope is narrow (P2-5 pushdown).
- * Matches `catalog.schema.` substrings in statement text (max schema groups capped).
+ * Optional SQL fragment for `system.query.history` when T3 scope is narrow.
+ * Up to `maxGroups` tables: match `catalog.schema.table` (backticks stripped).
+ * Larger scopes: match `catalog.schema.` so the warehouse filter stays small.
  */
 export function buildQueryHistoryStatementSqlFilter(
-  objects: Array<{ catalog_name: string | null; schema_name: string | null }>,
-  maxSchemaGroups = 40,
+  objects: Array<{ catalog_name: string | null; schema_name: string | null; object_name?: string | null }>,
+  maxGroups = 40,
 ): string | null {
+  const tableKeys = new Set<string>();
+  let unnamed = false;
+  for (const o of objects) {
+    const catalog = (o.catalog_name ?? '').toLowerCase();
+    const schema = (o.schema_name ?? '').toLowerCase();
+    const table = (o.object_name ?? '').toLowerCase();
+    if (!schema || !table) {
+      if (catalog || schema) unnamed = true;
+      continue;
+    }
+    tableKeys.add(catalog ? `${catalog}.${schema}.${table}` : `${schema}.${table}`);
+  }
+  if (!unnamed && tableKeys.size > 0 && tableKeys.size <= maxGroups) {
+    const clauses = [...tableKeys].map(k => queryHistoryContainsFragment(k));
+    return `AND (${clauses.join(' OR ')})`;
+  }
+
   const schemaKeys = new Set<string>();
   for (const o of objects) {
     if (o.catalog_name && o.schema_name) {
@@ -144,8 +177,47 @@ export function buildQueryHistoryStatementSqlFilter(
     }
   }
   if (schemaKeys.size === 0) return null;
-  const keys = [...schemaKeys].slice(0, maxSchemaGroups);
-  const clauses = keys.map(k => `LOWER(statement_text) LIKE '%${sqlLiteral(k)}.%'`);
+  const keys = [...schemaKeys].slice(0, maxGroups);
+  const clauses = keys.map(k => queryHistoryContainsFragment(`${k}.`));
+  return `AND (${clauses.join(' OR ')})`;
+}
+
+/**
+ * Optional SQL fragment for `system.access.table_lineage` / `column_lineage`.
+ * Up to 200 tables: exact full-name match. Larger sets: `catalog.schema.` prefix
+ * so unrelated catalogs cannot fill the row cap.
+ */
+export function buildLineageTableSqlFilter(
+  objects: Array<{ full_path: string; catalog_name?: string | null; schema_name?: string | null }>,
+  maxExact = 200,
+): string | null {
+  const names = [...new Set(objects.map(o => o.full_path.trim().toLowerCase()).filter(Boolean))];
+  if (names.length === 0) return null;
+  if (names.length <= maxExact) {
+    const list = names.map(n => `'${sqlLiteral(n)}'`).join(', ');
+    return `AND (LOWER(source_table_full_name) IN (${list}) OR LOWER(target_table_full_name) IN (${list}))`;
+  }
+
+  const schemas = new Set<string>();
+  for (const o of objects) {
+    const catalog = (o.catalog_name ?? '').toLowerCase();
+    const schema = (o.schema_name ?? '').toLowerCase();
+    if (catalog && schema) {
+      schemas.add(`${catalog}.${schema}`);
+      continue;
+    }
+    const parts = o.full_path.toLowerCase().split('.');
+    if (parts.length >= 2) schemas.add(`${parts[0]}.${parts[1]}`);
+  }
+  const keys = [...schemas].slice(0, 40);
+  if (keys.length === 0) return null;
+  const clauses = keys.flatMap(k => {
+    const like = `'${sqlLikeLiteral(k)}.%'`;
+    return [
+      `LOWER(source_table_full_name) LIKE ${like} ESCAPE '\\'`,
+      `LOWER(target_table_full_name) LIKE ${like} ESCAPE '\\'`,
+    ];
+  });
   return `AND (${clauses.join(' OR ')})`;
 }
 

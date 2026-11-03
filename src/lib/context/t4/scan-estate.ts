@@ -1,18 +1,19 @@
 import 'server-only';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
-import type { T4EligibleObject } from './cluster';
+import { filterT4EligibleByScope, type T4EligibleObject } from './cluster';
 
 export type { T4EligibleObject, T4SchemaCluster } from './cluster';
-export { groupObjectsBySchemaCluster } from './cluster';
+export { filterT4EligibleByScope, groupObjectsBySchemaCluster } from './cluster';
 
-/** Objects with T2 complete and T4 stale or missing. */
+/** Objects with T2 complete and T4 stale or missing, optionally inside a job Limit. */
 export async function scanEstateForT4(
   orgId: string,
   sourceId?: string | null,
+  scope?: { includePatterns?: string[]; excludeSchemas?: string[] },
 ): Promise<T4EligibleObject[]> {
   const srcClause = sourceId ? Prisma.sql`AND o.source_id = ${sourceId}::uuid` : Prisma.empty;
-  return prisma.$queryRaw<T4EligibleObject[]>(Prisma.sql`
+  const rows = await prisma.$queryRaw<T4EligibleObject[]>(Prisma.sql`
     SELECT
       o.id,
       o.source_id::text AS source_id,
@@ -28,4 +29,5 @@ export async function scanEstateForT4(
       ${srcClause}
     ORDER BY o.full_path
   `);
+  return filterT4EligibleByScope(rows, scope);
 }

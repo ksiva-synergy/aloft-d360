@@ -26,6 +26,16 @@ function safeId(id: string, label: string): string {
   return id;
 }
 
+/** Trusted AND-fragment from `buildLineageTableSqlFilter`. Rejects extra statements. */
+function lineageSqlPredicate(filter: string | null | undefined): string {
+  const f = filter?.trim() ?? '';
+  if (!f) return '';
+  if (!/^AND\s/i.test(f) || f.includes(';')) {
+    throw new Error('Lineage tableSqlFilter must be a single AND fragment');
+  }
+  return `${f} `;
+}
+
 function safeSqlStr(val: string, label: string): string {
   if (/[\\;]/.test(val)) throw new Error(`Unsafe value in ${label}: "${val}"`);
   // Escape single quotes by doubling them (standard SQL escaping)
@@ -976,6 +986,26 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     return { rows: allRows, nextCursor: null };
   }
 
+  /** Count SELECT rows in the window with the same optional scope filter as pull (no row download). */
+  async countQueryHistoryWindow(
+    since: Date,
+    until: Date,
+    opts?: { statementTextSqlFilter?: string | null },
+  ): Promise<number> {
+    const sinceIso = since.toISOString().replace('T', ' ').replace('Z', '');
+    const untilIso = until.toISOString().replace('T', ' ').replace('Z', '');
+    const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
+    const sql =
+      `SELECT COUNT(*) AS n FROM system.query.history ` +
+      `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
+      `  AND start_time < TIMESTAMP '${untilIso}' ` +
+      `  AND statement_type = 'SELECT' ` +
+      scopeFilter;
+    const result = await this.scopeExec(sql, { rowLimit: 1 });
+    const n = result.rows[0]?.['n'];
+    return n != null ? Number(n) : 0;
+  }
+
   // ── pullTableLineage ─────────────────────────────────────────────────────────
   // One windowed scan of system.access.table_lineage. Rows where either
   // endpoint is null are post-filtered out.
@@ -984,6 +1014,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     _source: ContextSource,
     windowDays: number,
     rowCap: number,
+    opts?: { tableSqlFilter?: string | null },
   ): Promise<RawTableLineageRow[]> {
     if (!Number.isInteger(windowDays) || windowDays <= 0) {
       throw new Error(`pullTableLineage: windowDays must be a positive integer, got ${windowDays}`);
@@ -996,6 +1027,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       `SELECT source_table_full_name, target_table_full_name ` +
       `FROM system.access.table_lineage ` +
       `WHERE event_time >= CURRENT_TIMESTAMP() - INTERVAL ${windowDays} DAYS ` +
+      `${lineageSqlPredicate(opts?.tableSqlFilter)}` +
       `LIMIT ${rowCap}`,
       { rowLimit: rowCap },
     );
@@ -1016,6 +1048,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     _source: ContextSource,
     windowDays: number,
     rowCap: number,
+    opts?: { tableSqlFilter?: string | null },
   ): Promise<RawColumnLineageRow[]> {
     if (!Number.isInteger(windowDays) || windowDays <= 0) {
       throw new Error(`pullColumnLineage: windowDays must be a positive integer, got ${windowDays}`);
@@ -1028,6 +1061,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       `SELECT source_table_full_name, source_column_name, target_table_full_name, target_column_name ` +
       `FROM system.access.column_lineage ` +
       `WHERE event_time >= CURRENT_TIMESTAMP() - INTERVAL ${windowDays} DAYS ` +
+      `${lineageSqlPredicate(opts?.tableSqlFilter)}` +
       `LIMIT ${rowCap}`,
       { rowLimit: rowCap },
     );
