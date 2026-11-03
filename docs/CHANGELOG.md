@@ -29,6 +29,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Verified:** Code review; DB inspect script blocked from this environment (RDS not reachable off VPN).
 - **Not done:** Reconcile historical `lastLoginAt` rows bumped by failed attempts before this fix.
 
+## aloft-dev SSO 502: nginx buffer too small for Azure OAuth callback
+
+- **What:** `infra/beanstalk/.platform/nginx/conf.d/oauth-buffers.conf` — raise `large_client_header_buffers` and `proxy_buffer_size` / `proxy_buffers` so `/api/auth/callback/azure-ad` is not rejected with **502** (`upstream sent too big header`).
+- **Why:** EB logs on `aloft-dev.synergyship.com` showed repeated nginx errors on OAuth callback and next-auth **`State cookie was missing`**; not a Users/DB issue for Pranavesh (Active Platform Admin).
+- **Verified:** Matched `/var/log/nginx/error.log` + `eb-*-stdouterr.log` from Beanstalk log bundle (2026-11-03). Local `eb-deploy.zip` includes `oauth-buffers.conf` + `timeouts.conf`.
+- **Not done:** Elastic Beanstalk deploy so `.platform` reaches `aloft-dev`; confirm Microsoft SSO callback returns **302** not **502**.
+
 ## T3 query history: warehouse filter (contains pushdown)
 
 - **What:** `buildQueryHistoryStatementSqlFilter` uses `contains(normalized statement_text, 'catalog.schema.')` instead of `LIKE … ESCAPE` (fixes parse errors on Databricks). T3 `pullQueryHistoryWindow` and new `countQueryHistoryWindow` only scan matching rows. Verify script uses COUNT first, then optional `--sample` pull.
