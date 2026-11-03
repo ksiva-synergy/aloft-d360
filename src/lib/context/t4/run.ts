@@ -2,6 +2,7 @@ import 'server-only';
 import prisma from '@/lib/db';
 import type { PlatformContextJob } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
+import { resolveEffectiveScope } from '../job-scope';
 import { ensureAutoBootstrapModel } from './model';
 import { groupObjectsBySchemaCluster, scanEstateForT4 } from './scan-estate';
 import { proposeEntitiesAndJoinsForCluster } from './entity-propose-logic';
@@ -15,7 +16,10 @@ export interface T4ScanResult {
 
 export async function runT4Scan(job: PlatformContextJob, orgId: string): Promise<T4ScanResult> {
   const modelId = await ensureAutoBootstrapModel(orgId);
-  const objects = await scanEstateForT4(orgId, job.source_id);
+  const { includePatterns, excludeSchemas } = resolveEffectiveScope(
+    (job.scope ?? {}) as Record<string, unknown>,
+  );
+  const objects = await scanEstateForT4(orgId, job.source_id, { includePatterns, excludeSchemas });
   const clusters = groupObjectsBySchemaCluster(objects);
 
   const baseScope = (job.scope ?? {}) as Record<string, unknown>;
@@ -46,6 +50,8 @@ export async function runT4Scan(job: PlatformContextJob, orgId: string): Promise
           cluster_schema: cluster.schema,
           context_object_ids: cluster.objectIds,
           model_id: modelId,
+          ...(includePatterns.length > 0 ? { includePatterns } : {}),
+          ...(excludeSchemas.length > 0 ? { excludeSchemas } : {}),
         } as Prisma.InputJsonValue,
       },
     });

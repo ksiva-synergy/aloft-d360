@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-11-05 (Continue "Scanned tables only" option: scanned-only scope resolution, max 50 tables; see session-log). Previously 2026-11-01 (Jobs audit fixes: embed batching, heartbeat-based reaper, cancelled/partial status, windowed summary counts, org-scoped T0 drop pass; Continue pipeline: always-on scoped source change check + cascade chain + preview; T0 no-op rescans keep `last_t0_at`; identical T1 profile keeps T2 current; embed staleness vs latest card). Previously 2026-10-31 (Jobs L1 redesign + summary API `days` / `detail`; pipeline RBAC unchanged: platform admin only for run/trigger; chain deploy still pending)  
+**Last verified:** 2026-11-02 (T3/T4 scope: T4 honors Limit; T3 window, query history, and lineage stay on in-scope tables; Scanned bar names tables missing from the business model. Continue still stops at Embed). Previously 2026-11-05 (Continue "Scanned tables only" option: scanned-only scope resolution, max 50 tables; see session-log). Previously 2026-11-01 (Jobs audit fixes: embed batching, heartbeat-based reaper, cancelled/partial status, windowed summary counts, org-scoped T0 drop pass; Continue pipeline: always-on scoped source change check + cascade chain + preview; T0 no-op rescans keep `last_t0_at`; identical T1 profile keeps T2 current; embed staleness vs latest card). Previously 2026-10-31 (Jobs L1 redesign + summary API `days` / `detail`; pipeline RBAC unchanged: platform admin only for run/trigger; chain deploy still pending)  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
@@ -84,8 +84,8 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 
 | Aspect | Behavior |
 |--------|----------|
-| **Scope** | **Limit + exclude tree** on context objects (P0-8 partial fix 2026-10-26); query history still workspace-wide (P2-5) |
-| **Matching** | Substring on `object_name` in SQL text (P0-7) |
+| **Scope** | **Limit + exclude tree** on context objects. With a Limit, the time window is `MAX(last_t3_at)` of those objects (not the source). Query history uses a table `LIKE` when the list is ≤40 tables, otherwise `catalog.schema.`. Lineage is an exact full-name filter up to 200 tables, otherwise a schema prefix. |
+| **Matching** | Statement text must contain `catalog.schema.table` or `schema.table` (backticks ignored). A bare table name does not match. |
 
 ### 3.7 Continue pipeline (Catalog → Scanned → selection → **Continue pipeline**)
 
@@ -93,6 +93,14 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 2. Chain = earliest stale stage → **every** downstream stage through Embed (`buildContinueChain`). Scan runs first only if the check found something.
 3. Each stage re-selects its own stale tables when it starts (T1: t1<t0, T2: t2<t1, embed: missing/older than card).
 4. The UI shows a preview (source check + "up to N" per stage) before **Run** → `jobs/launch` with `sequential: true`.
+5. When T0–Embed are current, open **Continue**, select **T3 · Linked** and/or **T4 · In model**, then **Run** (same Limit). T0–Embed checkboxes still cascade only when stale.
+
+### 3.8 `t4_scan`
+
+| Aspect | Behavior |
+|--------|----------|
+| **Scope** | `includePatterns` and `excludeSchemas` on the job (including `scope.path`) filter eligible tables before clustering. No Limit still means every T2-complete table on the source whose T4 is missing or older than T2. |
+| **Output** | Candidate entities, joins, dimensions, and measures on the Auto-Bootstrap Model. Joins only connect tables inside the same cluster. |
 
 ---
 
@@ -140,7 +148,7 @@ Splittable kinds may create parent `orchestrating` + child `queued` rows with `p
 | **Schedules unverified** | Daily change check, Weekly re-profile and Weekly re-discovery are now labelled `manual` in `schedules.ts` (were `live`), because no EventBridge rule was confirmed (no AWS credentials in the audit session). The DB has no scheduled change_detect/profile runs after 2026-10-18. Switch back to `live` after `aws events list-rules --name-prefix aloft-` confirms the rules. | The UI no longer claims a weekly cadence; no automatic runs until verified |
 | **Stale profiles (backfilled)** | 1,695 objects were stale only because a T0 rescan ran after their last T1 profile while the source was unchanged. One-off backfill set `last_t1_at = last_t0_at` for exactly those rows (`source_altered_at <= last_t1_at`). No profile data was changed. 1,022 objects still need a real T1 profile (source changed or never profiled). | None for the 1,695; the 1,022 are genuine work |
 | **P1-1 / P1-20** | Full 4-step intent wizard | Cockpit strip + recommendations + include-tree mode shipped; intent cards not shipped |
-| **P2-5** | T3 SQL scope | Schema `LIKE` pushdown when Limit/excludes narrow scope; post-filter still applies |
+| **P2-5** | T3 SQL scope | Table `LIKE` when ≤40 objects; schema `LIKE` above that. Lineage exact-match up to 200 tables. Post-filter still applies |
 | **P1-16** | Estate ↔ scanned link | `context_object_id` set on T0 upsert (join in list API still works for legacy rows) |
 | **Re-run flags** | Jobs modal checkboxes: full T0 listing, re-profile all, re-enrich all (append versions) | Not on Catalog bar (use Jobs for flags) |
 
@@ -178,6 +186,7 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-11-02 | **T3/T4 scope:** `t4_scan` keeps the job Limit; scoped T3 uses in-scope `last_t3_at`, table-level history SQL, and lineage limited to those tables. Scanned Continue copy names tables missing from the business model and still does not launch T3/T4. |
 | 2026-11-01 | **Jobs audit fixes:** embed id lookups chunked at 5,000 (fixes Postgres 32,767 bind-parameter failure on large embeds); web reaper uses worker heartbeat (`updated_at`) instead of creation time; `cancelled` status shown (was "queued"); `partial` amber in drawer and runs panel; kind filter lists every job kind; summary `queued`/`running` counts windowed; child counts include `cancelled`; T0 drop pass scoped by org. |
 | 2026-11-02 | Jobs UI copy only: stage vocabulary, sentence-case tabs, readable schedules (`describeCron`), `Job types used` count limited to known kinds, schedule labels renamed (Daily change check, Weekly re-profile, Weekly re-discovery, Usage & lineage, Business model draft). No orchestrator or API change. |
 | 2026-10-31 | Jobs L1 redesign (jobs-first): compact Next step bar, run-health bar with time window + attention chips, stage table with run history and per-row Run; schedules strip and stat tiles removed. Fixed rows showing "Never run" (UI read `last_run_at`; API returns `last_finished_at`). |

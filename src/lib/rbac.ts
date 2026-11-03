@@ -136,7 +136,8 @@ export interface OidClaims {
 /**
  * THE single provisioning path. Find a user by AAD oid; if absent, link an existing
  * email-matched row (no duplicate) or create a fresh one with the default role.
- * Always refreshes login timestamps. Optionally elevates to `platform_admin` when the
+ * Refreshes login timestamps only for usable (ACTIVE) accounts — failed sign-in must not
+ * bump `lastLoginAt` in the Users admin table. Optionally elevates to `platform_admin` when the
  * token carries an AZURE_AD_ADMIN_GROUP_IDS group.
  */
 export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAuth> {
@@ -147,12 +148,12 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
   let user = await prisma.user.findUnique({ where: { aadObjectId: oid }, include: userAuthInclude });
 
   if (user) {
-    // (1) Known AAD identity — refresh login timestamps; keep display name in sync with Entra.
+    // (1) Known AAD identity — keep display name in sync with Entra; timestamps only when login can succeed.
+    const stampLogin = isUsable(user);
     user = await prisma.user.update({
       where: { id: user.id },
       data: {
-        lastLoginAt: new Date(),
-        lastSeenAt: new Date(),
+        ...(stampLogin ? { lastLoginAt: new Date(), lastSeenAt: new Date() } : {}),
         ...(aadName ? { name: aadName } : {}),
       },
       include: userAuthInclude,
@@ -178,12 +179,17 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
             aadObjectId: oid,
             aadTenantId: tid ?? undefined,
             authProvider: 'aad',
-            lastLoginAt: new Date(),
-            lastSeenAt: new Date(),
             ...(aadName ? { name: aadName } : {}),
           },
           include: userAuthInclude,
         });
+        if (isUsable(user)) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date(), lastSeenAt: new Date() },
+            include: userAuthInclude,
+          });
+        }
         await writeAudit({
           actorId: null,
           action: 'user.aad_linked',

@@ -96,6 +96,7 @@ export default function LineagePage() {
       const params = new URLSearchParams();
       if (focus?.focusId) params.set('focus', focus.focusId);
       if (q) params.set('q', q);
+      params.set('optionsOnly', '1');
       const res = await fetch(`/api/inspector/semantic/lineage?${params.toString()}`);
       if (!res.ok) return;
       const data = (await res.json()) as LineageResponse;

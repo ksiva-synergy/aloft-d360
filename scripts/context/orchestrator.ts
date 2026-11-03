@@ -34,6 +34,10 @@ import {
 } from '@/lib/context/job-scope';
 import { copyRunnerFlagsToChildScope, readJobScopeRunnerFlags } from '@/lib/context/job-scope-flags';
 import { runScheduledEstateHarvest } from '@/lib/context/scheduled-estate-harvest';
+import {
+  copyPipelineChainMetadata,
+  shouldAdvanceChainAfterT3,
+} from '@/lib/context/pipeline-chain';
 
 /**
  * Enqueue the next kind in a sequential chain and launch a worker for it.
@@ -84,6 +88,12 @@ async function advanceChain(
     childScope.includePatterns = mergedScope.includePatterns;
   }
   if (remaining.length > 0) childScope.chain = remaining;
+  if (typeof mergedScope.pipeline_run_id === 'string') {
+    childScope.pipeline_run_id = mergedScope.pipeline_run_id;
+  }
+  if (typeof mergedScope.ui_surface === 'string') {
+    childScope.ui_surface = mergedScope.ui_surface;
+  }
   const childScopeWithFlags = copyRunnerFlagsToChildScope(mergedScope, childScope);
 
   const scopeOrNull = Object.keys(childScopeWithFlags).length > 0 ? childScopeWithFlags : null;
@@ -397,6 +407,14 @@ async function dispatchSingleJob(
       await finalize(job.id, 'succeeded', t3Result as unknown as Record<string, unknown>);
       console.log(`[t3_usage] source=${job.source_id} objects=${t3Result.objectsProcessed} snapshots=${t3Result.snapshotsWritten} narratives=${t3Result.narrativesApplied} window=${t3Result.windowStart}→${t3Result.windowEnd}${t3Result.nextCursor ? ` nextCursor=${t3Result.nextCursor}` : ''}`);
 
+      if (
+        shouldAdvanceJobChain('succeeded')
+        && !t3Result.nextCursor
+        && shouldAdvanceChainAfterT3(t3Result, scopeObj)
+      ) {
+        await advanceChain(orgId, scope, job.source_id, job.id);
+      }
+
       // Spawn continuation job covering the remaining older slice of the window.
       // First job: since=Jun22 → until=now, stops at Jul2T07:55 (nextCursor)
       // Continuation: since=Jun22 → until=Jul2T07:55 (picks up the older half)
@@ -413,7 +431,15 @@ async function dispatchSingleJob(
         if (effectiveExcludeSchemas.length > 0) {
           contScope.excludeSchemas = effectiveExcludeSchemas;
         }
-        const contJob = await enqueue('t3_usage', job.source_id, contScope, 'on_demand', orgId);
+        copyPipelineChainMetadata(scopeObj, contScope);
+        const contScopeWithFlags = copyRunnerFlagsToChildScope(scopeObj, contScope);
+        const contJob = await enqueue(
+          't3_usage',
+          job.source_id,
+          contScopeWithFlags,
+          'on_demand',
+          orgId,
+        );
         console.log(`[t3_usage] continuation job enqueued id=${contJob.id} since=${t3Result.windowStart} until=${t3Result.nextCursor}`);
 
         // Launch a dedicated worker for the continuation job
@@ -427,7 +453,7 @@ async function dispatchSingleJob(
               where: { id: contJob.id },
               data: {
                 scope: {
-                  ...contScope,
+                  ...contScopeWithFlags,
                   fargate_task_id: contTaskId,
                 } as unknown as Prisma.InputJsonValue,
               },

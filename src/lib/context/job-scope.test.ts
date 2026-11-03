@@ -3,6 +3,7 @@ import {
   catalogSchemaMatchesIncludePatterns,
   objectMatchesJobScope,
   pathExcludedBySchemas,
+  buildLineageTableSqlFilter,
   buildQueryHistoryStatementSqlFilter,
   prefilterHistoryRowsForObjects,
   pathToIncludePattern,
@@ -53,11 +54,40 @@ describe('job-scope', () => {
     ).toBe(true);
   });
 
-  it('buildQueryHistoryStatementSqlFilter emits schema LIKE clauses', () => {
+  it('buildQueryHistoryStatementSqlFilter emits schema contains clauses', () => {
     const sql = buildQueryHistoryStatementSqlFilter([
       { catalog_name: 'Cat', schema_name: 'Sch' },
     ]);
-    expect(sql).toContain("LOWER(statement_text) LIKE '%cat.sch.%'");
+    expect(sql).toContain("contains(");
+    expect(sql).toContain("'cat.sch.'");
+    expect(sql).not.toContain('ESCAPE');
+  });
+
+  it('buildQueryHistoryStatementSqlFilter matches the table when the list is small', () => {
+    const sql = buildQueryHistoryStatementSqlFilter([
+      { catalog_name: 'landing_zone_dev', schema_name: 'sire_2_0', object_name: 'sire_report' },
+    ]);
+    expect(sql).toContain('landing_zone_dev.sire_2_0.sire_report');
+    expect(sql).not.toContain('sire_2_0.%');
+  });
+
+  it('buildLineageTableSqlFilter uses exact names for a small set', () => {
+    const sql = buildLineageTableSqlFilter([
+      { full_path: 'landing_zone_dev.sire_2_0.sire_report', catalog_name: 'landing_zone_dev', schema_name: 'sire_2_0' },
+    ]);
+    expect(sql).toContain("LOWER(source_table_full_name) IN ('landing_zone_dev.sire_2_0.sire_report')");
+    expect(sql).toContain("LOWER(target_table_full_name) IN ('landing_zone_dev.sire_2_0.sire_report')");
+  });
+
+  it('buildLineageTableSqlFilter falls back to schema prefixes past the exact cap', () => {
+    const objects = Array.from({ length: 3 }, (_, i) => ({
+      full_path: `cat.sch.t${i}`,
+      catalog_name: 'cat',
+      schema_name: 'sch',
+    }));
+    const sql = buildLineageTableSqlFilter(objects, 2);
+    expect(sql).toContain("LIKE 'cat.sch.%'");
+    expect(sql).not.toContain(' IN (');
   });
 
   it('prefilterHistoryRowsForObjects keeps rows referencing in-scope tables', () => {

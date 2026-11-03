@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 import {
+  describeIdleContinueBlocker,
+  describeIdleContinueScope,
   isJobRowStale,
   normalizePipelineScope,
   readScopeChain,
@@ -47,6 +49,24 @@ describe('summarizeJobScope', () => {
       't1_profile',
       't2_semantic',
     ]);
+  });
+});
+
+describe('describeIdleContinueScope', () => {
+  it('names tables that are not in the business model', () => {
+    expect(describeIdleContinueScope(1)).toBe(
+      'Search is current. 1 table is not in the business model. Open Continue and select Usage and/or Business model.',
+    );
+    expect(describeIdleContinueScope(0)).toBe(
+      'Nothing stale to run in this scope for the selected tiers',
+    );
+  });
+
+  it('keeps the source-check message when every described table is in the model', () => {
+    expect(describeIdleContinueBlocker(0, true)).toBe(
+      'No source changes and all tiers through embed are current for this scope.',
+    );
+    expect(describeIdleContinueBlocker(2, true)).toContain('Open Continue and select Usage and/or Business model');
   });
 });
 

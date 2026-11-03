@@ -279,7 +279,11 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      if (token && session.user && !token.revoked) {
+      if (token?.revoked) {
+        session.error = 'SessionRevoked';
+        return session;
+      }
+      if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.roleLabel = token.roleLabel as string;

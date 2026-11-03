@@ -92,6 +92,8 @@ export default function LoginPage() {
       setError('An account with this email already exists and must be linked by an administrator.');
     } else if (err === 'ACCOUNT_SUSPENDED') {
       setError('Your account has been suspended. Please contact your administrator.');
+    } else if (err === 'session_expired') {
+      setError('Your session is no longer valid. Sign in again with Microsoft.');
     } else if (err === 'OAuthCallback' || err === 'Callback') {
       setError(
         'Microsoft sign-in failed. Try again, or sign in with your username and password below. If it keeps failing, ask your admin to check the server log (.logs/next-auth.log in development).',
@@ -137,7 +139,7 @@ export default function LoginPage() {
 
   return (
     <main
-      title="Powered by ALOFT v0.4 · data360.synergymarinegroup.com"
+      title="Powered by ALOFT v0.4"
       className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--bg)] text-[rgb(var(--ink))] transition-colors duration-300"
       style={THEME_VARS[theme] as CSSProperties}
     >
@@ -161,7 +163,6 @@ export default function LoginPage() {
       <header className="relative flex h-16 items-center gap-3 px-6 sm:px-10">
         <BrandMark size={32} />
         <span className="text-size-body font-semibold tracking-tight text-[rgb(var(--ink)/0.9)]">Synergy Group</span>
-        <span className="text-size-body text-[rgb(var(--ink)/0.45)]">Data 360</span>
         <div className="ml-auto flex items-center gap-2">
         <button
           type="button"
@@ -306,16 +307,12 @@ export default function LoginPage() {
         &copy; 2026 &ndash; Synergy Maritime Pvt. Ltd. · Powered by ALOFT
       </footer>
 
-      <span style={{ opacity: 0, position: 'absolute', fontSize: 0, pointerEvents: 'none' }} aria-hidden="true">
-        data360.synergymarinegroup.com
-      </span>
-
       {easterEgg && (
         <div
           role="status"
           className="fixed bottom-6 left-1/2 z-[9999] -translate-x-1/2 animate-fade-in rounded-full bg-[var(--toast-bg)] px-6 py-3 text-size-body font-semibold text-[var(--toast-ink)] shadow-pop"
         >
-          Built on Data 360 ALOFT v0.4
+          Built on ALOFT v0.4
         </div>
       )}
     </main>

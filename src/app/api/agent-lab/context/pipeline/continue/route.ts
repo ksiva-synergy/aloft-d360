@@ -8,6 +8,7 @@ import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/r
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 import prisma from '@/lib/db';
 import { pathMatchesIncludePatterns } from '@/lib/context/job-scope';
+import { parseContinueTierIds } from '@/lib/context/pipeline-freshness';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'INVALID_JSON' }, { status: 400 });
   }
 
-  const through = body.through === 't2_semantic' || body.through === 'embed' ? body.through : 't1_profile';
+  const through =
+    body.through === 't2_semantic' || body.through === 'embed' ? body.through : 't1_profile';
+  const selectedTiers = parseContinueTierIds(body.selectedTiers);
   const includePatterns: string[] = Array.isArray(body.includePatterns) ? body.includePatterns : [];
   const catalog = typeof body.catalog === 'string' ? body.catalog : undefined;
   const schema = typeof body.schema === 'string' ? body.schema : undefined;
@@ -91,7 +94,9 @@ export async function POST(req: NextRequest) {
     const intent = await computePipelineIntent(
       orgId,
       { sourceId: source.id, ...scope, includePatterns: scopePatterns, catalog: scannedOnly ? undefined : catalog, schema: scannedOnly ? undefined : schema },
-      { through, changeCheck },
+      selectedTiers
+        ? { selectedTiers, changeCheck }
+        : { through, changeCheck },
     );
 
     if (intent.recommendedKinds.length === 0) {

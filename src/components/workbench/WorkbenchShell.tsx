@@ -98,8 +98,6 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)' }}>
           <AloftSigil size={14} />
-          <span style={{ ...type.label }}>Data 360</span>
-          <span style={{ opacity: 0.5 }}>/</span>
           <span style={{ ...type.label, color: inkOf(GOLD) }}>Agent Lab</span>
           <span style={{ opacity: 0.5 }}>/</span>
           <span style={{ ...type.label, color: 'var(--wb-ink-dim)' }}>Workbench</span>

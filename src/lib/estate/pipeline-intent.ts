@@ -6,8 +6,10 @@ import type { JobKind } from '@/lib/context/queue';
 import { SQL_OBJECT_EMBEDDING_CURRENT, SQL_OBJECT_HAS_EMBEDDING } from '@/lib/context/embedding-presence';
 import {
   buildContinueChain,
+  buildContinueKindsFromTierSelection,
   scopeNeedsRescan,
   type ContinueThrough,
+  type ContinueTierId,
   type ScopeChangeReport,
 } from '@/lib/context/pipeline-freshness';
 import {
@@ -31,6 +33,8 @@ export interface PipelineScopeInput {
 
 export interface ScopedPipelineHealth extends PipelineHealth {
   scoped: boolean;
+  /** Described tables whose business-model proposal is missing or older than T2. */
+  not_in_model: number;
 }
 
 export interface PipelineIntentBlocker {
@@ -87,6 +91,7 @@ type ObjectRow = {
   last_t0_at: Date | null;
   last_t1_at: Date | null;
   last_t2_at: Date | null;
+  last_t4_at: Date | null;
   has_embedding: boolean;
   embedding_current: boolean;
 };
@@ -114,6 +119,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
   needs_profile: number;
   needs_enrich: number;
   needs_embed: number;
+  not_in_model: number;
 } {
   let scanned = 0;
   let profiled = 0;
@@ -122,6 +128,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
   let needsProfile = 0;
   let needsEnrich = 0;
   let needsEmbed = 0;
+  let notInModel = 0;
 
   for (const o of rows) {
     if (!o.last_t0_at) continue;
@@ -133,6 +140,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
     if (!o.last_t2_at || !o.last_t1_at || o.last_t2_at < o.last_t1_at) needsEnrich++;
     // Missing, or older than the latest semantic card.
     if (!o.embedding_current) needsEmbed++;
+    if (o.last_t2_at && (!o.last_t4_at || o.last_t4_at < o.last_t2_at)) notInModel++;
   }
 
   return {
@@ -143,6 +151,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
     needs_profile: needsProfile,
     needs_enrich: needsEnrich,
     needs_embed: needsEmbed,
+    not_in_model: notInModel,
   };
 }
 
@@ -156,7 +165,7 @@ export async function getScopedPipelineHealth(
 
   if (!scoped) {
     const health = await getPipelineHealth(orgId, input.sourceId);
-    return { ...health, scoped: false };
+    return { ...health, scoped: false, not_in_model: 0 };
   }
 
   const objectRows = await prisma.$queryRaw<ObjectRow[]>(Prisma.sql`
@@ -167,6 +176,7 @@ export async function getScopedPipelineHealth(
       o.last_t0_at,
       o.last_t1_at,
       o.last_t2_at,
+      o.last_t4_at,
       ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding,
       ${SQL_OBJECT_EMBEDDING_CURRENT} AS embedding_current
     FROM platform_context_objects o
@@ -310,7 +320,7 @@ function buildRecommendation(
 export async function computePipelineIntent(
   orgId: string,
   input: PipelineScopeInput,
-  opts?: { through?: ContinueThrough; changeCheck?: ScopeChangeReport | null },
+  opts?: { through?: ContinueThrough; selectedTiers?: ContinueTierId[]; changeCheck?: ScopeChangeReport | null },
 ): Promise<PipelineIntent> {
   const { includePatterns, excludeSchemas } = normalizePipelineScope(input);
   const health = await getScopedPipelineHealth(orgId, { ...input, includePatterns, excludeSchemas });
@@ -330,18 +340,31 @@ export async function computePipelineIntent(
     });
   }
 
-  // Continue chain: earliest dirty stage → every downstream stage through `through`.
-  if (opts?.through && (health.scanned_objects > 0 || (changeCheck && scopeNeedsRescan(changeCheck)))) {
+  // Continue chain: tier selection and/or legacy `through` (embed-only cascade).
+  const canPlanContinue =
+    health.scanned_objects > 0 || (changeCheck !== null && scopeNeedsRescan(changeCheck));
+  if ((opts?.selectedTiers?.length || opts?.through) && canPlanContinue) {
     const rescan = changeCheck ? scopeNeedsRescan(changeCheck) : false;
-    const chain = buildContinueChain(
-      {
-        rescan,
-        needsProfile: health.needs_profile,
-        needsEnrich: health.needs_enrich,
-        needsEmbed: health.needs_embed,
-      },
-      opts.through,
-    ) as JobKind[];
+    const needs = {
+      rescan,
+      needsProfile: health.needs_profile,
+      needsEnrich: health.needs_enrich,
+      needsEmbed: health.needs_embed,
+    };
+
+    let chain: JobKind[];
+    if (opts.selectedTiers && opts.selectedTiers.length > 0) {
+      chain = buildContinueKindsFromTierSelection({
+        selectedTiers: opts.selectedTiers,
+        needs,
+        scannedObjects: health.scanned_objects,
+        notInModel: health.not_in_model,
+      });
+    } else if (opts.through) {
+      chain = buildContinueChain(needs, opts.through) as JobKind[];
+    } else {
+      chain = [];
+    }
 
     if (chain.length > 0) {
       recommendedKinds = chain;
@@ -359,15 +382,15 @@ export async function computePipelineIntent(
         t1_profile: t1,
         t2_semantic: t2,
         embed,
+        t3_usage: scopeSize,
+        t4_scan: Math.min(scopeSize, health.not_in_model || scopeSize),
       };
       stagePlan = chain.map(kind => ({ kind, upTo: upTo[kind] ?? 0 }));
     } else {
       recommendedKinds = [];
       blockers.push({
         code: 'IDLE',
-        message: changeCheck
-          ? 'No source changes and all tiers through embed are current for this scope.'
-          : 'All tiers through embed are current for this scope.',
+        message: describeIdleContinueBlocker(health.not_in_model, Boolean(changeCheck), opts.selectedTiers),
       });
     }
   }
@@ -377,7 +400,7 @@ export async function computePipelineIntent(
     : staleEstimate > 0
       ? `Up to ${staleEstimate.toLocaleString()} table(s) in scope need ${through.replace(/_/g, ' ')}`
       : health.scanned_objects > 0
-        ? 'Nothing stale to run in this scope for the selected tiers'
+        ? describeIdleContinueScope(health.not_in_model)
         : health.discovery_not_scanned > 0
           ? `${health.discovery_not_scanned} table(s) need structural scan (T0) first`
           : 'No work in this scope';
@@ -413,11 +436,36 @@ export async function computePipelineIntent(
   };
 }
 
+/** Bar copy when Continue has no T0–Embed work left. */
+export function describeIdleContinueScope(notInModel: number): string {
+  if (notInModel > 0) {
+    const tables = notInModel === 1 ? '1 table is' : `${notInModel.toLocaleString()} tables are`;
+    return `Search is current. ${tables} not in the business model. Open Continue and select Usage and/or Business model.`;
+  }
+  return 'Nothing stale to run in this scope for the selected tiers';
+}
+
+export function describeIdleContinueBlocker(
+  notInModel: number,
+  checkedSource: boolean,
+  selectedTiers?: ContinueTierId[],
+): string {
+  if (selectedTiers?.includes('t3') || selectedTiers?.includes('t4')) {
+    return 'No T0–Embed work for this scope with the current source check. Adjust tier selection or run fewer stages.';
+  }
+  if (notInModel > 0) return describeIdleContinueScope(notInModel);
+  return checkedSource
+    ? 'No source changes and all tiers through embed are current for this scope.'
+    : 'All tiers through embed are current for this scope.';
+}
+
 const STAGE_LABEL: Record<string, string> = {
   t0_structural: 'Scan',
   t1_profile: 'Profile',
   t2_semantic: 'Describe',
   embed: 'Embed',
+  t3_usage: 'Usage & lineage',
+  t4_scan: 'Business model',
 };
 
 /** Stale object count for plan preview (T1/T2 only). */

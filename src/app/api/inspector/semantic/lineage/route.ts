@@ -15,8 +15,11 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/inspector/semantic/lineage?focus=<nodeId>&q=<search>
+ * GET /api/inspector/semantic/lineage?focus=<nodeId>&q=<search>&optionsOnly=1
  *
+ * Query flags:
+ *   optionsOnly=1 — returns only { status, model, focusOptions } (no scanConsumers /
+ *     focus graph). Used by debounced picker search; catalog still loads (cached ~30s).
  * The Lineage graph — ONE graph, focus-SCOPED (the populated model has ~12k nodes,
  * so the whole graph is never serialized). Returns:
  *   - focusOptions: a light, searchable list of focusable nodes (measures + entities)
@@ -52,9 +55,21 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const q = url.searchParams.get('q') ?? undefined;
-    const requestedFocus = url.searchParams.get('focus') ?? undefined;
+    const optionsOnly =
+      url.searchParams.get('optionsOnly') === '1' ||
+      url.searchParams.get('optionsOnly') === 'true';
 
     const focusOptions = listFocusOptions(cat, { q });
+
+    if (optionsOnly) {
+      return NextResponse.json({
+        status: 'ok' as const,
+        model,
+        focusOptions,
+      });
+    }
+
+    const requestedFocus = url.searchParams.get('focus') ?? undefined;
 
     // Resolve the focus node: requested (if valid) else the first option.
     const validRequested =

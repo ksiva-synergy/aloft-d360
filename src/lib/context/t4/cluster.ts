@@ -1,3 +1,5 @@
+import { objectMatchesJobScope } from '../job-scope';
+
 export interface T4EligibleObject {
   id: string;
   source_id: string;
@@ -12,6 +14,22 @@ export interface T4SchemaCluster {
   schema: string;
   sourceId: string;
   objectIds: string[];
+}
+
+/** Keep T4 candidates inside the job Limit and exclude tree. Empty scope means the whole list. */
+export function filterT4EligibleByScope(
+  objects: T4EligibleObject[],
+  scope?: { includePatterns?: string[]; excludeSchemas?: string[] },
+): T4EligibleObject[] {
+  const includePatterns = scope?.includePatterns ?? [];
+  const excludeSchemas = scope?.excludeSchemas ?? [];
+  if (includePatterns.length === 0 && excludeSchemas.length === 0) return objects;
+  return objects.filter(o =>
+    objectMatchesJobScope(o.full_path, o.catalog_name, o.schema_name, {
+      includePatterns,
+      excludeSchemas,
+    }),
+  );
 }
 
 export function groupObjectsBySchemaCluster(objects: T4EligibleObject[]): T4SchemaCluster[] {

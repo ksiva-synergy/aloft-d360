@@ -45,7 +45,8 @@ export const BODY  = FONT_SANS;
 export const MONO  = FONT_MONO;
 
 // ── Geometry ──
-export const RADIUS_MAX = 6 as const;
+// Card radius; the full scale (--born-r-card / -inner / -control) lives in globals.css.
+export const RADIUS_MAX = 16 as const;
 
 // ── CTSGV axis colours ──
 export const CTSGV_COLORS = {

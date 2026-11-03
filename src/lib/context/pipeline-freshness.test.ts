@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildContinueChain,
+  buildContinueKindsFromTierSelection,
   classifyScopeChanges,
   isProfileUnchanged,
   isT0Changed,
@@ -111,7 +112,6 @@ describe('classifyScopeChanges', () => {
 
 describe('buildContinueChain', () => {
   const none = { rescan: false, needsProfile: 0, needsEnrich: 0, needsEmbed: 0 };
-
   it('runs only embed when nothing changed and only embedding is pending', () => {
     expect(buildContinueChain({ ...none, needsEmbed: 10 }, 'embed')).toEqual(['embed']);
   });
@@ -137,5 +137,31 @@ describe('buildContinueChain', () => {
     expect(buildContinueChain({ ...none, needsProfile: 1 }, 't1_profile')).toEqual(['t1_profile']);
     expect(buildContinueChain({ ...none, needsEmbed: 1 }, 't2_semantic')).toEqual([]);
     expect(buildContinueChain(none, 'embed')).toEqual([]);
+  });
+});
+
+describe('buildContinueKindsFromTierSelection', () => {
+  const none = { rescan: false, needsProfile: 0, needsEnrich: 0, needsEmbed: 0 };
+
+  it('runs usage and business model when embed work is current', () => {
+    expect(
+      buildContinueKindsFromTierSelection({
+        selectedTiers: ['t3', 't4'],
+        needs: none,
+        scannedObjects: 1,
+        notInModel: 1,
+      }),
+    ).toEqual(['t3_usage', 't4_scan']);
+  });
+
+  it('still cascades embed tiers when they are stale', () => {
+    expect(
+      buildContinueKindsFromTierSelection({
+        selectedTiers: ['t1', 't2', 'embed'],
+        needs: { ...none, needsProfile: 2 },
+        scannedObjects: 5,
+        notInModel: 0,
+      }),
+    ).toEqual(['t1_profile', 't2_semantic', 'embed']);
   });
 });

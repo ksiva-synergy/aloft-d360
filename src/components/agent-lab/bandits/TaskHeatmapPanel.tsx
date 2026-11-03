@@ -5,10 +5,12 @@ import type { CtsgvModelStat } from './types';
 import {
   CARD_BG, BORDER, GOLD, TEAL,
   TEXT_PRI, TEXT_MUT,
-  SERIF, MONO, BODY,
+  MONO,
   BORN_COLORS,
 } from '@/lib/bandits/born-tokens';
 import { shortName } from '@/lib/bandits/born-tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
+import { PanelHeader, PANEL_PADDING } from './PanelHeader';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -101,9 +103,8 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
 
   if (stats.length === 0) {
     return (
-      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>Where Each Arm Wins</div>
-        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 8 }}>No data</div>
+      <div className="born-card" style={{ padding: PANEL_PADDING }}>
+        <PanelHeader title="Where Each Arm Wins" subtitle="No task-type data in this window." style={{ marginBottom: 0 }} />
       </div>
     );
   }
@@ -111,23 +112,28 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
   const CELL_W = 36;
   const CELL_H = 28;
   const CELL_GAP = 2;
-  const ROW_LABEL_W = 110;
-  const COL_HEADER_H = 80; // room for rotated labels
+  const ROW_LABEL_W = 190;
+  const LABEL_MAX_W = 110;
+  // Labels are rotated -45° around their bottom-left corner, so they rise up-right only:
+  // height needed ≈ LABEL_MAX_W·sin45° + line height. The trailing pad keeps the last
+  // column's label from being clipped by the scroll container.
+  const COL_HEADER_H = Math.ceil(LABEL_MAX_W * Math.SQRT1_2) + 22;
+  const TRAILING_PAD = Math.ceil(LABEL_MAX_W * Math.SQRT1_2);
 
   return (
-    <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
-          Where Each Arm Wins
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginTop: 4 }}>
-          Task-type × model · success rate
-        </div>
-      </div>
+    <div className="born-card" style={{ padding: PANEL_PADDING }}>
+      <PanelHeader
+        title="Where Each Arm Wins"
+        meta={`${sheetTypes.length} task types`}
+        subtitle="Task type × model · success rate · hover a cell for counts"
+      />
 
       <div style={{ overflowX: 'auto' }}>
-        <div style={{ display: 'inline-block', minWidth: ROW_LABEL_W + sheetTypes.length * (CELL_W + CELL_GAP) }}>
+        <div style={{
+          display: 'inline-block',
+          minWidth: ROW_LABEL_W + sheetTypes.length * (CELL_W + CELL_GAP) + TRAILING_PAD,
+          paddingRight: TRAILING_PAD,
+        }}>
 
           {/* Column headers row */}
           <div style={{ display: 'flex', marginLeft: ROW_LABEL_W, marginBottom: 4 }}>
@@ -138,23 +144,23 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
                   width: CELL_W,
                   marginRight: CELL_GAP,
                   height: COL_HEADER_H,
-                  display: 'flex',
-                  alignItems: 'flex-end',
-                  justifyContent: 'center',
-                  overflow: 'visible',
+                  position: 'relative',
                   flexShrink: 0,
                 }}
               >
                 <span
                   style={{
+                    ...type.caption,
                     fontFamily: MONO,
-                    fontSize: 'var(--type-ui-regular-size)',
                     color: TEXT_MUT,
-                    display: 'inline-block',
+                    position: 'absolute',
+                    left: '50%',
+                    bottom: 6,
+                    display: 'block',
                     transform: 'rotate(-45deg)',
-                    transformOrigin: 'bottom center',
+                    transformOrigin: 'left bottom',
                     whiteSpace: 'nowrap',
-                    maxWidth: 90,
+                    maxWidth: LABEL_MAX_W,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                   }}
@@ -194,9 +200,9 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
                     width: 8, height: 8, borderRadius: '50%',
                     background: isFav ? GOLD : modelColor, flexShrink: 0,
                   }} />
-                  <span style={{
-                    fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
-                    color: isFav ? GOLD : TEXT_PRI,
+                  <span title={stat.model_id} style={{
+                    ...type.caption, fontFamily: MONO,
+                    color: isFav ? inkOf(GOLD, 70) : TEXT_PRI,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -235,7 +241,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
                         height: CELL_H,
                         marginRight: CELL_GAP,
                         flexShrink: 0,
-                        borderRadius: 2,
+                        borderRadius: 4,
                         cursor: hasData ? 'default' : 'default',
                         background: hasData ? rateToColor(cell!.success_rate) : 'transparent',
                         border: isWinner && hasData
@@ -260,16 +266,21 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             alignItems: 'center',
             gap: 8,
           }}>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>0%</span>
+            <span style={{ ...type.caption, fontFamily: MONO, color: TEXT_MUT }}>0%</span>
             <div style={{
               height: 6,
               width: 160,
-              borderRadius: 6,
+              borderRadius: 999,
               background: `linear-gradient(to right, #1a1a2e, ${TEAL}, ${GOLD})`,
             }} />
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>100%</span>
-            <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT, marginLeft: 12 }}>
-              gold border = column winner
+            <span style={{ ...type.caption, fontFamily: MONO, color: TEXT_MUT }}>100%</span>
+            <span style={{ ...type.caption, color: TEXT_MUT, marginLeft: 16, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 12, height: 12, borderRadius: 2, border: `1px solid ${GOLD}`, display: 'inline-block' }} />
+              column winner
+            </span>
+            <span style={{ ...type.caption, color: TEXT_MUT, marginLeft: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 12, height: 12, borderRadius: 2, border: `1px dashed ${BORDER}`, display: 'inline-block' }} />
+              no runs
             </span>
           </div>
 
@@ -286,7 +297,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             transform: 'translate(-50%, -100%)',
             background: CARD_BG,
             border: `1px solid ${BORDER}`,
-            borderRadius: 6,
+            borderRadius: 'var(--born-r-inner)',
             padding: '8px 12px',
             pointerEvents: 'none',
             zIndex: 9999,
@@ -294,7 +305,7 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
             fontSize: 'var(--type-ui-regular-size)',
             color: TEXT_PRI,
             whiteSpace: 'nowrap',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+            boxShadow: 'var(--shadow-dialog)',
           }}
         >
           <div style={{ color: TEXT_MUT, marginBottom: 4 }}>
@@ -303,8 +314,10 @@ export function TaskHeatmapPanel({ stats, favId }: Props) {
           <div>
             {tooltip.successes}/{tooltip.total} success
             &nbsp;
-            <span style={{ color: rateToColor(tooltip.rate), fontWeight: 600 }}>
-              ({(tooltip.rate * 100).toFixed(1)}%)
+            {/* Swatch carries the scale colour; the number stays in ink so low rates remain readable. */}
+            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: rateToColor(tooltip.rate), marginRight: 4 }} />
+            <span style={{ fontWeight: 600 }}>
+              {(tooltip.rate * 100).toFixed(1)}%
             </span>
           </div>
         </div>

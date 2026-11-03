@@ -1920,15 +1920,71 @@ main { scroll-behavior: smooth; }
   --shadow-dialog: 0 24px 64px -12px rgba(0,0,0,.6), 0 0 0 1px var(--line-1);
 }
 
-/* BORN page: the same warm light as the title, spread quietly instead of one corner. */
+/* BORN page: the same warm light as the title, spread quietly instead of one corner.
+   Inside the agent shell the wash is painted on .agent-column (which also sits behind the
+   transparent StagingHeader), so the breadcrumb bar blends into the page instead of
+   reading as a separate black strip. The plain .born-page rule is the fallback. */
 .born-page { background: var(--born-bg); }
-.dark .born-page {
+.dark .born-page,
+.dark .agent-column:has(.born-page) {
   background-color: var(--born-bg);
   background-image:
     radial-gradient(720px 420px at 6% 0%, color-mix(in srgb, #FDB515 13%, transparent), transparent 70%),
     radial-gradient(560px 360px at 94% 10%, color-mix(in srgb, #FDB515 7%, transparent), transparent 72%),
     radial-gradient(640px 400px at 16% 48%, color-mix(in srgb, #FDB515 6%, transparent), transparent 74%),
     radial-gradient(600px 380px at 88% 82%, color-mix(in srgb, var(--brand-a) 6%, transparent), transparent 74%);
+}
+.agent-column:has(.born-page) { background-color: var(--born-bg); }
+.agent-column .born-page,
+.dark .agent-column .born-page { background: transparent; }
+
+/* BORN corner radii: cards > inner surfaces/tooltips > controls; chips and bars are fully round. */
+:root {
+  --born-r-card: 16px;
+  --born-r-inner: 12px;
+  --born-r-control: 10px;
+}
+
+/* BORN controls: segmented toggles and buttons (hover/focus need real CSS, not inline styles). */
+.born-seg-track {
+  display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--born-r-control);
+  border: 1px solid var(--born-border); background: var(--born-overlay);
+}
+.born-seg {
+  padding: 4px 11px; border-radius: calc(var(--born-r-control) - 3px); border: 0; cursor: pointer; white-space: nowrap;
+  background: transparent; color: var(--born-text-sec);
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+.born-seg:hover { color: var(--born-text-pri); background: var(--born-hover); }
+.born-seg[aria-pressed="true"] {
+  color: color-mix(in srgb, #FDB515 55%, var(--ink-1));
+  background: color-mix(in srgb, #FDB515 14%, var(--born-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #FDB515 45%, transparent);
+}
+.born-seg:focus-visible, .born-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, #FDB515 70%, transparent); outline-offset: 2px;
+}
+.born-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--born-r-control);
+  border: 1px solid var(--born-border); background: transparent; color: var(--born-text-sec);
+  cursor: pointer; white-space: nowrap; transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.born-btn:hover { color: var(--born-text-pri); background: var(--born-hover); }
+.born-btn:disabled { opacity: .6; cursor: default; }
+.born-btn--primary {
+  border-color: #FDB515; color: color-mix(in srgb, #FDB515 55%, var(--ink-1));
+  background: color-mix(in srgb, #FDB515 10%, var(--born-surface));
+}
+.born-btn--primary:hover { background: #FDB515; color: #05090f; }
+.born-card {
+  background: var(--born-surface); border: 1px solid var(--born-border); border-radius: var(--born-r-card);
+  box-shadow: var(--shadow-xs);
+}
+.born-row { cursor: pointer; transition: background-color 120ms ease; }
+.born-row:hover { background: var(--born-hover); }
+.born-row:focus-visible { outline: none; background: var(--born-hover); box-shadow: inset 0 0 0 2px color-mix(in srgb, #FDB515 60%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .born-seg, .born-btn { transition: none; }
 }
 
 /* ── Chat welcome (Inspector + Agent chat) ─────────────────────────────────── */

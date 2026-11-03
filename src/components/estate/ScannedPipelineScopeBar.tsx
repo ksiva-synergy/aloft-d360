@@ -4,9 +4,21 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
 import { schemaIncludePattern } from '@/lib/estate/catalog-pipeline';
+import {
+  ContinuePipelineModal,
+  type ContinueTierId,
+} from '@/components/estate/ContinuePipelineModal';
 
 export const MAX_CONTINUE_SCHEMAS = 12;
 export const MAX_CONTINUE_TABLES = 50;
+
+function defaultContinueTiers(health: PipelineIntentHealth | null): ContinueTierId[] {
+  const tiers: ContinueTierId[] = ['t0', 't1', 't2', 'embed'];
+  if ((health?.not_in_model ?? 0) > 0) {
+    tiers.push('t3', 't4');
+  }
+  return tiers;
+}
 
 interface PipelineIntentHealth {
   scanned_objects: number;
@@ -14,6 +26,7 @@ interface PipelineIntentHealth {
   needs_enrich: number;
   needs_embed: number;
   discovery_not_scanned: number;
+  not_in_model?: number;
 }
 
 interface PipelineIntentBlocker {
@@ -72,6 +85,9 @@ export default function ScannedPipelineScopeBar({
   const [plan, setPlan] = useState<ContinuePlan | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
   const [scannedOnly, setScannedOnly] = useState(false);
+  const [selectedTiers, setSelectedTiers] = useState<ContinueTierId[]>(() =>
+    defaultContinueTiers(null),
+  );
   const effectivePatterns =
     includePatterns.length > 0
       ? includePatterns
@@ -145,7 +161,7 @@ export default function ScannedPipelineScopeBar({
         return;
       }
       toast.success('Pipeline started', {
-        description: `${payload.kinds.map(k => STAGE_LABEL[k] ?? k).join(' → ')} · ${scopeLabel}`,
+        description: `${payload.kinds.map(k => LAUNCH_KIND_LABEL[k] ?? k).join(' → ')} · ${scopeLabel}`,
       });
       setConfirmOpen(false);
       setPlan(null);
@@ -158,7 +174,10 @@ export default function ScannedPipelineScopeBar({
     }
   }
 
-  async function runChangeCheck(scopedToScanned: boolean = scannedOnly) {
+  async function runChangeCheck(
+    scopedToScanned: boolean = scannedOnly,
+    tiers: ContinueTierId[] = selectedTiers,
+  ) {
     setChecking(true);
     setPlan(null);
     setPlanError(null);
@@ -172,6 +191,7 @@ export default function ScannedPipelineScopeBar({
           includePatterns: effectivePatterns,
           sourceId,
           through: 'embed',
+          selectedTiers: tiers,
           scannedOnly: scopedToScanned,
         }),
       });
@@ -204,7 +224,9 @@ export default function ScannedPipelineScopeBar({
       return;
     }
     setConfirmOpen(true);
-    void runChangeCheck(scannedOnly);
+    const tiers = defaultContinueTiers(health);
+    setSelectedTiers(tiers);
+    void runChangeCheck(scannedOnly, tiers);
   }
 
   if (!scopeLabel) return null;
@@ -264,145 +286,44 @@ export default function ScannedPipelineScopeBar({
           </button>
         )}
       </div>
-      {canRunPipeline && confirmOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.45)' }}
-          onClick={() => !launching && !checking && setConfirmOpen(false)}
-        >
-          <div
-            className="max-w-md w-full rounded-xl border p-5 shadow-xl"
-            style={{ background: 'var(--estate-raised)', borderColor: 'var(--estate-border)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-size-ui font-semibold" style={{ color: 'var(--estate-ink)' }}>
-              Continue pipeline
-            </h3>
-            <p className="text-caption mt-1 font-mono truncate" style={{ color: 'var(--estate-text-muted)' }} title={effectivePatterns.join(', ')}>
-              {effectivePatterns.length === 1 ? effectivePatterns[0] : `${effectivePatterns.length} patterns`}
-            </p>
-
-            {checking && (
-              <p className="text-caption mt-3" style={{ color: 'var(--estate-text-secondary)' }}>
-                Checking Databricks for changes since the last scan…
-              </p>
-            )}
-
-            <label className="mb-3 flex items-start gap-2 text-caption" style={{ color: 'var(--estate-ink)' }}>
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={scannedOnly}
-                disabled={checking || launching}
-                onChange={e => {
-                  setScannedOnly(e.target.checked);
-                  void runChangeCheck(e.target.checked);
-                }}
-              />
-              <span>
-                Scanned tables only
-                <span className="block" style={{ color: 'var(--estate-text-muted)' }}>
-                  Skips tables in this scope that were never scanned (discovery only).
-                </span>
-              </span>
-            </label>
-            {planError && !checking && (
-              <p className="text-caption mt-3" style={{ color: 'var(--bad)' }}>
-                {planError}
-              </p>
-            )}
-
-            {check && !checking && (
-              <div className="mt-3">
-                <div className="text-caption font-medium" style={{ color: 'var(--estate-ink)' }}>
-                  Source check
-                </div>
-                <p className="text-caption mt-0.5" style={{ color: 'var(--estate-text-secondary)' }}>
-                  {describeCheck(check)}
-                </p>
-              </div>
-            )}
-
-            {plan && !checking && (
-              <div className="mt-3">
-                <div className="text-caption font-medium" style={{ color: 'var(--estate-ink)' }}>
-                  Will run
-                </div>
-                {stagePlan.length > 0 ? (
-                  <ol className="mt-1 space-y-0.5">
-                    {stagePlan.map((s, i) => (
-                      <li key={s.kind} className="text-caption flex justify-between" style={{ color: 'var(--estate-text-secondary)' }}>
-                        <span>{i + 1}. {STAGE_LABEL[s.kind] ?? s.kind}</span>
-                        <span className="font-mono">up to {s.upTo.toLocaleString()}</span>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-caption mt-0.5" style={{ color: 'var(--estate-text-secondary)' }}>
-                    {planBlocker?.message ?? plan.intent?.humanSummary ?? 'Nothing to run.'}
-                  </p>
-                )}
-                {stagePlan.length > 1 && (
-                  <p className="text-caption mt-1.5" style={{ color: 'var(--estate-text-muted)' }}>
-                    Each step only processes tables that are still out of date when it starts.
-                  </p>
-                )}
-                {planBlocker?.code === 'ACTIVE_JOB_OVERLAP' && (
-                  <p className="text-caption mt-1.5" style={{ color: 'var(--bad)' }}>{planBlocker.message}</p>
-                )}
-              </div>
-            )}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={launching}
-                onClick={() => setConfirmOpen(false)}
-                className="text-label px-3 py-1.5 rounded border"
-                style={{ borderColor: 'var(--estate-border)', color: 'var(--estate-text-secondary)' }}
-              >
-                {canRun ? 'Cancel' : 'Close'}
-              </button>
-              {planError && !checking && (
-                <button
-                  type="button"
-                  onClick={() => void runChangeCheck()}
-                  className="text-label px-3 py-1.5 rounded border"
-                  style={{ borderColor: 'var(--estate-border)', color: 'var(--estate-text-secondary)' }}
-                >
-                  Retry check
-                </button>
-              )}
-              <button
-                type="button"
-                disabled={!canRun}
-                onClick={() => void runLaunch()}
-                className="text-label px-4 py-1.5 rounded border-none disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ background: 'var(--brand-a)', color: 'var(--estate-bg)' }}
-              >
-                {launching ? 'Launching…' : checking ? 'Checking…' : 'Run'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {canRunPipeline && (
+        <ContinuePipelineModal
+          open={confirmOpen}
+          scopeDisplay={scopeLabel ?? effectivePatterns[0] ?? ''}
+          scopeTitle={effectivePatterns.join(', ')}
+          scannedOnly={scannedOnly}
+          onScannedOnlyChange={v => {
+            setScannedOnly(v);
+            void runChangeCheck(v, selectedTiers);
+          }}
+          selectedTiers={selectedTiers}
+          onSelectedTiersChange={tiers => {
+            setSelectedTiers(tiers);
+            void runChangeCheck(scannedOnly, tiers);
+          }}
+          checking={checking}
+          launching={launching}
+          canRun={canRun}
+          planError={planError}
+          onRetryCheck={() => void runChangeCheck(scannedOnly, selectedTiers)}
+          changeCheck={check}
+          stagePlan={stagePlan}
+          idleMessage={planBlocker?.message ?? plan?.intent?.humanSummary}
+          overlapMessage={planBlocker?.code === 'ACTIVE_JOB_OVERLAP' ? planBlocker.message : undefined}
+          scannedObjectCount={health?.scanned_objects ?? 0}
+          onClose={() => setConfirmOpen(false)}
+          onRun={() => void runLaunch()}
+        />
       )}
     </>
   );
 }
 
-const STAGE_LABEL: Record<string, string> = {
+const LAUNCH_KIND_LABEL: Record<string, string> = {
   t0_structural: 'Scan structure',
   t1_profile: 'Profile',
   t2_semantic: 'Describe',
-  embed: 'Embed (make searchable)',
+  embed: 'Embed',
+  t3_usage: 'Usage & lineage',
+  t4_scan: 'Business model',
 };
-
-function describeCheck(c: ScopeChangeCheck): string {
-  const parts: string[] = [];
-  if (c.changed.length) parts.push(`${c.changed.length} changed`);
-  if (c.added.length) parts.push(`${c.added.length} new`);
-  if (c.dropped.length) parts.push(`${c.dropped.length} removed`);
-  if (c.unknown.length) parts.push(`${c.unknown.length} without change time (rescan)`);
-  if (parts.length === 0) return `No changes in Databricks since the last scan (${c.unchanged.toLocaleString()} tables checked).`;
-  return `${parts.join(' · ')} · ${c.unchanged.toLocaleString()} unchanged`;
-}

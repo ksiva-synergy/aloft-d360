@@ -141,7 +141,7 @@ export function BornVerdict({
         maxWidth: 520,
         background: CARD_BG,
         border: `1px solid ${BORDER}`,
-        borderRadius: 6,
+        borderRadius: 'var(--born-r-control)',
         padding: '8px 14px',
         overflow: 'hidden',
         transition: 'max-height 200ms ease, border-color 200ms ease',
@@ -167,15 +167,22 @@ export function BornVerdict({
         </div>
 
         {/* MIDDLE: P=x% · phase */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 auto', minWidth: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC, whiteSpace: 'nowrap' }}>
+        {/* overflow:hidden + ellipsis: long sheet names used to spill over the sparkline */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
+          <span
+            title={`P=${pct(bornProb)} best for ${stripSheetType(sheetType)}`}
+            style={{
+              fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', color: TEXT_SEC,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0,
+            }}
+          >
             P={pct(bornProb)} best for {stripSheetType(sheetType)}
           </span>
           <span style={{
             fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
             color: phase === 'exploiting' ? TEXT_SEC : TEXT_MUT,
             opacity: 0.8,
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', flexShrink: 0,
           }}>
             {phase}
           </span>

@@ -2,6 +2,129 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## Lineage API: lighter search, TTL cache, P1001 retry
+
+- **What:** `GET /api/inspector/semantic/lineage?optionsOnly=1` returns only `focusOptions` (no `scanConsumers` / focus graph). Estate lineage debounced search uses that flag. In-memory 30s cache + in-flight dedupe for `loadCatalog` and `scanConsumers` per org (`src/lib/semantic/lineage-cache.ts`). Semantic lineage DB reads retry once after 400ms on Prisma `P1001` (`src/lib/db/with-prisma-read-retry.ts`, wired in `src/lib/semantic/lineage.ts`).
+- **Why:** Remote dev RDS was hit on every keystroke and often returned transient `P1001` on heavy parallel reads.
+- **Verified:** `vitest run src/lib/db/__tests__/with-prisma-read-retry.test.ts src/lib/semantic/__tests__/lineage-cache.test.ts src/lib/semantic/__tests__/lineage.test.ts`.
+- **Not done:** Cache invalidation on semantic/dashboard writes (30s staleness acceptable for dev; call `clearLineageServerCache(orgId)` if needed).
+
+## Remove Data 360 wordmark from the app chrome
+
+- **What:** Visible “Data 360” / `data360.synergymarinegroup.com` copy is gone from the sidebars, login, workbench breadcrumb, Data Studio breadcrumb, and the document title. Product name in those spots is ALOFT / Agent Lab / Synergy Group.
+  - `src/components/agent-lab/staging/CommandSidebar.tsx`
+  - `src/components/agent-lab/staging/StagingSidebar.tsx`
+  - `src/components/workbench/WorkbenchShell.tsx`
+  - `src/components/studio/DataStudio.tsx`
+  - `src/views/login.tsx`
+  - `web/src/RootLayout.tsx`, `web/index.html`
+- **Why:** ALOFT should not carry the Data 360 product marking.
+- **Verified:** Source search of `src/` and `web/` for the visible strings. Browser on `http://localhost:3000/login`: title is “Agent Lab — ALOFT”, header is “Synergy Group”, footer is “Powered by ALOFT”, and the page text has no “Data 360”. `/dashboard` redirects to login without a session, so the signed-in sidebar was checked in source only.
+- **Not done:** Internal theme comments (“Data 360 Night”), docs, and design-prototype HTML under `public/` and `docs/` still mention the old name.
+
+## Auth UX: do not show logged-in after failed sign-in or revoked session
+
+- **What:** `provisionUserByOid` (`src/lib/rbac.ts`) no longer updates `lastLoginAt` / `lastSeenAt` when the account is not usable (suspended/deactivated), so the Users table is not misleading after a failed Microsoft sign-in. Session callback sets `session.error = 'SessionRevoked'` when the JWT is revoked; `web/src/RequireAuth.tsx` signs out and returns to login; `UserMenu` hides the green “online” dot without a valid `user.id`. Login page message for `?error=session_expired`. Added `scripts/users/inspect-user.ts` for read-only user + login-event diagnostics.
+- **Why:** Admins saw recent “Last login” and users saw avatar/online state while sign-in failed or APIs returned 401 — reported as “503 gateway” for `pranavesh.s@synergyship.com` and similar.
+- **Verified:** Code review; DB inspect script blocked from this environment (RDS not reachable off VPN).
+- **Not done:** Reconcile historical `lastLoginAt` rows bumped by failed attempts before this fix.
+
+## T3 query history: warehouse filter (contains pushdown)
+
+- **What:** `buildQueryHistoryStatementSqlFilter` uses `contains(normalized statement_text, 'catalog.schema.')` instead of `LIKE … ESCAPE` (fixes parse errors on Databricks). T3 `pullQueryHistoryWindow` and new `countQueryHistoryWindow` only scan matching rows. Verify script uses COUNT first, then optional `--sample` pull.
+- **Why:** Scoped T3/verify was falling back to downloading entire workspace history (50k+ rows).
+- **Verified:** `vitest run src/lib/context/job-scope.test.ts`.
+- **Not done:** Lineage SQL filters still use LIKE ESCAPE; deploy harvester for T3 behavior in prod.
+
+## T3/T4 chain fixes + DB verification
+
+- **What:** `pipeline-chain.ts` — copy `pipeline_run_id` / `ui_surface` on `advanceChain` and T3 continuations; skip T3→T4 advance when `objectsInScope > 0` and `snapshotsWritten === 0`. `docs/jobs/verify-pipeline-run.sql` + `scripts/context/verify-pipeline-run.ts`.
+- **Why:** Chained T4 lost run metadata; empty T3 still triggered T4; operators need SQL to validate runs.
+- **Verified:** `vitest` pipeline-chain; DB query for `pipeline_run_id=8942f51f-c06e-44d1-8311-c67ea1049d7e` (see session-log).
+- **Not done:** Deploy harvester with orchestrator changes; re-run T4 for Navitas 496 tables.
+
+## T3/T4 job run: empty-success labeling + scope stat
+
+- **What:** `runT3Usage` stats include `objectsInScope`. Jobs UI treats `t3_usage` / `t4_scan` with zero primary work as **empty** (not green Done). Tests in `job-ui.test.ts`.
+- **Why:** Scoped T3 can succeed with `skipped: 1`, `objectsProcessed: 0` when no queries fall in the incremental window — legitimate, but looked like a silent failure.
+- **Verified:** `vitest run src/lib/estate/job-ui.test.ts`.
+- **Not done:** Orchestrator still marks those runs `succeeded` in DB; display mapping only.
+
+## Sharing Genie org-wide (no Databricks login) — reader doc
+
+- **What:** Added `docs/product/sharing-genie-with-the-organization.md` — plain-language guide on Options A/B/C (Databricks UI, iframe, app + SSO), what “no Databricks access” means, rollout checklist, user experience via ALOFT, risks, FAQ, IT appendix, and email blurb.
+- **Why:** Executives and business teams need shareable documentation on whether Genie can reach people without Databricks accounts.
+- **Verified:** Doc review only; aligned with internal Genie enterprise assessment access models.
+- **Not done:** Word export; legal/commercial review with Databricks account team.
+
+## Executive brief: ALOFT vs Databricks Genie
+
+- **What:** Added `docs/product/aloft-vs-databricks-genie-executive-brief.md` — one-page-style summary for leadership (bottom line, strengths/gaps, decision guide, boardroom answers) building on the Nov 2026 Genie enterprise assessment.
+- **Why:** Stakeholders need a simple readout without technical depth from the full comparison analysis.
+- **Verified:** Doc review only; no code or runtime changes.
+- **Not done:** Word/PDF export; benchmark numbers from a live Genie or Inspector pilot.
+
+## Continue pipeline modal — linked, simplified layout
+
+- **What:** `ContinuePipelineModal.tsx` — single narrow dialog; text presets (Catalog / Full / Usage only); two **linked tracks** (Catalog T0→Embed with through-selection, Usage & model T3↔T4); one status block (source check + launch arrow line); no duplicate rail+list or side column.
+- **Why:** Prior modal felt busy; user asked for linked pipeline visuals and simpler UX.
+- **Verified:** Lint clean; browser not re-checked this session.
+- **Not done:** None.
+
+## Continue pipeline: choose T3/T4 stages
+
+- **What:** Continue confirm sheet adds **Stages to run** checkboxes (T0–T4). `POST …/pipeline/continue` accepts `selectedTiers`; `buildContinueKindsFromTierSelection` plans `t3_usage` and/or `t4_scan` when embed work is already current. Run hides when nothing is selected. T3 advances the sequential chain to T4. Files: `pipeline-freshness.ts`, `pipeline-intent.ts`, `ScannedPipelineScopeBar.tsx`, `continue/route.ts`, `orchestrator.ts`.
+- **Why:** Operators needed Usage and Business model on the same scoped Continue flow, not only through Jobs.
+- **Verified:** vitest on pipeline-freshness, pipeline-intent, job-scope, scan-estate tests.
+- **Not done:** Default T3 window remains 7 days on first harvest unless Jobs passes `windowDays`. Browser check not run this session.
+
+## T3 and T4 honor the selected tables
+
+- **What:** `t4_scan` filters eligible tables with the job Limit and exclude list (`src/lib/context/t4/cluster.ts`, `scan-estate.ts`, `run.ts`). Scoped `t3_usage` takes its time window from those tables' `last_t3_at`, pushes a table-level history `LIKE` for up to 40 tables, and limits lineage SQL to those full names (up to 200, then a schema prefix) in `src/lib/context/usage.ts`, `job-scope.ts`, and `databricks-adapter.ts`. The Scanned bar (`pipeline-intent.ts`) says when described tables are not in the business model. Continue still stops at Embed.
+- **Why:** A finished search stage looked like the pipeline was done while T4 was 0, and a T3 or T4 job built usage and entities for tables outside the selection.
+- **Verified:** `vitest run src/lib/context/job-scope.test.ts src/lib/context/t4/scan-estate.test.ts src/lib/estate/pipeline-intent.test.ts` — 28 passed.
+- **Not done:** Continue does not launch T3 or T4. Query history for more than 40 tables is still a schema filter plus a post-filter. Not checked in the browser.
+
+## BORN (Bandits) page: remaining panels, lint/bug fixes, rounded corners
+
+- **What:**
+  - Bugs/lint (`BanditsDashboard.tsx`, `bandits/SuperpositionPanel.tsx`): fetch moved into an effect that only sets state in async callbacks, with `AbortController` so a slow older response can no longer overwrite newer filters; `loading` derived from a request key; Refresh/Retry bump a nonce. Konami phase timing moved to the parent's key handler (panel takes `konamiPhase`). Measure loop calls itself through `runFrameRef`. Measure dots now read the winning curve's own point (they were off-curve in Ridgeline mode); removed the ref write inside `useMemo`. Konami scale uses `transformBox: fill-box` so the curve narrows in place. Easter-egg timers cleared on unmount.
+  - `ProbMatchPanel.tsx`: grid layout; fixed "Allocation" label (52px column) overlapping its bar and too-narrow value column; both bars share one scale (allocation could exceed 100% width); new Gap column (± pts, amber beyond ±5).
+  - `TaskHeatmapPanel.tsx`: rotated column labels now pivot from their bottom-left corner (half of each label used to swing down into the first row), trailing pad so the last label is not clipped, row labels 110→190px with full id on hover, legend swatches for winner / no runs, tooltip number in ink (low-rate colour was unreadable).
+  - `PosteriorTimelinePanel.tsx`: uses `BORN_COLORS` by stats index (its own palette gave models different colours from the rest of the page); granularity uses `Segmented` (active text was `--on-brand` on gold); favourite row tinted gold not purple; token typography.
+  - `LiveFeedPanel.tsx` → "Recent Runs": shows the model under each task (was hidden whenever a task name existed); removed the pulsing live dot and "auto-scroll" badge (data loads once, nothing auto-scrolls); row dividers use `--born-overlay-2` instead of hard-coded navy.
+  - Leaderboard: keyboard-operable rows (`.born-row`, Enter/Space opens the drawer), P(next) column, phase pills, favourite dot gold like other panels.
+  - Reward Anatomy: now a table of each arm's average score per axis (C Cost, T Tool, S Semantic, G Grounds, V Verify — names from `src/lib/lifecycle/score-ctsgv.ts`), weights in the headers. The old bar showed only the weight split, identical for every fully-judged arm. Footer caps corrected to the code (truncated 0.18 context / 0.35 SQL-only, errored 0.10; it said 0.25).
+  - Hero: favourite card made compact (probability and posterior side by side), hero columns centred (the tall card left a large empty gap above the title); KPI tiles always reserve the meter row so hints line up; "1 pulls" → "1 pull".
+  - Rounded corners: `--born-r-card` 16px, `--born-r-inner` 12px, `--born-r-control` 10px in `globals.css`; cards, tooltips, controls, chips and bars across the page use them; cards get `--shadow-xs`. `RADIUS_MAX` in `born-tokens.ts` → 16.
+  - New `bandits/PanelHeader.tsx` shared by the restyled panels.
+  - `typography-baseline.json` lowered to current counts (inlineFontSize 232→1, inlineFontFamilyLiteral 52→0, inlineLetterSpacing 296→249).
+- **Why:** User asked to fix everything left open in the previous entry, said the hero "feels off", and asked for rounder corners.
+- **Verified:** `tsc --noEmit` root and `web/tsconfig.json` clean; ESLint on all `bandits/*.tsx`, `BanditsDashboard.tsx`, `StagingHeader.tsx`, `AgentLayout.tsx`, `born-tokens.ts`: 0 problems; `vitest run src/lib/typography src/components/agent-lab`: 24/24 pass.
+- **Not done:** Still not checked in a browser from this session (no browser tool); `ArmDetailDrawer.tsx` only had its pill radii updated, not restyled.
+
+## BORN (Bandits) page redesign + header strip blend + overlap fixes
+
+- **What:**
+  - Shell: `StagingHeader` background is now transparent; `web/src/AgentLayout.tsx` moves `--main-bg` from `<main>` to the content column (`.agent-column`). `globals.css` paints the BORN gold wash on `.agent-column:has(.born-page)` so it runs under the breadcrumb bar (no separate black strip). Other pages are unchanged visually (`--background` = `--main-bg` in both themes).
+  - Hero (`src/components/agent-lab/BanditsDashboard.tsx`): removed the in-page `DATA 360 / ALOFT · AGENT LAB / BORN` trail (duplicated the shell breadcrumb; also keeps DATA360 naming out of ALOFT) for an eyebrow; tagline now uses the real arm count; new `bandits/FavouriteCard.tsx` (name, provider/pulls/quality, P(next draw) bar with runner-up tick and lead, posterior curve with 95% CI band) replaces the FAVOURITE KPI and the "BORN VERDICT · inline component preview" strip; favourite posterior now uses the favourite's own α/β (was `sorted[0]`, the top composite row).
+  - Toolbar: new `bandits/Segmented.tsx` labelled Window/Source segmented controls, Refresh button, "Updating…" status and refresh-error text (refetches used to be silent).
+  - KPI row: 4 tiles (Observations, Exploration, S/G coverage, Belief entropy) with token typography, meters and one-line explanations; values/hints truncate.
+  - `SuperpositionPanel.tsx`: Overlap/Ridgeline segmented control (was a single ambiguous button), legend hover highlights its curve, tooltip flips left near the right edge and has a fixed width, Measure gets a caption + progress bar.
+  - `BornDistributionPanel.tsx`: Estimated / Sampling / Measured badge, tighter rows, names truncate so they never collide with the percentage.
+  - `BornVerdict.tsx`: fixed text overflowing onto the sparkline/micro-bar ("best for all tasks" overlap).
+  - CSS classes `.born-seg*`, `.born-btn*`, `.born-card` in `globals.css` (hover/focus-visible states, reduced-motion).
+- **Why:** User asked to enhance the BORN page design, fix overlapping areas, and blend the black top header strip into the page.
+- **Verified:** `tsc --noEmit` (root and `web/tsconfig.json`) clean; `vitest run src/lib/typography` (typography guard) passes. ESLint on touched files reports 5 `react-hooks/*` errors, all in untouched pre-existing code (fetch effect, Konami effect, `runFrame` recursion, ref write in `useMemo`).
+- **Not done:** Not visually checked in a browser in this session. `BornVerdict` is no longer rendered on the dashboard (still exported). Leaderboard / Reward anatomy / heatmap / timeline / live feed panels were not restyled; the heatmap's rotated column headers were not checked for overlap.
+
+## Research report: agent builder harness gaps
+
+- **What:** Added `reports/Agent builder harness gaps.md`, a synthesis of `research_notes/Agent builder harness gaps/*.md` covering agent versioning design, builder considerations, gaps vs industry practice (with code evidence), eval/benchmark/comparison methods, release gates, a phased plan reusing unused tables (`PlatformAgentManifest`, `Platform*Eval*`, `PlatformAcceptanceRecord`, `budget_config`), and 15 concrete defects.
+- **Why:** Requested research on harness gaps in the agent builder.
+- **Verified:** Spot-checked key defects in code (`src/lib/flows/policy.ts:140-160`, `src/app/api/catalog/agents/[id]/route.ts:34-48`, `review/route.ts:58-62`, `run-catalog-agent.ts:187-191`, `persist-commissioned.ts:22-32`, `chat/route.ts:87-94`) and confirmed tests mock `status: 'live'`.
+- **Not done:** No code changes; live-DB checks (duplicate slugs, existing `live` rows, `prompt_catalog` snapshots) not run.
+
 ## CI: fix vitest for themed Select combobox (flows + knowledge)
 
 - **What:** Added `src/test/form-select.ts` helpers for `@/components/form/Select` (open menu, choose by `data-value`, read `data-value` on trigger). Updated flows/knowledge tests that still assumed native `<select>`. `Select.tsx` exposes `data-value` on trigger and options, uses `role="group"` for optgroups, guards `scrollIntoView` in jsdom.
