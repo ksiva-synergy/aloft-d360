@@ -5,6 +5,12 @@
 
 ---
 
+### 2026-11-04: T3 usage keeps executor names; key_columns only referenced columns (Claude)
+
+- **Files:** `src/lib/context/usage.ts` (`access_stats.top_executors` = top 10 `executed_as` with query counts; `extractKeyColumns` drops columns with no references), `src/components/estate/UsagePanel.tsx`, `HeroSection.tsx`, `ObjectKnowledgePage.tsx`.
+- **Before → after:** Usage showed only `distinct_executors`; names were discarded at harvest. Key columns listed 10 zero-score columns when queries referenced none (e.g. `SELECT *`). "last 0 days" when the window started and ended on one day. After the next T3: Executors card with names and counts; key columns only when referenced; window shown as dates; `weekly_trend` shown as bars.
+- **Not done:** Existing usage snapshots have no `top_executors` until T3 re-runs. `executed_as` is a user email or service principal — shown to anyone who can open the object page.
+
 ### 2026-11-04: On-demand exact row count from the object page (Claude)
 
 - **Files:** `src/lib/context/databricks-adapter.ts` (`countExactRows`), new `src/app/api/agent-lab/context/objects/[id]/row-count/route.ts`, `src/components/estate/HeroSection.tsx`.

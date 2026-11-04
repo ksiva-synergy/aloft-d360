@@ -244,6 +244,194 @@ function TableShell({ children, minWidth }: { children: React.ReactNode; minWidt
   );
 }
 
+// ── Column coverage ─────────────────────────────────────────────────────────
+//
+// Scales to wide tables: one proportional bar (dimension / measure / not
+// referenced) instead of one segment per column, then the NOT referenced
+// columns grouped by data_type family with what each family could become.
+// Referenced columns sit in a collapsed list.
+
+type TypeFamily = 'numeric' | 'temporal' | 'string' | 'boolean' | 'complex' | 'other';
+
+const FAMILY_META: Record<TypeFamily, { label: string; hint: string }> = {
+  numeric:  { label: 'numeric',  hint: 'possible measures' },
+  temporal: { label: 'temporal', hint: 'possible temporal dimensions' },
+  string:   { label: 'string',   hint: 'possible categorical / attribute dimensions' },
+  boolean:  { label: 'boolean',  hint: 'possible flags / categorical dimensions' },
+  complex:  { label: 'complex',  hint: 'array / map / struct — flatten before modelling' },
+  other:    { label: 'other',    hint: '' },
+};
+const FAMILY_ORDER: TypeFamily[] = ['numeric', 'temporal', 'string', 'boolean', 'complex', 'other'];
+const CHIPS_PER_GROUP = 12;
+
+function familyOf(dataType: string | null): TypeFamily {
+  const dt = (dataType ?? '').toLowerCase();
+  if (/^(array|map|struct)|<|variant/.test(dt)) return 'complex';
+  if (/boolean|^bool$/.test(dt)) return 'boolean';
+  if (TEMPORAL_RE.test(dt)) return 'temporal';
+  if (NUMERIC_RE.test(dt)) return 'numeric';
+  if (/string|varchar|char|text/.test(dt)) return 'string';
+  return 'other';
+}
+
+function colTitle(c: TableColumn): string {
+  const distinct = Number(c.profile?.distinct_est);
+  const nullRate = Number(c.profile?.null_rate);
+  return [
+    `${c.name}`,
+    `data_type: ${c.data_type ?? '?'}`,
+    Number.isFinite(distinct) ? `distinct_est: ${distinct.toLocaleString()}` : null,
+    Number.isFinite(nullRate) ? `null_rate: ${(nullRate * 100).toFixed(1)}%` : null,
+    c.semantic?.role ? `role: ${c.semantic.role}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+function ColumnChip({ c, onColumnClick, marker }: { c: TableColumn; onColumnClick?: (n: string) => void; marker?: string }) {
+  const style: React.CSSProperties = {
+    ...type['code-inline'],
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '2px 8px',
+    borderRadius: 6,
+    border: '1px solid var(--estate-border)',
+    background: 'var(--estate-raised)',
+    color: 'var(--estate-ink)',
+    whiteSpace: 'nowrap',
+  };
+  const inner = (
+    <>
+      {marker && <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 2, background: marker }} />}
+      {c.name}
+    </>
+  );
+  return onColumnClick ? (
+    <button type="button" onClick={() => onColumnClick(c.name)} title={colTitle(c)} className="transition-colors hover:bg-[var(--estate-active-bg)]" style={{ ...style, cursor: 'pointer' }}>
+      {inner}
+    </button>
+  ) : (
+    <span title={colTitle(c)} style={style}>{inner}</span>
+  );
+}
+
+function ChipGroup({ items, onColumnClick, markerOf }: { items: TableColumn[]; onColumnClick?: (n: string) => void; markerOf?: (c: TableColumn) => string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? items : items.slice(0, CHIPS_PER_GROUP);
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      {shown.map((c) => <ColumnChip key={c.name} c={c} onColumnClick={onColumnClick} marker={markerOf?.(c)} />)}
+      {items.length > CHIPS_PER_GROUP && (
+        <button type="button" onClick={() => setOpen((v) => !v)} style={{ ...type.caption, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+          {open ? 'less' : `+${items.length - CHIPS_PER_GROUP} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ColumnCoverage({ columns, dimCols, measureCols, onColumnClick }: {
+  columns: TableColumn[];
+  dimCols: Set<string>;
+  measureCols: Set<string>;
+  onColumnClick?: (n: string) => void;
+}) {
+  const DIM = 'var(--brand-a)';
+  const MEAS = TONE_COLOR.violet;
+
+  const asDim = columns.filter((c) => dimCols.has(c.name.toLowerCase()));
+  const asMeasure = columns.filter((c) => !dimCols.has(c.name.toLowerCase()) && measureCols.has(c.name.toLowerCase()));
+  const unreferenced = columns.filter((c) => !dimCols.has(c.name.toLowerCase()) && !measureCols.has(c.name.toLowerCase()));
+  const total = columns.length;
+  const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
+
+  const byFamily = new Map<TypeFamily, TableColumn[]>();
+  for (const c of unreferenced) {
+    const f = familyOf(c.data_type);
+    byFamily.set(f, [...(byFamily.get(f) ?? []), c]);
+  }
+
+  const segments = [
+    { key: 'dimension', label: 'dimension', n: asDim.length, color: DIM },
+    { key: 'measure', label: 'measure', n: asMeasure.length, color: MEAS },
+    { key: 'none', label: 'not referenced', n: unreferenced.length, color: 'var(--estate-active-bg)' },
+  ];
+
+  return (
+    <>
+      <SubHead
+        title="column coverage"
+        meta={`${asDim.length + asMeasure.length} of ${total} columns referenced (${pct(asDim.length + asMeasure.length)}%)`}
+      />
+
+      {/* Proportional bar — same readability at 16 or 500 columns */}
+      <div style={{ display: 'flex', height: 12, borderRadius: 999, overflow: 'hidden', gap: 2, background: 'var(--estate-bg)' }} aria-hidden="true">
+        {segments.filter((s) => s.n > 0).map((s) => (
+          <div key={s.key} style={{ flex: s.n, background: s.color, minWidth: 6, border: s.key === 'none' ? '1px solid var(--estate-border)' : undefined, borderRadius: 999 }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', marginTop: 8 }}>
+        {segments.map((s) => (
+          <span key={s.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, ...type.caption, color: 'var(--estate-text-secondary)' }}>
+            <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, background: s.color, border: s.key === 'none' ? '1px solid var(--estate-border)' : undefined }} />
+            <code style={type['code-inline']}>{s.label}</code>
+            <strong style={{ color: 'var(--estate-ink)' }}>{s.n}</strong>
+            <span style={{ color: 'var(--estate-text-muted)' }}>{pct(s.n)}%</span>
+          </span>
+        ))}
+      </div>
+
+      {/* Not referenced, by data_type family */}
+      {unreferenced.length > 0 && (
+        <div style={{ marginTop: 16, border: '1px solid var(--estate-border)', borderRadius: 10, overflow: 'hidden' }}>
+          <div style={{ ...type['code-inline'], fontWeight: 600, color: 'var(--estate-ink)', padding: '8px 12px', background: 'var(--estate-th-bg, var(--estate-bg))', borderBottom: '1px solid var(--estate-border)' }}>
+            not referenced · {unreferenced.length}
+          </div>
+          {FAMILY_ORDER.filter((f) => byFamily.has(f)).map((f, i) => {
+            const items = byFamily.get(f)!;
+            return (
+              <div
+                key={f}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(150px, 210px) 1fr',
+                  gap: 14,
+                  padding: '10px 12px',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--estate-border)',
+                  alignItems: 'start',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ ...type['code-inline'], fontWeight: 600, color: 'var(--estate-ink)' }}>
+                    {FAMILY_META[f].label} <span style={{ color: 'var(--estate-text-muted)', fontWeight: 400 }}>· {items.length}</span>
+                  </span>
+                  {FAMILY_META[f].hint && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{FAMILY_META[f].hint}</span>}
+                </div>
+                <ChipGroup items={items} onColumnClick={onColumnClick} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Referenced (collapsed) */}
+      {asDim.length + asMeasure.length > 0 && (
+        <details style={{ marginTop: 12 }}>
+          <summary style={{ ...type.caption, color: 'var(--estate-text-secondary)', cursor: 'pointer' }}>
+            referenced · {asDim.length + asMeasure.length}
+          </summary>
+          <div style={{ marginTop: 8 }}>
+            <ChipGroup
+              items={[...asDim, ...asMeasure]}
+              onColumnClick={onColumnClick}
+              markerOf={(c) => (dimCols.has(c.name.toLowerCase()) ? DIM : MEAS)}
+            />
+          </div>
+        </details>
+      )}
+    </>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function EntityModelCard({
@@ -546,35 +734,12 @@ export default function EntityModelCard({
 
       {/* ── Coverage ── */}
       {orderedColumns.length > 0 && (
-        <>
-          <SubHead title="column coverage" meta={`${referencedInTable} of ${orderedColumns.length} columns referenced`} />
-          <div role="list" aria-label="Columns referenced by the model" style={{ display: 'flex', gap: 2, height: 10 }}>
-            {orderedColumns.map((c) => {
-              const on = referenced.has(c.name.toLowerCase());
-              const label = `${c.name} (${c.data_type ?? '?'}) — ${on ? 'referenced' : 'not referenced'}`;
-              return (
-                <button
-                  key={c.name}
-                  type="button"
-                  role="listitem"
-                  title={label}
-                  aria-label={label}
-                  onClick={onColumnClick ? () => onColumnClick(c.name) : undefined}
-                  className="transition-opacity hover:opacity-70"
-                  style={{ flex: 1, minWidth: 3, padding: 0, border: 'none', borderRadius: 999, background: on ? 'var(--brand-a)' : 'var(--estate-active-bg)', cursor: onColumnClick ? 'pointer' : 'default' }}
-                />
-              );
-            })}
-          </div>
-          {orderedColumns.length - referencedInTable > 0 && (
-            <div style={{ ...type.caption, color: 'var(--estate-text-muted)', marginTop: 8 }}>
-              not referenced:{' '}
-              {orderedColumns.filter((c) => !referenced.has(c.name.toLowerCase())).map((c, i) => (
-                <React.Fragment key={c.name}>{i > 0 && ', '}<ColumnRef name={c.name} onClick={onColumnClick} /></React.Fragment>
-              ))}
-            </div>
-          )}
-        </>
+        <ColumnCoverage
+          columns={orderedColumns}
+          dimCols={new Set(dimensions.map((d) => d.column_name.toLowerCase()))}
+          measureCols={new Set(measures.map((m) => m.column_name?.toLowerCase()).filter((c): c is string => !!c))}
+          onColumnClick={onColumnClick}
+        />
       )}
 
       {/* ── ai_context ── */}

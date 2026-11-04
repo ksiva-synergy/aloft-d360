@@ -11,7 +11,7 @@
 import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { type } from '@/lib/typography/tokens';
-import { Card, Tag, EmptyNote, TONE_COLOR, type Tone } from './object-ui';
+import { Card, Tag, EmptyNote, TONE_COLOR, DetailPanel, DetailCard, MiniStat, KVList, type Tone } from './object-ui';
 
 export interface ColumnItem {
   id: string;
@@ -240,43 +240,80 @@ function ColumnRow({ col, searchQuery, highlighted, expanded, onToggle, rowRef }
       </tr>
 
       {expanded && (
-        <tr style={{ background: 'var(--estate-hover)' }}>
-          <td colSpan={COLS} style={{ padding: '4px 20px 18px 44px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 20 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: 'span 2' }}>
-                <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>Semantic</span>
-                <p style={{ ...type.ui, color: 'var(--estate-ink)', margin: 0 }}>{semantic.description || 'No semantic description yet.'}</p>
-                {semantic.entity && (
-                  <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>entity: <strong>{semantic.entity}</strong></span>
-                )}
-                {col.native_comment && (
-                  <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>native_comment: {col.native_comment}</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>Profile</span>
-                <dl style={{ ...type.ui, margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 12px', color: 'var(--estate-text-secondary)' }}>
-                  <dt>null_rate</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{pct(profile.null_rate) !== null ? `${(pct(profile.null_rate)! * 100).toFixed(1)}%` : '—'}</dd>
-                  <dt>distinct_est</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{formatDistinct(profile.distinct_est)}</dd>
-                  {!isPii && <><dt>min</dt><dd style={{ margin: 0, color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{lo ?? '—'}</dd></>}
-                  {!isPii && <><dt>max</dt><dd style={{ margin: 0, color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{hi ?? '—'}</dd></>}
-                  <dt>is_nullable</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{(col as any).is_nullable === false ? 'false' : 'true'}</dd>
-                </dl>
-              </div>
-              {!isPii && values.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>top_k</span>
-                  <ol style={{ ...type.ui, margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {values.map((v, i) => (
-                      <li key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                        <code style={{ ...type['code-inline'], color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{v.value}</code>
-                        {v.count !== null && <span style={{ color: 'var(--estate-text-muted)' }}>{v.count.toLocaleString()}</span>}
-                      </li>
-                    ))}
-                  </ol>
+        <tr>
+          <td colSpan={COLS} style={{ padding: 0 }}>
+            <DetailPanel indent={44}>
+              {/* semantic */}
+              <DetailCard title="semantic" note={semantic.role ? `role: ${semantic.role}` : undefined}>
+                <p style={{ ...type.ui, color: semantic.description ? 'var(--estate-ink)' : 'var(--estate-text-muted)', margin: '0 0 8px' }}>
+                  {semantic.description || 'No semantic description yet.'}
+                </p>
+                <KVList
+                  items={[
+                    ['data_type', col.data_type ?? '—'],
+                    ['is_nullable', (col as any).is_nullable === false ? 'false' : 'true'],
+                    ...(semantic.entity ? ([['entity', semantic.entity]] as Array<[string, React.ReactNode]>) : []),
+                    ...(confidence !== null ? ([['confidence', `${Math.round(confidence * 100)}%`]] as Array<[string, React.ReactNode]>) : []),
+                    ...(col.native_comment ? ([['native_comment', col.native_comment]] as Array<[string, React.ReactNode]>) : []),
+                    ...(isPii ? ([['pii_flag', 'true']] as Array<[string, React.ReactNode]>) : []),
+                  ]}
+                />
+              </DetailCard>
+
+              {/* profile */}
+              <DetailCard title="profile">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                  {(() => {
+                    const nr = pct(profile.null_rate);
+                    const nrColor = nr === null ? undefined : nr >= 0.5 ? TONE_COLOR.red : nr >= 0.1 ? TONE_COLOR.amber : TONE_COLOR.green;
+                    return (
+                      <MiniStat
+                        label="null_rate"
+                        value={nr !== null ? `${(nr * 100).toFixed(nr < 0.1 ? 2 : 1)}%` : '—'}
+                        bar={nr !== null ? { value: nr, color: nrColor } : undefined}
+                      />
+                    );
+                  })()}
+                  <MiniStat label="distinct_est" value={formatDistinct(profile.distinct_est)} />
+                  <MiniStat label="min" value={isPii ? 'hidden' : (lo ?? '—')} />
+                  <MiniStat label="max" value={isPii ? 'hidden' : (hi ?? '—')} />
                 </div>
-              )}
-            </div>
+              </DetailCard>
+
+              {/* top_k */}
+              <DetailCard
+                title="top_k"
+                count={!isPii && values.length ? values.length : undefined}
+                note={isPii ? 'hidden (pii_flag)' : values.length ? undefined : 'not profiled'}
+              >
+                {!isPii && values.length > 0 ? (() => {
+                  const total = values.reduce((s, v) => s + (v.count ?? 0), 0);
+                  const max = Math.max(...values.map((v) => v.count ?? 0), 1);
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {values.slice(0, 5).map((v, i) => (
+                        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                            <code title={v.value} style={{ ...type['code-inline'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.value}</code>
+                            <span style={{ ...type['code-inline'], color: 'var(--estate-text-muted)', flexShrink: 0 }}>
+                              {v.count !== null ? v.count.toLocaleString() : ''}
+                              {v.count !== null && total > 0 ? ` · ${Math.round((v.count / total) * 100)}%` : ''}
+                            </span>
+                          </span>
+                          <span aria-hidden="true" style={{ height: 5, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+                            <span style={{ display: 'block', height: '100%', width: `${((v.count ?? 0) / max) * 100}%`, background: 'var(--brand-a)', opacity: 1 - i * 0.12 }} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })() : (
+                  <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
+                    {isPii ? 'Values are hidden for personal-data columns.' : 'No top values captured for this column.'}
+                  </span>
+                )}
+              </DetailCard>
+            </DetailPanel>
           </td>
         </tr>
       )}

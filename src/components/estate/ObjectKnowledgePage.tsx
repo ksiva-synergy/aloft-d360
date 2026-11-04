@@ -28,7 +28,7 @@ import EntityModelCard, { type ModelDimension, type ModelMeasure, type ModelJoin
 import ColumnsTable from './ColumnsTable';
 import ProfileTimeline from './ProfileTimeline';
 import JobsMiniTable from './JobsMiniTable';
-import UsagePanel, { type UsageSnapshot } from './UsagePanel';
+import UsagePanel, { type UsageSnapshot, usageWindowLabel } from './UsagePanel';
 import type { FreshnessBlock } from './FreshnessCard';
 import HarvestTimeline from './HarvestTimeline';
 import RelationshipGraph from './RelationshipGraph';
@@ -196,7 +196,7 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
     ? `/agent-lab/estate/lineage?focus=${encodeURIComponent(`e:${semanticModel.entity_id}`)}`
     : null;
   const latestProfileStats = (profileHistory[0]?.stats as any) ?? null;
-  const usageWindow = usageSnapshot?.freshness?.window_days ?? 30;
+  const usageWindow = usageSnapshot ? usageWindowLabel(usageSnapshot) : null;
 
   const hasSemanticContent = latestSemanticCard && (
     latestSemanticCard.summary ||
@@ -411,7 +411,7 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
           <SectionHeader
             title="Usage"
             description={usageSnapshot
-              ? `Who queries this table and how, over the last ${usageWindow} days.`
+              ? `Who queries this table and how (${usageWindow}).`
               : 'Who queries this table and how.'}
           />
           {usageSnapshot ? (

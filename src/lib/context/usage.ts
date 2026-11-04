@@ -232,7 +232,10 @@ function extractKeyColumns(
     result.push({ column: col, ...t, score });
   }
 
+  // Only columns the queries actually reference — zero-score columns (e.g. every
+  // column when queries are SELECT *) were being stored as "key columns".
   return result
+    .filter((r) => r.score > 0 || r.grouped_n > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 20);
 }
@@ -645,6 +648,15 @@ export async function runT3Usage(
 
     // ── access_stats ──────────────────────────────────────────────────────────
     const executors = new Set(matched.map(r => r.executed_as).filter((e): e is string => e != null));
+    // Who runs these queries — top 10 executed_as with query counts (was only a count).
+    const executorTally = new Map<string, number>();
+    for (const r of matched) {
+      if (r.executed_as) executorTally.set(r.executed_as, (executorTally.get(r.executed_as) ?? 0) + 1);
+    }
+    const top_executors = [...executorTally.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([executed_as, n]) => ({ executed_as, n }));
     const startTimes = matched
       .map(r => r.start_time)
       .filter((t): t is string => t != null)
@@ -661,6 +673,7 @@ export async function runT3Usage(
     const accessStats = {
       n_queries: matched.length,
       n_distinct_executors: executors.size,
+      top_executors,
       n_jobs,
       n_adhoc,
       n_dashboard,

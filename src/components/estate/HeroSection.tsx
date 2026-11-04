@@ -18,7 +18,7 @@ import FreshnessDot from './FreshnessDot';
 import LifecycleBadge from './HeroLifecycleBadge';
 import HarvestActionBar from './HarvestActionBar';
 import type { FreshnessBlock } from './FreshnessCard';
-import type { UsageSnapshot } from './UsagePanel';
+import { type UsageSnapshot, usageWindowLabel } from './UsagePanel';
 import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Shared shapes ────────────────────────────────────────────────────────────
@@ -430,7 +430,7 @@ export function ObjectFacts({ object, freshness, columns, semanticCard, latestPr
 
   const totalQueries = Number(usage?.access_stats?.total_queries ?? usage?.access_stats?.n_queries ?? 0);
   const executors = Number(usage?.access_stats?.distinct_executors ?? usage?.access_stats?.n_distinct_executors ?? 0);
-  const windowDays = usage?.freshness?.window_days ?? 30;
+  const windowText = usage ? usageWindowLabel(usage) : null;
 
   const harvested = relativeTime(
     [object.last_t2_at, object.last_t1_at, object.last_t0_at].filter((t): t is string => !!t).sort().pop() ?? null,
@@ -487,7 +487,7 @@ export function ObjectFacts({ object, freshness, columns, semanticCard, latestPr
         label="Usage"
         value={usage && totalQueries > 0 ? `${compactNumber(totalQueries)} queries` : '—'}
         sub={usage
-          ? (executors > 0 ? `${executors} user${executors === 1 ? '' : 's'} · last ${windowDays} days` : `Last ${windowDays} days`)
+          ? (executors > 0 ? `${executors} executor${executors === 1 ? '' : 's'} · ${windowText}` : windowText)
           : 'Usage not harvested'}
         href="#usage"
       />

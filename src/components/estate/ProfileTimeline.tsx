@@ -18,7 +18,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { describeDrift, isSignificantDrift, type DriftLine } from '@/lib/context/drift-summary';
-import { Card, EmptyNote, Tag, TONE_COLOR, relTime, fullTime, type Tone } from './object-ui';
+import { Card, EmptyNote, Tag, TONE_COLOR, relTime, fullTime, DetailPanel, DetailCard, MiniStat, ValueChip, KVList, type Tone } from './object-ui';
 import { type } from '@/lib/typography/tokens';
 
 export interface ProfileHistoryItem {
@@ -187,77 +187,215 @@ function Chevron({ open }: { open: boolean }) {
 
 const GRID = 'minmax(64px, 72px) minmax(120px, 1.1fr) minmax(150px, 1.2fr) minmax(110px, 0.9fr) minmax(160px, 2fr) 20px';
 
+//// ── Version detail (expanded row) ───────────────────────────────────────────
+//
+// One white card per DriftResult field (count badge, scored / informational),
+// tinted value chips for old → new, a before/after bar for null_rate shifts,
+// and a run card. One level of boxing only.
+
+const ROWS_VISIBLE = 5;
+
+interface RawDrift {
+  row_delta_pct?: number | null;
+  new_columns?: string[];
+  dropped_columns?: string[];
+  type_changes?: Array<{ column: string; from: string; to: string }>;
+  null_rate_shifts?: Array<{ column: string; from: number; to: number; delta?: number }>;
+  top_k_changes?: Array<{ column: string; prev_top_values?: unknown[]; curr_top_values?: unknown[] }>;
+}
+
+const ROW: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(110px, 200px) minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'center',
+  padding: '5px 0',
+  borderTop: '1px solid var(--estate-border)',
+};
+const COL_NAME: React.CSSProperties = { ...type['code-inline'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+const ARROW = <span aria-hidden="true" style={{ color: 'var(--estate-text-muted)' }}>→</span>;
+
+function MoreToggle({ total, open, onToggle }: { total: number; open: boolean; onToggle: () => void }) {
+  if (total <= ROWS_VISIBLE) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{ ...type.caption, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0 0' }}
+    >
+      {open ? 'show fewer' : `show all ${total}`}
+    </button>
+  );
+}
+
+function NullShiftBar({ from, to }: { from: number; to: number }) {
+  const w = 96;
+  const f = Math.max(0, Math.min(1, from)) * w;
+  const t = Math.max(0, Math.min(1, to)) * w;
+  return (
+    <svg width={w} height={10} viewBox={`0 0 ${w} 10`} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect x={0} y={3} width={w} height={4} rx={2} fill="var(--estate-active-bg)" />
+      <line x1={f} y1={5} x2={t} y2={5} stroke={TONE_COLOR.amber} strokeWidth={4} strokeLinecap="round" />
+      <circle cx={t} cy={5} r={3.5} fill={TONE_COLOR.amber} />
+    </svg>
+  );
+}
+
+function DriftCards({ drift, prevVersion }: { drift: RawDrift; prevVersion: number }) {
+  const [openTopK, setOpenTopK] = useState(false);
+  const [openNulls, setOpenNulls] = useState(false);
+
+  const added = Array.isArray(drift.new_columns) ? drift.new_columns : [];
+  const dropped = Array.isArray(drift.dropped_columns) ? drift.dropped_columns : [];
+  const types = Array.isArray(drift.type_changes) ? drift.type_changes : [];
+  const nulls = Array.isArray(drift.null_rate_shifts) ? drift.null_rate_shifts : [];
+  const topK = Array.isArray(drift.top_k_changes) ? drift.top_k_changes : [];
+  const rowDelta = typeof drift.row_delta_pct === 'number' && drift.row_delta_pct !== 0 ? drift.row_delta_pct : null;
+
+  const cards: React.ReactNode[] = [];
+
+  if (rowDelta !== null) {
+    const scored = Math.abs(rowDelta) >= 0.1;
+    cards.push(
+      <DetailCard key="rows" title="row_delta_pct" note={scored ? 'scored' : 'informational'} noteTone={scored ? 'amber' : 'muted'}>
+        <span style={{ ...type['kpi-sm'], color: rowDelta < 0 ? TONE_COLOR.red : 'var(--estate-ink)' }}>{signedPct(rowDelta)}</span>
+        <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}> row_count vs v{prevVersion}</span>
+      </DetailCard>,
+    );
+  }
+
+  if (added.length > 0 || dropped.length > 0) {
+    cards.push(
+      <DetailCard key="cols" title="new_columns / dropped_columns" count={added.length + dropped.length} note="scored" noteTone="amber">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {added.map((c) => <ValueChip key={`a${c}`} value={`+ ${c}`} kind="new" max={40} />)}
+          {dropped.map((c) => <ValueChip key={`d${c}`} value={`− ${c}`} kind="old" max={40} />)}
+        </div>
+      </DetailCard>,
+    );
+  }
+
+  if (types.length > 0) {
+    cards.push(
+      <DetailCard key="types" title="type_changes" count={types.length} note="scored" noteTone="amber">
+        {types.map((t, i) => (
+          <div key={t.column} style={{ ...ROW, borderTop: i === 0 ? 'none' : ROW.borderTop }}>
+            <span style={COL_NAME} title={t.column}>{t.column}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <ValueChip value={t.from} kind="old" />{ARROW}<ValueChip value={t.to} kind="new" />
+            </span>
+          </div>
+        ))}
+      </DetailCard>,
+    );
+  }
+
+  if (nulls.length > 0) {
+    cards.push(
+      <DetailCard key="nulls" title="null_rate_shifts" count={nulls.length} note="scored" noteTone="amber">
+        {(openNulls ? nulls : nulls.slice(0, ROWS_VISIBLE)).map((n, i) => {
+          const pts = (n.to - n.from) * 100;
+          return (
+            <div key={n.column} style={{ ...ROW, borderTop: i === 0 ? 'none' : ROW.borderTop }}>
+              <span style={COL_NAME} title={n.column}>{n.column}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <code style={{ ...type['code-inline'], color: 'var(--estate-text-muted)' }}>{(n.from * 100).toFixed(1)}%</code>
+                <NullShiftBar from={n.from} to={n.to} />
+                <code style={{ ...type['code-inline'], color: 'var(--estate-ink)', fontWeight: 600 }}>{(n.to * 100).toFixed(1)}%</code>
+                <code style={{ ...type['code-inline'], color: pts > 0 ? TONE_COLOR.red : TONE_COLOR.green }}>{pts > 0 ? '+' : ''}{pts.toFixed(1)} pts</code>
+              </span>
+            </div>
+          );
+        })}
+        <MoreToggle total={nulls.length} open={openNulls} onToggle={() => setOpenNulls((v) => !v)} />
+      </DetailCard>,
+    );
+  }
+
+  if (topK.length > 0) {
+    cards.push(
+      <DetailCard key="topk" title="top_k_changes" count={topK.length} note="informational">
+        {(openTopK ? topK : topK.slice(0, ROWS_VISIBLE)).map((t, i) => {
+          const prev = (t.prev_top_values ?? []).map(String);
+          const curr = (t.curr_top_values ?? []).map(String);
+          const out = prev.filter((v) => !curr.includes(v));
+          const inn = curr.filter((v) => !prev.includes(v));
+          return (
+            <div key={t.column} style={{ ...ROW, borderTop: i === 0 ? 'none' : ROW.borderTop }}>
+              <span style={COL_NAME} title={t.column}>{t.column}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', minWidth: 0 }}>
+                {out.slice(0, 2).map((v, k) => <ValueChip key={`o${k}`} value={v} kind="old" />)}
+                {out.length > 2 && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>+{out.length - 2}</span>}
+                {ARROW}
+                {inn.slice(0, 2).map((v, k) => <ValueChip key={`n${k}`} value={v} kind="new" />)}
+                {inn.length > 2 && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>+{inn.length - 2}</span>}
+              </span>
+            </div>
+          );
+        })}
+        <MoreToggle total={topK.length} open={openTopK} onToggle={() => setOpenTopK((v) => !v)} />
+      </DetailCard>,
+    );
+  }
+
+  if (cards.length === 0) {
+    return (
+      <DetailCard title="drift" note={`vs v${prevVersion}`}>
+        <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>No drift — schema, null_rate, row_count and top_k unchanged.</span>
+      </DetailCard>
+    );
+  }
+  return <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>{cards}</div>;
+}
+
 function VersionDetail({ entry }: { entry: VersionEntry }) {
-  const { item, lines } = entry;
+  const { item } = entry;
   const stats = item.stats ?? null;
   const skipped = stats?.skipped_columns ? Object.entries(stats.skipped_columns) : [];
   const colCount = stats?.columns ? Object.keys(stats.columns).length : null;
+  const size = typeof stats?.size_bytes === 'number' ? stats.size_bytes : null;
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-        gap: 20,
-        padding: '4px 20px 18px 96px',
-        background: 'var(--estate-hover)',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>Drift</span>
+    <DetailPanel indent={96}>
+      <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
         {entry.prev === null ? (
-          <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>First profile — no drift baseline.</span>
-        ) : lines.length === 0 ? (
-          <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>No drift vs v{entry.prev.version}.</span>
+          <DetailCard title="drift" note="v1">
+            <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>First profile — no drift baseline.</span>
+          </DetailCard>
         ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {lines.map((l, i) => (
-              <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 6, height: 6, borderRadius: 999, marginTop: 7, flexShrink: 0,
-                    background: l.significant ? (CHIP_TONE[l.kind] === 'red' ? TONE_COLOR.red : CHIP_TONE[l.kind] === 'blue' ? TONE_COLOR.blue : TONE_COLOR.amber) : 'var(--estate-text-muted)',
-                  }}
-                />
-                <span style={{ ...type.ui, color: l.significant ? 'var(--estate-ink)' : 'var(--estate-text-muted)' }}>
-                  {l.text}
-                  {!l.significant && <span style={{ ...type.caption }}> · informational</span>}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <DriftCards drift={(item.drift ?? {}) as RawDrift} prevVersion={entry.prev.version} />
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>Run</span>
-        <dl style={{ ...type.ui, margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 14px', color: 'var(--estate-text-secondary)' }}>
-          <dt>captured_at</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{fullTime(item.captured_at) ?? '—'}</dd>
-          <dt>trigger</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{TRIGGER_LABEL[item.trigger] ?? item.trigger ?? '—'}</dd>
-          <dt>method</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{how(stats)}</dd>
-          {typeof stats?.row_count_exact === 'number' && (<><dt>row_count_exact</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{stats.row_count_exact.toLocaleString()}</dd></>)}
-          {typeof stats?.size_bytes === 'number' && (<><dt>size_bytes</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{stats.size_bytes.toLocaleString()}</dd></>)}
-          {colCount !== null && (<><dt>columns</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{colCount} profiled{skipped.length ? `, ${skipped.length} skipped_columns` : ''}</dd></>)}
-          {typeof stats?.query_count === 'number' && (<><dt>query_count</dt><dd style={{ margin: 0, color: 'var(--estate-ink)' }}>{stats.query_count}</dd></>)}
-        </dl>
-      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+        <DetailCard title="run" note={item.trigger ?? undefined}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, marginBottom: 8 }}>
+            <MiniStat label="size_bytes" value={size !== null ? formatBytes(size) : '—'} />
+            <MiniStat label="columns" value={colCount ?? '—'} />
+          </div>
+          <KVList
+            items={[
+              ['captured_at', fullTime(item.captured_at) ?? '—'],
+              ['method', how(stats)],
+              ...(typeof stats?.row_count_exact === 'number' ? ([['row_count_exact', stats.row_count_exact.toLocaleString()]] as Array<[string, React.ReactNode]>) : []),
+              ...(size !== null ? ([['size_bytes', size.toLocaleString()]] as Array<[string, React.ReactNode]>) : []),
+              ...(typeof stats?.query_count === 'number' ? ([['query_count', String(stats.query_count)]] as Array<[string, React.ReactNode]>) : []),
+            ]}
+          />
+        </DetailCard>
 
-      {skipped.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>skipped_columns</span>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {skipped.length > 0 && (
+          <DetailCard title="skipped_columns" count={skipped.length}>
             {skipped.map(([name, info]) => (
-              <li key={name} style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>
+              <div key={name} style={{ ...type.caption, color: 'var(--estate-text-muted)', padding: '2px 0' }}>
                 <code style={{ ...type['code-inline'], color: 'var(--estate-ink)' }}>{name}</code>
-                {info?.data_type ? <span style={{ color: 'var(--estate-text-muted)' }}> {info.data_type}</span> : null}
-                {info?.reason ? <span style={{ color: 'var(--estate-text-muted)' }}> — {info.reason}</span> : null}
-              </li>
+                {info?.data_type ? ` ${info.data_type}` : ''}{info?.reason ? ` — ${info.reason}` : ''}
+              </div>
             ))}
-          </ul>
-        </div>
-      )}
-    </div>
+          </DetailCard>
+        )}
+      </div>
+    </DetailPanel>
   );
 }
 
@@ -319,7 +457,7 @@ function VersionRow({ entry, open, onToggle, nested }: { entry: VersionEntry; op
             {relTime(item.captured_at)}{isLatest && <span style={{ ...type.caption, color: 'var(--brand-a-ink)', fontWeight: 600 }}> · current</span>}
           </span>
           <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
-            {new Date(item.captured_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            {new Date(item.captured_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
           </span>
         </span>
         {/* How */}
