@@ -79,14 +79,24 @@ export default function InPageNav({ sectionRefs, badges = {}, rightSlot }: InPag
         backdropFilter: 'saturate(1.4) blur(12px)',
         WebkitBackdropFilter: 'saturate(1.4) blur(12px)',
         borderBottom: '1px solid var(--estate-border)',
-        display: 'flex',
-        alignItems: 'stretch',
-        gap: 4,
-        padding: '0 40px',
-        height: 48,
-        overflowX: 'auto',
       }}
     >
+      {/* Inner column matches the page content column (maxWidth 1320, 40px gutters)
+          so the first tab lines up with the header and cards below. The -12px
+          offset cancels the tab's own padding so the label text aligns. */}
+      <div
+        style={{
+          maxWidth: 1320,
+          margin: '0 auto',
+          padding: '0 40px',
+          height: 48,
+          display: 'flex',
+          alignItems: 'stretch',
+          gap: 4,
+          overflowX: 'auto',
+        }}
+      >
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 4, marginLeft: -12 }}>
       {SECTIONS.map(({ id, label }) => {
         const isActive = active === id;
         const badge = badges[id];
@@ -132,7 +142,9 @@ export default function InPageNav({ sectionRefs, badges = {}, rightSlot }: InPag
           </button>
         );
       })}
+      </div>
       {rightSlot}
+      </div>
     </nav>
   );
 }

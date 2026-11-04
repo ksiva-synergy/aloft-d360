@@ -289,7 +289,6 @@ function VersionRow({ entry, open, onToggle, nested }: { entry: VersionEntry; op
           border: 'none',
           background: open ? 'var(--estate-hover)' : 'transparent',
           cursor: 'pointer',
-          boxShadow: changed ? `inset 3px 0 0 ${TONE_COLOR.amber}` : undefined,
         }}
       >
         {/* Version */}
@@ -306,6 +305,13 @@ function VersionRow({ entry, open, onToggle, nested }: { entry: VersionEntry; op
           >
             v{item.version}
           </span>
+          {changed && (
+            <span
+              title="Significant drift in this version"
+              aria-label="drift"
+              style={{ width: 7, height: 7, borderRadius: 999, background: TONE_COLOR.amber, flexShrink: 0 }}
+            />
+          )}
         </span>
         {/* When */}
         <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }} title={fullTime(item.captured_at)}>

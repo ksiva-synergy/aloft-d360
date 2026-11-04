@@ -12,7 +12,6 @@
 // GET /api/agent-lab/context/objects/[id] — no extra requests.
 
 import React from 'react';
-import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
 import KindBadge from './KindBadge';
 import FreshnessDot from './FreshnessDot';
@@ -221,6 +220,35 @@ function Chip({ color, children, title, href }: { color: string; children: React
     : <span style={style} title={title}>{children}</span>;
 }
 
+const KEYWORDS_VISIBLE = 6;
+
+function KeywordRow({ keywords }: { keywords: string[] }) {
+  const [open, setOpen] = React.useState(false);
+  const shown = open ? keywords : keywords.slice(0, KEYWORDS_VISIBLE);
+  return (
+    <div
+      style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}
+      title="domain_keywords — used to route agent questions to this table"
+    >
+      <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)', marginRight: 2 }}>domain_keywords</span>
+      {shown.map((k) => (
+        <span key={k} style={{ ...type.caption, color: 'var(--estate-text-secondary)', border: '1px solid var(--estate-border)', borderRadius: 999, padding: '0 8px' }}>
+          {k}
+        </span>
+      ))}
+      {keywords.length > KEYWORDS_VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{ ...type.caption, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}
+        >
+          {open ? 'less' : `+${keywords.length - KEYWORDS_VISIBLE} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Header ───────────────────────────────────────────────────────────────────
 
 interface HeroSectionProps {
@@ -263,19 +291,6 @@ export default function HeroSection({
 
   return (
     <header style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 28 }}>
-      {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" style={{ ...type.ui, color: 'var(--estate-text-muted)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <Link href="/agent-lab/estate" className="hover:text-[var(--brand-a-ink)] transition-colors" style={{ color: 'inherit', textDecoration: 'none' }}>
-          Data Estate
-        </Link>
-        <span aria-hidden="true">/</span>
-        <Link href="/agent-lab/estate/catalog" className="hover:text-[var(--brand-a-ink)] transition-colors" style={{ color: 'inherit', textDecoration: 'none' }}>
-          Catalog
-        </Link>
-        {object.catalog_name && (<><span aria-hidden="true">/</span><span>{object.catalog_name}</span></>)}
-        {object.schema_name && (<><span aria-hidden="true">/</span><span>{object.schema_name}</span></>)}
-      </nav>
-
       {/* Title row + actions */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px 24px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 420px' }}>
@@ -353,28 +368,8 @@ export default function HeroSection({
         </p>
       )}
 
-      {/* Domain keywords (T2 — also used to route agent questions to this table) */}
-      {keywords.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} title="Domain keywords — used to route agent questions to this table">
-          {keywords.slice(0, 12).map((k) => (
-            <span
-              key={k}
-              style={{
-                ...type.caption,
-                color: 'var(--estate-text-secondary)',
-                background: 'var(--estate-active-bg)',
-                borderRadius: 6,
-                padding: '2px 8px',
-              }}
-            >
-              {k}
-            </span>
-          ))}
-          {keywords.length > 12 && (
-            <span style={{ ...type.caption, color: 'var(--estate-text-muted)', padding: '2px 4px' }}>+{keywords.length - 12} more</span>
-          )}
-        </div>
-      )}
+      {/* domain_keywords (T2 — used to route agent questions to this table) */}
+      {keywords.length > 0 && <KeywordRow keywords={keywords} />}
     </header>
   );
 }

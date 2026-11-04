@@ -24,7 +24,7 @@ import DataReadinessPill from './DataReadinessPill';
 import DataReadinessRing from './DataReadinessRing';
 import SectionHeader from './SectionHeader';
 import SemanticCard from './SemanticCard';
-import EntityModelCard from './EntityModelCard';
+import EntityModelCard, { type ModelDimension, type ModelMeasure, type ModelJoin, type ModelAudit } from './EntityModelCard';
 import ColumnsTable from './ColumnsTable';
 import ProfileTimeline from './ProfileTimeline';
 import JobsMiniTable from './JobsMiniTable';
@@ -88,8 +88,15 @@ export interface ObjectKnowledgePayload {
     entity_label: string;
     description: string | null;
     status: string;
-    dimensions: Array<{ column_name: string; dimension_label: string; dimension_type: string; description: string | null }>;
-    measures: Array<{ column_name: string | null; measure_label: string; aggregate: string; description: string | null; unit: string | null }>;
+    ai_context?: string | null;
+    synonyms?: string[];
+    created_by?: string | null;
+    updated_at?: string | null;
+    model?: { id: string; name: string; status: string } | null;
+    dimensions: ModelDimension[];
+    measures: ModelMeasure[];
+    joins?: ModelJoin[];
+    audit?: ModelAudit[];
   } | null;
   dataScore: DataScoreShape;
 }
@@ -294,7 +301,15 @@ export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledge
                 status={semanticModel.status}
                 dimensions={semanticModel.dimensions}
                 measures={semanticModel.measures}
-                totalColumns={columns.length}
+                fullPath={object.full_path}
+                ai_context={semanticModel.ai_context}
+                synonyms={semanticModel.synonyms}
+                created_by={semanticModel.created_by}
+                updated_at={semanticModel.updated_at}
+                model={semanticModel.model}
+                joins={semanticModel.joins}
+                audit={semanticModel.audit}
+                columns={columns}
                 onColumnClick={handleColumnFocus}
               />
             )}

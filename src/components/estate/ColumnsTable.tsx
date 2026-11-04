@@ -149,8 +149,7 @@ function ColumnRow({ col, searchQuery, highlighted, expanded, onToggle, rowRef }
           background: highlighted
             ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)'
             : expanded ? 'var(--estate-hover)' : undefined,
-          boxShadow: highlighted ? 'inset 3px 0 0 var(--brand-a)' : undefined,
-          transition: 'background-color 0.4s ease, box-shadow 0.4s ease',
+          transition: 'background-color 0.4s ease',
         }}
       >
         {/* Column */}

@@ -2,6 +2,17 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## Estate object page: engineer-focused Entity Model (T4), header alignment, T4 scoring fix
+
+- **What:**
+  - `EntityModelCard.tsx` rebuilt for data engineers, technical names only: header (`entity_label`, `full_path`, `platform_semantic_models` name/status, `synonyms`, counts incl. joins and columns used, `updated_at` / `created_by`), **Model checks** (aggregate on non-numeric column, SUM on flag, MIN/MAX on identifier, temporal dimension on non-date type, categorical `distinct_est` > 1,000, `null_rate` ≥ 50%, column missing from table), generated `example_sql` with Copy, `measures` table (definition = `AGG(col)` or `expression`, `metric_type`, column `data_type`, unit · `format_hint`, status, checks), `dimensions` table grouped by `dimension_type` (`column_name`, `data_type`, `distinct_est`, `null_rate`, `synonyms`, status, checks), `joins` (`join_type`, `join_on_sql`), column coverage + unreferenced columns, `ai_context`, `platform_sem_audit` trail. Decorative left-border accents removed here, in `ProfileTimeline.tsx` (now a dot by the version) and `ColumnsTable.tsx`.
+  - `src/lib/context/reads.ts`: semantic model now returns `ai_context`, `synonyms`, per-item `status` / `synonyms` / `format_hint` / `nl_intent`, measure `expression` / `metric_type`, model name, joins (both directions), last 15 audit rows (`SemanticModelView`).
+  - **Bug fix:** the entity was loaded only while `status = 'candidate'`, so the card vanished right after "Promote to governed"; and `data-score/distribution.ts` had the same filter, so promotion removed the Actionable T4 credit. Both now take the newest entity for the path, any status.
+  - Header: section nav tabs now align with the content column (`InPageNav.tsx`); duplicate in-page breadcrumb removed; `domain_keywords` shown as a short expandable row; readiness "holding it back" no longer repeats the same fix link (`DataReadinessRing.tsx`).
+- **Why:** User review — Entity Model should be readable and useful to engineers with technical names; top of page felt off.
+- **Verified (CI "Verify" job, locally):** `npx vitest run` 150 files / 1086 passed; `npx tsc --noEmit` 0 errors; `npm run web:typecheck` 0 errors; `npm run web:build` built; `npm run web:check-bundle` clean. `eslint` on all touched files clean (22 older errors remain in Jobs / catalog components, not part of CI).
+- **Not done:** No browser check of the new Entity Model card.
+
 ## CI typecheck fixes (spend + copilot)
 
 - **What:** `getSessionUserRole()` returns `string | null` for `assertInteractiveBudget`. Flows copilot no longer logs usage on error proposals. Inspector chat imports `recordInteractiveLlmSpend`. Vitest mocks for `server-only` / spend in `plan-estate-split.test.ts`, `plan-split-scope.test.ts`, and `run-catalog-agent.test.ts`.

@@ -259,8 +259,13 @@ export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessR
             <div style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>No open issues.</div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {gatingReasons.slice(0, 4).map((reason, i) => {
-                const action = actionFor(reason);
+              {gatingReasons.slice(0, 4).map((reason, i, shown) => {
+                // Several reasons can share one fix (e.g. two relationship gaps) —
+                // show that link once, under the last reason it applies to.
+                const candidate = actionFor(reason);
+                const repeatedLater = candidate
+                  && shown.slice(i + 1).some((r) => actionFor(r)?.href === candidate.href);
+                const action = repeatedLater ? null : candidate;
                 return (
                   <li key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>{reason}</span>
