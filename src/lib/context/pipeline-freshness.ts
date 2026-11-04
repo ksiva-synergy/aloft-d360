@@ -77,6 +77,8 @@ const VOLATILE_PROFILE_KEYS = new Set([
   'captured_at',
   'profiled_at',
   'duration_ms',
+  // DESCRIBE DETAIL facts — last_modified / num_files move on every write.
+  'table_detail',
 ]);
 
 function stableStringify(v: unknown): string {

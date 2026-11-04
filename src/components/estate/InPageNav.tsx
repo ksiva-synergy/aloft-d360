@@ -2,15 +2,14 @@
 
 // InPageNav — anchored section navigation for the Estate Object Detail page.
 //
-// Five sections per the approved design:
-//   #overview · #meaning · #relationships · #operations · #usage
+// Five sections: #overview · #meaning · #relationships · #operations · #usage
 //
+// Sits below the page header and sticks to the top of the scroll container.
 // Active section is tracked via IntersectionObserver on each section ref.
-// Renders as a sticky top-bar nav with gold underline on the active item.
-// The DataReadinessPill sits ABOVE this in the DOM (sticky top-0); this nav
-// is sticky top-[40px] (below the pill's 40px height).
+// `badges` shows a small count / status next to a tab label; `rightSlot`
+// hosts the DataReadinessPill so the readiness summary needs no row of its own.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface SectionRefs {
   overview:      React.RefObject<HTMLElement | null>;
@@ -22,21 +21,24 @@ export interface SectionRefs {
 
 type SectionId = keyof SectionRefs;
 
-const SECTIONS: { id: SectionId; label: string; subtitle?: string }[] = [
+const SECTIONS: { id: SectionId; label: string }[] = [
   { id: 'overview',      label: 'Overview' },
-  { id: 'meaning',       label: 'Meaning',       subtitle: 'STEWARD / ANALYST' },
-  { id: 'relationships', label: 'Relationships',  subtitle: '4 SOURCES' },
-  { id: 'operations',    label: 'Operations',     subtitle: 'DATA ENGINEER' },
-  { id: 'usage',         label: 'Usage',          subtitle: 'T3 · LAST 30 DAYS' },
+  { id: 'meaning',       label: 'Meaning' },
+  { id: 'relationships', label: 'Relationships' },
+  { id: 'operations',    label: 'Operations' },
+  { id: 'usage',         label: 'Usage' },
 ];
 
 interface InPageNavProps {
   sectionRefs: SectionRefs;
+  /** Small badge after a tab label, e.g. a relationship count. */
+  badges?: Partial<Record<SectionId, { text: string; tone?: 'neutral' | 'attention' }>>;
+  /** Content pinned to the right end of the bar (readiness pill). */
+  rightSlot?: React.ReactNode;
 }
 
-export default function InPageNav({ sectionRefs }: InPageNavProps) {
+export default function InPageNav({ sectionRefs, badges = {}, rightSlot }: InPageNavProps) {
   const [active, setActive] = useState<SectionId>('overview');
-  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
@@ -47,9 +49,7 @@ export default function InPageNav({ sectionRefs }: InPageNavProps) {
 
       const obs = new IntersectionObserver(
         ([entry]) => {
-          if (entry.isIntersecting) {
-            setActive(id);
-          }
+          if (entry.isIntersecting) setActive(id);
         },
         { threshold: 0.2, rootMargin: '-60px 0px -40% 0px' },
       );
@@ -63,70 +63,88 @@ export default function InPageNav({ sectionRefs }: InPageNavProps) {
   const scrollTo = (id: SectionId) => {
     const el = sectionRefs[id].current;
     if (!el) return;
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setActive(id);
   };
 
   return (
     <nav
+      aria-label="Page sections"
+      className="scrollbar-thin"
       style={{
         position: 'sticky',
-        top: 44,
-        zIndex: 19,
-        backgroundColor: 'var(--estate-bg, #111322)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        borderBottom: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-        display: 'flex',
-        alignItems: 'stretch',
-        gap: 0,
-        padding: '0 32px',
-        height: 42,
+        top: 0,
+        zIndex: 20,
+        background: 'color-mix(in srgb, var(--estate-bg) 88%, transparent)',
+        backdropFilter: 'saturate(1.4) blur(12px)',
+        WebkitBackdropFilter: 'saturate(1.4) blur(12px)',
+        borderBottom: '1px solid var(--estate-border)',
       }}
-      aria-label="Page sections"
     >
-      {SECTIONS.map(({ id, label, subtitle }) => {
+      {/* Inner column matches the page content column (maxWidth 1320, 40px gutters)
+          so the first tab lines up with the header and cards below. The -12px
+          offset cancels the tab's own padding so the label text aligns. */}
+      <div
+        style={{
+          maxWidth: 1320,
+          margin: '0 auto',
+          padding: '0 40px',
+          height: 48,
+          display: 'flex',
+          alignItems: 'stretch',
+          gap: 4,
+          overflowX: 'auto',
+        }}
+      >
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 4, marginLeft: -12 }}>
+      {SECTIONS.map(({ id, label }) => {
         const isActive = active === id;
+        const badge = badges[id];
         return (
           <button
             key={id}
             type="button"
             onClick={() => scrollTo(id)}
+            aria-current={isActive ? 'location' : undefined}
+            className="text-size-ui transition-colors hover:text-[var(--estate-ink)]"
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              padding: '0 18px',
+              padding: '0 12px',
               display: 'flex',
               alignItems: 'center',
               gap: 7,
-              borderBottom: isActive ? '2px solid var(--brand-a)' : '2px solid transparent',
-              color: isActive ? 'var(--brand-a)' : 'var(--estate-text-secondary, var(--ink-3))',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 'var(--type-ui-regular-size)',
-              fontWeight: isActive ? 600 : 400,
-              transition: 'color 0.15s ease, border-color 0.15s ease',
+              boxShadow: isActive ? 'inset 0 -2px 0 var(--brand-a)' : 'none',
+              color: isActive ? 'var(--estate-ink)' : 'var(--estate-text-muted)',
+              fontWeight: isActive ? 600 : 500,
               whiteSpace: 'nowrap',
             }}
           >
             {label}
-            {subtitle && (
+            {badge && (
               <span
+                className="text-size-caption"
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: isActive ? 'color-mix(in srgb, var(--brand-a) 60%, transparent)' : 'rgba(136,146,164,0.5)',
-                  letterSpacing: '0.08em',
-                  textTransform: 'uppercase',
+                  borderRadius: 999,
+                  padding: '0 7px',
+                  lineHeight: '18px',
+                  fontWeight: 600,
+                  background: badge.tone === 'attention'
+                    ? 'color-mix(in srgb, var(--brand-a) 14%, transparent)'
+                    : 'var(--estate-active-bg)',
+                  color: badge.tone === 'attention' ? 'var(--brand-a-ink)' : 'var(--estate-text-secondary)',
                 }}
               >
-                {subtitle}
+                {badge.text}
               </span>
             )}
           </button>
         );
       })}
+      </div>
+      {rightSlot}
+      </div>
     </nav>
   );
 }

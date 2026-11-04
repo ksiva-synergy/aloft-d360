@@ -2,6 +2,138 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## Estate object page: engineer-focused Entity Model (T4), header alignment, T4 scoring fix
+
+- **What:**
+  - `EntityModelCard.tsx` rebuilt for data engineers, technical names only: header (`entity_label`, `full_path`, `platform_semantic_models` name/status, `synonyms`, counts incl. joins and columns used, `updated_at` / `created_by`), **Model checks** (aggregate on non-numeric column, SUM on flag, MIN/MAX on identifier, temporal dimension on non-date type, categorical `distinct_est` > 1,000, `null_rate` ≥ 50%, column missing from table), generated `example_sql` with Copy, `measures` table (definition = `AGG(col)` or `expression`, `metric_type`, column `data_type`, unit · `format_hint`, status, checks), `dimensions` table grouped by `dimension_type` (`column_name`, `data_type`, `distinct_est`, `null_rate`, `synonyms`, status, checks), `joins` (`join_type`, `join_on_sql`), column coverage + unreferenced columns, `ai_context`, `platform_sem_audit` trail. Decorative left-border accents removed here, in `ProfileTimeline.tsx` (now a dot by the version) and `ColumnsTable.tsx`.
+  - `src/lib/context/reads.ts`: semantic model now returns `ai_context`, `synonyms`, per-item `status` / `synonyms` / `format_hint` / `nl_intent`, measure `expression` / `metric_type`, model name, joins (both directions), last 15 audit rows (`SemanticModelView`).
+  - **Bug fix:** the entity was loaded only while `status = 'candidate'`, so the card vanished right after "Promote to governed"; and `data-score/distribution.ts` had the same filter, so promotion removed the Actionable T4 credit. Both now take the newest entity for the path, any status.
+  - Header: section nav tabs now align with the content column (`InPageNav.tsx`); duplicate in-page breadcrumb removed; `domain_keywords` shown as a short expandable row; readiness "holding it back" no longer repeats the same fix link (`DataReadinessRing.tsx`).
+- **Why:** User review — Entity Model should be readable and useful to engineers with technical names; top of page felt off.
+- **Verified (CI "Verify" job, locally):** `npx vitest run` 150 files / 1086 passed; `npx tsc --noEmit` 0 errors; `npm run web:typecheck` 0 errors; `npm run web:build` built; `npm run web:check-bundle` clean. `eslint` on all touched files clean (22 older errors remain in Jobs / catalog components, not part of CI).
+- **Not done:** No browser check of the new Entity Model card.
+
+## CI typecheck fixes (spend + copilot)
+
+- **What:** `getSessionUserRole()` returns `string | null` for `assertInteractiveBudget`. Flows copilot no longer logs usage on error proposals. Inspector chat imports `recordInteractiveLlmSpend`. Vitest mocks for `server-only` / spend in `plan-estate-split.test.ts`, `plan-split-scope.test.ts`, and `run-catalog-agent.test.ts`.
+- **Why:** Root `tsc` failed on interactive budget and copilot usage types; CI `verify` job runs full vitest + typecheck.
+- **Verified:** `npm run typecheck`, `npm run web:typecheck`, targeted vitest on the three fixed test files.
+- **Not done:** Full `next build` not run locally in this pass.
+
+## Estate object page: "Count exact rows" on demand
+
+- **What:** New `POST /api/agent-lab/context/objects/[id]/row-count` (`src/app/api/agent-lab/context/objects/[id]/row-count/route.ts`, estate pipeline operator only) → `DatabricksAdapter.countExactRows()` (`src/lib/context/databricks-adapter.ts`): DESCRIBE DETAIL, then `SELECT COUNT(*)` only when format is Delta (answered from transaction-log stats); views / non-Delta return 422. Saves `row_count_est` (+ `size_bytes_est`). Rows tile (`src/components/estate/HeroSection.tsx`) shows "Count exact rows →" while the count is only a sample, then the full number. Legacy detection fixed: only `row_count_est === sample window` is treated as a sample (a larger value is an exact count).
+- **Why:** No real row count was stored anywhere — every existing profile predates the T1 exact count, so the page could only show the 5,000-row sample.
+- **Verified:** `tsc` (no errors in touched areas), `eslint` clean, `vitest src/lib/typography src/components/estate` 23 passed. Not run against live Databricks.
+- **Not done:** Count is not run automatically on page load (avoids starting a warehouse just by viewing the page).
+
+## Estate object API: P1001 retry and clearer DB-unavailable errors
+
+- **What:** `GET /api/agent-lab/context/objects/[id]` wraps org + aggregate reads in `withPrismaReadRetry`; returns `503` + `DATABASE_UNAVAILABLE` when Prisma cannot reach RDS. `isPrismaUnreachable` also treats `PrismaClientInitializationError` with “Can't reach database server”. Estate object page shows VPN/RDS guidance and a **Retry** button.
+- **Why:** Remote dev RDS often returns transient `P1001` on first connect; the UI only showed a generic 500 after ~43s pool timeout.
+- **Verified:** `vitest run src/lib/db/__tests__/with-prisma-read-retry.test.ts`.
+- **Not done:** Does not fix a fully blocked network path (VPN off / IP not on security group); user must restore connectivity.
+
+## Estate relationship map: React Flow edge handles
+
+- **What:** `RelationNode` in `src/components/estate/RelationshipGraph.tsx` now renders React Flow `Handle` components (target on neighbors, source on the focus node) with the default handle id so edges match. `GraphInner` syncs `useNodesState` / `useEdgesState` when graph props change and re-runs `fitView` after updates.
+- **Why:** Custom nodes had no handles, so React Flow logged error #008 (`Couldn't create edge for source handle id: "null"`) on every `fitView` / layout pass when the estate object page loaded relationship data.
+- **Verified:** Code review against React Flow custom-node docs; reload estate object page and confirm console is free of #008.
+- **Not done:** No automated test for the graph component.
+
+## 2026-11-04 — Plan update: SharePoint read and write access, file picker (docs only)
+
+- **What:** `docs/m365/delegated-access-plan.md`:
+  - Writing files is now level 1. `Files.ReadWrite.All` and `Sites.ReadWrite.All` are consented now, but ALOFT only requests them when a person first saves something.
+  - New §4.3 covers writing files: save a new file (renamed on a name clash, never overwritten), save a new version guarded by the file's eTag, create a folder, add or update List rows. All go through Confirm. Delete, move and sharing changes are not offered. Automate saves of a new file to a fixed folder need no approval; updates and List changes do.
+  - New §4.4: a SharePoint/OneDrive picker in chat, Automate, knowledge bases and the save card.
+  - File writes move into phase 3, and the estimate becomes 5–6 weeks.
+  - The admin request (Claude Docs) now asks for eight permissions (six read, two write) and says what ALOFT will not do (delete, move, change sharing).
+- **Why:** The user asked that people be able to get files from SharePoint with read and write access.
+- **Verified:** The Graph endpoints in §4.3 (upload with `conflictBehavior=rename`, upload sessions over 4 MB, `If-Match` eTag, List items) match Microsoft Graph v1.0 as documented. No code was run.
+- **Not done:** No code. The user's message was cut off after "and", so there may be another requirement to add.
+
+## 2026-11-04 — Plan update: Microsoft 365 connector catalog, permission levels, email correction (docs only)
+
+- **What:** `docs/m365/delegated-access-plan.md`:
+  - §3.2 now has three permission levels: read; act after Confirm; sensitive reads the person opts into.
+  - New §11 lists every connector: files, Excel, SharePoint Lists, save files, Teams, Outlook, directory, manager chain, calendar, Planner, plus what can't be connected and the app-only options.
+  - §4.2 adds a no-permission "Open in Outlook" compose link and the level 2 actions. Phase 4 is updated to match.
+  - D3 changed: don't request `Mail.ReadWrite` for drafts, because it also allows reading and deleting all mail; `Mail.Send` behind Confirm is narrower.
+  - Separately, a permission request for the Microsoft 365 admin was written as a Claude Docs document (not in the repo).
+- **Why:** The user asked which connectors ALOFT can offer and which permissions to request, then asked for both updates.
+- **Verified:** Dev hostname `aloft-dev.synergyship.com` taken from `docs/` (used in the admin request's redirect URI). Permission names are from Microsoft Graph's delegated permission set. Which permissions need admin consent is left for the admin to confirm in the Entra portal.
+- **Not done:** Staging and prod hostnames are unknown, so they're an open question in the admin request. No code.
+
+## 2026-11-04 — Plan: Microsoft 365 delegated access for Inspector, agents and Automate (docs only)
+
+- **What:** Added `docs/m365/delegated-access-plan.md`. It plans a separate "Connect Microsoft 365" step (OAuth code + PKCE on the existing Entra app, refresh token in Secrets Manager, `oid` bound to `user.aadObjectId`), one set of Graph tools (search, list, read file, read sheet, extract fields; later confirmed actions: draft email, Teams post, save file) shared by Inspector, saved agents and Automate, run-as-owner rules for scheduled automations, security controls, six phases with acceptance tests, and decisions D1–D7.
+- **Why:** The user will get delegated Microsoft 365 permissions approved and asked for a solid plan to use them across Inspector, agents and Automate.
+- **Verified:** The plan's code facts were checked against `src/lib/auth.ts`, `src/lib/inspector/{tools,prompts}.ts`, `src/lib/agents/run-catalog-agent.ts`, `src/lib/knowledge/{agents,readers}.ts`, `src/lib/extraction/service.ts`, `src/lib/connections/{secrets.ts,providers/sharepoint.ts}`, `src/lib/capabilities/builtin.ts`.
+- **Not done:** No code. The Graph sensitivity-label API still has to be confirmed in phase 2. Scheduled run-as-owner waits on the Automate M3 worker.
+
+## Estate object page: technical names, entity-model diagram, profile history, exact rows
+
+- **What:**
+  - Technical names kept as stored instead of relabelled: `null_rate`, `distinct_est`, `min`/`max`, `top_k`, column roles (`key`, `fk_ref`, …), `job_kind`, `trigger`, `status`, `object_kind`, `link_kind`, `fk_candidate` / `entity_group` / `co_object`, `candidate` / `governed`, `assumed` / `confirmed` / `certified`, T0 Structural · T1 Profile · T2 Semantic · T3 Usage · T4 Entity Model, Reharvest All / Rescan tier / Silo Scan, usage `source_breakdown` keys and key-column signals. Drift lines use DriftResult names (`new_columns`, `null_rate`, `row_count`, `top_k`). Files: all of `src/components/estate/*` on the object page, `src/lib/context/drift-summary.ts` (+ test).
+  - `EntityModelCard.tsx` → star diagram: dimensions grouped by `dimension_type` on the left, entity hub in the middle (counts, column coverage bar, promote), measures as `AGG(column)` on the right; column names jump to the columns table.
+  - `ProfileTimeline.tsx` → summary strip (latest, size sparkline, drift count, method) + version table (captured_at, trigger · method, size_bytes with change vs previous, drift chips), runs with no drift collapsed, click-to-expand detail.
+  - `HarvestTimeline.tsx` → "Harvest status": horizontal T0–T4 tracker (done / running / failed / not run) merged with freshness (`source_altered_at`, `structural_as_of`, `profile_as_of`); FreshnessCard no longer used on the page. Operations row: status + recent jobs, profile history full width.
+  - Exact rows: T1 `COUNT(*)` for Delta tables → `row_count_exact` (see `docs/jobs/session-log.md`); Rows tile shows the full number; Size tile shows `sizeInBytes` / `numFiles` on hover.
+- **Why:** User asked for technical names, a better entity-model and profile-version design, and table size + exact rows.
+- **Verified:** `tsc` — no errors in `src/components/estate`, `src/lib/context`, `src/views/agent-lab/estate`. `eslint` on touched files clean. `vitest` typography + estate + drift + freshness: 86 passed.
+- **Not done:** No browser check (sign-in required). `plan-estate-split.test.ts` / `plan-split-scope.test.ts` fail because `queue.ts` now imports the server-only spend module (concurrent spend-ledger work, not this change).
+
+## Cost monitor v2: budgets, enforcement, broader LLM ledger
+
+- **What:** Extended `budget_config` (`org_id`, `period`, `mode`) and migration `20261104_budget_config_extend`. Budget policies with soft/hard caps, `GET/PUT /api/admin/cost/budgets`, and **in-app editor** on Cost monitor → Budgets. Hard budgets block Inspector/workbench/catalog agents, semantic blueprint, studio insights, **Flows copilot**, workbench title generation, and harvest launch. Ledger: teach, studio, test-run, blueprint/refine, **flows_copilot**, **session_summary**, **generate_title**, **boost benchmark**. **Harvest compute** (`job_infra`): Fargate estimate (`HARVEST_FARGATE_USD_PER_VCPU_HOUR`) or job `stats.infra_usd` / `warehouse_usd`; overview splits LLM vs compute.
+- **Files:** `src/lib/spend/*` (incl. `harvest-infra.ts`), `src/lib/context/launch-cost-estimate.ts`, admin cost APIs, route/lib hooks, `src/views/agent-staging/cost-monitor.tsx`, `src/lib/flows-copilot/propose.ts`.
+- **Verified:** `vitest run src/lib/spend/__tests__/record-spend-event.test.ts src/lib/flows-copilot/__tests__/propose.test.ts src/app/api/agent-lab/flows/__tests__/copilot.routes.test.ts`.
+- **Not done:** Email alerts on `alert_pct`; infra backfill for old jobs; prod migration; chart/score LLM helpers not on ledger (Marcus reflect, memory synthesis, boost scorers).
+
+## Estate object page: every inner card restyled to one system
+
+- **What:** New shared building blocks `src/components/estate/object-ui.tsx` (Card, CardBlock, Field, Tag, Callout, CodeBlock, button classes, tones, time helpers). Rebuilt on them, behaviour unchanged unless noted:
+  - `SemanticCard.tsx` → "Description" card: large summary, Entity / "One row is" / time-column fields, key columns, measures and JSON columns as clickable tags (jump to the column), caveats and PII as callouts ("Mark reviewed"), "How it is queried" with the first two examples and a Show all toggle, review trail, provenance line.
+  - `TrustActionBar.tsx` → three-step trail (Assumed → Confirmed → Certified) with one primary action. `TrustChip`, `StatusChip`, `KindBadge`, `HeroLifecycleBadge` → shared Tag (sentence case, dots, plain labels such as "Agent knowledge out of date").
+  - `EntityModelCard.tsx` → "Business model": Draft/Approved tag + Approve button, dimensions ("ways to group and filter") and measures ("numbers to add up").
+  - `ColumnsTable.tsx` → card header with search (`/`), role filter, PII segmented control; column cell shows name + type + PII; empty-value bar; rows expand into a detail panel (meaning, entity, source comment, profile stats, most common values with counts); simpler pagination.
+  - `RelationshipList.tsx` → "Related tables" grouped as Needs review / Joins / Same entity / Queried together / Reviewed, each row with the other table's name, the reason, a confidence meter and labelled Reject / Confirm buttons.
+  - `RelationshipGraph.tsx` → "Relationship map" card; nodes show table names and relationship type; node borders visible on light theme; co-object sidebar removed (now in the list); height follows node count; no duplicate empty state.
+  - `UsagePanel.tsx` → headline numbers (queries, people, mostly from, last used), AI usage summary card, "Where queries come from", "Most-used columns", "Common filters"; readable colours on light theme.
+  - `FreshnessCard.tsx`, `HarvestTimeline.tsx` (vertical stepper), `JobsMiniTable.tsx` (list with plain job names, duration, trigger, error line), `ProfileTimeline.tsx`, `AgentKnowledgePanel.tsx` wrapped in the same card.
+- **Data fixes found while restyling:**
+  - Example SQL never showed — cards store `usage_patterns[].sql_sketch`, the UI read `sql`.
+  - Time columns and JSON columns never showed — schema stores them as objects (`{event, ingest}`, `{col: {observed_keys}}`), UI expected arrays.
+  - Model / prompt / confidence were read from the card JSON but live on the semantic row → `getObjectAggregate` now returns `latestSemanticMeta` (`src/lib/context/reads.ts`).
+  - Object links showed the other table as a UUID → `getObjectAggregate` now includes `left_object` / `right_object` names.
+  - `ColumnsTable` set state synchronously in an effect (pre-existing lint error) — moved into the timer callback.
+- **Verified:** `tsc --noEmit` clean for these files (only the unrelated `run-catalog-agent.ts` / `cost-monitor.tsx` errors from concurrent work). `eslint` on all touched files: 0 problems. `vitest run src/lib/typography src/lib/context src/components/estate src/lib/estate`: 133 passed (typography guard included).
+- **Not done:** Not checked in a browser (needs a signed-in session). `StatusChip` / `KindBadge` restyle also applies to the catalog `ObjectTable`.
+
+## Estate object page: redesign, missing data, and correctness fixes
+
+- **What (visual redesign):** New page structure — flat header (breadcrumb, title + actions, copyable path, status chips, summary, keywords), sticky section nav below it with count badges and the readiness pill on its right, a six-tile fact strip (Rows, Size, Columns, Covers, Usage, Freshness), and a readiness card with full dimension names, the top reason per dimension, and a "What's holding it at Lx" list linking each reason to where it is fixed. One `SectionHeader` style for every section; plain-language action buttons (Refresh all / Refresh one step / Find similar data) replace all-caps tier codes; skeleton matches the new layout.
+  - `src/components/estate/ObjectKnowledgePage.tsx`, `HeroSection.tsx` (header + `ObjectFacts`), `DataReadinessRing.tsx`, `DataReadinessPill.tsx`, `InPageNav.tsx`, `HarvestActionBar.tsx`, new `SectionHeader.tsx`, `src/views/agent-lab/estate/object.tsx`
+- **What (newly shown data):** data period from the event-time column min/max; column Range (min → max, masked for PII) in `ColumnsTable.tsx`; readable drift ("2 columns added…", "x nulls 2% → 40%") plus size trend, sample window and skipped columns in `ProfileTimeline.tsx`; confirmed column mappings with the other table's name in `RelationshipList.tsx`; new `AgentKnowledgePanel.tsx` (the knowledge chunks agents retrieve); trust status, PII count, storage format, partition columns, domain keywords, usage headline, pending-review count, running-job chip; "Open in Lineage" link.
+- **What (fixes):**
+  - Row count: sampled T1 no longer stores the sample window as `row_count_est` (`src/lib/context/harvest.ts`); UI shows older rows as "5K+ · not counted".
+  - Trusted score counted every re-profile as drift; now only real changes count (`src/lib/context/drift-summary.ts`, `data-score/dimensions/trusted.ts`). Top-value shifts are shown but do not count (sampled windows are unordered).
+  - Recent Jobs missed jobs queued from the page — query now also matches `scope.includePatterns` (`src/lib/context/reads.ts`).
+  - Page did not refresh after an action; now re-fetches on queue and every 15s while a job runs (`object.tsx`).
+  - Empty 44px band above the section nav (hidden pill kept its height); duplicate "DATA Readiness" label; hardcoded "4 SOURCES" / "LAST 30 DAYS"; shell breadcrumb showed the object UUID (new `src/lib/breadcrumb-labels.ts`, `src/components/app-breadcrumb.tsx`); relationship text hardcoded `#E8E6E1` (near-invisible on light theme).
+  - `DESCRIBE DETAIL` format / partition / clustering / file count kept as `table_detail` on profile stats (`databricks-adapter.ts`), ignored by the T1 unchanged check (`pipeline-freshness.ts`).
+- **Why:** User review of the object page: improve the look and show useful information that was available but hidden.
+- **Verified:** `tsc --noEmit` clean for all touched files (3 errors remain in `run-catalog-agent.ts` / `cost-monitor.tsx` from concurrent work in this worktree, not this change). `eslint` on touched files clean. `vitest run src/lib/typography src/lib/context src/components/estate src/lib/estate` — 133 passed, including the typography guard and new `drift-summary.test.ts`.
+- **Not done:** Not checked in a browser (page needs a signed-in session; no browser tool in this session). Owner / created-by need a schema column (`information_schema.tables.table_owner`) — not added. No backfill for old `row_count_est` window values. Inner cards (SemanticCard, EntityModelCard, FreshnessCard, UsagePanel, JobsMiniTable) keep their existing styling inside the new section frame.
+
+## Cost monitor + unified spend ledger (`platform_spend_events`)
+
+- **What:** Added `platform_spend_events` ledger and optional `triggered_by_user_id` on `platform_context_jobs`. New `recordSpendEvent` / `recordInteractiveLlmSpend` / `recordHarvestJobSpend` in `src/lib/spend/`. Wired logging from Inspector chat, workbench chat, catalog agent runs, and harvest `finalize()`. Job launch stores launcher user id. Admin APIs `GET /api/admin/cost/summary` and `GET /api/admin/cost/events`. Govern UI at `/agent-staging/cost`.
+- **Why:** Per-user, per-surface cost visibility with harvest kept separate and job-level detail.
+- **Verified:** `vitest run src/lib/spend/__tests__/record-spend-event.test.ts`. Dev RDS: `prisma db execute` + `migrate resolve --applied 20261103_platform_spend_events`; backfill `tsx scripts/spend/backfill-spend-ledger.ts` → 596 agent-cost rows, 970 harvest jobs.
+- **Not done:** Budget caps/enforcement; backfill from historical `agent_cost_log`; teach/blueprint/studio LLM paths; Fargate/Databricks infra dollars.
+
 ## Lineage API: lighter search, TTL cache, P1001 retry
 
 - **What:** `GET /api/inspector/semantic/lineage?optionsOnly=1` returns only `focusOptions` (no `scanConsumers` / focus graph). Estate lineage debounced search uses that flag. In-memory 30s cache + in-flight dedupe for `loadCatalog` and `scanConsumers` per org (`src/lib/semantic/lineage-cache.ts`). Semantic lineage DB reads retry once after 400ms on Prisma `P1001` (`src/lib/db/with-prisma-read-retry.ts`, wired in `src/lib/semantic/lineage.ts`).
@@ -28,6 +160,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Why:** Admins saw recent “Last login” and users saw avatar/online state while sign-in failed or APIs returned 401 — reported as “503 gateway” for `pranavesh.s@synergyship.com` and similar.
 - **Verified:** Code review; DB inspect script blocked from this environment (RDS not reachable off VPN).
 - **Not done:** Reconcile historical `lastLoginAt` rows bumped by failed attempts before this fix.
+
+## aloft-dev SSO 502: nginx buffer too small for Azure OAuth callback
+
+- **What:** `infra/beanstalk/.platform/nginx/conf.d/oauth-buffers.conf` — raise `large_client_header_buffers` and `proxy_buffer_size` / `proxy_buffers` so `/api/auth/callback/azure-ad` is not rejected with **502** (`upstream sent too big header`).
+- **Why:** EB logs on `aloft-dev.synergyship.com` showed repeated nginx errors on OAuth callback and next-auth **`State cookie was missing`**; not a Users/DB issue for Pranavesh (Active Platform Admin).
+- **Verified:** Matched `/var/log/nginx/error.log` + `eb-*-stdouterr.log` from Beanstalk log bundle (2026-11-03). Local `eb-deploy.zip` includes `oauth-buffers.conf` + `timeouts.conf`.
+- **Not done:** Elastic Beanstalk deploy so `.platform` reaches `aloft-dev`; confirm Microsoft SSO callback returns **302** not **502**.
 
 ## T3 query history: warehouse filter (contains pushdown)
 

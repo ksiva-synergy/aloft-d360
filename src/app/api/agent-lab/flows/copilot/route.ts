@@ -10,6 +10,9 @@ import { proposeFlowEdit, type CopilotAgent, type CopilotConnection, type Copilo
 import { listConnections } from '@/lib/connections/service';
 import { listCatalogAgents } from '@/lib/agents/catalog';
 import { estimateAgentCostUsd, flowsRequestContext } from '../_shared';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -48,6 +51,38 @@ export const POST = handle(async (req) => {
   const { definition, message, history } = parse(body, json);
   if (!inspectorLlmConfigured()) throw new ApiError(503, 'The copilot needs a configured model backend on this server', { code: 'copilot_unavailable' });
 
+  try {
+    await assertInteractiveBudget({
+      orgId: actor.orgId,
+      userId: actor.userId,
+      role: actor.role,
+    });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      throw new ApiError(402, err.message, { code: 'BUDGET_EXCEEDED' });
+    }
+    throw err;
+  }
+
+  const copilotTurnId = randomUUID();
+  let loggedTokens = false;
+  const logCopilotUsage = (proposal: { modelId: string; usage: { inputTokens: number; outputTokens: number } }) => {
+    if (loggedTokens) return;
+    if (proposal.usage.inputTokens + proposal.usage.outputTokens <= 0) return;
+    loggedTokens = true;
+    void logInteractiveLlmTurn({
+      orgId: actor.orgId,
+      userId: actor.userId,
+      surface: 'flows_copilot',
+      action: 'propose',
+      model: proposal.modelId,
+      inputTokens: proposal.usage.inputTokens,
+      outputTokens: proposal.usage.outputTokens,
+      turnId: copilotTurnId,
+      status: 'success',
+    });
+  };
+
   const draft = definition as Def;
   // The connections this user may use (own and shared), so the copilot can fill in a real id. Names
   // and kinds only; never settings or credentials. A failure (e.g. table not migrated) is not fatal.
@@ -77,6 +112,7 @@ export const POST = handle(async (req) => {
       throw new ApiError(502, `The copilot could not get an answer from the model: ${proposal.detail.slice(0, 300)}`, { code: 'copilot_model_error' });
     }
     if (proposal.kind === 'text') {
+      logCopilotUsage(proposal);
       // The provider answered without the tool. Ask once more; then pass its answer through.
       if (attempt === 0) {
         repairNote = 'You answered in plain text. Answer by calling propose_flow_changes (operations may be an empty list).';
@@ -87,10 +123,14 @@ export const POST = handle(async (req) => {
 
     const parsed = parseOperations(proposal.operations);
     if (!parsed.ok) {
+      logCopilotUsage(proposal);
       repairNote = parsed.errors.join('\n');
       continue;
     }
-    if (parsed.operations.length === 0) return ok({ reply: proposal.reply, proposal: null });
+    if (parsed.operations.length === 0) {
+      logCopilotUsage(proposal);
+      return ok({ reply: proposal.reply, proposal: null });
+    }
 
     const applied = applyOperations(draft, parsed.operations);
     if (!applied.ok) {
@@ -107,6 +147,7 @@ export const POST = handle(async (req) => {
     const before = await check(draft);
     const key = (f: PolicyFinding) => `${f.code}|${f.stepId ?? ''}|${f.message}`;
     const existing = new Set(before.ok ? before.findings.map(key) : []);
+    logCopilotUsage(proposal);
     return ok({
       reply: proposal.reply,
       proposal: {

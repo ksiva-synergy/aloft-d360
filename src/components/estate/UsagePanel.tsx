@@ -10,10 +10,11 @@
 //      Right: Key columns ranked bar chart (top 8)
 //   4. Filter patterns — top 5 inline, expandable
 //
-// Co-objects removed from Usage (now shown in RelationshipGraph sidebar).
+// Co-objects live in the Relationships section ("Queried together").
 
 import React, { useState } from 'react';
 import { type } from '@/lib/typography/tokens';
+import { Card, Callout, Tag, EmptyNote, TONE_COLOR, relTime } from './object-ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,23 +83,10 @@ interface UsagePanelProps {
   usage: UsageSnapshot;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+/// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return '—';
-  const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  const days = Math.floor(diff / 86_400_000);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
-
-function fmt(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
+function compact(n: number): string {
+  return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
 function pct(n: number, total: number): number {
@@ -106,577 +94,235 @@ function pct(n: number, total: number): number {
   return Math.round((n / total) * 100);
 }
 
-// ── Color tokens ─────────────────────────────────────────────────────────────
+function shortDate(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
-const SOURCE_COLORS: Record<string, string> = {
-  scheduled:  'var(--brand-a)',
-  adhoc:      'var(--ink-3)',
-  dashboard:  '#60A5FA',
-  genie:      '#86EFAC',
-  alert:      '#F87171',
+// ── Colours (readable on light and dark) ─────────────────────────────────────
+
+const SOURCE_META: Record<string, { label: string; color: string; hint: string }> = {
+  scheduled: { label: 'scheduled', color: 'var(--brand-a)',   hint: 'Pipelines and scheduled notebooks' },
+  adhoc:     { label: 'adhoc',     color: TONE_COLOR.blue,    hint: 'People running SQL by hand' },
+  dashboard: { label: 'dashboard', color: TONE_COLOR.green,   hint: 'Dashboard refreshes' },
+  genie:     { label: 'genie',     color: TONE_COLOR.violet,  hint: 'Natural-language questions' },
+  alert:     { label: 'alert',     color: TONE_COLOR.red,     hint: 'SQL alerts' },
 };
 
 const SOURCE_ORDER = ['scheduled', 'adhoc', 'dashboard', 'genie', 'alert'] as const;
 
-const SIGNAL_COLORS = {
-  filtered:  'var(--brand-a)',
-  joined:    '#60A5FA',
-  lineage:   '#86EFAC',
-  projected: '#C084FC',
-} as const;
+const SIGNALS = [
+  { key: 'filtered_n',    label: 'filtered_n',    color: 'var(--brand-a)', weight: 3 },
+  { key: 'joined_n',      label: 'joined_n',      color: TONE_COLOR.blue,  weight: 2 },
+  { key: 'lineage_out_n', label: 'lineage_out_n', color: TONE_COLOR.green, weight: 2 },
+  { key: 'projected_n',   label: 'projected_n',   color: TONE_COLOR.violet, weight: 1 },
+] as const;
 
-const SIGNAL_WEIGHTS = { filtered: 3, joined: 2, lineage: 2, projected: 1 };
+// ── Pieces ───────────────────────────────────────────────────────────────────
 
-// ── Headline stat card ────────────────────────────────────────────────────────
-
-function HeadlineStat({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 2,
-      padding: '14px 18px',
-      borderRadius: 6,
-      background: 'var(--estate-raised, rgba(13,27,42,0.5))',
-      border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-      flex: '1 1 0',
-      minWidth: 100,
-    }}>
-      <span style={{
-        ...type.label,
-        color: 'var(--estate-text-muted, var(--ink-3))',
-      }}>
-        {label}
-      </span>
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-title-section-size)',
-        fontWeight: 600,
-        color: color ?? 'var(--brand-a)',
-        lineHeight: 1.1,
-        letterSpacing: '-0.02em',
-      }}>
-        {value}
-      </span>
-      {sub && (
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: 'var(--estate-text-muted, var(--ink-3))',
-        }}>
-          {sub}
-        </span>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 18px', background: 'var(--estate-raised)', minWidth: 0 }}>
+      <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>{label}</span>
+      <span style={{ ...type['kpi-md'], color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{value}</span>
+      {sub && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{sub}</span>}
     </div>
   );
 }
 
-// ── Source breakdown panel ────────────────────────────────────────────────────
-
-function SourceBreakdownPanel({ breakdown }: { breakdown: SourceBreakdown }) {
-  const activeSegments = SOURCE_ORDER.filter(k => (breakdown[k] ?? 0) > 0);
-  const total = activeSegments.reduce((s, k) => s + (breakdown[k] ?? 0), 0);
-
-  if (total === 0 || activeSegments.length === 0) return null;
+function SourceBreakdownCard({ breakdown }: { breakdown: SourceBreakdown }) {
+  const active = SOURCE_ORDER.filter((k) => (breakdown[k] ?? 0) > 0);
+  const total = active.reduce((s, k) => s + (breakdown[k] ?? 0), 0);
+  if (total === 0) return null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Section label */}
-      <div style={{
-        ...type.label,
-        color: 'var(--estate-text-secondary, var(--ink-3))',
-      }}>
-        Source Breakdown
+    <Card title="Source breakdown" meta={`${compact(total)} queries`}>
+      <div style={{ display: 'flex', height: 10, borderRadius: 999, overflow: 'hidden', gap: 2, marginBottom: 16 }} aria-hidden="true">
+        {active.map((k) => (
+          <div key={k} style={{ width: `${pct(breakdown[k] ?? 0, total)}%`, minWidth: 4, background: SOURCE_META[k]?.color ?? 'var(--estate-text-muted)' }} />
+        ))}
       </div>
-
-      {/* Stacked bar — taller (12px) */}
-      <div style={{
-        height: 12,
-        borderRadius: 6,
-        overflow: 'hidden',
-        display: 'flex',
-        border: '1px solid color-mix(in srgb, var(--brand-a) 10%, transparent)',
-      }}>
-        {activeSegments.map((key, i) => {
-          const val = breakdown[key] ?? 0;
-          const w = pct(val, total);
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {active.map((k) => {
+          const n = breakdown[k] ?? 0;
+          const meta = SOURCE_META[k] ?? { label: k, color: 'var(--estate-text-muted)', hint: '' };
           return (
-            <div
-              key={key}
-              title={`${key}: ${val} queries (${w}%)`}
-              style={{
-                width: `${w}%`,
-                background: SOURCE_COLORS[key] ?? 'var(--ink-3)',
-                opacity: 0.9,
-                marginRight: i < activeSegments.length - 1 ? 1 : 0,
-              }}
-            />
+            <li key={k} style={{ display: 'flex', alignItems: 'center', gap: 10 }} title={meta.hint}>
+              <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, background: meta.color, flexShrink: 0 }} />
+              <span style={{ ...type.ui, color: 'var(--estate-ink)', flex: 1 }}>{meta.label}</span>
+              <span style={{ ...type.ui, color: 'var(--estate-text-muted)' }}>{n.toLocaleString()}</span>
+              <span style={{ ...type['code-inline'], color: 'var(--estate-ink)', width: 40, textAlign: 'right' }}>{pct(n, total)}%</span>
+            </li>
           );
         })}
-      </div>
+      </ul>
+    </Card>
+  );
+}
 
-      {/* Legend rows with bar + % */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {activeSegments.map(key => {
-          const val = breakdown[key] ?? 0;
-          const w = pct(val, total);
-          const color = SOURCE_COLORS[key] ?? 'var(--ink-3)';
+function KeyColumnsCard({ columns }: { columns: KeyColumn[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? columns : columns.slice(0, 8);
+  const max = Math.max(...columns.map((c) => c.score), 1);
+
+  return (
+    <Card
+      title="Key columns"
+      meta="score = 3·filtered + 2·joined + 2·lineage_out + 1·projected"
+      actions={columns.length > 8 ? (
+        <button type="button" onClick={() => setShowAll((v) => !v)} style={{ ...type.ui, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          {showAll ? 'Top 8' : `All ${columns.length}`}
+        </button>
+      ) : undefined}
+    >
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {shown.map((col) => {
+          const parts = SIGNALS.map((s) => ({ ...s, n: Number(col[s.key] ?? 0), w: Number(col[s.key] ?? 0) * s.weight }));
+          const weighted = parts.reduce((t, p) => t + p.w, 0);
+          const barPct = (col.score / max) * 100;
+          const tooltip = parts.filter((p) => p.n > 0).map((p) => `${p.label} ${p.n}×`).join(' · ');
           return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                width: 8,
-                height: 8,
-                borderRadius: 2,
-                background: color,
-                flexShrink: 0,
-                display: 'inline-block',
-              }} />
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                color: 'var(--estate-ink, #E8E6E1)',
-                flex: 1,
-                textTransform: 'capitalize',
-              }}>
-                {key}
-              </span>
-              <div style={{ width: 80, height: 4, borderRadius: 2, background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)', overflow: 'hidden' }}>
-                <div style={{ width: `${w}%`, height: '100%', background: color, borderRadius: 2 }} />
+            <li key={col.column} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 160px) 1fr auto', alignItems: 'center', gap: 12 }} title={tooltip || undefined}>
+              <code style={{ ...type['code-inline'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col.column}</code>
+              <div style={{ height: 8, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden', display: 'flex' }}>
+                {weighted > 0
+                  ? parts.filter((p) => p.w > 0).map((p) => (
+                      <div key={p.key} style={{ width: `${(p.w / weighted) * barPct}%`, height: '100%', background: p.color }} />
+                    ))
+                  : <div style={{ width: `${barPct}%`, height: '100%', background: 'var(--brand-a)' }} />}
               </div>
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                color,
-                width: 34,
-                textAlign: 'right',
-                flexShrink: 0,
-              }}>
-                {w}%
+              <span style={{ ...type.caption, color: 'var(--estate-text-muted)', whiteSpace: 'nowrap', minWidth: 110, textAlign: 'right' }}>
+                {parts.filter((p) => p.n > 0).slice(0, 2).map((p) => `${p.label.replace(/_n$/, '')} ${p.n}`).join(' · ') || '—'}
               </span>
-            </div>
+            </li>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-// ── Key columns bar chart ─────────────────────────────────────────────────────
-
-function KeyColumnsChart({ columns }: { columns: KeyColumn[] }) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  const TOP_N = 8;
-  const displayCols = columns.slice(0, TOP_N);
-  const maxScore = Math.max(...displayCols.map(c => c.score), 1);
-
-  if (displayCols.length === 0) return (
-    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
-      No key columns recorded.
-    </div>
-  );
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Section label */}
-      <div style={{
-        ...type.label,
-        color: 'var(--estate-text-secondary, var(--ink-3))',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <span>Key Columns</span>
-        <span style={{ fontWeight: 400, color: 'var(--ink-3)', }}>top {displayCols.length}</span>
-      </div>
-
-      {/* Column rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {displayCols.map((col, idx) => {
-          const f = (col.filtered_n ?? 0) * SIGNAL_WEIGHTS.filtered;
-          const j = (col.joined_n ?? 0) * SIGNAL_WEIGHTS.joined;
-          const l = (col.lineage_out_n ?? 0) * SIGNAL_WEIGHTS.lineage;
-          const p = (col.projected_n ?? 0) * SIGNAL_WEIGHTS.projected;
-          const segTotal = f + j + l + p;
-          const barPct = Math.round((col.score / maxScore) * 100);
-          const isExpanded = expandedIdx === idx;
-
-          return (
-            <div key={col.column}>
-              <button
-                type="button"
-                onClick={() => setExpandedIdx(isExpanded ? null : idx)}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 0',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  borderRadius: 6,
-                }}
-                className="hover:bg-[color-mix(in_srgb,var(--ink-1)_2%,transparent)] transition-colors"
-              >
-                <span style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: 'var(--estate-ink)',
-                  width: 140,
-                  textAlign: 'left',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}>
-                  {col.column}
-                </span>
-
-                {/* Segmented bar */}
-                <div style={{ flex: 1, height: 8, borderRadius: 6, background: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', overflow: 'hidden', display: 'flex' }}>
-                  {segTotal > 0 ? (
-                    <>
-                      {f > 0 && <div style={{ width: `${(f / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.filtered }} />}
-                      {j > 0 && <div style={{ width: `${(j / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.joined }} />}
-                      {l > 0 && <div style={{ width: `${(l / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.lineage }} />}
-                      {p > 0 && <div style={{ width: `${(p / segTotal) * barPct}%`, height: '100%', background: SIGNAL_COLORS.projected }} />}
-                    </>
-                  ) : (
-                    <div style={{ width: `${barPct}%`, height: '100%', background: 'var(--brand-a)' }} />
-                  )}
-                </div>
-
-                <span style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: 'var(--brand-a-ink)',
-                  width: 40,
-                  textAlign: 'right',
-                  flexShrink: 0,
-                }}>
-                  {col.score.toFixed(0)}
-                </span>
-                <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)', flexShrink: 0 }}>
-                  {isExpanded ? '▾' : '▸'}
-                </span>
-              </button>
-
-              {isExpanded && (
-                <div style={{
-                  paddingLeft: 148,
-                  paddingBottom: 8,
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '3px 12px',
-                }}>
-                  {f > 0 && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.filtered }}>
-                      ● Filter ×{col.filtered_n}
-                    </span>
-                  )}
-                  {j > 0 && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.joined }}>
-                      ● Join ×{col.joined_n}
-                    </span>
-                  )}
-                  {l > 0 && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.lineage }}>
-                      ● Lineage ×{col.lineage_out_n}
-                    </span>
-                  )}
-                  {p > 0 && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: SIGNAL_COLORS.projected }}>
-                      ● Select ×{col.projected_n}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Signal legend */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', marginTop: 4 }}>
-        {Object.entries(SIGNAL_COLORS).map(([key, color]) => (
-          <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: color, display: 'inline-block' }} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
-              {key}
-            </span>
+      </ul>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--estate-border)' }}>
+        {SIGNALS.map((s) => (
+          <span key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.caption, color: 'var(--estate-text-muted)' }}>
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
+            {s.label}
           </span>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
-// ── Filter patterns panel ─────────────────────────────────────────────────────
-
-function FilterPatternsPanel({ patterns }: { patterns: FilterPattern[] }) {
+function FilterPatternsCard({ patterns }: { patterns: FilterPattern[] }) {
   const [expanded, setExpanded] = useState(false);
   const SHOW_N = 5;
-  const displayPatterns = expanded ? patterns : patterns.slice(0, SHOW_N);
-
-  if (patterns.length === 0) return (
-    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--estate-text-muted)' }}>
-      No filter patterns recorded.
-    </div>
-  );
+  const shown = expanded ? patterns : patterns.slice(0, SHOW_N);
+  const max = Math.max(...patterns.map((p) => p.n), 1);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{
-        ...type.label,
-        color: 'var(--estate-text-secondary, var(--ink-3))',
-      }}>
-        Filter Patterns
-        <span style={{ fontWeight: 400, marginLeft: 8, color: 'var(--ink-3)', }}>
-          {patterns.length} total
-        </span>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-        {displayPatterns.map((p, i) => (
-          <div
-            key={i}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '6px 10px',
-              borderRadius: 6,
-              border: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)',
-              background: 'color-mix(in srgb, var(--brand-a) 3%, transparent)',
-            }}
-          >
-            <code style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              color: 'var(--estate-ink)',
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
+    <Card
+      title="Filter patterns"
+      meta={`${patterns.length} pattern${patterns.length === 1 ? '' : 's'}`}
+      flush
+      actions={patterns.length > SHOW_N ? (
+        <button type="button" onClick={() => setExpanded((v) => !v)} style={{ ...type.ui, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          {expanded ? 'Show fewer' : `Show all ${patterns.length}`}
+        </button>
+      ) : undefined}
+    >
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {shown.map((p, i) => (
+          <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderTop: i === 0 ? 'none' : '1px solid var(--estate-border)' }}>
+            <code
+              title={p.template}
+              style={{ ...type['code-inline'], color: 'var(--estate-ink)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
               {p.template}
             </code>
-            {p.op && (
-              <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                color: 'var(--estate-text-muted)',
-                background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
-                padding: '1px 4px',
-                borderRadius: 2,
-                flexShrink: 0,
-              }}>
-                {p.op}
-              </span>
-            )}
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              color: 'var(--brand-a-ink)',
-              flexShrink: 0,
-            }}>
-              {p.n}×
-            </span>
-          </div>
+            {p.op && <Tag tone="neutral" mono>{p.op}</Tag>}
+            <div style={{ width: 80, height: 4, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden', flexShrink: 0 }} aria-hidden="true">
+              <div style={{ width: `${(p.n / max) * 100}%`, height: '100%', background: 'var(--brand-a)' }} />
+            </div>
+            <span style={{ ...type.ui, color: 'var(--estate-text-secondary)', width: 64, textAlign: 'right', flexShrink: 0 }}>{p.n.toLocaleString()}×</span>
+          </li>
         ))}
-      </div>
-
-      {patterns.length > SHOW_N && (
-        <button
-          type="button"
-          onClick={() => setExpanded(o => !o)}
-          style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-          className="hover:underline"
-        >
-          {expanded ? '↑ Show fewer' : `↓ Show ${patterns.length - SHOW_N} more patterns`}
-        </button>
-      )}
-    </div>
+      </ul>
+    </Card>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main component ───────────────────────────────────────────────────────────
 
 export default function UsagePanel({ usage }: UsagePanelProps) {
   const { freshness, source_breakdown, key_columns, filter_patterns, access_stats } = usage;
 
-  const stale = freshness.stale;
-  const totalQ = access_stats?.total_queries ?? access_stats?.n_queries ?? 0;
-  const executors = access_stats?.distinct_executors ?? access_stats?.n_distinct_executors ?? 0;
-  const firstSeen = access_stats?.first_seen as string | null ?? null;
-  const lastSeen = access_stats?.last_seen as string | null ?? null;
+  const totalQ = Number(access_stats?.total_queries ?? access_stats?.n_queries ?? 0);
+  const executors = Number(access_stats?.distinct_executors ?? access_stats?.n_distinct_executors ?? 0);
+  const firstSeen = (access_stats?.first_seen as string | undefined) ?? null;
+  const lastSeen = (access_stats?.last_seen as string | undefined) ?? null;
 
-  const sourceEntries = source_breakdown
-    ? Object.entries(source_breakdown).filter(([, v]) => v && v > 0)
-    : [];
-  const topSource = sourceEntries.length > 0
-    ? sourceEntries.sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]
-    : null;
-
-  const dateRange = firstSeen && lastSeen
-    ? `${new Date(firstSeen).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(lastSeen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-    : null;
+  const sourceEntries = source_breakdown ? Object.entries(source_breakdown).filter(([, v]) => v && v > 0) : [];
+  const topSource = sourceEntries.length > 0 ? [...sourceEntries].sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0] : null;
+  const sourceTotal = sourceEntries.reduce((s, [, v]) => s + (v ?? 0), 0);
 
   const hasKeyColumns = (key_columns ?? []).length > 0;
   const hasFilterPatterns = (filter_patterns ?? []).length > 0;
-  const hasSourceBreakdown = source_breakdown && Object.values(source_breakdown).some(v => v && v > 0);
-  const isAllZero = totalQ === 0 && !hasKeyColumns && !hasFilterPatterns && !hasSourceBreakdown;
+  const hasSourceBreakdown = sourceTotal > 0;
 
-  if (isAllZero) {
+  if (totalQ === 0 && !hasKeyColumns && !hasFilterPatterns && !hasSourceBreakdown) {
     return (
-      <div
-        className="border border-dashed rounded-lg p-6 text-center"
-        style={{
-          borderColor: 'var(--estate-border-gold)',
-          background: 'var(--estate-raised)',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: 'var(--estate-text-muted)',
-        }}
-      >
-        T3 harvest returned zero usage — no queries recorded in the observation window
-      </div>
+      <EmptyNote>
+        No queries touched this table in the last {freshness.window_days || 30} days.
+      </EmptyNote>
     );
   }
 
+  const from = shortDate(firstSeen);
+  const to = shortDate(lastSeen);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* ── Header: harvested time + stale badge ──── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 'var(--type-ui-regular-size)',
-            color: 'var(--estate-text-muted)',
-          }}>
-            last harvested {relativeTime(usage.last_t3_at)}
-          </span>
-          {freshness.window_days > 0 && (
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              color: 'var(--estate-text-muted)',
-            }}>
-              · {freshness.window_days}d window
-            </span>
-          )}
-        </div>
-        {stale && (
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--type-ui-regular-size)',
-            letterSpacing: '0.04em',
-            color: 'var(--brand-a-ink)',
-            border: '1px solid var(--brand-a)',
-            borderRadius: 6,
-            padding: '2px 7px',
-          }}>
-            STALE
-          </span>
-        )}
-      </div>
-
-      {/* ── Stale guidance ─────────────────────────── */}
-      {stale && (
-        <p style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: 'var(--estate-text-muted)',
-          lineHeight: 1.5,
-          margin: 0,
-        }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {freshness.stale && (
+        <Callout tone="amber" title="Usage data is out of date" action={<Tag tone="neutral">harvested {relTime(usage.last_t3_at)}</Tag>}>
           {freshness.guidance}
-        </p>
+        </Callout>
       )}
 
-      {/* ── Usage narrative ────────────────────────── */}
-      {usage.usage_narrative && (
-        <blockquote style={{
-          margin: 0,
-          padding: '12px 16px',
-          borderLeft: '3px solid color-mix(in srgb, var(--brand-a) 40%, transparent)',
-          borderRadius: '0 6px 6px 0',
-          background: 'color-mix(in srgb, var(--brand-a) 4%, transparent)',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--type-ui-regular-size)',
-          lineHeight: 1.6,
-          color: 'var(--estate-text-secondary)',
-        }}>
-          {usage.usage_narrative}
-        </blockquote>
-      )}
-
-      {/* ── Headline stat cards ─────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <HeadlineStat
-          label="Queries"
-          value={fmt(totalQ)}
-          sub={dateRange ?? undefined}
+      {/* Headline numbers */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+          gap: 1,
+          background: 'var(--estate-border)',
+          border: '1px solid var(--estate-border)',
+          borderRadius: 12,
+          overflow: 'hidden',
+        }}
+      >
+        <Stat label="Queries" value={compact(totalQ)} sub={from && to ? `${from} – ${to}` : `Last ${freshness.window_days} days`} />
+        <Stat label="Executors" value={executors > 0 ? compact(executors) : '—'} sub="distinct_executors" />
+        <Stat
+          label="Top source"
+          value={topSource ? (SOURCE_META[topSource[0]]?.label ?? topSource[0]) : '—'}
+          sub={topSource ? `${pct(topSource[1] ?? 0, sourceTotal)}% of queries` : undefined}
         />
-        {executors > 0 && (
-          <HeadlineStat
-            label="Executors"
-            value={fmt(executors)}
-            sub="distinct"
-            color="var(--estate-ink, #E8E6E1)"
-          />
-        )}
-        {topSource && (
-          <HeadlineStat
-            label="Top Source"
-            value={topSource[0]}
-            sub={`${topSource[1]?.toLocaleString()} queries`}
-            color={SOURCE_COLORS[topSource[0]] ?? 'var(--estate-ink)'}
-          />
-        )}
+        <Stat label="Last seen" value={lastSeen ? relTime(lastSeen) : '—'} sub={`last_t3_at ${relTime(usage.last_t3_at)}`} />
       </div>
 
-      {/* ── Two-column grid: source breakdown + key columns ── */}
+      {/* Narrative */}
+      {usage.usage_narrative && (
+        <Card title="Usage narrative" meta="usage_narrative (LLM)">
+          <p style={{ ...type.body, color: 'var(--estate-text-secondary)', margin: 0, maxWidth: '85ch' }}>{usage.usage_narrative}</p>
+        </Card>
+      )}
+
       {(hasSourceBreakdown || hasKeyColumns) && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: hasSourceBreakdown && hasKeyColumns ? '1fr 1fr' : '1fr',
-          gap: 24,
-        }}>
-          {hasSourceBreakdown && source_breakdown && (
-            <div style={{
-              padding: '18px 20px',
-              borderRadius: 8,
-              border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-              background: 'var(--estate-raised)',
-            }}>
-              <SourceBreakdownPanel breakdown={source_breakdown} />
-            </div>
-          )}
-          {hasKeyColumns && (
-            <div style={{
-              padding: '18px 20px',
-              borderRadius: 8,
-              border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-              background: 'var(--estate-raised)',
-            }}>
-              <KeyColumnsChart columns={key_columns ?? []} />
-            </div>
-          )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 16, alignItems: 'start' }}>
+          {hasSourceBreakdown && source_breakdown && <SourceBreakdownCard breakdown={source_breakdown} />}
+          {hasKeyColumns && <KeyColumnsCard columns={key_columns ?? []} />}
         </div>
       )}
 
-      {/* ── Filter patterns ─────────────────────────── */}
-      {hasFilterPatterns && (
-        <div style={{
-          padding: '18px 20px',
-          borderRadius: 8,
-          border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-          background: 'var(--estate-raised)',
-        }}>
-          <FilterPatternsPanel patterns={filter_patterns ?? []} />
-        </div>
-      )}
+      {hasFilterPatterns && <FilterPatternsCard patterns={filter_patterns ?? []} />}
     </div>
   );
 }

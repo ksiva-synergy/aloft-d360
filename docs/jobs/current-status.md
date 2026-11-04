@@ -1,6 +1,6 @@
 # Estate Jobs — current status snapshot
 
-**Last verified:** 2026-11-02 (T3/T4 scope: T4 honors Limit; T3 window, query history, and lineage stay on in-scope tables; Scanned bar names tables missing from the business model. Continue still stops at Embed). Previously 2026-11-05 (Continue "Scanned tables only" option: scanned-only scope resolution, max 50 tables; see session-log). Previously 2026-11-01 (Jobs audit fixes: embed batching, heartbeat-based reaper, cancelled/partial status, windowed summary counts, org-scoped T0 drop pass; Continue pipeline: always-on scoped source change check + cascade chain + preview; T0 no-op rescans keep `last_t0_at`; identical T1 profile keeps T2 current; embed staleness vs latest card). Previously 2026-10-31 (Jobs L1 redesign + summary API `days` / `detail`; pipeline RBAC unchanged: platform admin only for run/trigger; chain deploy still pending)  
+**Last verified:** 2026-11-03 (T1 row count no longer stores the sample window; `table_detail` on profile stats; object page jobs + refresh — code and unit tests only, not run against live data). Previously 2026-11-02 (T3/T4 scope: T4 honors Limit; T3 window, query history, and lineage stay on in-scope tables; Scanned bar names tables missing from the business model. Continue still stops at Embed). Previously 2026-11-05 (Continue "Scanned tables only" option: scanned-only scope resolution, max 50 tables; see session-log). Previously 2026-11-01 (Jobs audit fixes: embed batching, heartbeat-based reaper, cancelled/partial status, windowed summary counts, org-scoped T0 drop pass; Continue pipeline: always-on scoped source change check + cascade chain + preview; T0 no-op rescans keep `last_t0_at`; identical T1 profile keeps T2 current; embed staleness vs latest card). Previously 2026-10-31 (Jobs L1 redesign + summary API `days` / `detail`; pipeline RBAC unchanged: platform admin only for run/trigger; chain deploy still pending)  
 **Owner workstream:** [README](./README.md) · Log sessions in [session-log.md](./session-log.md) · **Issue IDs:** audit §0 (Fixed/Partial/Open)
 
 ---
@@ -61,7 +61,10 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 | **Modal exclude tree** | **Honored at plan/launch** (P1-6 fixed 2026-10-26); Limit still overrides when set |
 | **Incremental** | **Stale-only default** — skips objects where `last_t1_at >= last_t0_at`; opt-in `forceReprofile` for full re-run |
 | **Overwrite** | Re-run re-profiles and **appends** a new `platform_context_profiles.version` (history kept) |
-| **Unchanged profile** | If the new stats equal the previous version (ignoring `query_count` etc.) and T2 was current, `last_t2_at` is carried forward → no re-describe (2026-11-01). Job stat `objects_unchanged`. |
+| **Unchanged profile** | If the new stats equal the previous version (ignoring `query_count`, `table_detail` etc.) and T2 was current, `last_t2_at` is carried forward → no re-describe (2026-11-01). Job stat `objects_unchanged`. |
+| **Row count** | Sampled profiles count rows inside the LIMIT window. When that count fills the window (e.g. 5,000 for a table over 1 GB) `row_count_est` is now stored as **null**, not the window size (2026-11-03). Rows profiled before this fix still hold the window count until re-profiled; the object page shows them as "5K+ · not counted". |
+| **Exact rows (Delta)** | T1 runs one `SELECT COUNT(*)` on Delta tables (answered from transaction-log stats) when at least 2 statements of budget remain, saved as `stats.row_count_exact` and written to `row_count_est` (2026-11-04). Views / non-Delta tables skip it. |
+| **Table detail** | `DESCRIBE DETAIL` format, partition / clustering columns, file count, created / last-modified are kept on the profile stats as `table_detail` (2026-11-03). No schema change. |
 
 ### 3.4 `t2_semantic`
 
@@ -186,6 +189,7 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-11-03 | **Object page + T1 data:** sampled T1 no longer writes the sample window as `row_count_est`; `table_detail` kept on profile stats. Trusted score counts only profiles with a real change (was every re-profile). Object page Recent Jobs now finds jobs queued from the page (`scope.includePatterns`), and the page refreshes after an action and while a job runs. |
 | 2026-11-02 | **T3/T4 scope:** `t4_scan` keeps the job Limit; scoped T3 uses in-scope `last_t3_at`, table-level history SQL, and lineage limited to those tables. Scanned Continue copy names tables missing from the business model and still does not launch T3/T4. |
 | 2026-11-01 | **Jobs audit fixes:** embed id lookups chunked at 5,000 (fixes Postgres 32,767 bind-parameter failure on large embeds); web reaper uses worker heartbeat (`updated_at`) instead of creation time; `cancelled` status shown (was "queued"); `partial` amber in drawer and runs panel; kind filter lists every job kind; summary `queued`/`running` counts windowed; child counts include `cancelled`; T0 drop pass scoped by org. |
 | 2026-11-02 | Jobs UI copy only: stage vocabulary, sentence-case tabs, readable schedules (`describeCron`), `Job types used` count limited to known kinds, schedule labels renamed (Daily change check, Weekly re-profile, Weekly re-discovery, Usage & lineage, Business model draft). No orchestrator or API change. |

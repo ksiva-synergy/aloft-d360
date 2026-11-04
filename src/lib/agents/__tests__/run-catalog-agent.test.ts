@@ -15,6 +15,17 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/lib/spend/budgets', () => ({
+  assertInteractiveBudget: vi.fn().mockResolvedValue(undefined),
+  BudgetExceededError: class BudgetExceededError extends Error {},
+}));
+vi.mock('@/lib/spend/record-spend-event', () => ({
+  recordInteractiveLlmSpend: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/lib/lifecycle/log-agent-cost', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/lifecycle/log-agent-cost')>();
+  return { ...mod, logAgentCost: vi.fn().mockResolvedValue(undefined) };
+});
 vi.mock('@/lib/db', () => ({ prisma: { agent_catalog: { findFirst: h.findFirst }, platformAgent: { update: vi.fn(async () => ({})) } } }));
 vi.mock('@/lib/org', () => ({ getDefaultOrg: () => ({ id: 'org-1' }) }));
 vi.mock('@/lib/knowledge/agents', () => ({

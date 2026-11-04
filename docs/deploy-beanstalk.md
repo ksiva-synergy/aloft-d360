@@ -74,7 +74,10 @@ if (Test-Path $zip) { Remove-Item $zip }
 Compress-Archive -Path Dockerrun.aws.json, .ebextensions, .platform -DestinationPath $zip -Force
 ```
 
-Contents must include: `Dockerrun.aws.json`, `.ebextensions/*.config`, `.platform/nginx/conf.d/timeouts.conf`.
+Contents must include: `Dockerrun.aws.json`, `.ebextensions/*.config`, `.platform/nginx/conf.d/timeouts.conf`, `.platform/nginx/conf.d/oauth-buffers.conf`.
+
+**Hotfix — Microsoft SSO 502 (`upstream sent too big header`)**  
+No new app image is required if ECR `:latest` is already good. Build the zip above, then in the console: **Elastic Beanstalk** → environment for `aloft-dev.synergyship.com` (often **`aloft-d360-dev`** or **`Aloft-d360-web-env`**) → **Upload and deploy** → select the zip → wait for **Health: Ok**. Retest sign-in in a private window; nginx must load `oauth-buffers.conf` (check instance `/var/log/nginx/error.log` — no new “too big header” on `/api/auth/callback/azure-ad`).
 
 ### Phase D — Deploy (pick one path)
 
@@ -246,6 +249,7 @@ Deploy zip contents = everything under `infra/beanstalk/`:
 
 - `Dockerrun.aws.json`
 - `.platform/nginx/conf.d/timeouts.conf`
+- `.platform/nginx/conf.d/oauth-buffers.conf` (required for Microsoft SSO; fixes OAuth callback 502)
 - `.ebextensions/*.config`
 
 ---

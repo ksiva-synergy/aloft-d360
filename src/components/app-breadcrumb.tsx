@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { routeLabels, noBreadcrumbRoutes } from '@/lib/breadcrumb-config'
+import { useBreadcrumbLabels } from '@/lib/breadcrumb-labels'
 
 export interface AppBreadcrumbProps {
   /**
@@ -62,6 +63,8 @@ const MAX_VISIBLE_ITEMS = 4
 export function AppBreadcrumb({ dynamicLabels = {}, className, compact = false }: AppBreadcrumbProps) {
   const pathname = usePathname()
   const router = useRouter()
+  // Labels registered by the current page (e.g. object UUID → table name).
+  const pageLabels = useBreadcrumbLabels((s) => s.labels)
 
   // Alt+ArrowUp → navigate to parent route
   useEffect(() => {
@@ -83,7 +86,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className, compact = false }
 
   if (noBreadcrumbRoutes.has(pathname)) return null
 
-  const segments = buildSegments(pathname, dynamicLabels)
+  const segments = buildSegments(pathname, { ...pageLabels, ...dynamicLabels })
 
   if (segments.length === 0) return null
 

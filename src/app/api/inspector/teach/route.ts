@@ -35,6 +35,11 @@ import {
   executeReflectTool,
   type ReflectToolContext,
 } from '@/lib/inspector/reflect-tools';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -80,7 +85,6 @@ export async function POST(request: NextRequest) {
     return new Response('Reflect mode requires a configured model backend.', { status: 503 });
   }
 
-  // Resolve org, caller, and the governed connection (for verify_claim).
   const org = await getDefaultOrg();
   let callerUserId: string | null = null;
   try {
@@ -90,6 +94,16 @@ export async function POST(request: NextRequest) {
     callerUserId = caller?.id ?? null;
   } catch {
     /* fail-closed: no caller → capture disabled, org-only recall */
+  }
+
+  const role = await getSessionUserRole();
+  try {
+    await assertInteractiveBudget({ orgId: org.id, userId: callerUserId, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, modelConfig.bedrockId);
+    }
+    throw err;
   }
 
   let connectionId: string | null = null;
@@ -104,11 +118,10 @@ export async function POST(request: NextRequest) {
     orgId: org.id,
     userId: callerUserId,
     connectionId,
-    // Thread the Teach session id onto captured candidates so the read-only feed
-    // (Phase 3) can scope by author + session. guardInspectorChat above already
-    // verified the caller owns this session.
     sessionId: body.sessionId ?? null,
   };
+
+  const turnId = randomUUID();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -160,6 +173,21 @@ export async function POST(request: NextRequest) {
             }
           },
         });
+
+        if (result.usage.inputTokens + result.usage.outputTokens > 0) {
+          void logInteractiveLlmTurn({
+            orgId: org.id,
+            userId: callerUserId,
+            surface: 'inspector_teach',
+            action: 'reflect_turn',
+            model: modelConfig.bedrockId,
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            sessionId: body.sessionId ?? null,
+            turnId,
+            status: result.outcome === 'errored' ? 'failed' : result.outcome,
+          });
+        }
 
         emit({
           type: 'done',

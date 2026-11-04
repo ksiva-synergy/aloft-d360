@@ -164,11 +164,11 @@ export function renderKnowledgeBases(kbs: CopilotKnowledgeBase[] | undefined): s
 
 export type ProposeOutcome =
   /** The model called the tool. `operations` is unparsed. */
-  | { kind: 'proposal'; reply: string; operations: unknown }
+  | { kind: 'proposal'; reply: string; operations: unknown; modelId: string; usage: { inputTokens: number; outputTokens: number } }
   /** The model answered in text without proposing anything (some providers ignore the forced tool). */
-  | { kind: 'text'; reply: string }
+  | { kind: 'text'; reply: string; modelId: string; usage: { inputTokens: number; outputTokens: number } }
   /** The model call failed. `detail` is the provider's message. */
-  | { kind: 'error'; detail: string };
+  | { kind: 'error'; detail: string; modelId: string; usage: { inputTokens: number; outputTokens: number } };
 
 /** The model the copilot uses: always the LLM Lite model resolved for `automate_copilot`. */
 function copilotModel(role?: string | null): { modelId: string; boost: BoostModel | null } {
@@ -240,11 +240,18 @@ export async function proposeFlowEdit(params: {
 
   const { modelId, boost } = copilotModel(params.role);
   const result = await run(modelId, boost);
+  const usage = { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens };
   const proposal = captured as { reply: string; operations: unknown } | null;
-  if (proposal) return { kind: 'proposal', ...proposal };
-  if (result.outcome === 'errored') return { kind: 'error', detail: result.errorDetail ?? 'The model call failed' };
+  if (proposal) return { kind: 'proposal', ...proposal, modelId, usage };
+  if (result.outcome === 'errored') {
+    return { kind: 'error', detail: result.errorDetail ?? 'The model call failed', modelId, usage };
+  }
   const text = result.finalText?.trim() ?? '';
-  return toolCallWrittenAsText(text) ?? { kind: 'text', reply: text };
+  const written = toolCallWrittenAsText(text);
+  if (written && written.kind === 'proposal') {
+    return { ...written, modelId, usage };
+  }
+  return { kind: 'text', reply: text, modelId, usage };
 }
 
 /**
@@ -257,7 +264,7 @@ export function toolCallWrittenAsText(text: string): ProposeOutcome | null {
   try {
     const v = JSON.parse(body) as { reply?: unknown; operations?: unknown };
     if (typeof v.reply !== 'string') return null;
-    return { kind: 'proposal', reply: v.reply, operations: v.operations ?? [] };
+    return { kind: 'proposal', reply: v.reply, operations: v.operations ?? [], modelId: '', usage: { inputTokens: 0, outputTokens: 0 } };
   } catch {
     return null;
   }

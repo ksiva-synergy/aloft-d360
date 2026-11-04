@@ -33,27 +33,35 @@ describe('copilot model adapter', () => {
       return done();
     });
     const r = await proposeFlowEdit({ definition: def, message: 'rename' });
-    expect(r).toEqual({ kind: 'proposal', reply: 'Done.', operations: [{ op: 'set_name', name: 'y' }] });
+    expect(r).toMatchObject({ kind: 'proposal', reply: 'Done.', operations: [{ op: 'set_name', name: 'y' }] });
     expect(runAgentLoop).not.toHaveBeenCalled();
   });
 
   it('reports the real error when the model call fails, instead of "no proposal"', async () => {
     hasXai.mockReturnValue(true);
     dispatchAgentLoop.mockResolvedValue(done({ outcome: 'errored', errorDetail: 'xAI 401: invalid key' }));
-    expect(await proposeFlowEdit({ definition: def, message: 'x' })).toEqual({ kind: 'error', detail: 'xAI 401: invalid key' });
+    expect(await proposeFlowEdit({ definition: def, message: 'x' })).toMatchObject({ kind: 'error', detail: 'xAI 401: invalid key' });
   });
 
   it('passes a plain-text answer through as text', async () => {
     hasXai.mockReturnValue(true);
     dispatchAgentLoop.mockResolvedValue(done({ finalText: '  It runs on a webhook. ' }));
-    expect(await proposeFlowEdit({ definition: def, message: 'when does it run?' })).toEqual({ kind: 'text', reply: 'It runs on a webhook.' });
+    expect(await proposeFlowEdit({ definition: def, message: 'when does it run?' })).toMatchObject({ kind: 'text', reply: 'It runs on a webhook.' });
   });
 
   it('accepts a tool call that the model wrote out as text (seen with Grok), and nothing looser', async () => {
     hasXai.mockReturnValue(true);
     dispatchAgentLoop.mockResolvedValue(done({ finalText: '{"reply":"It runs on a webhook.","operations":[]}' }));
-    expect(await proposeFlowEdit({ definition: def, message: 'when?' })).toEqual({ kind: 'proposal', reply: 'It runs on a webhook.', operations: [] });
-    expect(toolCallWrittenAsText('```json\n{"reply":"ok","operations":[{"op":"set_name","name":"y"}]}\n```')).toEqual({ kind: 'proposal', reply: 'ok', operations: [{ op: 'set_name', name: 'y' }] });
+    expect(await proposeFlowEdit({ definition: def, message: 'when?' })).toMatchObject({
+      kind: 'proposal',
+      reply: 'It runs on a webhook.',
+      operations: [],
+    });
+    expect(toolCallWrittenAsText('```json\n{"reply":"ok","operations":[{"op":"set_name","name":"y"}]}\n```')).toMatchObject({
+      kind: 'proposal',
+      reply: 'ok',
+      operations: [{ op: 'set_name', name: 'y' }],
+    });
     expect(toolCallWrittenAsText('Sure! {"reply":"x"}')).toBeNull();
     expect(toolCallWrittenAsText('{"operations":[]}')).toBeNull();
   });

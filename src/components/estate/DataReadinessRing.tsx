@@ -1,40 +1,50 @@
 'use client';
 
-// DataReadinessRing — four-segment SVG ring visualizing the DATA readiness score.
+// DataReadinessRing — the DATA readiness card on the Estate object page.
 //
-// Redesigned (UX pass): larger 130px ring, bigger center level + composite text,
-// full dimension name labels with scores, per-dimension score bars, and a
-// clearer gating callout with improved typography and spacing.
+// Three columns (stack on narrow screens):
+//   1. Ring: four arcs (one per dimension) around the level + composite score.
+//   2. Dimensions: full name, score bar, %, and the top reason for each.
+//   3. What's holding it back: the gating dimension's reasons, each linked to
+//      the place on the page where it can be fixed, plus the next level.
+//
+// Colours: scoreColor() for dimension severity, levelColor() for the centre
+// level only (see dataReadinessColors.ts). Text uses theme tokens.
 
 import React from 'react';
-import { scoreColor, levelColor, GATING_CHIP_COLOR, GATING_CHIP_BG } from './dataReadinessColors';
-import { type } from '@/lib/typography/tokens';
+import { scoreColor, levelColor } from './dataReadinessColors';
+import { type, inkOf } from '@/lib/typography/tokens';
 
-const TRACK_COLOR = 'color-mix(in srgb, var(--ink-1) 7%, transparent)';
+const TRACK_COLOR = 'color-mix(in srgb, var(--ink-1) 8%, transparent)';
 
-const DIMENSION_LABELS: Record<string, string> = {
+const DIMS = ['discoverable', 'accessible', 'trusted', 'actionable'] as const;
+type Dim = (typeof DIMS)[number];
+
+const DIMENSION_LABELS: Record<Dim, string> = {
   discoverable: 'Discoverable',
   accessible:   'Accessible',
   trusted:      'Trusted',
   actionable:   'Actionable',
 };
 
-const DIMENSION_SHORT: Record<string, string> = {
-  discoverable: 'D',
-  accessible:   'A',
-  trusted:      'T',
-  actionable:   'Ac',
+const DIMENSION_QUESTION: Record<Dim, string> = {
+  discoverable: 'Can people find and understand it?',
+  accessible:   'Can it be queried safely?',
+  trusted:      'Is it fresh, stable and reviewed?',
+  actionable:   'Is it connected and used?',
 };
 
-const LEVEL_LABELS: Record<string, string> = {
-  L1: 'L1 — Inventoried',
-  L2: 'L2 — Profiled',
-  L3: 'L3 — Understood',
-  L4: 'L4 — Curated',
-  L5: 'L5 — Operationalized',
+const LEVEL_NAMES: Record<string, string> = {
+  L1: 'Inventoried',
+  L2: 'Profiled',
+  L3: 'Understood',
+  L4: 'Curated',
+  L5: 'Operationalized',
 };
 
-const SEGMENT_STARTS: Record<string, number> = {
+const NEXT_LEVEL: Record<string, string | null> = { L1: 'L2', L2: 'L3', L3: 'L4', L4: 'L5', L5: null };
+
+const SEGMENT_STARTS: Record<Dim, number> = {
   discoverable: -90,
   accessible:    0,
   trusted:       90,
@@ -70,219 +80,211 @@ interface DataReadinessRingProps {
   ringRef?: React.RefObject<HTMLDivElement>;
 }
 
-// ── Dimension score bar (horizontal fill bar) ─────────────────────────────────
-function DimScoreBar({ dim, score, color }: { dim: string; score: number; color: string }) {
-  const pct = Math.round(score * 100);
+/** Where on the page a reason can be acted on. Matched on the reason text from data-score. */
+function actionFor(reason: string): { label: string; href: string } | null {
+  const r = reason.toLowerCase();
+  if (r.includes("'assumed'") || r.includes('not yet human-validated')) return { label: 'Review description', href: '#semantic-card' };
+  if (r.includes('no semantic card') || r.includes('t2')) return { label: 'Describe it', href: '#overview' };
+  if (r.includes('changed in') || r.includes('drift')) return { label: 'See what changed', href: '#operations' };
+  if (r.includes('source altered') || r.includes('outdated') || r.includes('stale')) return { label: 'Check freshness', href: '#operations' };
+  if (r.includes('pii')) return { label: 'Review columns', href: '#columns' };
+  if (r.includes('usage') || r.includes('t3')) return { label: 'View usage', href: '#usage' };
+  if (r.includes('relationship') || r.includes('mapping') || r.includes('link')) return { label: 'Review relationships', href: '#relationships' };
+  return null;
+}
+
+// ── Ring ─────────────────────────────────────────────────────────────────────
+
+const SIZE = 148;
+const CX = SIZE / 2;
+const R = 58;
+const STROKE = 10;
+const GAP_DEG = 5;
+
+function Ring({ dataScore }: { dataScore: DataScoreShape | undefined }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-ui-regular-size)',
-        fontWeight: 600,
-        color,
-        width: 20,
-        flexShrink: 0,
-        letterSpacing: '0.04em',
-      }}>
-        {DIMENSION_SHORT[dim]}
-      </span>
-      <div style={{ flex: 1, height: 5, borderRadius: 6, background: TRACK_COLOR, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 6, transition: 'width 0.4s ease' }} />
+    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img"
+      aria-label={dataScore ? `Level ${dataScore.level}, ${Math.round(dataScore.composite * 100)}% ready` : 'Readiness loading'}>
+      {DIMS.map((dim) => {
+        const start = SEGMENT_STARTS[dim] + GAP_DEG / 2;
+        const max = 90 - GAP_DEG;
+        const score = dataScore?.[dim].score ?? 0;
+        const track = arcPath(CX, CX, R, start, max);
+        const fill = score > 0 ? arcPath(CX, CX, R, start, score * max) : '';
+        return (
+          <g key={dim}>
+            <title>{`${DIMENSION_LABELS[dim]} ${Math.round(score * 100)}%`}</title>
+            {track && <path d={track} fill="none" stroke={TRACK_COLOR} strokeWidth={STROKE} strokeLinecap="round" />}
+            {fill && <path d={fill} fill="none" stroke={scoreColor(score)} strokeWidth={STROKE} strokeLinecap="round" />}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── Dimension row ────────────────────────────────────────────────────────────
+
+function DimensionRow({ dim, score, reasons, gating }: { dim: Dim; score: number; reasons: string[]; gating: boolean }) {
+  const pct = Math.round(score * 100);
+  const color = scoreColor(score);
+  const topReason = reasons[0] ?? null;
+  return (
+    <div title={DIMENSION_QUESTION[dim]} style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ ...type.ui, color: 'var(--estate-ink)', fontWeight: 600 }}>{DIMENSION_LABELS[dim]}</span>
+        {gating && (
+          <span
+            style={{
+              ...type.caption,
+              color: inkOf(color),
+              background: `color-mix(in srgb, ${color} 12%, transparent)`,
+              borderRadius: 999,
+              padding: '0 7px',
+            }}
+          >
+            gating
+          </span>
+        )}
+        <span style={{ ...type['kpi-sm'], color: inkOf(color), marginLeft: 'auto' }}>{pct}%</span>
       </div>
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-ui-regular-size)',
-        color,
-        width: 32,
-        textAlign: 'right',
-        flexShrink: 0,
-        tabularNums: true,
-      } as React.CSSProperties}>
-        {pct}%
-      </span>
+      <div style={{ height: 6, borderRadius: 999, background: TRACK_COLOR, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 999, transition: 'width 0.5s ease' }} />
+      </div>
+      <div
+        style={{
+          ...type.caption,
+          color: 'var(--estate-text-muted)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+        title={topReason ?? undefined}
+      >
+        {topReason ?? 'No issues found'}
+      </div>
     </div>
   );
 }
 
+// ── Card ─────────────────────────────────────────────────────────────────────
+
 export default function DataReadinessRing({ dataScore, ringRef }: DataReadinessRingProps) {
-  const cx = 65;
-  const cy = 65;
-  const r = 48;
-  const strokeWidth = 9;
-  const svgSize = 130;
-  const segmentGap = 4;
-
-  if (!dataScore) {
-    return (
-      <div
-        ref={ringRef}
-        style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}
-        aria-label="DATA readiness score loading"
-      >
-        <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
-          {(['discoverable', 'accessible', 'trusted', 'actionable'] as const).map((dim) => {
-            const startDeg = SEGMENT_STARTS[dim] + segmentGap / 2;
-            const sweepDeg = 90 - segmentGap;
-            const track = arcPath(cx, cy, r, startDeg, sweepDeg);
-            return track ? (
-              <path key={dim} d={track} fill="none" stroke={TRACK_COLOR} strokeWidth={strokeWidth} strokeLinecap="round" />
-            ) : null;
-          })}
-          <text x={cx} y={cy + 5} textAnchor="middle" dominantBaseline="central"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: TRACK_COLOR, fontWeight: 600 }}>
-            —
-          </text>
-        </svg>
-      </div>
-    );
-  }
-
-  const dims = ['discoverable', 'accessible', 'trusted', 'actionable'] as const;
-  const gatingDim = dataScore.gating_dimension;
-  const gatingDimScore = dataScore[gatingDim].score;
-  const gatingDimColor = scoreColor(gatingDimScore);
-  const gatingReasons = dataScore[gatingDim].reasons;
-  const centerColor = levelColor(dataScore.level);
+  const level = dataScore?.level ?? null;
+  const centerColor = level ? levelColor(level) : 'var(--estate-text-muted)';
+  const gatingDim = dataScore?.gating_dimension ?? null;
+  const gatingReasons = gatingDim && dataScore ? dataScore[gatingDim].reasons : [];
+  const next = level ? NEXT_LEVEL[level] : null;
 
   return (
     <div
-      ref={ringRef}
-      style={{ display: 'flex', alignItems: 'flex-start', gap: 24 }}
-      aria-label={`DATA readiness score: ${dataScore.level}`}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+        gap: '24px 36px',
+        alignItems: 'center',
+      }}
     >
-      {/* Left: Ring + dimension score bars */}
-      <div style={{ flexShrink: 0 }}>
-        <svg width={svgSize} height={svgSize} viewBox={`0 0 ${svgSize} ${svgSize}`}>
-          {dims.map((dim) => {
-            const startDeg = SEGMENT_STARTS[dim] + segmentGap / 2;
-            const maxSweep = 90 - segmentGap;
-            const score = dataScore[dim].score;
-            const color = scoreColor(score);
-
-            const trackPath = arcPath(cx, cy, r, startDeg, maxSweep);
-            const fillSweep = score * maxSweep;
-            const fillPath = fillSweep > 0 ? arcPath(cx, cy, r, startDeg, fillSweep) : '';
-
-            return (
-              <g key={dim}>
-                {trackPath && (
-                  <path d={trackPath} fill="none" stroke={TRACK_COLOR} strokeWidth={strokeWidth} strokeLinecap="round" />
-                )}
-                {fillPath && (
-                  <path d={fillPath} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
-                )}
-              </g>
-            );
-          })}
-          {/* Center level */}
-          <text
-            x={cx} y={cy - 8}
-            textAnchor="middle"
-            dominantBaseline="central"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-title-section-size)', fill: centerColor, fontWeight: 600 }}
+      {/* 1 — Ring with level in the centre */}
+      <div ref={ringRef} style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ position: 'relative', width: SIZE, height: SIZE, flexShrink: 0 }}>
+          <Ring dataScore={dataScore} />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
-            {dataScore.level}
-          </text>
-          {/* Center composite % */}
-          <text
-            x={cx} y={cy + 16}
-            textAnchor="middle"
-            dominantBaseline="central"
-            style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', fill: 'var(--estate-text-muted, var(--ink-3))' }}
-          >
-            {Math.round(dataScore.composite * 100)}%
-          </text>
-        </svg>
+            <span style={{ ...type['kpi-lg'], color: centerColor }}>{level ?? '—'}</span>
+            <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
+              {dataScore ? `${Math.round(dataScore.composite * 100)}% ready` : 'loading'}
+            </span>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+          <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>DATA readiness</span>
+          <span style={{ ...type['title-card'], color: 'var(--estate-ink)' }}>{level ? LEVEL_NAMES[level] : '—'}</span>
+          {next && (
+            <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
+              Next: {next} · {LEVEL_NAMES[next]}
+            </span>
+          )}
+        </div>
+      </div>
 
-        {/* Dimension score bars below ring */}
-        <div style={{ width: svgSize, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {dims.map((dim) => (
-            <DimScoreBar
+      {/* 2 — Dimensions */}
+      {dataScore && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px 24px' }}>
+          {DIMS.map((dim) => (
+            <DimensionRow
               key={dim}
               dim={dim}
               score={dataScore[dim].score}
-              color={scoreColor(dataScore[dim].score)}
+              reasons={dataScore[dim].reasons}
+              gating={dim === gatingDim}
             />
           ))}
         </div>
-      </div>
+      )}
 
-      {/* Right: Gating callout */}
-      <div style={{ paddingTop: 4, minWidth: 0, flex: 1 }}>
-        <div style={{
-          ...type.label,
-          color: 'var(--estate-text-secondary, var(--ink-3))',
-          marginBottom: 8,
-        }}>
-          DATA Readiness
-        </div>
-
-        {/* GATING chip */}
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          marginBottom: 8,
-          backgroundColor: GATING_CHIP_BG,
-          border: `1px solid ${GATING_CHIP_COLOR}`,
-          borderRadius: 6,
-          padding: '2px 7px',
-        }}>
-          <span style={{
-            ...type.label,
-            color: GATING_CHIP_COLOR,
-          }}>
-            GATING
-          </span>
-        </div>
-
-        {/* Gating statement */}
-        <div style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: gatingDimColor,
-          marginBottom: 8,
-          lineHeight: 1.5,
-        }}>
-          <span style={{ marginRight: 5 }}>◆</span>
-          <span style={{ fontWeight: 600 }}>{DIMENSION_LABELS[gatingDim]}</span>
-          {' '}is holding this object at{' '}
-          <span style={{ fontWeight: 600 }}>{dataScore.level}</span>
-        </div>
-
-        {/* Gating reasons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {gatingReasons.slice(0, 5).map((reason, i) => (
-            <div key={i} style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              color: 'var(--estate-text-muted, var(--ink-3))',
-              lineHeight: 1.5,
-              paddingLeft: 14,
-              position: 'relative',
-            }}>
-              <span style={{
-                position: 'absolute',
-                left: 4,
-                color: gatingDimColor,
-                opacity: 0.6,
-              }}>·</span>
-              {reason}
+      {/* 3 — What's holding it back */}
+      {dataScore && gatingDim && (
+        <div
+          style={{
+            alignSelf: 'stretch',
+            borderRadius: 10,
+            padding: '14px 16px',
+            background: 'color-mix(in srgb, var(--brand-a) 5%, var(--estate-raised))',
+            border: '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}
+        >
+          <div style={{ ...type.ui, color: 'var(--estate-ink)', fontWeight: 600 }}>
+            {next
+              ? <>What&apos;s holding it at {dataScore.level}</>
+              : <>Fully operational</>}
+          </div>
+          {next && (
+            <div style={{ ...type.caption, color: 'var(--estate-text-muted)', marginTop: -6 }}>
+              {DIMENSION_LABELS[gatingDim]} is the lowest dimension
             </div>
-          ))}
+          )}
+          {gatingReasons.length === 0 ? (
+            <div style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>No open issues.</div>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {gatingReasons.slice(0, 4).map((reason, i, shown) => {
+                // Several reasons can share one fix (e.g. two relationship gaps) —
+                // show that link once, under the last reason it applies to.
+                const candidate = actionFor(reason);
+                const repeatedLater = candidate
+                  && shown.slice(i + 1).some((r) => actionFor(r)?.href === candidate.href);
+                const action = repeatedLater ? null : candidate;
+                return (
+                  <li key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>{reason}</span>
+                    {action && (
+                      <a
+                        href={action.href}
+                        className="hover:underline"
+                        style={{ ...type.ui, color: 'var(--brand-a-ink)', fontWeight: 600, textDecoration: 'none', width: 'fit-content' }}
+                      >
+                        {action.label} →
+                      </a>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-
-        {/* Level label */}
-        <div style={{
-          marginTop: 10,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: 'var(--estate-text-muted, var(--ink-3))',
-          letterSpacing: '0.04em',
-        }}>
-          {LEVEL_LABELS[dataScore.level]}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

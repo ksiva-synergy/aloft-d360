@@ -186,6 +186,37 @@ export async function listObjectsPage(
 
 // ── 2. getObjectAggregate ──────────────────────────────────────────────────────
 
+/** T4 entity model for one table, as shown on the object page. */
+export interface SemanticModelView {
+  entity_id: string;
+  entity_model_id: string | null;
+  entity_label: string;
+  description: string | null;
+  status: string;
+  ai_context: string | null;
+  synonyms: string[];
+  created_by: string | null;
+  updated_at: Date;
+  model: { id: string; name: string; status: string } | null;
+  dimensions: Array<{
+    id: string; column_name: string; dimension_label: string; dimension_type: string; description: string | null;
+    status: string; synonyms: string[]; format_hint: string | null; nl_intent: string | null;
+  }>;
+  measures: Array<{
+    id: string; column_name: string | null; measure_label: string; aggregate: string; expression: string | null;
+    metric_type: string; description: string | null; unit: string | null; status: string; synonyms: string[];
+    format_hint: string | null; nl_intent: string | null;
+  }>;
+  joins: Array<{
+    id: string; direction: 'out' | 'in'; join_type: string; join_on_sql: string; description: string | null;
+    other: { id: string; entity_label: string; full_path: string };
+  }>;
+  audit: Array<{
+    table_name: string; row_id: string; action: string; from_status: string | null; to_status: string | null;
+    changed_by: string; created_at: Date;
+  }>;
+}
+
 export interface ObjectAggregateResult {
   object: PlatformContextObject;
   columns: any[];
@@ -195,24 +226,22 @@ export interface ObjectAggregateResult {
   latestSemanticId: string | null;
   /** DS3a: version of the specific semantic card row rendered — used for the version guard */
   latestSemanticVersion: number | null;
+  /** Model / prompt / confidence / time of the rendered semantic card row. */
+  latestSemanticMeta: { model_id: string | null; prompt_version: string | null; confidence: number | null; created_at: Date } | null;
   /** DS3a: true if a PlatformContextEmbedding row exists for this object (Published lifecycle signal) */
   hasEmbedding: boolean;
   profileHistory: any[];
   freshness: any;
   entityGroupObjects: PlatformContextObject[];
   proposedMappings: any[];
+  /** Confirmed column mappings — display only, not part of the DATA score input. */
+  confirmedMappings: any[];
+  /** Knowledge chunks agents retrieve for this object (doc_ref `context:<path>:*`). */
+  agentKnowledge: { doc_ref: string; chunk_index: number; content: string; created_at: Date }[];
   objectLinks: any[];
   lastJobs: PlatformContextJob[];
   usageSnapshot: (UsageObjectResult & { co_object_id_map: Record<string, string> }) | null;
-  semanticModel: {
-    entity_id: string;
-    entity_model_id: string | null;
-    entity_label: string;
-    description: string | null;
-    status: string;
-    dimensions: Array<{ column_name: string; dimension_label: string; dimension_type: string; description: string | null }>;
-    measures: Array<{ column_name: string | null; measure_label: string; aggregate: string; description: string | null; unit: string | null }>;
-  } | null;
+  semanticModel: SemanticModelView | null;
   dataScore: DataScoreResult;
 }
 
@@ -273,23 +302,31 @@ export async function getObjectAggregate(
     siblingObjects = await prisma.$queryRaw<PlatformContextObject[]>(siblingQuery);
   }
 
-  // 6. Proposed mappings
-  const proposedMappings = await prisma.platformContextMapping.findMany({
+  // 6. Column mappings — proposed (scored + reviewable) and confirmed (display only).
+  // Confirmed rows are kept separate so the DATA score input stays identical to the
+  // catalog-wide distribution path, which scores proposed mappings only.
+  const mappingColumnInclude = {
+    include: { object: { select: { id: true, full_path: true, object_name: true } } },
+  } as const;
+  const allMappings = await prisma.platformContextMapping.findMany({
     where: {
       org_id: orgId,
-      status: 'proposed',
+      status: { in: ['proposed', 'confirmed'] },
       OR: [
         { left_column: { object_id: objectId } },
         { right_column: { object_id: objectId } },
       ],
     },
     include: {
-      left_column: true,
-      right_column: true,
+      left_column: mappingColumnInclude,
+      right_column: mappingColumnInclude,
     },
   });
+  const proposedMappings = allMappings.filter((m) => m.status === 'proposed');
+  const confirmedMappings = allMappings.filter((m) => m.status === 'confirmed');
 
   // 7. Object links
+  const linkObjectSelect = { select: { id: true, full_path: true, object_name: true, object_kind: true } } as const;
   const objectLinks = await prisma.platformContextObjectLink.findMany({
     where: {
       org_id: orgId,
@@ -298,9 +335,13 @@ export async function getObjectAggregate(
         { right_object_id: objectId },
       ],
     },
+    // Names of both ends so the page can show the other table, not its UUID.
+    include: { left_object: linkObjectSelect, right_object: linkObjectSelect },
   });
 
-  // 8. Last 5 jobs whose scope contains this object's full path
+  // 8. Last 5 jobs whose scope contains this object's full path.
+  // Per-object actions on this page (refresh / enrich / reharvest-all) enqueue with
+  // scope.includePatterns = [full_path], so match that as well as scope.path.
   const fullPath = obj.full_path;
   const jobsQuery = Prisma.sql`
     SELECT * FROM platform_context_jobs
@@ -309,6 +350,7 @@ export async function getObjectAggregate(
         scope->>'path' = ${fullPath}
         OR scope->>'leftScope' = ${fullPath}
         OR scope->>'rightScope' = ${fullPath}
+        OR scope->'includePatterns' @> jsonb_build_array(${fullPath}::text)
       )
     ORDER BY created_at DESC
     LIMIT 5
@@ -338,33 +380,95 @@ export async function getObjectAggregate(
   // 10. T4 semantic model — entity proposed for this table's full_path
   let semanticModel: ObjectAggregateResult['semanticModel'] = null;
   if (obj.last_t4_at) {
+    // Any status (candidate / governed / …) — filtering to 'candidate' made the
+    // card disappear right after "Promote to governed". Newest first.
+    const entityLink = { select: { id: true, entity_label: true, full_path: true } } as const;
     const entity = await prisma.platform_sem_entities.findFirst({
-      where: { org_id: orgId, full_path: obj.full_path, status: 'candidate' },
+      where: { org_id: orgId, full_path: obj.full_path },
+      orderBy: { updated_at: 'desc' },
       include: {
         platform_sem_dimensions: { orderBy: { column_name: 'asc' } },
         platform_sem_measures: { orderBy: { measure_label: 'asc' } },
+        platform_semantic_models: { select: { id: true, name: true, status: true } },
+        platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities: {
+          include: { platform_sem_entities_platform_sem_joins_to_entity_idToplatform_sem_entities: entityLink },
+        },
+        platform_sem_joins_platform_sem_joins_to_entity_idToplatform_sem_entities: {
+          include: { platform_sem_entities_platform_sem_joins_from_entity_idToplatform_sem_entities: entityLink },
+        },
       },
     });
     if (entity) {
+      // Governance trail for the entity and its dimensions / measures.
+      const rowIds = [
+        entity.id,
+        ...entity.platform_sem_dimensions.map((d) => d.id),
+        ...entity.platform_sem_measures.map((m) => m.id),
+      ];
+      const audit = await prisma.platform_sem_audit.findMany({
+        where: { org_id: orgId, row_id: { in: rowIds } },
+        orderBy: { created_at: 'desc' },
+        take: 15,
+        select: { table_name: true, row_id: true, action: true, from_status: true, to_status: true, changed_by: true, created_at: true },
+      });
+
       semanticModel = {
         entity_id: entity.id,
         entity_model_id: entity.model_id ?? null,
         entity_label: entity.entity_label,
         description: entity.description,
         status: entity.status,
+        ai_context: entity.ai_context,
+        synonyms: entity.synonyms,
+        created_by: entity.created_by,
+        updated_at: entity.updated_at,
+        model: entity.platform_semantic_models
+          ? { id: entity.platform_semantic_models.id, name: entity.platform_semantic_models.name, status: entity.platform_semantic_models.status }
+          : null,
         dimensions: entity.platform_sem_dimensions.map((d) => ({
+          id: d.id,
           column_name: d.column_name,
           dimension_label: d.dimension_label,
           dimension_type: d.dimension_type,
           description: d.description,
+          status: d.status,
+          synonyms: d.synonyms,
+          format_hint: d.format_hint,
+          nl_intent: d.nl_intent,
         })),
         measures: entity.platform_sem_measures.map((m) => ({
+          id: m.id,
           column_name: m.column_name,
           measure_label: m.measure_label,
           aggregate: m.aggregate,
+          expression: m.expression,
+          metric_type: m.metric_type,
           description: m.description,
           unit: m.unit,
+          status: m.status,
+          synonyms: m.synonyms,
+          format_hint: m.format_hint,
+          nl_intent: m.nl_intent,
         })),
+        joins: [
+          ...entity.platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities.map((j) => ({
+            id: j.id,
+            direction: 'out' as const,
+            join_type: j.join_type,
+            join_on_sql: j.join_on_sql,
+            description: j.description,
+            other: j.platform_sem_entities_platform_sem_joins_to_entity_idToplatform_sem_entities,
+          })),
+          ...entity.platform_sem_joins_platform_sem_joins_to_entity_idToplatform_sem_entities.map((j) => ({
+            id: j.id,
+            direction: 'in' as const,
+            join_type: j.join_type,
+            join_on_sql: j.join_on_sql,
+            description: j.description,
+            other: j.platform_sem_entities_platform_sem_joins_from_entity_idToplatform_sem_entities,
+          })),
+        ],
+        audit,
       };
     }
   }
@@ -380,6 +484,21 @@ export async function getObjectAggregate(
   `;
   const hasEmbedding = (embeddingRows[0]?.cnt ?? 0) > 0;
 
+  // 12. Agent view — the knowledge chunks agents retrieve for this object
+  // (written by syncObjectToKnowledge with doc_ref `context:<full_path>:<doc>`).
+  // starts_with avoids LIKE treating `_` in table names as a wildcard.
+  const knowledgePrefix = `context:${obj.full_path}:`;
+  const agentKnowledge = await prisma.$queryRaw<
+    { doc_ref: string; chunk_index: number; content: string; created_at: Date }[]
+  >`
+    SELECT doc_ref, chunk_index, content, created_at
+    FROM knowledge_chunks
+    WHERE org_id = ${orgId}
+      AND starts_with(doc_ref, ${knowledgePrefix})
+    ORDER BY doc_ref, chunk_index
+    LIMIT 40
+  `;
+
   const aggregate = {
     object: obj,
     columns,
@@ -387,6 +506,15 @@ export async function getObjectAggregate(
     latestSemanticStatus: latestSemantic?.status ?? null,
     latestSemanticId: latestSemantic?.id ?? null,
     latestSemanticVersion: latestSemantic?.version ?? null,
+    // Row-level provenance (not inside the card JSON) — shown on the description card.
+    latestSemanticMeta: latestSemantic
+      ? {
+          model_id: latestSemantic.model_id,
+          prompt_version: latestSemantic.prompt_version,
+          confidence: latestSemantic.confidence,
+          created_at: latestSemantic.created_at,
+        }
+      : null,
     hasEmbedding,
     profileHistory,
     freshness,
@@ -400,6 +528,8 @@ export async function getObjectAggregate(
 
   return {
     ...aggregate,
+    confirmedMappings,
+    agentKnowledge,
     dataScore: computeDataScore(assembleDimensionInput(aggregate)),
   };
 }
