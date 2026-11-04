@@ -61,6 +61,10 @@ export interface UsageSnapshot {
     distinct_executors?: number;
     n_distinct_executors?: number;
     first_seen?: string;
+    /** Top executed_as with query counts (T3, newer harvests). */
+    top_executors?: Array<{ executed_as: string; n: number }>;
+    /** Queries per ISO week (Monday), oldest first. */
+    weekly_trend?: Array<{ week: string; n: number }>;
     last_seen?: string;
     [key: string]: unknown;
   } | null;
@@ -121,12 +125,13 @@ const SIGNALS = [
 
 // ── Pieces ───────────────────────────────────────────────────────────────────
 
-function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: React.ReactNode }) {
+function Stat({ label, value, sub, extra }: { label: string; value: React.ReactNode; sub?: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 18px', background: 'var(--estate-raised)', minWidth: 0 }}>
       <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>{label}</span>
       <span style={{ ...type['kpi-md'], color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{value}</span>
       {sub && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{sub}</span>}
+      {extra}
     </div>
   );
 }
@@ -161,7 +166,9 @@ function SourceBreakdownCard({ breakdown }: { breakdown: SourceBreakdown }) {
   );
 }
 
-function KeyColumnsCard({ columns }: { columns: KeyColumn[] }) {
+function KeyColumnsCard({ columns: all }: { columns: KeyColumn[] }) {
+  // Older harvests stored every column with score 0 — keep only referenced ones.
+  const columns = all.filter((c) => c.score > 0 || Number(c.grouped_n ?? 0) > 0);
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? columns : columns.slice(0, 8);
   const max = Math.max(...columns.map((c) => c.score), 1);
@@ -249,6 +256,66 @@ function FilterPatternsCard({ patterns }: { patterns: FilterPattern[] }) {
   );
 }
 
+/** Observation window as text — window_days can be 0 when start and end fall on one day. */
+export function usageWindowLabel(usage: Pick<UsageSnapshot, 'freshness' | 'window_start' | 'window_end'>): string {
+  const days = usage.freshness?.window_days ?? 0;
+  if (days >= 1) return `last ${days} day${days === 1 ? '' : 's'}`;
+  const a = shortDate(usage.window_start);
+  const b = shortDate(usage.window_end);
+  if (a && b) return a === b ? `window ${a}` : `window ${a} – ${b}`;
+  return 'latest harvest';
+}
+
+function TrendSpark({ points }: { points: Array<{ week: string; n: number }> }) {
+  if (points.length < 2) return null;
+  const w = 96;
+  const h = 26;
+  const max = Math.max(...points.map((p) => p.n), 1);
+  const barW = w / points.length - 3;
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-label="queries per week" role="img">
+      {points.map((p, i) => {
+        const bh = Math.max(2, (p.n / max) * (h - 2));
+        return (
+          <rect key={p.week} x={i * (barW + 3)} y={h - bh} width={barW} height={bh} rx={2} fill="var(--brand-a)" opacity={i === points.length - 1 ? 1 : 0.45}>
+            <title>{`week of ${p.week}: ${p.n} queries`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ExecutorsCard({ executors, distinct }: { executors: Array<{ executed_as: string; n: number }>; distinct: number }) {
+  const max = Math.max(...executors.map((e) => e.n), 1);
+  const total = executors.reduce((s, e) => s + e.n, 0);
+  return (
+    <Card title="Executors" meta={`top ${executors.length} of ${distinct} · executed_as`}>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {executors.map((e) => {
+          const isService = !e.executed_as.includes('@');
+          return (
+            <li key={e.executed_as} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <code title={e.executed_as} style={{ ...type['code-inline'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {e.executed_as}
+                </code>
+                {isService && <Tag tone="neutral">service principal</Tag>}
+                <span style={{ ...type['code-inline'], color: 'var(--estate-text-muted)', flexShrink: 0 }}>
+                  {e.n.toLocaleString()}{total > 0 ? ` · ${pct(e.n, total)}%` : ''}
+                </span>
+              </span>
+              <span aria-hidden="true" style={{ height: 5, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+                <span style={{ display: 'block', height: '100%', width: `${(e.n / max) * 100}%`, background: TONE_COLOR.blue }} />
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 export default function UsagePanel({ usage }: UsagePanelProps) {
@@ -263,14 +330,17 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
   const topSource = sourceEntries.length > 0 ? [...sourceEntries].sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0] : null;
   const sourceTotal = sourceEntries.reduce((s, [, v]) => s + (v ?? 0), 0);
 
-  const hasKeyColumns = (key_columns ?? []).length > 0;
+  const hasKeyColumns = (key_columns ?? []).some((c) => c.score > 0 || Number(c.grouped_n ?? 0) > 0);
+  const topExecutors = Array.isArray(access_stats?.top_executors) ? access_stats!.top_executors! : [];
+  const weekly = Array.isArray(access_stats?.weekly_trend) ? access_stats!.weekly_trend! : [];
+  const windowText = usageWindowLabel(usage);
   const hasFilterPatterns = (filter_patterns ?? []).length > 0;
   const hasSourceBreakdown = sourceTotal > 0;
 
   if (totalQ === 0 && !hasKeyColumns && !hasFilterPatterns && !hasSourceBreakdown) {
     return (
       <EmptyNote>
-        No queries touched this table in the last {freshness.window_days || 30} days.
+        No queries touched this table ({windowText}).
       </EmptyNote>
     );
   }
@@ -298,8 +368,12 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
           overflow: 'hidden',
         }}
       >
-        <Stat label="Queries" value={compact(totalQ)} sub={from && to ? `${from} – ${to}` : `Last ${freshness.window_days} days`} />
-        <Stat label="Executors" value={executors > 0 ? compact(executors) : '—'} sub="distinct_executors" />
+        <Stat label="Queries" value={compact(totalQ)} sub={from && to ? `${from} – ${to} · ${windowText}` : windowText} extra={<TrendSpark points={weekly} />} />
+        <Stat
+          label="Executors"
+          value={executors > 0 ? compact(executors) : '—'}
+          sub={topExecutors[0] ? <>top: <code style={type['code-inline']}>{topExecutors[0].executed_as}</code></> : 'distinct_executors (names need a T3 re-run)'}
+        />
         <Stat
           label="Top source"
           value={topSource ? (SOURCE_META[topSource[0]]?.label ?? topSource[0]) : '—'}
@@ -315,9 +389,10 @@ export default function UsagePanel({ usage }: UsagePanelProps) {
         </Card>
       )}
 
-      {(hasSourceBreakdown || hasKeyColumns) && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 16, alignItems: 'start' }}>
+      {(hasSourceBreakdown || hasKeyColumns || topExecutors.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 16, alignItems: 'start' }}>
           {hasSourceBreakdown && source_breakdown && <SourceBreakdownCard breakdown={source_breakdown} />}
+          {topExecutors.length > 0 && <ExecutorsCard executors={topExecutors} distinct={executors || topExecutors.length} />}
           {hasKeyColumns && <KeyColumnsCard columns={key_columns ?? []} />}
         </div>
       )}

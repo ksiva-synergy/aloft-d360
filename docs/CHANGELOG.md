@@ -2,6 +2,38 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## Object page: executors, usage fixes, card-based expanded rows
+
+- **What:**
+  - Usage: T3 now stores `access_stats.top_executors` (top 10 `executed_as` + counts) — `src/lib/context/usage.ts`; new **Executors** card and top executor in the Executors tile (`src/components/estate/UsagePanel.tsx`). `weekly_trend` shown as bars in the Queries tile.
+  - Fix: key columns with score 0 (all columns, when queries are `SELECT *`) are no longer stored or shown.
+  - Fix: "over the last 0 days" — `usageWindowLabel()` shows the window dates when `window_days` is 0 (Usage header, nav, Usage fact tile).
+  - Expanded rows (`ColumnsTable.tsx`, `ProfileTimeline.tsx`) now use one level of white cards (`DetailCard`, `MiniStat`, `ValueChip` in `object-ui.tsx`): column detail = semantic / profile stat tiles / top_k bars with share; version detail = one card per drift field with tinted old → new chips and a null_rate before/after bar, plus a run card.
+- **Why:** User feedback — expanded rows looked too blank; asked whether executor names are shown.
+- **Verified:** `tsc --noEmit` 0 errors; `web:typecheck` 0 errors; `eslint --max-warnings 0` on touched files clean; `npx vitest run` 150 files / 1086 passed.
+- **Not done:** Executor names appear only after T3 re-runs; browser check.
+
+## Object page: compact expanded rows (profile versions + columns)
+
+- **What:** Shared `DetailPanel`, `DetailHeading`, `KVList` in `src/components/estate/object-ui.tsx`. `ProfileTimeline.tsx` version detail: one-line heading per DriftResult field (`top_k_changes · 39 · informational`, `null_rate_shifts · n · scored`, …) with dense borderless rows (`COLUMN  ~~old~~ → new`, `2.0% → 40.0% +38.0 pts`), 5 rows + "show all", run facts as a key/value list. `ColumnsTable.tsx` expanded row: `semantic.description` (+ `entity`, `native_comment`), `profile` key/values (`data_type`, `is_nullable`, `null_rate`, `distinct_est`, `min`, `max`, `confidence`), `top_k` as value · bar · count (top 5). Replaces the boxed / table-in-card layout.
+- **Why:** User asked for a compact, clean design for the expanded rows.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate tests 23 passed.
+- **Not done:** Browser check.
+
+## Profile history: readable drift detail per version
+
+- **What:** `src/components/estate/ProfileTimeline.tsx` — the expanded version row now renders the raw `DriftResult` as blocks per field instead of one text line: `top_k_changes` table (column · values removed from top_k, struck through · values added), `null_rate_shifts` table (from → to, before/after bar, Δ points), `type_changes` table (from → to), `new_columns` / `dropped_columns` as chips, `row_delta_pct`. Each block says whether it counts toward Trusted or is informational; long blocks show 8 rows + "Show all". Run facts moved into a bordered spec panel (`captured_at`, `trigger`, `method`, `row_count_exact`, `size_bytes` with readable size, `columns`, `query_count`). Second date line now shows the time instead of repeating the date.
+- **Why:** User feedback — "top_k changed (39): A, B, C +35 more" did not show what changed.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate + drift tests 31 passed.
+- **Not done:** Browser check.
+
+## Entity Model (T4): column coverage that scales to wide tables
+
+- **What:** `src/components/estate/EntityModelCard.tsx` — the one-segment-per-column strip (unreadable at ~100 columns) is replaced by `ColumnCoverage`: one proportional bar (dimension / measure / not referenced, with counts and %), the **not referenced** columns grouped by `data_type` family (numeric → possible measures, temporal → possible temporal dimensions, string → possible categorical/attribute, boolean, complex, other) as named chips (first 12 + "+N more"; hover shows `data_type`, `distinct_est`, `null_rate`, role; click jumps to the column), and the referenced columns in a collapsed list.
+- **Why:** User feedback — coverage was hard to read for wide tables.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate tests 23 passed.
+- **Not done:** Browser check.
+
 ## Estate object page: engineer-focused Entity Model (T4), header alignment, T4 scoring fix
 
 - **What:**

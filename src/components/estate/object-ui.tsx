@@ -242,6 +242,131 @@ export const BTN_PRIMARY =
 export const BTN_GHOST =
   'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-size-ui font-medium transition-colors hover:bg-[var(--estate-active-bg)] text-[var(--brand-a-ink)]';
 
+// ── Compact detail panels (expanded table rows) ─────────────────────────────
+
+/** Background + padding for an expanded row. `indent` lines content up with the row text. */
+export function DetailPanel({ children, indent = 44 }: { children: React.ReactNode; indent?: number }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+        gap: 10,
+        padding: `10px 20px 14px ${indent}px`,
+        background: 'var(--estate-hover)',
+        borderTop: '1px dashed var(--estate-border)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Small heading inside a detail panel: `field · count · note`. */
+export function DetailHeading({ children, note, noteTone }: { children: React.ReactNode; note?: string; noteTone?: 'muted' | 'amber' }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: '2px 0 4px' }}>
+      <span style={{ ...type['code-inline'], fontWeight: 600, color: 'var(--estate-ink)' }}>{children}</span>
+      {note && (
+        <span style={{ ...type.caption, color: noteTone === 'amber' ? inkOf(TONE_COLOR.amber, 70) : 'var(--estate-text-muted)' }}>{note}</span>
+      )}
+    </div>
+  );
+}
+
+/** White card inside a DetailPanel — the only level of boxing in an expanded row. */
+export function DetailCard({ title, note, noteTone, count, span, children }: {
+  title: React.ReactNode;
+  note?: string;
+  noteTone?: 'muted' | 'amber';
+  count?: number | string;
+  /** Grid columns to span inside the DetailPanel. */
+  span?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        gridColumn: span ? `span ${span}` : undefined,
+        minWidth: 0,
+        background: 'var(--estate-raised)',
+        border: '1px solid var(--estate-border)',
+        borderRadius: 10,
+        padding: '10px 12px 12px',
+        boxShadow: '0 1px 2px rgba(17,19,34,0.04)',
+      }}
+    >
+      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ ...type['code-inline'], fontWeight: 600, color: 'var(--estate-ink)' }}>{title}</span>
+        {count !== undefined && (
+          <span style={{ ...type.caption, fontWeight: 600, color: 'var(--estate-text-secondary)', background: 'var(--estate-active-bg)', borderRadius: 999, padding: '0 7px' }}>
+            {count}
+          </span>
+        )}
+        {note && (
+          <span style={{ ...type.caption, marginLeft: 'auto', color: noteTone === 'amber' ? inkOf(TONE_COLOR.amber, 70) : 'var(--estate-text-muted)' }}>{note}</span>
+        )}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+/** Small stat tile used inside a DetailCard. */
+export function MiniStat({ label, value, bar }: { label: string; value: React.ReactNode; bar?: { value: number; color?: string } }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '8px 10px', borderRadius: 8, background: 'var(--estate-bg)', minWidth: 0 }}>
+      <span style={{ ...type['code-inline'], color: 'var(--estate-text-muted)' }}>{label}</span>
+      <span style={{ ...type['kpi-sm'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={typeof value === 'string' ? value : undefined}>
+        {value}
+      </span>
+      {bar && (
+        <span aria-hidden="true" style={{ height: 4, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+          <span style={{ display: 'block', height: '100%', width: `${Math.max(0, Math.min(1, bar.value)) * 100}%`, background: bar.color ?? 'var(--brand-a)' }} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Tinted value chip — old (struck, red) / new (green) / plain. */
+export function ValueChip({ value, kind = 'plain', max = 24 }: { value: unknown; kind?: 'old' | 'new' | 'plain'; max?: number }) {
+  const raw = value === null || value === undefined ? 'NULL' : String(value);
+  const text = raw.length > max ? `${raw.slice(0, max)}…` : raw;
+  const c = kind === 'old' ? TONE_COLOR.red : kind === 'new' ? TONE_COLOR.green : null;
+  return (
+    <span
+      title={raw}
+      style={{
+        ...type['code-inline'],
+        display: 'inline-block',
+        padding: '1px 7px',
+        borderRadius: 6,
+        whiteSpace: 'nowrap',
+        background: c ? `color-mix(in srgb, ${c} 10%, transparent)` : 'var(--estate-active-bg)',
+        color: c ? `color-mix(in srgb, ${c} 72%, var(--ink-1))` : 'var(--estate-ink)',
+        textDecoration: kind === 'old' ? 'line-through' : 'none',
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
+/** Dense key/value list (mono keys), two columns. */
+export function KVList({ items }: { items: Array<[string, React.ReactNode]> }) {
+  return (
+    <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '3px 14px', alignItems: 'baseline' }}>
+      {items.map(([k, v]) => (
+        <React.Fragment key={k}>
+          <dt style={{ ...type['code-inline'], color: 'var(--estate-text-muted)' }}>{k}</dt>
+          <dd style={{ ...type['code-inline'], color: 'var(--estate-ink)', margin: 0, overflowWrap: 'anywhere' }}>{v}</dd>
+        </React.Fragment>
+      ))}
+    </dl>
+  );
+}
+
 // ── Empty ────────────────────────────────────────────────────────────────────
 
 export function EmptyNote({ children }: { children: React.ReactNode }) {
