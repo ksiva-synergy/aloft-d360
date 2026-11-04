@@ -37,4 +37,12 @@ describe('isPrismaUnreachable', () => {
   it('detects P1001', () => {
     expect(isPrismaUnreachable(p1001())).toBe(true);
   });
+
+  it('detects PrismaClientInitializationError when host is unreachable', () => {
+    const err = new Prisma.PrismaClientInitializationError(
+      "Can't reach database server at `host:5432`",
+      '5.22.0',
+    );
+    expect(isPrismaUnreachable(err)).toBe(true);
+  });
 });

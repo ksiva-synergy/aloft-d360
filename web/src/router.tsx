@@ -132,6 +132,7 @@ export const routes: RouteObject[] = [
               { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
               { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
               { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+              { path: 'agent-staging/cost', lazy: page(() => import('@/views/agent-staging/cost-monitor')), handle: title('Cost monitor · ALOFT') },
 
               // ── Docs ───────────────────────────────────────────────────────────────
               { path: 'docs', lazy: page(() => import('@/views/docs/index')) },

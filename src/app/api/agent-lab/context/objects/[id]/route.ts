@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getObjectAggregate } from '@/lib/context/reads';
+import { isPrismaUnreachable, withPrismaReadRetry } from '@/lib/db/with-prisma-read-retry';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +21,10 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const org = await getDefaultOrg();
-    const result = await getObjectAggregate(org.id, id);
+    const result = await withPrismaReadRetry(async () => {
+      const org = await getDefaultOrg();
+      return getObjectAggregate(org.id, id);
+    });
     if (!result) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
@@ -36,6 +39,9 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ data: serialized });
   } catch (err) {
     console.error('[context/objects/:id GET]', err);
+    if (isPrismaUnreachable(err)) {
+      return NextResponse.json({ error: 'DATABASE_UNAVAILABLE' }, { status: 503 });
+    }
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });
   }
 }

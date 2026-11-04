@@ -12,6 +12,7 @@ import { writeBanditObservation } from '@/lib/lifecycle/write-bandit-observation
 import { scoreSingleObservation } from '@/lib/lifecycle/judge-batch';
 import { selectMemory, formatForInjection } from '@/lib/memory/retrieve';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
 
 export type BenchmarkRunParams = {
   caseId: string;
@@ -223,6 +224,21 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
     }).then(obsId => {
       if (obsId) scoreSingleObservation(obsId).catch(() => {});
     }).catch(() => {});
+
+    if (inputTokens + outputTokens > 0) {
+      void logInteractiveLlmTurn({
+        orgId,
+        userId: null,
+        surface: 'boost',
+        action: 'benchmark_case',
+        model: boostModel.modelId,
+        inputTokens,
+        outputTokens,
+        turnId: String(row.id),
+        status: result.outcome === 'errored' ? 'failed' : 'success',
+        meta: { caseId: boostCase.id, modelKey: boostModel.key, boostRunId: row.id },
+      }).catch(() => {});
+    }
 
     return { ok: true, row: row as unknown as Record<string, unknown> };
   } catch (err: unknown) {

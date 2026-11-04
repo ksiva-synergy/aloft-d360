@@ -1,18 +1,18 @@
 'use client';
 
-// DataReadinessPill — sticky condensed readiness badge that persists when the
-// hero ring scrolls out of view. Uses IntersectionObserver on the ring's DOM
-// node (passed via ringRef from ObjectKnowledgePage) to show/hide.
+// DataReadinessPill — condensed readiness summary that appears at the right end
+// of the sticky InPageNav once the hero ring scrolls out of view. Uses an
+// IntersectionObserver on the ring's DOM node (ringRef from ObjectKnowledgePage).
 //
-// Mounted at the top of the scroll container with sticky top-0 z-20.
-// When the ring IS visible, the pill is hidden (opacity 0, pointer-events none).
-// When the ring scrolls out, the pill appears.
+// It sits inside the nav bar (rightSlot), so it takes no vertical space. It used
+// to be a separate 44px sticky row hidden with opacity 0, which left an empty
+// band above the section nav.
 
 import React, { useEffect, useState } from 'react';
 import type { DataScoreShape } from './DataReadinessRing';
 import { scoreColor, levelColor } from './dataReadinessColors';
+import { type, inkOf } from '@/lib/typography/tokens';
 
-import { withAlpha } from '@/lib/theme/with-alpha';
 const DIMENSION_LABELS: Record<string, string> = {
   discoverable: 'Discoverable',
   accessible:   'Accessible',
@@ -22,7 +22,7 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 interface DataReadinessPillProps {
   dataScore: DataScoreShape | undefined;
-  /** Ref to the ring component's wrapper div — used to drive show/hide */
+  /** Ref to the ring wrapper — drives show/hide */
   ringRef: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -32,15 +32,10 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
   useEffect(() => {
     const target = ringRef.current;
     if (!target) return;
-
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        // Show pill when ring is NOT intersecting (scrolled out of view)
-        setVisible(!entry.isIntersecting);
-      },
+      ([entry]) => setVisible(!entry.isIntersecting),
       { threshold: 0 },
     );
-
     observer.observe(target);
     return () => observer.disconnect();
   }, [ringRef]);
@@ -48,70 +43,53 @@ export default function DataReadinessPill({ dataScore, ringRef }: DataReadinessP
   if (!dataScore) return null;
 
   const gatingDim = dataScore.gating_dimension;
-  // scoreColor: severity-based on the gating dimension's own score (same function as ring)
-  const gatingDimColor = scoreColor(dataScore[gatingDim].score);
-  // levelColor: composite badge only (same function as ring center)
+  const gatingColor = scoreColor(dataScore[gatingDim].score);
   const badgeColor = levelColor(dataScore.level);
 
   return (
-    <div
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? 'auto' : 'none',
-        transition: 'opacity 0.15s ease',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        backgroundColor: 'var(--estate-bg, rgba(13,27,42,0.92))',
-        borderBottom: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 12%, transparent))',
-        padding: '8px 32px',
-        height: 44,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-      }}
+    <a
+      href="#overview"
       aria-hidden={!visible}
+      tabIndex={visible ? 0 : -1}
+      title="DATA readiness — jump to the overview"
+      style={{
+        marginLeft: 'auto',
+        alignSelf: 'center',
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'none' : 'translateY(-4px)',
+        pointerEvents: visible ? 'auto' : 'none',
+        transition: 'opacity 0.18s ease, transform 0.18s ease',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        height: 30,
+        padding: '0 12px 0 4px',
+        borderRadius: 999,
+        border: '1px solid var(--estate-border)',
+        background: 'var(--estate-raised)',
+        whiteSpace: 'nowrap',
+        textDecoration: 'none',
+      }}
     >
-      {/* Level badge — levelColor, not scoreColor */}
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-ui-regular-size)',
-        fontWeight: 600,
-        color: badgeColor,
-        letterSpacing: '0.04em',
-        backgroundColor: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
-        border: `1px solid ${withAlpha(badgeColor, '40')}`,
-        borderRadius: 6,
-        padding: '2px 8px',
-      }}>
+      <span
+        style={{
+          ...type.caption,
+          fontWeight: 600,
+          color: '#fff',
+          background: badgeColor,
+          borderRadius: 999,
+          padding: '2px 8px',
+        }}
+      >
         {dataScore.level}
       </span>
-
-      {/* Composite score */}
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-ui-regular-size)',
-        color: 'var(--estate-text-muted, #8892A4)',
-      }}>
+      <span style={{ ...type.caption, color: 'var(--estate-ink)', fontWeight: 600 }}>
         {Math.round(dataScore.composite * 100)}%
       </span>
-
-      <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: 'var(--type-ui-regular-size)' }}>|</span>
-
-      {/* Gating dimension — scoreColor on its own score */}
-      <span style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 'var(--type-ui-regular-size)',
-        color: gatingDimColor,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 5,
-      }}>
-        <span style={{ fontSize: 'var(--type-ui-regular-size)' }}>◆</span>
+      <span aria-hidden="true" style={{ width: 1, height: 14, background: 'var(--estate-border)' }} />
+      <span style={{ ...type.caption, color: inkOf(gatingColor) }}>
         {DIMENSION_LABELS[gatingDim]} gating
       </span>
-    </div>
+    </a>
   );
 }

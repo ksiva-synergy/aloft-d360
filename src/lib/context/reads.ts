@@ -195,12 +195,18 @@ export interface ObjectAggregateResult {
   latestSemanticId: string | null;
   /** DS3a: version of the specific semantic card row rendered — used for the version guard */
   latestSemanticVersion: number | null;
+  /** Model / prompt / confidence / time of the rendered semantic card row. */
+  latestSemanticMeta: { model_id: string | null; prompt_version: string | null; confidence: number | null; created_at: Date } | null;
   /** DS3a: true if a PlatformContextEmbedding row exists for this object (Published lifecycle signal) */
   hasEmbedding: boolean;
   profileHistory: any[];
   freshness: any;
   entityGroupObjects: PlatformContextObject[];
   proposedMappings: any[];
+  /** Confirmed column mappings — display only, not part of the DATA score input. */
+  confirmedMappings: any[];
+  /** Knowledge chunks agents retrieve for this object (doc_ref `context:<path>:*`). */
+  agentKnowledge: { doc_ref: string; chunk_index: number; content: string; created_at: Date }[];
   objectLinks: any[];
   lastJobs: PlatformContextJob[];
   usageSnapshot: (UsageObjectResult & { co_object_id_map: Record<string, string> }) | null;
@@ -273,23 +279,31 @@ export async function getObjectAggregate(
     siblingObjects = await prisma.$queryRaw<PlatformContextObject[]>(siblingQuery);
   }
 
-  // 6. Proposed mappings
-  const proposedMappings = await prisma.platformContextMapping.findMany({
+  // 6. Column mappings — proposed (scored + reviewable) and confirmed (display only).
+  // Confirmed rows are kept separate so the DATA score input stays identical to the
+  // catalog-wide distribution path, which scores proposed mappings only.
+  const mappingColumnInclude = {
+    include: { object: { select: { id: true, full_path: true, object_name: true } } },
+  } as const;
+  const allMappings = await prisma.platformContextMapping.findMany({
     where: {
       org_id: orgId,
-      status: 'proposed',
+      status: { in: ['proposed', 'confirmed'] },
       OR: [
         { left_column: { object_id: objectId } },
         { right_column: { object_id: objectId } },
       ],
     },
     include: {
-      left_column: true,
-      right_column: true,
+      left_column: mappingColumnInclude,
+      right_column: mappingColumnInclude,
     },
   });
+  const proposedMappings = allMappings.filter((m) => m.status === 'proposed');
+  const confirmedMappings = allMappings.filter((m) => m.status === 'confirmed');
 
   // 7. Object links
+  const linkObjectSelect = { select: { id: true, full_path: true, object_name: true, object_kind: true } } as const;
   const objectLinks = await prisma.platformContextObjectLink.findMany({
     where: {
       org_id: orgId,
@@ -298,9 +312,13 @@ export async function getObjectAggregate(
         { right_object_id: objectId },
       ],
     },
+    // Names of both ends so the page can show the other table, not its UUID.
+    include: { left_object: linkObjectSelect, right_object: linkObjectSelect },
   });
 
-  // 8. Last 5 jobs whose scope contains this object's full path
+  // 8. Last 5 jobs whose scope contains this object's full path.
+  // Per-object actions on this page (refresh / enrich / reharvest-all) enqueue with
+  // scope.includePatterns = [full_path], so match that as well as scope.path.
   const fullPath = obj.full_path;
   const jobsQuery = Prisma.sql`
     SELECT * FROM platform_context_jobs
@@ -309,6 +327,7 @@ export async function getObjectAggregate(
         scope->>'path' = ${fullPath}
         OR scope->>'leftScope' = ${fullPath}
         OR scope->>'rightScope' = ${fullPath}
+        OR scope->'includePatterns' @> jsonb_build_array(${fullPath}::text)
       )
     ORDER BY created_at DESC
     LIMIT 5
@@ -380,6 +399,21 @@ export async function getObjectAggregate(
   `;
   const hasEmbedding = (embeddingRows[0]?.cnt ?? 0) > 0;
 
+  // 12. Agent view — the knowledge chunks agents retrieve for this object
+  // (written by syncObjectToKnowledge with doc_ref `context:<full_path>:<doc>`).
+  // starts_with avoids LIKE treating `_` in table names as a wildcard.
+  const knowledgePrefix = `context:${obj.full_path}:`;
+  const agentKnowledge = await prisma.$queryRaw<
+    { doc_ref: string; chunk_index: number; content: string; created_at: Date }[]
+  >`
+    SELECT doc_ref, chunk_index, content, created_at
+    FROM knowledge_chunks
+    WHERE org_id = ${orgId}
+      AND starts_with(doc_ref, ${knowledgePrefix})
+    ORDER BY doc_ref, chunk_index
+    LIMIT 40
+  `;
+
   const aggregate = {
     object: obj,
     columns,
@@ -387,6 +421,15 @@ export async function getObjectAggregate(
     latestSemanticStatus: latestSemantic?.status ?? null,
     latestSemanticId: latestSemantic?.id ?? null,
     latestSemanticVersion: latestSemantic?.version ?? null,
+    // Row-level provenance (not inside the card JSON) — shown on the description card.
+    latestSemanticMeta: latestSemantic
+      ? {
+          model_id: latestSemantic.model_id,
+          prompt_version: latestSemantic.prompt_version,
+          confidence: latestSemantic.confidence,
+          created_at: latestSemantic.created_at,
+        }
+      : null,
     hasEmbedding,
     profileHistory,
     freshness,
@@ -400,6 +443,8 @@ export async function getObjectAggregate(
 
   return {
     ...aggregate,
+    confirmedMappings,
+    agentKnowledge,
     dataScore: computeDataScore(assembleDimensionInput(aggregate)),
   };
 }

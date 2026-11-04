@@ -1,48 +1,22 @@
 'use client';
 
 import React from 'react';
+import { Tag, type Tone } from './object-ui';
 
 interface StatusChipProps {
   status: string;
 }
 
+function toneFor(status: string): Tone {
+  const s = status.toLowerCase();
+  if (['active', 'live', 'completed', 'success', 'succeeded'].includes(s)) return 'green';
+  if (['deprecated', 'failed', 'error', 'cancelled'].includes(s)) return 'red';
+  if (['stale', 'warning', 'pending', 'partial'].includes(s)) return 'amber';
+  if (['running', 'queued'].includes(s)) return 'blue';
+  return 'neutral';
+}
+
 export default function StatusChip({ status }: StatusChipProps) {
-  const lowerStatus = status.toLowerCase();
-
-  let styles = {};
-
-  if (lowerStatus === 'active' || lowerStatus === 'live' || lowerStatus === 'completed' || lowerStatus === 'success') {
-    styles = {
-      backgroundColor: 'var(--estate-status-success-bg)',
-      borderColor: 'var(--estate-status-success-border)',
-      color: 'var(--estate-status-success-text)',
-    };
-  } else if (lowerStatus === 'deprecated' || lowerStatus === 'failed' || lowerStatus === 'error') {
-    styles = {
-      backgroundColor: 'var(--estate-status-error-bg)',
-      borderColor: 'var(--estate-status-error-border)',
-      color: 'var(--estate-status-error-text)',
-    };
-  } else if (lowerStatus === 'stale' || lowerStatus === 'warning' || lowerStatus === 'pending') {
-    styles = {
-      backgroundColor: 'var(--estate-status-warning-bg)',
-      borderColor: 'var(--estate-status-warning-border)',
-      color: 'var(--estate-status-warning-text)',
-    };
-  } else {
-    styles = {
-      backgroundColor: 'var(--estate-status-default-bg)',
-      borderColor: 'var(--estate-status-default-border)',
-      color: 'var(--estate-status-default-text)',
-    };
-  }
-
-  return (
-    <span
-   className="inline-flex items-center px-1.5 py-0.5 rounded text-label border transition duration-200"
-      style={styles}
-    >
-      {status}
-    </span>
-  );
+  // Status shown exactly as stored (succeeded, running, partial, …).
+  return <Tag tone={toneFor(status)} dot>{status}</Tag>;
 }

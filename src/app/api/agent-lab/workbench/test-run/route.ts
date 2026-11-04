@@ -15,6 +15,10 @@ import { loadConstructionState } from '@/lib/construction/load-state';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
 
   const row = await prisma.workbench_sessions.findUnique({
     where: { id: body.sessionId },
-    select: { construction_state: true },
+    select: { construction_state: true, user_id: true },
   });
   if (!row) return new Response('Session not found', { status: 404 });
 
@@ -58,6 +62,15 @@ export async function POST(request: NextRequest) {
   const state = loadConstructionState(row.construction_state, org.id);
   if ((state.prompt.instructions?.trim().length ?? 0) < 20) {
     return new Response('Write the agent instructions first — a test run needs something to follow.', { status: 400 });
+  }
+
+  try {
+    await assertInteractiveBudget({ orgId: org.id, userId: row.user_id ?? null, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, effectiveModelId);
+    }
+    throw err;
   }
 
   let connectionId: string | null = null;
@@ -68,6 +81,7 @@ export async function POST(request: NextRequest) {
 
   const sessionId = body.sessionId;
   const runId = `test-run-${crypto.randomUUID()}`;
+  const turnMetrics = new TurnMetricsRecorder({ sessionId, surface: 'workbench_test_run' });
   const messages: Message[] = [{ role: 'user', content: [{ text: question } as ContentBlock] }];
 
   const stream = new ReadableStream({
@@ -125,6 +139,7 @@ export async function POST(request: NextRequest) {
             answer += delta;
             emit({ type: 'text', delta });
           },
+          onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
           onToolCallEvent: (event: import('@/lib/inspector/agent-loop').ToolCallEvent) => {
             if (event.type === 'tool_call_running') {
               emit({ type: 'tool_call_running', callId: event.callId, toolName: event.toolName, input: event.input });
@@ -142,6 +157,23 @@ export async function POST(request: NextRequest) {
 
         if (result.outcome === 'errored' && result.errorDetail) {
           emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/test-run') });
+        }
+
+        if (result.usage.inputTokens + result.usage.outputTokens > 0) {
+          void logInteractiveLlmTurn({
+            orgId: org.id,
+            userId: row.user_id,
+            surface: 'workbench',
+            action: 'test_run',
+            model: effectiveModelId,
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            sessionId,
+            turnId: turnMetrics.turnId,
+            status: result.outcome === 'errored' ? 'failed' : result.outcome,
+            durationMs: turnMetrics.elapsedMs(),
+            toolCalls: result.toolCalls.length,
+          });
         }
 
         const testRun = {

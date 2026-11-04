@@ -9,10 +9,14 @@
 // On 409 VERSION_SUPERSEDED: shows a warning toast prompting page refresh.
 // On 409 INVALID_TRANSITION: shows an error toast with current state.
 // On success: calls onConfirmed() so the parent can refresh the card state.
+//
+// Rendered as a three-step trail (Assumed → Confirmed → Certified) with the
+// next step as the call to action.
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { type } from '@/lib/typography/tokens';
+import { BTN_PRIMARY, TONE_COLOR } from './object-ui';
 
 type TrustStatus = 'assumed' | 'confirmed' | 'certified';
 
@@ -24,6 +28,12 @@ interface TrustActionBarProps {
   currentStatus: TrustStatus | string;
   onConfirmed?: (newStatus: string) => void;
 }
+
+const STEPS: { id: TrustStatus; label: string; hint: string }[] = [
+  { id: 'assumed',   label: 'assumed',   hint: 'LLM-generated' },
+  { id: 'confirmed', label: 'confirmed', hint: 'Checked by a steward' },
+  { id: 'certified', label: 'certified', hint: 'Approved for use' },
+];
 
 const STATUS_LABELS: Record<string, string> = {
   assumed:   'Assumed',
@@ -37,22 +47,9 @@ const NEXT_STATUS: Record<string, TrustStatus | null> = {
   certified: null,
 };
 
-const CHIP_STYLES: Record<string, React.CSSProperties> = {
-  assumed: {
-    background: 'rgba(180,128,26,.14)',
-    color:      '#B4801A',
-    border:     '1px solid rgba(180,128,26,.4)',
-  },
-  confirmed: {
-    background: 'rgba(47,109,176,.14)',
-    color:      '#2F6DB0',
-    border:     '1px solid rgba(47,109,176,.4)',
-  },
-  certified: {
-    background: 'rgba(59,122,75,.15)',
-    color:      '#3B7A4B',
-    border:     '1px solid rgba(59,122,75,.4)',
-  },
+const NEXT_ACTION: Record<string, string> = {
+  confirmed: 'Mark confirmed',
+  certified: 'Mark certified',
 };
 
 export default function TrustActionBar({
@@ -65,7 +62,7 @@ export default function TrustActionBar({
   const [localStatus, setLocalStatus] = useState(currentStatus);
 
   const nextStatus = NEXT_STATUS[localStatus] ?? null;
-  const chipStyle = CHIP_STYLES[localStatus] ?? CHIP_STYLES.assumed;
+  const currentIdx = Math.max(0, STEPS.findIndex((s) => s.id === localStatus));
 
   const handleAdvance = async () => {
     if (!nextStatus || loading || !semanticCardId) return;
@@ -84,7 +81,7 @@ export default function TrustActionBar({
         const json = await res.json();
         setLocalStatus(json.newStatus);
         onConfirmed?.(json.newStatus);
-        toast.success(`Card status advanced to ${STATUS_LABELS[json.newStatus] ?? json.newStatus}`);
+        toast.success(`Card status advanced to ${json.newStatus}`);
       } else {
         const json = await res.json().catch(() => ({}));
         if (json.error === 'VERSION_SUPERSEDED') {
@@ -110,72 +107,59 @@ export default function TrustActionBar({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
-        paddingTop: 12,
-        borderTop: '1px solid var(--estate-border-gold)',
-        marginTop: 4,
+        justifyContent: 'space-between',
+        gap: 16,
+        flexWrap: 'wrap',
+        padding: '12px 14px',
+        borderRadius: 10,
+        background: 'var(--estate-bg)',
+        border: '1px solid var(--estate-border)',
       }}
     >
-      {/* Current status chip */}
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--type-ui-regular-size)',
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          padding: '3px 8px',
-          borderRadius: 6,
-          textTransform: 'uppercase',
-          ...chipStyle,
-        }}
-      >
-        {STATUS_LABELS[localStatus] ?? localStatus}
-      </span>
+      {/* Trust trail */}
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }} aria-label="Review status">
+        {STEPS.map((step, i) => {
+          const reached = i <= currentIdx;
+          const isCurrent = i === currentIdx;
+          return (
+            <li key={step.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {i > 0 && (
+                <span aria-hidden="true" style={{ width: 20, height: 2, borderRadius: 2, background: reached ? TONE_COLOR.green : 'var(--estate-border)' }} />
+              )}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={step.hint} aria-current={isCurrent ? 'step' : undefined}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: reached ? TONE_COLOR.green : 'transparent',
+                    border: `2px solid ${reached ? TONE_COLOR.green : 'var(--estate-border)'}`,
+                    color: '#fff',
+                    ...type.caption,
+                    lineHeight: 1,
+                  }}
+                >
+                  {reached ? '✓' : ''}
+                </span>
+                <span style={{ ...type.ui, fontWeight: isCurrent ? 600 : 400, color: reached ? 'var(--estate-ink)' : 'var(--estate-text-muted)' }}>
+                  {step.label}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
 
-      {/* Advance button — only when there is a next step */}
-      {nextStatus && (
-        <>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              color: 'var(--estate-text-muted, var(--ink-3))',
-            }}
-          >
-            →
-          </span>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={handleAdvance}
-            style={{
-              ...type.label,
-              padding: '3px 10px',
-              borderRadius: 6,
-              border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
-              background: 'transparent',
-              color: loading ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.12s ease',
-            }}
-          >
-            {loading ? 'Confirming…' : `Mark ${STATUS_LABELS[nextStatus]}`}
-          </button>
-        </>
-      )}
-
-      {/* Fully certified — terminal state */}
-      {localStatus === 'certified' && (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--type-ui-regular-size)',
-            color: 'rgba(59,122,75,0.7)',
-            letterSpacing: '0.08em',
-          }}
-        >
-          ✓ Trust certified
-        </span>
+      {nextStatus ? (
+        <button type="button" disabled={loading} onClick={handleAdvance} className={BTN_PRIMARY} style={{ border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
+          {loading ? 'Saving…' : NEXT_ACTION[nextStatus]}
+        </button>
+      ) : (
+        <span style={{ ...type.ui, color: 'var(--estate-text-muted)' }}>certified — terminal state</span>
       )}
     </div>
   );

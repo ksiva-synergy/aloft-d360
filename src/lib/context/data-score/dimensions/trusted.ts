@@ -6,7 +6,8 @@
 //   Stability   — low drift across profile history           (+0.00..0.30)
 //   Validation  — semantic status ladder                     (+0.00..0.35)
 //
-// Drift scale (events with non-null drift in last 10 profiles):
+// Drift scale (profiles with a significant change in the last 10 — see
+// isSignificantDrift in ../../drift-summary; top-value shifts do not count):
 //   0 events  → +0.30
 //   1 event   → +0.25
 //   2 events  → +0.20
@@ -20,6 +21,7 @@
 //   'certified'                   → +0.35
 
 import type { DimensionFn, DimensionResult } from '../types';
+import { isSignificantDrift } from '../../drift-summary';
 
 const DRIFT_SCORE: Record<number, number> = { 0: 0.30, 1: 0.25, 2: 0.20, 3: 0.15 };
 const DRIFT_SCORE_MANY = 0.05;
@@ -55,12 +57,14 @@ export const scoreTrusted: DimensionFn = (input): DimensionResult => {
     reasons.push('Source altered since last harvest — data may be outdated');
   }
 
-  // Drift stability
-  const driftEventCount = profileHistory.filter((p) => p.drift != null).length;
+  // Drift stability — count only profiles whose drift record holds a real change.
+  // computeDrift writes a record (with empty arrays) for every re-profile, so
+  // `drift != null` alone would penalise an object just for being re-profiled.
+  const driftEventCount = profileHistory.filter((p) => isSignificantDrift(p.drift)).length;
   const driftSub = driftEventCount >= 4 ? DRIFT_SCORE_MANY : (DRIFT_SCORE[driftEventCount] ?? DRIFT_SCORE_MANY);
   score += driftSub;
   if (driftEventCount >= 2) {
-    reasons.push(`High schema/data drift detected (${driftEventCount} events in recent history)`);
+    reasons.push(`Schema/data changed in ${driftEventCount} of the last ${profileHistory.length} profiles`);
   }
 
   // Semantic validation

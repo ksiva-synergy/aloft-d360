@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('server-only', () => ({}));
+vi.mock('@/lib/spend/record-spend-event', () => ({ recordHarvestJobSpend: vi.fn() }));
+
 const queryRawUnsafe = vi.fn().mockResolvedValue([]);
 const findMany = vi.fn().mockResolvedValue([]);
 

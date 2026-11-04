@@ -1,18 +1,19 @@
 'use client';
 
-// EntityModelCard — T4 entity model (dimensions + measures) extracted from inline JSX.
-//
-// Unified card system: uses --estate-raised/--estate-border-gold wrapper (NOT pink #F472B6).
-// Tier chip: "T4" in IBM Plex Mono, 9px, ink background, white text.
-// Status chip uses trust palette (candidate = muted gray, governed = confirmed blue).
+// EntityModelCard — T4 entity model for this table, drawn as a small star
+// diagram: dimensions (grouped by dimension_type) on the left, the entity hub
+// in the middle, measures (aggregate(column_name)) on the right, each item
+// wired to the hub. The hub carries status, counts, column coverage and the
+// promote action. Stacks to one column on narrow screens.
 //
 // Promote action wires to existing POST /api/inspector/semantic/[modelId]/promote.
 // The entity_id and entity_model_id come from the semanticModel prop (sourced from
-// reads.ts getObjectAggregate, which now returns them as entity_id / entity_model_id).
+// reads.ts getObjectAggregate).
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { type } from '@/lib/typography/tokens';
+import { Card, Tag, BTN_PRIMARY, EmptyNote, TONE_COLOR, toneStyles, type Tone } from './object-ui';
 
 interface Dimension {
   column_name: string;
@@ -37,22 +38,94 @@ interface EntityModelCardProps {
   status: string;
   dimensions: Dimension[];
   measures: Measure[];
+  /** Total active columns on the table — for the coverage bar. */
+  totalColumns?: number;
+  /** Jump to a column in the columns table. */
+  onColumnClick?: (name: string) => void;
   onPromoted?: () => void;
 }
 
-const DIM_TYPE_STYLES: Record<string, React.CSSProperties> = {
-  temporal:    { color: '#2F6DB0', borderColor: 'rgba(47,109,176,0.35)', background: 'transparent' },
-  identifier:  { color: '#3B7A4B', borderColor: 'rgba(59,122,75,0.35)',  background: 'transparent' },
-  categorical: { color: '#B4801A', borderColor: 'rgba(180,128,26,0.35)', background: 'transparent' },
-  attribute:   { color: '#8a8271', borderColor: 'rgba(138,130,113,0.4)', background: 'transparent' },
+const DIM_TONE: Record<string, Tone> = {
+  temporal: 'blue',
+  identifier: 'green',
+  categorical: 'amber',
+  attribute: 'neutral',
+};
+const DIM_ORDER = ['identifier', 'temporal', 'categorical', 'attribute'];
+
+const STATUS: Record<string, { tone: Tone; label: string; title: string }> = {
+  candidate: { tone: 'amber', label: 'candidate', title: 'Proposed by T4 — unverified until promoted to governed' },
+  proposed:  { tone: 'amber', label: 'proposed',  title: 'Proposed by T4 — unverified until promoted to governed' },
+  governed:  { tone: 'green', label: 'governed',  title: 'Governed definition' },
+  certified: { tone: 'green', label: 'certified', title: 'Certified definition' },
 };
 
-const STATUS_CHIP: Record<string, React.CSSProperties> = {
-  candidate: { background: 'rgba(138,130,113,.16)', color: '#8a8271',  border: '1px solid rgba(138,130,113,.4)' },
-  governed:  { background: 'rgba(47,109,176,.14)',  color: '#2F6DB0',  border: '1px solid rgba(47,109,176,.4)' },
-  proposed:  { background: 'rgba(47,109,176,.14)',  color: '#2F6DB0',  border: '1px solid rgba(47,109,176,.4)' },
-  certified: { background: 'rgba(59,122,75,.15)',   color: '#3B7A4B',  border: '1px solid rgba(59,122,75,.4)' },
-};
+const VISIBLE = 8;
+const WIRE = 'var(--estate-border)';
+
+// ── Pieces ───────────────────────────────────────────────────────────────────
+
+/** Short horizontal wire with a dot at the hub end. */
+function Wire({ side, color }: { side: 'left' | 'right'; color: string }) {
+  return (
+    <span aria-hidden="true" style={{ display: 'flex', alignItems: 'center', flex: '0 0 28px', flexDirection: side === 'left' ? 'row' : 'row-reverse' }}>
+      <span style={{ flex: 1, height: 1.5, background: WIRE }} />
+      <span style={{ width: 7, height: 7, borderRadius: 999, background: color, flexShrink: 0 }} />
+    </span>
+  );
+}
+
+function ColumnRef({ name, onClick }: { name: string; onClick?: (n: string) => void }) {
+  return onClick ? (
+    <button
+      type="button"
+      onClick={() => onClick(name)}
+      title={`Show ${name} in the columns table`}
+      className="hover:underline"
+      style={{ ...type['code-inline'], color: 'var(--estate-text-muted)', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+    >
+      {name}
+    </button>
+  ) : (
+    <code style={{ ...type['code-inline'], color: 'var(--estate-text-muted)' }}>{name}</code>
+  );
+}
+
+function ItemCard({ children, accent }: { children: React.ReactNode; accent: string }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        padding: '8px 12px',
+        borderRadius: 10,
+        background: 'var(--estate-raised)',
+        border: '1px solid var(--estate-border)',
+        boxShadow: `inset 3px 0 0 ${accent}`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ShowMore({ total, open, onToggle }: { total: number; open: boolean; onToggle: () => void }) {
+  if (total <= VISIBLE) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{ ...type.ui, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', textAlign: 'left' }}
+    >
+      {open ? 'Show fewer' : `Show all ${total}`}
+    </button>
+  );
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function EntityModelCard({
   entity_id,
@@ -62,13 +135,14 @@ export default function EntityModelCard({
   status,
   dimensions,
   measures,
+  totalColumns,
+  onColumnClick,
   onPromoted,
 }: EntityModelCardProps) {
   const [promoting, setPromoting] = useState(false);
   const [localStatus, setLocalStatus] = useState(status);
-
-  const inkColor = 'var(--estate-ink)';
-  const mutedColor = 'var(--estate-text-muted)';
+  const [allDims, setAllDims] = useState(false);
+  const [allMeasures, setAllMeasures] = useState(false);
 
   const handlePromote = async () => {
     if (!entity_model_id || promoting) return;
@@ -94,227 +168,187 @@ export default function EntityModelCard({
     }
   };
 
-  const chipStyle = STATUS_CHIP[localStatus] ?? STATUS_CHIP.candidate;
+  const s = STATUS[localStatus] ?? { tone: 'neutral' as Tone, label: localStatus, title: localStatus };
+
+  // Dimensions grouped by type, in a fixed order, then any unknown types.
+  const sortedDims = [...dimensions].sort((a, b) => {
+    const ia = DIM_ORDER.indexOf(a.dimension_type);
+    const ib = DIM_ORDER.indexOf(b.dimension_type);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.dimension_label.localeCompare(b.dimension_label);
+  });
+  const shownDims = allDims ? sortedDims : sortedDims.slice(0, VISIBLE);
+  const shownMeasures = allMeasures ? measures : measures.slice(0, VISIBLE);
+  const typeCounts = sortedDims.reduce<Record<string, number>>((acc, d) => {
+    acc[d.dimension_type] = (acc[d.dimension_type] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const modelled = new Set([
+    ...dimensions.map((d) => d.column_name.toLowerCase()),
+    ...measures.map((m) => m.column_name?.toLowerCase()).filter((c): c is string => !!c),
+  ]).size;
+  const coverage = totalColumns && totalColumns > 0 ? Math.min(1, modelled / totalColumns) : null;
+
+  const groupHeader = (t: string, i: number) =>
+    i === 0 || shownDims[i - 1].dimension_type !== t ? (
+      <div key={`h-${t}`} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: i === 0 ? '0 0 2px' : '8px 0 2px' }}>
+        <Tag tone={DIM_TONE[t] ?? 'neutral'}>{t}</Tag>
+        <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{typeCounts[t]}</span>
+      </div>
+    ) : null;
 
   return (
-    <div
-      style={{
-        background: 'var(--estate-raised)',
-        border: '1px solid var(--estate-border-gold)',
-        borderRadius: 8,
-        overflow: 'hidden',
-      }}
+    <Card
+      title="Entity Model (T4)"
+      meta={entity_model_id ? <>model <code style={type['code-inline']}>{entity_model_id.slice(0, 8)}</code></> : undefined}
+      actions={<Tag tone={s.tone} dot title={s.title}>{s.label}</Tag>}
     >
-      {/* Card header */}
       <div
         style={{
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: '20px 0',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 18px',
-          borderBottom: '1px solid var(--estate-border)',
-          background: 'var(--estate-hover, rgba(0,0,0,0.02))',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* T4 tier chip — unified card system, ink bg / white text */}
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              fontWeight: 600,
-              padding: '2px 6px',
-              borderRadius: 6,
-              background: 'var(--estate-ink, var(--brand-a-ink))',
-              color: '#fff',
-              letterSpacing: '0.04em',
-            }}
-          >
-            T4
-          </span>
-          <span
-            style={{
-              ...type.label,
-              color: 'var(--estate-text-secondary)',
-            }}
-          >
-            Entity Model
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Status chip */}
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-ui-regular-size)',
-              fontWeight: 600,
-              padding: '2px 7px',
-              borderRadius: 6,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              ...chipStyle,
-            }}
-          >
-            {localStatus}
-          </span>
-
-          {/* Promote button — only for candidate, only when model_id is available */}
-          {localStatus === 'candidate' && entity_model_id && (
-            <button
-              type="button"
-              disabled={promoting}
-              onClick={handlePromote}
-              style={{
-                ...type.label,
-                padding: '3px 10px',
-                borderRadius: 6,
-                border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
-                background: 'transparent',
-                color: promoting ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'var(--brand-a)',
-                cursor: promoting ? 'not-allowed' : 'pointer',
-                transition: 'all 0.12s ease',
-              }}
-            >
-              {promoting ? 'Promoting…' : 'Promote to governed'}
-            </button>
+        {/* ── Dimensions (left) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+          <div style={{ ...type.eyebrow, color: 'var(--estate-text-muted)', marginBottom: 2 }}>
+            Dimensions · {dimensions.length}
+          </div>
+          {dimensions.length === 0 ? (
+            <EmptyNote>No dimensions proposed.</EmptyNote>
+          ) : (
+            <>
+              {shownDims.map((d, i) => {
+                const tone = DIM_TONE[d.dimension_type] ?? 'neutral';
+                const accent = toneStyles(tone).solid;
+                return (
+                  <React.Fragment key={d.column_name}>
+                    {groupHeader(d.dimension_type, i)}
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <ItemCard accent={accent}>
+                        <span style={{ ...type.ui, fontWeight: 600, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d.description ?? d.dimension_label}>
+                          {d.dimension_label}
+                        </span>
+                        <ColumnRef name={d.column_name} onClick={onColumnClick} />
+                      </ItemCard>
+                      <Wire side="left" color={accent} />
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+              <ShowMore total={dimensions.length} open={allDims} onToggle={() => setAllDims((v) => !v)} />
+            </>
           )}
         </div>
-      </div>
 
-      {/* Card body */}
-      <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Entity name + description */}
-        <div>
+        {/* ── Entity hub (centre) ── */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '0 4px' }}>
           <div
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--type-body-size)',
-              fontWeight: 600,
-              color: inkColor,
+              width: '100%',
+              maxWidth: 300,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center',
+              gap: 10,
+              padding: '20px 18px',
+              borderRadius: 16,
+              background: 'color-mix(in srgb, var(--brand-a) 7%, var(--estate-raised))',
+              border: '1.5px solid color-mix(in srgb, var(--brand-a) 45%, transparent)',
+              boxShadow: '0 8px 24px color-mix(in srgb, var(--brand-a) 14%, transparent)',
             }}
           >
-            {entity_label}
-          </div>
-          {description && (
-            <div
+            <span
+              aria-hidden="true"
               style={{
-                marginTop: 4,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--type-ui-regular-size)',
-                color: mutedColor,
-                lineHeight: 1.5,
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--brand-a)',
+                color: '#fff',
               }}
             >
-              {description}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5" /><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+              </svg>
+            </span>
+            <span style={{ ...type.eyebrow, color: 'var(--estate-text-muted)' }}>entity</span>
+            <span style={{ ...type['title-card'], color: 'var(--estate-ink)', overflowWrap: 'anywhere' }}>{entity_label}</span>
+            {description && (
+              <p className="line-clamp-3" title={description} style={{ ...type.caption, color: 'var(--estate-text-secondary)', margin: 0 }}>
+                {description}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ ...type['kpi-sm'], color: 'var(--estate-ink)' }}>{dimensions.length}</span>
+                <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>dimensions</span>
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ ...type['kpi-sm'], color: 'var(--estate-ink)' }}>{measures.length}</span>
+                <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>measures</span>
+              </span>
             </div>
+
+            {coverage !== null && (
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }} title="Columns used by a dimension or measure">
+                <div style={{ height: 6, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+                  <div style={{ width: `${coverage * 100}%`, height: '100%', background: 'var(--brand-a)' }} />
+                </div>
+                <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
+                  {modelled} of {totalColumns} columns modelled ({Math.round(coverage * 100)}%)
+                </span>
+              </div>
+            )}
+
+            {localStatus === 'candidate' && entity_model_id && (
+              <button type="button" disabled={promoting} onClick={handlePromote} className={BTN_PRIMARY} style={{ border: 'none', cursor: promoting ? 'not-allowed' : 'pointer' }}>
+                {promoting ? 'Promoting…' : 'Promote to governed'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Measures (right) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+          <div style={{ ...type.eyebrow, color: 'var(--estate-text-muted)', marginBottom: 2, textAlign: 'right' }}>
+            Measures · {measures.length}
+          </div>
+          {measures.length === 0 ? (
+            <EmptyNote>No measures proposed.</EmptyNote>
+          ) : (
+            <>
+              {shownMeasures.map((m) => (
+                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Wire side="right" color={TONE_COLOR.violet} />
+                  <ItemCard accent={TONE_COLOR.violet}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                      <span style={{ ...type.ui, fontWeight: 600, color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={m.description ?? m.measure_label}>
+                        {m.measure_label}
+                      </span>
+                      {m.unit && <span style={{ ...type.caption, color: 'var(--estate-text-muted)', flexShrink: 0 }}>unit: {m.unit}</span>}
+                    </span>
+                    <span style={{ ...type['code-inline'], color: 'var(--estate-text-muted)' }}>
+                      <span style={{ color: inkViolet, fontWeight: 600 }}>{m.aggregate.toUpperCase()}</span>(
+                      {m.column_name ? <ColumnRef name={m.column_name} onClick={onColumnClick} /> : '*'})
+                    </span>
+                  </ItemCard>
+                </div>
+              ))}
+              <ShowMore total={measures.length} open={allMeasures} onToggle={() => setAllMeasures((v) => !v)} />
+            </>
           )}
         </div>
-
-        {/* Dimensions + Measures grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          {/* Dimensions */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div
-              style={{
-                ...type.label,
-                color: 'var(--estate-text-secondary)',
-              }}
-            >
-              Dimensions ({dimensions.length})
-            </div>
-            {dimensions.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 'var(--type-ui-regular-size)', color: mutedColor }}>None proposed.</div>
-            ) : (
-              dimensions.map((d) => {
-                const typeStyle = DIM_TYPE_STYLES[d.dimension_type] ?? DIM_TYPE_STYLES.attribute;
-                return (
-                  <div key={d.column_name} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 'var(--type-ui-regular-size)' }}>
-                    <span
-                      style={{
-                        flexShrink: 0,
-                        ...type.label,
-                        padding: '2px 5px',
-                        borderRadius: 6,
-                        border: `1px solid ${typeStyle.borderColor}`,
-                        ...typeStyle,
-                      }}
-                    >
-                      {d.dimension_type}
-                    </span>
-                    <div>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: inkColor }}>
-                        {d.dimension_label}
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 6, color: mutedColor }}>
-                        ({d.column_name})
-                      </span>
-                      {d.description && (
-                        <div style={{ marginTop: 2, color: mutedColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }}>
-                          {d.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Measures */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div
-              style={{
-                ...type.label,
-                color: 'var(--estate-text-secondary)',
-              }}
-            >
-              Measures ({measures.length})
-            </div>
-            {measures.length === 0 ? (
-              <div style={{ fontStyle: 'italic', fontSize: 'var(--type-ui-regular-size)', color: mutedColor }}>None proposed.</div>
-            ) : (
-              measures.map((m) => (
-                <div key={m.measure_label} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 'var(--type-ui-regular-size)' }}>
-                  <span
-                    style={{
-                      flexShrink: 0,
-                      ...type.label,
-                      padding: '2px 5px',
-                      borderRadius: 6,
-                      border: '1px solid rgba(251,146,60,0.3)',
-                      color: '#FB923C',
-                      background: 'transparent',
-                    }}
-                  >
-                    {m.aggregate}
-                  </span>
-                  <div>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: inkColor }}>
-                      {m.measure_label}
-                    </span>
-                    {m.column_name && (
-                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 6, color: mutedColor }}>
-                        ({m.column_name})
-                      </span>
-                    )}
-                    {m.unit && (
-                      <span style={{ fontFamily: 'var(--font-mono)', marginLeft: 4, color: '#B4801A' }}>
-                        [{m.unit}]
-                      </span>
-                    )}
-                    {m.description && (
-                      <div style={{ marginTop: 2, color: mutedColor, fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)' }}>
-                        {m.description}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
-    </div>
+    </Card>
   );
 }
+
+const inkViolet = `color-mix(in srgb, ${TONE_COLOR.violet} 70%, var(--ink-1))`;

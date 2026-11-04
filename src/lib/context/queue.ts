@@ -8,6 +8,7 @@ import {
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
+import { recordHarvestJobSpend } from '@/lib/spend/record-spend-event';
 import { ESTATE_OBJECTS_BY_SOURCE_SQL } from './estate-source-sql';
 import {
   catalogSchemaMatchesIncludePatterns,
@@ -115,6 +116,7 @@ export async function enqueue(
   scope: Record<string, unknown> | null,
   trigger: TriggerKind,
   orgId: string,
+  triggeredByUserId?: string | null,
 ): Promise<PlatformContextJob> {
   return prisma.platformContextJob.create({
     data: {
@@ -123,6 +125,7 @@ export async function enqueue(
       job_kind: jobKind,
       trigger,
       status: 'queued',
+      triggered_by_user_id: triggeredByUserId ?? null,
       ...(scope !== null ? { scope: scope as Prisma.InputJsonValue } : {}),
     },
   });
@@ -326,6 +329,9 @@ export async function finalize(
       stats: stats as Prisma.InputJsonValue,
       ...(error !== undefined ? { error } : {}),
     },
+  });
+  void recordHarvestJobSpend(jobId).catch((err) => {
+    console.error('[context/queue] recordHarvestJobSpend failed', jobId, err);
   });
 }
 
@@ -675,6 +681,7 @@ export async function enqueueWithChildren(
   plan: SplitPlan,
   baseScope: Record<string, unknown>,
   trigger: TriggerKind,
+  triggeredByUserId?: string | null,
 ): Promise<EnqueueWithChildrenResult> {
   return prisma.$transaction(async (tx) => {
     // Create parent job with status=orchestrating
@@ -685,6 +692,7 @@ export async function enqueueWithChildren(
         job_kind: kind,
         trigger,
         status: 'orchestrating',
+        triggered_by_user_id: triggeredByUserId ?? null,
         scope: {
           ...baseScope,
           is_parent: true,
@@ -724,6 +732,7 @@ export async function enqueueWithChildren(
           job_kind: kind,
           trigger,
           status: 'queued',
+          triggered_by_user_id: triggeredByUserId ?? null,
           parent_job_id: parent.id,
           child_index: i,
           scope: childScope as Prisma.InputJsonValue,

@@ -54,6 +54,8 @@ export async function persistSessionKnowledgeAfterTurn(
     userMessage?: string;
     taskGoal?: string;
     assistantExcerpt?: string;
+    orgId?: string;
+    userId?: string | null;
   } = {},
 ): Promise<void> {
   if (trajectory.length === 0) return;
@@ -65,6 +67,9 @@ export async function persistSessionKnowledgeAfterTurn(
     const narrative = await generateNarrativeSessionSummary(next, trajectory, {
       userMessage: meta.userMessage,
       assistantExcerpt: meta.assistantExcerpt,
+      orgId: meta.orgId,
+      userId: meta.userId,
+      sessionId,
     });
     if (!narrative) return;
 

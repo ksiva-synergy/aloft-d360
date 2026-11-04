@@ -1,44 +1,48 @@
 'use client';
 
-// RelationshipList — consolidated relationship list for the Relationships region (DS3b).
+// RelationshipList — every table related to this one, with the reason and the
+// review action. Rendered next to RelationshipGraph (graph = shape, list =
+// detail + actions).
 //
-// Always rendered alongside RelationshipGraph — NOT a fallback or conditional.
-// The graph is for pattern spotting; this list is where detail + actions live.
+// Groups, in order:
+//   1. Needs review       — proposed object links + proposed column mappings
+//   2. Joins              — FK candidates from the semantic card
+//   3. Same entity        — entity-group siblings
+//   4. Queried together   — T3 usage co-objects
+//   5. Reviewed           — confirmed / rejected links and confirmed mappings
 //
-// Four sources rendered in sections:
-//   1. Entity group siblings (entity_group) — navigate-only, no action needed
-//   2. FK candidates from semantic card ({ column, likely_target, confidence })
-//   3. objectLinks — confirm + reject wired to PATCH /silo/links/[id]
-//   4. Proposed mappings — confirm + reject wired to PATCH /mappings/[id]
-//
-// Mutation endpoints (confirmed accepted values from DS3b pre-check):
+// Mutation endpoints:
 //   PATCH /api/agent-lab/context/silo/links/[id]   → { status: 'confirmed' | 'rejected' }
 //   PATCH /api/agent-lab/context/mappings/[id]     → { status: 'confirmed' | 'rejected' }
 //   Both require current status === 'proposed'. On 409 INVALID_TRANSITION, surface the error.
-//
-// Row click-through: resolvable object IDs navigate to /agent-lab/estate/object/[id].
-// Unresolved targets (no object_id, only path) render the path but skip navigation.
 
 import React, { useState } from 'react';
-import { useRouter } from '@/lib/navigation';
+import Link from '@/lib/navigation/link';
 import { toast } from 'sonner';
 import type { FkCandidate, ObjectLinkItem, EntityGroupObject } from './RelationshipGraph';
-import { type, inkOf } from '@/lib/typography/tokens';
+import { Card, Tag, EmptyNote, BTN_SECONDARY, TONE_COLOR } from './object-ui';
+import { type } from '@/lib/typography/tokens';
+
+interface LinkedObject { id: string; full_path: string; object_name: string | null }
+
+interface MappingColumn {
+  id: string;
+  name: string;
+  object_id: string;
+  /** Owning table (included by getObjectAggregate). */
+  object?: LinkedObject | null;
+}
 
 interface MappingItem {
   id: string;
   status: string;
-  left_column: {
-    id: string;
-    name: string;
-    object_id: string;
-  };
-  right_column: {
-    id: string;
-    name: string;
-    object_id: string;
-  };
+  mapping_kind?: string | null;
+  confidence?: number | null;
+  left_column: MappingColumn;
+  right_column: MappingColumn;
 }
+
+type ObjectLinkWithNames = ObjectLinkItem & { left_object?: LinkedObject | null; right_object?: LinkedObject | null };
 
 interface CoObjectItem {
   full_path: string;
@@ -52,160 +56,138 @@ export interface RelationshipListProps {
   fkCandidates: FkCandidate[];
   objectLinks: ObjectLinkItem[];
   proposedMappings: MappingItem[];
+  /** Already-confirmed column mappings. */
+  confirmedMappings?: MappingItem[];
   coObjects: CoObjectItem[];
 }
 
-// ── Shared action pair (confirm + reject) ─────────────────────────────────
+// link_kind shown as stored (silo_candidate, …).
+const LINK_KIND: Record<string, string> = {};
 
-function ActionPair({
-  itemId,
-  endpoint,
-  currentStatus,
-  onAction,
-}: {
-  itemId: string;
-  endpoint: string;
-  currentStatus: string;
-  onAction: (newStatus: string) => void;
-}) {
+const shortName = (path: string) => path.split('.').pop() ?? path;
+
+// ── Pieces ───────────────────────────────────────────────────────────────────
+
+function Confidence({ value }: { value: number }) {
+  const p = Math.max(0, Math.min(1, value));
+  const color = p >= 0.8 ? TONE_COLOR.green : p >= 0.5 ? TONE_COLOR.blue : TONE_COLOR.amber;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }} title="Confidence">
+      <div style={{ width: 36, height: 4, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+        <div style={{ width: `${p * 100}%`, height: '100%', background: color }} />
+      </div>
+      <span style={{ ...type['code-inline'], color: 'var(--estate-text-secondary)', minWidth: 34, textAlign: 'right' }}>{Math.round(p * 100)}%</span>
+    </div>
+  );
+}
+
+function ReviewActions({ endpoint, status, onDone }: { endpoint: string; status: string; onDone: (s: string) => void }) {
   const [loading, setLoading] = useState<'confirmed' | 'rejected' | null>(null);
 
-  if (currentStatus !== 'proposed') {
-    const chipStyle =
-      currentStatus === 'confirmed'
-        ? { bg: 'rgba(59,122,75,.15)', color: '#3B7A4B', border: '1px solid rgba(59,122,75,.4)' }
-        : { bg: 'rgba(178,58,50,.1)', color: '#B23A32', border: '1px solid rgba(178,58,50,.3)' };
-    return (
-      <span
-        style={{
-          ...type.label,
-          padding: '2px 7px',
-          borderRadius: 6,
-          background: chipStyle.bg,
-          color: chipStyle.color,
-          border: chipStyle.border,
-        }}
-      >
-        {currentStatus}
-      </span>
-    );
+  if (status !== 'proposed') {
+    return status === 'confirmed'
+      ? <Tag tone="green" dot>Confirmed</Tag>
+      : <Tag tone="red" dot>Rejected</Tag>;
   }
 
-  const send = async (status: 'confirmed' | 'rejected') => {
+  const send = async (next: 'confirmed' | 'rejected') => {
     if (loading) return;
-    setLoading(status);
+    setLoading(next);
     try {
       const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: next }),
       });
       if (res.ok) {
-        onAction(status);
-        toast.success(status === 'confirmed' ? 'Confirmed' : 'Rejected');
+        onDone(next);
+        toast.success(next === 'confirmed' ? 'Relationship confirmed' : 'Relationship rejected');
       } else {
         const json = await res.json().catch(() => ({}));
-        if (json.error === 'INVALID_TRANSITION') {
-          toast.error(`Cannot ${status}: current status is ${json.current}`);
-        } else {
-          toast.error(`Failed to ${status}`);
-        }
+        toast.error(json.error === 'INVALID_TRANSITION' ? `Already ${json.current}` : 'Could not save the review');
       }
     } catch {
-      toast.error(`Failed to ${status}`);
+      toast.error('Could not save the review');
     } finally {
       setLoading(null);
     }
   };
 
-  const btnBase: React.CSSProperties = {
-    fontFamily: 'var(--font-mono)',
-    fontSize: 'var(--type-ui-regular-size)',
-    fontWeight: 600,
-    padding: '2px 8px',
-    borderRadius: 6,
-    border: 'none',
-    cursor: loading ? 'not-allowed' : 'pointer',
-    opacity: loading ? 0.5 : 1,
-    transition: 'all 0.1s ease',
-  };
-
   return (
-    <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+      <button type="button" disabled={!!loading} onClick={() => send('rejected')} className={BTN_SECONDARY}>
+        {loading === 'rejected' ? 'Saving…' : 'Reject'}
+      </button>
       <button
         type="button"
-        title="Confirm"
         disabled={!!loading}
         onClick={() => send('confirmed')}
-        style={{
-          ...btnBase,
-          background: 'rgba(59,122,75,.15)',
-          color: '#3B7A4B',
-        }}
+        className={BTN_SECONDARY}
+        style={{ color: TONE_COLOR.green, borderColor: `color-mix(in srgb, ${TONE_COLOR.green} 40%, transparent)` }}
       >
-        {loading === 'confirmed' ? '…' : '✓'}
-      </button>
-      <button
-        type="button"
-        title="Reject"
-        disabled={!!loading}
-        onClick={() => send('rejected')}
-        style={{
-          ...btnBase,
-          background: 'rgba(178,58,50,.1)',
-          color: '#B23A32',
-        }}
-      >
-        {loading === 'rejected' ? '…' : '✕'}
+        {loading === 'confirmed' ? 'Saving…' : 'Confirm'}
       </button>
     </div>
   );
 }
 
-// ── Shared section wrapper ────────────────────────────────────────────────
+function Row({ tag, title, href, subtitle, reason, right }: {
+  tag: React.ReactNode;
+  title: React.ReactNode;
+  href?: string | null;
+  subtitle?: React.ReactNode;
+  reason?: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  const titleEl = (
+    <span style={{ ...type.ui, fontWeight: 600, color: href ? 'var(--estate-ink)' : 'var(--estate-text-secondary)' }}>
+      {title}
+    </span>
+  );
+  return (
+    <li
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '12px 20px',
+        borderTop: '1px solid var(--estate-border)',
+        flexWrap: 'wrap',
+      }}
+    >
+      <div style={{ width: 120, flexShrink: 0 }}>{tag}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: '1 1 260px', minWidth: 0 }}>
+        {href ? (
+          <Link href={href} className="hover:underline" style={{ textDecoration: 'none', width: 'fit-content', maxWidth: '100%' }}>
+            {titleEl}
+          </Link>
+        ) : titleEl}
+        {subtitle && (
+          <span style={{ ...type.caption, color: 'var(--estate-text-muted)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {subtitle}
+          </span>
+        )}
+        {reason && <span style={{ ...type.caption, color: 'var(--estate-text-secondary)' }}>{reason}</span>}
+      </div>
+      {right && <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>{right}</div>}
+    </li>
+  );
+}
 
-function Section({ label, count, children }: { label: string; count: number; children: React.ReactNode }) {
+function Group({ label, hint, count, children }: { label: string; hint?: string; count: number; children: React.ReactNode }) {
   if (count === 0) return null;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <div
-        style={{
-          ...type.label,
-          color: 'var(--ink-3)',
-          padding: '8px 14px 5px',
-          borderBottom: '1px solid var(--line-1)',
-        }}
-      >
-        {label} <span style={{ opacity: 0.55 }}>({count})</span>
+    <div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '14px 20px 8px', background: 'var(--estate-bg)', borderTop: '1px solid var(--estate-border)' }}>
+        <span style={{ ...type.eyebrow, color: 'var(--estate-text-secondary)' }}>{label}</span>
+        <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{count}{hint ? ` · ${hint}` : ''}</span>
       </div>
-      {children}
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>{children}</ul>
     </div>
   );
 }
 
-// ── Confidence bar (for FK candidates) ───────────────────────────────────
-
-function ConfBar({ value }: { value: number }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <div style={{ width: 28, height: 3, borderRadius: 2, background: 'rgba(136,146,164,0.15)' }}>
-        <div
-          style={{
-            width: `${Math.round(value * 100)}%`,
-            height: '100%',
-            borderRadius: 2,
-            background: value >= 0.8 ? '#2DD4A0' : 'var(--brand-a)',
-          }}
-        />
-      </div>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)' }}>
-        {Math.round(value * 100)}%
-      </span>
-    </div>
-  );
-}
-
-// ── Public component ─────────────────────────────────────────────────────
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function RelationshipList({
   focusObjectId,
@@ -213,385 +195,151 @@ export default function RelationshipList({
   fkCandidates,
   objectLinks,
   proposedMappings,
+  confirmedMappings = [],
   coObjects,
 }: RelationshipListProps) {
-  const router = useRouter();
-
-  // Local status overrides (optimistic updates after confirm/reject)
+  // Optimistic status overrides after confirm / reject
   const [linkStatuses, setLinkStatuses] = useState<Record<string, string>>({});
   const [mappingStatuses, setMappingStatuses] = useState<Record<string, string>>({});
 
-  const inkColor = '#E8E6E1';
-  const mutedColor = 'var(--ink-3)';
+  const links = objectLinks as ObjectLinkWithNames[];
+  const proposedLinks = links.filter((l) => l.status === 'proposed');
+  const reviewedLinks = links.filter((l) => l.status !== 'proposed');
 
-  const rowBase: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '8px 14px',
-    borderBottom: '1px solid var(--line-1)',
-    cursor: 'default',
+  const total = entityGroupObjects.length + fkCandidates.length + links.length
+    + proposedMappings.length + confirmedMappings.length + coObjects.length;
+  const reviewCount = proposedLinks.length + proposedMappings.length;
+
+  const linkRow = (link: ObjectLinkWithNames) => {
+    const isLeft = link.left_object_id === focusObjectId;
+    const other = isLeft ? link.right_object : link.left_object;
+    const otherId = isLeft ? link.right_object_id : link.left_object_id;
+    const verdict = (link.llm_verdict as Record<string, unknown> | null)?.verdict;
+    const reason = (link.llm_verdict as Record<string, unknown> | null)?.reason ?? (link.llm_verdict as Record<string, unknown> | null)?.rationale;
+    const status = linkStatuses[link.id] ?? link.status;
+    return (
+      <Row
+        key={link.id}
+        tag={<Tag tone="brand">{LINK_KIND[link.link_kind] ?? link.link_kind}</Tag>}
+        title={other ? (other.object_name ?? shortName(other.full_path)) : `Table ${otherId.slice(0, 8)}…`}
+        href={`/agent-lab/estate/object/${otherId}`}
+        subtitle={other?.full_path}
+        reason={typeof reason === 'string' ? reason : typeof verdict === 'string' ? `llm_verdict: ${verdict}` : undefined}
+        right={
+          <>
+            {link.score != null && <Confidence value={link.score} />}
+            <ReviewActions
+              endpoint={`/api/agent-lab/context/silo/links/${link.id}`}
+              status={status}
+              onDone={(s) => setLinkStatuses((p) => ({ ...p, [link.id]: s }))}
+            />
+          </>
+        }
+      />
+    );
   };
 
-  const hasAny =
-    entityGroupObjects.length > 0 ||
-    fkCandidates.length > 0 ||
-    objectLinks.length > 0 ||
-    proposedMappings.length > 0 ||
-    coObjects.length > 0;
-
-  if (!hasAny) {
+  const mappingRow = (m: MappingItem) => {
+    const focusIsLeft = m.left_column.object_id === focusObjectId;
+    const mine = focusIsLeft ? m.left_column : m.right_column;
+    const theirs = focusIsLeft ? m.right_column : m.left_column;
+    const theirTable = theirs.object?.object_name ?? (theirs.object?.full_path ? shortName(theirs.object.full_path) : 'another table');
+    const status = mappingStatuses[m.id] ?? m.status;
     return (
-      <div
-        style={{
-          padding: '24px 14px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 'var(--type-ui-regular-size)',
-          color: mutedColor,
-          textAlign: 'center',
-        }}
-      >
-        No relationships found yet.
-      </div>
+      <Row
+        key={m.id}
+        tag={<Tag tone="violet">mapping</Tag>}
+        title={
+          <span style={{ fontFamily: 'var(--font-mono)' }}>
+            {mine.name} <span style={{ color: 'var(--estate-text-muted)', fontWeight: 400 }}>↔</span> {theirTable}.{theirs.name}
+          </span>
+        }
+        href={`/agent-lab/estate/object/${theirs.object_id}`}
+        subtitle={theirs.object?.full_path}
+        reason={m.mapping_kind ? `mapping_kind: ${m.mapping_kind}` : undefined}
+        right={
+          <>
+            {typeof m.confidence === 'number' && <Confidence value={m.confidence} />}
+            <ReviewActions
+              endpoint={`/api/agent-lab/context/mappings/${m.id}`}
+              status={status}
+              onDone={(s) => setMappingStatuses((p) => ({ ...p, [m.id]: s }))}
+            />
+          </>
+        }
+      />
     );
-  }
+  };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--estate-raised)',
-        border: '1px solid var(--estate-border-gold)',
-        borderRadius: 8,
-        overflow: 'hidden',
-      }}
+    <Card
+      title="Related tables"
+      meta={`${total} relationship${total === 1 ? '' : 's'}`}
+      actions={reviewCount > 0 ? <Tag tone="brand" dot>{reviewCount} proposed</Tag> : undefined}
+      flush
     >
-      {/* ── Entity group siblings ────────────────────────────── */}
-      <Section label="Entity Group" count={entityGroupObjects.length}>
-        {entityGroupObjects.map((sib) => (
-          <div
-            key={sib.id}
-            style={{
-              ...rowBase,
-              cursor: 'pointer',
-            }}
-            onClick={() => router.push(`/agent-lab/estate/object/${sib.id}`)}
-            title={sib.full_path}
-          >
-            {/* Source chip */}
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                fontWeight: 600,
-                padding: '1px 5px',
-                borderRadius: 2,
-                background: 'rgba(59,122,75,.15)',
-                color: '#3B7A4B',
-                border: '1px solid rgba(59,122,75,.3)',
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-              }}
-            >
-              ENTITY GRP
-            </span>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  fontWeight: 600,
-                  color: inkColor,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {sib.object_name || sib.full_path.split('.').pop()}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: mutedColor,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {sib.full_path}
-              </div>
-            </div>
-            <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', flexShrink: 0 }}>→</span>
-          </div>
-        ))}
-      </Section>
+      {total === 0 ? (
+        <div style={{ padding: 20 }}>
+          <EmptyNote>No relationships found yet. They appear after the table is described (T2), usage is harvested (T3), or a silo scan runs.</EmptyNote>
+        </div>
+      ) : (
+        <div style={{ marginTop: -1 }}>
+          <Group label="Proposed" hint="status = proposed" count={reviewCount}>
+            {proposedLinks.map(linkRow)}
+            {proposedMappings.map(mappingRow)}
+          </Group>
 
-      {/* ── FK candidates ──────────────────────────────────── */}
-      <Section label="FK Candidates" count={fkCandidates.length}>
-        {fkCandidates.map((fk, idx) => (
-          <div key={idx} style={rowBase}>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                fontWeight: 600,
-                padding: '1px 5px',
-                borderRadius: 2,
-                background: 'rgba(47,109,176,.14)',
-                color: '#2F6DB0',
-                border: '1px solid rgba(47,109,176,.3)',
-                flexShrink: 0,
-              }}
-            >
-              FK
-            </span>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: inkColor,
-                }}
-              >
-                <span style={{ color: 'var(--brand-a-ink)' }}>{fk.column}</span>
-                <span style={{ color: mutedColor, margin: '0 5px' }}>→</span>
-                {fk.likely_target}
-              </div>
-            </div>
-            <ConfBar value={fk.confidence} />
-          </div>
-        ))}
-      </Section>
-
-      {/* ── Object links (silo-links) ─────────────────────── */}
-      <Section label="Object Links" count={objectLinks.length}>
-        {objectLinks.map((link) => {
-          const isLeft = link.left_object_id === focusObjectId;
-          const targetId = isLeft ? link.right_object_id : link.left_object_id;
-          const currentStatus = linkStatuses[link.id] ?? link.status;
-          const llmV = link.llm_verdict as Record<string, unknown> | null;
-          const verdict = typeof llmV?.verdict === 'string' ? llmV.verdict : null;
-
-          return (
-            <div key={link.id} style={rowBase}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  fontWeight: 600,
-                  padding: '1px 5px',
-                  borderRadius: 2,
-                  background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',
-                  color: 'var(--brand-a-ink)',
-                  border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
-                  flexShrink: 0,
-                  textTransform: 'uppercase',
-                }}
-              >
-                {link.link_kind.replace('_', ' ')}
-              </span>
-              <div
-                style={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                }}
-                onClick={() => router.push(`/agent-lab/estate/object/${targetId}`)}
-                title={`Navigate to object ${targetId}`}
-              >
-                <div
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--type-ui-regular-size)',
-                    fontWeight: 600,
-                    color: 'var(--brand-a-ink)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {targetId}
-                  <span style={{ fontSize: 'var(--type-ui-regular-size)', marginLeft: 4, opacity: 0.5 }}>→</span>
-                </div>
-                {verdict && (
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--type-ui-regular-size)',
-                      color: mutedColor,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {verdict}
-                  </div>
-                )}
-                {link.score != null && (
-                  <ConfBar value={link.score} />
-                )}
-              </div>
-              <ActionPair
-                itemId={link.id}
-                endpoint={`/api/agent-lab/context/silo/links/${link.id}`}
-                currentStatus={currentStatus}
-                onAction={(s) => setLinkStatuses((prev) => ({ ...prev, [link.id]: s }))}
+          <Group label="FK candidates" hint="semantic card fk_candidates" count={fkCandidates.length}>
+            {fkCandidates.map((fk, idx) => (
+              <Row
+                key={idx}
+                tag={<Tag tone="blue">fk_candidate</Tag>}
+                title={<span style={{ fontFamily: 'var(--font-mono)' }}>{fk.column} <span style={{ color: 'var(--estate-text-muted)', fontWeight: 400 }}>→</span> {fk.likely_target}</span>}
+                reason="Inferred by T2 from column names and values"
+                right={<Confidence value={fk.confidence} />}
               />
-            </div>
-          );
-        })}
-      </Section>
+            ))}
+          </Group>
 
-      {/* ── Proposed mappings ────────────────────────────── */}
-      <Section label="Proposed Mappings" count={proposedMappings.length}>
-        {proposedMappings.map((m) => {
-          const currentStatus = mappingStatuses[m.id] ?? m.status;
-          const otherColObj =
-            m.left_column.object_id === focusObjectId
-              ? m.right_column
-              : m.left_column;
-          const focusCol =
-            m.left_column.object_id === focusObjectId
-              ? m.left_column
-              : m.right_column;
-
-          return (
-            <div key={m.id} style={rowBase}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  fontWeight: 600,
-                  padding: '1px 5px',
-                  borderRadius: 2,
-                  background: 'rgba(138,130,113,.16)',
-                  color: inkOf('#8a8271'),
-                  border: '1px solid rgba(138,130,113,.3)',
-                  flexShrink: 0,
-                }}
-              >
-                MAPPING
-              </span>
-              <div
-                style={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                }}
-                onClick={() => router.push(`/agent-lab/estate/object/${otherColObj.object_id}`)}
-                title={`Navigate to object ${otherColObj.object_id}`}
-              >
-                <div
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--type-ui-regular-size)',
-                    color: inkColor,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  <span style={{ color: 'var(--brand-a-ink)' }}>{focusCol.name}</span>
-                  <span style={{ color: mutedColor, margin: '0 5px' }}>↔</span>
-                  {otherColObj.name}
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 'var(--type-ui-regular-size)',
-                    color: mutedColor,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  target object: {otherColObj.object_id}
-                </div>
-              </div>
-              <ActionPair
-                itemId={m.id}
-                endpoint={`/api/agent-lab/context/mappings/${m.id}`}
-                currentStatus={currentStatus}
-                onAction={(s) => setMappingStatuses((prev) => ({ ...prev, [m.id]: s }))}
+          <Group label="Entity group" hint="entity_tags.groups" count={entityGroupObjects.length}>
+            {entityGroupObjects.map((sib) => (
+              <Row
+                key={sib.id}
+                tag={<Tag tone="green">entity_group</Tag>}
+                title={sib.object_name || shortName(sib.full_path)}
+                href={`/agent-lab/estate/object/${sib.id}`}
+                subtitle={sib.full_path}
               />
-            </div>
-          );
-        })}
-      </Section>
+            ))}
+          </Group>
 
-      {/* ── Usage co-objects (T3) ────────────────────────── */}
-      <Section label="Usage Co-objects (T3)" count={coObjects.length}>
-        {coObjects.map((co, idx) => (
-          <div
-            key={idx}
-            style={{
-              ...rowBase,
-              cursor: co.object_id ? 'pointer' : 'default',
-            }}
-            onClick={() => {
-              if (co.object_id) router.push(`/agent-lab/estate/object/${co.object_id}`);
-            }}
-            title={co.object_id ? co.full_path : undefined}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 'var(--type-ui-regular-size)',
-                fontWeight: 600,
-                padding: '1px 5px',
-                borderRadius: 2,
-                background: 'rgba(138,130,113,.12)',
-                color: inkOf('#8a8271'),
-                border: '1px solid rgba(138,130,113,.25)',
-                flexShrink: 0,
-              }}
-            >
-              CO-OBJ
-            </span>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: co.object_id ? inkColor : mutedColor,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {co.full_path.split('.').pop()}
-              </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: mutedColor,
-                }}
-              >
-                {co.full_path}
-                {!co.object_id && (
-                  <span style={{ marginLeft: 5, color: 'var(--ink-3)', }}>(unresolved)</span>
-                )}
-              </div>
-            </div>
-            {co.co_count != null && (
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: mutedColor,
-                  flexShrink: 0,
-                }}
-              >
-                {co.co_count} co-queries
-              </span>
-            )}
-            {co.object_id && <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', flexShrink: 0 }}>→</span>}
-          </div>
-        ))}
-      </Section>
-    </div>
+          <Group label="Co-objects (T3)" hint="co_objects from query history" count={coObjects.length}>
+            {[...coObjects]
+              .sort((a, b) => (b.co_count ?? 0) - (a.co_count ?? 0))
+              .map((co, idx) => (
+                <Row
+                  key={idx}
+                  tag={<Tag tone="amber">co_object</Tag>}
+                  title={shortName(co.full_path)}
+                  href={co.object_id ? `/agent-lab/estate/object/${co.object_id}` : null}
+                  subtitle={co.full_path}
+                  reason={co.object_id ? undefined : 'Not in the catalog yet'}
+                  right={co.co_count != null ? (
+                    <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>
+                      co_count {co.co_count.toLocaleString()}
+                    </span>
+                  ) : undefined}
+                />
+              ))}
+          </Group>
+
+          <Group label="Reviewed" hint="confirmed / rejected" count={reviewedLinks.length + confirmedMappings.length}>
+            {reviewedLinks.map(linkRow)}
+            {confirmedMappings.map(mappingRow)}
+          </Group>
+        </div>
+      )}
+    </Card>
   );
 }
+

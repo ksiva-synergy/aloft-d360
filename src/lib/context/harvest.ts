@@ -601,7 +601,23 @@ export async function runT1Profile(
         const currStats = profileResult.stats as Record<string, unknown>;
         const rawRowCount = currStats.row_count;
         const rawSizeBytes = currStats.size_bytes;
-        const rowCountVal = rawRowCount !== null && rawRowCount !== undefined ? BigInt(rawRowCount as number) : null;
+        // A sampled profile counts rows inside a LIMIT window. When the count fills
+        // the window it is only a lower bound (e.g. 5,000 for a 1 GB table), not the
+        // table's row count — store null rather than the window size. A count below
+        // the window means the whole table fit, so it is exact.
+        const windowRows = typeof currStats.profile_window_rows === 'number' ? currStats.profile_window_rows : null;
+        const rowCountIsWindowCap =
+          currStats.is_sampled === true
+          && windowRows !== null
+          && typeof rawRowCount === 'number'
+          && rawRowCount >= windowRows;
+        // An exact Delta COUNT(*) (row_count_exact) always wins over the profile count.
+        const exactRows = typeof currStats.row_count_exact === 'number' ? currStats.row_count_exact : null;
+        const rowCountVal = exactRows !== null
+          ? BigInt(exactRows)
+          : rawRowCount !== null && rawRowCount !== undefined && !rowCountIsWindowCap
+            ? BigInt(rawRowCount as number)
+            : null;
         const sizeBytesVal = rawSizeBytes !== null && rawSizeBytes !== undefined ? BigInt(rawSizeBytes as number) : null;
 
         // Identical profile + description was current → keep it current (skip needless re-describe).

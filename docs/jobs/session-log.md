@@ -5,6 +5,40 @@
 
 ---
 
+### 2026-11-04: On-demand exact row count from the object page (Claude)
+
+- **Files:** `src/lib/context/databricks-adapter.ts` (`countExactRows`), new `src/app/api/agent-lab/context/objects/[id]/row-count/route.ts`, `src/components/estate/HeroSection.tsx`.
+- **Before → after:** Tables profiled before the T1 exact count showed only "5K+ · sampled". Rows tile now offers "Count exact rows" → one Delta `COUNT(*)` → saved to `row_count_est`. No job is queued; no change to orchestrator.
+- **Not done:** Live check against Databricks.
+
+### 2026-11-04: T1 exact row count for Delta tables (Claude)
+
+- **Issue:** Object page could not show an exact row count for large tables — T1 only counts rows inside its LIMIT sample window.
+- **Files:** `src/lib/context/databricks-adapter.ts` (one `SELECT COUNT(*)` for Delta tables after DESCRIBE DETAIL, only when ≥2 statements of budget remain; stored as `stats.row_count_exact`), `src/lib/context/harvest.ts` (`row_count_est` = `row_count_exact` when present). UI: `HeroSection.tsx`, `ProfileTimeline.tsx`.
+- **Before → after:** Rows tile showed "5K+ · row_count not measured" for >1 GB tables; after the next T1 it shows the exact count (e.g. "12,483,902 · row_count_exact"). Views and non-Delta tables are unchanged (a COUNT there would be a full scan).
+- **Not done:** Not run against live Databricks in this session; cost of COUNT(*) on Delta tables with deletion vectors not measured.
+
+### 2026-11-04: Harvest launch budget gate + full cost program
+
+- **What:** `assertHarvestBudget` on `POST /api/agent-lab/context/jobs/launch` using `estimateLaunchHarvestUsd` from job plans. Launcher attribution unchanged (`triggered_by_user_id`).
+- **Why:** Org-level harvest cap (hard mode) should block launches before Fargate enqueue, not only show overage in the monitor.
+- **Verified:** Code path review; ledger tests unchanged.
+- **Not done:** Per-user harvest caps (still org pool only).
+
+### 2026-11-03: Object page redesign + T1 row count / drift fixes (Claude)
+
+- **Issues:** Object page showed "5,000 rows" for a ~1 GB table (the T1 sample window saved as `row_count_est`); Trusted score said "High drift (2 events)" for objects that had only been re-profiled (`computeDrift` writes a record every time); jobs queued from the object page never showed in its Recent Jobs (query matched `scope.path`, actions write `scope.includePatterns`).
+- **Files:** `src/lib/context/harvest.ts` (null row count when the count fills the sample window), `src/lib/context/databricks-adapter.ts` (`table_detail` from DESCRIBE DETAIL), `src/lib/context/pipeline-freshness.ts` (`table_detail` volatile), `src/lib/context/drift-summary.ts` (+ test), `src/lib/context/data-score/dimensions/trusted.ts`, `src/lib/context/reads.ts` (jobs `includePatterns` match, confirmed mappings, agent knowledge chunks). UI: see `docs/CHANGELOG.md`.
+- **Before → after:** Hero row count for a sampled large table reads "5K+ · not counted" instead of "5,000". Re-profiles with no change no longer lower Trusted. Recent Jobs lists Rescan / Re-enrich / Refresh all jobs, and the page polls every 15s while one is queued or running.
+- **Not done:** Existing `row_count_est` values equal to the window stay until each object is re-profiled (no backfill run). No live-data verification in this session.
+
+### 2026-11-03: Harvest spend ledger + launcher attribution
+
+- **What:** `platform_context_jobs.triggered_by_user_id` set on launch (`jobs/launch`). `finalize()` writes `platform_spend_events` via `recordHarvestJobSpend` when `stats.cost_usd` is present.
+- **Why:** Cost monitor harvest tab needs per-job USD and who launched on-demand jobs.
+- **Verified:** Unit tests in `src/lib/spend/__tests__/record-spend-event.test.ts`.
+- **Not done:** Backfill ledger from past jobs; scheduled jobs without a user id.
+
 ### 2026-11-02: DB verify pipeline 8942f51f… (Navitas 7 schemas)
 
 - **Queried:** `platform_context_jobs`, `platform_context_objects` via `verify-pipeline-run.ts`.

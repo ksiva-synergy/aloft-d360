@@ -2,7 +2,14 @@ import { Prisma } from '@prisma/client';
 
 /** Transient RDS / VPN reachability failure (Prisma cannot open a TCP connection). */
 export function isPrismaUnreachable(err: unknown): boolean {
-  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P1001';
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P1001') {
+    return true;
+  }
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    const msg = err.message ?? '';
+    return msg.includes("Can't reach database server") || msg.includes('P1001');
+  }
+  return false;
 }
 
 /**
