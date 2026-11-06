@@ -9,19 +9,22 @@ import type { Session } from 'next-auth';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
-import { HOME_ITEM, NAV_GROUPS, groupForPath, isActive, type NavItem } from './nav-config';
+import { HOME_ITEM, groupForPath, isActive, type NavGroup, type NavItem } from './nav-config';
+import { useNavGroups } from './useNavGroups';
 import { useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle } from './nav-shared';
 
 const COLLAPSED_W = 64;
 const EXPANDED_W = 264;
 
-/** Every page, flattened for the jump-to search. */
-const ALL_ITEMS: (NavItem & { group: string })[] = [
-  { ...HOME_ITEM, group: 'Home' },
-  { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
-  ...NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
-];
+/** Every page this person can open, flattened for the jump-to search. */
+function allItems(groups: NavGroup[]): (NavItem & { group: string })[] {
+  return [
+    { ...HOME_ITEM, group: 'Home' },
+    { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
+    ...groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
+  ];
+}
 
 /**
  * "Command center" sidebar: a full-height strip that collapses to icons and expands
@@ -34,6 +37,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   const { data: session } = useSession();
   const shell = useNavShell();
   const { expanded, pinned, mobileOpen } = shell;
+  const groups = useNavGroups();
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [query, setQuery] = useState('');
@@ -58,17 +62,17 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
     return () => window.removeEventListener('keydown', onKey);
   }, [shell.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const areaIndex = Math.max(0, NAV_GROUPS.findIndex((g) => g.id === areaId));
-  const area = NAV_GROUPS[areaIndex];
+  const areaIndex = Math.max(0, groups.findIndex((g) => g.id === areaId));
+  const area = groups[areaIndex];
   const AreaIcon = area.icon;
 
   const q = query.trim().toLowerCase();
   const results = useMemo(
     () =>
       q
-        ? ALL_ITEMS.filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
+        ? allItems(groups).filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
         : [],
-    [q],
+    [q, groups],
   );
 
   const user = (session ?? initialSession)?.user as { name?: string | null; email?: string | null; roleLabel?: string; role?: string } | undefined;
@@ -194,7 +198,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                 className="absolute bottom-1 left-1 top-1 rounded-xl bg-[var(--rail-active)] transition-transform ease-sidebar [transition-duration:400ms]"
                 style={{ width: 'calc((100% - 8px) / 4)', transform: `translateX(${areaIndex * 100}%)` }}
               />
-              {NAV_GROUPS.map((g) => {
+              {groups.map((g) => {
                 const Icon = g.icon;
                 const selected = g.id === areaId;
                 const hasActive = g.items.some((i) => isActive(i, pathname));

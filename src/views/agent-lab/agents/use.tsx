@@ -24,6 +24,8 @@ import {
   subscribeAgentUseChat,
   type AgentUseChatMessage,
 } from '@/lib/agents/agent-use-chat-stream';
+import { useDeveloperMode } from '@/hooks/useDeveloperMode';
+import { friendlyActivityStatus } from '@/lib/client/tool-activity-labels';
 
 /** Centered empty-state + thread composer width cap (px) — not full-bleed, not phone-narrow. */
 const CHAT_COMPOSER_MAX_PX = 760;
@@ -68,6 +70,7 @@ function starters(name: string): { prompt: string; chip: string; icon: ReactNode
 
 export default function UseAgentPage() {
   const params = useParams();
+  const { developerMode } = useDeveloperMode();
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -518,6 +521,7 @@ export default function UseAgentPage() {
                     message={message}
                     name={name}
                     hint={description}
+                    developerMode={developerMode}
                     status={message.id === lastAssistantId ? { running, toolCalls, startedAt, error: runError } : null}
                   />
                 ))}
@@ -700,7 +704,19 @@ function Mark({ name, hint, large = false }: { name: string; hint?: string | nul
 type LiveStatus = { running: boolean; toolCalls: ToolCall[]; startedAt: number | null; error: string | null };
 
 /** Step timeline for the in-flight turn, matching the Inspector / Workbench loading design. */
-function LiveSteps({ toolCalls, running }: { toolCalls: ToolCall[]; running: boolean }) {
+function LiveSteps({ toolCalls, running, developerMode }: { toolCalls: ToolCall[]; running: boolean; developerMode: boolean }) {
+  if (!developerMode) {
+    const label = friendlyActivityStatus(toolCalls, running);
+    return (
+      <div className="ld-card my-2">
+        {running && <div className="ld-bar" />}
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 text-size-ui">
+          {running ? <span className="ld-dot" /> : <Check className="h-3.5 w-3.5 text-[var(--ok)]" />}
+          <span className={running ? 'ld-shimmer-text font-medium text-[var(--ink-2)]' : 'font-medium text-[var(--ink-2)]'}>{label}</span>
+        </div>
+      </div>
+    );
+  }
   const done = toolCalls.filter(t => t.status === 'success').length;
   return (
     <div className="ld-card my-2">
@@ -742,7 +758,19 @@ function LiveSteps({ toolCalls, running }: { toolCalls: ToolCall[]; running: boo
   );
 }
 
-function MessageRow({ message, name, hint, status }: { message: AgentUseChatMessage; name: string; hint: string | null; status: LiveStatus | null }) {
+function MessageRow({
+  message,
+  name,
+  hint,
+  status,
+  developerMode,
+}: {
+  message: AgentUseChatMessage;
+  name: string;
+  hint: string | null;
+  status: LiveStatus | null;
+  developerMode: boolean;
+}) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -762,9 +790,9 @@ function MessageRow({ message, name, hint, status }: { message: AgentUseChatMess
             <AssistantContent content={message.content} />
           </div>
         )}
-        {message.inspection && <AnswerInspection inspection={message.inspection} />}
+        {developerMode && message.inspection && <AnswerInspection inspection={message.inspection} />}
         {status && status.toolCalls.length > 0 && (status.running || status.toolCalls.some(t => t.status === 'error')) && (
-          <LiveSteps toolCalls={status.toolCalls} running={status.running} />
+          <LiveSteps toolCalls={status.toolCalls} running={status.running} developerMode={developerMode} />
         )}
         {status?.running && !message.content && (
           <div className="flex flex-col gap-2.5 py-1.5" aria-hidden>
@@ -782,6 +810,7 @@ function MessageRow({ message, name, hint, status }: { message: AgentUseChatMess
             toolCalls={status.toolCalls}
             error={status.error}
             startedAt={status.startedAt}
+            showTechnicalToolNames={developerMode}
           />
         )}
       </div>

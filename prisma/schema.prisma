@@ -51,6 +51,8 @@ model User {
   sessions     Session[]
   actions      Action[]
   auditLogs    AuditLog[]    @relation("AuditActor")
+  access_department_members AccessDepartmentMember[]
+  access_clearances         AccessClearance[]
 
   @@index([status])
   @@index([deletedAt])
@@ -452,8 +454,11 @@ model tool_invocation_log {
 
 model budget_config {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id        String?
   scope         String?   @default("global")
   budget_amount Decimal?  @default(2400) @db.Decimal(12, 2)
+  period        String?   @default("monthly")
+  mode          String?   @default("soft")
   alert_pct     Int?      @default(80)
   alert_email   String?
   auto_heal     Boolean?  @default(false)
@@ -461,6 +466,7 @@ model budget_config {
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
 
   @@index([scope], map: "idx_budget_config_scope")
+  @@index([org_id], map: "idx_budget_config_org")
   @@map("budget_config")
 }
 
@@ -1321,6 +1327,12 @@ model PlatformOrg {
   updated_at             DateTime                       @updatedAt @db.Timestamptz(6)
   agents                 PlatformAgent[]
   databricks_connections PlatformDatabricksConnection[]
+  access_departments     AccessDepartment[]
+  access_grants          AccessGrant[]
+  access_labels          AccessLabel[]
+  access_clearances      AccessClearance[]
+  access_policy_version  AccessPolicyVersion?
+  access_column_labels   AccessColumnLabel[]
 
   @@index([clerk_org_id], map: "idx_platform_orgs_clerk_id")
   @@map("platform_orgs")
@@ -1396,9 +1408,154 @@ model PlatformDatabricksConnection {
   created_at                  DateTime    @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime    @updatedAt @db.Timestamptz(6)
   org                         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  credentials                 PlatformDatabricksCredential[]
 
   @@index([org_id], map: "idx_platform_databricks_connections_org_id")
   @@map("platform_databricks_connections")
+}
+
+/// One service principal role on a Databricks connection (src/lib/databricks/sp-roles.ts).
+/// The secret lives in Secrets Manager at secret_ref; this row never holds it.
+model PlatformDatabricksCredential {
+  id             String                       @id @default(cuid())
+  connection_id  String
+  role           String
+  secret_ref     String
+  warehouse_id   String?
+  status         String                       @default("untested")
+  last_tested_at DateTime?                    @db.Timestamptz(6)
+  last_error     String?
+  created_at     DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                     @updatedAt @db.Timestamptz(6)
+  connection     PlatformDatabricksConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+
+  @@unique([connection_id, role], map: "uq_platform_databricks_credential_role")
+  @@map("platform_databricks_credentials")
+}
+
+/// Departments for data access grants (docs/access/data-access-architecture.md).
+model AccessDepartment {
+  id             String                   @id @default(cuid())
+  org_id         String
+  key            String
+  name           String
+  entra_group_id String?
+  archived_at    DateTime?                @db.Timestamptz(6)
+  created_at     DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                 @updatedAt @db.Timestamptz(6)
+  org            PlatformOrg              @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  members        AccessDepartmentMember[]
+
+  @@unique([org_id, key], map: "uq_access_department_org_key")
+  @@index([org_id], map: "idx_access_departments_org_id")
+  @@map("access_departments")
+}
+
+model AccessDepartmentMember {
+  department_id String
+  user_id       String
+  source        String           @default("manual")
+  added_by      String?
+  added_at      DateTime         @default(now()) @db.Timestamptz(6)
+  department    AccessDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([department_id, user_id])
+  @@map("access_department_members")
+}
+
+model AccessGrant {
+  id              String      @id @default(cuid())
+  org_id          String
+  principal_type  String
+  principal_id    String
+  path            String
+  path_depth      Int
+  level           String
+  effect          String
+  expires_at      DateTime?   @db.Timestamptz(6)
+  reason          String?
+  created_by      String?
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  org             PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([principal_type, principal_id, path, effect], map: "uq_access_grant_principal_path_effect")
+  @@index([path], map: "idx_access_grants_path")
+  @@index([org_id], map: "idx_access_grants_org_id")
+  @@map("access_grants")
+}
+
+model AccessLabel {
+  id         String      @id @default(cuid())
+  org_id     String
+  path       String
+  path_depth Int
+  label      String
+  reason     String?
+  set_by     String?
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, path], map: "uq_access_label_org_path")
+  @@map("access_labels")
+}
+
+model AccessClearance {
+  org_id     String
+  user_id    String
+  level      String
+  reason     String?
+  granted_by String?
+  expires_at DateTime?   @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([org_id, user_id])
+  @@map("access_clearances")
+}
+
+model AccessPolicyVersion {
+  org_id     String      @id
+  version    BigInt      @default(0)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("access_policy_version")
+}
+
+model AccessDecisionLog {
+  id         String   @id @default(cuid())
+  ts         DateTime @default(now()) @db.Timestamptz(6)
+  org_id     String
+  user_id    String?
+  surface    String
+  level      String
+  paths      String[] @default([])
+  decision   String
+  reason     String?
+  mode       String
+  session_id String?
+  tier       String?
+
+  @@index([org_id, ts(sort: Desc)], map: "idx_access_decision_log_org_ts")
+  @@map("access_decision_log")
+}
+
+/// Column-level sensitivity (Phase 7); table present before compiler wiring.
+model AccessColumnLabel {
+  id          String      @id @default(cuid())
+  org_id      String
+  table_path  String
+  column_name String
+  label       String
+  reason      String?
+  set_by      String?
+  updated_at  DateTime    @updatedAt @db.Timestamptz(6)
+  org         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, table_path, column_name], map: "uq_access_column_label_org_table_column")
+  @@map("access_column_labels")
 }
 
 model knowledge_sources {
@@ -2128,6 +2285,8 @@ model PlatformContextJob {
   source_id     String?                     @db.Uuid
   job_kind      String
   trigger       String?
+  /// User who launched an on-demand job (null for scheduled/system).
+  triggered_by_user_id String?
   scope         Json?
   status        String                      @default("queued")
   started_at    DateTime?                   @db.Timestamptz(6)
@@ -2146,7 +2305,42 @@ model PlatformContextJob {
 
   @@index([org_id, status], map: "idx_pcj_org_status")
   @@index([parent_job_id], map: "idx_pcj_parent")
+  @@index([triggered_by_user_id], map: "idx_pcj_triggered_by_user")
   @@map("platform_context_jobs")
+}
+
+/// Unified spend ledger: who spent how much, where (interactive vs harvest).
+model PlatformSpendEvent {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  occurred_at        DateTime  @default(now()) @db.Timestamptz(6)
+  bucket             String
+  user_id            String?
+  surface            String
+  action             String
+  usd                Decimal   @default(0) @db.Decimal(12, 6)
+  input_tokens       Int?      @default(0)
+  output_tokens      Int?      @default(0)
+  cache_read_tokens  Int?      @default(0)
+  cache_write_tokens Int?      @default(0)
+  model              String?
+  status             String?   @default("success")
+  session_id         String?
+  turn_id            String?
+  job_id             String?   @db.Uuid
+  agent_slug         String?
+  job_kind           String?
+  source_id          String?   @db.Uuid
+  reference_type     String?
+  reference_id       String?
+  meta               Json?
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([reference_type, reference_id, action], map: "uq_platform_spend_event_ref")
+  @@index([org_id, occurred_at(sort: Desc)], map: "idx_platform_spend_org_time")
+  @@index([user_id, occurred_at(sort: Desc)], map: "idx_platform_spend_user_time")
+  @@index([bucket, occurred_at(sort: Desc)], map: "idx_platform_spend_bucket_time")
+  @@map("platform_spend_events")
 }
 
 model PlatformJobLog {

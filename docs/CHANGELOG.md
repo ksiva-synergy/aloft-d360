@@ -2,6 +2,732 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-06 — Publish consolidated work to `dev` (docs, graphify, access, estate)
+
+- **What:** Merged the current working tree into `synergy-marine/dev` and pushed so the remote has the full batch: data-access and section-access work, estate and staging UI updates, Prisma migrations, infra task-definition tweak, research docs and `graphify-out/` (dependency graph report, HTML, cache).
+- **Paths (representative):** `docs/**` (including `docs/access/`, `docs/inspector/`, `docs/jobs/session-log.md`), `graphify-out/`, `prisma/migrations/20261105_*`, `prisma/migrations/20261106_*`, `research_notes/`, `reports/`, broad `src/**` API and UI updates.
+- **Why:** User request to push to the `dev` branch and include documentation, session logs, and graphify output with the change set.
+- **Verified:** Local `git` add/commit, merge into `dev`, `git push synergy-marine dev`. No `tsc`/vitest run in this push-only step.
+- **Not done:** `.next/` build logs (e.g. `next-development.log`) stay untracked because `/.next/` is in `.gitignore`. Copy anything you need from there into `docs/` if it must live in git.
+
+## 2026-11-06 — Harvester: Databricks secrets read from HARVEST_DATABRICKS_* keys
+
+- **What:** The harvester ECS task definition now reads its four Databricks secrets from the `HARVEST_DATABRICKS_*` keys in the AWS secret `ALOFT-scBxmq`, instead of the `DATABRICKS_*` keys.
+  - `HARVEST_DATABRICKS_CLIENT_ID`, `HARVEST_DATABRICKS_CLIENT_SECRET`, `HARVEST_DATABRICKS_HOST`, `HARVEST_DATABRICKS_HTTP_PATH`.
+  - The container env var names are unchanged (`DATABRICKS_*`), so app code is unchanged.
+- **Paths:** `infra/context/task-definition.json` (the four `secrets[].valueFrom` entries).
+- **Why:** User request, to give the harvest its own Databricks credentials under the `HARVEST_` prefix.
+- **Verified:** JSON parses; only the four `valueFrom` entries changed. Not deployed, and the secret was not read.
+- **Not done:**
+  - The `ALOFT-scBxmq` secret must already contain the four `HARVEST_DATABRICKS_*` keys before the next task start, or ECS fails to launch the task. Confirm this in Secrets Manager first.
+  - `scripts/infra/create-secrets.ps1` and `docs/aws-recreate-and-configuration.md` still describe the `DATABRICKS_*` keys.
+
+## 2026-11-06 — Cost monitor: combined (pooled) role caps
+
+- **What:** New budget scope `role-total:<role>:interactive`: a single interactive AI cap shared by everyone whose primary role matches, for example "all Members together, $1,000 a month".
+  - It counts people with a personal cap too, because they still hold the role. The per-person `role:` cap still leaves them out.
+  - **Hard** mode blocks interactive turns once the combined total plus the turn estimate would pass the cap. This check is in addition to the per-person or org check, which is unchanged. **Soft** mode only flags.
+- **UI (Budgets tab):**
+  - "Add cap" has a third option, "A role combined", with a hint explaining who counts. "Each person in a role" replaces the old "A role" label.
+  - Combined caps show under Role defaults, next to that role's per-person cap. Each shows a meter (spend vs cap), the projected month-end total, how many people spent, and the highest spender.
+  - The Overview "Budget health" card and the attention banner include combined caps as ordinary spend-vs-cap rows.
+- **API:**
+  - `PUT /api/admin/cost/budgets` accepts `role-total:[a-z_]+:interactive` on create. Rows are stored with the org's `org_id`.
+  - Combined-cap status rows carry `group` (people, highest spender). `pctUsed`, `alert` and `exceeded` follow the combined total.
+- **Paths:**
+  - `src/lib/spend/budgets.ts`: `interactiveSpendByRole` now tags overridden people instead of dropping them; new `overriddenUserIds`; the combined branch in `getBudgetStatuses`; the combined check in `assertInteractiveBudget`.
+  - `src/app/api/admin/cost/budgets/route.ts`.
+  - `src/lib/spend/cost-derive.ts`: `ScopeKind` gains `role-total`, plus `parseBudgetScope`, `buildBudgetScope` and `budgetView`.
+  - `src/components/cost/{BudgetsPanel,OverviewPanels}.tsx` and `src/views/agent-staging/cost-monitor.tsx`.
+- **Why:** User request, a follow-up to role-cap totals: let a role's combined spend be capped, not just reported.
+- **Verified:**
+  - `budgets-role-total.test.ts`: combined status includes overridden users; a hard combined cap blocks a member who is under their own cap; another role is unaffected; a soft combined cap never queries or blocks.
+  - `cost-derive.test.ts`: scope parse/build and `budgetView` for combined caps.
+  - Page test: the "A role combined" create flow sends `role-total:member:interactive`.
+  - vitest: 7 files, 66 tests pass. `tsc --noEmit` exits 0. ESLint `--max-warnings 0` is clean on touched files.
+  - Not checked in a browser (SSO).
+- **Not done:**
+  - Enforcement uses the session role, which is the same primary-role rule, refreshed on the session's re-check interval. Someone whose role changed mid-session counts under the new role in the totals before the block follows them.
+  - A hard combined cap adds one grouped spend query plus one user lookup per interactive turn for that role.
+  - No delete endpoint yet. Setting the cap to soft, or raising it, is the only way to switch a combined cap off.
+
+## 2026-11-06 — Custom roles and per-person section access
+
+- **What:**
+  - **Custom roles** (Users → Section access → **New role**):
+    - A custom role sets every section exactly, so it can also take access away. A bundle only adds.
+    - It starts from Read only, Member or Admin and copies that role's levels. The base role also decides everything outside sections.
+    - Its column in the matrix says "Role · from Member" and is edited like a bundle column.
+    - Giving someone a custom role replaces their built-in role with the base and drops any other custom role. Taking it away leaves them on the base. A normal role change drops it.
+    - Never given to platform admins. Never gives Data Estate actions.
+    - Changing its starting role moves everyone who has it.
+  - **Per-person section access:** the profile drawer has a **Section access** block for platform admins. It has a custom role picker, bundle checkboxes, a "What they would get" preview, and Save.
+  - The Users list shows a custom role by its own name, and the drawer shows "Analyst (custom, from Member)".
+- **How it is stored:** no schema change. A custom role is a role carrying `section:role-base:<base>` plus its section keys. `resolveSectionLevels` skips role defaults when that key is present.
+- **Paths:**
+  - Rules: `src/lib/sections/registry.ts` (`ROLE_BASE_PREFIX`, `roleBaseKey`, `baseFromKeys`, `defaultLevels`, `ROLE_WITH_BASE_SELECT`, `splitSectionRoles`)
+  - Server: `src/lib/sections/bundles.ts` (kind, base, `assignCustomRole`, `customRoleIds`)
+  - APIs:
+    - `src/app/api/sections/bundles/route.ts`, `[id]/route.ts`, `[id]/members/route.ts`
+    - `src/app/api/users/[id]/section-access/route.ts` (new)
+    - `src/app/api/users/route.ts`, `src/app/api/users/[id]/route.ts`
+  - UI: `src/components/users/{SectionAccessPanel,PersonSectionAccess,UserDetailDrawer,UserTable}.tsx`, `src/views/agent-staging/users.tsx`
+  - Tests: `src/lib/sections/__tests__/registry.test.ts`, `src/components/users/__tests__/users.test.tsx`
+  - Docs: `docs/access/section-access.md`
+- **Why:** The user asked for extra access for certain people, and an option to create a role with fully customised access.
+- **Verified:**
+  - `tsc --noEmit` clean.
+  - vitest across sections, access, API, middleware, users, access console, cost, Govern views and sidebar: 21 files, 303 tests passed.
+  - eslint: new files clean; only existing `set-state-in-effect` errors remain.
+- **Not done:**
+  - Not checked in a browser (SSO), and not run against the dev database.
+  - The custom-role assignment API (`assignCustomRole`, members PUT, section-access PUT) has no unit tests with a database mock; only the level rules and UI are tested.
+  - Built-in role columns are still fixed in code.
+
+## 2026-11-06 — Admins view-only in Govern; Govern pages hide edit controls at View
+
+- **What:**
+  - **Admins now have View, not Manage,** on Models, Users, Data access, Cost monitor, and Policies. Only platform admins (or people given a Manage bundle) change these. Admins can no longer:
+    - invite people, change roles, or block or remove people;
+    - change departments, grants, clearances, or labels;
+    - change model or gateway settings, or run model test probes;
+    - set budgets;
+    - add or edit policies.
+  - **Unchanged:**
+    - Connections stay Manage for members and admins (their own connections).
+    - The Audit log stays View.
+    - A bundle can still give Manage on any Govern section (unlike the Data Estate).
+  - **Side doors closed:** `/api/access/assignments` (assign or revoke roles) and `/api/access/roles` POST (create custom roles) only checked `role:assign`, which admins still hold. They now also need Manage on Users. `/api/access/roles` GET and `/api/access/permissions` need View on Users. The coverage test's exempt list is down to `access/me`.
+  - **Pages hide edit controls at View:**
+    - Data access (all tabs), via a read-only context: no tag editor, bulk tagging, new department, archive, level switches, department or clearance changes, or label changes.
+    - Policies: list only.
+    - Cost monitor: no Add cap, budget edit, or "Set a personal cap".
+    - Users and Models already did.
+  - **Clearer refusals:** the Data access console now shows the server's own message for section refusals ("You can view Data access but not change it."). Before, it said "This needs the manage permission (or the Admin app role)".
+- **Paths:**
+  - Rules: `src/lib/sections/registry.ts`
+  - APIs: `src/app/api/access/{assignments,roles,permissions}/route.ts`
+  - Data access console:
+    - `src/components/access/console/readOnly.ts` (new)
+    - `src/components/access/console/{DataMapView,PeopleView,PersonAccessEditor,LabelsView}.tsx`
+    - `src/components/access/console/api.ts`
+    - `src/views/agent-staging/data-access.tsx`
+  - Policies and Cost monitor pages:
+    - `src/views/agent-staging/policies.tsx`, `src/views/agent-staging/cost-monitor.tsx`
+    - `src/components/cost/{BudgetsPanel,PeoplePanel}.tsx`
+  - Tests:
+    - `src/lib/sections/__tests__/{registry,route-coverage}.test.ts`
+    - `src/app/api/__tests__/{authz-hardening,security-hardening}.test.ts`: plain admins are refused. The no-escalation checks now run as "admin with a Users Manage bundle".
+    - `src/views/agent-staging/__tests__/CostMonitorPage.test.tsx`: mocks the section level and adds a view-only test.
+  - Docs: `docs/access/section-access.md`, `docs/access/data-access-architecture.md`
+- **Why:** The user answered "yes" to making admins view-only in Govern, like the Data Estate.
+- **Verified:**
+  - `tsc --noEmit` clean.
+  - vitest `src/lib/sections`, `src/lib/access`, `src/app/api`, `src/middleware`, `src/components/users`, `src/components/access`, `src/components/cost`, `src/views/agent-staging`, `src/components/agent-lab/staging`: 21 files, 296 tests passed.
+  - eslint on the changed files: only the existing `set-state-in-effect` in `policies.tsx`.
+- **Not done:**
+  - Not checked in a browser (SSO).
+  - Admins who are signed in keep seeing edit buttons until their next page load; the server refuses straight away.
+  - The Databricks connection APIs (`/api/databricks/connections*`) still allow admins. No Govern page uses them; Inspector only reads connectivity.
+  - Build and Memory sections are still not enforced, so admin-only actions there (catalog agents and tools, memory cluster and synthesize, bandits backfill, Inspector boost) are unchanged.
+
+## 2026-11-06 — Section access: Govern sections enforced, bundle editor, route coverage test
+
+- **What:**
+  - **Govern sections are enforced** (Models, Users, Data access, Cost monitor, Policies, Connections, Audit log). Defaults match what each role could do before, so admins keep everything they had:
+    - Admins and platform admins: Manage on all of them (Audit log stays View).
+    - Members: Manage on Connections (their own), nothing else in Govern.
+    - Read-only users: Docs only.
+    - Members and read-only users lose a few reads they never had a page for: the user list (`/api/users`, open to everyone through `user:read`), model settings (`/api/model-config` GET), and policies (`/api/policies` GET, which had no check at all).
+    - Model test probes (`/api/model-config/test`, any signed-in user before) now need Manage on Models.
+  - **Page gate:** the Govern routes sit behind `SectionGate` (No access page, or a "View only" notice for bundle viewers). The sidebar hides Govern items a person cannot open.
+  - **Section access matrix and bundle editor** (Users → **Section access** tab):
+    - Rows are sections grouped like the sidebar, with an "All: …" shortcut per group. Columns are the four built-in roles (fixed defaults) and one column per bundle.
+    - Platform admins create, rename and delete bundles, set levels per cell (unsaved changes are kept until Save), and choose who has each bundle. Admins can view the matrix but not change it.
+    - Manage cannot be picked on Data Estate or view-only sections.
+    - Sections not switched on yet are marked; bundle levels on them take effect when they are switched on.
+    - The person drawer lists a person's bundles.
+  - **Role change keeps bundles.** `PATCH /api/users/[id]` used to delete every role a person had. It now swaps only the built-in role. Invites and role changes accept built-in roles only. The no-escalation checks compare built-in roles only, so having a bundle does not make a person "outrank" an admin.
+  - **Two estate routes the first pass missed** (found by the new coverage test):
+    - `objects/[id]/enrich` starts a harvest and was open to admins. It now needs Manage on Catalog, so platform admins only.
+    - `jobs/[id]/logs` now needs View on Jobs (admins as before).
+  - **Route coverage test:** fails when any API route under the Data Estate or Govern folders has no access check, unless it is listed as exempt with a reason.
+- **Paths:**
+  - New:
+    - `src/lib/sections/bundles.ts`
+    - `src/app/api/sections/route.ts`, `src/app/api/sections/bundles/route.ts`, `src/app/api/sections/bundles/[id]/route.ts`, `src/app/api/sections/bundles/[id]/members/route.ts`
+    - `src/components/sections/SectionGate.tsx`, `src/components/users/SectionAccessPanel.tsx`
+    - `src/lib/sections/__tests__/route-coverage.test.ts`
+  - Changed:
+    - `src/lib/sections/registry.ts` (Govern defaults and `enforced`, `BUILT_IN_ROLES`, `bundleCeiling`, `keysForLevels`, `levelsFromKeys`)
+    - `src/lib/sections/server.ts` (`requireSection`, `minForMethod`)
+    - `src/lib/access/admin-api.ts`: `requireAccessAdmin` / `requireAccessClassify` now use the Data access section level (View for GET, Manage for changes). Platform-admin-only checks inside routes are unchanged.
+    - APIs:
+      - `src/app/api/users/route.ts`, `users/[id]/route.ts`
+      - `model-config/route.ts`, `model-config/test/route.ts`
+      - `policies/route.ts`, `policies/[id]/route.ts`
+      - `admin/cost/{budgets,events,summary}/route.ts`, `audit-log/route.ts`
+      - `connections/_shared.ts`, `connections/[id]/{extract,test}/route.ts`
+      - `access/roles/route.ts` (refuses `section:` keys)
+      - `agent-lab/context/jobs/[id]/logs/route.ts`, `agent-lab/context/objects/[id]/enrich/route.ts`
+    - UI: `web/src/router.tsx`, `src/views/agent-staging/users.tsx`, `src/views/agent-staging/models.tsx` (edit rights from the section level), `src/components/users/{UserTable,UserDetailDrawer,InviteUserModal}.tsx`, `users.module.css`
+    - Tests: `src/lib/sections/__tests__/registry.test.ts`, `src/components/users/__tests__/users.test.tsx`
+    - `docs/access/section-access.md`
+- **Why:** The user said "go ahead" to the next steps proposed after the Data Estate pass: the bundle editor and matrix, then enforcing Govern.
+- **Verified:**
+  - `tsc --noEmit` clean.
+  - vitest: `src/app/api`, `src/lib/access`, `src/lib/sections`, `src/middleware` (264 tests, before the coverage test), `src/components/users` (14), `src/views/agent-staging`, `src/components/cost`, `src/components/agent-lab/staging`, `src/components/access` (10), `src/lib/sections` + `src/app/api/agent-lab` (56, including the coverage test).
+  - eslint on the changed files: only existing `react-hooks/set-state-in-effect` errors in `users.tsx`, `ChangeRoleModal`, `InviteUserModal`, `UserDetailDrawer`; the new panel is clean.
+  - Users UI test changes: it now mocks `@/lib/navigation/link` and answers `/api/access/*` with 403. Without that, the drawer's data access block (earlier uncommitted work) crashed three drawer tests.
+- **Not done:**
+  - Not checked in a browser (SSO).
+  - The bundle APIs and route changes were not run against the dev database (it timed out).
+  - Build and Memory sections are not enforced yet; their matrix rows are marked "not switched on yet".
+  - `/api/inspector/semantic/[modelId]/promote` is still ungated by section, on purpose: Inspector uses it too, with its own rule (authors self-approve, otherwise admin). Only the estate button is hidden.
+  - Pages other than Users and Models still decide their buttons from the role or the server. A bundle viewer sees the "View only" notice, and the API refuses changes.
+  - Defaults are in code. Changing what a built-in role gets (for example admins view-only in Govern) is a code change.
+
+## 2026-11-06 — Section access (Data Estate first); platform admins no longer get all data
+
+- **What:**
+  - **Section access, a new layer separate from data access.** Every sidebar item is a section with None / View / Manage. Defaults come from the built-in role. Extra access is given by bundles: roles carrying `section:<id>:view|manage` keys. Platform admins have Manage everywhere. Model and decisions: `docs/access/section-access.md`.
+  - **Data Estate is the only enforced section so far:**
+    - Admins: view only. A "View only" banner shows, and every action (Scan now, Check coverage, Refresh profiles, Reharvest, Rescan tier, Count exact rows, Promote, Trust advance, Resolve PII, mapping and silo confirm/reject, Run mapping, Find similar data, Retry failed) is hidden or disabled.
+    - Members and read-only users: the Data Estate is hidden from the sidebar, and the page says why.
+    - Platform admins: unchanged. No bundle can give estate actions to anyone else.
+  - **Server checks:** 29 estate routes under `src/app/api/agent-lab/context/` call `denyUnlessSection`.
+    - Reads need View.
+    - `objects/[id]/{confirm-semantic,resolve-pii}`, `mappings/[id]` PATCH, and `silo/links/[id]` PATCH were open to any signed-in user. They now need a platform admin.
+    - `objects` GET also allows anyone who can manage Agents (the workbench datasource picker).
+  - **Platform admins no longer get all data** (reverts the 2026-11-05 change, decision D3).
+    - They get data from their app role, departments, and own grants, and need clearance for labelled data like everyone else.
+    - They can now be mapped as a role on the Data map.
+    - They remain the only people who can open labelled data to others.
+- **Paths:**
+  - New: `src/lib/sections/{registry,server,useSectionLevels}.ts`, `src/lib/sections/__tests__/registry.test.ts`, `src/app/api/me/sections/route.ts`, `src/components/agent-lab/staging/useNavGroups.ts`, `docs/access/section-access.md`.
+  - Changed:
+    - Sidebar: `src/components/agent-lab/staging/{nav-config.ts,StagingSidebar.tsx,CommandSidebar.tsx}`.
+    - Estate UI: `src/views/agent-lab/estate/{EstateLayout,EstateNav,index,mapper,silo}.tsx`, `src/components/estate/{SourceCard,ChildJobsPanel,EntityModelCard,HarvestActionBar,HeroSection,RelationshipList,TrustActionBar,SemanticCard}.tsx`.
+    - Estate API: 29 `src/app/api/agent-lab/context/**/route.ts` files.
+    - Data access: `src/lib/access/{decide,explain,types,principal,visibility,roles}.ts`, `src/lib/access/__tests__/explain.test.ts`, `src/app/api/access/{tree,grants/level,status}/route.ts`, `src/components/access/console/{api.ts,DataMapView,PeopleView,PersonAccessEditor,OverviewView}.tsx`.
+    - Docs: `docs/access/data-access-architecture.md` (§3, D3), `docs/jobs/current-status.md`, `docs/jobs/session-log.md`.
+- **Why:** The user asked for:
+  - admins to see the estate but not run anything, with only platform admins running estate jobs;
+  - extra access by bundles;
+  - estate View to show everything with no actions;
+  - one section per sidebar item;
+  - platform admins not to get data automatically.
+- **Verified:**
+  - `tsc --noEmit` is clean for the whole repo.
+  - `vitest run src/lib/sections src/lib/access src/lib/estate src/app/api/__tests__/authz-hardening.test.ts` passed: 11 files, 197 tests.
+  - eslint on the touched files reports only `react-hooks/set-state-in-effect` errors in effects this change did not touch: `mapper.tsx`, `silo.tsx`, and the sidebars' follow-the-route effects.
+  - **Not browser-checked** (SSO).
+- **Not done:**
+  - Section access matrix and bundle editor.
+  - Enforcement for Build, Memory, and Govern (their defaults are in the registry but have no effect yet).
+  - A test that fails when an API route has no section check.
+  - The client hides estate actions from the JWT role (`useCanRunEstatePipeline`), so a just-demoted user may see buttons until their session refreshes. The server still refuses.
+  - `/api/inspector/semantic/[modelId]/promote`, used from the estate object page, is not gated on the server. The button is hidden for non-platform admins.
+
+## 2026-11-06 — Cost monitor: combined total for role caps
+
+- **What:** Role caps (for example, Member at $75 per person per month) used to report $0 spent, because the cap applies to each person and nothing totalled it. Each role cap now reports:
+  - the **combined total** for the period across the people it governs: everyone whose primary role matches (same precedence as the session role) and who has no personal override;
+  - how many people that covers;
+  - the highest spender against the per-person cap;
+  - how many people are over the cap, and how many are past the alert threshold.
+  - **UI changes:**
+    - The role budget card shows the combined total, its pace, and a meter for the highest spender.
+    - The Overview "Budget health" card and the attention banner now include role caps. Previously they skipped them.
+    - The hard-cap warning in the edit form names the person who would be blocked.
+- **API:** `BudgetStatus` gains an optional `group` on role scopes (`totalUsd`, `people`, `topUserId`, `topUserUsd`, `overCount`, `alertCount`). For role rows:
+  - `spentUsd` is now the combined total;
+  - `pctUsed` is the highest spender's share of the cap;
+  - `alert` is true when anyone is over the cap or past the alert threshold; `exceeded` is true when anyone is over the cap.
+  - Org and user rows are unchanged.
+  - Enforcement (`assertInteractiveBudget`) is unchanged: it still checks each person against the cap.
+- **Paths:**
+  - `src/lib/spend/budgets.ts` (`interactiveSpendByRole`, `roleCapGroup`): one grouped query per period, shared across role caps;
+  - `src/lib/spend/cost-types.ts` (`RoleCapGroup`);
+  - `src/lib/spend/cost-derive.ts` (`budgetView`), which every budget display now uses;
+  - `src/lib/rbac.ts`: `resolvePrimaryRole` now accepts any `{ roles: { role: { name } }[] }`, a narrower type that existing callers still satisfy;
+  - `src/components/cost/{BudgetsPanel,OverviewPanels}.tsx` and `src/views/agent-staging/cost-monitor.tsx`.
+- **Why:** User request: a role cap should have a single total as well as per-person tracking.
+- **Verified:**
+  - New `src/lib/spend/__tests__/budgets-role-total.test.ts` (Prisma mocked) covers: role precedence, overridden user excluded, deleted user falling back to `member`, over and alert counts, one shared query.
+  - New `budgetView` unit tests, and a new page test for the role card.
+  - vitest: 7 files, 58 tests pass (spend, cost monitor, authz-hardening, copilot routes, run-catalog-agent). `tsc --noEmit` exits 0. ESLint `--max-warnings 0` is clean on touched files.
+  - Not checked in a browser (SSO).
+- **Not done:**
+  - The total only counts people with spend this period, so members with no spend don't appear in the count.
+  - There is no pooled cap that limits a role's combined total. The total is reported but not enforced.
+
+## 2026-11-06 — Developer mode toggle (admin / platform admin)
+
+- **What:** Browser-persisted **Developer mode** for `admin` and `platform_admin` only (user menu + Profile). When off, members and admins see friendly progress (“Reviewing the data catalog”, “Querying data”) instead of `describe_schema` / tool names; Inspect panels and the Inspector/Workbench **Developer** tab stay hidden. When on, admins get full tool-step lists, SQL inspect, and Developer panes in Inspector, workbench, and agent chat.
+- **Paths:** `src/lib/client/{developer-mode,tool-activity-labels}.ts`, `src/hooks/useDeveloperMode.ts`, `src/components/shell/DeveloperModeToggle.tsx`, `StreamingMessage.tsx`, `PromptCanvas.tsx`, `InspectorShell.tsx`, `WorkbenchShell.tsx`, `src/views/agent-lab/agents/use.tsx`, `TestRunSection.tsx`, `src/lib/companion/activity.ts`, `UserMenu.tsx`, `profile.tsx`.
+- **Verified:** ReadLints on touched files; manual browser check recommended.
+- **Not done:** Server still omits agent `inspection` for members; admins receive it over the wire but UI hides it unless Developer mode is on.
+
+## 2026-11-06 — Agent avatars: domain-specific icons
+
+- **What:** `agentLook` in `src/components/agent-lab/AgentAvatar.tsx` has new rules, checked first, for maritime and role-specific concepts: appraisal → Award (amber), records/certificates → BookUser (sky), training → GraduationCap, safety/HSE → HardHat, medical/fatigue → HeartPulse, purchase/procurement → ReceiptText (teal), emissions/fuel → Leaf, maintenance/technical → Wrench, SIRE/vetting/vessel → Ship (navy), seafarer/crew → Anchor (cyan). HR now uses UsersRound. Sales moved to a new blue hue so it no longer shares sky with records. All existing rules still apply after the new ones.
+- **Follow-up (same day):** User asked for no colourful tints. Removed per-agent hues entirely (the `HUE` table and the `hue` field on `Look`). Every avatar now uses one neutral style: `--surface-2` background, `--line-1` border, `--ink-2` icon. Only the icon varies. The hue notes in the bullets above no longer apply.
+- **Why:** User asked for better icons on the Agents page. Before this change, the five saved agents got generic icons (two shields, a fallback bot, a bar chart) in mostly similar purple tints.
+- **Result:** SAP Purchase Order Auditor → ReceiptText · Seafarer Record Desk → BookUser · Darwinbox HRMS Employee Analyst → UsersRound · SIRE Inspection Reviewer → Ship · Seafarer Appraisal Analyst → Award. Each has a distinct hue. The same avatar also appears in the agent chat view (`src/views/agent-lab/agents/use.tsx`).
+- **Verified:** ran `agentLook` through tsx on the five agent names and descriptions (output above); `eslint` passed on the file. Not checked in the browser.
+- **Not done:** no per-agent icon override stored on the agent. Icons are still inferred from keywords.
+
+## 2026-11-06 — Cost monitor redesign (Govern → Cost monitor)
+
+- **What:** Rebuilt `/agent-staging/cost`. The 740-line single file is now a page shell plus focused components.
+  - **Header:** 7/14/30/90-day window and active tab live in the URL (`?days=`, `?tab=`); refresh; Export CSV follows the current tab/ledger filters.
+  - **KPI row:** total, interactive AI, harvest (each with change vs the prior same-length window), and run rate (7-day average, month-to-date vs monthly org budgets, straight-line month-end projection). Sparkline on total.
+  - **Budget attention banner** when any org/user budget is at its alert threshold or over cap; count badge on the Budgets tab.
+  - **Overview:** daily stacked chart (interactive vs harvest) with hover tooltip, average line, cumulative view and table view; ranked "Top cost drivers" (surfaces + job kinds); top spenders; budget health meters.
+  - **Interactive AI:** turns, failed turns, cost per turn, tokens in/out, prompt-cache read share; by surface / model / agent; most expensive events.
+  - **Harvest:** LLM vs compute split, by job kind, daily chart, most expensive events.
+  - **People:** searchable, sortable table (interactive, harvest, total, events, last active, share bar, personal-cap badge). A row opens a drawer with totals, personal cap status, recent events, "Set a personal cap" and "All in ledger".
+  - **Budgets:** cards grouped Organization / Role defaults / People overrides, each with a meter, alert-threshold tick, projected-spend marker, health badge (icon + label), reset countdown and inline edit. **New:** create a personal or role interactive cap ("Add cap"), with duplicate and "hard cap will block immediately" warnings.
+  - **Ledger:** server-side search, bucket filter, removable filter chips (user, surface, model, job kind), Newest / Highest cost sort, 50-row paging, expandable rows (exact cost, tokens, session, job link, raw metadata, "Only this …" drill-downs). Every ranked row elsewhere drills into the ledger.
+  - **Fixes:** the old page used `--border-1` (undefined, so borders fell back to `currentColor`) and `text-size-title-page` (no such utility). Saving a budget from the old page cleared its stored `alert_email`; the form now sends the stored value back.
+- **API:** `GET /api/admin/cost/summary` adds `days`, `previous` (prior-window totals), `interactive.failedCount|byModel|byAgent|tokens`, and per-user `interactiveCount|harvestCount|lastAt` (additive). `GET /api/admin/cost/events` adds `surface`, `model`, `jobKind`, `q` (case-insensitive search over surface/action/model/agent/job kind/session), `sort=cost`, `totalUsd`, and token fields (also new CSV columns). `PUT /api/admin/cost/budgets` validates cap, alert %, period, mode, email and new-scope shape, and returns 409 for a second policy on an existing scope.
+- **Paths:** `src/views/agent-staging/cost-monitor.tsx`, `src/components/cost/{cost.module.css,ui,SpendTrendChart,OverviewPanels,PeoplePanel,BudgetsPanel,LedgerPanel}.tsx`, `src/lib/spend/{cost-types,cost-derive}.ts` (new, client-safe), `src/lib/spend/cost-queries.ts`, `src/app/api/admin/cost/{events,budgets}/route.ts`, tests `src/lib/spend/__tests__/cost-derive.test.ts`, `src/views/agent-staging/__tests__/CostMonitorPage.test.tsx`.
+- **Why:** User asked for a complete redesign of the Cost monitor tab with better UI and more functionality.
+- **Chart colors:** fixed series tokens in `cost.module.css` (light `#5B3DF5`/`#2A9BDB`, dark `#8B7BFF`/`#1E9FD0`), checked with the dataviz palette validator. All checks pass in both modes; the app's dark `--brand-b` failed the lightness band, so it is not used.
+- **Verified:** `vitest run` on the new page test (KPIs and deltas, alert banner, driver → filtered ledger, People drawer open/Escape, budget edit keeps `alertEmail`), `cost-derive` tests, `record-spend-event` and `authz-hardening`: 32 passed. `tsc --noEmit` clean for the whole repo; `eslint --max-warnings 0` clean on touched files. **Not browser-checked** (SSO); chart rendering is not covered by jsdom.
+- **Not done:** no delete for budget policies (no endpoint); `alert_email` is still stored but nothing sends mail, so the UI does not expose it; role-cap status rows still report $0 (per-user caps have no single spender); summary still loads all events in the window in memory (fine at current volume, worth a SQL `GROUP BY` if events grow); tabs have no arrow-key navigation.
+
+## 2026-11-06 — prisma-rds-retry: fix silent no-op on Windows
+
+- **What:** `scripts/db/prisma-rds-retry.mjs` spawned `npx.cmd` without a shell. On Windows with Node ≥ 18.20 / 20.12 (here Node 24) that fails with `EINVAL`, and the script exited 1 with no output, so `db execute` / `migrate resolve` / `db seed` silently did nothing. Now spawns with `shell: true` on Windows, prints the spawn error if one occurs, and only appends `--schema ./prisma/schema.prisma` when the caller did not pass `--schema`.
+- **Why:** The `20261106_access_role_grants` migration appeared to run but was never applied.
+- **Verified:** `node scripts/db/prisma-rds-retry.mjs validate` prints "The schema … is valid" (exit 0). Earlier runs of `db:seed` / `db:resolve:data-access` through this script on Windows may also have been no-ops; check before relying on them.
+
+## 2026-11-05 — Data access: app-role grants, platform-admin rules, person tree
+
+- **What:**
+  - **App roles hold data grants.** A catalog, schema, or table can be mapped to an app role (Member, Admin, Read only, custom) as well as to a department or a person. Grants follow the role hierarchy: Member data also applies to Admins; Read only data applies to every role. People with no role row count as Member.
+  - **Platform admins use all data** (`decide()` allows every path at the tier of its label; Why? says so). Reverses decision D3.
+  - **Only platform admins can open labelled data:** allow grants on a Confidential or Restricted path (or under one), raising clearance, lowering or removing a label, adding a cleared person to a department that reaches labelled data, and the one-step `/api/access/policy` and `/api/access/assign` routes. Narrowing changes stay open to every data access admin.
+  - **Data map** lists app roles and departments together in both directions ("Data → roles & departments", "Role or department → data"); allow levels are locked on labelled paths for non-platform admins.
+  - **People:** new App role column; platform admins marked "all data"; clearance raises locked for non-platform admins. **View access** now gives catalogs, schemas, or tables to the person straight from the tree (level picker per row, or tick several and apply), replacing the free-text path box.
+- **Paths:** `prisma/migrations/20261106_access_role_grants/migration.sql`, `src/lib/access/{types,decide,principal,explain,roles,sensitive,visibility,effective-summary}.ts`, `src/app/api/access/{tree,grants,grants/level,clearances,labels,departments/[id]/members,policy,assign,status,users}/route.ts`, `src/components/access/console/*`, `src/components/access/UserDataAccessSection.tsx`, `src/views/agent-staging/data-access.tsx`, `docs/access/data-access-architecture.md` (§3, §5, §13.1, D3).
+- **Why:** User asked to map data to app roles (e.g. Member), to give platform admins all data, and to reserve opening Confidential/Restricted data for platform admins; and to pick a person's tables from the tree.
+- **Verified:** `vitest run src/lib/access src/app/api/__tests__/authz-hardening.test.ts` (149 passed; explain still agrees with `decide()` across the matrix, now including role grants and platform admins); `tsc --noEmit` clean for the whole repo; `eslint` clean on touched files; routes return 401 without a session on the local dev server. **Not browser-checked** (SSO).
+- **Migration:** `20261106_access_role_grants` (widens the `principal_type` CHECK to allow `role`) was applied by the user to dev (`aloftdb` on `aloft-dev-writer`) on 2026-11-06 and marked as applied. A read-only check of `pg_constraint` confirms it now allows `user`, `department`, and `role`. Other environments still need it before role grants can be saved there.
+- **Not done:** self-membership guard; role level caps inside a department; grant expiry in the UI; Entra sync; harvest/PII review queue.
+
+## 2026-11-05 — Data access console: data map, people list, Why?
+
+- **What:** Rebuilt Agent Staging → Data access around the estate. Tabs are now **Data map** (default), **People**, **Labels**, **Access log**, **Setup guide**.
+  - **Data map › Data → departments:** lazy catalog › schema › table tree with table search. Each row shows every department that touches it (set here, inherited ↑, blocked, or "N inside"). **Edit** opens a per-department level picker (None / Discover / Query / Export / Block). Tick several rows to tag them in bulk.
+  - **Data map › Department → data:** department list (create, archive, mapped count), the department's mapped paths with level and remove, and the same tree to add more. People are no longer managed here.
+  - **People:** one table of everyone; department chips with add/remove, clearance as Internal / Confidential / Restricted, and **View access** for direct grants plus an effective-access tree with **Why?** per row (grant, block, label, clearance, result).
+  - **Labels:** labelled-path list plus a classification tree; every change asks for a reason and shows how many tables it covers. Labels below an inherited label are disabled.
+  - **Setup guide:** rollout checklist from live counts and `ACCESS_MODE`, how a decision is made, the Ana / Ben / Carla example, and what is not built.
+  - Users drawer uses the same person editor.
+- **New API:** `GET /api/access/tree` (`parent`, `q`, `department`, `user`, `tags=1`), `PUT /api/access/grants/level` (replace one principal's grant on one path; `none` removes, `deny` blocks), `GET /api/access/status`. `GET /api/access/users` now returns `clearance` and `directGrants`. `DELETE /api/access/labels` accepts an optional `reason` for the audit log.
+- **New lib:** `src/lib/access/explain.ts` (`explainUserPath`, `departmentNodeAccess`, `departmentTags`, `labelSource`), `src/lib/access/estate-tree.ts` (children from `platform_context_objects` plus policy-only paths, search).
+- **Paths:** `src/components/access/console/*`, `src/views/agent-staging/data-access.tsx`, `src/components/access/UserDataAccessSection.tsx`, `src/app/api/access/{tree,status,grants/level,users,labels}`, `src/lib/access/{explain,estate-tree}.ts`, `src/lib/access/__tests__/explain.test.ts`. Removed `AssignDataAccessPanel.tsx`, `EffectiveAccessPanel.tsx`, `data-access.module.css` (unused).
+- **Why:** The previous page was free-text forms with no view of the data; mapping departments to catalogs, schemas, and tables was not possible from the data side.
+- **Verified:** `vitest run src/lib/access` (explain agrees with `decide()` at every level across a scenario matrix) and the authz test; `tsc --noEmit` and `eslint` clean on touched files; new routes return 401 without a session on the local dev server. **Not browser-checked** (needs SSO sign-in).
+- **Not done:** role or level caps within a department; self-membership guard (an admin can add themselves to a department); grant expiry in the UI; Entra sync; harvest/PII review queue; My data access page; change-history viewer. `UserPicker.tsx` is now unused.
+
+## 2026-11-05 — Recommended describe_schema action set (docs)
+
+- **What:**
+  - `docs/inspector/architecture-review.md` §3A has a new subsection, "Recommended `describe_schema` action set for Inspector":
+    - measured per-action use (dev, 30 days: search 123, describe 105 of which 49 `full`, profile 9, list 3, relations 2; `research` and `usage` handled by the server but not in Inspector's enum);
+    - a recommendation per action: expose `research` as the default; add `paths`/`columns` filters to describe and profile; key columns on search hits; expose `usage`; fold `relations` in; remove `list` from Inspector;
+    - code steps in order.
+  - The D2 line reference was updated to `dispatch.ts:150`.
+  - `docs/inspector/how-inspector-works.html` (artifact Version 2): adds `usage` to the actions table, a usage-count chart and the recommended action set.
+- **Why:** The user asked which `describe_schema` actions Inspector should have, and to document the answer.
+- **Verified:** Read-only Prisma query on `tool_invocation_log` joined to `agent_turn_log` (Inspector surface, 30 days). The first two attempts timed out getting a pool connection; the third succeeded.
+- **Not done:** Proposal only, no code changes. The counts cover a later window than the earlier §3A figures, so they differ slightly; this is noted in the doc.
+
+## 2026-11-05 — Data policy form (departments, path grant, clearance checkboxes)
+
+- **What:** Replaced the data-role template dropdown with a policy editor: department membership checkboxes, optional catalog/schema/table grant (discover / query / export), and ordered **Confidential** / **Restricted** clearance checkboxes. `POST /api/access/policy` writes membership, clearance, and the grant in one transaction. The form loads the person’s current policy from the effective-access API.
+- **Paths:** `src/lib/access/apply-access-policy.ts`, `src/app/api/access/policy/route.ts`, `src/components/access/AssignDataAccessPanel.tsx`, `src/views/agent-staging/data-access.module.css`, `data-access.tsx`, `UserDataAccessSection.tsx`.
+- **Why:** Template names did not match the planned model (department + grant + clearance) and read as a prototype.
+- **Verified:** Type shape matches existing grant/clearance writes; UI not browser-checked in this pass.
+- **Not done:** Removing an existing path grant from this form (still on the Grants tab). Custom org templates.
+
+## 2026-11-05 — Agents UI: drop physicist class names
+
+- **What:** Removed `feynman` / Feynman-style labels from the Agents list, workbench blueprint, flow strip, class suggestion chip, and mission templates. User-facing copy uses neutral **agent type** labels (Compliance & audit, Forecasting & planning, etc.). Internal class ids unchanged for catalog and memory.
+- **Paths:** `src/lib/construction/agent-class-display.ts`, `src/views/agent-lab/agents/index.tsx`, `src/components/workbench/config/{FieldEditors,FlowStrip}.tsx`, `ConfigPanel.tsx`, `ClassSuggestionChip.tsx`, `PromptCanvas.tsx`, `AssumptionChip.tsx`.
+- **Verified:** ReadLints on touched TSX.
+- **Not done:** Builder LLM prompts still reference internal class ids.
+
+## 2026-11-05 — Workbench data sources: scrollable table list
+
+- **What:** Agent blueprint **Data sources** groups Databricks tables under `synergy_dwh` with a scrollable per-table list (no truncated comma line). Parses legacy builder rows that stored tables in `scope`. **Add table** loads harvested tables immediately and filters on search. Section and flow strip counts reflect table count.
+- **Paths:** `src/lib/construction/datasource-tables.ts`, `src/components/workbench/config/FieldEditors.tsx`, `ConfigPanel.tsx`, `FlowStrip.tsx`, `src/lib/construction/__tests__/datasource-tables.test.ts`.
+- **Why:** Users could not see which tables were attached during agent creation.
+- **Verified:** `vitest run src/lib/construction/__tests__/datasource-tables.test.ts`.
+- **Not done:** Live browser pass on a long table list.
+
+## 2026-11-05 — Data role templates, assign flow, effective access UI
+
+- **What:** Built-in **data role templates** (`dept_member`, confidential/restricted variants, department + catalog discover/query). `POST /api/access/assign` applies membership, department grants, and clearance in one step. Admin `GET /api/access/users/:id/effective` plus **Effective access** panel (departments, inherited grants, bootstrap/`ACCESS_MODE` hints). **Assign & review** tab and **Users** profile drawer embed assign + effective panels; link to full admin with `?user=`.
+- **Paths:** `src/lib/access/data-role-templates.ts`, `apply-data-role.ts`, `effective-summary.ts`, `src/app/api/access/templates|assign|users/[userId]/effective`, `src/components/access/*`, `data-access.tsx`, `UserDetailDrawer.tsx`, `users.tsx`.
+- **Why:** RBAC-like admin: one assignment step and visible effective permissions.
+- **Verified:** `vitest run src/lib/access/__tests__/data-role-templates.test.ts`; ReadLints on touched files.
+- **Not done:** Custom templates in DB; org-specific default catalog paths in seed.
+
+## 2026-11-05 — Data access: pick people and assign departments
+
+- **What:** `GET /api/access/users` for workspace directory with department memberships. `UserPicker` search dropdown. Departments tab: select a department, add/remove members by name. People & access tab: pick a person, toggle department checkboxes, set clearance. Grants use person picker and readable principal names.
+- **Paths:** `src/app/api/access/users/route.ts`, `src/components/access/UserPicker.tsx`, `src/views/agent-staging/data-access.tsx`, `src/views/agent-staging/data-access.module.css`.
+- **Why:** Admins should assign data access like Users — not paste opaque user ids.
+- **Verified:** ReadLints on touched TSX; manual UI check recommended.
+- **Not done:** Entra group sync for department membership.
+
+## 2026-11-05 — Data access admin UI aligned with Users staging
+
+- **What:** Restyled Agent Staging → Data access to reuse `users.module.css` (page shell, directory card, tables, inputs, primary buttons). All selects use `position="popper"` and `z-[100]` so menus are not clipped by panel backgrounds. Added pill tab bar, stat summary, and app-role vs data-access notice.
+- **Paths:** `src/views/agent-staging/data-access.tsx`, `src/views/agent-staging/data-access.module.css`.
+- **Why:** Page looked unfinished; dropdowns hid behind surfaces and styling diverged from Users & access.
+- **Verified:** `ReadLints` on `data-access.tsx`; manual check in browser recommended.
+- **Not done:** User picker (still paste user id); grants stat loads after opening Grants tab.
+
+## 2026-11-05 — RDS P1001 retry for Prisma CLI and access policy load
+
+- **What:** `scripts/db/prisma-rds-retry.mjs` retries `npx prisma …` on P1001 (default 6 attempts, 2.5s apart). `npm run db:seed` and `npm run db:resolve:data-access` use it. `withPrismaReadRetry` supports `maxAttempts`; `loadPolicySnapshot`, `bumpPolicyVersion`, and department list use 3× retry.
+- **Why:** Dev Aurora over VPN often fails the first connect (`migrate resolve`, seed, Data access UI).
+- **Verified:** `vitest run src/lib/db/__tests__/with-prisma-read-retry.test.ts`.
+- **Not done:** Does not fix missing VPN — only retries transient P1001.
+
+## 2026-11-05 — Wire data access enforcement (ACCESS_MODE default off)
+
+- **What:** Threaded `dataPrincipal` through Inspector tools, semantic/dashboard/export, `describe_schema` visibility, and `runWarehouseQuery` / `runWarehouseExport`; export prefers `resultId`; connection SQL console requires `access:admin`.
+- **Paths:** `src/lib/access/*`, `src/lib/inspector/tools.ts`, inspector chat / agents / test-run / boost / teach routes, `src/lib/semantic/execute.ts`, `src/lib/dashboards/execute-raw-sql.ts`, `src/lib/context/dispatch.ts`, `src/lib/context/describe.ts`, `src/app/api/inspector/export/route.ts`, `src/app/api/databricks/connections/[id]/execute/route.ts`.
+- **Why:** Phase 0–4 from `docs/access/data-access-architecture.md` with `ACCESS_MODE` default `off` until migration.
+- **Verified:** Vitest on access, authz-hardening, run-catalog-agent, reflect-tools, widget-preview.
+- **Not done:** Apply `access_*` migration in target envs; populate grants (until then `legacyOpen` keeps observe/off behavior open).
+
+## 2026-11-05 — Visual explainer: how Inspector finds data
+
+- **What:** New page `docs/inspector/how-inspector-works.html`, also published as a private artifact (https://claude.ai/artifact/Y6Aj9nwoPuU3htWGXsLZvP).
+  - It covers:
+    - the harvest vs live-turn architecture;
+    - an interactive ReAct loop stepper showing context growth per model call;
+    - the `describe_schema` actions (with `research` marked as not exposed);
+    - the prompt workflow;
+    - how Titan embeddings are built and searched (an illustrative meaning map, cosine similarity, measured score scale);
+    - the 70/15/15 ranking blend;
+    - measured dev coverage (921 of 3,232 tables searchable) by catalog;
+    - causes of repeated schema lookups mapped to fixes D1–D6 and E1–E3;
+    - a glossary.
+- **Why:** The user asked for an easy visual explanation of `describe_schema`, the ReAct loop and embeddings.
+- **Verified:**
+  - Figures copied from `docs/inspector/architecture-review.md` §1, §3A and §3B (dev, read-only queries).
+  - The fix labels were checked against that doc.
+  - The map and the example table names are marked as illustrative.
+- **Not done:** Docs only, no code changes. Production wasn't measured. The page uses Google Fonts, so opening it from disk without network falls back to system fonts.
+
+## 2026-11-05 — Data access control engine (Phase 1 foundation)
+
+- **What:** Migration `prisma/migrations/20261105_data_access/migration.sql` and Prisma models for departments, grants, labels, clearances, policy version, decision log, and column labels (Phase 7). New module `src/lib/access/` with pure `decide()` / `authorizePaths()`, policy snapshot loader, SQL table extractor (fail-closed), visibility helpers, `runWarehouseQuery`, observe/enforce config, and RBAC permissions `access:admin`, `access:classify`, `access:audit`.
+- **Why:** Implements the agreed architecture in `docs/access/data-access-architecture.md` without wiring every route yet.
+- **Verified:** `npx prisma generate`; `npx vitest run src/lib/access/__tests__/decide.test.ts src/lib/access/__tests__/sql-tables.test.ts`.
+- **Not done:** Migration not applied on RDS; routes still call Databricks directly; `ACCESS_MODE` defaults to `off`.
+
+## 2026-11-05 — Data access admin APIs and staging UI
+
+- **What:** Admin REST routes under `/api/access/*` for departments, grants, labels, clearances, effective access (`/me`), decision log, and policy bump; minimal Govern UI at `/agent-staging/data-access`.
+  - Lib helpers: `src/lib/access/paths.ts`, `guards.ts`, `admin-api.ts`, `effective-summary.ts`; transactional `bumpPolicyVersionInTx` in `policy-store.ts`.
+  - Auth: `access:admin` (departments, grants, clearances), `access:classify` (labels), `access:audit` (decisions); `getOrgId()` on every handler; `writeAudit` + policy version bump in the same DB transaction as mutations.
+  - Nav: Govern → **Data access** in `src/components/agent-lab/staging/nav-config.ts`; SPA route `agent-staging/data-access` in `web/src/router.tsx`.
+  - Seed: `access:admin` added to the `admin` role permission list in `prisma/seed.ts`.
+- **Why:** Phase 1/2 of `docs/access/data-access-architecture.md` — configure departments, grants, labels, and clearances before enforce mode.
+- **Verified:** `npx prisma generate`; `tsc` clean on new route/UI files (pre-existing `warehouse.ts` / BigInt target notes unchanged).
+- **Not done:** Migration `20261105_data_access` still applied manually by the user; no live API smoke against RDS.
+
+- **What:** Every warehouse call now names a service principal role. A role uses its own SP when one is configured, otherwise the connection's existing SP.
+  - Roles: `query_internal`, `query_confidential`, `query_restricted`, `metadata`, `profile`, `publish` (`src/lib/databricks/sp-roles.ts`).
+  - Tokens: `getAccessToken(connectionId, host, role)` now requires a role; new `openDatabricksSession(conn, role)` returns token plus warehouse; `getCredentialToken` for exact-credential tests; cache keyed per role; `evictToken` clears roles too (`src/lib/databricks/token-client.ts`).
+  - Storage: new table `platform_databricks_credentials` (Prisma model + `prisma/migrations/20261105_databricks_sp_roles/migration.sql`); role secrets at `aloft/databricks/{connectionId}/{role}` (`src/lib/databricks/secrets.ts`).
+  - Routing: Inspector `execute_tool` (`src/lib/inspector/tools.ts`), semantic queries (`src/lib/semantic/execute.ts`), raw-SQL widgets (`src/lib/dashboards/execute-raw-sql.ts`), CSV export (`src/app/api/inspector/export/route.ts`) and the connection SQL console (`src/app/api/databricks/connections/[id]/execute/route.ts`) → `query_internal`. Harvest adapter (`src/lib/context/databricks-adapter.ts`) → `metadata`, with profiles, samples and row counts → `profile`. Estate column preview → `metadata`. Metric-view DDL (`src/lib/semantic/metric-views.ts`) → `publish`.
+  - Admin API (platform admin): `GET /api/databricks/connections/[id]/credentials`, `PUT`/`DELETE …/credentials/[role]`, `POST …/credentials/[role]/test` (`testRoleCredential` in `src/lib/databricks/test-connection.ts`).
+  - Switch: `DATABRICKS_SP_REQUIRED_ROLES` (comma list or `all`) turns fallback into an error. Local dev: `DATABRICKS_SP_<ROLE>_CLIENT_ID` / `_CLIENT_SECRET`.
+  - Fix: `src/lib/databricks/secrets.ts` no longer passes undefined AWS keys; it uses the SDK default chain (ECS task role) when keys are unset.
+  - Docs: `docs/access/data-access-architecture.md` §5, §9, §11, §13; `docs/databricks-auth-and-usage.md` §2, §7.1; `docs/jobs/current-status.md`; `docs/jobs/session-log.md`.
+- **Why:** The user asked to implement the planned separate service principals instead of one SP for everything. Before this, `DATABRICKS_CLIENT_ID` in env overrode every connection, and the SP every user query ran on also had the write rights metric views need.
+- **Verified:** `npx tsc --noEmit` clean; `npx vitest run` 151 files, 1097 passed; new `src/lib/databricks/__tests__/sp-roles.test.ts` (11 tests: fallback, role secret and warehouse, cache separation, disabled rows, required roles, missing table, other DB errors, env scoping); eslint clean on changed files; `npx prisma generate`.
+- **Not done:**
+  - Migration not applied; the user applies it.
+  - No SPs or UC grants created; a Databricks admin must do that.
+  - No admin screen; API only.
+  - `query_confidential` and `query_restricted` are not routed until Phase 1 tier decisions exist.
+  - No live Databricks or harvest run.
+  - Whether `aloftEcsTaskRole` has `infra/context/secrets-policy.json` attached is unverified.
+
+## 2026-11-05 — Design: data access control architecture and plan (docs only)
+
+- **What:** Added `docs/access/data-access-architecture.md`, and a pointer to it in `docs/data-access-control-design.md`.
+  - Model: departments, grants on catalog / schema / table (to a department or a user), labels (Confidential, Restricted) that need a clearance even when a catalog is granted, and three tier service principals chosen per query by the highest label of the tables it touches.
+  - Enforcement: one `src/lib/access/` module, a principal required by type on every warehouse call, a fail-closed SQL table extractor, and visibility filtering of estate metadata and `describe_schema`.
+  - Plan: phases 0–7 with exit criteria, observe-then-enforce per surface, and decisions D1–D11.
+- **Why:** The user asked for an in-depth analysis and architecture before implementing department, catalog, table and Confidential-label access.
+- **Verified:** Current-state claims re-read in code: `InspectorToolContext` has no user (`src/lib/inspector/tools.ts:15-22`), export takes SQL from the request body (`src/app/api/inspector/export/route.ts:59`), `describe_schema` is scoped only by org (`src/lib/context/dispatch.ts:1-3`), `READ_ONLY_VERBS` includes `SHOW`/`DESCRIBE`/`USE` (`src/lib/databricks/execute.ts:59-61`), paths are lowercase `catalog.schema.table` (`src/lib/context/types.ts:97-99`), no SQL parser in `package.json`.
+- **Not done:** No code. No database or Databricks queries. Unity Catalog privilege names, whether the harvester and Inspector share one service principal, and whether it can read `system.*` are unverified.
+
+## 2026-11-04 — Inspector review: embedding and catalog search quality (docs only)
+
+- **What:** Added §3B to `docs/inspector/architecture-review.md`.
+- **Findings:**
+  - Titan v2 vectors separate tables well (random-pair similarity 0.18, nearest neighbour 0.79).
+  - Only 921 of 3,232 active tables (28%) are vector-searchable. 463 vectors were made with `openai/text-embedding-3-large` on 22 Oct and are invisible to Titan queries. 756 tables have semantic cards but no embedding.
+  - open_analytics_zone has 8 of 1,232 tables searchable; reporting_layer has 7 of 586.
+  - Rankings are flat (top-1 semantic median 0.42 vs rank-5 0.35). The first search ranks the queried table first in 29% of turns and in the top 5 in 59%.
+  - 18% of embeddings are older than their semantic card. The 31k column vectors aren't used by search.
+- **Fix steps:** E1–E8 (re-embed, remove the duplicate `CURRENT_EMBEDDING_MODEL` in `azure/embed-client.ts`, re-embed on card change, embed the full question, column evidence, better ranking with a dev-catalog penalty, T2 for uncovered tables, a retrieval benchmark).
+- **Corrected in §3A:** R5's "14% of searches without embeddings" was one incident (26 Oct 05:49–06:08), not a steady rate.
+- **Why:** The user asked how good our embedding and vector quality is.
+- **Verified:** Code read (`context/embed.ts:1-120, 299`, `context/describe.ts:669-845`, `context/search-ranking.ts`, `azure/embed-client.ts`). Read-only SELECT aggregates on dev `platform_context_objects` / `_embeddings` / `_semantics` / `_columns` and `tool_invocation_log`. No code or data changed.
+- **Not done:** The retrieval hit rates are proxies on a small sample (17 turns). There's no labelled benchmark yet (step E8). Production data wasn't checked.
+
+## 2026-11-04 — Inspector review: why describe_schema runs so often, and the hybrid execution technique (docs only)
+
+- **What:** Two sections added to `docs/inspector/architecture-review.md`.
+  - **§3A** measures and explains repeated `describe_schema` calls, from read-only dev log aggregates over 27 turns:
+    - median 6 schema calls per turn, 5 before the first SQL;
+    - 111 different search wordings;
+    - only 53% of described tables used in SQL;
+    - 27% re-described in later turns;
+    - 14% of searches ran without embeddings.
+  - §3A also names seven root causes (prompt mandates search→describe→profile and says "use liberally"; search returns no columns; `research` not offered; session knowledge keeps paths not columns; weak search; reasoning reset between rounds; describe-on-SQL-error), with fix steps D1–D7 and targets.
+  - **§4A** documents the recommended retrieve–act–plan–verify hybrid. It borrows from ReWOO, LLMCompiler, Magentic and text-to-SQL schema linking without a framework, and compares each pattern against the measured bottleneck.
+  - Phase 1 step 1 now points to D1–D4.
+- **Why:** The user asked to document the hybrid technique and to explain why describe_schema is called so many times, with step-by-step fixes against the current code.
+- **Verified:** Code read (`prompts.ts:18-64, 169-188`, `context/describe.ts:625-637`, `dispatch.ts:117-161`, `session-knowledge-store.ts:93-175`). Read-only SELECT aggregates on dev `tool_invocation_log` / `agent_turn_log`. No code changed.
+- **Not done:** Fixes not implemented (proposal stage). R6 (reasoning reset leading to small batches) is an inference consistent with the trace. Effect targets are estimates.
+
+## 2026-11-04 — Inspector architecture review and improvement plan (docs only)
+
+- **What:** Added `docs/inspector/architecture-review.md`.
+  - It maps Inspector from UI to answer (components, the loop that actually runs, tools, data, background jobs).
+  - It traces one simple and one complex real turn.
+  - It reports a measured profile, from read-only aggregates on dev `agent_turn_log` / `agent_loop_log` / `tool_invocation_log` (45 turns in 30 days).
+  - It lists 14 evidence-backed weak spots, compares three options (improve the loop, add a light planner, adopt LangGraph/Deep Agents), and sets out a phased incremental plan.
+- **Key findings:**
+  - Discovery dominates complex turns: 8 of 11 loops ran before the first SQL query. The one-call `describe_schema research` action exists but isn't offered (`dispatch.ts:117` vs `prompts.ts:177`).
+  - Chat runs warehouse SQL without `inspector:use`.
+  - Hitting the loop cap gives no answer, and Stop doesn't stop the current step.
+  - Tool errors are counted as successes (`tool_errors` = 0 against 14 failed calls).
+  - Background judge, summary and reflection model calls aren't costed.
+  - Grok gets about 80% cache reads within a turn but none across turns.
+- **Why:** The user asked for a complete analysis of Inspector first, following their review brief (research and proposal only).
+- **Verified:** Code paths were read directly. Metrics come from read-only SELECT aggregates on the dev database (no message content). No code was changed.
+- **Not done:**
+  - Production logs weren't read; the gateway configuration wasn't seen.
+  - The duplicate-question bug (W10) and the chart-repair failure (W11) were inferred from code and need one captured request to confirm.
+  - Per-turn cost is unknown because of mis-pricing.
+
+## 2026-11-04 — Block agent DROP, DELETE, and secret leaks
+
+- **What:** Added a read-only database and credential policy for Cursor and Claude.
+  - Rule: `.cursor/rules/db-and-credentials.mdc` (always on), plus short copies in `AGENTS.md` and `CLAUDE.md`.
+  - Enforcement: `scripts/guards/block-destructive-db.mjs`, wired from `.cursor/hooks.json` (shell, MCP, and reads/writes of `.env`) and `.claude/settings.json` (PreToolUse plus a deny on `.env`). Checks live in `scripts/guards/block-destructive-db.test.mjs`.
+  - Blocked live statements: `DROP`, `DELETE FROM`, `TRUNCATE`, `ALTER ... DROP`, `INSERT OVERWRITE`, `CREATE OR REPLACE`, and Databricks delete/destroy/`fs rm`. Also blocks printing, copying, or `git add` of `.env`.
+- **Why:** Agents must be able to query Databricks without dropping objects or revealing the service principal secret.
+- **Verified:** `node scripts/guards/block-destructive-db.test.mjs` — all guard checks passed. `node --version` is v24.18.1, which the hook command uses.
+- **Not done:** Cursor and Claude Code load hooks when a session starts; this chat's already-open session may need a reload before the hook fires. The check is keyword-based, not a SQL parser. Plain `INSERT` / `UPDATE` / `MERGE` are forbidden by the rule unless the user explicitly asks, and are not hook-blocked.
+
+## 2026-11-04 — Report: agent execution loop research (docs only)
+
+- **What:** Added `reports/Agent loop research.md`, built from the notes in `research_notes/Agent loop research/` and the earlier `reports/Agent builder harness gaps.md`.
+  - It finds that Inspector chat, saved-agent chat and Automate "Try it" all run the LLM Lite Chat Completions loop (`foundry-chat.ts`), not the Bedrock `runAgentLoop`.
+  - It groups the defects into four families: unmanaged context, no prompt caching, bad loop endings (stop reasons, wrap-up, abort), and wrong or missing cost.
+  - It recommends one ReAct loop with an `update_plan` living plan, execution-grounded verifiers, and sub-agents only for read-only fan-out.
+  - It recommends context engineering: SQL previews with result handles, clearing then compaction, a cache-first prompt layout.
+  - It recommends running budgets instead of loop caps, durable runs on the ADR-003 worker (steer, stop, approvals, idempotency, a live "Ask an agent" executor), and a pass^k eval gate.
+  - It ranks 16 recommendations by impact and effort, with a five-phase plan.
+- **Why:** The user asked what is wrong with the agent loop and how to rebuild it.
+- **Verified:**
+  - Key code citations were re-checked in the current tree: `tools.ts:454`, `foundry-chat.ts:133-135`, `default-model.ts`, `agent-loop.ts:162-166`, `max-loops.ts`, `log-agent-cost.ts:59`.
+  - The simulator-only flow agent executor was confirmed (`simulate.ts:99-110`, `runner.ts:153`).
+- **Not done:** No code changes. None of the defects were reproduced at runtime. Cache-hit, gateway pass-through and reasoning-loss claims need a captured trace. Effort figures are estimates.
+- **Corrects:** The earlier harness-gaps report said saved agents hardcode `temperature: 0.3`. On the live path, no temperature is sent at all.
+
+## 2026-11-04 — Plan: Cowork-style work in chat, agents and Automate (docs only)
+
+- **What:** Added `docs/business-ai-studio/11-cowork-style-work.md` and linked it from the Studio README.
+  - It compares each Claude Cowork capability with ALOFT today: plans and progress, background tasks, sub-agents, files, Excel/Word/PowerPoint output, connectors, skills, plugins, scheduled tasks, projects, memory, approval modes, admin.
+  - It proposes one task runtime shared by chat, agents and an Automate "Agent task" step, running on the M3 worker built as a general engine.
+  - It sets out phases T0–T7 with acceptance tests, what is deliberately not copied (local folders, computer use, Skip approvals, a code sandbox), and decisions C1–C7.
+- **Why:** The user wants Claude Cowork-like features in Automate, agents and chat.
+- **Verified:** Cowork features come from Anthropic's product page and two help articles (cited in the doc). ALOFT facts were checked in code: loop caps (`src/lib/inspector/max-loops.ts`, `AGENT_MAX_LOOPS`), CSV-only export (`src/app/api/inspector/export/route.ts`), no chat attachments, no projects model, the skills design in `04-harness-skills-reasoning.md` §4.
+- **Not done:** No code. Effort figures are estimates. Cowork's scheduled-task, plugin and computer-use help pages were not read.
+
+## Object page: executors, usage fixes, card-based expanded rows
+
+- **What:**
+  - Usage: T3 now stores `access_stats.top_executors` (top 10 `executed_as` + counts) — `src/lib/context/usage.ts`; new **Executors** card and top executor in the Executors tile (`src/components/estate/UsagePanel.tsx`). `weekly_trend` shown as bars in the Queries tile.
+  - Fix: key columns with score 0 (all columns, when queries are `SELECT *`) are no longer stored or shown.
+  - Fix: "over the last 0 days" — `usageWindowLabel()` shows the window dates when `window_days` is 0 (Usage header, nav, Usage fact tile).
+  - Expanded rows (`ColumnsTable.tsx`, `ProfileTimeline.tsx`) now use one level of white cards (`DetailCard`, `MiniStat`, `ValueChip` in `object-ui.tsx`): column detail = semantic / profile stat tiles / top_k bars with share; version detail = one card per drift field with tinted old → new chips and a null_rate before/after bar, plus a run card.
+- **Why:** User feedback — expanded rows looked too blank; asked whether executor names are shown.
+- **Verified:** `tsc --noEmit` 0 errors; `web:typecheck` 0 errors; `eslint --max-warnings 0` on touched files clean; `npx vitest run` 150 files / 1086 passed.
+- **Not done:** Executor names appear only after T3 re-runs; browser check.
+
+## Object page: compact expanded rows (profile versions + columns)
+
+- **What:** Shared `DetailPanel`, `DetailHeading`, `KVList` in `src/components/estate/object-ui.tsx`. `ProfileTimeline.tsx` version detail: one-line heading per DriftResult field (`top_k_changes · 39 · informational`, `null_rate_shifts · n · scored`, …) with dense borderless rows (`COLUMN  ~~old~~ → new`, `2.0% → 40.0% +38.0 pts`), 5 rows + "show all", run facts as a key/value list. `ColumnsTable.tsx` expanded row: `semantic.description` (+ `entity`, `native_comment`), `profile` key/values (`data_type`, `is_nullable`, `null_rate`, `distinct_est`, `min`, `max`, `confidence`), `top_k` as value · bar · count (top 5). Replaces the boxed / table-in-card layout.
+- **Why:** User asked for a compact, clean design for the expanded rows.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate tests 23 passed.
+- **Not done:** Browser check.
+
+## Profile history: readable drift detail per version
+
+- **What:** `src/components/estate/ProfileTimeline.tsx` — the expanded version row now renders the raw `DriftResult` as blocks per field instead of one text line: `top_k_changes` table (column · values removed from top_k, struck through · values added), `null_rate_shifts` table (from → to, before/after bar, Δ points), `type_changes` table (from → to), `new_columns` / `dropped_columns` as chips, `row_delta_pct`. Each block says whether it counts toward Trusted or is informational; long blocks show 8 rows + "Show all". Run facts moved into a bordered spec panel (`captured_at`, `trigger`, `method`, `row_count_exact`, `size_bytes` with readable size, `columns`, `query_count`). Second date line now shows the time instead of repeating the date.
+- **Why:** User feedback — "top_k changed (39): A, B, C +35 more" did not show what changed.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate + drift tests 31 passed.
+- **Not done:** Browser check.
+
+## Entity Model (T4): column coverage that scales to wide tables
+
+- **What:** `src/components/estate/EntityModelCard.tsx` — the one-segment-per-column strip (unreadable at ~100 columns) is replaced by `ColumnCoverage`: one proportional bar (dimension / measure / not referenced, with counts and %), the **not referenced** columns grouped by `data_type` family (numeric → possible measures, temporal → possible temporal dimensions, string → possible categorical/attribute, boolean, complex, other) as named chips (first 12 + "+N more"; hover shows `data_type`, `distinct_est`, `null_rate`, role; click jumps to the column), and the referenced columns in a collapsed list.
+- **Why:** User feedback — coverage was hard to read for wide tables.
+- **Verified:** `tsc --noEmit` 0 errors, `web:typecheck` 0 errors, `eslint` clean, typography guard + estate tests 23 passed.
+- **Not done:** Browser check.
+
+## Estate object page: engineer-focused Entity Model (T4), header alignment, T4 scoring fix
+
+- **What:**
+  - `EntityModelCard.tsx` rebuilt for data engineers, technical names only: header (`entity_label`, `full_path`, `platform_semantic_models` name/status, `synonyms`, counts incl. joins and columns used, `updated_at` / `created_by`), **Model checks** (aggregate on non-numeric column, SUM on flag, MIN/MAX on identifier, temporal dimension on non-date type, categorical `distinct_est` > 1,000, `null_rate` ≥ 50%, column missing from table), generated `example_sql` with Copy, `measures` table (definition = `AGG(col)` or `expression`, `metric_type`, column `data_type`, unit · `format_hint`, status, checks), `dimensions` table grouped by `dimension_type` (`column_name`, `data_type`, `distinct_est`, `null_rate`, `synonyms`, status, checks), `joins` (`join_type`, `join_on_sql`), column coverage + unreferenced columns, `ai_context`, `platform_sem_audit` trail. Decorative left-border accents removed here, in `ProfileTimeline.tsx` (now a dot by the version) and `ColumnsTable.tsx`.
+  - `src/lib/context/reads.ts`: semantic model now returns `ai_context`, `synonyms`, per-item `status` / `synonyms` / `format_hint` / `nl_intent`, measure `expression` / `metric_type`, model name, joins (both directions), last 15 audit rows (`SemanticModelView`).
+  - **Bug fix:** the entity was loaded only while `status = 'candidate'`, so the card vanished right after "Promote to governed"; and `data-score/distribution.ts` had the same filter, so promotion removed the Actionable T4 credit. Both now take the newest entity for the path, any status.
+  - Header: section nav tabs now align with the content column (`InPageNav.tsx`); duplicate in-page breadcrumb removed; `domain_keywords` shown as a short expandable row; readiness "holding it back" no longer repeats the same fix link (`DataReadinessRing.tsx`).
+- **Why:** User review — Entity Model should be readable and useful to engineers with technical names; top of page felt off.
+- **Verified (CI "Verify" job, locally):** `npx vitest run` 150 files / 1086 passed; `npx tsc --noEmit` 0 errors; `npm run web:typecheck` 0 errors; `npm run web:build` built; `npm run web:check-bundle` clean. `eslint` on all touched files clean (22 older errors remain in Jobs / catalog components, not part of CI).
+- **Not done:** No browser check of the new Entity Model card.
+
+## CI typecheck fixes (spend + copilot)
+
+- **What:** `getSessionUserRole()` returns `string | null` for `assertInteractiveBudget`. Flows copilot no longer logs usage on error proposals. Inspector chat imports `recordInteractiveLlmSpend`. Vitest mocks for `server-only` / spend in `plan-estate-split.test.ts`, `plan-split-scope.test.ts`, and `run-catalog-agent.test.ts`.
+- **Why:** Root `tsc` failed on interactive budget and copilot usage types; CI `verify` job runs full vitest + typecheck.
+- **Verified:** `npm run typecheck`, `npm run web:typecheck`, targeted vitest on the three fixed test files.
+- **Not done:** Full `next build` not run locally in this pass.
+
+## Estate object page: "Count exact rows" on demand
+
+- **What:** New `POST /api/agent-lab/context/objects/[id]/row-count` (`src/app/api/agent-lab/context/objects/[id]/row-count/route.ts`, estate pipeline operator only) → `DatabricksAdapter.countExactRows()` (`src/lib/context/databricks-adapter.ts`): DESCRIBE DETAIL, then `SELECT COUNT(*)` only when format is Delta (answered from transaction-log stats); views / non-Delta return 422. Saves `row_count_est` (+ `size_bytes_est`). Rows tile (`src/components/estate/HeroSection.tsx`) shows "Count exact rows →" while the count is only a sample, then the full number. Legacy detection fixed: only `row_count_est === sample window` is treated as a sample (a larger value is an exact count).
+- **Why:** No real row count was stored anywhere — every existing profile predates the T1 exact count, so the page could only show the 5,000-row sample.
+- **Verified:** `tsc` (no errors in touched areas), `eslint` clean, `vitest src/lib/typography src/components/estate` 23 passed. Not run against live Databricks.
+- **Not done:** Count is not run automatically on page load (avoids starting a warehouse just by viewing the page).
+
+## Estate object API: P1001 retry and clearer DB-unavailable errors
+
+- **What:** `GET /api/agent-lab/context/objects/[id]` wraps org + aggregate reads in `withPrismaReadRetry`; returns `503` + `DATABASE_UNAVAILABLE` when Prisma cannot reach RDS. `isPrismaUnreachable` also treats `PrismaClientInitializationError` with “Can't reach database server”. Estate object page shows VPN/RDS guidance and a **Retry** button.
+- **Why:** Remote dev RDS often returns transient `P1001` on first connect; the UI only showed a generic 500 after ~43s pool timeout.
+- **Verified:** `vitest run src/lib/db/__tests__/with-prisma-read-retry.test.ts`.
+- **Not done:** Does not fix a fully blocked network path (VPN off / IP not on security group); user must restore connectivity.
+
+## Estate relationship map: React Flow edge handles
+
+- **What:** `RelationNode` in `src/components/estate/RelationshipGraph.tsx` now renders React Flow `Handle` components (target on neighbors, source on the focus node) with the default handle id so edges match. `GraphInner` syncs `useNodesState` / `useEdgesState` when graph props change and re-runs `fitView` after updates.
+- **Why:** Custom nodes had no handles, so React Flow logged error #008 (`Couldn't create edge for source handle id: "null"`) on every `fitView` / layout pass when the estate object page loaded relationship data.
+- **Verified:** Code review against React Flow custom-node docs; reload estate object page and confirm console is free of #008.
+- **Not done:** No automated test for the graph component.
+
+## 2026-11-04 — Plan update: SharePoint read and write access, file picker (docs only)
+
+- **What:** `docs/m365/delegated-access-plan.md`:
+  - Writing files is now level 1. `Files.ReadWrite.All` and `Sites.ReadWrite.All` are consented now, but ALOFT only requests them when a person first saves something.
+  - New §4.3 covers writing files: save a new file (renamed on a name clash, never overwritten), save a new version guarded by the file's eTag, create a folder, add or update List rows. All go through Confirm. Delete, move and sharing changes are not offered. Automate saves of a new file to a fixed folder need no approval; updates and List changes do.
+  - New §4.4: a SharePoint/OneDrive picker in chat, Automate, knowledge bases and the save card.
+  - File writes move into phase 3, and the estimate becomes 5–6 weeks.
+  - The admin request (Claude Docs) now asks for eight permissions (six read, two write) and says what ALOFT will not do (delete, move, change sharing).
+- **Why:** The user asked that people be able to get files from SharePoint with read and write access.
+- **Verified:** The Graph endpoints in §4.3 (upload with `conflictBehavior=rename`, upload sessions over 4 MB, `If-Match` eTag, List items) match Microsoft Graph v1.0 as documented. No code was run.
+- **Not done:** No code. The user's message was cut off after "and", so there may be another requirement to add.
+
+## 2026-11-04 — Plan update: Microsoft 365 connector catalog, permission levels, email correction (docs only)
+
+- **What:** `docs/m365/delegated-access-plan.md`:
+  - §3.2 now has three permission levels: read; act after Confirm; sensitive reads the person opts into.
+  - New §11 lists every connector: files, Excel, SharePoint Lists, save files, Teams, Outlook, directory, manager chain, calendar, Planner, plus what can't be connected and the app-only options.
+  - §4.2 adds a no-permission "Open in Outlook" compose link and the level 2 actions. Phase 4 is updated to match.
+  - D3 changed: don't request `Mail.ReadWrite` for drafts, because it also allows reading and deleting all mail; `Mail.Send` behind Confirm is narrower.
+  - Separately, a permission request for the Microsoft 365 admin was written as a Claude Docs document (not in the repo).
+- **Why:** The user asked which connectors ALOFT can offer and which permissions to request, then asked for both updates.
+- **Verified:** Dev hostname `aloft-dev.synergyship.com` taken from `docs/` (used in the admin request's redirect URI). Permission names are from Microsoft Graph's delegated permission set. Which permissions need admin consent is left for the admin to confirm in the Entra portal.
+- **Not done:** Staging and prod hostnames are unknown, so they're an open question in the admin request. No code.
+
+## 2026-11-04 — Plan: Microsoft 365 delegated access for Inspector, agents and Automate (docs only)
+
+- **What:** Added `docs/m365/delegated-access-plan.md`. It plans a separate "Connect Microsoft 365" step (OAuth code + PKCE on the existing Entra app, refresh token in Secrets Manager, `oid` bound to `user.aadObjectId`), one set of Graph tools (search, list, read file, read sheet, extract fields; later confirmed actions: draft email, Teams post, save file) shared by Inspector, saved agents and Automate, run-as-owner rules for scheduled automations, security controls, six phases with acceptance tests, and decisions D1–D7.
+- **Why:** The user will get delegated Microsoft 365 permissions approved and asked for a solid plan to use them across Inspector, agents and Automate.
+- **Verified:** The plan's code facts were checked against `src/lib/auth.ts`, `src/lib/inspector/{tools,prompts}.ts`, `src/lib/agents/run-catalog-agent.ts`, `src/lib/knowledge/{agents,readers}.ts`, `src/lib/extraction/service.ts`, `src/lib/connections/{secrets.ts,providers/sharepoint.ts}`, `src/lib/capabilities/builtin.ts`.
+- **Not done:** No code. The Graph sensitivity-label API still has to be confirmed in phase 2. Scheduled run-as-owner waits on the Automate M3 worker.
+
+## Estate object page: technical names, entity-model diagram, profile history, exact rows
+
+- **What:**
+  - Technical names kept as stored instead of relabelled: `null_rate`, `distinct_est`, `min`/`max`, `top_k`, column roles (`key`, `fk_ref`, …), `job_kind`, `trigger`, `status`, `object_kind`, `link_kind`, `fk_candidate` / `entity_group` / `co_object`, `candidate` / `governed`, `assumed` / `confirmed` / `certified`, T0 Structural · T1 Profile · T2 Semantic · T3 Usage · T4 Entity Model, Reharvest All / Rescan tier / Silo Scan, usage `source_breakdown` keys and key-column signals. Drift lines use DriftResult names (`new_columns`, `null_rate`, `row_count`, `top_k`). Files: all of `src/components/estate/*` on the object page, `src/lib/context/drift-summary.ts` (+ test).
+  - `EntityModelCard.tsx` → star diagram: dimensions grouped by `dimension_type` on the left, entity hub in the middle (counts, column coverage bar, promote), measures as `AGG(column)` on the right; column names jump to the columns table.
+  - `ProfileTimeline.tsx` → summary strip (latest, size sparkline, drift count, method) + version table (captured_at, trigger · method, size_bytes with change vs previous, drift chips), runs with no drift collapsed, click-to-expand detail.
+  - `HarvestTimeline.tsx` → "Harvest status": horizontal T0–T4 tracker (done / running / failed / not run) merged with freshness (`source_altered_at`, `structural_as_of`, `profile_as_of`); FreshnessCard no longer used on the page. Operations row: status + recent jobs, profile history full width.
+  - Exact rows: T1 `COUNT(*)` for Delta tables → `row_count_exact` (see `docs/jobs/session-log.md`); Rows tile shows the full number; Size tile shows `sizeInBytes` / `numFiles` on hover.
+- **Why:** User asked for technical names, a better entity-model and profile-version design, and table size + exact rows.
+- **Verified:** `tsc` — no errors in `src/components/estate`, `src/lib/context`, `src/views/agent-lab/estate`. `eslint` on touched files clean. `vitest` typography + estate + drift + freshness: 86 passed.
+- **Not done:** No browser check (sign-in required). `plan-estate-split.test.ts` / `plan-split-scope.test.ts` fail because `queue.ts` now imports the server-only spend module (concurrent spend-ledger work, not this change).
+
+## Cost monitor v2: budgets, enforcement, broader LLM ledger
+
+- **What:** Extended `budget_config` (`org_id`, `period`, `mode`) and migration `20261104_budget_config_extend`. Budget policies with soft/hard caps, `GET/PUT /api/admin/cost/budgets`, and **in-app editor** on Cost monitor → Budgets. Hard budgets block Inspector/workbench/catalog agents, semantic blueprint, studio insights, **Flows copilot**, workbench title generation, and harvest launch. Ledger: teach, studio, test-run, blueprint/refine, **flows_copilot**, **session_summary**, **generate_title**, **boost benchmark**. **Harvest compute** (`job_infra`): Fargate estimate (`HARVEST_FARGATE_USD_PER_VCPU_HOUR`) or job `stats.infra_usd` / `warehouse_usd`; overview splits LLM vs compute.
+- **Files:** `src/lib/spend/*` (incl. `harvest-infra.ts`), `src/lib/context/launch-cost-estimate.ts`, admin cost APIs, route/lib hooks, `src/views/agent-staging/cost-monitor.tsx`, `src/lib/flows-copilot/propose.ts`.
+- **Verified:** `vitest run src/lib/spend/__tests__/record-spend-event.test.ts src/lib/flows-copilot/__tests__/propose.test.ts src/app/api/agent-lab/flows/__tests__/copilot.routes.test.ts`.
+- **Not done:** Email alerts on `alert_pct`; infra backfill for old jobs; prod migration; chart/score LLM helpers not on ledger (Marcus reflect, memory synthesis, boost scorers).
+
+## Estate object page: every inner card restyled to one system
+
+- **What:** New shared building blocks `src/components/estate/object-ui.tsx` (Card, CardBlock, Field, Tag, Callout, CodeBlock, button classes, tones, time helpers). Rebuilt on them, behaviour unchanged unless noted:
+  - `SemanticCard.tsx` → "Description" card: large summary, Entity / "One row is" / time-column fields, key columns, measures and JSON columns as clickable tags (jump to the column), caveats and PII as callouts ("Mark reviewed"), "How it is queried" with the first two examples and a Show all toggle, review trail, provenance line.
+  - `TrustActionBar.tsx` → three-step trail (Assumed → Confirmed → Certified) with one primary action. `TrustChip`, `StatusChip`, `KindBadge`, `HeroLifecycleBadge` → shared Tag (sentence case, dots, plain labels such as "Agent knowledge out of date").
+  - `EntityModelCard.tsx` → "Business model": Draft/Approved tag + Approve button, dimensions ("ways to group and filter") and measures ("numbers to add up").
+  - `ColumnsTable.tsx` → card header with search (`/`), role filter, PII segmented control; column cell shows name + type + PII; empty-value bar; rows expand into a detail panel (meaning, entity, source comment, profile stats, most common values with counts); simpler pagination.
+  - `RelationshipList.tsx` → "Related tables" grouped as Needs review / Joins / Same entity / Queried together / Reviewed, each row with the other table's name, the reason, a confidence meter and labelled Reject / Confirm buttons.
+  - `RelationshipGraph.tsx` → "Relationship map" card; nodes show table names and relationship type; node borders visible on light theme; co-object sidebar removed (now in the list); height follows node count; no duplicate empty state.
+  - `UsagePanel.tsx` → headline numbers (queries, people, mostly from, last used), AI usage summary card, "Where queries come from", "Most-used columns", "Common filters"; readable colours on light theme.
+  - `FreshnessCard.tsx`, `HarvestTimeline.tsx` (vertical stepper), `JobsMiniTable.tsx` (list with plain job names, duration, trigger, error line), `ProfileTimeline.tsx`, `AgentKnowledgePanel.tsx` wrapped in the same card.
+- **Data fixes found while restyling:**
+  - Example SQL never showed — cards store `usage_patterns[].sql_sketch`, the UI read `sql`.
+  - Time columns and JSON columns never showed — schema stores them as objects (`{event, ingest}`, `{col: {observed_keys}}`), UI expected arrays.
+  - Model / prompt / confidence were read from the card JSON but live on the semantic row → `getObjectAggregate` now returns `latestSemanticMeta` (`src/lib/context/reads.ts`).
+  - Object links showed the other table as a UUID → `getObjectAggregate` now includes `left_object` / `right_object` names.
+  - `ColumnsTable` set state synchronously in an effect (pre-existing lint error) — moved into the timer callback.
+- **Verified:** `tsc --noEmit` clean for these files (only the unrelated `run-catalog-agent.ts` / `cost-monitor.tsx` errors from concurrent work). `eslint` on all touched files: 0 problems. `vitest run src/lib/typography src/lib/context src/components/estate src/lib/estate`: 133 passed (typography guard included).
+- **Not done:** Not checked in a browser (needs a signed-in session). `StatusChip` / `KindBadge` restyle also applies to the catalog `ObjectTable`.
+
+## Estate object page: redesign, missing data, and correctness fixes
+
+- **What (visual redesign):** New page structure — flat header (breadcrumb, title + actions, copyable path, status chips, summary, keywords), sticky section nav below it with count badges and the readiness pill on its right, a six-tile fact strip (Rows, Size, Columns, Covers, Usage, Freshness), and a readiness card with full dimension names, the top reason per dimension, and a "What's holding it at Lx" list linking each reason to where it is fixed. One `SectionHeader` style for every section; plain-language action buttons (Refresh all / Refresh one step / Find similar data) replace all-caps tier codes; skeleton matches the new layout.
+  - `src/components/estate/ObjectKnowledgePage.tsx`, `HeroSection.tsx` (header + `ObjectFacts`), `DataReadinessRing.tsx`, `DataReadinessPill.tsx`, `InPageNav.tsx`, `HarvestActionBar.tsx`, new `SectionHeader.tsx`, `src/views/agent-lab/estate/object.tsx`
+- **What (newly shown data):** data period from the event-time column min/max; column Range (min → max, masked for PII) in `ColumnsTable.tsx`; readable drift ("2 columns added…", "x nulls 2% → 40%") plus size trend, sample window and skipped columns in `ProfileTimeline.tsx`; confirmed column mappings with the other table's name in `RelationshipList.tsx`; new `AgentKnowledgePanel.tsx` (the knowledge chunks agents retrieve); trust status, PII count, storage format, partition columns, domain keywords, usage headline, pending-review count, running-job chip; "Open in Lineage" link.
+- **What (fixes):**
+  - Row count: sampled T1 no longer stores the sample window as `row_count_est` (`src/lib/context/harvest.ts`); UI shows older rows as "5K+ · not counted".
+  - Trusted score counted every re-profile as drift; now only real changes count (`src/lib/context/drift-summary.ts`, `data-score/dimensions/trusted.ts`). Top-value shifts are shown but do not count (sampled windows are unordered).
+  - Recent Jobs missed jobs queued from the page — query now also matches `scope.includePatterns` (`src/lib/context/reads.ts`).
+  - Page did not refresh after an action; now re-fetches on queue and every 15s while a job runs (`object.tsx`).
+  - Empty 44px band above the section nav (hidden pill kept its height); duplicate "DATA Readiness" label; hardcoded "4 SOURCES" / "LAST 30 DAYS"; shell breadcrumb showed the object UUID (new `src/lib/breadcrumb-labels.ts`, `src/components/app-breadcrumb.tsx`); relationship text hardcoded `#E8E6E1` (near-invisible on light theme).
+  - `DESCRIBE DETAIL` format / partition / clustering / file count kept as `table_detail` on profile stats (`databricks-adapter.ts`), ignored by the T1 unchanged check (`pipeline-freshness.ts`).
+- **Why:** User review of the object page: improve the look and show useful information that was available but hidden.
+- **Verified:** `tsc --noEmit` clean for all touched files (3 errors remain in `run-catalog-agent.ts` / `cost-monitor.tsx` from concurrent work in this worktree, not this change). `eslint` on touched files clean. `vitest run src/lib/typography src/lib/context src/components/estate src/lib/estate` — 133 passed, including the typography guard and new `drift-summary.test.ts`.
+- **Not done:** Not checked in a browser (page needs a signed-in session; no browser tool in this session). Owner / created-by need a schema column (`information_schema.tables.table_owner`) — not added. No backfill for old `row_count_est` window values. Inner cards (SemanticCard, EntityModelCard, FreshnessCard, UsagePanel, JobsMiniTable) keep their existing styling inside the new section frame.
+
+## Cost monitor + unified spend ledger (`platform_spend_events`)
+
+- **What:** Added `platform_spend_events` ledger and optional `triggered_by_user_id` on `platform_context_jobs`. New `recordSpendEvent` / `recordInteractiveLlmSpend` / `recordHarvestJobSpend` in `src/lib/spend/`. Wired logging from Inspector chat, workbench chat, catalog agent runs, and harvest `finalize()`. Job launch stores launcher user id. Admin APIs `GET /api/admin/cost/summary` and `GET /api/admin/cost/events`. Govern UI at `/agent-staging/cost`.
+- **Why:** Per-user, per-surface cost visibility with harvest kept separate and job-level detail.
+- **Verified:** `vitest run src/lib/spend/__tests__/record-spend-event.test.ts`. Dev RDS: `prisma db execute` + `migrate resolve --applied 20261103_platform_spend_events`; backfill `tsx scripts/spend/backfill-spend-ledger.ts` → 596 agent-cost rows, 970 harvest jobs.
+- **Not done:** Budget caps/enforcement; backfill from historical `agent_cost_log`; teach/blueprint/studio LLM paths; Fargate/Databricks infra dollars.
+
 ## Lineage API: lighter search, TTL cache, P1001 retry
 
 - **What:** `GET /api/inspector/semantic/lineage?optionsOnly=1` returns only `focusOptions` (no `scanConsumers` / focus graph). Estate lineage debounced search uses that flag. In-memory 30s cache + in-flight dedupe for `loadCatalog` and `scanConsumers` per org (`src/lib/semantic/lineage-cache.ts`). Semantic lineage DB reads retry once after 400ms on Prisma `P1001` (`src/lib/db/with-prisma-read-retry.ts`, wired in `src/lib/semantic/lineage.ts`).
@@ -28,6 +754,13 @@ Single running log of changes made in this repo, **newest first**.
 - **Why:** Admins saw recent “Last login” and users saw avatar/online state while sign-in failed or APIs returned 401 — reported as “503 gateway” for `pranavesh.s@synergyship.com` and similar.
 - **Verified:** Code review; DB inspect script blocked from this environment (RDS not reachable off VPN).
 - **Not done:** Reconcile historical `lastLoginAt` rows bumped by failed attempts before this fix.
+
+## aloft-dev SSO 502: nginx buffer too small for Azure OAuth callback
+
+- **What:** `infra/beanstalk/.platform/nginx/conf.d/oauth-buffers.conf` — raise `large_client_header_buffers` and `proxy_buffer_size` / `proxy_buffers` so `/api/auth/callback/azure-ad` is not rejected with **502** (`upstream sent too big header`).
+- **Why:** EB logs on `aloft-dev.synergyship.com` showed repeated nginx errors on OAuth callback and next-auth **`State cookie was missing`**; not a Users/DB issue for Pranavesh (Active Platform Admin).
+- **Verified:** Matched `/var/log/nginx/error.log` + `eb-*-stdouterr.log` from Beanstalk log bundle (2026-11-03). Local `eb-deploy.zip` includes `oauth-buffers.conf` + `timeouts.conf`.
+- **Not done:** Elastic Beanstalk deploy so `.platform` reaches `aloft-dev`; confirm Microsoft SSO callback returns **302** not **502**.
 
 ## T3 query history: warehouse filter (contains pushdown)
 

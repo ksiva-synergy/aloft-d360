@@ -7,6 +7,7 @@ import { FlaskConical, SquarePen, PanelRightOpen, PanelRightClose, Database } fr
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { AnswerInspection } from '@/components/agent-lab/AnswerInspection';
 import { buildInspectorInspection } from '@/lib/inspector/answer-inspection';
+import { useDeveloperMode } from '@/hooks/useDeveloperMode';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { Companion } from '@/components/companion/Companion';
 import { DashboardPane } from './DashboardPane';
@@ -21,7 +22,6 @@ import type { RightPaneTab } from './SemanticGovernancePanel';
 import { DataStudio } from '@/components/studio/DataStudio';
 import { useInspectorChat } from '@/hooks/useInspectorChat';
 import { useSession } from 'next-auth/react';
-import { canViewAgentOpsRole, hasAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { AgentHandoffCard } from './AgentHandoffCard';
 import { detectAgentBuildIntent } from '@/lib/construction/handoff';
@@ -240,9 +240,13 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
   // Results / Developer pane starts minimized and opens itself when new results arrive.
   const [rightCollapsed, setRightCollapsed] = useState(true);
 
-  const { data: authSession } = useSession();
-  const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
-  const canInspect = hasAgentOpsRole(authSession?.user?.role);
+  const { developerMode } = useDeveloperMode();
+  const showDeveloperTab = developerMode;
+  const canInspect = developerMode;
+
+  useEffect(() => {
+    if (!showDeveloperTab && rightTab === 'developer') setRightTab('results');
+  }, [showDeveloperTab, rightTab]);
 
   const insp = useInspectorChat({ sessionId: initialSessionId ?? null, contextMode });
 
@@ -480,6 +484,7 @@ export default function InspectorShell({ sessionId: initialSessionId }: Inspecto
             sessionId={insp.sessionId}
             chatStyle={INSPECTOR_CHAT_STYLE}
             renderAfterAssistant={canInspect ? renderInspection : undefined}
+            showDeveloperToolSteps={developerMode}
           />
         </div>
 

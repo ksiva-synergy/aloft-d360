@@ -15,6 +15,17 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/lib/spend/budgets', () => ({
+  assertInteractiveBudget: vi.fn().mockResolvedValue(undefined),
+  BudgetExceededError: class BudgetExceededError extends Error {},
+}));
+vi.mock('@/lib/spend/record-spend-event', () => ({
+  recordInteractiveLlmSpend: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/lib/lifecycle/log-agent-cost', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/lifecycle/log-agent-cost')>();
+  return { ...mod, logAgentCost: vi.fn().mockResolvedValue(undefined) };
+});
 vi.mock('@/lib/db', () => ({ prisma: { agent_catalog: { findFirst: h.findFirst }, platformAgent: { update: vi.fn(async () => ({})) } } }));
 vi.mock('@/lib/org', () => ({ getDefaultOrg: () => ({ id: 'org-1' }) }));
 vi.mock('@/lib/knowledge/agents', () => ({
@@ -31,6 +42,16 @@ vi.mock('@/lib/inspector/prompts', () => ({
   INSPECTOR_TOOLS: [{ toolSpec: { name: 'describe_schema' } }, { toolSpec: { name: 'execute_tool' } }, { toolSpec: { name: 'save_memory' } }],
 }));
 vi.mock('@/lib/inspector/tools', () => ({ executeInspectorTool: h.executeInspectorTool, resolveToolCatalogEntry: async () => null }));
+vi.mock('@/lib/access/principal', () => ({
+  principalForUser: vi.fn(async (userId: string) => ({
+    kind: 'user',
+    orgId: 'org-1',
+    userId,
+    departmentIds: [],
+    clearance: 'internal',
+  })),
+  systemPrincipal: vi.fn(() => ({ kind: 'system', orgId: 'org-1', systemKind: 'health' })),
+}));
 vi.mock('@/lib/agent-ops/log-tool-invocation', () => ({ withAgentOpsToolLog: (_m: unknown, _i: unknown, fn: () => Promise<string>) => fn() }));
 vi.mock('@/lib/agent-ops/record-turn-metrics', () => ({
   TurnMetricsRecorder: class {

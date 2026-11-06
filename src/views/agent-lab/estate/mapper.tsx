@@ -37,6 +37,7 @@ import {
   formatPct,
   type StageRow,
 } from '@/components/estate/mapper/mapper-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 interface Source {
   id: string;
@@ -105,6 +106,7 @@ interface GroupedPair {
 }
 
 export default function EstateMapperPage() {
+  const canAct = useCanRunEstatePipeline();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [sources, setSources] = useState<Source[]>([]);
   const [loadingSources, setLoadingSources] = useState(true);
@@ -551,7 +553,7 @@ export default function EstateMapperPage() {
                 />
                 Include matches I rejected before
               </label>
-              <button type="button" onClick={handleRunMapping} disabled={!canRun} className={CATALOG_BTN_PRIMARY}>
+              <button type="button" onClick={handleRunMapping} disabled={!canRun || !canAct} title={canAct ? undefined : 'Only platform admins can run mappings'} className={CATALOG_BTN_PRIMARY}>
                 {submitting ? (
                   <>
                     <Loader2 className="size-3.5 animate-spin" />
@@ -724,7 +726,8 @@ export default function EstateMapperPage() {
                           </Select>
                           <button
                             type="button"
-                            disabled={!!confirmingState}
+                            disabled={!!confirmingState || !canAct}
+                            title={canAct ? undefined : 'Only platform admins can confirm mappings'}
                             onClick={() => handleBulkConfirm(group)}
                             className={CATALOG_BTN}
                           >
@@ -826,7 +829,7 @@ export default function EstateMapperPage() {
                                         <MappingStatusPill status={m.status} />
                                       </td>
                                       <td className="px-4 py-2.5">
-                                        {!isConfirmed && !isRejected && (
+                                        {canAct && !isConfirmed && !isRejected && (
                                           <div className="flex items-center justify-end gap-1.5">
                                             <button
                                               type="button"

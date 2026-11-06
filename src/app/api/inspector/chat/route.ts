@@ -2,6 +2,9 @@ import { NextRequest } from 'next/server';
 import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { logAgentCost } from '@/lib/lifecycle/log-agent-cost';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { recordInteractiveLlmSpend } from '@/lib/spend/record-spend-event';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
 import { scoreRun } from '@/lib/lifecycle/score-run';
 import { reportToBandit } from '@/lib/lifecycle/report-bandit';
 import { writeBanditObservation } from '@/lib/lifecycle/write-bandit-observation';
@@ -32,6 +35,7 @@ import { recordInjection, attributeRunOutcome, type InjectedBullet } from '@/lib
 import { getCurrentTopicMap } from '@/lib/foer/topics';
 import { buildSemanticContext, type SemanticContext } from '@/lib/semantic/context-builder';
 import { guardInspectorChat, resolveInspectorPrincipal } from '@/lib/inspector/session-auth';
+import { principalForUser } from '@/lib/access/principal';
 import { chatModelKeyForRole, isPlatformAdminRole } from '@/lib/inspector/model-access';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
@@ -152,6 +156,8 @@ export async function POST(request: NextRequest) {
     getSessionUserRole(),
     loadModelSettings(),
   ]);
+  const dataPrincipal =
+    principal?.kind === 'user' ? await principalForUser(principal.userId) : null;
   const configuredInspectorKey = toLlmLiteModelKey(
     modelSettings.featureModels.inspector_chat || modelSettings.defaultGatewayModelId,
   );
@@ -162,12 +168,24 @@ export async function POST(request: NextRequest) {
     principal?.kind === 'service' || isPlatformAdminRole(role, modelSettings.roleAccess)
       ? (body.model ?? defaultInspectorKey)
       : chatModelKeyForRole(body.model, role, modelSettings.roleAccess, defaultInspectorKey);
+  const spendOrgId = getDefaultOrg().id;
+  const spendUserId = principal?.kind === 'user' ? principal.userId : null;
   // Only LLM Lite models are served; any other/legacy key falls back to the default.
   const effectiveModelKey = fromLlmLiteModelKey(requestedModelKey) ? requestedModelKey : defaultInspectorKey;
 
   if (!inspectorLlmConfigured()) {
     return cannedResponse(request);
   }
+
+  try {
+    await assertInteractiveBudget({ orgId: spendOrgId, userId: spendUserId, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, effectiveModelKey);
+    }
+    throw err;
+  }
+
   if (!hasLlmLiteCredentials()) {
     return new Response(
       `data: ${JSON.stringify({ type: 'error', message: 'LLM Lite gateway is not configured in this environment. Set LLMLITE_BASE_URL and LLMLITE_API_KEY in Elastic Beanstalk environment properties.', recoverable: false })}\n\ndata: ${JSON.stringify({ type: 'done', outcome: 'errored', loops: 0, usage: { inputTokens: 0, outputTokens: 0 }, model: effectiveModelKey })}\n\n`,
@@ -437,6 +455,7 @@ export async function POST(request: NextRequest) {
                 lastUserMessage: lastUserMessageText,
                 sessionId: body.sessionId ?? '',
                 connectionId: resolvedConnectionId,
+                dataPrincipal,
               }),
             ),
           maxLoops: maxInspectorLoops,
@@ -545,6 +564,39 @@ export async function POST(request: NextRequest) {
         const costTokens = () =>
           turnMetrics.tokenTotals() ?? { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens };
 
+        const persistInspectorSpend = (status: 'success' | 'failed', toolCallCount: number) => {
+          const t = costTokens();
+          const totals = turnMetrics.tokenTotals();
+          logAgentCost({
+            agentName: 'InspectorChat',
+            agentVersion: '1.0.0',
+            runId: body.sessionId,
+            model: effectiveModelId,
+            ...t,
+            cacheReadTokens: totals?.cacheReadTokens,
+            cacheWriteTokens: totals?.cacheWriteTokens,
+            toolCalls: toolCallCount,
+            durationMs: turnMetrics.elapsedMs(),
+            status,
+          }).catch(() => {});
+          recordInteractiveLlmSpend({
+            orgId: spendOrgId,
+            userId: spendUserId,
+            surface: 'inspector',
+            model: effectiveModelId,
+            inputTokens: t.inputTokens,
+            outputTokens: t.outputTokens,
+            cache: totals
+              ? { readTokens: totals.cacheReadTokens, writeTokens: totals.cacheWriteTokens }
+              : undefined,
+            sessionId: body.sessionId,
+            turnId: turnMetrics.turnId,
+            status,
+            durationMs: turnMetrics.elapsedMs(),
+            toolCalls: toolCallCount,
+          }).catch(() => {});
+        };
+
         // Accumulate bandit counters from trajectory
         for (const entry of result.toolCalls) {
           if (entry.status === 'error') {
@@ -581,7 +633,7 @@ export async function POST(request: NextRequest) {
 
           emit({ type: 'done', usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }, model: effectiveModelId, loops: result.loops, qualityScore, contextMode, outcome: 'completed' as const, toolTrajectory: result.toolCalls });
 
-          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, ...costTokens(), toolCalls: result.loops - 1, durationMs: turnMetrics.elapsedMs(), status: success ? 'success' : 'failed' }).catch(() => {});
+          persistInspectorSpend(success ? 'success' : 'failed', result.loops - 1);
           reportToBandit({ source: 'inspector', model: effectiveModelId, success, qualityScore, durationMs: Date.now() - runStartTime, sheetType: 'inspector_chat', sessionId: body.sessionId }).catch(() => {});
 
           // Write CTSGV bandit observation (C + T immediate; S + G filled by async judge)
@@ -646,7 +698,7 @@ export async function POST(request: NextRequest) {
           });
 
           emit({ type: 'done', usage: { inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens }, model: effectiveModelId, loops: result.loops, limitReached: true, qualityScore: qlLimitScore, contextMode, outcome: 'truncated' as const, toolTrajectory: result.toolCalls });
-          logAgentCost({ agentName: 'InspectorChat', agentVersion: '1.0.0', runId: body.sessionId, model: effectiveModelId, ...costTokens(), toolCalls: result.loops - 1, durationMs: turnMetrics.elapsedMs(), status: qlLimitSuccess ? 'success' : 'failed' }).catch(() => {});
+          persistInspectorSpend(qlLimitSuccess ? 'success' : 'failed', result.loops - 1);
           reportToBandit({ source: 'inspector', model: effectiveModelId, success: qlLimitSuccess, qualityScore: qlLimitScore, durationMs: Date.now() - runStartTime, sheetType: 'inspector_chat', sessionId: body.sessionId }).catch(() => {});
 
           // Write CTSGV bandit observation for truncated run (capped at 0.4 by outcome gate)
@@ -710,6 +762,8 @@ export async function POST(request: NextRequest) {
             userMessage: lastUserMessageText,
             taskGoal: firstUserMessageText,
             assistantExcerpt: result.finalText ?? undefined,
+            orgId: spendOrgId,
+            userId: spendUserId,
           }).catch((e) => {
             console.warn(
               '[inspector/chat] session knowledge persist failed (non-fatal):',

@@ -9,11 +9,11 @@ import { ConfigPanel } from '@/components/workbench/ConfigPanel';
 import { AloftSigil } from '@/components/workbench/atoms';
 import { useWorkbenchChat } from '@/hooks/useWorkbenchChat';
 import { useSession } from 'next-auth/react';
-import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { canCommissionAgent } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
 import { takeWorkbenchSeed } from '@/lib/construction/handoff';
+import { useDeveloperMode } from '@/hooks/useDeveloperMode';
 import { type, inkOf } from '@/lib/typography/tokens';
 import {
   AGENTS_LIST_HREF,
@@ -31,8 +31,12 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('New Session');
   const [rightPane, setRightPane] = useState<'config' | 'developer'>('config');
-  const { data: authSession } = useSession();
-  const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
+  const { developerMode } = useDeveloperMode();
+  const showDeveloperTab = developerMode;
+
+  useEffect(() => {
+    if (!showDeveloperTab && rightPane === 'developer') setRightPane('config');
+  }, [showDeveloperTab, rightPane]);
 
   const wb = useWorkbenchChat({
     sessionId: initialSessionId ?? null,
@@ -227,6 +231,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             onEditAssumption={wb.onEditAssumption}
             onApplyClass={wb.onApplyClass}
             onDismissClassSuggestion={() => wb.setClassSuggestion(null)}
+            showDeveloperToolSteps={developerMode}
           />
         </div>
         <div style={{ width: '42%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>

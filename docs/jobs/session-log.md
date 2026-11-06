@@ -5,6 +5,86 @@
 
 ---
 
+### 2026-11-06: Push consolidated work to `dev` including docs and graphify (Composer)
+
+- **What:** All local changes were committed and merged into `dev`, then pushed to `synergy-marine` so the branch carries documentation updates (`docs/CHANGELOG.md`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`, and other `docs/**` additions), research notes, and `graphify-out/` (graph report and artifacts).
+- **Verified:** `git push synergy-marine dev`.
+- **Not done:** Next.js dev logs under `.next/` are not in git (ignored).
+
+### 2026-11-06: Estate routes `enrich` and `logs` put under section access (Claude)
+
+- **What:**
+  - A new route coverage test (`src/lib/sections/__tests__/route-coverage.test.ts`) found two estate routes still on the old admin check.
+  - `objects/[id]/enrich` starts a harvest. It now needs Manage on Catalog, so platform admins only (admins could call it before; the button was already hidden).
+  - `jobs/[id]/logs` (live job log stream) now needs View on Jobs. Admins and platform admins have it, as before.
+- **Files:** `src/app/api/agent-lab/context/objects/[id]/enrich/route.ts`, `src/app/api/agent-lab/context/jobs/[id]/logs/route.ts`, `src/lib/sections/__tests__/route-coverage.test.ts`.
+- **Verified:** vitest `src/lib/sections` and `src/app/api/agent-lab` (56 tests); `tsc --noEmit` clean. Not run against live jobs.
+- **Not done:** Not checked in a browser.
+
+### 2026-11-06: Data Estate section access, admins view only (Claude)
+
+- **Files:**
+  - New: `src/lib/sections/*`, `src/app/api/me/sections/route.ts`.
+  - Estate pages and components: `EstateLayout`, `EstateNav`, `index`, `mapper`, `silo`, `SourceCard`, `ChildJobsPanel`, `EntityModelCard`, `HarvestActionBar`, `HeroSection`, `RelationshipList`, `TrustActionBar`, `SemanticCard`.
+  - 29 `src/app/api/agent-lab/context/**/route.ts` files. Full list in `docs/CHANGELOG.md`.
+- **Before → after:**
+  - **Before:** any signed-in user could open the Data Estate and read every estate API. Run, harvest, and schedule controls were already platform-admin only, but confirm-semantic, resolve-pii, mapping status, and silo link status could be changed by anyone. Overview and object-page actions showed for everyone.
+  - **After:**
+    - Admins see everything view-only, with a banner, and all actions are hidden or disabled.
+    - Members and read-only users have no Data Estate (hidden from the sidebar; the APIs return 403).
+    - Platform admins are unchanged.
+  - The orchestrator and job launch paths are unchanged.
+- **Not done:**
+  - Not browser-checked.
+  - Section access for other areas.
+  - Bundle editor.
+ `metadata` / `profile` service principal roles (Cursor)
+
+- **Files:** `src/lib/context/databricks-adapter.ts` (`exec` → `metadata` role; new `profileExec` → `profile` role for `harvestProfile`, `fetchSampleRows`, `countExactRows`), `src/lib/databricks/{sp-roles,token-client,secrets,test-connection}.ts`, `scripts/context/diagnose-query-history.ts`. Full list in `docs/CHANGELOG.md`.
+- **Before → after:** Every harvest query used the connection's single SP. Now each query names a role. With no role credentials configured (today), both roles resolve to the same default SP, so harvest behaviour is unchanged. Once an admin sets a role SP, T0/T3 and T1 run under different identities. `DATABRICKS_SP_REQUIRED_ROLES` stops the fallback.
+- **Also:** `src/lib/databricks/secrets.ts` now uses the AWS default credential chain when `AWS_ACCESS_KEY_ID` is unset, so the Fargate harvester can read role secrets through its task role.
+- **Not done:** No live harvest run. The `platform_databricks_credentials` migration has not been applied. No role SPs exist yet. Whether `DESCRIBE DETAIL` works with `BROWSE` alone was not checked, so it runs as `profile`.
+
+### 2026-11-04: T3 usage keeps executor names; key_columns only referenced columns (Claude)
+
+- **Files:** `src/lib/context/usage.ts` (`access_stats.top_executors` = top 10 `executed_as` with query counts; `extractKeyColumns` drops columns with no references), `src/components/estate/UsagePanel.tsx`, `HeroSection.tsx`, `ObjectKnowledgePage.tsx`.
+- **Before → after:** Usage showed only `distinct_executors`; names were discarded at harvest. Key columns listed 10 zero-score columns when queries referenced none (e.g. `SELECT *`). "last 0 days" when the window started and ended on one day. After the next T3: Executors card with names and counts; key columns only when referenced; window shown as dates; `weekly_trend` shown as bars.
+- **Not done:** Existing usage snapshots have no `top_executors` until T3 re-runs. `executed_as` is a user email or service principal — shown to anyone who can open the object page.
+
+### 2026-11-04: On-demand exact row count from the object page (Claude)
+
+- **Files:** `src/lib/context/databricks-adapter.ts` (`countExactRows`), new `src/app/api/agent-lab/context/objects/[id]/row-count/route.ts`, `src/components/estate/HeroSection.tsx`.
+- **Before → after:** Tables profiled before the T1 exact count showed only "5K+ · sampled". Rows tile now offers "Count exact rows" → one Delta `COUNT(*)` → saved to `row_count_est`. No job is queued; no change to orchestrator.
+- **Not done:** Live check against Databricks.
+
+### 2026-11-04: T1 exact row count for Delta tables (Claude)
+
+- **Issue:** Object page could not show an exact row count for large tables — T1 only counts rows inside its LIMIT sample window.
+- **Files:** `src/lib/context/databricks-adapter.ts` (one `SELECT COUNT(*)` for Delta tables after DESCRIBE DETAIL, only when ≥2 statements of budget remain; stored as `stats.row_count_exact`), `src/lib/context/harvest.ts` (`row_count_est` = `row_count_exact` when present). UI: `HeroSection.tsx`, `ProfileTimeline.tsx`.
+- **Before → after:** Rows tile showed "5K+ · row_count not measured" for >1 GB tables; after the next T1 it shows the exact count (e.g. "12,483,902 · row_count_exact"). Views and non-Delta tables are unchanged (a COUNT there would be a full scan).
+- **Not done:** Not run against live Databricks in this session; cost of COUNT(*) on Delta tables with deletion vectors not measured.
+
+### 2026-11-04: Harvest launch budget gate + full cost program
+
+- **What:** `assertHarvestBudget` on `POST /api/agent-lab/context/jobs/launch` using `estimateLaunchHarvestUsd` from job plans. Launcher attribution unchanged (`triggered_by_user_id`).
+- **Why:** Org-level harvest cap (hard mode) should block launches before Fargate enqueue, not only show overage in the monitor.
+- **Verified:** Code path review; ledger tests unchanged.
+- **Not done:** Per-user harvest caps (still org pool only).
+
+### 2026-11-03: Object page redesign + T1 row count / drift fixes (Claude)
+
+- **Issues:** Object page showed "5,000 rows" for a ~1 GB table (the T1 sample window saved as `row_count_est`); Trusted score said "High drift (2 events)" for objects that had only been re-profiled (`computeDrift` writes a record every time); jobs queued from the object page never showed in its Recent Jobs (query matched `scope.path`, actions write `scope.includePatterns`).
+- **Files:** `src/lib/context/harvest.ts` (null row count when the count fills the sample window), `src/lib/context/databricks-adapter.ts` (`table_detail` from DESCRIBE DETAIL), `src/lib/context/pipeline-freshness.ts` (`table_detail` volatile), `src/lib/context/drift-summary.ts` (+ test), `src/lib/context/data-score/dimensions/trusted.ts`, `src/lib/context/reads.ts` (jobs `includePatterns` match, confirmed mappings, agent knowledge chunks). UI: see `docs/CHANGELOG.md`.
+- **Before → after:** Hero row count for a sampled large table reads "5K+ · not counted" instead of "5,000". Re-profiles with no change no longer lower Trusted. Recent Jobs lists Rescan / Re-enrich / Refresh all jobs, and the page polls every 15s while one is queued or running.
+- **Not done:** Existing `row_count_est` values equal to the window stay until each object is re-profiled (no backfill run). No live-data verification in this session.
+
+### 2026-11-03: Harvest spend ledger + launcher attribution
+
+- **What:** `platform_context_jobs.triggered_by_user_id` set on launch (`jobs/launch`). `finalize()` writes `platform_spend_events` via `recordHarvestJobSpend` when `stats.cost_usd` is present.
+- **Why:** Cost monitor harvest tab needs per-job USD and who launched on-demand jobs.
+- **Verified:** Unit tests in `src/lib/spend/__tests__/record-spend-event.test.ts`.
+- **Not done:** Backfill ledger from past jobs; scheduled jobs without a user id.
+
 ### 2026-11-02: DB verify pipeline 8942f51f… (Navitas 7 schemas)
 
 - **Queried:** `platform_context_jobs`, `platform_context_objects` via `verify-pipeline-run.ts`.

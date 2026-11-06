@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { denyUnless, requirePermission } from '@/middleware/auth';
-import { PERMISSIONS } from '@/lib/rbac';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  const denied = await denyUnless(req, (c) => requirePermission(c, PERMISSIONS.AUDIT_READ));
+  const denied = await denyUnlessSection(req, ['govern.audit', 'view']);
   if (denied) return denied;
   try {
     // Aggregate audit entries from multiple lifecycle tables

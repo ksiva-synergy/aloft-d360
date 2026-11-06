@@ -1,32 +1,39 @@
 'use client';
 
-// ObjectKnowledgePage — DS3c updated.
+// ObjectKnowledgePage — the Estate object detail page.
 //
-// Region 3 (Relationships) renders RelationshipGraph + RelationshipList
-// unconditionally (always alongside each other — not a conditional fallback).
+// Layout (top → bottom):
+//   Header         — breadcrumb, title + actions, path, status chips, summary
+//   Sticky nav     — five anchored sections + readiness pill (appears on scroll)
+//   Overview       — fact strip (rows, size, columns, period, usage, freshness)
+//                    and the DATA readiness card with linked next steps
+//   Meaning        — semantic card, entity model, columns, what agents see
+//   Relationships  — graph + reviewable list, link to Lineage
+//   Operations     — freshness, harvest timeline, profile history, recent jobs
+//   Usage          — T3 usage panel
 //
-// Region 4 (Operations): HarvestTimeline (T0–T4 status strip), FreshnessCard
-// (detail view), ProfileTimeline (field-corrected), JobsMiniTable (drill-down links).
-//
-// Region 5 (Usage): UsagePanel with zero-row suppression and simplified
-// co-objects (compact summary + anchor link to #relationships).
+// Every section uses SectionHeader so headings, counts and descriptions read
+// the same way down the page.
 
 import React, { useCallback, useRef, useState } from 'react';
 import Link from '@/lib/navigation/link';
 
-import HeroSection from './HeroSection';
+import HeroSection, { ObjectFacts } from './HeroSection';
 import InPageNav, { type SectionRefs } from './InPageNav';
 import DataReadinessPill from './DataReadinessPill';
+import DataReadinessRing from './DataReadinessRing';
+import SectionHeader from './SectionHeader';
 import SemanticCard from './SemanticCard';
-import EntityModelCard from './EntityModelCard';
+import EntityModelCard, { type ModelDimension, type ModelMeasure, type ModelJoin, type ModelAudit } from './EntityModelCard';
 import ColumnsTable from './ColumnsTable';
 import ProfileTimeline from './ProfileTimeline';
 import JobsMiniTable from './JobsMiniTable';
-import UsagePanel, { type UsageSnapshot } from './UsagePanel';
-import FreshnessCard, { type FreshnessBlock } from './FreshnessCard';
+import UsagePanel, { type UsageSnapshot, usageWindowLabel } from './UsagePanel';
+import type { FreshnessBlock } from './FreshnessCard';
 import HarvestTimeline from './HarvestTimeline';
 import RelationshipGraph from './RelationshipGraph';
 import RelationshipList from './RelationshipList';
+import AgentKnowledgePanel, { type AgentKnowledgeChunk } from './AgentKnowledgePanel';
 import type { DataScoreShape } from './DataReadinessRing';
 import { type } from '@/lib/typography/tokens';
 
@@ -48,6 +55,7 @@ interface ObjectItem {
   last_t4_at: string | null;
   last_knowledge_sync_at: string | null;
   entity_tags: any;
+  domain_keywords?: string[] | null;
 }
 
 export interface ObjectKnowledgePayload {
@@ -59,12 +67,18 @@ export interface ObjectKnowledgePayload {
   latestSemanticId: string | null;
   /** DS3a: version of the semantic card rendered — used for version guard */
   latestSemanticVersion: number | null;
+  /** Model / prompt / confidence of the semantic card row. */
+  latestSemanticMeta?: { model_id: string | null; prompt_version: string | null; confidence: number | null; created_at: string } | null;
   /** DS3a: embedding presence — Published lifecycle signal */
   hasEmbedding: boolean;
   profileHistory: any[];
   freshness: FreshnessBlock;
   entityGroupObjects: ObjectItem[];
   proposedMappings: any[];
+  /** Confirmed column mappings — display only (not scored). */
+  confirmedMappings?: any[];
+  /** Knowledge chunks agents retrieve for this object. */
+  agentKnowledge?: AgentKnowledgeChunk[];
   objectLinks: any[];
   lastJobs: any[];
   usageSnapshot: UsageSnapshot | null;
@@ -74,17 +88,48 @@ export interface ObjectKnowledgePayload {
     entity_label: string;
     description: string | null;
     status: string;
-    dimensions: Array<{ column_name: string; dimension_label: string; dimension_type: string; description: string | null }>;
-    measures: Array<{ column_name: string | null; measure_label: string; aggregate: string; description: string | null; unit: string | null }>;
+    ai_context?: string | null;
+    synonyms?: string[];
+    created_by?: string | null;
+    updated_at?: string | null;
+    model?: { id: string; name: string; status: string } | null;
+    dimensions: ModelDimension[];
+    measures: ModelMeasure[];
+    joins?: ModelJoin[];
+    audit?: ModelAudit[];
   } | null;
   dataScore: DataScoreShape;
 }
 
 interface ObjectKnowledgePageProps {
   data: ObjectKnowledgePayload;
+  /** Re-fetch the aggregate (after a harvest action is queued). */
+  onRefresh?: () => void;
 }
 
-export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) {
+const SECTION_GAP = 56;
+
+function EmptyState({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        border: '1px dashed var(--estate-border)',
+        borderRadius: 12,
+        padding: '28px 24px',
+        background: 'var(--estate-raised)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        alignItems: 'flex-start',
+      }}
+    >
+      <div style={{ ...type['title-card'], color: 'var(--estate-ink)' }}>{title}</div>
+      <div style={{ ...type.ui, color: 'var(--estate-text-muted)', maxWidth: '70ch' }}>{children}</div>
+    </div>
+  );
+}
+
+export default function ObjectKnowledgePage({ data, onRefresh }: ObjectKnowledgePageProps) {
   const {
     object,
     columns,
@@ -101,6 +146,8 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
     semanticModel,
     dataScore,
     objectLinks,
+    confirmedMappings = [],
+    agentKnowledge = [],
   } = data;
 
   const [columnFocus, setColumnFocus] = useState<string | null>(null);
@@ -123,10 +170,33 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
     usage:         usageRef,
   };
 
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const cardBg = 'var(--estate-raised)';
-  const borderColor = 'var(--estate-border-gold)';
+  // ── Derived values shared by the nav, header, and sections ──
+  const fkCandidates: { column: string; likely_target: string; confidence: number }[] =
+    Array.isArray(latestSemanticCard?.fk_candidates) ? latestSemanticCard.fk_candidates : [];
+  const coObjects =
+    usageSnapshot && Array.isArray(usageSnapshot.co_objects)
+      ? (usageSnapshot.co_objects as Array<{ full_path?: string; co_count?: number }>)
+          .filter((c): c is { full_path: string; co_count?: number } => !!c.full_path)
+          .map((c) => ({
+            full_path: c.full_path,
+            object_id: usageSnapshot.co_object_id_map?.[c.full_path] ?? undefined,
+            co_count: c.co_count,
+          }))
+      : [];
+  const relationshipCount =
+    entityGroupObjects.length + fkCandidates.length + objectLinks.length
+    + proposedMappings.length + confirmedMappings.length + coObjects.length;
+  const pendingReviewCount =
+    proposedMappings.length
+    + objectLinks.filter((l: { status?: string }) => l.status === 'proposed').length;
+  const activeJobKinds = (lastJobs as Array<{ status?: string; job_kind?: string }>)
+    .filter((j) => j.status === 'queued' || j.status === 'running')
+    .map((j) => j.job_kind ?? 'job');
+  const lineageHref = semanticModel
+    ? `/agent-lab/estate/lineage?focus=${encodeURIComponent(`e:${semanticModel.entity_id}`)}`
+    : null;
+  const latestProfileStats = (profileHistory[0]?.stats as any) ?? null;
+  const usageWindow = usageSnapshot ? usageWindowLabel(usageSnapshot) : null;
 
   const hasSemanticContent = latestSemanticCard && (
     latestSemanticCard.summary ||
@@ -136,134 +206,92 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
     latestSemanticCard.time_columns?.length
   );
 
+  const sectionStyle: React.CSSProperties = { scrollMarginTop: 64, marginBottom: SECTION_GAP };
+
   return (
-    <div className="overflow-y-auto h-full scrollbar-thin bg-[var(--background)]" style={{ scrollBehavior: 'smooth' }}>
+    <div className="overflow-y-auto h-full scrollbar-thin" style={{ scrollBehavior: 'smooth', background: 'var(--estate-bg)' }}>
 
-      {/* Sticky readiness pill — DS2, persists across ALL sections per OPEN-B */}
-      <DataReadinessPill dataScore={dataScore} ringRef={ringRef} />
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '28px 40px 0' }}>
+        <HeroSection
+          object={object}
+          freshness={freshness}
+          hasEmbedding={hasEmbedding}
+          columns={columns}
+          semanticCard={latestSemanticCard}
+          semanticStatus={latestSemanticStatus}
+          latestProfileStats={latestProfileStats}
+          activeJobKinds={activeJobKinds}
+          onRefresh={onRefresh}
+        />
+      </div>
 
-      {/* Anchored in-page navigation */}
-      <InPageNav sectionRefs={sectionRefs} />
+      {/* ── Sticky section nav (readiness pill on the right) ───────── */}
+      <InPageNav
+        sectionRefs={sectionRefs}
+        badges={{
+          relationships: relationshipCount > 0
+            ? { text: pendingReviewCount > 0 ? `${pendingReviewCount} to review` : String(relationshipCount), tone: pendingReviewCount > 0 ? 'attention' : 'neutral' }
+            : undefined,
+          meaning: columns.length > 0 ? { text: `${columns.length} cols` } : undefined,
+          usage: usageSnapshot ? undefined : { text: 'not harvested' },
+        }}
+        rightSlot={<DataReadinessPill dataScore={dataScore} ringRef={ringRef} />}
+      />
 
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '28px 40px 100px' }}>
+      <div style={{ maxWidth: 1320, margin: '0 auto', padding: '28px 40px 120px' }}>
 
-        {/* Breadcrumb */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--type-ui-regular-size)',
-            color: labelColor,
-            marginBottom: 24,
-          }}
-        >
-          <Link href="/agent-lab/estate" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[var(--brand-a-ink)] transition-colors">
-            Data Estate
-          </Link>
-          <span>›</span>
-          <Link href="/agent-lab/estate/catalog" style={{ color: labelColor, textDecoration: 'none' }} className="hover:text-[var(--brand-a-ink)] transition-colors">
-            Catalog
-          </Link>
-          <span>›</span>
-          <span>{object.schema_name || 'default'}</span>
-          <span>›</span>
-          <span style={{ color: 'var(--estate-ink)', fontWeight: 600 }}>
-            {object.object_name || 'unnamed'}
-          </span>
-        </div>
-
-        {/* ── SECTION: Overview (Hero) ────────────────────────────────── */}
-        <section
-          id="overview"
-          ref={overviewRef as React.RefObject<HTMLElement>}
-          style={{ scrollMarginTop: 100, marginBottom: 44 }}
-        >
-          <HeroSection
+        {/* ── Overview ─────────────────────────────────────────────── */}
+        <section id="overview" ref={overviewRef as React.RefObject<HTMLElement>} style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <ObjectFacts
             object={object}
-            dataScore={dataScore}
             freshness={freshness}
-            hasEmbedding={hasEmbedding}
-            ringRef={ringRef}
+            columns={columns}
+            semanticCard={latestSemanticCard}
+            latestProfileStats={latestProfileStats}
+            usage={usageSnapshot}
           />
-        </section>
-
-        {/* ── SECTION: Meaning & Trust ────────────────────────────────── */}
-        <section
-          id="meaning"
-          ref={meaningRef as React.RefObject<HTMLElement>}
-          style={{ scrollMarginTop: 100, marginBottom: 44 }}
-        >
           <div
             style={{
-              ...type.label,
-              color: labelColor,
-              marginBottom: 16,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
+              background: 'var(--estate-raised)',
+              border: '1px solid var(--estate-border)',
+              borderRadius: 12,
+              padding: '22px 24px',
             }}
           >
-            <span>Meaning & Trust</span>
-            <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>STEWARD / ANALYST</span>
+            <DataReadinessRing dataScore={dataScore} ringRef={ringRef as React.RefObject<HTMLDivElement>} />
           </div>
+        </section>
+
+        {/* ── Meaning & trust ──────────────────────────────────────── */}
+        <section id="meaning" ref={meaningRef as React.RefObject<HTMLElement>} style={sectionStyle}>
+          <SectionHeader
+            title="Meaning & trust"
+            description="What this table represents, how it is modelled, its columns, and what agents are told about it."
+          />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div id="semantic-card" style={{ scrollMarginTop: 64 }}>
+              {hasSemanticContent ? (
+                <SemanticCard
+                  card={latestSemanticCard}
+                  status={latestSemanticStatus || 'assumed'}
+                  semanticCardId={latestSemanticId}
+                  semanticVersion={data.latestSemanticVersion}
+                  objectId={object.id}
+                  modelId={data.latestSemanticMeta?.model_id ?? latestSemanticCard?.model_id}
+                  promptVersion={data.latestSemanticMeta?.prompt_version ?? latestSemanticCard?.prompt_version}
+                  confidence={data.latestSemanticMeta?.confidence ?? latestSemanticCard?.confidence}
+                  onColumnClick={handleColumnFocus}
+                />
+              ) : (
+                <EmptyState title="Not described yet">
+                  Use <strong style={{ color: 'var(--estate-ink)' }}>Rescan tier → T2 Semantic</strong> at the top of the page
+                  to generate a summary, grain, key columns and usage patterns.
+                </EmptyState>
+              )}
+            </div>
 
-            {/* Semantic Card */}
-            {hasSemanticContent ? (
-              <SemanticCard
-                card={latestSemanticCard}
-                status={latestSemanticStatus || 'assumed'}
-                semanticCardId={latestSemanticId}
-                semanticVersion={data.latestSemanticVersion}
-                objectId={object.id}
-                modelId={latestSemanticCard?.model_id}
-                promptVersion={latestSemanticCard?.prompt_version}
-                confidence={latestSemanticCard?.confidence}
-                onColumnClick={handleColumnFocus}
-              />
-            ) : (
-              <div
-                style={{
-                  border: `1px dashed ${borderColor}`,
-                  borderRadius: 8,
-                  padding: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
-                  background: cardBg,
-                }}
-              >
-                <span style={{ fontSize: 'var(--type-title-section-size)', opacity: 0.2 }}>✦</span>
-                <div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--type-ui-regular-size)',
-                      fontWeight: 600,
-                      color: labelColor,
-                      marginBottom: 4,
-                    }}
-                  >
-                    No semantic context yet
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 'var(--type-ui-regular-size)',
-                      color: mutedColor,
-                    }}
-                  >
-                    Run <strong style={{ color: 'var(--brand-a-ink)' }}>Re-enrich (T2)</strong> from the action bar above to generate an AI summary, grain, key columns, and usage patterns.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* T4 Entity Model Card — extracted, unified card system */}
             {semanticModel && (
               <EntityModelCard
                 entity_id={semanticModel.entity_id}
@@ -273,125 +301,92 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                 status={semanticModel.status}
                 dimensions={semanticModel.dimensions}
                 measures={semanticModel.measures}
+                fullPath={object.full_path}
+                ai_context={semanticModel.ai_context}
+                synonyms={semanticModel.synonyms}
+                created_by={semanticModel.created_by}
+                updated_at={semanticModel.updated_at}
+                model={semanticModel.model}
+                joins={semanticModel.joins}
+                audit={semanticModel.audit}
+                columns={columns}
+                onColumnClick={handleColumnFocus}
               />
             )}
 
-            {/* Columns Schema — demoted to strong secondary */}
-            <ColumnsTable
-              columns={columns}
-              focusColumn={columnFocus}
-              onFocusClear={handleColumnFocusClear}
-            />
+            <div id="columns" style={{ scrollMarginTop: 64 }}>
+              <ColumnsTable
+                columns={columns}
+                focusColumn={columnFocus}
+                onFocusClear={handleColumnFocusClear}
+              />
+            </div>
 
+            <AgentKnowledgePanel
+              fullPath={object.full_path}
+              chunks={agentKnowledge}
+              lastSyncAt={object.last_knowledge_sync_at}
+              hasEmbedding={hasEmbedding}
+            />
           </div>
         </section>
 
-        {/* ── SECTION: Relationships ──────────────────────────────────── */}
-        <section
-          id="relationships"
-          ref={relationshipsRef as React.RefObject<HTMLElement>}
-          style={{ scrollMarginTop: 100, marginBottom: 44 }}
-        >
-          <div
-            style={{
-              ...type.label,
-              color: labelColor,
-              marginBottom: 16,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span>Relationships</span>
-            <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>4 SOURCES · CONSOLIDATED</span>
-          </div>
+        {/* ── Relationships ────────────────────────────────────────── */}
+        <section id="relationships" ref={relationshipsRef as React.RefObject<HTMLElement>} style={sectionStyle}>
+          <SectionHeader
+            title="Relationships"
+            count={relationshipCount}
+            note={pendingReviewCount > 0 ? (
+              <span style={{ ...type.caption, color: 'var(--brand-a-ink)', fontWeight: 600 }}>
+                {pendingReviewCount} waiting for review
+              </span>
+            ) : undefined}
+            description="Tables this one joins to, shares an entity with, or is queried alongside."
+            action={lineageHref ? (
+              <Link
+                href={lineageHref}
+                className="inline-flex h-8 items-center rounded-lg border px-3 text-size-ui font-medium transition-colors hover:bg-[var(--estate-active-bg)]"
+                style={{ borderColor: 'var(--estate-btn-border)', color: 'var(--estate-ink)', textDecoration: 'none' }}
+                title="Upstream and downstream of this table's business entity"
+              >
+                Open in Lineage →
+              </Link>
+            ) : undefined}
+          />
 
-          {/* Graph (pattern spotting) + List (detail + actions) — always co-rendered */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* RelationshipGraph — React Flow + dagre */}
             <RelationshipGraph
               focusObjectId={object.id}
               focusObjectName={object.object_name ?? object.full_path.split('.').pop() ?? ''}
               focusObjectKind={object.object_kind}
               focusFull={object.full_path}
               entityGroupObjects={entityGroupObjects}
-              fkCandidates={
-                Array.isArray(latestSemanticCard?.fk_candidates)
-                  ? (latestSemanticCard.fk_candidates as { column: string; likely_target: string; confidence: number }[])
-                  : []
-              }
+              fkCandidates={fkCandidates}
               objectLinks={objectLinks as any}
-              coObjects={
-                usageSnapshot
-                  ? (Array.isArray(usageSnapshot.co_objects)
-                    ? (usageSnapshot.co_objects as Array<{ full_path?: string; co_count?: number }>)
-                        .filter((c): c is { full_path: string; co_count?: number } => !!c.full_path)
-                        .map((c) => ({
-                          full_path: c.full_path,
-                          object_id: usageSnapshot.co_object_id_map?.[c.full_path] ?? undefined,
-                          co_count: c.co_count,
-                        }))
-                    : [])
-                  : []
-              }
+              coObjects={coObjects}
             />
-
-            {/* RelationshipList — detail + confirm/reject actions, always rendered */}
             <RelationshipList
               focusObjectId={object.id}
               entityGroupObjects={entityGroupObjects}
-              fkCandidates={
-                Array.isArray(latestSemanticCard?.fk_candidates)
-                  ? (latestSemanticCard.fk_candidates as { column: string; likely_target: string; confidence: number }[])
-                  : []
-              }
+              fkCandidates={fkCandidates}
               objectLinks={objectLinks as any}
               proposedMappings={proposedMappings as any}
-              coObjects={
-                usageSnapshot
-                  ? (Array.isArray(usageSnapshot.co_objects)
-                    ? (usageSnapshot.co_objects as Array<{ full_path?: string; co_count?: number }>)
-                        .filter((c): c is { full_path: string; co_count?: number } => !!c.full_path)
-                        .map((c) => ({
-                          full_path: c.full_path,
-                          object_id: usageSnapshot.co_object_id_map?.[c.full_path] ?? undefined,
-                          co_count: c.co_count,
-                        }))
-                    : [])
-                  : []
-              }
+              confirmedMappings={confirmedMappings as any}
+              coObjects={coObjects}
             />
-
           </div>
         </section>
 
-        {/* ── SECTION: Operations ─────────────────────────────────────── */}
-        <section
-          id="operations"
-          ref={operationsRef as React.RefObject<HTMLElement>}
-          style={{ scrollMarginTop: 100, marginBottom: 44 }}
-        >
-          <div
-            style={{
-              ...type.label,
-              color: labelColor,
-              marginBottom: 16,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span>Operations</span>
-            <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>DATA ENGINEER</span>
-          </div>
+        {/* ── Operations ───────────────────────────────────────────── */}
+        <section id="operations" ref={operationsRef as React.RefObject<HTMLElement>} style={sectionStyle}>
+          <SectionHeader
+            title="Operations"
+            description="How fresh the metadata is, what each harvest step found, and recent jobs."
+          />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Top row: Freshness + Harvest Timeline — full width */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'start' }}>
-              <FreshnessCard freshness={freshness} />
+            {/* Status (steps + freshness) next to the jobs that produced it */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 520px), 1fr))', gap: 16, alignItems: 'stretch' }}>
               <HarvestTimeline
                 tiers={{
                   last_t0_at: object.last_t0_at,
@@ -400,78 +395,32 @@ export default function ObjectKnowledgePage({ data }: ObjectKnowledgePageProps) 
                   last_t3_at: object.last_t3_at,
                   last_t4_at: object.last_t4_at,
                 }}
+                freshness={freshness}
+                activeJobKinds={activeJobKinds}
               />
+              <JobsMiniTable lastJobs={lastJobs} />
             </div>
 
-            {/* Bottom row: Profile Run History (60%) + Recent Jobs (40%) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, alignItems: 'start' }}>
-              <div style={{ minHeight: 200 }}>
-                <div
-                  style={{
-                    ...type.label,
-                    color: labelColor,
-                    marginBottom: 12,
-                  }}
-                >
-                  Profile Run History
-                </div>
-                <ProfileTimeline profileHistory={profileHistory} />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    ...type.label,
-                    color: labelColor,
-                    marginBottom: 12,
-                  }}
-                >
-                  Recent Jobs
-                </div>
-                <JobsMiniTable lastJobs={lastJobs} />
-              </div>
-            </div>
+            {/* Profile versions — full width */}
+            <ProfileTimeline profileHistory={profileHistory} />
           </div>
         </section>
 
-        {/* ── SECTION: Usage ──────────────────────────────────────────── */}
-        <section
-          id="usage"
-          ref={usageRef as React.RefObject<HTMLElement>}
-          style={{ scrollMarginTop: 100, marginBottom: 44 }}
-        >
-          <div
-            style={{
-              ...type.label,
-              color: labelColor,
-              marginBottom: 16,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <span>Usage</span>
-            <span style={{ opacity: 0.3 }}>—</span>
-            <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--type-ui-regular-size)' }}>T3 · LAST 30 DAYS</span>
-          </div>
-
+        {/* ── Usage ────────────────────────────────────────────────── */}
+        <section id="usage" ref={usageRef as React.RefObject<HTMLElement>} style={{ ...sectionStyle, marginBottom: 0 }}>
+          <SectionHeader
+            title="Usage"
+            description={usageSnapshot
+              ? `Who queries this table and how (${usageWindow}).`
+              : 'Who queries this table and how.'}
+          />
           {usageSnapshot ? (
             <UsagePanel usage={usageSnapshot} />
           ) : (
-            <div
-              style={{
-                border: `1px dashed ${borderColor}`,
-                borderRadius: 8,
-                padding: '24px',
-                textAlign: 'center',
-                background: cardBg,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 'var(--type-ui-regular-size)',
-                color: mutedColor,
-              }}
-            >
-              No usage data — run T3 Usage harvest to populate
-            </div>
+            <EmptyState title="Usage not harvested yet">
+              Usage is collected for the whole source from the Jobs page (T3). Once it runs, this shows query counts,
+              users, common filters and the tables queried alongside this one.
+            </EmptyState>
           )}
         </section>
 

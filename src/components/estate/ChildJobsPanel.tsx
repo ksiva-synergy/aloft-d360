@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from '@/lib/navigation/link';
 import { inkOf } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 export interface ChildJob {
   id: string;
@@ -35,6 +36,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: string }) {
+  const canAct = useCanRunEstatePipeline();
   const [children, setChildren] = useState<ChildJob[]>([]);
   const [counts, setCounts] = useState<ChildCounts | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ export default function ChildJobsPanel({ jobId }: { jobId: string; orgId?: strin
             </>
           )}
         </div>
-        {failedCount > 0 && (
+        {failedCount > 0 && canAct && (
           <button
             type="button"
             onClick={retryFailed}

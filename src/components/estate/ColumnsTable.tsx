@@ -1,8 +1,17 @@
 'use client';
 
+// ColumnsTable — every column of the table with its profile and meaning.
+//
+// Card header: title + counts, search ("/" focuses it), role filter, PII filter.
+// Rows: column (name + type + PII flag), role, nulls (bar), distinct, range,
+// top values, description, confidence. Clicking a row opens a detail panel
+// with the full description, every top value, range, and the source comment.
+// External focus (from the semantic card) searches, scrolls and pulses a row.
+
 import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { inkOf } from '@/lib/typography/tokens';
+import { type } from '@/lib/typography/tokens';
+import { Card, Tag, EmptyNote, TONE_COLOR, DetailPanel, DetailCard, MiniStat, KVList, type Tone } from './object-ui';
 
 export interface ColumnItem {
   id: string;
@@ -20,29 +29,54 @@ interface ColumnsTableProps {
   onFocusClear?: () => void;
 }
 
-function formatNullRate(rate: any): string {
-  if (rate === null || rate === undefined) return '—';
-  const val = Number(rate);
-  if (isNaN(val)) return '—';
-  return `${(val * 100).toFixed(1)}%`;
+// ── Formatting ───────────────────────────────────────────────────────────────
+
+function pct(rate: any): number | null {
+  if (rate === null || rate === undefined) return null;
+  const v = Number(rate);
+  return Number.isNaN(v) ? null : v;
 }
 
 function formatDistinct(distinct: any): string {
   if (distinct === null || distinct === undefined) return '—';
   const val = Number(distinct);
-  if (isNaN(val)) return '—';
-  return val.toLocaleString();
+  if (Number.isNaN(val)) return '—';
+  return new Intl.NumberFormat(undefined, { notation: val >= 100_000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(val);
 }
 
-function formatTopK(topK: any): string[] {
-  if (!Array.isArray(topK) || topK.length === 0) return [];
-  return topK.map((item: any) => {
+/** Short display for a profile min/max bound (ISO timestamps → date part). */
+function formatBound(v: any): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v);
+  const date = /^(\d{4}-\d{2}-\d{2})[T ]/.exec(s);
+  return date ? date[1] : s;
+}
+
+function topK(topKRaw: any): { value: string; count: number | null }[] {
+  if (!Array.isArray(topKRaw) || topKRaw.length === 0) return [];
+  return topKRaw.map((item: any) => {
     if (item && typeof item === 'object') {
-      return item.value !== undefined ? String(item.value) : JSON.stringify(item);
+      return {
+        value: item.value !== undefined ? String(item.value) : JSON.stringify(item),
+        count: typeof item.count === 'number' ? item.count : null,
+      };
     }
-    return String(item);
+    return { value: String(item), count: null };
   });
 }
+
+// Role values are shown as stored (semantic.role) — technical names, not relabelled.
+const ROLE: Record<string, { tone: Tone; label: string }> = {
+  key:       { tone: 'brand',   label: 'key' },
+  fk_ref:    { tone: 'blue',    label: 'fk_ref' },
+  dimension: { tone: 'violet',  label: 'dimension' },
+  measure:   { tone: 'green',   label: 'measure' },
+  timestamp: { tone: 'amber',   label: 'timestamp' },
+  audit:     { tone: 'neutral', label: 'audit' },
+  text_blob: { tone: 'neutral', label: 'text_blob' },
+  flag:      { tone: 'neutral', label: 'flag' },
+  other:     { tone: 'neutral', label: 'other' },
+};
 
 function Highlight({ text, query }: { text: string; query: string }) {
   if (!query) return <>{text}</>;
@@ -51,7 +85,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 22%, transparent)', color: 'inherit', borderRadius: '2px', padding: '0 1px' }}>
+      <mark style={{ backgroundColor: 'color-mix(in srgb, var(--brand-a) 22%, transparent)', color: 'inherit', borderRadius: 2, padding: '0 1px' }}>
         {text.slice(idx, idx + query.length)}
       </mark>
       {text.slice(idx + query.length)}
@@ -59,220 +93,227 @@ function Highlight({ text, query }: { text: string; query: string }) {
   );
 }
 
-function RoleBadge({ role }: { role: string }) {
-  const roleColors: Record<string, { bg: string; text: string; border: string }> = {
-    key:       { bg: 'color-mix(in srgb, var(--brand-a) 10%, transparent)',   text: 'var(--brand-a)', border: 'color-mix(in srgb, var(--brand-a) 30%, transparent)' },
-    fk_ref:    { bg: 'rgba(91,157,255,0.10)',   text: '#5B9DFF', border: 'rgba(91,157,255,0.3)' },
-    dimension: { bg: 'rgba(139,92,246,0.10)',   text: '#A78BFA', border: 'rgba(139,92,246,0.3)' },
-    measure:   { bg: 'rgba(34,197,94,0.10)',    text: '#4ADE80', border: 'rgba(34,197,94,0.3)' },
-    timestamp: { bg: 'rgba(251,146,60,0.10)',   text: '#FB923C', border: 'rgba(251,146,60,0.3)' },
-    other:     { bg: 'rgba(136,146,164,0.06)',  text: 'var(--ink-3)', border: 'rgba(136,146,164,0.2)' },
-  };
-  const style = roleColors[role] || roleColors.other;
+function NullBar({ rate }: { rate: number | null }) {
+  if (rate === null) return <span style={{ color: 'var(--estate-text-muted)' }}>—</span>;
+  const p = Math.max(0, Math.min(1, rate));
+  const color = p >= 0.5 ? TONE_COLOR.red : p >= 0.1 ? TONE_COLOR.amber : TONE_COLOR.green;
   return (
-    <span
-      className="inline-flex items-center px-1.5 py-0.5 rounded text-size-ui font-mono font-medium tracking-wide whitespace-nowrap"
-      style={{ backgroundColor: style.bg, color: style.text, border: `1px solid ${style.border}` }}
-    >
-      {role}
-    </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }} title={`null_rate ${(p * 100).toFixed(2)}%`}>
+      <div style={{ width: 40, height: 4, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+        <div style={{ width: `${Math.max(p * 100, p > 0 ? 4 : 0)}%`, height: '100%', background: color }} />
+      </div>
+      <span style={{ ...type['code-inline'], color: 'var(--estate-ink)', minWidth: 40, textAlign: 'right' }}>
+        {p === 0 ? '0%' : p < 0.001 ? '<0.1%' : `${(p * 100).toFixed(p < 0.1 ? 1 : 0)}%`}
+      </span>
+    </div>
   );
 }
 
+// ── Row ──────────────────────────────────────────────────────────────────────
+
 interface ColumnRowProps {
   col: ColumnItem;
-  idx: number;
   searchQuery: string;
   highlighted: boolean;
+  expanded: boolean;
+  onToggle: () => void;
   rowRef?: React.Ref<HTMLTableRowElement>;
 }
 
-function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProps) {
-  const [expanded, setExpanded] = useState(false);
+const CELL = 'px-4 py-3 align-middle';
+const COLS = 8;
 
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const borderColor = 'var(--estate-border-gold)';
-
+function ColumnRow({ col, searchQuery, highlighted, expanded, onToggle, rowRef }: ColumnRowProps) {
   const profile = col.profile || {};
   const semantic = col.semantic || {};
 
   const isPii = semantic.pii_flag === true;
-  const role = semantic.role || '—';
-  const description = semantic.description || col.native_comment || '';
+  const role = typeof semantic.role === 'string' ? semantic.role : null;
+  const roleDef = role ? (ROLE[role] ?? { tone: 'neutral' as Tone, label: role }) : null;
+  const description: string = semantic.description || col.native_comment || '';
   const descriptionIsNative = !semantic.description && !!col.native_comment;
   const confidence = typeof semantic.confidence === 'number' ? semantic.confidence : null;
-  const topValues = formatTopK(profile.top_k);
-  const hasDescription = description.length > 0;
-  const isLongDesc = description.length > 60;
-
-  const rowBg = highlighted
-    ? 'color-mix(in srgb, var(--brand-a) 7%, transparent)'
-    : idx % 2 === 0
-      ? 'var(--estate-row-even, var(--estate-raised))'
-      : 'var(--estate-row-odd, var(--estate-bg))';
+  const values = topK(profile.top_k);
+  const lo = formatBound(profile.min);
+  const hi = formatBound(profile.max);
 
   return (
     <>
       <tr
         ref={rowRef}
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className="cursor-pointer transition-colors hover:bg-[var(--estate-hover)]"
         style={{
-          backgroundColor: rowBg,
-          borderBottom: `1px solid ${borderColor}`,
-          outline: highlighted ? '1.5px solid color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'none',
-          outlineOffset: '-1px',
-          transition: 'background-color 0.4s ease, outline 0.4s ease',
+          borderTop: '1px solid var(--estate-border)',
+          background: highlighted
+            ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)'
+            : expanded ? 'var(--estate-hover)' : undefined,
+          transition: 'background-color 0.4s ease',
         }}
-        className="group transition-colors duration-100 hover:brightness-105"
-        onClick={() => isLongDesc && setExpanded(!expanded)}
-        role={isLongDesc ? 'button' : undefined}
       >
-        {/* Name */}
-        <td className="px-4 py-2.5 font-mono text-size-ui font-semibold whitespace-nowrap align-middle" style={{ color: inkColor }}>
-          <div className="flex items-center gap-2">
-            {isLongDesc && (
-              <span
-                className="inline-flex w-4 h-4 items-center justify-center text-size-ui transition-transform duration-150 select-none opacity-50 group-hover:opacity-100"
-                style={{ color: labelColor, transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              >
-                ▶
-              </span>
-            )}
-            <span>
-              <Highlight text={col.name} query={searchQuery} />
+        {/* Column */}
+        <td className={CELL}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span
+              aria-hidden="true"
+              style={{
+                color: 'var(--estate-text-muted)',
+                transform: expanded ? 'rotate(90deg)' : 'none',
+                transition: 'transform 0.15s ease',
+                display: 'inline-flex',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
             </span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <span style={{ ...type['code-inline'], color: 'var(--estate-ink)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={col.name}>
+                <Highlight text={col.name} query={searchQuery} />
+              </span>
+              <span style={{ ...type.caption, color: 'var(--estate-text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {col.data_type || 'unknown'}
+              </span>
+            </div>
+            {isPii && <Tag tone="red" title="Personal data">PII</Tag>}
           </div>
         </td>
-        {/* Type */}
-        <td className="px-4 py-2.5 font-mono text-size-ui whitespace-nowrap align-middle" style={{ color: mutedColor }}>
-          {col.data_type || '—'}
-        </td>
         {/* Role */}
-        <td className="px-4 py-2.5 align-middle">
-          {role !== '—' ? <RoleBadge role={role} /> : <span className="text-size-ui" style={{ color: mutedColor }}>—</span>}
+        <td className={CELL}>
+          {roleDef ? <Tag tone={roleDef.tone}>{roleDef.label}</Tag> : <span style={{ color: 'var(--estate-text-muted)' }}>—</span>}
         </td>
-        {/* Null% */}
-        <td className="px-4 py-2.5 text-right font-mono text-size-ui whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
-          {formatNullRate(profile.null_rate)}
-        </td>
+        {/* Nulls */}
+        <td className={CELL}><NullBar rate={pct(profile.null_rate)} /></td>
         {/* Distinct */}
-        <td className="px-4 py-2.5 text-right font-mono text-size-ui whitespace-nowrap tabular-nums align-middle" style={{ color: inkColor }}>
+        <td className={CELL} style={{ ...type['code-inline'], color: 'var(--estate-ink)', textAlign: 'right' }}>
           {formatDistinct(profile.distinct_est)}
         </td>
-        {/* Top Values */}
-        <td className="px-4 py-2.5 align-middle">
-          {isPii ? (
-            <span className="text-red-500/80 dark:text-red-400/80 text-size-ui font-medium select-none inline-flex items-center gap-1">
-              <span>⚑</span> PII
+        {/* Range */}
+        <td className={CELL} style={{ ...type['code-inline'], color: 'var(--estate-text-secondary)' }}>
+          {!lo && !hi ? (
+            <span style={{ color: 'var(--estate-text-muted)' }}>—</span>
+          ) : isPii ? (
+            <span title="Hidden — pii_flag" style={{ color: 'var(--estate-text-muted)' }}>hidden (PII)</span>
+          ) : (
+            <span className="block truncate" title={`min: ${lo ?? '—'}\nmax: ${hi ?? '—'}`}>
+              {lo === hi ? lo : `${lo ?? '…'} → ${hi ?? '…'}`}
             </span>
-          ) : topValues.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1">
-              {topValues.slice(0, 3).map((v, i) => (
-                <span
-                  key={i}
-                  className="inline-block px-1.5 py-0.5 rounded text-size-ui font-mono truncate max-w-[90px]"
-                  style={{ backgroundColor: 'rgba(136,146,164,0.08)', color: mutedColor, border: '1px solid rgba(136,146,164,0.12)' }}
-                  title={v}
-                >
-                  {v}
+          )}
+        </td>
+        {/* Top values */}
+        <td className={CELL}>
+          {isPii ? (
+            <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>hidden</span>
+          ) : values.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+              {values.slice(0, 2).map((v, i) => (
+                <span key={i} className="truncate" style={{ maxWidth: 110 }} title={v.value}>
+                  <Tag tone="neutral" mono>{v.value}</Tag>
                 </span>
               ))}
-              {topValues.length > 3 && (
-                <span className="text-size-ui font-mono" style={{ color: mutedColor }}>
-                  +{topValues.length - 3}
-                </span>
-              )}
+              {values.length > 2 && <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>+{values.length - 2}</span>}
             </div>
           ) : (
-            <span className="text-size-ui" style={{ color: mutedColor }}>—</span>
+            <span style={{ color: 'var(--estate-text-muted)' }}>—</span>
           )}
         </td>
         {/* Description */}
-        <td className="px-4 py-2.5 font-sans text-size-ui leading-relaxed align-middle" style={{ color: labelColor }}>
-          {hasDescription ? (
-            <span className={isLongDesc && !expanded ? 'line-clamp-2' : ''}>
-              {descriptionIsNative && (
-                <span
-                  title="Fallback to native column comment — no semantic description yet"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 'var(--type-ui-regular-size)',
-                    fontWeight: 600,
-                    padding: '1px 4px',
-                    borderRadius: 2,
-                    background: 'rgba(224,178,60,0.12)',
-                    color: inkOf('#e0b23c'),
-                    border: '1px solid rgba(224,178,60,0.3)',
-                    marginRight: 5,
-                    letterSpacing: '0.08em',
-                    verticalAlign: 'middle',
-                  }}
-                >
-                  native
-                </span>
-              )}
+        <td className={CELL} style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>
+          {description ? (
+            <span className="line-clamp-2" title={description}>
+              {descriptionIsNative && <Tag tone="amber" title="native_comment from the source — no semantic description yet">native</Tag>}{' '}
               <Highlight text={description} query={searchQuery} />
             </span>
           ) : (
-            <span className="italic text-size-ui" style={{ color: mutedColor }}>No description</span>
+            <span style={{ color: 'var(--estate-text-muted)', fontStyle: 'italic' }}>No description</span>
           )}
         </td>
         {/* Confidence */}
-        <td className="px-4 py-2.5 align-middle">
+        <td className={CELL} style={{ textAlign: 'right' }}>
           {confidence !== null ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div
-                style={{
-                  width: 30,
-                  height: 4,
-                  borderRadius: 2,
-                  background: 'rgba(136,146,164,0.15)',
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    width: `${Math.round(confidence * 100)}%`,
-                    height: '100%',
-                    background: 'var(--confirmed-color, #2F6DB0)',
-                    borderRadius: 2,
-                  }}
-                />
-              </div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--type-ui-regular-size)',
-                  color: mutedColor,
-                }}
-              >
-                {Math.round(confidence * 100)}
-              </span>
-            </div>
+            <span style={{ ...type['code-inline'], color: confidence >= 0.8 ? 'var(--estate-ink)' : 'var(--estate-text-muted)' }} title="semantic.confidence">
+              {Math.round(confidence * 100)}%
+            </span>
           ) : (
-            <span className="text-size-ui" style={{ color: mutedColor }}>—</span>
+            <span style={{ color: 'var(--estate-text-muted)' }}>—</span>
           )}
         </td>
       </tr>
-      {expanded && isLongDesc && (
-        <tr style={{ backgroundColor: rowBg }}>
-          <td
-            colSpan={8}
-            className="px-4 pb-4 pt-0"
-            style={{ borderBottom: `1px solid ${borderColor}` }}
-          >
-            <div
-              className="ml-6 pl-4 py-3 rounded font-sans text-size-ui leading-relaxed"
-              style={{
-                color: labelColor,
-                backgroundColor: 'rgba(136,146,164,0.04)',
-                borderLeft: '2px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
-              }}
-            >
-              {description}
-            </div>
+
+      {expanded && (
+        <tr>
+          <td colSpan={COLS} style={{ padding: 0 }}>
+            <DetailPanel indent={44}>
+              {/* semantic */}
+              <DetailCard title="semantic" note={semantic.role ? `role: ${semantic.role}` : undefined}>
+                <p style={{ ...type.ui, color: semantic.description ? 'var(--estate-ink)' : 'var(--estate-text-muted)', margin: '0 0 8px' }}>
+                  {semantic.description || 'No semantic description yet.'}
+                </p>
+                <KVList
+                  items={[
+                    ['data_type', col.data_type ?? '—'],
+                    ['is_nullable', (col as any).is_nullable === false ? 'false' : 'true'],
+                    ...(semantic.entity ? ([['entity', semantic.entity]] as Array<[string, React.ReactNode]>) : []),
+                    ...(confidence !== null ? ([['confidence', `${Math.round(confidence * 100)}%`]] as Array<[string, React.ReactNode]>) : []),
+                    ...(col.native_comment ? ([['native_comment', col.native_comment]] as Array<[string, React.ReactNode]>) : []),
+                    ...(isPii ? ([['pii_flag', 'true']] as Array<[string, React.ReactNode]>) : []),
+                  ]}
+                />
+              </DetailCard>
+
+              {/* profile */}
+              <DetailCard title="profile">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
+                  {(() => {
+                    const nr = pct(profile.null_rate);
+                    const nrColor = nr === null ? undefined : nr >= 0.5 ? TONE_COLOR.red : nr >= 0.1 ? TONE_COLOR.amber : TONE_COLOR.green;
+                    return (
+                      <MiniStat
+                        label="null_rate"
+                        value={nr !== null ? `${(nr * 100).toFixed(nr < 0.1 ? 2 : 1)}%` : '—'}
+                        bar={nr !== null ? { value: nr, color: nrColor } : undefined}
+                      />
+                    );
+                  })()}
+                  <MiniStat label="distinct_est" value={formatDistinct(profile.distinct_est)} />
+                  <MiniStat label="min" value={isPii ? 'hidden' : (lo ?? '—')} />
+                  <MiniStat label="max" value={isPii ? 'hidden' : (hi ?? '—')} />
+                </div>
+              </DetailCard>
+
+              {/* top_k */}
+              <DetailCard
+                title="top_k"
+                count={!isPii && values.length ? values.length : undefined}
+                note={isPii ? 'hidden (pii_flag)' : values.length ? undefined : 'not profiled'}
+              >
+                {!isPii && values.length > 0 ? (() => {
+                  const total = values.reduce((s, v) => s + (v.count ?? 0), 0);
+                  const max = Math.max(...values.map((v) => v.count ?? 0), 1);
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {values.slice(0, 5).map((v, i) => (
+                        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          <span style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                            <code title={v.value} style={{ ...type['code-inline'], color: 'var(--estate-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.value}</code>
+                            <span style={{ ...type['code-inline'], color: 'var(--estate-text-muted)', flexShrink: 0 }}>
+                              {v.count !== null ? v.count.toLocaleString() : ''}
+                              {v.count !== null && total > 0 ? ` · ${Math.round((v.count / total) * 100)}%` : ''}
+                            </span>
+                          </span>
+                          <span aria-hidden="true" style={{ height: 5, borderRadius: 999, background: 'var(--estate-active-bg)', overflow: 'hidden' }}>
+                            <span style={{ display: 'block', height: '100%', width: `${((v.count ?? 0) / max) * 100}%`, background: 'var(--brand-a)', opacity: 1 - i * 0.12 }} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })() : (
+                  <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>
+                    {isPii ? 'Values are hidden for personal-data columns.' : 'No top values captured for this column.'}
+                  </span>
+                )}
+              </DetailCard>
+            </DetailPanel>
           </td>
         </tr>
       )}
@@ -280,26 +321,38 @@ function ColumnRow({ col, idx, searchQuery, highlighted, rowRef }: ColumnRowProp
   );
 }
 
+// ── Table ────────────────────────────────────────────────────────────────────
+
 type SortField = 'ordinal' | 'name' | 'null_rate' | 'distinct_est';
 type SortDir = 'asc' | 'desc';
 
 const DEFAULT_PAGE_SIZE = 25;
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
-export default function ColumnsTable({ columns, focusColumn, onFocusClear }: ColumnsTableProps) {
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const borderColor = 'var(--estate-border-gold)';
-  const thBg = 'var(--estate-bg)';
-  const raisedBg = 'var(--estate-raised)';
-  const inkColor = 'var(--estate-ink)';
+const SELECT_STYLE: React.CSSProperties = {
+  ...type.ui,
+  height: 32,
+  backgroundColor: 'var(--estate-raised)',
+  border: '1px solid var(--estate-btn-border)',
+  borderRadius: 8,
+  color: 'var(--estate-ink)',
+  padding: '0 28px 0 10px',
+  outline: 'none',
+  cursor: 'pointer',
+  appearance: 'none',
+  backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238892A4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 10px center',
+};
 
+export default function ColumnsTable({ columns, focusColumn, onFocusClear }: ColumnsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [piiFilter, setPiiFilter] = useState<'all' | 'pii' | 'non-pii'>('all');
   const [sortField, setSortField] = useState<SortField>('ordinal');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
@@ -319,27 +372,33 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  // External focus: when focusColumn changes, set search, scroll + highlight
+  // External focus: search for the column, then scroll to it and pulse it.
+  // State is set inside timer callbacks so the effect body never sets state.
   useEffect(() => {
     if (!focusColumn) return;
-    setSearchQuery(focusColumn);
-    // Defer scroll until after render
-    const timer = setTimeout(() => {
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    const searchTimer = setTimeout(() => {
+      setSearchQuery(focusColumn);
+      setCurrentPage(1);
+    }, 0);
+    const scrollTimer = setTimeout(() => {
       const col = columns.find((c) => c.name === focusColumn);
       if (!col) return;
       setHighlightedId(col.id);
+      setExpandedId(col.id);
       rowRefs.current[col.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Clear pulse after 2s
-      const clearTimer = setTimeout(() => {
+      clearTimer = setTimeout(() => {
         setHighlightedId(null);
         onFocusClear?.();
       }, 2000);
-      return () => clearTimeout(clearTimer);
     }, 80);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(searchTimer);
+      clearTimeout(scrollTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
   }, [focusColumn, columns, onFocusClear]);
 
-  // Collect distinct roles for the role filter dropdown
   const distinctRoles = useMemo(() => {
     const roles = new Set<string>();
     for (const col of columns) {
@@ -349,7 +408,9 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
     return Array.from(roles).sort();
   }, [columns]);
 
-  // Filter + sort pipeline
+  const piiCount = useMemo(() => columns.filter((c) => c.semantic?.pii_flag === true).length, [columns]);
+  const describedCount = useMemo(() => columns.filter((c) => !!c.semantic?.description).length, [columns]);
+
   const filteredColumns = useMemo(() => {
     const q = searchQuery.toLowerCase();
     let result = columns.filter((col) => {
@@ -358,19 +419,13 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
       const isPii = semantic.pii_flag === true;
       const role = semantic.role || '';
       const description = semantic.description || col.native_comment || '';
-      const topValues = formatTopK(profile.top_k);
+      const values = topK(profile.top_k).map((v) => v.value);
 
       if (piiFilter === 'pii' && !isPii) return false;
       if (piiFilter === 'non-pii' && isPii) return false;
       if (roleFilter && role !== roleFilter) return false;
       if (q) {
-        const haystack = [
-          col.name,
-          col.data_type || '',
-          role,
-          description,
-          ...topValues,
-        ].join(' ').toLowerCase();
+        const haystack = [col.name, col.data_type || '', role, description, ...values].join(' ').toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
@@ -378,19 +433,10 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
 
     result = [...result].sort((a, b) => {
       let cmp = 0;
-      if (sortField === 'ordinal') {
-        cmp = (a.ordinal ?? 0) - (b.ordinal ?? 0);
-      } else if (sortField === 'name') {
-        cmp = a.name.localeCompare(b.name);
-      } else if (sortField === 'null_rate') {
-        const ar = a.profile?.null_rate ?? -1;
-        const br = b.profile?.null_rate ?? -1;
-        cmp = ar - br;
-      } else if (sortField === 'distinct_est') {
-        const ad = a.profile?.distinct_est ?? -1;
-        const bd = b.profile?.distinct_est ?? -1;
-        cmp = ad - bd;
-      }
+      if (sortField === 'ordinal') cmp = (a.ordinal ?? 0) - (b.ordinal ?? 0);
+      else if (sortField === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortField === 'null_rate') cmp = (a.profile?.null_rate ?? -1) - (b.profile?.null_rate ?? -1);
+      else if (sortField === 'distinct_est') cmp = (a.profile?.distinct_est ?? -1) - (b.profile?.distinct_est ?? -1);
       return sortDir === 'asc' ? cmp : -cmp;
     });
 
@@ -403,34 +449,13 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
         return prev;
       }
-      setSortDir('asc');
+      setSortDir(field === 'name' ? 'asc' : 'desc');
       return field;
     });
     setCurrentPage(1);
   }, []);
 
-  const sortIndicator = (field: SortField) => {
-    if (sortField !== field) return <span style={{ opacity: 0.3 }}>⇅</span>;
-    return <span style={{ color: 'var(--brand-a-ink)' }}>{sortDir === 'asc' ? '↑' : '↓'}</span>;
-  };
-
-  const selectStyle: React.CSSProperties = {
-    fontFamily: 'var(--font-sans)',
-    fontSize: 'var(--type-ui-regular-size)',
-    backgroundColor: raisedBg,
-    border: `1px solid ${borderColor}`,
-    borderRadius: 6,
-    color: inkColor,
-    padding: '5px 24px 5px 8px',
-    outline: 'none',
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='%238892A4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 8px center',
-  };
-
-  const isFiltered = searchQuery || roleFilter || piiFilter !== 'all';
+  const isFiltered = !!searchQuery || !!roleFilter || piiFilter !== 'all';
   const totalFiltered = filteredColumns.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -438,180 +463,184 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
   const endIdx = Math.min(startIdx + pageSize, totalFiltered);
   const pagedColumns = filteredColumns.slice(startIdx, endIdx);
 
-  const footerLabel = isFiltered
-    ? `Showing ${totalFiltered === 0 ? 0 : startIdx + 1}–${endIdx} of ${totalFiltered} (filtered from ${columns.length})`
-    : `Showing ${totalFiltered === 0 ? 0 : startIdx + 1}–${endIdx} of ${columns.length} column${columns.length !== 1 ? 's' : ''}`;
-
-  const sortLabel = sortField !== 'ordinal'
-    ? ` · sorted by ${sortField.replace('_', ' ')} ${sortDir}`
-    : '';
+  const meta = `${columns.length} total · ${describedCount} described${piiCount > 0 ? ` · ${piiCount} PII` : ''}`;
 
   if (columns.length === 0) {
     return (
-      <div
-        className="border rounded-card overflow-hidden shadow-sm"
-        style={{ borderColor }}
-      >
-        {/* Toolbar */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ backgroundColor: thBg, borderColor }}
-        >
-     <span className="text-label " style={{ color: labelColor }}>
-            Columns Schema
-          </span>
-        </div>
-        <div className="border-dashed rounded p-8 text-center" style={{ borderColor }}>
-          <p className="text-size-ui italic font-sans" style={{ color: labelColor }}>
-            No column metadata available yet. Run a profile to populate.
-          </p>
-        </div>
-      </div>
+      <Card title="Columns">
+        <EmptyNote>No column metadata yet. Run a structure scan to list the columns.</EmptyNote>
+      </Card>
     );
   }
 
-  return (
-    <div className="border rounded-card overflow-hidden shadow-sm" style={{ borderColor }}>
+  const thBase: React.CSSProperties = {
+    ...type.eyebrow,
+    color: 'var(--estate-text-muted)',
+    padding: '10px 16px',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    background: 'var(--estate-th-bg, var(--estate-bg))',
+    position: 'sticky',
+    top: 0,
+    zIndex: 1,
+  };
 
-      {/* ── Toolbar ─────────────────────────────────────────── */}
-      <div
-        className="flex flex-wrap items-center gap-3 px-4 py-3 border-b"
-        style={{ backgroundColor: thBg, borderColor }}
+  const sortTh = (field: SortField, label: string, align: 'left' | 'right' = 'left', title?: string) => {
+    const active = sortField === field;
+    return (
+      <th
+        style={{ ...thBase, textAlign: align }}
+        aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+        title={title}
       >
-        {/* Section label */}
-    <span className="text-label shrink-0" style={{ color: labelColor }}>
-          Columns Schema
-        </span>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Search input */}
-        <div
-          className="flex items-center gap-2 h-8 px-2.5 rounded border transition-colors duration-150"
-          style={{ backgroundColor: raisedBg, borderColor, minWidth: '200px' }}
-          onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--brand-a)'; }}
-          onBlurCapture={(e) => { e.currentTarget.style.borderColor = borderColor; }}
+        <button
+          type="button"
+          onClick={() => handleSortToggle(field)}
+          style={{
+            ...type.eyebrow,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            color: active ? 'var(--estate-ink)' : 'inherit',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
         >
-          <span className="select-none text-size-ui" style={{ color: mutedColor }}>⌕</span>
-          <input
-            ref={searchRef}
-            type="text"
-            placeholder={`Search ${columns.length} columns… (/)`}
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="flex-1 bg-transparent border-none outline-none text-size-ui"
-            style={{ color: inkColor, fontFamily: 'var(--font-sans)', minWidth: 0 }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
-              className="text-size-ui opacity-60 hover:opacity-100 transition-opacity leading-none"
-              style={{ color: mutedColor }}
-              aria-label="Clear search"
-            >
-              ×
-            </button>
-          )}
-        </div>
+          {label}
+          <span aria-hidden="true" style={{ opacity: active ? 1 : 0.35 }}>{active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}</span>
+        </button>
+      </th>
+    );
+  };
 
-        {/* Role filter */}
-        <div className="relative shrink-0">
+  return (
+    <Card
+      title="Columns"
+      meta={meta}
+      flush
+      actions={
+        <>
+          {/* Search */}
+          <label
+            className="flex h-8 items-center gap-2 rounded-lg border px-2.5 transition-colors focus-within:border-[var(--brand-a)]"
+            style={{ borderColor: 'var(--estate-btn-border)', background: 'var(--estate-raised)', minWidth: 220 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--estate-text-muted)' }}>
+              <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              ref={searchRef}
+              type="text"
+              aria-label="Search columns"
+              placeholder="Search columns, values…"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="flex-1 border-none bg-transparent outline-none text-size-ui"
+              style={{ color: 'var(--estate-ink)', minWidth: 0 }}
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); searchRef.current?.focus(); }}
+                aria-label="Clear search"
+                style={{ ...type.ui, color: 'var(--estate-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                ×
+              </button>
+            ) : (
+              <kbd style={{ ...type.caption, color: 'var(--estate-text-muted)', border: '1px solid var(--estate-border)', borderRadius: 4, padding: '0 5px' }}>/</kbd>
+            )}
+          </label>
+
+          {/* Role */}
           <Select
-            style={selectStyle}
+            style={SELECT_STYLE}
+            aria-label="Filter by role"
             value={roleFilter}
             onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
           >
-            <option value="">Role: All</option>
+            <option value="">All roles</option>
             {distinctRoles.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </Select>
-        </div>
 
-        {/* PII filter */}
-        <div className="relative shrink-0">
-          <Select
-            style={selectStyle}
-            value={piiFilter}
-            onChange={(e) => { setPiiFilter(e.target.value as 'all' | 'pii' | 'non-pii'); setCurrentPage(1); }}
-          >
-            <option value="all">PII: All</option>
-            <option value="pii">PII only</option>
-            <option value="non-pii">Non-PII</option>
-          </Select>
-        </div>
-      </div>
-
-      {/* ── Table ───────────────────────────────────────────── */}
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-size-ui text-left" style={{ tableLayout: 'fixed' }}>
+          {/* PII segmented control */}
+          {piiCount > 0 && (
+            <div role="group" aria-label="Filter by personal data" style={{ display: 'inline-flex', border: '1px solid var(--estate-btn-border)', borderRadius: 8, overflow: 'hidden', height: 32 }}>
+              {([['all', 'All'], ['pii', 'PII'], ['non-pii', 'No PII']] as const).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={piiFilter === v}
+                  onClick={() => { setPiiFilter(v); setCurrentPage(1); }}
+                  className="text-size-ui"
+                  style={{
+                    padding: '0 10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: piiFilter === v ? 'var(--estate-active-bg)' : 'var(--estate-raised)',
+                    color: piiFilter === v ? 'var(--estate-ink)' : 'var(--estate-text-muted)',
+                    fontWeight: piiFilter === v ? 600 : 400,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      }
+    >
+      <div className="overflow-x-auto" style={{ maxHeight: 640, overflowY: 'auto' }}>
+        <table className="w-full border-collapse text-size-ui" style={{ tableLayout: 'fixed', minWidth: 1040 }}>
           <colgroup>
-            <col style={{ width: '16%' }} />
-            <col style={{ width: '9%' }} />
+            <col style={{ width: '20%' }} />
             <col style={{ width: '10%' }} />
-            <col style={{ width: '7%' }} />
+            <col style={{ width: '10%' }} />
             <col style={{ width: '8%' }} />
+            <col style={{ width: '13%' }} />
             <col style={{ width: '12%' }} />
-            <col style={{ width: '30%' }} />
-            <col style={{ width: '8%' }} />
+            <col style={{ width: '21%' }} />
+            <col style={{ width: '6%' }} />
           </colgroup>
           <thead>
-            <tr
-              className="sticky top-0 z-10 border-b select-none"
-              style={{ backgroundColor: thBg, borderColor }}
-            >
-              {/* Sortable: Name */}
-              <th
-        className="px-4 py-2.5 text-label cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
-                style={{ color: labelColor }}
-                onClick={() => handleSortToggle('name')}
-              >
-                <span className="flex items-center gap-1">Name {sortIndicator('name')}</span>
-              </th>
-       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Type</th>
-       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Role</th>
-              {/* Sortable: Null% */}
-              <th
-        className="px-4 py-2.5 text-label text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
-                style={{ color: labelColor }}
-                onClick={() => handleSortToggle('null_rate')}
-              >
-                <span className="flex items-center justify-end gap-1">Null% {sortIndicator('null_rate')}</span>
-              </th>
-              {/* Sortable: Distinct */}
-              <th
-        className="px-4 py-2.5 text-label text-right cursor-pointer hover:text-[var(--brand-a-ink)] transition-colors"
-                style={{ color: labelColor }}
-                onClick={() => handleSortToggle('distinct_est')}
-              >
-                <span className="flex items-center justify-end gap-1">Distinct {sortIndicator('distinct_est')}</span>
-              </th>
-       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Top Values</th>
-       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }}>Description</th>
-       <th className="px-4 py-2.5 text-label " style={{ color: labelColor }} title="Semantic annotation confidence">Conf</th>
+            <tr>
+              {sortTh('name', 'Column')}
+              <th style={thBase}>Role</th>
+              {sortTh('null_rate', 'Null %', 'right', 'null_rate — share of profiled rows that are NULL')}
+              {sortTh('distinct_est', 'Distinct', 'right')}
+              <th style={thBase} title="Lowest → highest value in the profiled rows">Range</th>
+              <th style={thBase}>Top values (top_k)</th>
+              <th style={thBase}>Description</th>
+              <th style={{ ...thBase, textAlign: 'right' }} title="semantic.confidence">Conf.</th>
             </tr>
           </thead>
           <tbody>
             {filteredColumns.length === 0 ? (
               <tr>
-                <td
-                  colSpan={8}
-                  className="px-4 py-10 text-center font-sans text-size-ui italic"
-                  style={{ color: mutedColor }}
-                >
-                  No columns match your search{roleFilter ? ` with role "${roleFilter}"` : ''}{piiFilter !== 'all' ? ` (${piiFilter})` : ''}.
+                <td colSpan={COLS} style={{ padding: '36px 16px', textAlign: 'center', ...type.ui, color: 'var(--estate-text-muted)' }}>
+                  No columns match{searchQuery ? ` “${searchQuery}”` : ''}{roleFilter ? ` with role ${roleFilter}` : ''}.{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setRoleFilter(''); setPiiFilter('all'); }}
+                    style={{ ...type.ui, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    Clear filters
+                  </button>
                 </td>
               </tr>
             ) : (
-              pagedColumns.map((col, idx) => (
+              pagedColumns.map((col) => (
                 <ColumnRow
                   key={col.id}
                   col={col}
-                  idx={startIdx + idx}
                   searchQuery={searchQuery}
                   highlighted={highlightedId === col.id}
+                  expanded={expandedId === col.id}
+                  onToggle={() => setExpandedId((id) => (id === col.id ? null : col.id))}
                   rowRef={(el) => { rowRefs.current[col.id] = el; }}
                 />
               ))
@@ -620,129 +649,67 @@ export default function ColumnsTable({ columns, focusColumn, onFocusClear }: Col
         </table>
       </div>
 
-      {/* ── Footer with Pagination ──────────────────────────────── */}
+      {/* Footer */}
       <div
-        className="px-4 py-2.5 border-t flex items-center justify-between gap-4 flex-wrap"
-        style={{ borderColor, backgroundColor: thBg }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          padding: '10px 16px',
+          borderTop: '1px solid var(--estate-border)',
+          ...type.caption,
+          color: 'var(--estate-text-muted)',
+        }}
       >
-        {/* Left: count info */}
-        <span
-          className="font-mono text-size-ui"
-          style={{ color: isFiltered ? 'var(--brand-a)' : labelColor }}
-        >
-          {footerLabel}{sortLabel}
+        <span style={{ color: isFiltered ? 'var(--brand-a-ink)' : undefined }}>
+          {totalFiltered === 0 ? 'No columns' : `${startIdx + 1}–${endIdx} of ${totalFiltered}`}
+          {isFiltered ? ` (filtered from ${columns.length})` : ''}
         </span>
 
-        {/* Center: pagination controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setCurrentPage(1)}
-              disabled={safeCurrentPage <= 1}
-              className="font-mono text-size-ui px-2 py-1 rounded border transition-colors disabled:opacity-30"
-              style={{
-                backgroundColor: 'transparent',
-                borderColor,
-                color: labelColor,
-                cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-              }}
-              aria-label="First page"
-            >
-              «
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={safeCurrentPage <= 1}
-              className="font-mono text-size-ui px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
-              style={{
-                backgroundColor: 'transparent',
-                borderColor,
-                color: labelColor,
-                cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
-              }}
-              aria-label="Previous page"
-            >
-              ‹
-            </button>
-
-            {/* Page number pills — show up to 5 */}
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-              const half = Math.floor(Math.min(totalPages, 5) / 2);
-              let start = Math.max(1, safeCurrentPage - half);
-              const end = Math.min(totalPages, start + 4);
-              start = Math.max(1, end - 4);
-              return start + i;
-            }).map((page) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <button
-                key={page}
                 type="button"
-                onClick={() => setCurrentPage(page)}
-                className="font-mono text-size-ui w-7 h-7 rounded border transition-colors"
-                style={{
-                  backgroundColor: page === safeCurrentPage ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
-                  borderColor: page === safeCurrentPage ? 'var(--brand-a)' : borderColor,
-                  color: page === safeCurrentPage ? 'var(--brand-a)' : labelColor,
-                  cursor: 'pointer',
-                }}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                className="rounded-md px-2 py-1 transition-colors hover:bg-[var(--estate-active-bg)] disabled:opacity-30"
+                style={{ ...type.ui, background: 'none', border: 'none', color: 'var(--estate-ink)', cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer' }}
+                aria-label="Previous page"
               >
-                {page}
+                ‹ Prev
               </button>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-size-ui px-2.5 py-1 rounded border transition-colors disabled:opacity-30"
-              style={{
-                backgroundColor: 'transparent',
-                borderColor,
-                color: labelColor,
-                cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-              }}
-              aria-label="Next page"
-            >
-              ›
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={safeCurrentPage >= totalPages}
-              className="font-mono text-size-ui px-2 py-1 rounded border transition-colors disabled:opacity-30"
-              style={{
-                backgroundColor: 'transparent',
-                borderColor,
-                color: labelColor,
-                cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
-              }}
-              aria-label="Last page"
-            >
-              »
-            </button>
-          </div>
-        )}
-
-        {/* Right: page size selector + keyboard hint */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-size-ui" style={{ color: mutedColor }}>Rows:</span>
+              <span style={{ ...type.ui, color: 'var(--estate-text-secondary)' }}>
+                Page {safeCurrentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                className="rounded-md px-2 py-1 transition-colors hover:bg-[var(--estate-active-bg)] disabled:opacity-30"
+                style={{ ...type.ui, background: 'none', border: 'none', color: 'var(--estate-ink)', cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+                aria-label="Next page"
+              >
+                Next ›
+              </button>
+            </div>
+          )}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            Rows
             <Select
-              style={{ ...selectStyle, fontSize: 'var(--type-ui-regular-size)', padding: '3px 22px 3px 6px' }}
+              style={{ ...SELECT_STYLE, height: 28 }}
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
             >
-              {PAGE_SIZE_OPTIONS.map(n => (
+              {PAGE_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </Select>
-          </div>
-          <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
-            / to search
-          </span>
+          </label>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

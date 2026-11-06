@@ -11,9 +11,13 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { compileSemanticQuery } from './compiler';
 import { validateSemanticQuery } from './types';
 import type { SemanticQuery, SemanticModel } from './types';
-import { executeDatabricksSQL } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
 import prisma from '@/lib/db';
+import type { AccessPrincipal } from '@/lib/access/types';
+import { isAccessActive } from '@/lib/access/mode';
+import { authorizePaths } from '@/lib/access/authorize';
+import { systemPrincipal } from '@/lib/access/principal';
+import { runWarehouseQuery } from '@/lib/access/warehouse';
+import { AccessDeniedError } from '@/lib/access/errors';
 import {
   SemanticModelNotGovernedError,
   SemanticValidationFailureError,
@@ -29,6 +33,9 @@ import {
 
 // Re-export error classes so callers can import them from this module
 export { SemanticModelNotGovernedError, SemanticValidationFailureError, SemanticDraftAccessError };
+export type SemanticExecuteOpts = AuthoringOpts & {
+  dataPrincipal?: AccessPrincipal | null;
+};
 export type { AuthoringOpts };
 
 export interface SemanticQueryResult {
@@ -87,14 +94,14 @@ function referencedStatuses(rows: AccessibleRow[], referenced: Set<string>): str
  *  2. Load model + entities + dimensions + measures + joins from Prisma
  *  3. Validate the query against the model
  *  4. Compile to SQL via compileSemanticQuery()
- *  5. Resolve connection credentials (getAccessToken(connectionId, workspaceHost))
+ *  5. Resolve connection credentials (openDatabricksSession(connection, 'query_internal'))
  *  6. Execute via executeDatabricksSQL()
  *  7. Return { sql, columns, rows, rowCount }
  */
 export async function executeSemanticQuery(
   query: SemanticQuery,
   connectionId: string,
-  opts?: AuthoringOpts,
+  opts?: SemanticExecuteOpts,
 ): Promise<SemanticQueryResult> {
   // ── 1. Org scope ──────────────────────────────────────────────────────────
   const org = await getDefaultOrg();
@@ -141,6 +148,38 @@ export async function executeSemanticQuery(
   const entityRows = filterAccessible(allEntities, refEntityIds, 'entity', opts);
   const dimensionRows = filterAccessible(allDimensions, refDimIds, 'dimension', opts);
   const measureRows = filterAccessible(allMeasures, refMeasureIds, 'measure', opts);
+
+  const entityPathsForAuth = new Set<string>();
+  const entityById = new Map(entityRows.map((e) => [e.id, e]));
+  const addEntityPath = (entityId: string) => {
+    const row = entityById.get(entityId) ?? allEntities.find((e) => e.id === entityId);
+    if (row?.full_path) entityPathsForAuth.add(row.full_path.toLowerCase());
+  };
+  addEntityPath(query.entityId);
+  for (const j of joinRows) {
+    if (refEntityIds.has(j.from_entity_id) || refEntityIds.has(j.to_entity_id)) {
+      addEntityPath(j.from_entity_id);
+      addEntityPath(j.to_entity_id);
+    }
+  }
+
+  const dataPrincipal =
+    opts?.dataPrincipal ??
+    (isAccessActive() ? null : systemPrincipal('health'));
+
+  if (isAccessActive() && !dataPrincipal) {
+    throw new AccessDeniedError('Data access principal is required for semantic queries.');
+  }
+
+  if (dataPrincipal && entityPathsForAuth.size > 0) {
+    const entityAuth = await authorizePaths(
+      dataPrincipal,
+      [...entityPathsForAuth],
+      'query',
+      { surface: 'semantic', purpose: 'semantic_query_entities' },
+    );
+    if (!entityAuth.ok) throw entityAuth.error;
+  }
 
   // isDraft is meaningful only for authoring executions; the default path is
   // governed consumption and must never be labelled a draft.
@@ -194,27 +233,22 @@ export async function executeSemanticQuery(
   // ── 4. Compile ────────────────────────────────────────────────────────────
   const sql = compileSemanticQuery(query, model);
 
-  // ── 5. Resolve connection ─────────────────────────────────────────────────
-  // Confirmed field names from prisma/schema.prisma:
-  //   PlatformDatabricksConnection.workspace_host
-  //   PlatformDatabricksConnection.default_warehouse_id
-  const connection = await prisma.platformDatabricksConnection.findUniqueOrThrow({
-    where: { id: connectionId },
-  });
+  if (dataPrincipal) {
+    const { authorizeSql } = await import('@/lib/access/authorize');
+    await authorizeSql(dataPrincipal, sql, 'query', {
+      surface: 'semantic',
+      purpose: 'semantic_query_sql',
+    });
+  }
 
-  // getAccessToken(connectionId, workspaceHost) — two args (confirmed from token-client.ts line 40)
-  const token = await getAccessToken(connectionId, connection.workspace_host);
-
-  // ── 6. Execute ────────────────────────────────────────────────────────────
-  // executeDatabricksSQL(_connectionId, workspaceHost, warehouseId, token, input)
-  // confirmed signature from execute.ts line 167
-  const result = await executeDatabricksSQL(
+  const result = await runWarehouseQuery({
     connectionId,
-    connection.workspace_host,
-    connection.default_warehouse_id,
-    token,
-    { statement: sql },
-  );
+    principal: dataPrincipal ?? systemPrincipal('health'),
+    statement: sql,
+    purpose: 'semantic_query',
+    level: 'query',
+    surface: 'semantic',
+  });
 
   // ── 7. Return ─────────────────────────────────────────────────────────────
   // DatabricksExecuteResult uses row_count and columns[].type_name — normalise here

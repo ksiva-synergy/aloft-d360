@@ -1,5 +1,9 @@
 @AGENTS.md
 
+## Credentials and live databases
+
+Follow the credentials section in `AGENTS.md`. Never execute `DROP`, `DELETE`, `TRUNCATE`, or other destructive SQL, and never print or copy `.env` secrets. `.claude/settings.json` denies reads of `.env` and runs `scripts/guards/block-destructive-db.mjs` before Bash, PowerShell, and MCP tools.
+
 ## Changelog
 
 Log every change in `docs/CHANGELOG.md` (newest first): what changed, file paths, why, how it was verified, and what is not done. A Stop hook (`.claude/hooks/changelog-guard.mjs`) reminds you if files changed after the last entry.

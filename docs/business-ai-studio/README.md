@@ -17,6 +17,7 @@ Living design and status documents for Business AI Studio, built in this reposit
 | 08 | [Evaluations, cost, SLOs](08-evaluations-cost-slos.md) | Measured baselines, eval suites, cost model, release thresholds |
 | 09 | [UX and information architecture](09-ux-information-architecture.md) | Journeys, screens, states, accessibility |
 | 10 | [Delivery plan](10-delivery-plan.md) | Milestones, exit gates, decisions needed, next tasks |
+| 11 | [Cowork-style work](11-cowork-style-work.md) | Plans, background tasks, sub-agents, documents, skills and projects across chat, agents and Automate (proposed) |
 | — | [ADRs](adr/README.md) | Decisions with evidence, options and revisit conditions |
 
 Related, older documents that remain valid and are referenced rather than repeated:

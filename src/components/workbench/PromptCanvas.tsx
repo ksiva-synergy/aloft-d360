@@ -44,22 +44,19 @@ const SURFACE_COPY: Record<PromptCanvasSurface, { emptyTitle: string; placeholde
 // ── Mission templates ─────────────────────────────────────────
 const MISSION_TEMPLATES = [
   {
-    cls: 'FEYNMAN',
     name: 'Maritime compliance auditor',
     spec: 'Audit bills of lading against IMO rules; flag missing HS codes.',
-    starter: 'Build a Feynman-class agent called "BoL Compliance Auditor". Mission: audit bills of lading against IMO FAL Form rules and flag missing or non-compliant HS codes. Output: a structured JSON audit memo with a violations array and a pass/fail verdict.',
+    starter: 'Build an agent called "BoL Compliance Auditor". Mission: audit bills of lading against IMO FAL Form rules and flag missing or non-compliant HS codes. Output: a structured JSON audit memo with a violations array and a pass/fail verdict.',
   },
   {
-    cls: 'FERMI',
     name: 'Demand forecasting agent',
     spec: 'Weekly SKU-level forecast across 14 warehouses with confidence bands.',
-    starter: 'Build a Fermi-class agent called "SKU Demand Forecaster". Mission: produce weekly SKU-level demand forecasts across 14 warehouses. Output: structured JSON with point estimate, 80% confidence interval, and assumption list per SKU.',
+    starter: 'Build an agent called "SKU Demand Forecaster". Mission: produce weekly SKU-level demand forecasts across 14 warehouses. Output: structured JSON with point estimate, 80% confidence interval, and assumption list per SKU.',
   },
   {
-    cls: 'GROSSMANN',
     name: 'Vendor onboarding pipeline',
     spec: 'Intake → KYC → Stripe Connect → first invoice within 24h.',
-    starter: 'Build a Grossmann-class agent called "Vendor Onboarding Orchestrator". Mission: automate vendor onboarding end to end within 24 hours. Output: a JSON status record per vendor with step timestamps and any blockers.',
+    starter: 'Build an agent called "Vendor Onboarding Orchestrator". Mission: automate vendor onboarding end to end within 24 hours. Output: a JSON status record per vendor with step timestamps and any blockers.',
   },
 ];
 
@@ -127,17 +124,14 @@ function EmptyState({ onTemplateSelect, surface, composer }: EmptyStateProps) {
             >
               {MISSION_TEMPLATES.map((t) => (
                 <button
-                  key={t.cls} type="button"
+                  key={t.name} type="button"
                   onClick={() => { onTemplateSelect(t.starter); setTemplatesOpen(false); }}
                   style={{ textAlign: 'left', padding: '10px 14px', background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = BORDER_GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
-                    <span style={{ ...type['ui-regular'], color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.08em' }}>{t.cls}</span>
-                    <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK }}>{t.name}</span>
-                  </div>
-                  <div style={{ ...type['ui-regular'], color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
+                  <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 500, marginBottom: 3 }}>{t.name}</div>
+                  <div style={{ ...type['ui-regular'], color: MUTED }}>{t.spec}</div>
                 </button>
               ))}
             </motion.div>
@@ -404,6 +398,8 @@ interface ConversationThreadProps {
   renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
   /** Inspector: the raw tool-step list is only there while the reply is still running. */
   collapseToolCallsWhenIdle?: boolean;
+  /** Admin + developer mode: show describe_schema / execute_tool steps in the thread. */
+  showDeveloperToolSteps?: boolean;
 }
 
 function ConversationThread({
@@ -428,6 +424,7 @@ function ConversationThread({
   columnMaxWidth,
   renderAfterAssistant,
   collapseToolCallsWhenIdle = false,
+  showDeveloperToolSteps = false,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -566,7 +563,8 @@ function ConversationThread({
                   content={msg.content}
                   thinking={msg.thinking}
                   toolCalls={msg.toolCalls}
-                  showToolCalls={!collapseToolCallsWhenIdle || isLiveStreaming}
+                  showToolCalls={showDeveloperToolSteps && (!collapseToolCallsWhenIdle || isLiveStreaming)}
+                  showTechnicalToolNames={showDeveloperToolSteps}
                   isStreaming={isLiveStreaming}
                   interrupted={interrupted && isLast && !isStreaming}
                   readiness={isLast ? readiness : undefined}
@@ -720,6 +718,7 @@ export interface PromptCanvasProps {
   chatStyle?: { assistantName: string; assistantIcon?: React.ReactNode } | null;
   /** Extra content under each finished assistant reply. */
   renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
+  showDeveloperToolSteps?: boolean;
 }
 
 export function PromptCanvas({
@@ -758,6 +757,7 @@ export function PromptCanvas({
   modelOptions,
   chatStyle = null,
   renderAfterAssistant,
+  showDeveloperToolSteps = false,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
@@ -874,6 +874,7 @@ export function PromptCanvas({
           columnMaxWidth={chatStyle ? columnMaxWidth : undefined}
           renderAfterAssistant={renderAfterAssistant}
           collapseToolCallsWhenIdle={surface === 'inspector'}
+          showDeveloperToolSteps={showDeveloperToolSteps}
         />
       )}
 

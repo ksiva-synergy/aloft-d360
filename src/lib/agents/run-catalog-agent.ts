@@ -6,13 +6,16 @@ import { runAgentLoop, type AgentLoopParams, type AgentLoopResult, type LoopMetr
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { principalForUser } from '@/lib/access/principal';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
 import { buildRuntimeSystemPrompt } from '@/lib/construction/prompts';
 import { runtimeBriefFromCatalog } from '@/lib/construction/catalog-sync';
 import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
-import { computeCostUsd } from '@/lib/lifecycle/log-agent-cost';
+import { computeCostUsd, logAgentCost } from '@/lib/lifecycle/log-agent-cost';
+import { recordInteractiveLlmSpend } from '@/lib/spend/record-spend-event';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
 import { checkCustomFields, typeFieldValue, type CustomField } from '@/lib/extraction/schemas';
 import { getDefaultOrg } from '@/lib/org';
 import { knowledgeForAgent, knowledgePrompt, runSearchKnowledgeTool, searchKnowledgeTool, SEARCH_KNOWLEDGE_TOOL } from '@/lib/knowledge/agents';
@@ -212,6 +215,22 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   }
 
   const orgId = getDefaultOrg().id;
+  const dataPrincipal = input.person?.userId
+    ? await principalForUser(input.person.userId, orgId)
+    : null;
+  try {
+    await assertInteractiveBudget({
+      orgId,
+      userId: input.person?.userId ?? null,
+      role: input.role ?? null,
+    });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      throw new AgentRunError(402, err.message);
+    }
+    throw err;
+  }
+
   const knowledge = await knowledgeForAgent(agent.id, input.person ? { ...input.person, orgId } : null, orgId).catch((e: unknown) => {
     console.warn('[agents] linked knowledge unavailable:', e instanceof Error ? e.message.slice(0, 200) : e);
     return [];
@@ -282,7 +301,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
             if (event.type === 'query_result') queryResults.push(event as unknown as QueryResult);
             input.onToolEvent?.(event);
           },
-          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId },
+          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId, dataPrincipal },
         ),
       );
     },
@@ -326,6 +345,35 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   // An answer that arrived ends the run as intended, even though the loop was stopped early.
   const outcome: AgentLoopResult['outcome'] = answer && result.outcome !== 'errored' ? 'completed' : result.outcome;
   void metrics.flush({ model: effectiveModelId, outcome, toolCalls, toolErrors, error: result.errorDetail ?? null });
+
+  const costUsd = computeCostUsd(effectiveModelId, result.usage.inputTokens, result.usage.outputTokens);
+  const spendUserId = input.person?.userId ?? null;
+  const spendStatus = outcome === 'errored' ? 'failed' : outcome === 'truncated' ? 'truncated' : 'success';
+  void logAgentCost({
+    agentName: `catalog:${input.slug}`,
+    agentVersion: '1.0.0',
+    runId: runSessionId,
+    model: effectiveModelId,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    toolCalls,
+    durationMs: Date.now() - started,
+    status: spendStatus === 'failed' ? 'failed' : 'success',
+  }).catch(() => {});
+  void recordInteractiveLlmSpend({
+    orgId,
+    userId: spendUserId,
+    surface: input.surface,
+    model: effectiveModelId,
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    sessionId: runSessionId,
+    turnId: metrics.turnId,
+    agentSlug: input.slug,
+    status: spendStatus,
+    durationMs: Date.now() - started,
+    toolCalls,
+  }).catch(() => {});
 
   return {
     agent: { id: agent.id, name: agent.name, slug: input.slug, status: agent.status ?? null },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 import {
   Activity,
   AlertTriangle,
@@ -283,9 +283,8 @@ function ModelPickerDropdown({
 }
 
 export default function ModelsConfigPage() {
-  const { data: session } = useSession();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  const canEdit = role === 'platform_admin' || role === 'admin';
+  // Section access: Manage on Models (admins by default, or a bundle). The API checks the same rule.
+  const canEdit = useSectionLevel('govern.models') === 'manage';
 
   const [data, setData] = useState<ModelConfigPayload | null>(null);
   const [draft, setDraft] = useState<PlatformModelSettings | null>(null);

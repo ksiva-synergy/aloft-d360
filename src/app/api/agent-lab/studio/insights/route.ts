@@ -11,6 +11,11 @@ import {
 } from '@/lib/studio/insights';
 import { computeCostUsd } from '@/lib/lifecycle/log-agent-cost';
 import type { ColumnProfile } from '@/lib/studio/types';
+import { getOrgId } from '@/lib/databricks/connections';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -116,6 +121,17 @@ export async function POST(request: NextRequest) {
       sessionId = access.sessionId;
     }
 
+    const orgId = await getOrgId();
+    const role = await getSessionUserRole();
+    try {
+      await assertInteractiveBudget({ orgId, userId: session.user.id, role });
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        return NextResponse.json({ error: err.message, code: 'BUDGET_EXCEEDED' }, { status: 402 });
+      }
+      throw err;
+    }
+
     const generated = await generateStudioInsights({
       sql,
       profiles,
@@ -156,6 +172,20 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    void logInteractiveLlmTurn({
+      orgId,
+      userId: session.user.id,
+      surface: 'studio',
+      action: 'insights',
+      model: generated.model,
+      inputTokens: generated.inputTokens,
+      outputTokens: generated.outputTokens,
+      sessionId: sessionId ?? null,
+      turnId: randomUUID(),
+      status: 'success',
+      durationMs: generated.durationMs,
+    });
 
     return NextResponse.json({
       insights: generated.insights,

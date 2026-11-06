@@ -1,0 +1,112 @@
+/*
+ * Cost monitor surface. Series colors are chart-only tokens, validated with the dataviz
+ * palette checker (lightness band, chroma, CVD and normal-vision separation, contrast):
+ *   light #5B3DF5 / #2A9BDB on #fcfcfb, dark #8B7BFF / #1E9FD0 on #141414 — all PASS.
+ * They are fixed rather than brand vars so a theme accent change cannot break separation.
+ */
+.root {
+  --cost-ai: #5B3DF5;
+  --cost-harvest: #2A9BDB;
+  --cost-grid: rgba(17, 19, 34, 0.07);
+  --cost-track: var(--surface-3);
+  color: var(--ink-1);
+  min-height: 100%;
+  padding: clamp(18px, 2.4vw, 32px);
+  background: var(--background);
+}
+
+:global(.dark) .root {
+  --cost-ai: #8B7BFF;
+  --cost-harvest: #1E9FD0;
+  --cost-grid: rgba(255, 255, 255, 0.07);
+  --cost-track: #262626;
+}
+
+.root :is(button, input, select, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--brand-a);
+  outline-offset: 2px;
+}
+
+.content {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.card {
+  border: 1px solid var(--line-1);
+  border-radius: var(--radius-card);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-card);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .kpiGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .kpiGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 10px 12px 12px;
+  color: var(--ink-3);
+  transition: color 160ms ease;
+}
+
+.tab:hover { color: var(--ink-1); }
+
+.tab[aria-selected='true'] { color: var(--ink-1); }
+
+.tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--brand-a);
+}
+
+.meterFill {
+  transition: width 420ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1));
+}
+
+.drawer {
+  transform: translateX(0);
+  transition: transform 260ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1));
+}
+
+.drawerHidden { transform: translateX(100%); }
+
+.scrim {
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.scrimHidden { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .meterFill, .drawer, .scrim, .tab { transition: none; }
+}

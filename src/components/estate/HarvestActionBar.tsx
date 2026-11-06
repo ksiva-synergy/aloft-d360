@@ -19,10 +19,12 @@ import Link from '@/lib/navigation/link';
 import { useRouter } from '@/lib/navigation';
 import { toast } from 'sonner';
 import { inkOf } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 interface TierRow {
   tier: string;
   label: string;
+  hint: string;
   lastAt: string | null;
   canTrigger: boolean;
   triggerEndpoint?: string;
@@ -64,6 +66,7 @@ export default function HarvestActionBar({
   last_t4_at,
   onActionComplete,
 }: HarvestActionBarProps) {
+  const canAct = useCanRunEstatePipeline();
   const router = useRouter();
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -74,6 +77,7 @@ export default function HarvestActionBar({
     {
       tier: 'T0',
       label: 'Structural',
+      hint: 'Columns, types and comments',
       lastAt: last_t0_at,
       canTrigger: true,
       triggerEndpoint: `/api/agent-lab/context/jobs/trigger`,
@@ -82,6 +86,7 @@ export default function HarvestActionBar({
     {
       tier: 'T1',
       label: 'Profile',
+      hint: 'Row counts, nulls, value ranges',
       lastAt: last_t1_at,
       canTrigger: true,
       triggerEndpoint: `/api/agent-lab/context/objects/${objectId}/refresh`,
@@ -89,6 +94,7 @@ export default function HarvestActionBar({
     {
       tier: 'T2',
       label: 'Semantic',
+      hint: 'AI summary, grain, key columns',
       lastAt: last_t2_at,
       canTrigger: true,
       triggerEndpoint: `/api/agent-lab/context/objects/${objectId}/enrich`,
@@ -96,12 +102,14 @@ export default function HarvestActionBar({
     {
       tier: 'T3',
       label: 'Usage',
+      hint: 'Who queries it and how — whole source',
       lastAt: last_t3_at,
       canTrigger: false, // source-wide — no object-level scoping exists in orchestrator
     },
     {
       tier: 'T4',
       label: 'Entity Model',
+      hint: 'Entities and measures — whole source',
       lastAt: last_t4_at,
       canTrigger: false, // source-wide — t4_scan reads no path scope
     },
@@ -246,199 +254,147 @@ export default function HarvestActionBar({
     }
   };
 
-  const btnBase: React.CSSProperties = {
-    fontWeight: 600,
-    padding: '4px 10px',
-    borderRadius: 6,
-    border: '1px solid color-mix(in srgb, var(--brand-a) 35%, transparent)',
-    background: 'transparent',
-    color: 'var(--brand-a-ink)',
-    cursor: 'pointer',
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
-    transition: 'background 0.12s ease, border-color 0.12s ease',
-  };
+  const busy = reharvestingAll || !!loadingTier;
+
+  // Harvest actions are platform-admin only (section access: estate.catalog).
+  if (!canAct) return null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', position: 'relative' }}>
+    <div className="flex flex-wrap items-center gap-2" style={{ position: 'relative' }}>
 
-      {/* ── Reharvest All — T0 → T1 → T2 → T4 sequential ── */}
+      {/* Primary — refresh everything for this object (T0 → T1 → T2 → T4) */}
       <button
         type="button"
         onClick={handleReharvestAll}
-        disabled={reharvestingAll || !!loadingTier}
-        style={{
-          ...btnBase,
-          background: reharvestingAll ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)' : 'color-mix(in srgb, var(--brand-a) 6%, transparent)',
-          borderColor: reharvestingAll ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 45%, transparent)',
-          opacity: loadingTier ? 0.5 : 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-        }}
-        title="Queue T0 → T1 → T2 → T4 for this object sequentially (T3 is source-wide, excluded)"
+        disabled={busy}
+        className="inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-size-ui font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+        style={{ background: 'var(--brand-a)', border: 'none', cursor: busy ? 'not-allowed' : 'pointer' }}
+        title={
+          last_t2_at
+            ? 'Re-scan structure, profile, description and business model for this table (usage is source-wide and not included)'
+            : 'Re-scan structure, profile and description. The business model step waits until a description exists.'
+        }
       >
-        {reharvestingAll ? (
-          <>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 'var(--type-ui-regular-size)' }}>↻</span>
-            <span>{reharvestStep ?? 'queuing…'}</span>
-          </>
-        ) : (
-          <>
-            <span>⚡</span>
-            <span>Reharvest All</span>
-            <span
-              style={{ opacity: 0.5, fontSize: 'var(--type-ui-regular-size)' }}
-              title={!last_t2_at ? 'T4 will be deferred until T2 completes — re-run Reharvest All after T2 succeeds' : undefined}
-            >
-              {last_t2_at ? 'T0→T1→T2→T4' : 'T0→T1→T2→T4*'}
-            </span>
-          </>
-        )}
+        <svg
+          width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+          className={reharvestingAll ? 'animate-spin' : undefined}
+        >
+          <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+        </svg>
+        {reharvestingAll ? (reharvestStep ?? 'Queuing…') : <>Reharvest All <span style={{ opacity: 0.75, fontWeight: 400 }}>T0→T1→T2→T4</span></>}
       </button>
 
-      {/* Re-harvest dropdown trigger */}
+      {/* Secondary — refresh one step */}
       <div style={{ position: 'relative' }}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          style={btnBase}
-          title="Per-tier re-harvest options"
+          disabled={reharvestingAll}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-size-ui font-medium transition-colors hover:bg-[var(--estate-active-bg)] disabled:opacity-60"
+          style={{ borderColor: 'var(--estate-btn-border)', background: 'var(--estate-raised)', color: 'var(--estate-ink)', cursor: 'pointer' }}
+          title="Re-run one tier for this table"
         >
-          Rescan {loadingTier ? `(${loadingTier}…)` : '▾'}
+          {loadingTier ? `Queuing ${loadingTier}…` : 'Rescan tier'}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
         </button>
 
         {open && (
           <>
             {/* Backdrop */}
+            <div style={{ position: 'fixed', inset: 0, zIndex: 29 }} onClick={() => setOpen(false)} />
             <div
-              style={{ position: 'fixed', inset: 0, zIndex: 29 }}
-              onClick={() => setOpen(false)}
-            />
-            {/* Dropdown */}
-            <div
+              role="menu"
+              className="rounded-xl border shadow-lg"
               style={{
                 position: 'absolute',
-                top: '100%',
-                left: 0,
-                marginTop: 4,
+                top: 'calc(100% + 6px)',
+                right: 0,
                 zIndex: 30,
-                width: 240,
-                background: 'var(--estate-raised, #111D2E)',
-                border: '1px solid color-mix(in srgb, var(--brand-a) 18%, transparent)',
-                borderRadius: 6,
-                overflow: 'hidden',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                width: 300,
+                maxWidth: 'calc(100vw - 32px)',
+                background: 'var(--estate-raised)',
+                borderColor: 'var(--estate-border)',
+                padding: 6,
               }}
             >
-              {tiers.map((row) => (
-                <div
-                  key={row.tier}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderBottom: '1px solid var(--line-1)',
-                    cursor: row.canTrigger ? 'pointer' : 'default',
-                    opacity: loadingTier && loadingTier !== row.tier ? 0.5 : 1,
-                  }}
-                  onClick={() => row.canTrigger && handleTrigger(row)}
-                  title={
-                    !row.canTrigger
-                      ? `${row.label} re-harvest is source-wide — trigger from the Jobs page to avoid bulk re-harvest`
-                      : undefined
-                  }
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Tier chip */}
+              {tiers.map((row) => {
+                const content = (
+                  <>
                     <span
+                      className="font-mono text-size-caption"
                       style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 'var(--type-ui-regular-size)',
-                        fontWeight: 600,
-                        padding: '2px 5px',
-                        borderRadius: 6,
-                        background: 'var(--estate-ink, var(--brand-a-ink))',
-                        color: '#fff',
-                        letterSpacing: '0.04em',
                         flexShrink: 0,
+                        width: 26,
+                        textAlign: 'center',
+                        borderRadius: 6,
+                        padding: '2px 0',
+                        background: 'var(--estate-active-bg)',
+                        color: 'var(--estate-text-secondary)',
                       }}
                     >
                       {row.tier}
                     </span>
-                    <div>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 'var(--type-ui-regular-size)',
-                          fontWeight: 500,
-                          color: row.canTrigger ? 'var(--estate-ink, #E8E6E1)' : 'var(--estate-text-muted, var(--ink-3))',
-                        }}
-                      >
+                    <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                      <span className="text-size-ui font-medium" style={{ color: row.canTrigger ? 'var(--estate-ink)' : 'var(--estate-text-muted)' }}>
                         {row.label}
-                      </div>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 'var(--type-ui-regular-size)',
-                          color: 'var(--estate-text-muted, var(--ink-3))',
-                        }}
-                      >
-                        {row.lastAt ? formatRelativeTime(row.lastAt) : 'Never run'}
-                      </div>
-                    </div>
-                  </div>
-                  {row.canTrigger ? (
-                    loadingTier === row.tier ? (
-                      <span style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--brand-a-ink)', fontFamily: 'var(--font-mono)' }}>
-                        queuing…
                       </span>
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: 'var(--type-ui-regular-size)',
-                          color: 'var(--brand-a-ink)',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 600,
-                        }}
-                      >
-                        ↻
+                      <span className="text-size-caption" style={{ color: 'var(--estate-text-muted)' }}>
+                        {row.hint} · {row.lastAt ? `last ${formatRelativeTime(row.lastAt).toLowerCase()}` : 'never run'}
                       </span>
-                    )
-                  ) : (
-                    <Link
-                      href="/agent-lab/estate/jobs"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        fontSize: 'var(--type-ui-regular-size)',
-                        color: 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
-                        fontFamily: 'var(--font-mono)',
-                        textDecoration: 'none',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title="Source-wide only — go to Jobs"
-                    >
-                      source-wide →
-                    </Link>
-                  )}
-                </div>
-              ))}
+                    </span>
+                    <span className="text-size-caption" style={{ color: 'var(--brand-a-ink)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      {row.canTrigger ? (loadingTier === row.tier ? 'Queuing…' : 'Run') : 'Jobs →'}
+                    </span>
+                  </>
+                );
+                const itemClass = 'flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--estate-active-bg)]';
+                return row.canTrigger ? (
+                  <button
+                    key={row.tier}
+                    type="button"
+                    role="menuitem"
+                    className={itemClass}
+                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', opacity: loadingTier && loadingTier !== row.tier ? 0.5 : 1 }}
+                    onClick={() => handleTrigger(row)}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <Link
+                    key={row.tier}
+                    role="menuitem"
+                    href="/agent-lab/estate/jobs"
+                    className={itemClass}
+                    style={{ textDecoration: 'none' }}
+                    title={`${row.label} runs for the whole source — start it from the Jobs page`}
+                  >
+                    {content}
+                  </Link>
+                );
+              })}
             </div>
           </>
         )}
       </div>
 
-      {/* Silo scan — single consolidated CTA */}
+      {/* Tertiary — find similar data across the estate */}
       <button
         type="button"
         onClick={() => router.push(`/agent-lab/estate/silo?objectId=${objectId}`)}
-        style={btnBase}
-        title="Find similar data across the estate"
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-size-ui font-medium transition-colors hover:bg-[var(--estate-active-bg)]"
+        style={{ border: 'none', background: 'transparent', color: 'var(--brand-a-ink)', cursor: 'pointer' }}
+        title="Find tables with similar data across the estate (silo scan)"
       >
-        ◎ Silo Scan
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
+        </svg>
+        Silo Scan
       </button>
-
     </div>
   );
 }

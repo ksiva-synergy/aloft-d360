@@ -35,6 +35,8 @@ const {
 
 vi.mock('@/lib/semantic/execute', () => ({ executeSemanticQuery }));
 
+vi.mock('@/lib/dashboards/execute-raw-sql', () => ({ executeRawSql: vi.fn() }));
+
 vi.mock('@/lib/dashboards/connection', () => ({
   loadDashboardForExecution,
   DashboardConnectionUnboundError: class DashboardConnectionUnboundError extends Error {},

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
+import { friendlyActivityStatus } from '@/lib/client/tool-activity-labels';
 import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { type } from '@/lib/typography/tokens';
@@ -161,6 +162,21 @@ function ThinkingAccordion({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function FriendlyToolActivity({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; isStreaming: boolean }) {
+  const label = friendlyActivityStatus(toolCalls, isStreaming);
+  const working = isStreaming && (toolCalls.some((t) => t.status === 'running' || t.status === 'suggested') || !toolCalls.every((t) => t.status === 'success'));
+  if (!working && !isStreaming) return null;
+  return (
+    <div className="ld-card" style={{ marginBottom: 10 }}>
+      {working && <div className="ld-bar" />}
+      <div className="flex items-center gap-2.5 px-3.5 py-2.5 text-size-ui">
+        {working ? <span className="ld-dot" /> : <Check size={13} strokeWidth={2.5} style={{ color: GREEN, flexShrink: 0 }} />}
+        <span className={working ? 'ld-shimmer-text font-medium text-[var(--ink-2)]' : 'font-medium text-[var(--ink-2)]'}>{label}</span>
+      </div>
     </div>
   );
 }
@@ -1304,6 +1320,8 @@ export interface StreamingMessageProps {
   modelName?: string;
   /** When false, the raw tool-step list stays hidden. The companion still shows progress. */
   showToolCalls?: boolean;
+  /** Pass false for members and admins with developer mode off. */
+  showTechnicalToolNames?: boolean;
 }
 
 export function StreamingMessage({
@@ -1322,6 +1340,7 @@ export function StreamingMessage({
   tokenCount,
   modelName,
   showToolCalls = true,
+  showTechnicalToolNames = false,
 }: StreamingMessageProps) {
   const [copied, setCopied] = useState(false);
 
@@ -1354,6 +1373,9 @@ export function StreamingMessage({
       {showToolCalls && toolCalls && toolCalls.length > 0 && (
         <ToolCallsSection toolCalls={toolCalls} isStreaming={isStreaming} />
       )}
+      {!showToolCalls && toolCalls && toolCalls.length > 0 && isStreaming && (
+        <FriendlyToolActivity toolCalls={toolCalls} isStreaming={isStreaming} />
+      )}
 
 
       {/* Main content card */}
@@ -1373,6 +1395,7 @@ export function StreamingMessage({
       >
         <CaptainStatus active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
           toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
+          showTechnicalToolNames={showTechnicalToolNames}
           needsClarification={readiness === 'interview'} />
         {content && (
           <div style={{ padding: '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>

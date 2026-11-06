@@ -29,6 +29,8 @@ import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pi
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
 import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
 import { failJobsAfterLaunchError } from '@/lib/context/orphan-jobs';
+import { estimateLaunchHarvestUsd } from '@/lib/context/launch-cost-estimate';
+import { assertHarvestBudget, BudgetExceededError } from '@/lib/spend/budgets';
 import {
   type JobScopeRunnerFlags,
   mergeJobScopeRunnerFlags,
@@ -136,6 +138,7 @@ async function launchKind(
   runnerFlags: JobScopeRunnerFlags = {},
   uiSurface?: string,
   pipelineRunId?: string,
+  triggeredByUserId?: string | null,
 ): Promise<{ jobsEnqueued: number; taskArn: string | null; failures: { arn?: string; reason?: string }[] }> {
   let scope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) scope.excludeSchemas = excludeSchemas;
@@ -151,14 +154,14 @@ async function launchKind(
   const enqueuedJobIds: string[] = [];
   if (['t0_structural', 't1_profile', 't2_semantic', 'embed', 'estate_inventory', 't3_usage'].includes(kind)) {
     for (const src of sources) {
-      const row = await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId);
+      const row = await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId, triggeredByUserId);
       sourceIds.push(src.id);
       enqueuedJobIds.push(row.id);
       jobsEnqueued++;
     }
   } else {
     const sid = sources[0]?.id ?? null;
-    const row = await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId);
+    const row = await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId, triggeredByUserId);
     sourceIds.push(sid);
     enqueuedJobIds.push(row.id);
     jobsEnqueued++;
@@ -221,6 +224,7 @@ async function launchSplitKind(
   runnerFlags: JobScopeRunnerFlags = {},
   uiSurface?: string,
   pipelineRunId?: string,
+  triggeredByUserId?: string | null,
 ): Promise<{
   parentJobId: string;
   totalChildren: number;
@@ -247,6 +251,7 @@ async function launchSplitKind(
     plan,
     baseScope,
     'on_demand',
+    triggeredByUserId,
   );
 
   // Launch up to MAX_CONCURRENT workers immediately (1 when HARVEST_RUNTIME=local)
@@ -297,6 +302,9 @@ async function launchSplitKind(
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessEstatePipelineOperator();
   if (denied) return denied;
+
+  const session = await getServerSession(authOptions);
+  const triggeredByUserId = session?.user?.id ?? null;
 
   const body = await req.json();
 
@@ -360,6 +368,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const launchEstimateUsd = await estimateLaunchHarvestUsd({
+      orgId,
+      kinds,
+      sourceIds: sources.map((s) => s.id),
+      excludeSchemas,
+      includePatterns,
+      sequential,
+    });
+    await assertHarvestBudget({ orgId, estimatedUsd: launchEstimateUsd });
+
     let totalJobsEnqueued = 0;
     let allFailures: { arn?: string; reason?: string }[] = [];
     const taskArns: (string | null)[] = [];
@@ -394,6 +412,7 @@ export async function POST(req: NextRequest) {
               runnerFlags,
               uiSurface,
               pipelineRunId,
+              triggeredByUserId,
             );
             splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
             totalJobsEnqueued += result.totalChildren + 1;
@@ -413,6 +432,7 @@ export async function POST(req: NextRequest) {
           runnerFlags,
           uiSurface,
           pipelineRunId,
+          triggeredByUserId,
         );
         totalJobsEnqueued += result.jobsEnqueued;
         allFailures.push(...result.failures);
@@ -463,6 +483,12 @@ export async function POST(req: NextRequest) {
           hint: 'Set includePatterns (Limit) on launch, or pass allowFullSourceLaunch: true to confirm.',
         },
         { status: 400 },
+      );
+    }
+    if (err instanceof BudgetExceededError) {
+      return NextResponse.json(
+        { error: 'BUDGET_EXCEEDED', message: err.message, details: err.details },
+        { status: 402 },
       );
     }
     console.error('[context/jobs/launch POST]', err);

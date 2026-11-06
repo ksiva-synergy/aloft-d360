@@ -49,8 +49,10 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
       })
       .then((d: { roles?: Role[] }) => {
         if (cancelled) return;
-        if (!d.roles?.length) throw new Error('No roles available');
-        setRoles([...d.roles].sort(
+        // Bundles are roles too, but they are added in Section access, not at invite.
+        const builtIn = (d.roles ?? []).filter((r) => (ROLE_ORDER as readonly string[]).includes(r.name));
+        if (!builtIn.length) throw new Error('No roles available');
+        setRoles([...builtIn].sort(
           (a, b) => (ROLE_ORDER as readonly string[]).indexOf(a.name) - (ROLE_ORDER as readonly string[]).indexOf(b.name),
         ));
       })

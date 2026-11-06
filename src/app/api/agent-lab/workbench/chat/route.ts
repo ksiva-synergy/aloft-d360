@@ -22,6 +22,9 @@ import { deriveReadiness } from '@/lib/construction/readiness';
 import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
+import { recordInteractiveLlmSpend } from '@/lib/spend/record-spend-event';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getSessionUserRole } from '@/lib/inspector/session-role';
 
@@ -125,6 +128,15 @@ export async function POST(request: NextRequest) {
       console.error('[workbench/chat] initial harvested-catalog research failed', err);
       initialCatalogResearch = JSON.stringify({ error: 'Harvested-catalog search failed. Check server logs.' });
     }
+  }
+
+  try {
+    await assertInteractiveBudget({ orgId: org.id, userId: row.user_id, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, effectiveModelId);
+    }
+    throw err;
   }
 
   const stream = new ReadableStream({
@@ -253,6 +265,22 @@ export async function POST(request: NextRequest) {
           toolErrors: toolErrorCount,
           error: result.errorDetail ?? null,
         });
+
+        if (result.usage.inputTokens + result.usage.outputTokens > 0) {
+          void recordInteractiveLlmSpend({
+            orgId: org.id,
+            userId: row.user_id,
+            surface: 'workbench',
+            model: effectiveModelId,
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            sessionId: body.sessionId,
+            turnId: turnMetrics.turnId,
+            status: result.outcome === 'errored' ? 'failed' : result.outcome,
+            durationMs: turnMetrics.elapsedMs(),
+            toolCalls: result.toolCalls.length,
+          }).catch(() => {});
+        }
 
         stateRef = coerceConstructionState(stateRef);
         // Keep Config-panel edits (and test runs) made while this turn was streaming.

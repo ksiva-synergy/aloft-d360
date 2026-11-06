@@ -13,6 +13,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { embedQuery } from '@/lib/context/embed';
 import prisma from '@/lib/db';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,8 @@ type EmbedRow = { subject_id: string; similarity: number };
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
+  const deniedSection = await denyUnlessSection(req, ['estate.overview', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

@@ -4,12 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import {
   X, Shield, UserX, Trash2, Mail, Calendar, Clock, Globe,
-  RefreshCw, CheckCircle2, Building2, Ban, Activity, MessagesSquare, Brain,
+  RefreshCw, CheckCircle2, Building2, Ban, Activity, MessagesSquare, Brain, Layers,
 } from 'lucide-react';
 import type { UserRow } from './UserTable';
 import { RoleBadge } from './RoleBadge';
 import { useUserDialogFocus } from './useUserDialogFocus';
 import styles from './users.module.css';
+import { UserDataAccessSection } from '@/components/access/UserDataAccessSection';
 
 interface UserDetailDrawerProps {
   user: UserRow | null;
@@ -18,6 +19,9 @@ interface UserDetailDrawerProps {
   canAssignRoles?: boolean;
   canUpdateUsers?: boolean;
   canDeleteUsers?: boolean;
+  canManageDataAccess?: boolean;
+  /** Platform admins: the person's custom role and bundles editor (rendered by the page). */
+  sectionAccess?: React.ReactNode;
   onClose: () => void;
   onChangeRole?: (user: UserRow) => void;
   onToggleStatus?: (user: UserRow) => void;
@@ -82,6 +86,8 @@ export function UserDetailDrawer({
   canAssignRoles,
   canUpdateUsers,
   canDeleteUsers,
+  canManageDataAccess,
+  sectionAccess,
   onClose,
   onChangeRole,
   onToggleStatus,
@@ -191,7 +197,26 @@ export function UserDetailDrawer({
           <div className={styles.detailSection}>
             <h3 className="text-title-card mb-4">Account details</h3>
             <InfoRow icon={Mail}      label="Email"         value={user.email} />
-            <InfoRow icon={Shield}    label="Role"          value={user.roleLabel} />
+            <InfoRow
+              icon={Shield}
+              label="Role"
+              value={user.customRole ? `${user.customRole.name} (custom, from ${{ readonly: 'Read only', member: 'Member', admin: 'Admin' }[user.customRole.base]})` : user.roleLabel}
+            />
+            <InfoRow
+              icon={Layers}
+              label="Bundles"
+              value={
+                user.bundles?.length ? (
+                  <span className="flex flex-wrap justify-end gap-1">
+                    {user.bundles.map((b) => (
+                      <span key={b.id} className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-caption">{b.name}</span>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">None</span>
+                )
+              }
+            />
             <InfoRow icon={StatusIcon} label="Account Status" value={status.label} />
             <InfoRow
               icon={Globe}
@@ -226,6 +251,14 @@ export function UserDetailDrawer({
               <StatTile icon={Brain}          value={user.memoriesContributed ?? 0} label="Memories"  hint="Contributed" />
             </div>
           </div>
+
+          {sectionAccess}
+
+          <UserDataAccessSection
+            userId={user.id}
+            userDisplayName={user.name?.trim() || user.email}
+            canManage={!!canManageDataAccess}
+          />
 
           {/* Actions */}
           {(canAssignRoles || (canUpdateUsers && !isSelf) || (canDeleteUsers && !isSelf)) && (

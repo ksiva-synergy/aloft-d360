@@ -2,11 +2,14 @@ import {
   HouseIcon, HammerIcon, BrainIcon, StackIcon, ShieldCheckIcon, RobotIcon,
   MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
-  UsersIcon, ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
+  UsersIcon,   ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
+  KeyIcon,
   LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon, CpuIcon,
+  CurrencyCircleDollarIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
+import { hiddenInNav, type SectionLevels } from '@/lib/sections/registry';
 
 export interface NavItem {
   label: string;
@@ -95,6 +98,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
       { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Data access', href: '/agent-staging/data-access', icon: KeyIcon },
+      { label: 'Cost monitor', href: '/agent-staging/cost',       icon: CurrencyCircleDollarIcon },
       { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
       { label: 'Connections', href: '/agent-staging/connections', icon: PlugsConnectedIcon },
       { label: 'Audit Log',   href: '/agent-staging/audit',       icon: ScrollIcon },
@@ -111,4 +116,12 @@ export function isActive(item: NavItem, pathname: string): boolean {
 
 export function groupForPath(pathname: string): string {
   return NAV_GROUPS.find((g) => g.items.some((i) => isActive(i, pathname)))?.id ?? NAV_GROUPS[0].id;
+}
+
+/** Nav groups with the sections this person cannot open removed (empty groups dropped). */
+export function filterNavGroups(groups: NavGroup[], levels: SectionLevels | null): NavGroup[] {
+  if (!levels) return groups;
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenInNav(levels, i.href)) }))
+    .filter((g) => g.items.length > 0);
 }

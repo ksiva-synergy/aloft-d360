@@ -126,12 +126,23 @@ export const routes: RouteObject[] = [
 
               // ── Govern (agent-staging) ─────────────────────────────────────────────
               { path: 'agent-staging', element: <RedirectTo to="/docs/agents" /> },
-              { path: 'agent-staging/models', lazy: page(() => import('@/views/agent-staging/models')), handle: title('Models & AI Gateway · ALOFT') },
-              { path: 'agent-staging/audit', lazy: page(() => import('@/views/agent-staging/audit')) },
-              { path: 'agent-staging/connections', lazy: page(() => import('@/views/agent-staging/connections')), handle: title('Connections · ALOFT') },
-              { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
-              { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
-              { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+              {
+                // Section access gate (src/lib/sections): no access → explanation; view → read-only notice.
+                lazy: async () => {
+                  const Gate = (await import('@/components/sections/SectionGate')).default;
+                  return { Component: () => <Gate><Outlet /></Gate> };
+                },
+                children: [
+                  { path: 'agent-staging/models', lazy: page(() => import('@/views/agent-staging/models')), handle: title('Models & AI Gateway · ALOFT') },
+                  { path: 'agent-staging/audit', lazy: page(() => import('@/views/agent-staging/audit')) },
+                  { path: 'agent-staging/connections', lazy: page(() => import('@/views/agent-staging/connections')), handle: title('Connections · ALOFT') },
+                  { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
+                  { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
+                  { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+                  { path: 'agent-staging/data-access', lazy: page(() => import('@/views/agent-staging/data-access')), handle: title('Data access · ALOFT') },
+                  { path: 'agent-staging/cost', lazy: page(() => import('@/views/agent-staging/cost-monitor')), handle: title('Cost monitor · ALOFT') },
+                ],
+              },
 
               // ── Docs ───────────────────────────────────────────────────────────────
               { path: 'docs', lazy: page(() => import('@/views/docs/index')) },

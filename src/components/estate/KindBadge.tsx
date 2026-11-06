@@ -1,22 +1,13 @@
 'use client';
 
 import React from 'react';
+import { Tag } from './object-ui';
 
 interface KindBadgeProps {
   kind: string;
 }
 
 export default function KindBadge({ kind }: KindBadgeProps) {
-  return (
-    <span
-   className="inline-block text-label px-2 py-0.5 rounded border transition duration-200"
-      style={{
-        borderColor: 'var(--estate-border-gold)',
-        color: 'var(--estate-text-secondary)',
-        backgroundColor: 'var(--estate-hover)',
-      }}
-    >
-      {kind}
-    </span>
-  );
+  // object_kind shown exactly as stored (table, view, materialized_view, …).
+  return <Tag tone="neutral">{kind}</Tag>;
 }

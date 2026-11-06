@@ -1,9 +1,13 @@
 import { prisma } from '@/lib/db';
-import { executeDatabricksSQL, ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
 import { profileResultSet } from '@/lib/studio/profiler';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
+import type { AccessPrincipal } from '@/lib/access/types';
+import { isAccessActive } from '@/lib/access/mode';
+import { runWarehouseQuery } from '@/lib/access/warehouse';
+import { AccessDeniedError } from '@/lib/access/errors';
+import { systemPrincipal } from '@/lib/access/principal';
 
 export type ToolEmit = (event: Record<string, unknown>) => void;
 
@@ -19,6 +23,14 @@ export interface InspectorToolContext {
   sessionId: string;
   /** Databricks connectionId resolved once at session init. Null if no active connection. */
   connectionId: string | null;
+  /** Required when ACCESS_MODE is observe or enforce. */
+  dataPrincipal?: AccessPrincipal | null;
+}
+
+function resolveWarehousePrincipal(context?: InspectorToolContext): AccessPrincipal | null {
+  if (context?.dataPrincipal) return context.dataPrincipal;
+  if (!isAccessActive()) return systemPrincipal('health');
+  return null;
 }
 
 /**
@@ -154,6 +166,7 @@ export async function executeInspectorTool(
         model: context?.model ?? 'us.anthropic.claude-sonnet-4-6',
         sessionId: context?.sessionId ?? '',
         intent: context?.lastUserMessage ?? '',
+        dataPrincipal: resolveWarehousePrincipal(context),
         // Progressive streaming: relay plan / SQL / stage events to the SSE
         // stream as they become available, ahead of the final chart result.
         onProgress: (ev) => emit({ ...ev }),
@@ -424,22 +437,22 @@ export async function executeInspectorTool(
           return JSON.stringify({ error: errMsg });
         }
 
-        let token: string;
-        try {
-          token = await getAccessToken(connectionId, conn.workspace_host);
-        } catch (tokenErr: unknown) {
-          const msg = tokenErr instanceof Error ? tokenErr.message : String(tokenErr);
-          emit({ type: 'tool_call_error', callId, error: `Token fetch failed: ${msg}`, retryable: false });
-          return JSON.stringify({ error: `Token fetch failed: ${msg}` });
+        let warehousePrincipal = resolveWarehousePrincipal(context);
+        if (!warehousePrincipal) {
+          const errMsg = 'Data access principal is required for warehouse queries.';
+          emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
+          return JSON.stringify({ error: errMsg });
         }
 
-        const sqlResult = await executeDatabricksSQL(
+        const sqlResult = await runWarehouseQuery({
           connectionId,
-          conn.workspace_host,
-          conn.default_warehouse_id,
-          token,
-          { statement },
-        );
+          principal: warehousePrincipal,
+          statement,
+          purpose: 'inspector_execute_tool',
+          level: 'query',
+          surface: 'sql',
+          sessionId: context?.sessionId ?? null,
+        });
 
         const cappedRows = sqlResult.rows.slice(0, 1000);
         emit({
@@ -458,6 +471,11 @@ export async function executeInspectorTool(
       emit({ type: 'tool_call_error', callId, error: errMsg, retryable: false });
       return JSON.stringify({ error: errMsg });
     } catch (err: unknown) {
+      if (err instanceof AccessDeniedError) {
+        const msg = err.message;
+        emit({ type: 'tool_call_error', callId, error: msg, retryable: false });
+        return JSON.stringify({ error: 'ACCESS_DENIED', message: msg });
+      }
       if (err instanceof ReadOnlyViolationError) {
         const msg = `Read-only violation: ${err.message}`;
         emit({ type: 'tool_call_error', callId, error: msg, retryable: false });
@@ -481,7 +499,11 @@ export async function executeInspectorTool(
 
   if (toolName === 'describe_schema') {
     const { handleDescribeSchema } = await import('@/lib/context/dispatch');
-    return handleDescribeSchema(toolInput);
+    const dataPrincipal = context?.dataPrincipal ?? null;
+    if (isAccessActive() && !dataPrincipal) {
+      return JSON.stringify({ error: 'Data access principal is required for describe_schema.' });
+    }
+    return handleDescribeSchema(toolInput, dataPrincipal);
   }
 
   return JSON.stringify({ error: `Unknown tool: ${toolName}` });

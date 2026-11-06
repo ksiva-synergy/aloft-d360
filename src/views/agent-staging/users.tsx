@@ -10,27 +10,24 @@ import { UserTable, type UserRow } from '@/components/users/UserTable';
 import { UserDetailDrawer } from '@/components/users/UserDetailDrawer';
 import { InviteUserModal } from '@/components/users/InviteUserModal';
 import { ChangeRoleModal } from '@/components/users/ChangeRoleModal';
+import { SectionAccessPanel } from '@/components/users/SectionAccessPanel';
+import { PersonSectionAccess } from '@/components/users/PersonSectionAccess';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import type { SectionLevel } from '@/lib/sections/registry';
 import styles from '@/components/users/users.module.css';
 
-// Derive permissions from role — mirrors src/lib/rbac.ts permission mappings
-function getPermissionsForRole(role?: string | null) {
-  switch (role) {
-    case 'platform_admin':
-      return {
-        canReadUsers: true, canCreateUsers: true, canUpdateUsers: true,
-        canDeleteUsers: true, canAssignRoles: true,
-      };
-    case 'admin':
-      return {
-        canReadUsers: true, canCreateUsers: true, canUpdateUsers: true,
-        canDeleteUsers: true, canAssignRoles: true,
-      };
-    default:
-      return {
-        canReadUsers: false, canCreateUsers: false, canUpdateUsers: false,
-        canDeleteUsers: false, canAssignRoles: false,
-      };
-  }
+// What this person can do here comes from section access (src/lib/sections): View on Users lists people,
+// Manage invites, edits, re-roles, and removes them. The APIs check the same rules.
+function getPermissionsForLevels(users: SectionLevel | null, dataAccess: SectionLevel | null) {
+  const manage = users === 'manage';
+  return {
+    canReadUsers: users === 'view' || manage,
+    canCreateUsers: manage,
+    canUpdateUsers: manage,
+    canDeleteUsers: manage,
+    canAssignRoles: manage,
+    canManageDataAccess: dataAccess === 'manage',
+  };
 }
 
 const ROLE_OPTIONS = [
@@ -96,7 +93,9 @@ export default function UsersPage() {
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string; role?: string } | undefined;
   const currentUserId = sessionUser?.id;
-  const perms = getPermissionsForRole(sessionUser?.role);
+  const me = useSectionLevels();
+  const perms = getPermissionsForLevels(me?.levels['govern.users'] ?? null, me?.levels['govern.data-access'] ?? null);
+  const [tab, setTab] = useState<'people' | 'sections'>('people');
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,6 +137,9 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers, refreshKey]);
+
+  // The open profile, refreshed from the latest list (so saved changes show without reopening).
+  const drawerCurrent = drawerUser ? (users.find((u) => u.id === drawerUser.id) ?? drawerUser) : null;
 
   // Filtered view
   const filtered = useMemo(() => {
@@ -283,7 +285,25 @@ export default function UsersPage() {
         </div>
       )}
 
-      <section className={cn(styles.directory, (loading || error) && 'mt-5')} aria-labelledby="directory-title">
+      <div role="tablist" aria-label="Users views" className={cn(styles.tabs, '!px-0 mb-4', (loading || error) && 'mt-5')}>
+        <button role="tab" type="button" id="tab-people" aria-selected={tab === 'people'} aria-controls="panel-people" className={styles.tab} onClick={() => setTab('people')}>
+          People
+        </button>
+        <button role="tab" type="button" id="tab-sections" aria-selected={tab === 'sections'} aria-controls="panel-sections" className={styles.tab} onClick={() => setTab('sections')}>
+          Section access
+        </button>
+      </div>
+
+      {tab === 'sections' ? (
+        <section id="panel-sections" role="tabpanel" aria-labelledby="tab-sections" className={styles.directory}>
+          <div className={styles.directoryHeader}>
+            <h2 className="text-title-card">Section access</h2>
+            <span className="text-caption text-muted-foreground">Who can open each part of ALOFT, and who can make changes there</span>
+          </div>
+          <SectionAccessPanel users={users} onMembersChanged={() => setRefreshKey((k) => k + 1)} notify={showToast} />
+        </section>
+      ) : (
+      <section id="panel-people" role="tabpanel" aria-labelledby="tab-people" className={styles.directory}>
         <div className={styles.directoryHeader}>
           <div className="flex items-center gap-3">
             <h2 id="directory-title" className="text-title-card">People directory</h2>
@@ -352,15 +372,27 @@ export default function UsersPage() {
         </div>
       )}
       </section>
+      )}
 
       {/* Detail drawer */}
       <UserDetailDrawer
-        user={drawerUser}
+        user={drawerCurrent}
         open={drawerOpen}
         currentUserId={currentUserId}
         canAssignRoles={perms.canAssignRoles}
         canUpdateUsers={perms.canUpdateUsers}
         canDeleteUsers={perms.canDeleteUsers}
+        canManageDataAccess={perms.canManageDataAccess}
+        sectionAccess={
+          me?.platformAdmin && drawerCurrent ? (
+            <PersonSectionAccess
+              key={`${drawerCurrent.id}:${drawerCurrent.customRole?.id ?? ''}:${(drawerCurrent.bundles ?? []).map((b) => b.id).join(',')}`}
+              user={drawerCurrent}
+              onSaved={() => setRefreshKey((k) => k + 1)}
+              notify={showToast}
+            />
+          ) : null
+        }
         onClose={() => setDrawerOpen(false)}
         onChangeRole={handleChangeRole}
         onToggleStatus={handleToggleStatus}

@@ -282,3 +282,26 @@ export function formatJobScopeHuman(scope: unknown): string {
 export function isJobsLaunchWizardEnabled(): boolean {
   return process.env.NEXT_PUBLIC_JOBS_LAUNCH_WIZARD !== 'false';
 }
+
+/** Human label for harvest job kinds (shared with Cost monitor and other lightweight UIs). */
+const JOB_KIND_LABELS: Record<string, string> = {
+  t0_structural: 'T0 Structural',
+  t1_profile: 'T1 Profile',
+  t2_semantic: 'T2 Semantic',
+  embed: 'Embed',
+  mapping: 'Mapping',
+  silo_scan: 'Silo Scan',
+  t3_connected: 'T3 Connected',
+  t3_usage: 'T3 Usage Harvest',
+  knowledge_sync: 'Knowledge Sync',
+  estate_inventory: 'Estate Inventory',
+  change_detect: 'Change Detect',
+  recompute_entity_tags: 'Recompute Entity Tags',
+  t4_scan: 'T4 Entity Scan',
+  t4_entity_propose: 'T4 Entity Propose',
+  t4_dim_propose: 'T4 Dimension Propose',
+};
+
+export function getJobKindLabel(kind: string): string {
+  return JOB_KIND_LABELS[kind] ?? kind;
+}

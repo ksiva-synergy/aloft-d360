@@ -8,12 +8,12 @@
  * Only the edges are mocked (NextAuth session, Prisma, audit, Databricks clients). The real
  * resolveAuth → permission flattening → role rank → guard code runs.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Role = 'platform_admin' | 'admin' | 'member' | 'readonly' | 'custom_ops';
 const PERMS: Record<Role, string[]> = {
-  platform_admin: ['user:read', 'user:update', 'role:assign', 'session:read', 'session:read:all', 'session:write', 'inspector:use'],
-  admin: ['user:read', 'user:update', 'role:assign', 'session:read', 'session:write', 'inspector:use'],
+  platform_admin: ['user:read', 'user:update', 'role:assign', 'session:read', 'session:read:all', 'session:write', 'inspector:use', 'access:admin'],
+  admin: ['user:read', 'user:update', 'role:assign', 'session:read', 'session:write', 'inspector:use', 'access:admin'],
   member: ['user:read', 'session:read', 'session:write', 'inspector:use'],
   readonly: ['user:read', 'session:read'],
   custom_ops: ['user:read', 'user:update', 'role:assign', 'inspector:use'],
@@ -92,18 +92,35 @@ vi.mock('@/lib/databricks/connections', () => ({
   createConnection: dbx.createConnection,
   updateConnection: vi.fn(),
   listConnections: vi.fn(async () => []),
-  getConnection: vi.fn(async () => null),
+  getConnection: vi.fn(async (_org: string, id: string) =>
+    id === 'c-1' ? { id: 'c-1', status: 'active', workspace_host: 'h', default_warehouse_id: 'w' } : null,
+  ),
   deleteConnection: vi.fn(),
 }));
 vi.mock('@/lib/databricks/secrets', () => ({ writeCredentials: vi.fn() }));
 vi.mock('@/lib/databricks/tool-registration', () => ({ syncToolEntry: vi.fn(), deleteToolEntry: vi.fn() }));
-vi.mock('@/lib/databricks/token-client', () => ({ getAccessToken: vi.fn(), evictToken: vi.fn() }));
+vi.mock('@/lib/databricks/token-client', () => ({ getAccessToken: vi.fn(), openDatabricksSession: vi.fn(), evictToken: vi.fn() }));
 vi.mock('@/lib/databricks/test-connection', () => ({ testConnection: vi.fn() }));
 vi.mock('@/lib/databricks/execute', () => ({
   executeDatabricksSQL: dbx.executeDatabricksSQL,
   ReadOnlyViolationError: class extends Error {},
   MultiStatementError: class extends Error {},
   ExternalLinksError: class extends Error {},
+}));
+const accessWarehouse = vi.hoisted(() => ({ runWarehouseQuery: vi.fn() }));
+vi.mock('@/lib/access/warehouse', () => ({
+  runWarehouseQuery: accessWarehouse.runWarehouseQuery,
+  runWarehouseExport: vi.fn(),
+}));
+vi.mock('@/lib/access/principal', () => ({
+  principalForUser: vi.fn(async (userId: string) => ({
+    kind: 'user',
+    orgId: 'org-1',
+    userId,
+    departmentIds: [],
+    clearance: 'internal',
+  })),
+  systemPrincipal: vi.fn(),
 }));
 
 import { DEFAULT_ROLE, canManageRole, roleRank } from '@/lib/rbac';
@@ -149,6 +166,20 @@ describe('S1 — default role and no role escalation', () => {
     expect(() => requireRole({ userId: 'x', role: 'admin', permissions: new Set() }, 'admin')).not.toThrow();
   });
 
+  it('a plain admin can view Users but not change roles (section access, 2026-11-06)', async () => {
+    expect((await patchUser(req('PATCH', { role: 'member' }), params('u-other'))).status).toBe(403);
+    expect((await assignRole(req('POST', { userId: 'u-other', roleName: 'member' }), undefined)).status).toBe(403);
+    expect(db.userRole.deleteMany).not.toHaveBeenCalled();
+  });
+
+  describe('with a bundle that gives Manage on Users', () => {
+    beforeEach(() => {
+      PERMS.admin.push('section:govern.users:manage');
+    });
+    afterEach(() => {
+      PERMS.admin = PERMS.admin.filter((k) => k !== 'section:govern.users:manage');
+    });
+
   it('an admin can set member but cannot grant platform_admin or re-role a platform_admin', async () => {
     expect((await patchUser(req('PATCH', { role: 'member' }), params('u-other'))).status).toBe(200);
     expect((await patchUser(req('PATCH', { role: 'platform_admin' }), params('u-other'))).status).toBe(403);
@@ -162,6 +193,7 @@ describe('S1 — default role and no role escalation', () => {
     expect((await assignRole(req('POST', { userId: 'u-other', roleName: 'admin' }), undefined)).status).toBe(201);
     as('u-padmin');
     expect((await assignRole(req('POST', { userId: 'u-other', roleName: 'platform_admin' }), undefined)).status).toBe(201);
+  });
   });
 });
 
@@ -191,15 +223,17 @@ describe('S2 — workbench sessions are owner-only', () => {
 });
 
 describe('S3 — policy and catalog writes', () => {
-  it('members cannot write policies; admins write only whitelisted fields, with audit', async () => {
+  it('members and admins cannot write policies; platform admins write only whitelisted fields, with audit', async () => {
     as('u-member');
     expect((await createPolicy(req('POST', { name: 'Cap', type: 'cost_ceiling' }), undefined)).status).toBe(403);
-    as('u-admin');
+    as('u-admin'); // View on Policies only (section access, 2026-11-06)
+    expect((await createPolicy(req('POST', { name: 'Cap', type: 'cost_ceiling' }), undefined)).status).toBe(403);
+    as('u-padmin');
     const res = await createPolicy(req('POST', { name: 'Cap', type: 'cost_ceiling', enforcement: 'block', config: { usd: 5 }, id: 'forged', created_at: '1999-01-01', evil: true }), undefined);
     expect(res.status).toBe(201);
     const data = db.policy_entry.create.mock.calls[0]![0].data as Record<string, unknown>;
     expect(Object.keys(data).sort()).toEqual(['config', 'enforcement', 'name', 'slug', 'type']);
-    expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'policy.created', actorId: 'u-admin' }));
+    expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'policy.created', actorId: 'u-padmin' }));
     expect((await createPolicy(req('POST', { name: 'Cap', type: 'cost_ceiling', enforcement: 'ignore' }), undefined)).status).toBe(400);
     as('u-member');
     expect((await patchPolicy(req('PATCH', { status: 'disabled' }), params('p-1'))).status).toBe(403);
@@ -234,10 +268,15 @@ describe('S4 — Databricks connections and SQL', () => {
     expect(dbx.createConnection).not.toHaveBeenCalled();
   });
 
-  it('SQL execute needs inspector:use', async () => {
-    as('u-readonly');
+  it('SQL execute needs access:admin', async () => {
+    as('u-member');
     const res = await executeSql(req('POST', { sql: 'select 1' }) as never, params('c-1'));
     expect(res.status).toBe(403);
     expect(dbx.executeDatabricksSQL).not.toHaveBeenCalled();
+    as('u-admin');
+    accessWarehouse.runWarehouseQuery.mockResolvedValueOnce({ rows: [], columns: [], row_count: 0, truncated: false });
+    const ok = await executeSql(req('POST', { sql: 'select 1' }) as never, params('c-1'));
+    expect(ok.status).toBe(200);
+    expect(accessWarehouse.runWarehouseQuery).toHaveBeenCalled();
   });
 });

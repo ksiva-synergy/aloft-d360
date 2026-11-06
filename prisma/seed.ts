@@ -41,6 +41,9 @@ const PERMISSIONS: Array<{ key: string; description: string }> = [
   // Gate raw LLM request/response payloads behind a dedicated permission so plain
   // audit:read cannot see prompt content.
   { key: 'llm:payload:read', description: 'Read raw LLM request/response payloads' },
+  { key: 'access:admin', description: 'Manage data access departments, grants, and clearances' },
+  { key: 'access:classify', description: 'Classify data sensitivity labels on catalog objects' },
+  { key: 'access:audit', description: 'Read data access change and decision logs' },
 ];
 
 const ROLES: Array<{ name: string; description: string; isSystem: boolean; permissions: string[] | '*' }> = [
@@ -65,6 +68,8 @@ const ROLES: Array<{ name: string; description: string; isSystem: boolean; permi
       'session:write',
       'inspector:use',
       'audit:read',
+      'access:admin',
+      'access:classify',
     ],
   },
   {

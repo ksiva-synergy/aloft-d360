@@ -1,4 +1,5 @@
 import type { ToolCall, TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
+import { friendlyToolActivityLabel } from '@/lib/client/tool-activity-labels';
 
 export type CompanionState = 'idle' | 'reading' | 'thinking' | 'tools' | 'writing' | 'success' | 'clarification' | 'error' | 'stopped';
 export interface CompanionActivity { state: CompanionState; label: string }
@@ -12,6 +13,8 @@ export interface ActivityInput {
   error?: string | null;
   outcome?: TurnOpsSnapshot['outcome'];
   needsClarification?: boolean;
+  /** When false (default), companion never surfaces raw tool ids like describe_schema. */
+  showTechnicalToolNames?: boolean;
 }
 
 /** Use explicit lifecycle facts, never infer a question or success from generated prose. */
@@ -25,8 +28,16 @@ export function companionActivity(input: ActivityInput): CompanionActivity {
     return input.content ? { state: 'success', label: 'Response ready' } : { state: 'idle', label: 'Ready to help' };
   }
   const running = input.toolCalls?.find(tool => tool.status === 'running');
-  if (running) return { state: 'tools', label: `Using ${running.toolName || running.toolId || 'a tool'}` };
-  if (input.toolCalls?.some(tool => tool.status === 'suggested')) return { state: 'tools', label: 'Preparing a tool' };
+  if (running) {
+    const raw = running.toolName || running.toolId || 'a tool';
+    const label = input.showTechnicalToolNames
+      ? `Using ${raw}`
+      : friendlyToolActivityLabel(raw);
+    return { state: 'tools', label };
+  }
+  if (input.toolCalls?.some(tool => tool.status === 'suggested')) {
+    return { state: 'tools', label: input.showTechnicalToolNames ? 'Preparing a tool' : 'Analyzing your question' };
+  }
   if (input.activity === 'thinking') return { state: 'thinking', label: 'Thinking it through' };
   if (input.content) return { state: 'writing', label: 'Writing a response' };
   if (input.thinking) return { state: 'thinking', label: 'Thinking it through' };

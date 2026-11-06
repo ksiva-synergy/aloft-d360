@@ -5,6 +5,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import { computePipelineIntent, normalizePipelineScope } from '@/lib/estate/pipeline-intent';
 import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
 import { z } from 'zod';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +23,8 @@ function parsePatterns(raw: string | undefined): string[] {
 }
 
 export async function GET(req: NextRequest) {
+  const deniedSection = await denyUnlessSection(req, ['estate.jobs', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

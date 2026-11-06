@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/catalog-helpers';
 import { ApiError, clientMeta, created, handle, parse } from '@/lib/http';
-import { resolveAuth, requireRole } from '@/middleware/auth';
+import { resolveAuth } from '@/middleware/auth';
+import { denyUnlessSection, requireSection } from '@/lib/sections/server';
 import { writeAudit } from '@/lib/audit';
 import { policyCreateSchema } from './schema';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const deniedSection = await denyUnlessSection(request, ['govern.policies', 'view']);
+  if (deniedSection) return deniedSection;
   try {
     const sp = request.nextUrl.searchParams;
     const type = sp.get('type');
@@ -37,10 +40,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Writes are admin-only and accept only the known policy fields (never the raw body).
+// Writes need Manage on Policies (admins by default) and accept only the known policy fields (never the raw body).
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
-  requireRole(auth, 'admin');
+  requireSection(auth, ['govern.policies', 'manage']);
   const body = parse(policyCreateSchema, await req.json());
   const slug = body.slug ?? `${slugify(body.name)}-${Date.now().toString(36)}`;
   try {

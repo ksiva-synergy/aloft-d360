@@ -206,7 +206,8 @@ export async function computeSourceDistribution(
     }
   }
 
-  // 9. T4 semantic models — mirrors: platform_sem_entities.findFirst({ full_path, status: 'candidate' })
+  // 9. T4 semantic models — mirrors getObjectAggregate: newest entity per full_path, any status
+  //    (a 'candidate' filter dropped the T4 credit as soon as an entity was promoted to governed).
   const semanticModelByPath = new Map<string, {
     entity_label: string;
     description: string | null;
@@ -216,13 +217,15 @@ export async function computeSourceDistribution(
   }>();
   if (t4ObjectPaths.length > 0) {
     const allEntities = await prisma.platform_sem_entities.findMany({
-      where: { org_id: orgId, full_path: { in: t4ObjectPaths }, status: 'candidate' },
+      where: { org_id: orgId, full_path: { in: t4ObjectPaths } },
+      orderBy: { updated_at: 'desc' },
       include: {
         platform_sem_dimensions: { orderBy: { column_name: 'asc' } },
         platform_sem_measures: { orderBy: { measure_label: 'asc' } },
       },
     });
     for (const entity of allEntities) {
+      if (semanticModelByPath.has(entity.full_path)) continue; // keep the newest
       semanticModelByPath.set(entity.full_path, {
         entity_label: entity.entity_label,
         description: entity.description,
