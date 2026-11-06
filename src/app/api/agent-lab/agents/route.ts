@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const rows = await prisma.agent_catalog.findMany({
-      where: { tags: { has: 'workbench' } },
+      where: {
+        tags: { has: 'workbench' },
+        NOT: { status: 'deprecated' },
+      },
       orderBy: { updated_at: 'desc' },
       take: 100,
     });
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
         workbenchSessionId: sessionId,
         catalogUrl: `/docs/agents/${row.slug}`,
         useUrl: `/agent-lab/agents/${row.slug}`,
-        editUrl: sessionId ? `/agent-lab/workbench/${sessionId}` : null,
+        editUrl: sessionId ? `/agent-lab/agents/workbench/${sessionId}` : null,
       }];
     });
 

@@ -5,11 +5,14 @@ import { scoreGroundedness } from '@/lib/boost/scorers/groundedness';
 import { scoreSemanticQuality } from '@/lib/boost/scorers/semantic';
 import { recomputeCtsgv } from '@/lib/lifecycle/score-ctsgv';
 import { Prisma } from '@prisma/client';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   const body = await request.json() as { runIds?: string[]; rescoreAll?: boolean };
   const { runIds, rescoreAll } = body;
 

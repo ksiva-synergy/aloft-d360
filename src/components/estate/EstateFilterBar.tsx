@@ -1,8 +1,12 @@
 'use client';
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useEffect, useCallback } from 'react';
+import { Search, X } from 'lucide-react';
+import { CATALOG_SELECT, CATALOG_SELECT_ARROW } from './catalog-ui';
 
 export interface EstateFilterState {
+  sourceId?: string;
   catalog?: string;
   schema?: string;
   kind?: string;
@@ -16,9 +20,31 @@ interface EstateFilterBarProps {
   filters: EstateFilterState;
   onChange: (updates: Partial<EstateFilterState>) => void;
   total: number;
+  placeholder?: string;
 }
 
-export default function EstateFilterBar({ filters, onChange, total }: EstateFilterBarProps) {
+/** Search box shared by both Catalog views. */
+export function CatalogSearch({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <label className="flex h-9 min-w-[240px] flex-1 items-center gap-2 rounded-ctl border border-[var(--estate-border)] bg-[var(--estate-surface)] px-3 transition-colors focus-within:border-[var(--estate-btn-border)] focus-within:shadow-[var(--focus-ring)]">
+      <Search aria-hidden className="size-4 shrink-0 text-[var(--estate-text-dim)]" />
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="min-w-0 flex-1 border-none bg-transparent text-ui-regular text-[var(--estate-ink)] outline-none placeholder:text-[var(--estate-text-dim)]"
+      />
+      {value && (
+        <button type="button" aria-label="Clear search" onClick={() => onChange('')} className="rounded-xs p-0.5 text-[var(--estate-text-dim)] hover:text-[var(--estate-ink)]">
+          <X className="size-3.5" />
+        </button>
+      )}
+    </label>
+  );
+}
+
+export default function EstateFilterBar({ filters, onChange, total, placeholder }: EstateFilterBarProps) {
   const [searchVal, setSearchVal] = useState(filters.q || '');
 
   const stableOnChange = useCallback(onChange, [onChange]);
@@ -36,89 +62,43 @@ export default function EstateFilterBar({ filters, onChange, total }: EstateFilt
     setSearchVal(filters.q || '');
   }, [filters.q]);
 
-  const borderColor = 'var(--estate-border)';
-  const surfaceBg = 'var(--estate-surface)';
-  const inkColor = 'var(--estate-ink)';
-  const textMuted = 'var(--estate-text-dim)';
-  const textSecondary = 'var(--estate-text-secondary)';
-
-  const selectStyle: React.CSSProperties = {
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
-    letterSpacing: '0.04em',
-    backgroundColor: surfaceBg,
-    border: `1px solid ${borderColor}`,
-    borderRadius: '6px',
-    color: textSecondary,
-    padding: '0 12px',
-    height: '36px',
-    outline: 'none',
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%234a5765'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    paddingRight: '30px',
-  };
-
   return (
-    <div
-      className="flex items-center gap-3 px-6 py-3.5 flex-wrap"
-      style={{ background: 'var(--estate-bg)' }}
-    >
-      {/* Search */}
-      <div
-        className="flex-1 min-w-[240px] flex items-center gap-2 h-9 px-3"
-        style={{
-          backgroundColor: surfaceBg,
-          border: `1px solid ${borderColor}`,
-          borderRadius: '6px',
-        }}
-        onFocusCapture={e => { e.currentTarget.style.borderColor = 'var(--estate-btn-border)'; }}
-        onBlurCapture={e => { e.currentTarget.style.borderColor = borderColor; }}
-      >
-        <span style={{ color: textMuted, fontSize: '14px' }}>⌕</span>
-        <input
-          type="text"
-          placeholder={`Search ${total} objects across the estate…`}
-          value={searchVal}
-          onChange={e => setSearchVal(e.target.value)}
-          className="flex-1 bg-transparent border-none outline-none"
-          style={{
-            color: inkColor,
-            fontFamily: "'Inter Variable', sans-serif",
-            fontSize: '13px',
-          }}
-        />
-      </div>
+    <div className="flex flex-wrap items-center gap-2 px-6 py-3">
+      <CatalogSearch
+        value={searchVal}
+        onChange={setSearchVal}
+        placeholder={placeholder ?? `Search ${total.toLocaleString()} objects\u2026`}
+      />
 
-      {/* Kind filter */}
-      <select
-        style={selectStyle}
+      <Select
+        aria-label="Object type"
+        className={CATALOG_SELECT}
+        style={CATALOG_SELECT_ARROW}
         value={filters.kind || ''}
         onChange={e => onChange({ kind: e.target.value || undefined })}
       >
-        <option value="">Kind: All</option>
+        <option value="">Any type</option>
         <option value="MANAGED">Table</option>
         <option value="VIEW">View</option>
         <option value="EXTERNAL">External</option>
-      </select>
+      </Select>
 
-      {/* Lifecycle filter */}
-      <select
-        style={selectStyle}
+      <Select
+        aria-label="Stage"
+        className={CATALOG_SELECT}
+        style={CATALOG_SELECT_ARROW}
         value={filters.lifecycle || ''}
         onChange={e => onChange({ lifecycle: e.target.value || undefined })}
       >
-        <option value="">Lifecycle: All</option>
+        <option value="">Any stage</option>
         <option value="discovered">Discovered</option>
         <option value="scheduled">Scheduled</option>
         <option value="queued">Queued</option>
-        <option value="harvested">Harvested</option>
+        <option value="harvested">Scanned</option>
         <option value="published">Published</option>
-        <option value="stale">Stale</option>
-        <option value="inaccessible">No Access</option>
-      </select>
+        <option value="stale">Needs re-sync</option>
+        <option value="inaccessible">No access</option>
+      </Select>
     </div>
   );
 }

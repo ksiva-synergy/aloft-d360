@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import type { QueryResult } from '@/hooks/useInspectorChat';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface DatasetRailProps {
@@ -66,8 +67,8 @@ function SparklineCanvas({ columns, rows }: { columns: QueryResult['columns']; r
     return (
       <span
         style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: 'var(--builder-text-label)',
         }}
       >
@@ -108,10 +109,7 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
         style={{
           padding: '8px 16px',
           borderBottom: '1px solid var(--builder-border)',
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: 13,
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--builder-text-label)',
           flexShrink: 0,
         }}
@@ -172,13 +170,13 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     padding: '1px 5px',
                     borderRadius: 2,
                     border: isSelected ? '1px solid var(--builder-gold)' : '1px solid var(--builder-border)',
                     color: isSelected ? 'var(--builder-gold)' : 'var(--builder-text-label)',
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.04em',
                   }}
                 >
                   Q{i + 1}
@@ -186,13 +184,13 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 {result.truncated && (
                   <span
                     style={{
-                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                      fontSize: 13,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       padding: '1px 4px',
                       borderRadius: 2,
                       border: '1px solid rgba(248,113,113,0.4)',
-                      color: '#f87171',
-                      letterSpacing: '0.06em',
+                      color: inkOf('#f87171'),
+                      letterSpacing: '0.04em',
                     }}
                   >
                     TRUNCATED
@@ -203,8 +201,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               {/* SQL preview */}
               <p
                 style={{
-                  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                  fontSize: 13,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   color: 'var(--builder-text-muted)',
                   margin: '0 0 4px',
                   overflow: 'hidden',
@@ -226,8 +224,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
               >
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: 'var(--builder-text-label)',
                   }}
                 >
@@ -235,8 +233,8 @@ export function DatasetRail({ results, selectedIndex, onSelect }: DatasetRailPro
                 </span>
                 <span
                   style={{
-                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-                    fontSize: 13,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 'var(--type-ui-regular-size)',
                     color: 'var(--builder-text-label)',
                   }}
                 >

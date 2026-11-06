@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { GOLD, MONO, SERIF, BODY } from '@/lib/foer/foer-tokens';
+import { inkOf } from '@/lib/typography/tokens';
 
 export function EasterEggs() {
   const [isMounted, setIsMounted] = useState(false);
@@ -471,7 +472,7 @@ export function EasterEggs() {
             color: 'var(--foer-text-sec)',
             fontFamily: SERIF,
             fontStyle: 'italic',
-            fontSize: '13px',
+            fontSize: 'var(--type-ui-regular-size)',
             lineHeight: 1.45,
             zIndex: 1000,
             pointerEvents: 'none',
@@ -625,9 +626,9 @@ export function EasterEggs() {
             left: coreLabelPos.left,
             top: coreLabelPos.top,
             transform: 'translateX(-50%)',
-            fontFamily: MONO,
-            fontSize: '13px',
-            color: GOLD,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-ui-regular-size)',
+            color: inkOf(GOLD),
             zIndex: 200,
             pointerEvents: 'none',
             animation: prefersReducedMotion ? 'none' : 'fade-in-out 1.5s ease forwards',
@@ -655,7 +656,7 @@ export function EasterEggs() {
             width: '420px',
             textAlign: 'center',
             fontFamily: BODY,
-            fontSize: '16px',
+            fontSize: 'var(--type-body-lg-size)',
             color: 'var(--foer-text-pri)',
             lineHeight: '1.5',
             animation: prefersReducedMotion
@@ -666,8 +667,8 @@ export function EasterEggs() {
           }}
         >
           A single rewrite collapsed{' '}
-          <span style={{ fontFamily: MONO, color: GOLD, fontWeight: 500 }}>18,282</span> tokens to{' '}
-          <span style={{ fontFamily: MONO, color: GOLD, fontWeight: 500 }}>122</span>. We don&apos;t do that
+          <span style={{ fontFamily: MONO, color: inkOf(GOLD), fontWeight: 500 }}>18,282</span> tokens to{' '}
+          <span style={{ fontFamily: MONO, color: inkOf(GOLD), fontWeight: 500 }}>122</span>. We don&apos;t do that
           here.
         </div>,
         shelvesEl
@@ -681,7 +682,7 @@ export function EasterEggs() {
             left: harborRect.left + harborRect.width - 65,
             top: harborRect.top + harborRect.height - 24,
             fontFamily: MONO,
-            fontSize: '13px',
+            fontSize: 'var(--type-ui-regular-size)',
             color: 'var(--foer-text-sec)',
             opacity: harborHoverState === 'showing' ? 0.6 : 0,
             transition: prefersReducedMotion ? 'none' : 'opacity 300ms ease-out',

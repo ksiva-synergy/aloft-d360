@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { AlertTriangle, HelpCircle, Sparkles } from 'lucide-react';
 import type { IntentDisambiguation } from '@/lib/dashboards/guided-types';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 // Four visibly-distinct states — deliberately NOT one red underline.
@@ -104,7 +105,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             ) : (
               <AlertTriangle size={11} color={VIOLET} />
             )}
-            <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
+            <span style={{ ...type.label, color: d.resolution === 'ambiguous' ? GOLD : VIOLET }}>
               {d.resolution === 'ambiguous' ? `Which "${d.term}"?` : `"${d.term}" isn’t governed`}
             </span>
           </div>
@@ -117,13 +118,13 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                 onClick={() => { onChoose(d.term, c.id); setOpen(false); }}
                 style={{
                   ...MONO,
-                  fontSize: 13,
+                  fontSize: 'var(--type-ui-regular-size)',
                   textAlign: 'left',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 2,
                   padding: '6px 8px',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   border: `1px solid ${c.id === d.chosenId ? GREEN : 'rgba(136,146,164,0.25)'}`,
                   background: c.id === d.chosenId ? 'rgba(52,211,153,0.08)' : 'transparent',
                   color: 'var(--wb-ink, #E6ECF5)',
@@ -135,7 +136,7 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
                   {c.label}
                 </span>
                 {c.description && (
-                  <span style={{ fontSize: 13, color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
+                  <span style={{ fontSize: 'var(--type-ui-regular-size)', color: MUTED, lineHeight: 1.4 }}>{c.description}</span>
                 )}
               </button>
             ))}
@@ -145,12 +146,9 @@ export function DisambiguationUnderline({ disambig: d, onChoose, onDefineInTeach
             <button
               onClick={() => { onDefineInTeach(d.term); setOpen(false); }}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
+                ...type.label,
                 padding: '6px 8px',
-                borderRadius: 4,
+                borderRadius: 6,
                 border: `1px solid ${VIOLET}`,
                 background: 'rgba(196,181,253,0.10)',
                 color: VIOLET,

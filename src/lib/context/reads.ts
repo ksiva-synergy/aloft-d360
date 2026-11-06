@@ -8,6 +8,11 @@ import { computeDataScore } from './data-score';
 import type { DataScoreResult } from './data-score';
 import { assembleDimensionInput } from './data-score/assemble';
 import { SQL_OBJECT_HAS_EMBEDDING, SQL_PCO_HAS_EMBEDDING } from './embedding-presence';
+import { runInBatches } from '@/lib/db/run-in-batches';
+
+/** Cap parallel Prisma queries (pool is often connection_limit=10 in dev). */
+const COVERAGE_SUMMARY_DB_CONCURRENCY = 3;
+const SCANNED_LIST_DB_CONCURRENCY = 2;
 
 // ── 1. listObjectsPage ─────────────────────────────────────────────────────────
 
@@ -181,6 +186,37 @@ export async function listObjectsPage(
 
 // ── 2. getObjectAggregate ──────────────────────────────────────────────────────
 
+/** T4 entity model for one table, as shown on the object page. */
+export interface SemanticModelView {
+  entity_id: string;
+  entity_model_id: string | null;
+  entity_label: string;
+  description: string | null;
+  status: string;
+  ai_context: string | null;
+  synonyms: string[];
+  created_by: string | null;
+  updated_at: Date;
+  model: { id: string; name: string; status: string } | null;
+  dimensions: Array<{
+    id: string; column_name: string; dimension_label: string; dimension_type: string; description: string | null;
+    status: string; synonyms: string[]; format_hint: string | null; nl_intent: string | null;
+  }>;
+  measures: Array<{
+    id: string; column_name: string | null; measure_label: string; aggregate: string; expression: string | null;
+    metric_type: string; description: string | null; unit: string | null; status: string; synonyms: string[];
+    format_hint: string | null; nl_intent: string | null;
+  }>;
+  joins: Array<{
+    id: string; direction: 'out' | 'in'; join_type: string; join_on_sql: string; description: string | null;
+    other: { id: string; entity_label: string; full_path: string };
+  }>;
+  audit: Array<{
+    table_name: string; row_id: string; action: string; from_status: string | null; to_status: string | null;
+    changed_by: string; created_at: Date;
+  }>;
+}
+
 export interface ObjectAggregateResult {
   object: PlatformContextObject;
   columns: any[];
@@ -190,24 +226,22 @@ export interface ObjectAggregateResult {
   latestSemanticId: string | null;
   /** DS3a: version of the specific semantic card row rendered — used for the version guard */
   latestSemanticVersion: number | null;
+  /** Model / prompt / confidence / time of the rendered semantic card row. */
+  latestSemanticMeta: { model_id: string | null; prompt_version: string | null; confidence: number | null; created_at: Date } | null;
   /** DS3a: true if a PlatformContextEmbedding row exists for this object (Published lifecycle signal) */
   hasEmbedding: boolean;
   profileHistory: any[];
   freshness: any;
   entityGroupObjects: PlatformContextObject[];
   proposedMappings: any[];
+  /** Confirmed column mappings — display only, not part of the DATA score input. */
+  confirmedMappings: any[];
+  /** Knowledge chunks agents retrieve for this object (doc_ref `context:<path>:*`). */
+  agentKnowledge: { doc_ref: string; chunk_index: number; content: string; created_at: Date }[];
   objectLinks: any[];
   lastJobs: PlatformContextJob[];
   usageSnapshot: (UsageObjectResult & { co_object_id_map: Record<string, string> }) | null;
-  semanticModel: {
-    entity_id: string;
-    entity_model_id: string | null;
-    entity_label: string;
-    description: string | null;
-    status: string;
-    dimensions: Array<{ column_name: string; dimension_label: string; dimension_type: string; description: string | null }>;
-    measures: Array<{ column_name: string | null; measure_label: string; aggregate: string; description: string | null; unit: string | null }>;
-  } | null;
+  semanticModel: SemanticModelView | null;
   dataScore: DataScoreResult;
 }
 
@@ -268,23 +302,31 @@ export async function getObjectAggregate(
     siblingObjects = await prisma.$queryRaw<PlatformContextObject[]>(siblingQuery);
   }
 
-  // 6. Proposed mappings
-  const proposedMappings = await prisma.platformContextMapping.findMany({
+  // 6. Column mappings — proposed (scored + reviewable) and confirmed (display only).
+  // Confirmed rows are kept separate so the DATA score input stays identical to the
+  // catalog-wide distribution path, which scores proposed mappings only.
+  const mappingColumnInclude = {
+    include: { object: { select: { id: true, full_path: true, object_name: true } } },
+  } as const;
+  const allMappings = await prisma.platformContextMapping.findMany({
     where: {
       org_id: orgId,
-      status: 'proposed',
+      status: { in: ['proposed', 'confirmed'] },
       OR: [
         { left_column: { object_id: objectId } },
         { right_column: { object_id: objectId } },
       ],
     },
     include: {
-      left_column: true,
-      right_column: true,
+      left_column: mappingColumnInclude,
+      right_column: mappingColumnInclude,
     },
   });
+  const proposedMappings = allMappings.filter((m) => m.status === 'proposed');
+  const confirmedMappings = allMappings.filter((m) => m.status === 'confirmed');
 
   // 7. Object links
+  const linkObjectSelect = { select: { id: true, full_path: true, object_name: true, object_kind: true } } as const;
   const objectLinks = await prisma.platformContextObjectLink.findMany({
     where: {
       org_id: orgId,
@@ -293,9 +335,13 @@ export async function getObjectAggregate(
         { right_object_id: objectId },
       ],
     },
+    // Names of both ends so the page can show the other table, not its UUID.
+    include: { left_object: linkObjectSelect, right_object: linkObjectSelect },
   });
 
-  // 8. Last 5 jobs whose scope contains this object's full path
+  // 8. Last 5 jobs whose scope contains this object's full path.
+  // Per-object actions on this page (refresh / enrich / reharvest-all) enqueue with
+  // scope.includePatterns = [full_path], so match that as well as scope.path.
   const fullPath = obj.full_path;
   const jobsQuery = Prisma.sql`
     SELECT * FROM platform_context_jobs
@@ -304,6 +350,7 @@ export async function getObjectAggregate(
         scope->>'path' = ${fullPath}
         OR scope->>'leftScope' = ${fullPath}
         OR scope->>'rightScope' = ${fullPath}
+        OR scope->'includePatterns' @> jsonb_build_array(${fullPath}::text)
       )
     ORDER BY created_at DESC
     LIMIT 5
@@ -333,33 +380,95 @@ export async function getObjectAggregate(
   // 10. T4 semantic model — entity proposed for this table's full_path
   let semanticModel: ObjectAggregateResult['semanticModel'] = null;
   if (obj.last_t4_at) {
+    // Any status (candidate / governed / …) — filtering to 'candidate' made the
+    // card disappear right after "Promote to governed". Newest first.
+    const entityLink = { select: { id: true, entity_label: true, full_path: true } } as const;
     const entity = await prisma.platform_sem_entities.findFirst({
-      where: { org_id: orgId, full_path: obj.full_path, status: 'candidate' },
+      where: { org_id: orgId, full_path: obj.full_path },
+      orderBy: { updated_at: 'desc' },
       include: {
         platform_sem_dimensions: { orderBy: { column_name: 'asc' } },
         platform_sem_measures: { orderBy: { measure_label: 'asc' } },
+        platform_semantic_models: { select: { id: true, name: true, status: true } },
+        platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities: {
+          include: { platform_sem_entities_platform_sem_joins_to_entity_idToplatform_sem_entities: entityLink },
+        },
+        platform_sem_joins_platform_sem_joins_to_entity_idToplatform_sem_entities: {
+          include: { platform_sem_entities_platform_sem_joins_from_entity_idToplatform_sem_entities: entityLink },
+        },
       },
     });
     if (entity) {
+      // Governance trail for the entity and its dimensions / measures.
+      const rowIds = [
+        entity.id,
+        ...entity.platform_sem_dimensions.map((d) => d.id),
+        ...entity.platform_sem_measures.map((m) => m.id),
+      ];
+      const audit = await prisma.platform_sem_audit.findMany({
+        where: { org_id: orgId, row_id: { in: rowIds } },
+        orderBy: { created_at: 'desc' },
+        take: 15,
+        select: { table_name: true, row_id: true, action: true, from_status: true, to_status: true, changed_by: true, created_at: true },
+      });
+
       semanticModel = {
         entity_id: entity.id,
         entity_model_id: entity.model_id ?? null,
         entity_label: entity.entity_label,
         description: entity.description,
         status: entity.status,
+        ai_context: entity.ai_context,
+        synonyms: entity.synonyms,
+        created_by: entity.created_by,
+        updated_at: entity.updated_at,
+        model: entity.platform_semantic_models
+          ? { id: entity.platform_semantic_models.id, name: entity.platform_semantic_models.name, status: entity.platform_semantic_models.status }
+          : null,
         dimensions: entity.platform_sem_dimensions.map((d) => ({
+          id: d.id,
           column_name: d.column_name,
           dimension_label: d.dimension_label,
           dimension_type: d.dimension_type,
           description: d.description,
+          status: d.status,
+          synonyms: d.synonyms,
+          format_hint: d.format_hint,
+          nl_intent: d.nl_intent,
         })),
         measures: entity.platform_sem_measures.map((m) => ({
+          id: m.id,
           column_name: m.column_name,
           measure_label: m.measure_label,
           aggregate: m.aggregate,
+          expression: m.expression,
+          metric_type: m.metric_type,
           description: m.description,
           unit: m.unit,
+          status: m.status,
+          synonyms: m.synonyms,
+          format_hint: m.format_hint,
+          nl_intent: m.nl_intent,
         })),
+        joins: [
+          ...entity.platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities.map((j) => ({
+            id: j.id,
+            direction: 'out' as const,
+            join_type: j.join_type,
+            join_on_sql: j.join_on_sql,
+            description: j.description,
+            other: j.platform_sem_entities_platform_sem_joins_to_entity_idToplatform_sem_entities,
+          })),
+          ...entity.platform_sem_joins_platform_sem_joins_to_entity_idToplatform_sem_entities.map((j) => ({
+            id: j.id,
+            direction: 'in' as const,
+            join_type: j.join_type,
+            join_on_sql: j.join_on_sql,
+            description: j.description,
+            other: j.platform_sem_entities_platform_sem_joins_from_entity_idToplatform_sem_entities,
+          })),
+        ],
+        audit,
       };
     }
   }
@@ -375,6 +484,21 @@ export async function getObjectAggregate(
   `;
   const hasEmbedding = (embeddingRows[0]?.cnt ?? 0) > 0;
 
+  // 12. Agent view — the knowledge chunks agents retrieve for this object
+  // (written by syncObjectToKnowledge with doc_ref `context:<full_path>:<doc>`).
+  // starts_with avoids LIKE treating `_` in table names as a wildcard.
+  const knowledgePrefix = `context:${obj.full_path}:`;
+  const agentKnowledge = await prisma.$queryRaw<
+    { doc_ref: string; chunk_index: number; content: string; created_at: Date }[]
+  >`
+    SELECT doc_ref, chunk_index, content, created_at
+    FROM knowledge_chunks
+    WHERE org_id = ${orgId}
+      AND starts_with(doc_ref, ${knowledgePrefix})
+    ORDER BY doc_ref, chunk_index
+    LIMIT 40
+  `;
+
   const aggregate = {
     object: obj,
     columns,
@@ -382,6 +506,15 @@ export async function getObjectAggregate(
     latestSemanticStatus: latestSemantic?.status ?? null,
     latestSemanticId: latestSemantic?.id ?? null,
     latestSemanticVersion: latestSemantic?.version ?? null,
+    // Row-level provenance (not inside the card JSON) — shown on the description card.
+    latestSemanticMeta: latestSemantic
+      ? {
+          model_id: latestSemantic.model_id,
+          prompt_version: latestSemantic.prompt_version,
+          confidence: latestSemantic.confidence,
+          created_at: latestSemantic.created_at,
+        }
+      : null,
     hasEmbedding,
     profileHistory,
     freshness,
@@ -395,6 +528,8 @@ export async function getObjectAggregate(
 
   return {
     ...aggregate,
+    confirmedMappings,
+    agentKnowledge,
     dataScore: computeDataScore(assembleDimensionInput(aggregate)),
   };
 }
@@ -819,16 +954,16 @@ export async function listScannedObjects(
   if (params.tier) {
     switch (params.tier) {
       case 't0':
-        conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL AND o.last_t1_at IS NULL`);
+        conditions.push(Prisma.sql`o.last_t0_at IS NOT NULL`);
         break;
       case 't1':
-        conditions.push(Prisma.sql`o.last_t1_at IS NOT NULL AND o.last_t2_at IS NULL`);
+        conditions.push(Prisma.sql`o.last_t1_at IS NOT NULL`);
         break;
       case 't2':
         conditions.push(Prisma.sql`o.last_t2_at IS NOT NULL`);
         break;
       case 'embed':
-        conditions.push(SQL_OBJECT_HAS_EMBEDDING);
+        conditions.push(Prisma.sql`${SQL_OBJECT_HAS_EMBEDDING}`);
         break;
       case 't3':
         conditions.push(Prisma.sql`o.last_t3_at IS NOT NULL`);
@@ -860,7 +995,9 @@ export async function listScannedObjects(
       )`
     : Prisma.empty;
 
-  const [countRes, vectorTotalsRes, rows] = await Promise.all([
+  const [countRes, vectorTotalsRes, rows] = await runInBatches(
+    [
+    () =>
     prisma.$queryRaw<Array<{ count: number; t0: number; t1: number; t2: number; embed: number; t3: number; t4: number }>>(Prisma.sql`
       SELECT
         COUNT(*)::int AS count,
@@ -873,6 +1010,7 @@ export async function listScannedObjects(
       FROM platform_context_objects o
       WHERE ${whereClause}
     `),
+    () =>
     prisma.$queryRaw<Array<{ object_vector_rows: number; column_vector_rows: number }>>(Prisma.sql`
       SELECT
         (SELECT COUNT(*)::int FROM platform_context_embeddings e
@@ -889,6 +1027,7 @@ export async function listScannedObjects(
             ${sourceScopeForVectors} ${testScopeForVectors}
         ) AS column_vector_rows
     `),
+    () =>
     prisma.$queryRaw<Array<{
       id: string;
       full_path: string;
@@ -930,7 +1069,9 @@ export async function listScannedObjects(
       ORDER BY o.full_path ASC
       LIMIT ${pageSize} OFFSET ${skip}
     `),
-  ]);
+    ] as const,
+    SCANNED_LIST_DB_CONCURRENCY,
+  );
 
   const total = countRes[0]?.count ?? 0;
   const tierCounts: ScannedTierCounts = {
@@ -975,7 +1116,14 @@ export async function listScannedFacets(
   opts: { excludeTestSources?: boolean } = {},
 ): Promise<{
   catalogs: { name: string; count: number }[];
-  schemas: { catalog: string; name: string; count: number }[];
+  schemas: {
+    catalog: string;
+    name: string;
+    count: number;
+    needs_profile: number;
+    needs_enrich: number;
+    needs_embed: number;
+  }[];
 }> {
   const testExclusion = opts.excludeTestSources
     ? `AND source_id NOT IN (
@@ -993,8 +1141,32 @@ export async function listScannedFacets(
        ORDER BY catalog_name`,
       orgId,
     ),
-    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number }[]>(
-      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count
+    prisma.$queryRawUnsafe<{
+      catalog: string;
+      name: string;
+      count: number;
+      needs_profile: number;
+      needs_enrich: number;
+      needs_embed: number;
+    }[]>(
+      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count,
+        COUNT(*) FILTER (
+          WHERE last_t0_at IS NOT NULL
+            AND (last_t1_at IS NULL OR last_t1_at < last_t0_at)
+        )::int AS needs_profile,
+        COUNT(*) FILTER (
+          WHERE last_t1_at IS NOT NULL
+            AND (last_t2_at IS NULL OR last_t2_at < last_t1_at)
+        )::int AS needs_enrich,
+        COUNT(*) FILTER (
+          WHERE last_t0_at IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM platform_context_embeddings e
+              WHERE e.subject_kind = 'object'
+                AND e.subject_id = platform_context_objects.id
+                AND e.embedding IS NOT NULL
+            )
+        )::int AS needs_embed
        FROM platform_context_objects
        WHERE org_id = $1 AND lifecycle = 'active' AND last_t0_at IS NOT NULL AND catalog_name IS NOT NULL AND schema_name IS NOT NULL ${testExclusion}
        GROUP BY catalog_name, schema_name
@@ -1025,37 +1197,99 @@ export interface JobKindSummary {
   succeeded: number;
   failed: number;
   last_finished_at: Date | null;
+  /** Present when `detail` is requested. */
+  partial?: number;
+  cancelled?: number;
+  other?: number;
+  last_status?: string | null;
+  median_duration_s?: number | null;
+  prev_total?: number | null;
+  prev_succeeded?: number | null;
+  prev_failed?: number | null;
+  recent?: JobKindRecentRun[];
 }
 
-export async function listJobKindSummaries(orgId: string): Promise<JobKindSummary[]> {
+export interface JobKindRecentRun {
+  id: string;
+  status: string;
+  created_at: Date | null;
+  finished_at: Date | null;
+  duration_s: number | null;
+  /** Slim stats subset — enough for empty-success detection. */
+  stats: Record<string, unknown> | null;
+}
+
+export interface JobKindSummaryOptions {
+  /** Restrict counts to jobs created in the last N days (null = all time). Active counts are never windowed. */
+  sinceDays?: number | null;
+  /** Include recent run history, median duration, partial/cancelled counts and the previous-window comparison. */
+  detail?: boolean;
+  recentLimit?: number;
+}
+
+export async function listJobKindSummaries(
+  orgId: string,
+  opts: JobKindSummaryOptions = {},
+): Promise<JobKindSummary[]> {
+  const sinceDays = opts.sinceDays && opts.sinceDays > 0 ? opts.sinceDays : null;
+  const now = Date.now();
+  const since = sinceDays ? new Date(now - sinceDays * 86_400_000) : null;
+  const prevSince = sinceDays ? new Date(now - 2 * sinceDays * 86_400_000) : null;
+
   const rows = await prisma.$queryRaw<Array<{
     job_kind: string;
     total: number;
     queued: number;
     running: number;
     succeeded: number;
+    partial: number;
     failed: number;
+    cancelled: number;
+    active_in_window: number;
     last_finished_at: Date | null;
+    last_status: string | null;
+    median_duration_s: number | null;
+    prev_total: number | null;
+    prev_succeeded: number | null;
+    prev_failed: number | null;
   }>>`
+    WITH base AS (
+      SELECT
+        job_kind, status, created_at, started_at, finished_at,
+        (${since}::timestamptz IS NULL OR created_at >= ${since}::timestamptz) AS in_window,
+        (${prevSince}::timestamptz IS NOT NULL
+          AND created_at >= ${prevSince}::timestamptz
+          AND created_at < ${since}::timestamptz) AS in_prev
+      FROM platform_context_jobs
+      WHERE org_id = ${orgId}
+        AND (
+          parent_job_id IS NULL
+          OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
+        )
+    )
     SELECT
       job_kind,
-      COUNT(*)::int AS total,
-      COUNT(CASE WHEN status = 'queued' THEN 1 END)::int AS queued,
-      COUNT(CASE WHEN status = 'running' THEN 1 END)::int AS running,
-      COUNT(CASE WHEN status = 'succeeded' THEN 1 END)::int AS succeeded,
-      COUNT(CASE WHEN status = 'failed' THEN 1 END)::int AS failed,
-      MAX(finished_at) AS last_finished_at
-    FROM platform_context_jobs
-    WHERE org_id = ${orgId}
-      AND (
-        parent_job_id IS NULL
-        OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
-      )
+      COUNT(*) FILTER (WHERE in_window)::int AS total,
+      COUNT(*) FILTER (WHERE in_window AND status = 'queued')::int AS queued,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('running', 'orchestrating'))::int AS running,
+      COUNT(*) FILTER (WHERE in_window AND status = 'succeeded')::int AS succeeded,
+      COUNT(*) FILTER (WHERE in_window AND status = 'partial')::int AS partial,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('failed', 'error'))::int AS failed,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('cancelled', 'canceled'))::int AS cancelled,
+      COUNT(*) FILTER (WHERE in_window AND status IN ('queued', 'running', 'orchestrating'))::int AS active_in_window,
+      MAX(finished_at) AS last_finished_at,
+      (ARRAY_AGG(status ORDER BY created_at DESC NULLS LAST))[1] AS last_status,
+      (PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (finished_at - started_at)))
+        FILTER (WHERE in_window AND started_at IS NOT NULL AND finished_at IS NOT NULL AND finished_at >= started_at))::float8 AS median_duration_s,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev)::int END AS prev_total,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev AND status IN ('succeeded', 'partial'))::int END AS prev_succeeded,
+      CASE WHEN ${prevSince}::timestamptz IS NULL THEN NULL ELSE COUNT(*) FILTER (WHERE in_prev AND status IN ('failed', 'error'))::int END AS prev_failed
+    FROM base
     GROUP BY job_kind
     ORDER BY job_kind ASC
   `;
 
-  return rows.map((row) => ({
+  const base: JobKindSummary[] = rows.map((row) => ({
     kind: row.job_kind,
     total: row.total,
     queued: row.queued,
@@ -1064,6 +1298,72 @@ export async function listJobKindSummaries(orgId: string): Promise<JobKindSummar
     failed: row.failed,
     last_finished_at: row.last_finished_at,
   }));
+
+  if (!opts.detail) return base;
+
+  const limit = Math.min(Math.max(opts.recentLimit ?? 14, 1), 50);
+  const recentRows = await prisma.$queryRaw<Array<{
+    id: string;
+    job_kind: string;
+    status: string;
+    created_at: Date | null;
+    finished_at: Date | null;
+    duration_s: number | null;
+    stats: Record<string, unknown> | null;
+  }>>`
+    SELECT id::text, job_kind, status, created_at, finished_at, duration_s, stats
+    FROM (
+      SELECT
+        id, job_kind, status, created_at, finished_at,
+        CASE WHEN started_at IS NOT NULL AND finished_at IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (finished_at - started_at))::float8 END AS duration_s,
+        CASE WHEN stats IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object(
+          'objects_swept', stats::jsonb -> 'objects_swept',
+          'objects_profiled', stats::jsonb -> 'objects_profiled',
+          'objects_enriched', stats::jsonb -> 'objects_enriched',
+          'inserted', stats::jsonb -> 'inserted'
+        )) END AS stats,
+        ROW_NUMBER() OVER (PARTITION BY job_kind ORDER BY created_at DESC NULLS LAST) AS rn
+      FROM platform_context_jobs
+      WHERE org_id = ${orgId}
+        AND (
+          parent_job_id IS NULL
+          OR job_kind IN ('t4_entity_propose', 't4_dim_propose')
+        )
+    ) ranked
+    WHERE rn <= ${limit}
+    ORDER BY job_kind, created_at DESC NULLS LAST
+  `;
+
+  const recentByKind = new Map<string, JobKindRecentRun[]>();
+  for (const r of recentRows) {
+    const list = recentByKind.get(r.job_kind) ?? [];
+    list.push({
+      id: r.id,
+      status: r.status,
+      created_at: r.created_at,
+      finished_at: r.finished_at,
+      duration_s: r.duration_s,
+      stats: r.stats,
+    });
+    recentByKind.set(r.job_kind, list);
+  }
+
+  return rows.map((row, i) => {
+    const accounted = row.succeeded + row.partial + row.failed + row.cancelled + row.active_in_window;
+    return {
+      ...base[i],
+      partial: row.partial,
+      cancelled: row.cancelled,
+      other: Math.max(0, row.total - accounted),
+      last_status: row.last_status,
+      median_duration_s: row.median_duration_s,
+      prev_total: row.prev_total,
+      prev_succeeded: row.prev_succeeded,
+      prev_failed: row.prev_failed,
+      recent: recentByKind.get(row.job_kind) ?? [],
+    };
+  });
 }
 
 // ── 11. listJobDateGroups ──────────────────────────────────────────────────────
@@ -1164,6 +1464,7 @@ export async function listEstateObjects(
     harvest?: 'none' | 'discovered' | 'scheduled' | 'queued' | 'harvested' | 'published' | 'stale' | 'inaccessible';
     q?: string;
     excludeTestSources?: boolean;
+    sourceId?: string;
   },
 ): Promise<{ rows: EstateListRow[]; total: number; page: number; pageSize: number }> {
   const page = Math.max(1, opts.page ?? 1);
@@ -1182,6 +1483,12 @@ export async function listEstateObjects(
       SELECT id::text FROM platform_context_sources
       WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
     ))`);
+  }
+
+  if (opts.sourceId) {
+    conditions.push(`peo.source_id = $${paramIdx}`);
+    params.push(opts.sourceId);
+    paramIdx++;
   }
 
   if (opts.catalog) {
@@ -1377,7 +1684,9 @@ export async function getCoverageSummary(
   const srcObj = sourceId ? Prisma.sql`AND o.source_id = ${sourceId}::uuid` : Prisma.empty;
   const srcObjO2 = sourceId ? Prisma.sql`AND o2.source_id = ${sourceId}::uuid` : Prisma.empty;
 
-  const [coverageRows, embeddingRows, statusRows, profileRows, skipRows, deferredRows] = await Promise.all([
+  const [coverageRows, embeddingRows, statusRows, profileRows, skipRows, deferredRows] = await runInBatches(
+    [
+    () =>
     // 1. Active objects + how many have a T2 semantic card (excludes T3 'observed').
     prisma.$queryRaw<Array<{ active_objects: number; objects_with_semantic: number }>>(Prisma.sql`
       SELECT
@@ -1392,6 +1701,7 @@ export async function getCoverageSummary(
       ) sem ON sem.subject_id = o.id
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
     `),
+    () =>
     prisma.$queryRaw<
       Array<{
         objects_with_embedding: number;
@@ -1415,6 +1725,7 @@ export async function getCoverageSummary(
       FROM platform_context_objects o
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
     `),
+    () =>
     // 1b. Distinct active objects by semantic status (decomposes the number above).
     prisma.$queryRaw<Array<{ status: string; objects: number }>>(Prisma.sql`
       SELECT s.status, COUNT(DISTINCT s.subject_id)::int AS objects
@@ -1423,6 +1734,7 @@ export async function getCoverageSummary(
       WHERE s.subject_kind = 'object' AND s.org_id = ${orgId} AND o.lifecycle = 'active' ${srcObj}
       GROUP BY s.status
     `),
+    () =>
     // 2. Object-level degrade from each object's latest profile version.
     prisma.$queryRaw<Array<{ objects_partial: number; objects_view_unqueryable: number; objects_degraded: number }>>(Prisma.sql`
       WITH latest_profile AS (
@@ -1438,6 +1750,7 @@ export async function getCoverageSummary(
         COUNT(*) FILTER (WHERE stats->>'partial' = 'true' OR stats->>'view_unqueryable' = 'true')::int AS objects_degraded
       FROM latest_profile
     `),
+    () =>
     // 3. Per-column skip_reason distribution across active columns.
     prisma.$queryRaw<Array<{ skip_reason: string; cnt: number }>>(Prisma.sql`
       SELECT c.profile->>'skip_reason' AS skip_reason, COUNT(*)::int AS cnt
@@ -1447,6 +1760,7 @@ export async function getCoverageSummary(
         AND c.profile->>'skip_reason' IS NOT NULL ${srcObj}
       GROUP BY c.profile->>'skip_reason'
     `),
+    () =>
     // 4. Columns deferred to a null-only profile (a lighter degrade than a skip).
     prisma.$queryRaw<Array<{ cnt: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS cnt
@@ -1455,7 +1769,9 @@ export async function getCoverageSummary(
       WHERE c.org_id = ${orgId} AND c.lifecycle = 'active' AND o.lifecycle = 'active'
         AND c.profile->>'stats_deferred' = 'true' ${srcObj}
     `),
-  ]);
+    ] as const,
+    COVERAGE_SUMMARY_DB_CONCURRENCY,
+  );
 
   const activeObjects = coverageRows[0]?.active_objects ?? 0;
   const objectsWithSemantic = coverageRows[0]?.objects_with_semantic ?? 0;
@@ -1501,34 +1817,42 @@ export async function listEstateFacets(
   orgId: string,
   opts: { excludeTestSources?: boolean; sourceId?: string } = {},
 ): Promise<{
-  catalogs: { name: string; count: number }[];
-  schemas: { catalog: string; name: string; count: number }[];
+  catalogs: { name: string; count: number; scanned: number }[];
+  schemas: { catalog: string; name: string; count: number; scanned: number }[];
 }> {
   const testExclusion = opts.excludeTestSources
-    ? `AND (source_id IS NULL OR source_id NOT IN (
+    ? `AND (peo.source_id IS NULL OR peo.source_id NOT IN (
         SELECT id::text FROM platform_context_sources
         WHERE org_id = $1 AND (${TEST_SOURCE_DISPLAY_NAME_SQL})
       ))`
     : '';
-  const sourceFilter = opts.sourceId ? 'AND source_id = $2' : '';
+  const sourceFilter = opts.sourceId ? 'AND peo.source_id = $2' : '';
   const params: string[] = [orgId];
   if (opts.sourceId) params.push(opts.sourceId);
 
+  // `scanned` = objects with a structural (T0) scan; same join as listEstateObjects.
+  const from = `FROM platform_estate_objects peo
+       LEFT JOIN platform_context_objects pco
+         ON pco.org_id = peo.org_id
+        AND pco.full_path = peo.full_path
+        AND (peo.source_id IS NULL OR pco.source_id = peo.source_id::uuid)
+       WHERE peo.org_id = $1 AND peo.lifecycle = 'active' ${testExclusion}${sourceFilter}`;
+
   const [catalogs, schemas] = await Promise.all([
-    prisma.$queryRawUnsafe<{ name: string; count: number }[]>(
-      `SELECT catalog_name AS name, COUNT(*)::int AS count
-       FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
-       GROUP BY catalog_name
-       ORDER BY catalog_name`,
+    prisma.$queryRawUnsafe<{ name: string; count: number; scanned: number }[]>(
+      `SELECT peo.catalog_name AS name, COUNT(DISTINCT peo.id)::int AS count,
+              (COUNT(DISTINCT peo.id) FILTER (WHERE pco.last_t0_at IS NOT NULL))::int AS scanned
+       ${from}
+       GROUP BY peo.catalog_name
+       ORDER BY peo.catalog_name`,
       ...params,
     ),
-    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number }[]>(
-      `SELECT catalog_name AS catalog, schema_name AS name, COUNT(*)::int AS count
-       FROM platform_estate_objects
-       WHERE org_id = $1 AND lifecycle = 'active' ${testExclusion}${sourceFilter}
-       GROUP BY catalog_name, schema_name
-       ORDER BY catalog_name, schema_name`,
+    prisma.$queryRawUnsafe<{ catalog: string; name: string; count: number; scanned: number }[]>(
+      `SELECT peo.catalog_name AS catalog, peo.schema_name AS name, COUNT(DISTINCT peo.id)::int AS count,
+              (COUNT(DISTINCT peo.id) FILTER (WHERE pco.last_t0_at IS NOT NULL))::int AS scanned
+       ${from}
+       GROUP BY peo.catalog_name, peo.schema_name
+       ORDER BY peo.catalog_name, peo.schema_name`,
       ...params,
     ),
   ]);

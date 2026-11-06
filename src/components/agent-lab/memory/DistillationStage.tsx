@@ -9,6 +9,7 @@ import type { LastRunInfo } from '@/lib/foer/types';
 import { GOLD, MONO, SERIF } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type } from '@/lib/typography/tokens';
 // ── SVG layout coordinates (matching reference HTML) ───────────────────────────
 const VW = 1000;
 const VH = 420;
@@ -514,11 +515,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
         marginBottom:   '14px',
       }}>
         <div style={{
-          fontFamily:    MONO,
-          fontSize:      '13px',
-          letterSpacing: '0.22em',
-          color:         'var(--foer-text-mut)',
-          textTransform: 'uppercase',
+          ...type.label,
           display:       'flex',
           alignItems:    'center',
           gap:           '10px',
@@ -532,10 +529,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           disabled={sweepState === 'running'}
           title="Trigger a synthesis sweep — reflects new sessions into memory bullets"
           style={{
-            fontFamily:    MONO,
-            fontSize:      '13px',
-            letterSpacing: '0.10em',
-            textTransform: 'uppercase',
+            ...type.label,
             borderRadius:  '6px',
             padding:       '7px 14px',
             cursor:        sweepState === 'running' ? 'default' : 'pointer',
@@ -566,7 +560,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           }}
         >
           {sweepState === 'running' && (
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: '13px' }}>⟳</span>
+            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 'var(--type-ui-regular-size)' }}>⟳</span>
           )}
           {sweepState === 'running'
             ? 'Distilling…'
@@ -582,7 +576,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       <h2 style={{
         fontFamily:    SERIF,
         fontWeight:    600,
-        fontSize:      '30px',
+        fontSize: 'var(--type-kpi-lg-size)',
         color:         'var(--foer-text-pri)',
         letterSpacing: '-0.01em',
         margin:        '0 0 8px',
@@ -593,7 +587,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       {/* ── Section description ───────────────────────────────────────────── */}
       <p style={{
         color:      'var(--foer-text-sec)',
-        fontSize:   '15px',
+        fontSize: 'var(--type-body-size)',
         maxWidth:   '680px',
         margin:     '0 0 0',
         lineHeight: 1.5,
@@ -617,10 +611,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
               onClick={isPaused ? handleResume : handlePlay}
               disabled={!run}
               style={{
-                fontFamily:    MONO,
-                fontSize:      '13px',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
+                ...type.label,
                 borderRadius:  '6px',
                 padding:       '11px 20px',
                 cursor:        run ? 'pointer' : 'default',
@@ -637,10 +628,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           )}
           {isPlaying && (
             <button onClick={handlePause} style={{
-              fontFamily:    MONO,
-              fontSize:      '13px',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              ...type.label,
               background:    'transparent',
               color:         'var(--foer-text-sec)',
               border:        '1px solid var(--foer-border)',
@@ -654,10 +642,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           )}
           {(isPlaying || isPaused || isDone) && (
             <button onClick={handleReset} disabled={isIdle} style={{
-              fontFamily:    MONO,
-              fontSize:      '13px',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
+              ...type.label,
               background:    'transparent',
               color:         'var(--foer-text-sec)',
               border:        '1px solid var(--foer-border)',
@@ -670,11 +655,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
             </button>
           )}
           <span style={{
-            fontFamily:    MONO,
-            fontSize:      '13px',
-            letterSpacing: '0.14em',
-            color:         'var(--foer-text-mut)',
-            textTransform: 'uppercase',
+            ...type.label,
             marginLeft:    '6px',
           }}>
             {phaseLabel}
@@ -686,10 +667,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
           display:        'flex',
           justifyContent: 'space-between',
           margin:         '4px 4px 0',
-          fontFamily:     MONO,
-          fontSize:       '13px',
-          letterSpacing:  '0.16em',
-          textTransform:  'uppercase',
+          ...type.label,
           color:          'var(--foer-text-mut)',
         }}>
           <span style={{ flex: 1 }}>Foer Intake</span>
@@ -1024,7 +1002,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
         {/* ── Recon counters (inline text) ─────────────────────────────────── */}
         <div style={{
           fontFamily:    MONO,
-          fontSize:      '13px',
+          fontSize: 'var(--type-ui-regular-size)',
           letterSpacing: '0.04em',
           color:         'var(--foer-text-sec)',
           marginTop:     '14px',
@@ -1050,7 +1028,7 @@ export function DistillationStage({ lastRun }: DistillationStageProps) {
       <p style={{
         fontFamily: SERIF,
         fontStyle:  'italic',
-        fontSize:   '16px',
+        fontSize: 'var(--type-body-lg-size)',
         color:      'var(--foer-text-sec)',
         marginTop:  '22px',
         maxWidth:   '720px',

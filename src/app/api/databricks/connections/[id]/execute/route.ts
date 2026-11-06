@@ -6,25 +6,26 @@
  * enforcement logic here — it belongs at the shared chokepoint.
  */
 
-import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
+import { denyUnless, requirePermission, resolveAuth } from '@/middleware/auth';
+import { PERMISSIONS } from '@/lib/rbac';
 import { getOrgId, getConnection } from '@/lib/databricks/connections';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { principalForUser } from '@/lib/access/principal';
+import { runWarehouseQuery } from '@/lib/access/warehouse';
 import {
-  executeDatabricksSQL,
   ReadOnlyViolationError,
   MultiStatementError,
   ExternalLinksError,
 } from '@/lib/databricks/execute';
+import { AccessDeniedError } from '@/lib/access/errors';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnless(request, (auth) => requirePermission(auth, PERMISSIONS.ACCESS_ADMIN));
+  if (denied) return denied;
 
   const { id } = await params;
   try {
@@ -54,18 +55,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       ? parseInt(body.wait_timeout.replace(/[^0-9]/g, ''), 10)
       : undefined;
 
-    const token = await getAccessToken(id, conn.workspace_host);
+    const auth = await resolveAuth(request);
+    const principal = await principalForUser(auth.userId);
 
-    const result = await executeDatabricksSQL(
-      id,
-      conn.workspace_host,
-      conn.default_warehouse_id,
-      token,
-      { statement, waitTimeoutSecs },
-    );
+    const result = await runWarehouseQuery({
+      connectionId: id,
+      principal,
+      statement,
+      purpose: 'connection_console',
+      level: 'query',
+      surface: 'sql',
+      waitTimeoutSecs,
+    });
 
     return NextResponse.json(result);
   } catch (err) {
+    if (err instanceof AccessDeniedError) {
+      return NextResponse.json({ error: 'ACCESS_DENIED', message: err.message }, { status: 403 });
+    }
     if (err instanceof ReadOnlyViolationError) {
       return NextResponse.json(
         { error: 'READ_ONLY_VIOLATION', message: err.message, verb: err.verb },
@@ -86,7 +93,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
     console.error('[databricks/connections/:id/execute POST]', err);
     return NextResponse.json(
-      { error: 'INTERNAL', message: err instanceof Error ? err.message : String(err) },
+      { error: 'INTERNAL', message: 'Query execution failed' },
       { status: 500 },
     );
   }

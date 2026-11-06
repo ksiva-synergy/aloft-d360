@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
 
 export interface DismissedReflectionProps {
   technique: string;
@@ -30,19 +31,15 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
         <div style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '13px',
-          fontWeight: 500,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: '#5a6a82',
           flexShrink: 0,
         }}>
           <span style={{ color: 'color-mix(in srgb, var(--brand-a) 45%, transparent)' }}>CAPTAIN TRACK SPARROW</span> · {technique.replace(/_/g, ' ')}
         </div>
         <div style={{
-          fontFamily: "'Inter Variable', system-ui, sans-serif",
-          fontSize: '13px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-ui-regular-size)',
           color: '#5a6a82',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
@@ -53,8 +50,8 @@ export function DismissedReflection({ technique, summary, onExpand }: DismissedR
       </div>
       
       <div style={{
-        fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-        fontSize: '13px',
+        fontFamily: 'var(--font-mono)',
+        fontSize: 'var(--type-ui-regular-size)',
         color: '#5a6a82',
         opacity: hovered ? 1 : 0,
         transition: 'opacity 0.15s',

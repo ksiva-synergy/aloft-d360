@@ -15,8 +15,11 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
 
-/** Role granted to brand-new users on first login (just-in-time provisioning). */
-export const DEFAULT_ROLE = 'admin';
+/**
+ * Role granted to brand-new users on first login (just-in-time provisioning). Least privilege:
+ * anything above `member` is granted deliberately by an admin, or `platform_admin` via AAD group sync.
+ */
+export const DEFAULT_ROLE = 'member';
 
 /**
  * Thrown by provisionUserByOid when a first-time AAD login presents an email that
@@ -51,6 +54,12 @@ export const PERMISSIONS = {
   // Gate raw LLM request/response payloads behind a dedicated permission so plain
   // audit:read cannot see prompt content.
   LLM_PAYLOAD_READ: 'llm:payload:read',
+  /** Manage departments, members, grants, and clearances (no data access by itself). */
+  ACCESS_ADMIN: 'access:admin',
+  /** Set catalog/schema/table sensitivity labels. */
+  ACCESS_CLASSIFY: 'access:classify',
+  /** Read access change and decision logs. */
+  ACCESS_AUDIT: 'access:audit',
 } as const;
 
 /** Human-readable labels for each role — use in UI instead of raw DB name. */
@@ -63,6 +72,25 @@ export const ROLE_LABELS: Record<string, string> = {
 
 /** Highest-privilege first — used to pick the coarse role string for the session. */
 const ROLE_PRECEDENCE = ['platform_admin', 'admin', 'member', 'readonly'];
+
+/**
+ * Rank of a role in the built-in hierarchy (readonly 1 … platform_admin 4). A role outside the
+ * hierarchy (custom roles can carry any permission) is ranked by `unknownAs`: `highest` when it is
+ * the role being granted, `lowest` when it is the caller's own role, so it never helps a caller.
+ */
+export function roleRank(role: string, unknownAs: 'highest' | 'lowest' = 'lowest'): number {
+  const i = ROLE_PRECEDENCE.indexOf(role);
+  if (i === -1) return unknownAs === 'highest' ? ROLE_PRECEDENCE.length : 0;
+  return ROLE_PRECEDENCE.length - i;
+}
+
+/**
+ * An actor may grant or revoke `targetRole`, or change the roles of a user whose current primary
+ * role is `targetRole`, only when it does not outrank the actor's own primary role.
+ */
+export function canManageRole(actorRole: string, targetRole: string): boolean {
+  return roleRank(targetRole, 'highest') <= roleRank(actorRole, 'lowest');
+}
 
 export const userAuthInclude = {
   roles: {
@@ -80,7 +108,8 @@ export function flattenPermissions(user: UserWithAuth): Set<string> {
   return perms;
 }
 
-export function resolvePrimaryRole(user: UserWithAuth): string {
+/** Only role names are read, so callers can pass a narrow `roles.role.name` select. */
+export function resolvePrimaryRole(user: { roles: { role: { name: string } }[] }): string {
   const names = user.roles.map((ur) => ur.role.name);
   for (const r of ROLE_PRECEDENCE) if (names.includes(r)) return r;
   return names[0] ?? DEFAULT_ROLE;
@@ -96,6 +125,12 @@ export function isUsable(user: { status: string; isActive: boolean; deletedAt: D
   return !user.deletedAt && user.status === 'ACTIVE' && user.isActive;
 }
 
+/** Non-empty display name from an AAD token; omit when Microsoft sent nothing. */
+function displayNameFromAad(name: string | null | undefined): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 export interface OidClaims {
   oid: string;
   tid?: string | null;
@@ -108,21 +143,26 @@ export interface OidClaims {
 /**
  * THE single provisioning path. Find a user by AAD oid; if absent, link an existing
  * email-matched row (no duplicate) or create a fresh one with the default role.
- * Always refreshes login timestamps. Optionally elevates to `platform_admin` when the
+ * Refreshes login timestamps only for usable (ACTIVE) accounts — failed sign-in must not
+ * bump `lastLoginAt` in the Users admin table. Optionally elevates to `platform_admin` when the
  * token carries an AZURE_AD_ADMIN_GROUP_IDS group.
  */
 export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAuth> {
   const { oid, tid, email, name, groups } = claims;
   const normalizedEmail = email ? email.toLowerCase() : null;
+  const aadName = displayNameFromAad(name);
 
   let user = await prisma.user.findUnique({ where: { aadObjectId: oid }, include: userAuthInclude });
 
   if (user) {
-    // (1) Known AAD identity — refresh login timestamps and return.
-    //     status/deletedAt gating is enforced by callers via isUsable().
+    // (1) Known AAD identity — keep display name in sync with Entra; timestamps only when login can succeed.
+    const stampLogin = isUsable(user);
     user = await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), lastSeenAt: new Date() },
+      data: {
+        ...(stampLogin ? { lastLoginAt: new Date(), lastSeenAt: new Date() } : {}),
+        ...(aadName ? { name: aadName } : {}),
+      },
       include: userAuthInclude,
     });
   } else {
@@ -146,17 +186,28 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
             aadObjectId: oid,
             aadTenantId: tid ?? undefined,
             authProvider: 'aad',
-            lastLoginAt: new Date(),
-            lastSeenAt: new Date(),
+            ...(aadName ? { name: aadName } : {}),
           },
           include: userAuthInclude,
         });
+        if (isUsable(user)) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date(), lastSeenAt: new Date() },
+            include: userAuthInclude,
+          });
+        }
         await writeAudit({
           actorId: null,
           action: 'user.aad_linked',
           entityType: 'user',
           entityId: user.id,
-          after: { email: normalizedEmail, aadObjectId: oid, aadTenantId: tid ?? null },
+          after: {
+            email: normalizedEmail,
+            aadObjectId: oid,
+            aadTenantId: tid ?? null,
+            ...(aadName ? { name: aadName } : {}),
+          },
         });
         user = await syncPlatformAdminFromGroups(user, groups);
         return user;
@@ -172,7 +223,7 @@ export async function provisionUserByOid(claims: OidClaims): Promise<UserWithAut
           aadTenantId: tid ?? undefined,
           // Guarantee a unique, non-null email even if the token omitted one.
           email: normalizedEmail ?? `${oid}@aad.local`,
-          name: name ?? null,
+          name: aadName ?? null,
           authProvider: 'aad',
           emailVerified: true,
           status: 'ACTIVE',

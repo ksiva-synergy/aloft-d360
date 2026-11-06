@@ -4,7 +4,7 @@ import ThemeProvider from '@/components/providers/ThemeProvider';
 import { ThemeIsDarkProvider } from '@/components/providers/ThemeIsDarkProvider';
 import AuthSessionProvider from '@/components/providers/SessionProvider';
 
-export const DEFAULT_TITLE = 'Agent Lab — Data 360';
+export const DEFAULT_TITLE = 'Agent Lab — ALOFT';
 
 export interface RouteHandle {
   /** Replaces Next's `export const metadata.title`. */

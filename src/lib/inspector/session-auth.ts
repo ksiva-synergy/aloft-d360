@@ -7,10 +7,10 @@
  * could attribute memory outcomes to someone else's session. This guard closes
  * that hole.
  *
- * Rollout is behind `INSPECTOR_AUTH_ENFORCE` (see guardInspectorChat):
- *   - unset / "false" → OBSERVE: log every request that WOULD be rejected, but
- *     serve it normally. Deploy here first and read the logs.
- *   - "true"          → ENFORCE: 401 unauthenticated, 403 ownership mismatch.
+ * Enforcement is controlled by `INSPECTOR_AUTH_ENFORCE` (see guardInspectorChat):
+ *   - unset / "true" → ENFORCE (default): 401 unauthenticated, 403 ownership mismatch.
+ *   - "false"        → OBSERVE: emergency opt-out only. Logs every request that
+ *     WOULD be rejected, but serves it normally.
  *
  * Non-interactive callers (Boost benchmark runner, Agent Lab admin jobs) get an
  * explicit service-auth path via a shared `INSPECTOR_SERVICE_TOKEN` — NOT the
@@ -22,6 +22,12 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { flattenPermissions, isUsable, PERMISSIONS, userAuthInclude } from '@/lib/rbac';
+
+async function hasReadAll(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude }).catch(() => null);
+  return !!user && isUsable(user) && flattenPermissions(user).has(PERMISSIONS.SESSION_READ_ALL);
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUUID(v: string | undefined): v is string {
@@ -123,7 +129,7 @@ export async function guardInspectorChat(
   req: Request,
   sessionId: string | undefined,
 ): Promise<Response | null> {
-  const enforce = process.env.INSPECTOR_AUTH_ENFORCE === 'true';
+  const enforce = process.env.INSPECTOR_AUTH_ENFORCE !== 'false';
   const principal = await resolveInspectorPrincipal(req);
   const { verdict, callerId, sessionOwner } = await evaluate(principal, sessionId);
 
@@ -160,12 +166,15 @@ export async function guardInspectorChat(
 export async function guardSessionRead(
   req: Request,
   sessionId: string | undefined,
-  opts: { route?: string } = {},
+  opts: { route?: string; allowReadAll?: boolean } = {},
 ): Promise<Response | null> {
   const principal = await resolveInspectorPrincipal(req);
   const { verdict, callerId, sessionOwner } = await evaluate(principal, sessionId);
 
   if (verdict.ok) return null;
+  if (opts.allowReadAll && principal?.kind === 'user' && verdict.status === 403 && (await hasReadAll(principal.userId))) {
+    return null;
+  }
 
   console.warn(
     `[inspector-auth] mode=enforce action=reject route=${opts.route ?? 'session-read'} ` +

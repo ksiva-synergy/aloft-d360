@@ -8,9 +8,10 @@ import {
   type StarterDimension,
   type StarterMeasure,
 } from '@/lib/dashboards/empty-states';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--ink-3)';
@@ -26,6 +27,8 @@ interface EmptyStatePromptsProps {
   includeWhatIsThis?: boolean;
   /** Trailing hint under the prompts, e.g. "Or ask Inspector anything →". */
   footerHint?: string;
+  /** Hide the heading when the caller renders its own (Inspector welcome). */
+  showHeading?: boolean;
 }
 
 /**
@@ -43,6 +46,7 @@ export function EmptyStatePrompts({
   onPromptClick,
   includeWhatIsThis = false,
   footerHint,
+  showHeading = true,
 }: EmptyStatePromptsProps) {
   const [prompts, setPrompts] = useState<string[]>([]);
   // Governed nl_intents the org has actually answered — surfaced ABOVE templates
@@ -102,7 +106,7 @@ export function EmptyStatePrompts({
     return (
       <Frame>
         <Heading title="Ask Inspector anything about your data" />
-        <p style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
+        <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
           I can query your warehouse, build charts, and help you explore. Ask a question below to begin.
         </p>
       </Frame>
@@ -131,11 +135,11 @@ export function EmptyStatePrompts({
 
   return (
     <Frame>
-      <Heading title={title} />
+      {showHeading && <Heading title={title} />}
       {loading ? (
-        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>Reading the model…</span>
+        <span style={{ ...type['ui-regular'], color: MUTED }}>Reading the model…</span>
       ) : finalPrompts.length === 0 ? (
-        <p style={{ ...MONO, fontSize: 13, color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
+        <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
           This model has no governed fields yet. Ask Inspector a question to explore the warehouse directly.
         </p>
       ) : (
@@ -146,8 +150,7 @@ export function EmptyStatePrompts({
               onClick={() => onPromptClick(text)}
               title={taught ? 'A question your org has authored and governed an answer for' : undefined}
               style={{
-                ...MONO,
-                fontSize: 13,
+                ...type['ui-regular'],
                 textAlign: 'left',
                 display: 'flex',
                 alignItems: 'center',
@@ -173,7 +176,7 @@ export function EmptyStatePrompts({
         </div>
       )}
       {footerHint && (
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.02em' }}>{footerHint}</span>
+        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0' }}>{footerHint}</span>
       )}
     </Frame>
   );
@@ -201,7 +204,7 @@ function Heading({ title }: { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Sparkles size={15} color={GOLD} />
-      <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.04em', color: 'var(--wb-ink, #E6ECF5)' }}>{title}</span>
+      <span style={{ ...type['ui-regular'], color: 'var(--wb-ink, #E6ECF5)' }}>{title}</span>
     </div>
   );
 }

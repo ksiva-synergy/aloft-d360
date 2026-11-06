@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
-import { enqueue } from '@/lib/context/queue';
+import { enqueueAndLaunchHarvest, normalizeJobScope } from '@/lib/context/enqueue-and-launch';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,8 @@ type RouteParams = { params: Promise<{ id: string }> };
  * returns the existing job_id and skips enqueueing.
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
@@ -53,9 +56,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const scope = path ? { path } : null;
-    const job = await enqueue('t1_profile', id, scope, 'on_demand', orgId);
-    return NextResponse.json({ job_id: job.id, queued: true }, { status: 202 });
+    const scope = normalizeJobScope(path ? { path } : null);
+    const { job, launched } = await enqueueAndLaunchHarvest('t1_profile', id, scope, orgId);
+    return NextResponse.json({ job_id: job.id, queued: true, launched }, { status: 202 });
   } catch (err) {
     console.error('[context/sources/:id/refresh POST]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

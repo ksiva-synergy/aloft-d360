@@ -3,124 +3,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCompanionPreferences } from '@/hooks/useCompanionPreferences';
 import { companionColor } from '@/lib/companion/preferences';
+import { LOGIN_COLUMN_MAX_PX, LOGIN_SECTION_PAD_X_PX } from '@/components/login/layout';
+import { FONT_SANS } from '@/lib/typography/tokens';
 
 /** The page's own face, for anything Captain draws as text on the canvas. */
-const CAPTAIN_FONT = "'DM Sans Variable', 'Inter Variable', system-ui, sans-serif";
+const CAPTAIN_FONT = FONT_SANS;
 
 export type DotBotMode = 'idle' | 'happy' | 'watching' | 'privacy' | 'peek' | 'loading' | 'error' | 'success';
 type Mode = DotBotMode | 'sleep';
 
-const GAP = 26;
-
-/** Calm dot grid with a slow diagonal current and a soft glow under the cursor. */
-export function DotField({ theme = 'dark' }: { theme?: LoginTheme }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const themeRef = useRef(theme);
-  themeRef.current = theme;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const host = canvas?.parentElement;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !host || !ctx) return;
-
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const mouse = { x: -9999, y: -9999 };
-    let w = 0;
-    let h = 0;
-    let raf = 0;
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w = host.clientWidth;
-      h = host.clientHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const r = host.getBoundingClientRect();
-      mouse.x = e.clientX - r.left;
-      mouse.y = e.clientY - r.top;
-    };
-
-    const frame = (time: number) => {
-      ctx.clearRect(0, 0, w, h);
-      const t = time / 1000;
-      const cx = w / 2;
-      const cy = h / 2;
-      const maxR = Math.hypot(cx, cy);
-      // clear zone behind the centre column (companion, title, form)
-      const zy = h * 0.52, zrx = Math.min(320, w * 0.42), zry = h * 0.44;
-      const pal = PALETTE[themeRef.current];
-
-      for (let x = GAP / 2; x < w; x += GAP) {
-        for (let y = GAP / 2; y < h; y += GAP) {
-          const vignette = 1 - Math.hypot(x - cx, y - cy) / maxR;
-          const zd = ((x - cx) / zrx) ** 2 + ((y - zy) / zry) ** 2;
-          const calm = 0.12 + 0.88 * Math.min(1, Math.max(0, (zd - 0.6) / 0.7));
-          // current: a soft, slow band that sweeps diagonally across the grid
-          const wave = Math.pow(Math.max(0, Math.sin((x + y) * 0.005 - t * 0.5)), 14);
-          const near = Math.max(0, 1 - Math.hypot(x - mouse.x, y - mouse.y) / 120);
-          const a = ((0.035 + vignette * 0.045 + wave * 0.22 * vignette) * calm + near * 0.28) * pal.dotAlpha;
-          ctx.fillStyle = wave + near > 0.2 ? `rgba(${pal.dotLit},${a})` : `rgba(${pal.dot},${a})`;
-          ctx.beginPath();
-          ctx.arc(x, y, 0.85 + wave * 0.4 + near * 0.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      if (!reduced) raf = requestAnimationFrame(frame);
-    };
-
-    const start = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(frame);
-    };
-    const onVisibility = () => (document.hidden ? cancelAnimationFrame(raf) : start());
-
-    resize();
-    start();
-    const ro = new ResizeObserver(() => {
-      resize();
-      if (reduced) start();
-    });
-    ro.observe(host);
-    window.addEventListener('mousemove', onMove);
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      window.removeEventListener('mousemove', onMove);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />;
-}
-
-// ── Dot's LED eyes ──────────────────────────────────────────────────────────
-// Each eye is a 7×7 grid of dots; an expression is a list of lit cells [col, row, brightness].
+// ── Captain's visor display ─────────────────────────────────────────────────
+// The everyday eyes are solid vector shapes (see `paintEyes`). For pictograms, scrolling words and the dizzy spiral the
+// visor switches to a 7×7 dot display per eye; a pattern is a list of lit cells [col, row, brightness].
 
 type Cell = [number, number, number];
 
-const lit = (list: [number, number][]): Cell[] => list.map(([c, r]) => [c, r, 1]);
-const openEye = (ox: number, oy: number): Cell[] => {
-  const list: [number, number][] = [[3, 1], [3, 5]];
-  for (let c = 2; c <= 4; c++) for (let r = 2; r <= 4; r++) list.push([c, r]);
-  return list.map(([c, r]) => [c + ox, r + oy, 1]);
-};
-const PAT = {
-  blink: lit([[1, 3], [2, 3], [3, 3], [4, 3], [5, 3]]),
-  shut: lit([[1, 3], [2, 4], [3, 4], [4, 4], [5, 3]]),
-  happy: lit([[1, 4], [2, 3], [3, 2], [4, 3], [5, 4]]),
-  gt: lit([[2, 1], [3, 2], [4, 3], [3, 4], [2, 5]]),
-  lt: lit([[4, 1], [3, 2], [2, 3], [3, 4], [4, 5]]),
-};
 const RING: [number, number][] = [
   [3, 1], [4, 1], [5, 2], [5, 3], [5, 4], [4, 5], [3, 5], [2, 5], [1, 4], [1, 3], [1, 2], [2, 1],
 ];
-const snap = (v: number) => (v > 0.35 ? 1 : v < -0.35 ? -1 : 0);
 
 // ── Captain talks through its visor: a 5×7 LED font scrolls across both eyes, or a 7×7 pictogram shows in each ──
 const FONT: Record<string, string[]> = {
@@ -144,6 +44,7 @@ const ICONS = {
   check: ['0000000', '0000001', '0000010', '1000100', '0101000', '0010000', '0000000'],
   lock: ['0011100', '0100010', '0100010', '1111111', '1110111', '1110111', '1111111'],
   ask: ['0111110', '1100011', '0000011', '0001110', '0001100', '0000000', '0001100'],
+  caps: ['0001000', '0011100', '0111110', '1111111', '0011100', '0011100', '0011100'],
 };
 type Icon = keyof typeof ICONS;
 type Led = { text: string } | { icon: Icon; dur: number };
@@ -163,23 +64,27 @@ function ledColumns(text: string): number[] {
   return cols.concat(new Array(14).fill(0));
 }
 const SCROLL = 17; // LED columns per second
+/** Centres of the two eyes on the visor (SVG units). */
+const EYE_POS = [45, 75];
 
-function eyePattern(mode: Mode, side: 'L' | 'R', t: number, blink: boolean, booped: boolean, gaze: { x: number; y: number }): Cell[] {
-  if (booped && mode !== 'loading') return PAT.happy;
-  switch (mode) {
-    case 'loading': {
-      const tick = Math.floor(t * 13) + (side === 'R' ? 6 : 0);
-      return [1, 0.55, 0.25].map((v, i): Cell => {
-        const [c, r] = RING[(((tick - i) % 12) + 12) % 12];
-        return [c, r, v];
+// ── short reactions layered over the current mode (clicks, waking, hover, idle fidgets) ──
+type ReactKind = 'wink' | 'spin' | 'dizzy' | 'startle' | 'glance' | 'hop' | 'tilt';
+type Reaction = { kind: ReactKind; start: number; until: number };
+
+/** Dot-display pattern for the dizzy spiral; every other reaction uses the solid eyes. */
+function reactEyes(kind: ReactKind, side: 'L' | 'R', t: number): Cell[] {
+  switch (kind) {
+    case 'dizzy': {
+      // spiral eyes: a comet runs round each eye, the two turning opposite ways
+      const tick = Math.floor(t * 14), dir = side === 'L' ? 1 : -1;
+      const cells = [0, 1, 2, 3].map((i): Cell => {
+        const [c, r] = RING[(((dir * tick - dir * i) % 12) + 12) % 12];
+        return [c, r, 1 - i * 0.22];
       });
+      cells.push([3, 3, 0.6]);
+      return cells;
     }
-    case 'error': return side === 'L' ? PAT.gt : PAT.lt;
-    case 'happy': case 'success': return PAT.happy;
-    case 'privacy': case 'sleep': return PAT.shut;
-    case 'peek': return side === 'L' ? PAT.shut : openEye(1, 1);
-    case 'watching': return blink ? PAT.blink : openEye(snap(gaze.x), 1);
-    default: return blink ? PAT.blink : openEye(snap(gaze.x), snap(gaze.y));
+    default: return [];
   }
 }
 
@@ -217,18 +122,18 @@ export type LoginTheme = 'light' | 'dark';
 
 /**
  * Effect colours per theme. Dark adds light ('lighter' blending, white-hot cores); light can't add light to a white
- * page, so it draws deeper teal/indigo normally and keeps glows subtle.
+ * page, so it draws ink/terracotta/sage normally and keeps glows subtle.
  */
 const PALETTE = {
   dark: {
-    rgb: ['126,232,255', '176,164,255', '225,248,255'], bad: '255,125,147', think: '170,150,255', core: '255,255,255',
-    blend: 'lighter' as GlobalCompositeOperation, glow: '126,232,255', glyph: '#bfefff', drop: '#9fdcff', spark: '#e8fbff', star: '235,250,255',
-    dot: '255,255,255', dotLit: '126,232,255', dotAlpha: 1,
+    // monochrome night: white and greys only (red kept for errors so they still read as errors)
+    rgb: ['255,255,255', '190,190,190', '235,235,235'], bad: '255,120,120', think: '200,200,200', core: '255,255,255',
+    blend: 'lighter' as GlobalCompositeOperation, glow: '255,255,255', glyph: '#f2f2f2', drop: '#d6d6d6', spark: '#ffffff', star: '255,255,255',
   },
   light: {
-    rgb: ['8,145,178', '79,70,229', '14,116,144'], bad: '225,29,72', think: '99,102,241', core: '',
-    blend: 'source-over' as GlobalCompositeOperation, glow: '8,145,178', glyph: '#0e7490', drop: '#0284c7', spark: '#0891b2', star: '8,145,178',
-    dot: '30,41,79', dotLit: '8,145,178', dotAlpha: 1.15,
+    // Sage Studio: ink, terracotta and sage (matches the day theme in globals.css)
+    rgb: ['26,35,28', '168,72,31', '94,127,106'], bad: '180,35,35', think: '94,127,106', core: '',
+    blend: 'source-over' as GlobalCompositeOperation, glow: '168,72,31', glyph: '#A8481F', drop: '#5E7F6A', spark: '#C2653A', star: '26,35,28',
   },
 };
 
@@ -256,6 +161,8 @@ type Props = {
   progress?: number;
   /** Keep the floating particles on at rest; false shows them only during actions (click, sign-in, success, error). */
   ambient?: boolean;
+  /** Master switch for the particle halo; false hides it entirely, even during actions. */
+  particles?: boolean;
   /** Page theme: the glow effects are drawn differently on a light page. */
   theme?: LoginTheme;
 };
@@ -266,29 +173,34 @@ type Props = {
  * idle → follows the cursor, blinks, dozes off after 15s alone · happy → ^ ^
  * watching → reads along as you type · privacy → eyes shut · peek → one eye opens
  * loading → spinner eyes, motes swirl in faster · error → > < and a head shake · success → nod and burst
+ * Reactions: repeat clicks escalate (^ ^ → wink → spin → dizzy) · hover perks it up (a small lift)
+ * · waking from sleep startles it (eyes lift, "!") · idle fidgets (glance, hop, head tilt) · Caps Lock in a password shows ↑
  */
-export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, ambient = true, theme = 'dark' }: Props) {
+export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, ambient = true, particles = true, theme = 'dark' }: Props) {
   const companionPreferences = useCompanionPreferences();
   const backRef = useRef<HTMLCanvasElement>(null);
   const frontRef = useRef<HTMLCanvasElement>(null);
   const dotRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const shadowRef = useRef<HTMLSpanElement>(null);
   const faceRef = useRef<SVGGElement>(null);
   const ledGroupRef = useRef<SVGGElement>(null);
+  const visorRef = useRef<SVGGElement>(null);
   const ledRefs = useRef<(SVGCircleElement | null)[]>([]);
+  const eyeRefs = useRef<(SVGElement | null)[]>([]);
   const [spoken, setSpoken] = useState('');
 
-  const props = useRef({ mode, name, progress, ambient, theme });
-  props.current = { mode, name, progress, ambient, theme };
+  const props = useRef({ mode, name, progress, ambient, particles, theme });
+  props.current = { mode, name, progress, ambient, particles, theme };
   const api = useRef<{ setMode: (m: Mode) => void; sparks: (n: number) => void; greet: (name: string) => void } | null>(null);
   const lastKeys = useRef(keystrokes);
 
   useEffect(() => {
     const back = backRef.current, front = frontRef.current, dot = dotRef.current, headEl = headRef.current;
-    const shadowEl = shadowRef.current, faceEl = faceRef.current, ledGroup = ledGroupRef.current;
+    const shadowEl = shadowRef.current, faceEl = faceRef.current, ledGroup = ledGroupRef.current, bodyEl = bodyRef.current, visorEl = visorRef.current;
     const bctx = back?.getContext('2d'), fctx = front?.getContext('2d');
-    if (!back || !front || !dot || !headEl || !shadowEl || !faceEl || !ledGroup || !bctx || !fctx) return;
+    if (!back || !front || !dot || !headEl || !shadowEl || !faceEl || !ledGroup || !bodyEl || !visorEl || !bctx || !fctx) return;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const now = () => performance.now() / 1000;
@@ -346,39 +258,108 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       greet: n => { if (n && cur === 'watching') say(`Hi ${n}!`, null); },
     };
 
+    // ── reactions ──
+    let react: Reaction | null = null, hovering = false;
+    const startReact = (kind: ReactKind, dur: number) => { const t = now(); react = { kind, start: t, until: t + dur }; };
+
     // ── dozing off when left alone ──
-    let sleeping = false, lastActivity = now();
+    let sleeping = false, lastActivity = now(), nextFidget = now() + 8;
     const activity = () => {
       lastActivity = now();
-      if (sleeping) { sleeping = false; sqV += 3; setMode(props.current.mode); }
+      // woken up: a startled hop with O O eyes, then back to whatever the page is doing
+      if (sleeping) { sleeping = false; sqV += 1.5; startReact('startle', 1.2); emit('bang', CX + 46, CY - 56, 0.9); setMode(props.current.mode); }
     };
     const sleepCheck = setInterval(() => {
-      if (!sleeping && cur === 'idle' && now() - lastActivity > 15) { sleeping = true; setMode('sleep'); }
+      const t = now();
+      if (!sleeping && cur === 'idle' && t - lastActivity > 15) { sleeping = true; react = null; setMode('sleep'); return; }
+      // idle fidgets: every 8–12s while nobody's moving the mouse, a small random action
+      if (cur === 'idle' && !sleeping && !hovering && !react && t - lastMove > 3 && t > nextFidget) {
+        const pick = (['glance', 'hop', 'tilt'] as const)[Math.floor(Math.random() * 3)];
+        startReact(pick, pick === 'glance' ? 1.6 : pick === 'hop' ? 0.6 : 1.4);
+        if (pick === 'hop') sqV += 1;
+        nextFidget = t + 12 + Math.random() * 6;
+      }
     }, 1000);
 
     // ── cursor ──
     const look = { x: 0, y: 0 }, mouse = { x: -1e4, y: -1e4 };
+    // body offset (px) and velocity: a spring that walks Captain toward the cursor
+    const body = { x: 0, y: 0, vx: 0, vy: 0 }, bodyMoved = { x: 0, y: 0 };
+    const canFollow = !reduced && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    // cursor left the window: let Captain drift home
+    const onOut = (e: MouseEvent) => { if (!e.relatedTarget) lastMove = -10; };
     let lastMove = -10;
     const onMove = (e: MouseEvent) => {
+      // measured from where Captain rests, so moving toward the cursor doesn't shrink the pull
       const r = dot.getBoundingClientRect();
-      look.x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / 380));
-      look.y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2)) / 300));
+      look.x = Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2 - body.x)) / LOGIN_COLUMN_MAX_PX));
+      look.y = Math.max(-1, Math.min(1, (e.clientY - (r.top + r.height / 2 - body.y)) / 300));
       const fr = front.getBoundingClientRect();
       mouse.x = e.clientX - fr.left;
       mouse.y = e.clientY - fr.top;
       lastMove = now();
       activity();
     };
-    let boopUntil = 0;
+    let boopUntil = 0, combo = 0, lastBoop = -10;
     const onBoop = () => {
       if (cur === 'loading') return;
-      burst += 1.3; sqV -= 3; boopUntil = now() + 0.9; actionUntil = now() + 2.5;
-      // a single cyan sparkle pops from Captain's head; the eyes go ^ ^ (see eyePattern's `booped`)
-      if (now() - lastSpark > 0.45) { lastSpark = now(); emit('spark', CX + 22, CY - 66, 0.8); }
+      const t = now();
+      // clicking a sleeping Captain just wakes it (the window click listener would otherwise do it after us)
+      if (sleeping) { activity(); return; }
+      burst += 1.3; sqV -= 3; actionUntil = t + 2.5;
+      // quick repeat clicks escalate: ^ ^ → wink → a full spin → dizzy
+      combo = t - lastBoop < 2.5 ? combo + 1 : 1;
+      lastBoop = t;
+      // eyes stay politely shut (or happy) while a password is being typed
+      const step = cur === 'privacy' || cur === 'peek' ? 1 : Math.min(combo, 4);
+      switch (step) {
+        case 1:
+          boopUntil = t + 0.9;
+          if (t - lastSpark > 0.45) { lastSpark = t; emit('spark', CX + 22, CY - 66, 0.8); }
+          break;
+        case 2:
+          startReact('wink', 1);
+          emit('spark', CX - 30, CY - 62, 0.7);
+          say('Hehe.', null);
+          break;
+        case 3:
+          startReact('spin', 0.9);
+          emitSparkles();
+          say('Wheee!', null);
+          break;
+        default:
+          startReact('dizzy', 2.4);
+          sqV -= 2;
+          if (!reduced) [0, 2.1, 4.2].forEach(seed => glyphs.push({ kind: 'orbit', age: 0, life: 2.3, delay: 0, x: CX, y: CY - 66, seed }));
+          say('Whoa… dizzy!', null);
+          combo = 0;
+      }
+    };
+    const onEnter = () => {
+      hovering = true;
+      if (cur === 'idle' && !sleeping) sqV += 0.5;
+    };
+    const onLeave = () => { hovering = false; };
+    // Caps Lock while typing a password: an up-arrow on the visor
+    let capsOn = false, capsShown = -10;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el?.matches?.('input[type="password"], input[autocomplete="current-password"]')) return;
+      const on = e.getModifierState?.('CapsLock') ?? false;
+      if (on && (!capsOn || now() - capsShown > 8)) {
+        capsShown = now();
+        sqV += 1.5;
+        say('Caps Lock is on.', { icon: 'caps', dur: 1.8 });
+      }
+      capsOn = on;
     };
     window.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseout', onOut);
+    window.addEventListener('keydown', onKey);
     ['keydown', 'focusin', 'click'].forEach(ev => window.addEventListener(ev, activity));
     dot.addEventListener('click', onBoop);
+    dot.addEventListener('mouseenter', onEnter);
+    dot.addEventListener('mouseleave', onLeave);
 
     const greet = setTimeout(() => {
       if (cur !== 'idle') return;
@@ -422,18 +403,53 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
     }
     const sparkPool = Array.from({ length: NSPARK }, () => ({ on: false, s: 0, dur: 1, x0: 0, cx: 0 }));
 
-    // ── LED eyes ──
+    // ── eyes: solid rounded shapes that morph between expressions. Curved lids (masks) carve ^ ^ smiles and frowns.
+    // The dot-matrix display only lights up for pictograms, scrolling words and the spinner/dizzy patterns. ──
+    type Eye = { x: number; y: number; w: number; h: number; r: number; lb: number; lt: number; la: number; o: number };
+    const EYE_X = EYE_POS;
+    const eyes: Eye[] = EYE_X.map(x => ({ x, y: 54, w: 12, h: 16, r: 6, lb: 0, lt: 0, la: 0, o: 0 }));
+    const eyeTarget = (side: 'L' | 'R', si: number, t: number, gaze: { x: number; y: number }, blink: boolean): Eye => {
+      const cx = EYE_X[si];
+      const open = (dy = 0, h = 16): Eye => ({ x: cx + gaze.x * 5, y: 54 + gaze.y * 3.5 + dy, w: 12, h: blink ? 2.2 : h, r: blink ? 1.1 : 6, lb: 0, lt: 0, la: 0, o: 1 });
+      const happy: Eye = { x: cx, y: 53, w: 15, h: 15, r: 7.5, lb: 1, lt: 0, la: 0, o: 1 };
+      const shut: Eye = { x: cx, y: 57, w: 14, h: 2.4, r: 1.2, lb: 0, lt: 0, la: 0, o: 1 };
+      if (t < boopUntil && cur !== 'loading') return happy;
+      const rx = react && t < react.until && !['loading', 'error', 'success', 'privacy', 'peek'].includes(cur) ? react : null;
+      if (rx) {
+        const since = t - rx.start;
+        switch (rx.kind) {
+          case 'wink': return side === 'L' ? open() : happy;
+          case 'spin': case 'hop': return happy;
+          case 'startle': return { ...open(-3, 18), w: 13 };
+          case 'tilt': return open(-2);
+          case 'glance': { const g = since < 0.9 ? -1 : since < 1.9 ? 1 : 0; return { ...open(), x: cx + g * 6 }; }
+        }
+      }
+      switch (cur) {
+        case 'happy': case 'success': return happy;
+        case 'privacy': case 'sleep': return shut;
+        case 'peek': return side === 'L' ? shut : { ...open(), x: cx + 5, y: 56 };
+        case 'error': return { x: cx, y: 55, w: 13, h: 14, r: 5, lb: 0, lt: 1, la: side === 'L' ? 18 : -18, o: 1 };
+        // thinking: eyes glance up, a little squinted
+        case 'loading': return { x: cx + 2, y: 50, w: 12, h: 13, r: 6, lb: 0.25, lt: 0, la: 0, o: 1 };
+        default: return open();
+      }
+    };
     const level = [new Float32Array(49), new Float32Array(49)];
     const paintEyes = (t: number, dt: number, gaze: { x: number; y: number }) => {
-      const color = '#fff';
-      // eyes glow brighter while Captain speaks
-      ledGroup.style.filter = `drop-shadow(0 0 ${(2 + amp * 4).toFixed(1)}px ${color})`;
-      const k = 1 - Math.exp(-dt * 26);
+      // a soft, faint halo around the eyes (night eyes are pure white; day keeps the warm white), a little stronger while Captain speaks
+      const color = props.current.theme === 'light' ? '#FFF4EC' : '#FFFFFF';
+      const halo = props.current.theme === 'light' ? 'rgba(255,244,236,.4)' : 'rgba(255,255,255,.4)';
+      ledGroup.style.filter = `drop-shadow(0 0 ${(1.2 + amp * 1.8).toFixed(1)}px ${halo})`;
+      const k = 1 - Math.exp(-dt * 26), ke = 1 - Math.exp(-dt * 20);
       // a finished message leaves the visor (checked once, so both eyes switch back together)
       if (msg && ('icon' in msg ? t - msg.start > msg.dur : Math.floor((t - msg.start) * SCROLL) > msg.cols.length - 14)) msg = null;
+      const rx = react && t < react.until && !['loading', 'error', 'success', 'privacy', 'peek'].includes(cur) ? react : null;
+      const ledOn = !!msg || (rx && rx.kind === 'dizzy');
       (['L', 'R'] as const).forEach((side, si) => {
         const want = new Float32Array(49);
-        (msgCells(side, t) ?? eyePattern(cur, side, t, t < blinkUntil, t < boopUntil, gaze)).forEach(([c, r, v]) => {
+        const cells = msgCells(side, t) ?? (ledOn && rx ? reactEyes(rx.kind, side, t) : null);
+        cells?.forEach(([c, r, v]) => {
           if (c >= 0 && c < 7 && r >= 0 && r < 7) want[r * 7 + c] = v;
         });
         const lv = level[si];
@@ -442,19 +458,40 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
           const d = ledRefs.current[si * 49 + i];
           if (!d) continue;
           const on = lv[i] > 0.04;
-          d.setAttribute('fill', on ? color : '#fff');
-          d.setAttribute('fill-opacity', on ? Math.min(1, lv[i]).toFixed(3) : '0.07');
+          d.setAttribute('fill', color);
+          d.setAttribute('fill-opacity', on ? Math.min(1, lv[i]).toFixed(3) : '0');
         }
+
+        // solid eye: ease every parameter toward its target; while the display is in use it shrinks away
+        const e = eyes[si];
+        const tg = ledOn ? { ...e, w: 6, h: 1, r: 0.5, o: 0 } : eyeTarget(side, si, t, gaze, t < blinkUntil);
+        (Object.keys(tg) as (keyof Eye)[]).forEach(key => { e[key] += (tg[key] - e[key]) * ke; });
+        const shape = eyeRefs.current[si * 3], lidB = eyeRefs.current[si * 3 + 1], lidT = eyeRefs.current[si * 3 + 2];
+        if (!shape || !lidB || !lidT) return;
+        const h = Math.max(0.1, e.h), r = Math.min(e.r, e.w / 2, h / 2);
+        shape.setAttribute('x', (e.x - e.w / 2).toFixed(2)); shape.setAttribute('y', (e.y - h / 2).toFixed(2));
+        shape.setAttribute('width', e.w.toFixed(2)); shape.setAttribute('height', h.toFixed(2));
+        shape.setAttribute('rx', r.toFixed(2)); shape.setAttribute('fill', color);
+        shape.setAttribute('fill-opacity', Math.max(0, Math.min(1, e.o)).toFixed(3));
+        // bottom lid: a curved cutout that rises to leave a ^ crescent
+        lidB.setAttribute('cx', e.x.toFixed(2));
+        lidB.setAttribute('cy', (e.y + h / 2 + h * 0.8 - e.lb * h * 0.8).toFixed(2));
+        lidB.setAttribute('rx', (e.w * 0.75).toFixed(2)); lidB.setAttribute('ry', (h * 0.75).toFixed(2));
+        // top lid: a slanted cut for a frown
+        const topY = e.y - h / 2 + e.lt * h * 0.5;
+        lidT.setAttribute('x', (e.x - 20).toFixed(2)); lidT.setAttribute('y', (topY - 30).toFixed(2));
+        lidT.setAttribute('transform', `rotate(${e.la.toFixed(2)} ${e.x.toFixed(2)} ${topY.toFixed(2)})`);
       });
     };
 
     // ── animation loop ──
     const st = { yaw: 0, pitch: 0, roll: 0, gx: 0, gy: 0 };
     let sq = 1, dim = 1, tint = 0, tintBad = false, blinkUntil = 0, nextBlink = 3, flow = 0;
-    let pvis = props.current.ambient ? 1 : 0, actionUntil = 0;
+    let pvis = props.current.particles && props.current.ambient ? 1 : 0, actionUntil = 0;
     // ── little glowing glyphs that float off Captain's head (one small touch per moment) ──
     // z: sleeping · dot: thinking while signing in · drop: sweat drop on an error · spark: success and a click
-    type Glyph = { kind: 'z' | 'dot' | 'drop' | 'spark'; age: number; life: number; delay: number; x: number; y: number; seed: number };
+    // orbit: little stars circling a dizzy Captain · bang: "!" when woken up
+    type Glyph = { kind: 'z' | 'dot' | 'drop' | 'spark' | 'orbit' | 'bang'; age: number; life: number; delay: number; x: number; y: number; seed: number };
     const glyphs: Glyph[] = [];
     let nextZ = 0, nextDot = 0, dotIdx = 0, lastSpark = -10;
     const emit = (kind: Glyph['kind'], x: number, y: number, life: number, delay = 0) => {
@@ -491,6 +528,20 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         fctx.globalCompositeOperation = 'source-over';
         fctx.shadowBlur = props.current.theme === 'light' ? 4 : 8;
         switch (g.kind) {
+          case 'bang': {
+            // pops up with a little overshoot, holds, fades
+            const pop = Math.min(1, a / 0.18), sc = pop < 1 ? 0.6 + 0.6 * pop : 1.2 - 0.2 * Math.min(1, (a - 0.18) / 0.12);
+            fctx.globalAlpha = Math.min(1, a * 10) * (1 - Math.pow(p, 3));
+            fctx.font = `800 22px ${CAPTAIN_FONT}`;
+            fctx.textAlign = 'center';
+            fctx.fillStyle = pal.glyph;
+            fctx.shadowColor = `rgba(${pal.glow},.8)`;
+            fctx.translate(g.x, g.y + yOff - p * 8);
+            fctx.rotate(0.15);
+            fctx.scale(sc, sc);
+            fctx.fillText('!', 0, 0);
+            break;
+          }
           case 'z': {
             const size = 11 + p * 13;
             fctx.globalAlpha = Math.min(1, p * 5) * (1 - p) * 0.9;
@@ -542,6 +593,17 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
             sparkShape(3 + s * 6);
             break;
           }
+          case 'orbit': {
+            // a small star circling above the head
+            const ang = g.seed + a * 5;
+            fctx.globalAlpha = Math.min(1, a * 5) * Math.min(1, (g.life - a) * 3) * (Math.sin(ang) > 0 ? 1 : 0.55);
+            fctx.fillStyle = pal.spark;
+            fctx.shadowColor = `rgba(${pal.glow},1)`;
+            fctx.translate(g.x + Math.cos(ang) * 36, g.y + yOff + Math.sin(ang) * 8);
+            fctx.rotate(ang);
+            sparkShape(5);
+            break;
+          }
         }
         fctx.restore();
       }
@@ -554,7 +616,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       const L = t - lastMove > 3.5 ? { x: Math.sin(t * 0.5) * 0.55, y: Math.sin(t * 0.37) * 0.25 } : look;
       const since = t - modeAt;
       // degrees, kept small so Dot stays flat and graphic
-      const o = { yaw: L.x * 12, pitch: L.y * 9, roll: Math.sin(t * 0.7) * 1.5 - L.x * 2, gx: L.x, gy: L.y };
+      const o = { yaw: L.x * 18, pitch: L.y * 10, roll: Math.sin(t * 0.7) * 1.5 - L.x * 2, gx: L.x, gy: L.y };
       switch (cur) {
         case 'watching': {
           const p = props.current.progress;
@@ -569,8 +631,33 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         case 'success': Object.assign(o, { yaw: 0, pitch: Math.sin(since * 13) * 12 * Math.exp(-since * 2.2), roll: 0, gx: 0, gy: 0 }); break;
         case 'happy': o.roll = 5; break;
       }
+      // reaction poses, eased in and out
+      if (react && t < react.until && !reduced) {
+        const rs = t - react.start, env = Math.sin(Math.PI * Math.min(1, rs / (react.until - react.start)));
+        switch (react.kind) {
+          case 'wink': o.roll += 9 * env; break;
+          case 'dizzy': o.roll += Math.sin(rs * 9) * 11 * env; o.yaw += Math.sin(rs * 4.5) * 12 * env; break;
+          case 'startle': o.pitch -= 7 * env; break;
+          case 'glance': {
+            // a slow look left, then right, then back: one smooth sine sweep, no snapping
+            const g = Math.sin((rs / (react.until - react.start)) * Math.PI * 2) * -env;
+            o.yaw = g * 14; o.gx = g; break;
+          }
+          case 'tilt': o.roll += 13 * env; o.pitch += 4 * env; break;
+        }
+      }
       return o;
     };
+    /** Unsmoothed extras: the spin's full turn and hop/startle lift, so they snap to their curves. */
+    const reactMotion = (t: number) => {
+      if (!react || t >= react.until || reduced) return { spin: 0, lift: 0 };
+      const rs = t - react.start;
+      if (react.kind === 'spin') { const p = Math.min(1, rs / 0.8); return { spin: 360 * (1 - Math.pow(1 - p, 3)), lift: Math.sin(Math.PI * p) * 8 }; }
+      if (react.kind === 'hop') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.7)) * 7 };
+      if (react.kind === 'startle') return { spin: 0, lift: Math.sin(Math.PI * Math.min(1, rs / 0.6)) * 5 };
+      return { spin: 0, lift: 0 };
+    };
+    let hov = 0;
 
     const frame = () => {
       const t = now(), dt = Math.min(t - last, 0.04), since = t - modeAt;
@@ -579,7 +666,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       const asleep = cur === 'sleep', loading = cur === 'loading';
 
       // Dot: tilt, parallax, float, squash, pop-in
-      const tg = targets(t), m = reduced ? 1 : ease(cur === 'error' || cur === 'success' ? 30 : 7);
+      const tg = targets(t), m = reduced ? 1 : ease(cur === 'error' || cur === 'success' ? 30 : 3.5);
       st.yaw += (tg.yaw - st.yaw) * m; st.pitch += (tg.pitch - st.pitch) * m; st.roll += (tg.roll - st.roll) * m;
       st.gx += (tg.gx - st.gx) * m; st.gy += (tg.gy - st.gy) * m;
       sqV += (-(sq - 1) * 220 - sqV * 14) * dt; sq += sqV * dt;
@@ -587,13 +674,42 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       const pop = reduced ? 1 : Math.min(1, Math.max(0, (t - startAt - 0.5) / 0.55)) - 1;
       const b = reduced ? 1 : 1 + 2.70158 * pop * pop * pop + 1.70158 * pop * pop;
       const float = reduced ? 0 : asleep ? Math.sin(t * 0.9) * 2 + 5 : Math.sin(t * 1.4) * 4;
+      const rm = reactMotion(t);
+      if (react && t >= react.until) react = null;
+      // hover: a small lift and swell
+      hov += ((hovering && cur === 'idle' && !reduced ? 1 : 0) - hov) * ease(10);
+      // follow: the whole body drifts toward the cursor. The eyes lead, the head turns, then the body catches up on a soft spring.
+      // It stays with you while the cursor is on the page, and drifts home slowly when you leave, after 8s of stillness,
+      // while asleep, and whenever the form needs it (password, signing in, results). Mouse-only: touch has no cursor to follow.
+      const follows = canFollow && (cur === 'idle' || cur === 'happy' || cur === 'watching') && t - lastMove < 8;
+      const reach = Math.max(0, Math.min(22, (window.innerWidth - LOGIN_COLUMN_MAX_PX - LOGIN_SECTION_PAD_X_PX) / 2));
+      const bx = follows ? look.x * reach : 0, by = follows ? look.y * 6 : 0;
+      // critically damped-ish springs: glides over and settles without bouncing
+      const [k, c] = follows ? [12, 7] : [6, 5];
+      body.vx += ((bx - body.x) * k - body.vx * c) * dt; body.vy += ((by - body.y) * k - body.vy * c) * dt;
+      const pbx = body.x, pby = body.y;
+      body.x += body.vx * dt; body.y += body.vy * dt;
+      bodyMoved.x = body.x - pbx; bodyMoved.y = body.y - pby;
+      bodyEl.style.transform = `translate(${body.x.toFixed(2)}px, ${body.y.toFixed(2)}px)`;
+      // lean into the motion, like it's heading somewhere on purpose; it straightens up as it arrives
+      const lean = Math.max(-4, Math.min(4, body.vx * 0.08));
+      const stretch = 0;
       headEl.style.transform =
-        `perspective(520px) translateY(${(4 - float).toFixed(2)}px) rotateY(${st.yaw.toFixed(2)}deg) rotateX(${(-st.pitch).toFixed(2)}deg) ` +
-        `rotateZ(${st.roll.toFixed(2)}deg) scale(${(b * (1 - (sq - 1) * 0.5)).toFixed(3)}, ${(b * sq).toFixed(3)})`;
-      shadowEl.style.transform = `scaleX(${(b * (1 - float * 0.03)).toFixed(3)})`;
-      shadowEl.style.opacity = (b * (0.9 - float * 0.04)).toFixed(3);
-      // parallax: the face shifts a little more than the helmet
-      faceEl.setAttribute('transform', `translate(${((st.yaw / 22) * 4).toFixed(2)} ${((st.pitch / 12) * 2.5).toFixed(2)})`);
+        `perspective(520px) translateY(${(4 - float - rm.lift - hov * 3).toFixed(2)}px) ` +
+        `rotateZ(${(st.roll + rm.spin + lean).toFixed(2)}deg) scale(${(b * (1 + hov * 0.03 + stretch) * (1 - (sq - 1) * 0.5)).toFixed(3)}, ${(b * (1 + hov * 0.03 - stretch * 0.6) * sq).toFixed(3)})`;
+      // the ground shadow stays on the ground: it cancels the body's vertical drift and shrinks as Captain rises
+      const height = float + rm.lift - body.y;
+      shadowEl.style.transform = `translateY(${(-body.y).toFixed(2)}px) scaleX(${(b * (1 - height * 0.03)).toFixed(3)})`;
+      shadowEl.style.opacity = Math.max(0, b * (0.9 - height * 0.04)).toFixed(3);
+      // Captain is a ball: turning doesn't squash its outline or move its highlight (the light is fixed). Instead the visor
+      // drifts a little across the surface toward where it looks, narrowing slightly as if curving away. The travel is
+      // capped so the visor always stays whole on the face, never sliced by the edge.
+      const nx = Math.max(-1, Math.min(1, st.yaw / 24)), ny = Math.max(-1, Math.min(1, st.pitch / 12));
+      visorEl.setAttribute('transform',
+        `translate(${(60 + nx * 8).toFixed(2)} ${(54 + ny * 5).toFixed(2)}) ` +
+        `scale(${(1 - Math.abs(nx) * 0.1).toFixed(3)} ${(1 - Math.abs(ny) * 0.06).toFixed(3)}) translate(-60 -54)`);
+      // parallax: the eyes sit a little deeper than the glass, so they shift a touch further
+      faceEl.setAttribute('transform', `translate(${(nx * 2.5).toFixed(2)} ${(ny * 1.5).toFixed(2)})`);
       if (!reduced && t > nextBlink) { blinkUntil = t + 0.13; nextBlink = t + 2.4 + Math.random() * 3.4; }
       paintEyes(t, dt, { x: st.gx, y: st.gy });
 
@@ -630,7 +746,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       talkDim += ((speaking ? 1 : 0) - talkDim) * ease(5);
       // particles: always on, or only while something is happening (fade in fast, out slowly)
       const acting = cur === 'loading' || cur === 'success' || cur === 'error' || t < actionUntil;
-      pvis += ((props.current.ambient || acting ? 1 : 0) - pvis) * ease(acting ? 8 : 2.5);
+      pvis += ((props.current.particles && (props.current.ambient || acting) ? 1 : 0) - pvis) * ease(acting ? 8 : 2.5);
       // voice visualiser: a ring of bars around Captain that moves with the voice
       if (amp > 0.02 && !reduced) {
         bctx.save();
@@ -652,6 +768,13 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         bctx.restore();
       }
 
+      // particles and floating glyphs live in the world, not on the body: when Captain moves they're left behind
+      // for a moment and their springs pull them back, so the aura trails it like a cloud
+      if (bodyMoved.x || bodyMoved.y) {
+        const mxu = bodyMoved.x / U, myu = bodyMoved.y / U;
+        for (let i = 0; i < NA; i++) { X[i * 3] -= mxu; X[i * 3 + 1] += myu; }
+        for (const g of glyphs) if (g.kind !== 'orbit' && g.kind !== 'dot') { g.x -= bodyMoved.x; g.y -= bodyMoved.y; }
+      }
       for (let i = 0; i < NA; i++) {
         const i3 = i * 3;
         // home position turned with the cloud, plus a slow wander of its own
@@ -756,8 +879,12 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
       clearTimeout(greet);
       clearInterval(sleepCheck);
       window.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseout', onOut);
+      window.removeEventListener('keydown', onKey);
       ['keydown', 'focusin', 'click'].forEach(ev => window.removeEventListener(ev, activity));
       dot.removeEventListener('click', onBoop);
+      dot.removeEventListener('mouseenter', onEnter);
+      dot.removeEventListener('mouseleave', onLeave);
       document.removeEventListener('visibilitychange', onVisibility);
       api.current = null;
     };
@@ -773,12 +900,26 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
 
   const P = 3.6;
   return (
-    <div className="dot-companion relative h-[210px] w-[320px] max-w-full" style={{ color: companionColor(companionPreferences.color) }}>
+    <div className="dot-companion relative h-[210px] w-full" style={{ color: companionColor(companionPreferences.color) }}>
       <style>{`
         .dot-companion .sheen { animation: dot-sheen 7s ease-in-out infinite; }
         @keyframes dot-sheen { 0%,70% { transform: translateX(-90px) } 100% { transform: translateX(110px) } }
         @media (prefers-reduced-motion: reduce) { .dot-companion .sheen { animation: none; } }
       `}</style>
+      {/* the whole body (glow, aura, helmet) moves as one so Captain can follow the cursor */}
+      {/* no will-change here or on the head: a promoted layer is rasterized once and then stretched/resampled, which blurs the vector eyes */}
+      <div ref={bodyRef} className="absolute inset-0">
+      {/* soft tinted glow so the white helmet reads on the page: warm by day, a faint white halo at night */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 h-[250px] w-[250px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          top: DOT_TOP + DOT_H * 0.5,
+          background: theme === 'light'
+            ? 'radial-gradient(closest-side, rgba(168,72,31,.22), rgba(168,72,31,.12) 45%, rgba(94,127,106,.07) 70%, rgba(94,127,106,0))'
+            : 'radial-gradient(closest-side, rgba(255,255,255,.12), rgba(255,255,255,.06) 45%, rgba(255,255,255,.02) 70%, rgba(255,255,255,0))',
+        }}
+      />
       <canvas
         ref={backRef}
         aria-hidden
@@ -792,42 +933,85 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         className="absolute left-1/2 z-[1] cursor-pointer"
         style={{
           top: DOT_TOP, width: DOT_W, height: DOT_H, marginLeft: -DOT_W / 2,
-          // on a light page the white helmet needs a soft shadow to stand off the background
-          filter: theme === 'light' ? 'drop-shadow(0 8px 18px rgba(30,40,90,.16))' : undefined,
+          // lift the white helmet off the page with a grounded shadow
+          filter: theme === 'light'
+            ? 'drop-shadow(0 12px 20px rgba(26,35,28,.24)) drop-shadow(0 2px 3px rgba(26,35,28,.12))'
+            : 'drop-shadow(0 12px 22px rgba(0,0,0,.55))',
         }}
       >
         <span
           ref={shadowRef}
-          className="absolute bottom-[-6px] left-1/2 h-[10px] w-[84px] -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0))', transformOrigin: 'center' }}
+          // centred with a margin, not translate: the animation loop owns `transform` (scaleX)
+          className="absolute bottom-0 left-1/2 ml-[-42px] h-[10px] w-[84px] rounded-full"
+          style={{
+            background: theme === 'light'
+              ? 'radial-gradient(closest-side, rgba(26,35,28,.28), rgba(26,35,28,0))'
+              : 'radial-gradient(closest-side, rgba(0,0,0,.55), rgba(0,0,0,0))',
+            transformOrigin: 'center',
+          }}
         />
-        <div ref={headRef} className="absolute inset-0 will-change-transform" style={{ transform: 'scale(0)', transformOrigin: '50% 60%' }}>
+        <div ref={headRef} className="absolute inset-0" style={{ transform: 'scale(0)', transformOrigin: '50% 60%' }}>
           <svg viewBox="0 0 120 110" width="100%" height="100%" className="block overflow-visible" aria-hidden>
             <defs>
-              <linearGradient id="dot-shell" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#ffffff" />
-                <stop offset="1" stopColor="#dfe5f5" />
-              </linearGradient>
+              {/* day follows Sage Studio (ivory shell, green-black visor); night is monochrome: a white-to-graphite sphere with a pure black visor */}
+              {theme === 'light' ? (
+                <linearGradient id="dot-shell" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="#ffffff" />
+                  <stop offset="1" stopColor="#E7ECE1" />
+                </linearGradient>
+              ) : (
+                <radialGradient id="dot-shell" cx=".38" cy=".3" r=".8">
+                  <stop offset="0" stopColor="#FFFFFF" />
+                  <stop offset=".55" stopColor="#E2E2E2" />
+                  <stop offset="1" stopColor="#8A8A8A" />
+                </radialGradient>
+              )}
               <linearGradient id="dot-glass" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#1b2142" />
-                <stop offset="1" stopColor="#0a0d1c" />
+                <stop offset="0" stopColor={theme === 'light' ? '#26322B' : '#1C1C1C'} />
+                <stop offset="1" stopColor={theme === 'light' ? '#111813' : '#050505'} />
               </linearGradient>
               <clipPath id="dot-visor">
                 <rect x="22" y="31" width="76" height="46" rx="21" />
               </clipPath>
+              <clipPath id="dot-ball">
+                <circle cx="60" cy="56" r="47.5" />
+              </clipPath>
+              {/* "goo": blur the lit LEDs together, then sharpen the alpha so they read as solid, smooth-edged eyes */}
+              <filter id="dot-goo" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2.1" result="b" />
+                <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -8" />
+              </filter>
             </defs>
-            {/* ear pods */}
-            <rect x="5" y="44" width="9" height="22" rx="4.5" fill="#cfd7ee" />
-            <rect x="106" y="44" width="9" height="22" rx="4.5" fill="#cfd7ee" />
             {/* shell */}
-            <rect x="10" y="14" width="100" height="84" rx="38" fill="url(#dot-shell)" />
-            <ellipse cx="42" cy="22" rx="16" ry="3.5" fill="#fff" opacity=".9" />
-            {/* visor */}
+            <rect
+              x="12" y="8" width="96" height="96" rx="48" fill="url(#dot-shell)"
+              // hairline edge so the white helmet doesn't melt into a white page
+              stroke={theme === 'light' ? 'rgba(26,35,28,.18)' : 'rgba(255,255,255,.4)'} strokeWidth={1}
+            />
+            <ellipse cx="46" cy="17" rx="13" ry="3" fill="#fff" opacity=".9" />
+            {/* visor: slides across the ball as Captain turns (see `frame`), clipped to the ball so it wraps around the edge */}
+            <g clipPath="url(#dot-ball)">
+            <g ref={visorRef}>
             <rect x="22" y="31" width="76" height="46" rx="21" fill="url(#dot-glass)" />
+            {theme === 'dark' && (
+              <rect x="22" y="31" width="76" height="46" rx="21" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth={1.4} />
+            )}
             <g clipPath="url(#dot-visor)">
               <polygon className="sheen" points="44,25 58,25 40,85 26,85" fill="#fff" opacity=".08" />
               <g ref={faceRef}>
                 <g ref={ledGroupRef}>
+                  {/* solid eyes; each carries a mask with two lids (bottom ellipse, slanted top) driven by paintEyes */}
+                  {[0, 1].map(si => (
+                    <g key={si}>
+                      <mask id={`dot-eye-m${si}`} maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="110">
+                        <rect x="0" y="0" width="120" height="110" fill="#fff" />
+                        <ellipse ref={el => { eyeRefs.current[si * 3 + 1] = el; }} cx="0" cy="200" rx="1" ry="1" fill="#000" />
+                        <rect ref={el => { eyeRefs.current[si * 3 + 2] = el; }} x="0" y="-100" width="40" height="30" fill="#000" />
+                      </mask>
+                      <rect ref={el => { eyeRefs.current[si * 3] = el; }} mask={`url(#dot-eye-m${si})`} x={EYE_POS[si] - 6} y="46" width="12" height="16" rx="6" fill="#fff" fillOpacity={0} />
+                    </g>
+                  ))}
+                  <g filter="url(#dot-goo)">
                   {[45, 75].map((ex, si) =>
                     Array.from({ length: 49 }, (_, k) => (
                       <circle
@@ -835,14 +1019,17 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
                         ref={el => { ledRefs.current[si * 49 + k] = el; }}
                         cx={ex - 3 * P + (k % 7) * P}
                         cy={54 - 3 * P + Math.floor(k / 7) * P}
-                        r={1.3}
+                        r={2.05}
                         fill="#fff"
-                        fillOpacity={0.07}
+                        fillOpacity={0}
                       />
                     )),
                   )}
+                  </g>
                 </g>
               </g>
+            </g>
+            </g>
             </g>
           </svg>
         </div>
@@ -853,6 +1040,7 @@ export function DotCompanion({ mode, name = '', keystrokes = 0, progress = 0, am
         className="pointer-events-none absolute left-1/2 z-[2] -translate-x-1/2"
         style={{ top: FX_TOP, width: FW, height: FH }}
       />
+      </div>
       {/* Captain speaks on its visor; screen readers get the full sentence */}
       <span className="sr-only" aria-live="polite">{spoken}</span>
     </div>

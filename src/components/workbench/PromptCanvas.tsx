@@ -15,10 +15,11 @@ import { useReflections } from './marcus/useReflections';
 import type { Reflection } from './marcus/useReflections';
 import { ReflectionCard } from './marcus/ReflectionCard';
 import { DismissedReflection } from './marcus/DismissedReflection';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Constants ─────────────────────────────────────────────────
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--wb-muted)';
 const INK = 'var(--wb-ink)';
@@ -28,6 +29,8 @@ const SURFACE = 'var(--wb-surface)';
 const BORDER_SUBTLE = 'var(--wb-border-subtle)';
 const BORDER_GOLD = 'color-mix(in srgb, var(--brand-a) 30%, transparent)';
 const RED = '#ef4444';
+/** Workbench chat column — empty + docked composer share this cap. */
+const WORKBENCH_COMPOSER_MAX_PX = 880;
 
 // ── Surface copy ──────────────────────────────────────────────
 export type PromptCanvasSurface = 'workbench' | 'inspector';
@@ -41,22 +44,19 @@ const SURFACE_COPY: Record<PromptCanvasSurface, { emptyTitle: string; placeholde
 // ── Mission templates ─────────────────────────────────────────
 const MISSION_TEMPLATES = [
   {
-    cls: 'FEYNMAN',
     name: 'Maritime compliance auditor',
     spec: 'Audit bills of lading against IMO rules; flag missing HS codes.',
-    starter: 'Build a Feynman-class agent called "BoL Compliance Auditor". Mission: audit bills of lading against IMO FAL Form rules and flag missing or non-compliant HS codes. Output: a structured JSON audit memo with a violations array and a pass/fail verdict.',
+    starter: 'Build an agent called "BoL Compliance Auditor". Mission: audit bills of lading against IMO FAL Form rules and flag missing or non-compliant HS codes. Output: a structured JSON audit memo with a violations array and a pass/fail verdict.',
   },
   {
-    cls: 'FERMI',
     name: 'Demand forecasting agent',
     spec: 'Weekly SKU-level forecast across 14 warehouses with confidence bands.',
-    starter: 'Build a Fermi-class agent called "SKU Demand Forecaster". Mission: produce weekly SKU-level demand forecasts across 14 warehouses. Output: structured JSON with point estimate, 80% confidence interval, and assumption list per SKU.',
+    starter: 'Build an agent called "SKU Demand Forecaster". Mission: produce weekly SKU-level demand forecasts across 14 warehouses. Output: structured JSON with point estimate, 80% confidence interval, and assumption list per SKU.',
   },
   {
-    cls: 'GROSSMANN',
     name: 'Vendor onboarding pipeline',
     spec: 'Intake → KYC → Stripe Connect → first invoice within 24h.',
-    starter: 'Build a Grossmann-class agent called "Vendor Onboarding Orchestrator". Mission: automate vendor onboarding end to end within 24 hours. Output: a JSON status record per vendor with step timestamps and any blockers.',
+    starter: 'Build an agent called "Vendor Onboarding Orchestrator". Mission: automate vendor onboarding end to end within 24 hours. Output: a JSON status record per vendor with step timestamps and any blockers.',
   },
 ];
 
@@ -77,8 +77,9 @@ function BlinkCaret() {
 interface EmptyStateProps {
   onTemplateSelect: (starter: string) => void;
   surface: PromptCanvasSurface;
+  composer?: React.ReactNode;
 }
-function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
+function EmptyState({ onTemplateSelect, surface, composer }: EmptyStateProps) {
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
   return (
@@ -87,17 +88,25 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: 480 }}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, maxWidth: WORKBENCH_COMPOSER_MAX_PX, width: '100%' }}
       >
         <Companion size={72} />
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-          <div style={{ ...mono, color: MUTED, fontSize: 13, letterSpacing: '0.04em', display: 'flex', alignItems: 'center' }}>
-            {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />
-          </div>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, width: '100%' }}>
+          {!composer && (
+            <div style={{ ...type['title-card'], color: MUTED, display: 'flex', alignItems: 'center' }}>
+              {SURFACE_COPY[surface].emptyTitle}<BlinkCaret />
+            </div>
+          )}
+          {composer && (
+            <h1 style={{ ...type['title-section'], color: INK, margin: 0, width: '100%' }}>
+              {SURFACE_COPY[surface].emptyTitle}
+            </h1>
+          )}
+          {composer && <div style={{ width: '100%' }}>{composer}</div>}
           {surface === 'workbench' && (
           <button
             onClick={() => setTemplatesOpen(o => !o)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...mono, fontSize: 13, color: templatesOpen ? GOLD : MUTED, letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', ...type['ui-regular'], color: inkOf(templatesOpen ? GOLD : MUTED), letterSpacing: '0.04em', padding: '2px 0', transition: 'color 0.15s' }}
             onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
             onMouseLeave={e => { e.currentTarget.style.color = templatesOpen ? GOLD : MUTED; }}
           >
@@ -105,7 +114,7 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
           </button>
           )}
         </div>
-        <div style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.5em', textTransform: 'uppercase', opacity: 0.5 }}>ALOFT</div>
+        <div style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase',  }}>ALOFT</div>
         <AnimatePresence>
           {templatesOpen && (
             <motion.div
@@ -115,17 +124,14 @@ function EmptyState({ onTemplateSelect, surface }: EmptyStateProps) {
             >
               {MISSION_TEMPLATES.map((t) => (
                 <button
-                  key={t.cls} type="button"
+                  key={t.name} type="button"
                   onClick={() => { onTemplateSelect(t.starter); setTemplatesOpen(false); }}
                   style={{ textAlign: 'left', padding: '10px 14px', background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = BORDER_GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER_SUBTLE; }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 3 }}>
-                    <span style={{ ...mono, fontSize: 13, color: GOLD, borderLeft: `2px solid ${GOLD}`, paddingLeft: 7, letterSpacing: '0.1em' }}>{t.cls}</span>
-                    <span style={{ ...sans, fontSize: 13, color: INK }}>{t.name}</span>
-                  </div>
-                  <div style={{ ...mono, fontSize: 13, color: MUTED, paddingLeft: 17 }}>{t.spec}</div>
+                  <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: INK, fontWeight: 500, marginBottom: 3 }}>{t.name}</div>
+                  <div style={{ ...type['ui-regular'], color: MUTED }}>{t.spec}</div>
                 </button>
               ))}
             </motion.div>
@@ -155,11 +161,11 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       }}
     >
       <Octagon size={13} style={{ color: RED, flexShrink: 0 }} />
-      <span style={{ ...mono, fontSize: 13, color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
+      <span style={{ ...type['ui-regular'], color: 'rgba(239,68,68,0.85)', flex: 1 }}>Generation stopped</span>
       <button
         onClick={onContinue}
         style={{
-          ...mono, fontSize: 13, color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
+          ...type['ui-regular'], color: inkOf(GOLD), background: 'color-mix(in srgb, var(--brand-a) 8%, transparent)',
           border: '1px solid color-mix(in srgb, var(--brand-a) 25%, transparent)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'background 0.15s',
         }}
@@ -171,7 +177,7 @@ function InterruptedBanner({ onContinue, onReset }: { onContinue: () => void; on
       <button
         onClick={onReset}
         style={{
-          ...mono, fontSize: 13, color: MUTED, background: 'transparent',
+          ...type['ui-regular'], color: MUTED, background: 'transparent',
           border: '1px solid rgba(74,96,128,0.3)', borderRadius: 5, padding: '4px 10px', cursor: 'pointer',
           transition: 'color 0.15s, border-color 0.15s',
         }}
@@ -200,7 +206,7 @@ function SuggestionPills({ suggestions, onSelect }: { suggestions: string[]; onS
           key={s}
           onClick={() => onSelect(s)}
           style={{
-            ...mono, fontSize: 13, color: INK_DIM,
+            ...type['ui-regular'], color: INK_DIM,
             background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`,
             borderRadius: 20, padding: '5px 14px', cursor: 'pointer',
             transition: 'border-color 0.15s, color 0.15s',
@@ -220,10 +226,48 @@ interface UserMessageProps {
   msg: WorkbenchMessage;
   onResend: (content: string) => void;
   onEdit: (id: string) => void;
+  /** Agent-chat style: right-aligned brand bubble instead of the gold-rule block. */
+  bubble?: boolean;
 }
-function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
+function UserMessage({ msg, onResend, onEdit, bubble = false }: UserMessageProps) {
   const [hovered, setHovered] = useState(false);
   const ts = new Date(msg.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (bubble) {
+    const shortTs = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="group flex flex-col items-end gap-1"
+      >
+        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
+          {msg.content}
+        </p>
+        <div className="flex items-center gap-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
+          <span className="flex gap-0.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={() => onEdit(msg.id)}
+              title="Edit and resend"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+            >
+              <Pencil size={11} /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onResend(msg.content)}
+              title="Resend"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]"
+            >
+              <RotateCcw size={11} /> Resend
+            </button>
+          </span>
+          <span className="px-1">{shortTs}</span>
+        </div>
+      </motion.div>
+    );
+  }
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -233,7 +277,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
       onMouseLeave={() => setHovered(false)}
       style={{ borderLeft: `2px solid ${GOLD}`, paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 4 }}
     >
-      <div style={{ ...mono, fontSize: 13, color: INK, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+      <div style={{ ...type['ui-regular'], color: INK, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
         {msg.content}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -252,9 +296,9 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Edit and resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 13, color: MUTED,
+                    ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
-                    borderRadius: 4, transition: 'color 0.15s',
+                    borderRadius: 6, transition: 'color 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = GOLD; }}
                   onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
@@ -266,9 +310,9 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
                   title="Resend"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4,
-                    ...mono, fontSize: 13, color: MUTED,
+                    ...type['ui-regular'], color: MUTED,
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 6px',
-                    borderRadius: 4, transition: 'color 0.15s',
+                    borderRadius: 6, transition: 'color 0.15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.color = INK_DIM; }}
                   onMouseLeave={e => { e.currentTarget.style.color = MUTED; }}
@@ -279,7 +323,7 @@ function UserMessage({ msg, onResend, onEdit }: UserMessageProps) {
             )}
           </AnimatePresence>
         </div>
-        <div style={{ ...mono, fontSize: 13, color: MUTED }}>{ts}</div>
+        <div style={{ ...type['ui-regular'], color: MUTED }}>{ts}</div>
       </div>
     </motion.div>
   );
@@ -302,8 +346,7 @@ function ScrollToBottomPill({ onClick }: { onClick: () => void }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        ...mono,
-        fontSize: 13,
+        ...type['ui-regular'],
         color: INK_DIM,
         background: SURFACE,
         border: `1px solid ${BORDER_GOLD}`,
@@ -347,6 +390,16 @@ interface ConversationThreadProps {
   onAcknowledgeReflection?: (id: string) => void;
   onActReflection?: (id: string, action: any) => void;
   onRestoreReflection?: (id: string) => void;
+  /** Agent-chat presentation (Inspector): user bubbles + assistant name header. */
+  chatStyle?: { assistantName: string; assistantIcon?: React.ReactNode } | null;
+  /** Centre the thread in a column of at most this width (px). */
+  columnMaxWidth?: number;
+  /** Extra content under a finished assistant reply (e.g. admin Inspect). */
+  renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
+  /** Inspector: the raw tool-step list is only there while the reply is still running. */
+  collapseToolCallsWhenIdle?: boolean;
+  /** Admin + developer mode: show describe_schema / execute_tool steps in the thread. */
+  showDeveloperToolSteps?: boolean;
 }
 
 function ConversationThread({
@@ -367,6 +420,11 @@ function ConversationThread({
   onAcknowledgeReflection,
   onActReflection,
   onRestoreReflection,
+  chatStyle = null,
+  columnMaxWidth,
+  renderAfterAssistant,
+  collapseToolCallsWhenIdle = false,
+  showDeveloperToolSteps = false,
 }: ConversationThreadProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -444,11 +502,15 @@ function ConversationThread({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '24px 28px 8px',
+          // Capped column keeps the scrollbar at the pane edge while centring the content.
+          padding: columnMaxWidth
+            ? `24px max(clamp(16px, 2.5vw, 40px), calc((100% - ${columnMaxWidth}px) / 2)) 8px`
+            : '24px clamp(16px, 2.5vw, 40px) 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 20,
           minHeight: 0,
+          width: '100%',
         }}
       >
         <AnimatePresence initial={false}>
@@ -462,6 +524,7 @@ function ConversationThread({
                   msg={msg}
                   onResend={onSend}
                   onEdit={onEditMessage}
+                  bubble={!!chatStyle}
                 />
               );
             }
@@ -479,8 +542,19 @@ function ConversationThread({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', minWidth: 0 }}
               >
+                {chatStyle && (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-a-soft)] text-[var(--brand-a-ink)]"
+                      aria-hidden
+                    >
+                      {chatStyle.assistantIcon ?? chatStyle.assistantName.slice(0, 1)}
+                    </span>
+                    <span className="text-size-ui font-medium text-[var(--ink-3)]">{chatStyle.assistantName}</span>
+                  </div>
+                )}
                 <StreamingMessage
                   activity={msg.activity}
                   companionActive={isLast}
@@ -489,6 +563,8 @@ function ConversationThread({
                   content={msg.content}
                   thinking={msg.thinking}
                   toolCalls={msg.toolCalls}
+                  showToolCalls={showDeveloperToolSteps && (!collapseToolCallsWhenIdle || isLiveStreaming)}
+                  showTechnicalToolNames={showDeveloperToolSteps}
                   isStreaming={isLiveStreaming}
                   interrupted={interrupted && isLast && !isStreaming}
                   readiness={isLast ? readiness : undefined}
@@ -497,6 +573,7 @@ function ConversationThread({
                   tokenCount={completionMeta[msg.id]?.tokenCount}
                   modelName={completionMeta[msg.id]?.modelName}
                 />
+                {!isLiveStreaming && renderAfterAssistant?.(msg)}
                 {/* Assumption chips — shown after streaming completes */}
                 {!isLiveStreaming && msgAssumptions.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 2 }}>
@@ -547,7 +624,7 @@ function ConversationThread({
         {chatError && !isStreaming && messages.at(-1)?.role !== 'assistant' && (
           <div className="rounded-lg border border-[var(--line-1)] bg-[var(--surface-1)]">
             <CaptainStatus isStreaming={false} error={chatError} />
-            <p role="alert" className="px-4 pb-3 text-sm text-[var(--ink-2)]">{chatError}</p>
+            <p role="alert" className="px-4 pb-3 text-size-body text-[var(--ink-2)]">{chatError}</p>
           </div>
         )}
         <AnimatePresence>
@@ -603,6 +680,8 @@ export interface PromptCanvasProps {
   surface?: PromptCanvasSurface;
   /** Rendered between the thread and the composer, e.g. the Inspector → Agent Lab handoff card. */
   banner?: React.ReactNode;
+  /** Replaces the default empty state (mascot + mission templates) before the first message. */
+  emptyState?: React.ReactNode;
   messages: WorkbenchMessage[];
   isStreaming: boolean;
   readiness?: 'interview' | 'plan' | 'build' | null;
@@ -635,12 +714,18 @@ export interface PromptCanvasProps {
   onApplyClass?: (updatedClass: unknown, updatedMemory: unknown) => void;
   onDismissClassSuggestion?: () => void;
   modelOptions?: import('@/components/agent-lab/workbench/types').ModelOption[];
+  /** Agent-chat presentation: user bubbles, assistant header, centred column, no "Next →" strip. */
+  chatStyle?: { assistantName: string; assistantIcon?: React.ReactNode } | null;
+  /** Extra content under each finished assistant reply. */
+  renderAfterAssistant?: (msg: WorkbenchMessage) => React.ReactNode;
+  showDeveloperToolSteps?: boolean;
 }
 
 export function PromptCanvas({
   chatError,
   surface = 'workbench',
   banner,
+  emptyState,
   messages,
   isStreaming,
   readiness = null,
@@ -670,8 +755,13 @@ export function PromptCanvas({
   onApplyClass,
   onDismissClassSuggestion,
   modelOptions,
+  chatStyle = null,
+  renderAfterAssistant,
+  showDeveloperToolSteps = false,
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
+  const centeredComposer = !hasMessages && !emptyState;
+  const columnMaxWidth = surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 
@@ -724,7 +814,37 @@ export function PromptCanvas({
 
       {/* Canvas body */}
       {!hasMessages ? (
-        <EmptyState onTemplateSelect={handleTemplateSelect} surface={surface} />
+        emptyState ?? (
+          <EmptyState
+            onTemplateSelect={handleTemplateSelect}
+            surface={surface}
+            composer={
+              centeredComposer ? (
+                <InputComposer
+                  layout="center"
+                  columnMaxWidth={WORKBENCH_COMPOSER_MAX_PX}
+                  value={promptValue}
+                  onChange={setPromptValue}
+                  onSubmit={onSubmit}
+                  onCommission={onCommission}
+                  onStop={onStop}
+                  isStreaming={isStreaming}
+                  isCommissioning={isCommissioning}
+                  selectedModel={selectedModel}
+                  onModelChange={onModelChange}
+                  attachedToolIds={attachedToolIds}
+                  onAttachTool={onAttachTool}
+                  onDetachTool={onDetachTool}
+                  canCommission={canCommission}
+                  modelOptions={modelOptions}
+                  placeholder={SURFACE_COPY[surface].placeholder}
+                  minLength={surface === 'inspector' ? 1 : 10}
+                  variant={surface === 'inspector' ? 'inline' : 'toolbar'}
+                />
+              ) : undefined
+            }
+          />
+        )
       ) : (
         <ConversationThread
           chatError={chatError}
@@ -750,14 +870,20 @@ export function PromptCanvas({
           onAcknowledgeReflection={acknowledge}
           onActReflection={act}
           onRestoreReflection={restoreReflection}
+          chatStyle={chatStyle}
+          columnMaxWidth={chatStyle ? columnMaxWidth : undefined}
+          renderAfterAssistant={renderAfterAssistant}
+          collapseToolCallsWhenIdle={surface === 'inspector'}
+          showDeveloperToolSteps={showDeveloperToolSteps}
         />
       )}
 
       {banner}
 
-      {/* Next-step suggestion chips — visible above composer once streaming ends */}
+      {/* Next-step suggestion chips — visible above composer once streaming ends.
+          Chat-style surfaces already show them as pills under the last reply. */}
       <AnimatePresence>
-        {!isStreaming && !isCommissioning && suggestions.length > 0 && (
+        {!chatStyle && !isStreaming && !isCommissioning && suggestions.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
@@ -772,7 +898,7 @@ export function PromptCanvas({
               borderTop: `1px solid ${BORDER_SUBTLE}`,
             }}
           >
-            <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
+            <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.08em', textTransform: 'uppercase', alignSelf: 'center', marginRight: 2 }}>
               Next →
             </span>
             {suggestions.map(s => (
@@ -784,8 +910,7 @@ export function PromptCanvas({
                   setTimeout(onSubmit, 0);
                 }}
                 style={{
-                  ...mono,
-                  fontSize: 13,
+                  ...type['ui-regular'],
                   color: INK_DIM,
                   background: CANVAS,
                   border: `1px solid ${BORDER_SUBTLE}`,
@@ -805,25 +930,30 @@ export function PromptCanvas({
         )}
       </AnimatePresence>
 
-      {/* Composer */}
-      <InputComposer
-        value={promptValue}
-        onChange={setPromptValue}
-        onSubmit={onSubmit}
-        onCommission={onCommission}
-        onStop={onStop}
-        isStreaming={isStreaming}
-        isCommissioning={isCommissioning}
-        selectedModel={selectedModel}
-        onModelChange={onModelChange}
-        attachedToolIds={attachedToolIds}
-        onAttachTool={onAttachTool}
-        onDetachTool={onDetachTool}
-        canCommission={canCommission}
-        modelOptions={modelOptions}
-        placeholder={SURFACE_COPY[surface].placeholder}
-        minLength={10}
-      />
+      {/* Composer — docked once the thread starts; custom empty states keep the docked bar */}
+      {!centeredComposer && (
+        <InputComposer
+          columnMaxWidth={columnMaxWidth}
+          value={promptValue}
+          onChange={setPromptValue}
+          onSubmit={onSubmit}
+          onCommission={onCommission}
+          onStop={onStop}
+          isStreaming={isStreaming}
+          isCommissioning={isCommissioning}
+          selectedModel={selectedModel}
+          onModelChange={onModelChange}
+          attachedToolIds={attachedToolIds}
+          onAttachTool={onAttachTool}
+          onDetachTool={onDetachTool}
+          canCommission={canCommission}
+          modelOptions={modelOptions}
+          placeholder={SURFACE_COPY[surface].placeholder}
+          /* Agent missions need substance; data questions can be short ("revenue by month"). */
+          minLength={surface === 'inspector' ? 1 : 10}
+          variant={surface === 'inspector' ? 'inline' : 'toolbar'}
+        />
+      )}
 
       <style>{`
         @keyframes pc-blink { 50% { opacity: 0; } }

@@ -29,9 +29,9 @@ on the inference profiles you use (often `us-east-1`).
 |--------|----------|----------|----------------|
 | `sonnet-5-5` | Bedrock **Converse** | `us.anthropic.claude-sonnet-5-5` | `BEDROCK_REGION=us-east-1` (or region where enabled) |
 | `opus-5-5` | Bedrock **Converse** | `us.anthropic.claude-opus-5-5` | Same |
-| `gpt-6-luna` | Bedrock **Mantle** (OpenAI API) | `openai.gpt-6-luna` | **`BEDROCK_MANTLE_REGION=us-east-1`** (N. Virginia) |
+| `gpt-6-luna` | Bedrock **runtime** (OpenAI API, global profile) | `global.openai.gpt-6-luna` | Source region is `BEDROCK_MANTLE_REGION` (this env: **ap-south-1**). In-region Mantle `openai.gpt-6-luna` exists only in **us-east-1**. |
 
-Optional global IDs (if your account uses global inference): `global.anthropic.claude-sonnet-5-5`, `global.anthropic.claude-opus-5-5`, `global.openai.gpt-6-luna` on **bedrock-runtime** — ALOFT defaults to **US geo** IDs above.
+Optional geo ID on bedrock-runtime, only from a US source region: `us.openai.gpt-6-luna`. Claude geo IDs stay `us.anthropic.claude-sonnet-5-5` and `us.anthropic.claude-opus-5-5`.
 
 ---
 
@@ -47,8 +47,10 @@ AWS_SECRET_ACCESS_KEY=...
 # Background jobs (Marcus, FOER, reflect) — optional override
 BEDROCK_SONNET_MODEL_ID=us.anthropic.claude-sonnet-5-5
 
-# GPT-6 Luna via Mantle (not Foundry)
-BEDROCK_MANTLE_REGION=us-east-1
+# GPT-6 Luna via global bedrock-runtime (OpenAI-compatible).
+# Source region is where the API key was created. Mumbai can call the global profile;
+# it cannot call in-region Mantle.
+BEDROCK_MANTLE_REGION=ap-south-1
 BEDROCK_MANTLE_API_KEY=<Bedrock API key from console>
 
 # Default Inspector model when XAI is not preferred
@@ -67,12 +69,12 @@ INSPECTOR_DEFAULT_MODEL=sonnet-5-5
 aws bedrock-runtime converse --region us-east-1 --model-id us.anthropic.claude-sonnet-5-5 --messages "[{role=user,content=[{text=Say OK}]}]" --inference-config maxTokens=32
 ```
 
-**Luna (Mantle)** — OpenAI-compatible endpoint:
+**Luna (global runtime)** — OpenAI-compatible endpoint. Replace the region with `BEDROCK_MANTLE_REGION`:
 
 ```text
-POST https://bedrock-mantle.us-east-1.api.aws/openai/v1/chat/completions
+POST https://bedrock-runtime.ap-south-1.amazonaws.com/openai/v1/chat/completions
 Authorization: Bearer <BEDROCK_MANTLE_API_KEY>
-Body: { "model": "openai.gpt-6-luna", "messages": [{"role":"user","content":"Say OK"}] }
+Body: { "model": "global.openai.gpt-6-luna", "messages": [{"role":"user","content":"Say OK"}] }
 ```
 
 ---
@@ -91,7 +93,7 @@ Body: { "model": "openai.gpt-6-luna", "messages": [{"role":"user","content":"Say
 - [ ] Model access enabled in Bedrock console  
 - [ ] IAM allows Converse + Invoke in `us-east-1`  
 - [ ] `BEDROCK_REGION=us-east-1`  
-- [ ] `BEDROCK_MANTLE_REGION=us-east-1` + valid `BEDROCK_MANTLE_API_KEY` for Luna  
+- [ ] `BEDROCK_MANTLE_REGION` set to the API key's source region (ap-south-1 here) + valid `BEDROCK_MANTLE_API_KEY`. Luna calls use `global.openai.gpt-6-luna` on bedrock-runtime.  
 - [ ] `INSPECTOR_DEFAULT_MODEL=sonnet-5-5` (optional)  
 - [ ] Smoke test each model from Inspector  
 

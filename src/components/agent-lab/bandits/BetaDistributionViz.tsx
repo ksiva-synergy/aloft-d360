@@ -5,6 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } f
 import { Activity } from 'lucide-react';
 import type { ModelStat } from './types';
 import { getModelColor, getModelShortName, formatPct } from './types';
+import { CHART_TEXT } from '@/lib/typography/tokens';
 
 function betaPdf(x: number, a: number, b: number): number {
   if (x <= 0 || x >= 1) return 0;
@@ -59,10 +60,10 @@ export function BetaDistributionViz({ models }: { models: ModelStat[] }) {
     <div className="bandit-card overflow-hidden">
       <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <Activity className="h-4 w-4 text-[color:var(--brand-a-ink)]" />
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           The Arms
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
+        <span className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           Beta distribution beliefs
         </span>
       </div>
@@ -70,7 +71,7 @@ export function BetaDistributionViz({ models }: { models: ModelStat[] }) {
       <div className="p-4">
         <div className="flex flex-wrap gap-3 mb-3">
           {peaks.map(p => (
-            <div key={p.model} className="flex items-center gap-1.5 text-xs">
+            <div key={p.model} className="flex items-center gap-1.5 text-size-ui">
               <div
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: getModelColor(p.model) }}
@@ -92,13 +93,13 @@ export function BetaDistributionViz({ models }: { models: ModelStat[] }) {
               type="number"
               domain={[0, 1]}
               tickFormatter={v => `${(v * 100).toFixed(0)}%`}
-              tick={{ fontSize: 13, fill: '#94a3b8' }}
+              tick={{ fontSize: CHART_TEXT.tooltip, fill: '#94a3b8' }}
               axisLine={{ stroke: '#334155', strokeWidth: 0.5 }}
               tickLine={false}
               ticks={[0, 0.25, 0.5, 0.75, 1]}
             />
             <YAxis
-              tick={{ fontSize: 13, fill: '#94a3b8' }}
+              tick={{ fontSize: CHART_TEXT.tooltip, fill: '#94a3b8' }}
               axisLine={false}
               tickLine={false}
               width={30}
@@ -108,7 +109,7 @@ export function BetaDistributionViz({ models }: { models: ModelStat[] }) {
                 backgroundColor: 'var(--surface-1)',
                 border: '1px solid var(--line-2)',
                 borderRadius: 8,
-                fontSize: 13,
+                fontSize: CHART_TEXT.tooltip,
                 color: 'var(--ink-1)',
               }}
               labelFormatter={v => `P(success) = ${(Number(v) * 100).toFixed(0)}%`}

@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +20,8 @@ function parseStringArray(value: unknown, field: string): string[] | undefined {
 }
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const deniedSection = await denyUnlessSection(_req, ['estate.catalog', 'view'], ['estate.overview', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
@@ -43,6 +47,8 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
  *   display_name: string
  */
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
@@ -100,6 +106,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
  * Body (optional): { widenScope?: boolean } — if true, sets scope_include to ["*.*.*"].
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

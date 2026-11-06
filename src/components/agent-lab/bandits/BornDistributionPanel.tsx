@@ -14,6 +14,7 @@ import {
   shortName,
 } from '@/lib/bandits/born-tokens';
 import type { CtsgvModelStat } from './types';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -66,9 +67,9 @@ export function BornDistributionPanel({
     return (
       <div style={{
         background: CARD_BG, border: `1px solid ${BORDER}`,
-        borderRadius: 6, padding: '20px 24px',
+        borderRadius: 'var(--born-r-card)', padding: '20px 24px',
       }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No data.</div>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No data.</div>
       </div>
     );
   }
@@ -77,21 +78,33 @@ export function BornDistributionPanel({
     <div style={{
       background: CARD_BG,
       border: `1px solid ${BORDER}`,
-      borderRadius: 6,
+      borderRadius: 'var(--born-r-card)',
+      boxShadow: 'var(--shadow-xs)',
       padding: '20px 24px',
     }}>
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
-          The Born Distribution
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
+            The Born Distribution
+          </div>
+          <div style={{ ...type.caption, color: TEXT_MUT, marginTop: 2 }}>
+            Probability matching · P(selected on next draw)
+          </div>
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
-          {measuring ? 'Sampling…' : 'Probability matching · P(selected on next draw)'}
-        </div>
+        <span style={{
+          ...type.label, flexShrink: 0, whiteSpace: 'nowrap',
+          padding: '2px 8px', borderRadius: 999,
+          border: `1px solid ${tally || measuring ? `color-mix(in srgb, ${GOLD} 45%, transparent)` : BORDER}`,
+          color: tally || measuring ? inkOf(GOLD, 60) : TEXT_SEC,
+          background: tally || measuring ? `color-mix(in srgb, ${GOLD} 10%, transparent)` : 'var(--born-overlay)',
+        }}>
+          {measuring ? 'Sampling…' : tally ? 'Measured' : 'Estimated'}
+        </span>
       </div>
 
       {/* Bars */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {rows.map((row, rank) => {
           const isFav = row.modelId === favId;
           const color = isFav ? GOLD : BORN_COLORS[row.colorIndex % BORN_COLORS.length];
@@ -99,23 +112,26 @@ export function BornDistributionPanel({
 
           return (
             <div key={row.modelId}>
-              {/* Label + value row */}
+              {/* Label + value row — name truncates so it never runs into the value */}
               <div style={{
                 display: 'flex', alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'space-between', gap: 12,
                 marginBottom: 6,
               }}>
-                <span style={{
-                  fontFamily: MONO, fontSize: 13,
-                  color: isFav ? GOLD : TEXT_SEC,
-                  display: 'flex', alignItems: 'center', gap: 6,
+                <span title={row.modelId} style={{
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
+                  color: isFav ? inkOf(GOLD, 70) : TEXT_SEC,
+                  display: 'flex', alignItems: 'center', gap: 8, minWidth: 0,
                 }}>
-                  <span style={{ color: TEXT_MUT, minWidth: 18 }}>#{rank + 1}</span>
-                  {shortName(row.modelId)}
+                  <span style={{ color: TEXT_MUT, minWidth: 22, flexShrink: 0 }}>#{rank + 1}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {shortName(row.modelId)}
+                  </span>
                 </span>
                 <span style={{
-                  fontFamily: MONO, fontSize: 13, fontWeight: 700,
-                  color: isFav ? GOLD : TEXT_PRI,
+                  fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600,
+                  color: isFav ? inkOf(GOLD, 70) : TEXT_PRI,
+                  flexShrink: 0, fontVariantNumeric: 'tabular-nums',
                 }}>
                   {(row.p * 100).toFixed(1)}%
                 </span>
@@ -123,16 +139,16 @@ export function BornDistributionPanel({
 
               {/* Bar track */}
               <div style={{
-                height: 10,
-                background: 'var(--born-overlay)',
-                borderRadius: 3,
+                height: 8,
+                background: 'var(--born-overlay-2)',
+                borderRadius: 999,
                 overflow: 'hidden',
               }}>
                 <div style={{
                   height: '100%',
                   width: `${widthPct}%`,
                   background: color,
-                  borderRadius: 3,
+                  borderRadius: 999,
                   transition: 'width 300ms ease',
                   opacity: isFav ? 1 : 0.75,
                 }} />

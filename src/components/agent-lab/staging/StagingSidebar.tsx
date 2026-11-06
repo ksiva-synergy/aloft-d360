@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { usePathname } from '@/lib/navigation';
 import { useEffect, useState } from 'react';
 import {
   HouseIcon, MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon,
@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
-import { NAV_GROUPS, groupForPath, isActive, type NavItem } from './nav-config';
+import { groupForPath, isActive, type NavItem } from './nav-config';
+import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
 import { CommandSidebar } from './CommandSidebar';
@@ -45,6 +46,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
+  const groups = useNavGroups();
 
   // Follow navigation: show the panel for the section you are in.
   useEffect(() => {
@@ -52,7 +54,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
     setFilter('');
   }, [pathname]);
 
-  const area = NAV_GROUPS.find((g) => g.id === areaId) ?? NAV_GROUPS[0];
+  const area = groups.find((g) => g.id === areaId) ?? groups[0];
   const q = filter.trim().toLowerCase();
   const items = q ? area.items.filter((i) => i.label.toLowerCase().includes(q)) : area.items;
 
@@ -94,17 +96,17 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
             <Link
               href="/dashboard"
-              aria-label="Synergy Group — Data 360 home"
+              aria-label="Synergy Group — ALOFT home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
-              <BrandMark size={40} className="!rounded-full" />
+              <BrandMark size={30} className="!rounded-full" />
             </Link>
           </div>
           <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
 
           <div className="relative flex flex-col items-center gap-1">
             <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
-            {NAV_GROUPS.map((g) => (
+            {groups.map((g) => (
               <RailButton
                 key={g.id}
                 label={g.railLabel}
@@ -138,8 +140,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <div className="flex h-full flex-col p-2.5" style={{ width: PANEL_W }}>
             <div className="-mx-2.5 mb-2.5 flex h-[var(--shell-header-h)] shrink-0 items-center gap-2 border-b border-[var(--header-border)] px-2.5">
               <div className="min-w-0 flex-1">
-                <p className="text-[10.5px] font-semibold uppercase leading-none tracking-[0.08em] text-[var(--ink-3)]">Agent Lab</p>
-                <h2 className="mt-1 truncate text-sm font-semibold tracking-[-0.015em] text-[var(--ink-1)]">
+                <p className="text-[length:var(--type-caption-size)] font-semibold uppercase leading-none tracking-wide text-[var(--ink-3)]">Agent Lab</p>
+                <h2 className="mt-0.5 truncate leading-tight text-size-body font-semibold tracking-tight text-[var(--ink-1)]">
                   {isHome ? 'Home' : area.label}
                 </h2>
               </div>
@@ -158,19 +160,20 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
                 {mobileOpen ? <XIcon size={16} /> : pinned ? <PushPinSlashIcon size={16} weight="fill" /> : <PushPinIcon size={16} />}
               </button>
             </div>
-            <p className="mb-2 truncate px-2 text-xs text-[var(--ink-3)]">
+            <p className="mb-2 truncate px-2 text-size-ui text-[var(--ink-3)]">
               {isHome ? 'Your workspace overview' : area.description}
             </p>
 
             {!isHome && (
-              <label className="mb-2 flex h-9 items-center gap-2 rounded-full border border-[var(--line-1)] bg-[var(--surface-2)] px-3 text-[var(--ink-3)] transition-colors focus-within:border-[var(--brand-a)] focus-within:bg-[var(--surface-1)] focus-within:ring-4 focus-within:ring-[var(--brand-a-soft)]">
+              <label className="mb-2 flex h-9 items-center gap-2 rounded-full border border-[var(--line-1)] bg-[var(--surface-2)] px-3 text-[var(--ink-3)] transition-[border-color,box-shadow,background-color] duration-150 focus-within:border-[color-mix(in_srgb,var(--brand-a)_50%,var(--line-1))] focus-within:bg-[var(--surface-1)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
                 <MagnifyingGlassIcon size={15} className="shrink-0" />
                 <input
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder={`Filter ${area.label.toLowerCase()}`}
                   aria-label={`Filter ${area.label}`}
-                  className="w-full bg-transparent text-[13px] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+                  autoComplete="off"
+                  className="w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
                 />
               </label>
             )}
@@ -179,7 +182,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
               {isHome ? (
                 <HomePanel pathname={pathname} />
               ) : items.length === 0 ? (
-                <p className="px-3 py-6 text-center text-[13px] text-[var(--ink-3)]">No pages match “{filter}”.</p>
+                <p className="px-3 py-6 text-center text-[length:var(--type-ui-regular-size)] text-[var(--ink-3)]">No pages match “{filter}”.</p>
               ) : (
                 <ul className="space-y-0.5">
                   {items.map((item) => (
@@ -194,8 +197,8 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
             <div className="mt-2.5 flex items-center gap-2.5 rounded-[18px] bg-[var(--surface-2)] p-2">
               <BrandMark size={28} className="!rounded-full" />
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[12.5px] font-semibold text-[var(--ink-1)]">Synergy Group</p>
-                <p className="truncate text-[11px] text-[var(--ink-3)]">Data 360 · Agent Lab</p>
+                <p className="truncate text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]">Synergy Group</p>
+                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">ALOFT · Agent Lab</p>
               </div>
               <NavStyleToggle
                 current="rail"
@@ -218,7 +221,7 @@ function RailItem({
     <>
       <span
         className={cn(
-          'relative flex h-8 w-10 items-center justify-center rounded-full transition-all duration-200',
+          'relative flex h-8 w-10 items-center justify-center rounded-full transition duration-200',
           active
             ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)] shadow-[0_6px_16px_-8px_var(--rail-shadow)]'
             : 'text-[var(--rail-ink)] group-hover:bg-[var(--rail-hover)] group-hover:text-[var(--rail-ink-strong)]',
@@ -231,7 +234,7 @@ function RailItem({
       </span>
       <span
         className={cn(
-          'text-[10.5px] leading-none tracking-[0.01em] transition-colors',
+          'text-[length:var(--type-caption-size)] leading-none tracking-normal transition-colors',
           active ? 'font-semibold text-[var(--rail-ink-strong)]' : 'font-medium text-[var(--rail-muted)] group-hover:text-[var(--rail-ink)]',
         )}
       >
@@ -273,7 +276,7 @@ function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
       href={item.href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'group flex h-9 items-center gap-2.5 rounded-full pl-1 pr-3 text-[13px] transition-colors duration-150',
+        'group flex h-9 items-center gap-2.5 rounded-full pl-1 pr-3 text-[length:var(--type-ui-regular-size)] transition-colors duration-150',
         active
           ? 'bg-[var(--brand-a-soft)] font-semibold text-[var(--brand-a-ink)]'
           : 'font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)] hover:text-[var(--ink-1)]',
@@ -293,11 +296,12 @@ function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 function HomePanel({ pathname }: { pathname: string }) {
+  const groups = useNavGroups();
   return (
     <div className="space-y-2.5">
-      {NAV_GROUPS.map((g) => (
+      {groups.map((g) => (
         <section key={g.id}>
-          <h3 className="px-3 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ink-3)]">{g.label}</h3>
+          <h3 className="px-3 pb-1 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-3)]">{g.label}</h3>
           <ul className="space-y-0.5">
             {g.items.slice(0, 3).map((item) => (
               <li key={item.href}>

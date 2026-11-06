@@ -11,6 +11,7 @@ import type { DriftResult } from './profile';
 import { extractDomainKeywords } from './keywords';
 import { getUsageSignalsForEnrich } from './usage';
 import { getHarvestLlmCostPerMillion, getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
+import { WIDE_TIER_LAUNCH_THRESHOLD } from '@/lib/estate/job-ui';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
 
@@ -713,6 +714,9 @@ export async function runT2Enrich(
     partitionSchema?: string;
     /** Auto-split: if set, only enrich these object names within the partition */
     partitionObjects?: string[];
+    /** Re-enrich every profiled object in scope (new semantic versions). */
+    forceReEnrich?: boolean;
+    allowFullSourceLaunch?: boolean;
   },
 ): Promise<T2EnrichResult> {
   const source = await prisma.platformContextSource.findUniqueOrThrow({
@@ -770,11 +774,41 @@ export async function runT2Enrich(
     console.log(`[t2_semantic] excluding schemas: ${opts.excludeSchemas.join(', ')} — ${candidates.length} candidates`);
   }
 
-  const toEnrich = candidates.filter((o) => {
-    if (!o.last_t1_at) return false;
-    if (!o.last_t2_at) return true;
-    return o.last_t2_at < o.last_t1_at;
-  });
+  const toEnrich = opts?.forceReEnrich
+    ? candidates.filter(o => o.last_t1_at)
+    : candidates.filter((o) => {
+      if (!o.last_t1_at) return false;
+      if (!o.last_t2_at) return true;
+      return o.last_t2_at < o.last_t1_at;
+    });
+
+  if (opts?.forceReEnrich) {
+    console.log(`[t2_semantic] forceReEnrich: ${toEnrich.length}/${candidates.length} objects`);
+  }
+
+  if (
+    !opts?.allowFullSourceLaunch
+    && !(opts?.includePatterns?.length)
+    && !opts?.partitionCatalog
+    && toEnrich.length > WIDE_TIER_LAUNCH_THRESHOLD
+  ) {
+    const msg =
+      `Refusing unscoped t2_semantic on ${toEnrich.length} objects (limit ${WIDE_TIER_LAUNCH_THRESHOLD}). ` +
+      `Re-launch with includePatterns Limit or allowFullSourceLaunch.`;
+    console.error(`[t2_semantic] ${msg}`);
+    await finalize(jobId, 'failed', {}, msg);
+    return {
+      jobId,
+      objectsEnriched: 0,
+      objectsSkipped: 0,
+      columnsEnriched: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: 0,
+      status: 'failed',
+      error: msg,
+    };
+  }
 
   let objectsEnriched = 0;
   let objectsSkipped = 0;
@@ -783,7 +817,7 @@ export async function runT2Enrich(
   let outputTokens = 0;
   let costUsd = 0;
   const errors: string[] = [];
-  const beat = makeHeartbeat(existingJobId);
+  const beat = makeHeartbeat(jobId);
 
   for (const obj of toEnrich) {
     await beat();

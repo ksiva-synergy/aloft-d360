@@ -15,7 +15,7 @@ import { getToken } from 'next-auth/jwt';
  */
 export default async function proxy(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  if (!token) {
+  if (!token || token.revoked === true) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   return NextResponse.next();

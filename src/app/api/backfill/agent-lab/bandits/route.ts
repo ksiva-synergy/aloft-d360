@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { posteriorComposite, computeBornProbs, ci95 } from '@/lib/bandits/born-math';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export async function GET(request: NextRequest) {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const windowDays = parseInt(searchParams.get('window') || '30', 10);
@@ -408,7 +411,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[bandits API]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
 

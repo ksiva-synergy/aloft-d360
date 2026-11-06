@@ -36,7 +36,10 @@ PlatformDatabricksConnection (Postgres)
   workspace_host, default_warehouse_id, secret_ref
         │
         ▼
-getAccessToken(connectionId, workspaceHost)
+openDatabricksSession(conn, role)   (or getAccessToken(connectionId, workspaceHost, role))
+  0. Role has a row in platform_databricks_credentials (or DATABRICKS_SP_<ROLE>_* env)?
+       yes → role credential: cache (connectionId:role) → env → SM aloft/databricks/{id}/{role}
+       no  → default credential below (error instead if role is in DATABRICKS_SP_REQUIRED_ROLES)
   1. In-process token cache (per connectionId)
   2. If DATABRICKS_CLIENT_ID + DATABRICKS_CLIENT_SECRET are set → use env (local dev)
   3. Else readCredentials(connectionId) from AWS Secrets Manager
@@ -65,6 +68,8 @@ POST https://{host}/api/2.0/sql/statements
 | `DATABRICKS_WORKSPACE_ID` | Workspace id (reference; not used on the main token/SQL path) |
 | `DATABRICKS_MAX_ROWS` | Max rows per query (default 1000, cap 10000) — `execute.ts` |
 | `DATABRICKS_MAX_WAIT_SECS` | Client-side wait tuning — `execute.ts` |
+| `DATABRICKS_SP_REQUIRED_ROLES` | Roles that must use their own SP (comma list or `all`); unset = every role may fall back to the default SP (§7.1) |
+| `DATABRICKS_SP_<ROLE>_CLIENT_ID` / `_CLIENT_SECRET` | Local dev only: a role's SP for every connection, e.g. `DATABRICKS_SP_PROFILE_CLIENT_ID` |
 
 Local development typically sets `CLIENT_ID` / `CLIENT_SECRET` in `.env` and `.env.local`. **Never commit real secrets.**
 
@@ -73,6 +78,8 @@ Local development typically sets `CLIENT_ID` / `CLIENT_SECRET` in `.env` and `.e
 | Store | Path / key | Contents |
 |-------|------------|----------|
 | AWS Secrets Manager (per connection) | `aloft/databricks/{connectionId}` | JSON `{ "client_id", "client_secret" }` |
+| AWS Secrets Manager (per role) | `aloft/databricks/{connectionId}/{role}` | Same JSON, one SP per role (§7.1) |
+| Postgres | `platform_databricks_credentials` | Role, `secret_ref`, optional `warehouse_id`, test status — never the secret |
 | AWS Secrets Manager (harvester task) | `aloft/databricks` | Keys listed in `infra/context/task-definition.json` |
 | Postgres | `platform_databricks_connections.secret_ref` | Pointer to SM secret name only — not the secret value |
 
@@ -230,6 +237,41 @@ There is no dedicated “Test Connections” page in the nav; use the test API o
 7. Ensure **`tool_catalog`** has an entry with `config.connection_id` pointing at that connection for Inspector.
 
 **Common failure:** `401 invalid_client` on `/oidc/v1/token` — wrong or expired secret, or client ID does not match the SP that owns the secret.
+
+### 7.1 Separate service principals per role
+
+Every warehouse call names a role (`src/lib/databricks/sp-roles.ts`). A role without its own SP uses the connection's default SP above. Design and the role-to-code map: `docs/access/data-access-architecture.md` §9.
+
+| Role | Grants it needs (UC admin runs these; privilege names to confirm) |
+|---|---|
+| `query_internal` | `USE CATALOG` / `USE SCHEMA` / `SELECT` on the data users query. Until ALOFT has labels, the same data the default SP reads |
+| `query_confidential`, `query_restricted` | Not used by code yet; create when Phase 1 labels ship |
+| `metadata` | `USE CATALOG`, `USE SCHEMA`, `BROWSE` on harvested catalogs; `SELECT` on `system.query.history`, `system.access.table_lineage`, `system.access.column_lineage`. No `SELECT` on business tables |
+| `profile` | `USE CATALOG`, `USE SCHEMA`, `SELECT` on schemas approved for profiling, excluding Restricted |
+| `publish` | `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE` on the metric-view schema only; `SELECT` on the source tables |
+
+Each role SP also needs workspace access and `CAN USE` on its warehouse.
+
+Example for the UC admin (ALOFT never runs `GRANT`):
+
+```sql
+GRANT USE CATALOG, BROWSE ON CATALOG <catalog> TO `<metadata-sp-application-id>`;
+GRANT USE SCHEMA ON SCHEMA system.query TO `<metadata-sp-application-id>`;
+GRANT SELECT ON TABLE system.query.history TO `<metadata-sp-application-id>`;
+```
+
+Steps, one role at a time:
+
+1. Apply `prisma/migrations/20261105_databricks_sp_roles/migration.sql` once (`prisma db execute`, then `prisma migrate resolve --applied 20261105_databricks_sp_roles`).
+2. Create the SP, its OAuth secret and its grants in Databricks.
+3. `PUT /api/databricks/connections/{id}/credentials/{role}` with `{ "client_id", "client_secret", "warehouse_id"? }` (platform admin). The secret goes to Secrets Manager at `aloft/databricks/{id}/{role}`; Postgres keeps only the name.
+4. `POST /api/databricks/connections/{id}/credentials/{role}/test` → expect `"status": "active"`. This tests the role's own SP, never the fallback.
+5. Run the real workload (a harvest for `metadata` / `profile`, an Inspector question for `query_internal`, a metric-view publish for `publish`) and watch for permission errors.
+6. Add the role to `DATABRICKS_SP_REQUIRED_ROLES` (web app and harvester task) so it can no longer fall back. When every role is done, set it to `all` and remove business-data `SELECT` from the default SP.
+
+To undo a role: `DELETE /api/databricks/connections/{id}/credentials/{role}` marks it `disabled`; the role falls back to the default SP within 60 seconds on every instance (binding cache TTL).
+
+The harvester task reads role secrets from Secrets Manager through its task role (`aloftEcsTaskRole`); `infra/context/secrets-policy.json` allows `aloft/*`. Confirm that policy is attached before step 3 for `metadata` or `profile`.
 
 ---
 

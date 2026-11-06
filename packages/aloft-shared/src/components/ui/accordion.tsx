@@ -118,7 +118,7 @@ const AccordionTrigger = React.forwardRef<HTMLButtonElement, AccordionTriggerPro
         ref={ref}
         type="button"
         className={cn(
-          "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline w-full text-left",
+          "flex flex-1 items-center justify-between py-4 font-medium transition-colors hover:underline w-full text-left",
           className
         )}
         onClick={() => accordionContext.onValueChange(itemContext.value)}
@@ -159,7 +159,7 @@ const AccordionContent = React.forwardRef<HTMLDivElement, AccordionContentProps>
       <div
         ref={ref}
         className={cn(
-          "overflow-hidden text-sm transition-all",
+          "overflow-hidden text-size-body",
           "pb-4 pt-0",
           className
         )}

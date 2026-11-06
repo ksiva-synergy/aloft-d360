@@ -256,7 +256,7 @@ describe('buildFlowNodes', () => {
     });
     const byKey = Object.fromEntries(buildFlowNodes(s).map((n) => [n.key, n]));
     expect(byKey.data).toMatchObject({ status: 'done', detail: '1 table' });
-    expect(byKey.reason).toMatchObject({ status: 'done', detail: 'Feynman' });
+    expect(byKey.reason).toMatchObject({ status: 'done', detail: 'Compliance & audit' });
     expect(byKey.answer).toMatchObject({ status: 'empty', detail: 'Not tested' });
   });
 });

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PolicyList } from '@/components/agent-lab/policies/PolicyList';
 import { PolicyEditor } from '@/components/agent-lab/policies/PolicyEditor';
+import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
 interface PolicyEntry {
   id: string;
@@ -23,6 +24,8 @@ export default function PoliciesPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<PolicyEntry | null>(null);
   const [creating, setCreating] = useState(false);
+  // Manage on Govern → Policies (platform admins by default, or a bundle). View lists them only.
+  const canEdit = useSectionLevel('govern.policies') === 'manage';
 
   const loadPolicies = useCallback(async () => {
     setLoading(true);
@@ -61,11 +64,11 @@ export default function PoliciesPage() {
   return (
     <div className="p-6 max-w-6xl space-y-6">
       <div>
-        <h1 className="text-lg font-semibold">Policies</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Guardrails as code · Cost ceilings · Tool allowlists</p>
+        <h1 className="text-size-title-section font-semibold">Policies</h1>
+        <p className="text-size-body text-muted-foreground mt-0.5">Guardrails as code · Cost ceilings · Tool allowlists</p>
       </div>
 
-      {(creating || editing) ? (
+      {canEdit && (creating || editing) ? (
         <div className="border rounded-lg dark:border-[var(--line-1)] bg-[color:var(--surface-1)] dark:bg-[var(--background)] p-4">
           <PolicyEditor
             initial={editing || undefined}
@@ -77,8 +80,8 @@ export default function PoliciesPage() {
         <PolicyList
           policies={policies}
           loading={loading}
-          onSelect={setEditing}
-          onCreateNew={() => setCreating(true)}
+          onSelect={canEdit ? setEditing : undefined}
+          onCreateNew={canEdit ? () => setCreating(true) : undefined}
         />
       )}
     </div>

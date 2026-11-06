@@ -45,7 +45,7 @@ export function TurnStory({
   onOpenTurn: (turnIndex: number) => void;
   onReadAnswer: () => void;
 }) {
-  if (turns.length === 0) return <p style={{ ...sans, fontSize: 13, color: 'var(--ink-3)', margin: 0 }}>No turns yet.</p>;
+  if (turns.length === 0) return <p style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', color: 'var(--ink-3)', margin: 0 }}>No turns yet.</p>;
 
   return (
     <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -66,7 +66,7 @@ export function TurnStory({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: 12,
+                  fontSize: 'var(--type-caption-size)',
                   fontWeight: 600,
                   color: 'var(--brand-a)',
                   background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
@@ -86,7 +86,7 @@ export function TurnStory({
                   onClick={() => onOpenTurn(t.turnIndex)}
                   style={{
                     ...sans,
-                    fontSize: 14,
+                    fontSize: 'var(--type-body-size)',
                     fontWeight: 600,
                     lineHeight: 1.45,
                     color: 'var(--wb-ink)',
@@ -100,7 +100,7 @@ export function TurnStory({
                 >
                   “{t.userExcerpt || '(no prompt)'}”
                 </button>
-                <span style={{ ...mono, fontSize: 11, color: t.errorCount > 0 ? ERR : 'var(--ink-3)', whiteSpace: 'nowrap', paddingTop: 6 }}>
+                <span style={{ ...mono, fontSize: 'var(--type-caption-size)', color: t.errorCount > 0 ? ERR : 'var(--ink-3)', whiteSpace: 'nowrap', paddingTop: 6 }}>
                   {plural(t.toolCallCount, 'call')}
                   {ms > 0 && ` · ${fmtMs(ms)}`}
                   {t.errorCount > 0 && ` · ${t.errorCount} err`}
@@ -120,7 +120,7 @@ export function TurnStory({
                           title={`${s.calls.length} × ${s.toolName} · ${fmtMs(s.ms)}`}
                           style={{
                             ...mono,
-                            fontSize: 11,
+                            fontSize: 'var(--type-caption-size)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: 6,
@@ -144,7 +144,7 @@ export function TurnStory({
                   <span
                     style={{
                       ...sans,
-                      fontSize: 11,
+                      fontSize: 'var(--type-caption-size)',
                       fontWeight: 600,
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -159,7 +159,7 @@ export function TurnStory({
                   </span>
                 </div>
               ) : (
-                <p style={{ ...sans, fontSize: 12, color: 'var(--ink-3)', margin: '8px 0 0' }}>Answered directly, no tools used.</p>
+                <p style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', margin: '8px 0 0' }}>Answered directly, no tools used.</p>
               )}
 
               {t.assistantExcerpt && (
@@ -175,7 +175,7 @@ export function TurnStory({
                   <div
                     style={{
                       ...sans,
-                      fontSize: 13,
+                      fontSize: 'var(--type-ui-regular-size)',
                       lineHeight: 1.55,
                       color: 'var(--wb-ink-dim)',
                       display: '-webkit-box',
@@ -190,7 +190,7 @@ export function TurnStory({
                   <button
                     type="button"
                     onClick={onReadAnswer}
-                    style={{ ...sans, fontSize: 11, color: 'var(--brand-a)', background: 'none', border: 'none', padding: 0, marginTop: 6, cursor: 'pointer' }}
+                    style={{ ...sans, fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', background: 'none', border: 'none', padding: 0, marginTop: 6, cursor: 'pointer' }}
                   >
                     Read full answer →
                   </button>

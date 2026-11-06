@@ -3,9 +3,10 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { HelpCircle, Search, ChevronDown, Sparkles } from 'lucide-react';
 import type { DisambiguationMessage, DisambiguationCandidate } from '@/hooks/useInspectorChat';
+import { type } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const BLUE = '#93C5FD';
@@ -184,7 +185,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
         }}
       >
         <HelpCircle size={12} color={BLUE} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color: BLUE, textTransform: 'uppercase', flex: 1 }}>
+        <span style={{ ...type.label, flex: 1 }}>
           Which did you mean{message.originalTerm ? ` by "${message.originalTerm}"` : ''}?
         </span>
       </div>
@@ -192,7 +193,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
       <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {/* Agent's natural-language explanation */}
         {message.message && (
-          <p style={{ ...MONO, fontSize: 13, lineHeight: 1.5, color: 'var(--wb-ink-dim, #B8C1CF)', margin: 0 }}>
+          <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', lineHeight: 1.5, color: 'var(--wb-ink-dim, #B8C1CF)', margin: 0 }}>
             {message.message}
           </p>
         )}
@@ -203,7 +204,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
             onClick={() => choose(rank.autoResolve!.label, rank.autoResolve!.id)}
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               display: 'flex',
               alignItems: 'center',
               gap: 7,
@@ -236,8 +237,8 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                 title={`${c.type} · ${c.relevance} match · ${c.id}${reason ? ` · ${reason}` : ''}`}
                 style={{
                   ...MONO,
-                  fontSize: 13,
-                  letterSpacing: '0.02em',
+                  fontSize: 'var(--type-ui-regular-size)',
+                  letterSpacing: '0',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 5,
@@ -252,7 +253,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
               >
                 {isBest && <Sparkles size={9} style={{ flexShrink: 0 }} />}
                 {c.label}
-                <span style={{ fontSize: 13, opacity: 0.7, textTransform: 'uppercase' }}>{c.type}</span>
+                <span style={{ fontSize: 'var(--type-ui-regular-size)', opacity: 0.7, textTransform: 'uppercase' }}>{c.type}</span>
               </button>
             );
           })}
@@ -268,10 +269,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
               }}
               disabled={resolved}
               style={{
-                ...MONO,
-                fontSize: 13,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                ...type.label,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,
@@ -289,7 +287,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
 
             {searchOpen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(74,96,128,0.35)', borderRadius: 4, padding: '4px 8px', background: 'rgba(0,0,0,0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(74,96,128,0.35)', borderRadius: 6, padding: '4px 8px', background: 'rgba(0,0,0,0.2)' }}>
                   <Search size={11} color={MUTED} />
                   <input
                     type="text"
@@ -297,15 +295,15 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Filter governed fields…"
-                    style={{ ...MONO, fontSize: 13, flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--wb-text)' }}
+                    style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', flex: 1, background: 'transparent', border: 'none', outline: 'none', color: 'var(--wb-text)' }}
                   />
                 </div>
                 <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {loadingFields && (
-                    <span style={{ ...MONO, fontSize: 13, color: MUTED, padding: '4px 2px' }}>Loading fields…</span>
+                    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '4px 2px' }}>Loading fields…</span>
                   )}
                   {!loadingFields && filtered.length === 0 && (
-                    <span style={{ ...MONO, fontSize: 13, color: MUTED, padding: '4px 2px' }}>No matching fields.</span>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, padding: '4px 2px' }}>No matching fields.</span>
                   )}
                   {filtered.map((f) => (
                     <button
@@ -314,13 +312,13 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                       disabled={resolved}
                       style={{
                         ...MONO,
-                        fontSize: 13,
+                        fontSize: 'var(--type-ui-regular-size)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 8,
                         padding: '5px 8px',
-                        borderRadius: 3,
+                        borderRadius: 6,
                         border: '1px solid transparent',
                         background: 'transparent',
                         color: 'var(--wb-ink-dim, #B8C1CF)',
@@ -331,7 +329,7 @@ export function DisambiguationCard({ message, modelId, onChoose }: Disambiguatio
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
                     >
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
-                      <span style={{ fontSize: 13, opacity: 0.6, textTransform: 'uppercase', flexShrink: 0 }}>{f.type}</span>
+                      <span style={{ fontSize: 'var(--type-ui-regular-size)', opacity: 0.6, textTransform: 'uppercase', flexShrink: 0 }}>{f.type}</span>
                     </button>
                   ))}
                 </div>

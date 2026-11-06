@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
+import { denyUnless, requireRole } from '@/middleware/auth';
 import { getOrgId, createConnection, updateConnection, listConnections } from '@/lib/databricks/connections';
 import { writeCredentials } from '@/lib/databricks/secrets';
 import { syncToolEntry } from '@/lib/databricks/tool-registration';
@@ -22,8 +23,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnless(request, (auth) => requireRole(auth, 'admin'));
+  if (denied) return denied;
 
   try {
     const body = await request.json() as Record<string, unknown>;

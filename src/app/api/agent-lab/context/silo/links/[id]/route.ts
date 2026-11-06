@@ -4,12 +4,15 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { enqueue } from '@/lib/context/queue';
 import prisma from '@/lib/db';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
+  const deniedSection = await denyUnlessSection(req, ['estate.silo', 'manage']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -92,7 +95,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
       // D-24: Only fire process synchronously in development env
       if (process.env.NODE_ENV === 'development') {
-        const processUrl = new URL('/api/agent-lab/context/process', req.url).toString();
+        const processUrl = new URL(
+        '/api/agent-lab/context/process',
+        // Never derive from req.url: the Host header is client-controlled and the cookie is forwarded.
+        process.env.NEXTAUTH_URL ?? `http://localhost:${process.env.PORT ?? 3000}`,
+      ).toString();
         const cookie = req.headers.get('cookie') ?? '';
         void fetch(processUrl, {
           method: 'POST',

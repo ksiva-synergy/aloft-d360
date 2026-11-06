@@ -4,106 +4,60 @@ import React, { useState } from 'react';
 import EstateCatalogTab from '@/components/estate/EstateCatalogTab';
 import { ScannedObjectsTab } from '@/components/estate';
 import { useCatalogRefresh } from '@/components/estate/useCatalogRefresh';
+import { cn } from '@/lib/utils';
 
 type TabView = 'discovery' | 'scanned';
+
+const VIEWS: { id: TabView; label: string; hint: string }[] = [
+  { id: 'discovery', label: 'All objects', hint: 'Every table and view found in your sources. Choose what to scan next.' },
+  { id: 'scanned', label: 'Scanned', hint: 'Objects whose columns have been read, and how far each is through the pipeline.' },
+];
 
 export default function EstateCatalogPage() {
   const [view, setView] = useState<TabView>('discovery');
   const [showTestSources, setShowTestSources] = useState(false);
   const refreshKey = useCatalogRefresh();
 
-  const borderColor = 'var(--estate-border)';
-  const borderStrong = 'var(--estate-btn-border)';
-  const bgColor = 'var(--estate-bg)';
-  const goldColor = 'var(--brand-a)';
-  const textMuted = 'var(--estate-text-muted)';
-  const textDim = 'var(--estate-text-dim)';
-  const activeBg = goldColor;
-  const activeText = 'var(--estate-bg)';
-
-  const segStyle = (active: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: '13px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    color: active ? activeText : textMuted,
-    cursor: 'pointer',
-    background: active ? activeBg : 'transparent',
-    border: 'none',
-    fontWeight: active ? 600 : 400,
-  });
-
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: bgColor }}>
-      {/* Sub-row: segmented control + sync status */}
-      <div
-        className="flex items-center justify-between px-6 py-3.5"
-        style={{ background: bgColor }}
-      >
+    <div className="flex h-full flex-col overflow-hidden bg-[var(--estate-bg)]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-[var(--estate-border)] px-6 py-2.5">
         <div
-          className="flex overflow-hidden rounded-md"
-          style={{ border: `1px solid ${borderStrong}` }}
+          role="group"
+          aria-label="Catalog view"
+          className="inline-flex rounded-ctl border border-[var(--estate-btn-border)] bg-[var(--estate-raised)] p-0.5"
         >
-          <button
-            type="button"
-            onClick={() => setView('discovery')}
-            style={{
-              ...segStyle(view === 'discovery'),
-              borderRight: `1px solid ${borderColor}`,
-            }}
-          >
-            Discovery <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('scanned')}
-            style={segStyle(view === 'scanned')}
-          >
-            Scanned &amp; Beyond <span style={{ fontSize: '13px', opacity: 0.85 }}>●</span>
-          </button>
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              aria-pressed={view === v.id}
+              title={v.hint}
+              onClick={() => setView(v.id)}
+              className={cn(
+                'h-7 rounded-xs px-3 text-ui transition-colors duration-hover ease-out-strong',
+                'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+                view === v.id
+                  ? 'bg-[var(--brand-a)] text-[var(--on-brand)] shadow-xs'
+                  : 'text-[var(--estate-text-secondary)] hover:text-[var(--estate-ink)]',
+              )}
+            >
+              {v.label}
+            </button>
+          ))}
         </div>
 
-        <div
-          className="flex items-center gap-3.5"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', color: textDim, letterSpacing: '0.06em' }}
-        >
-          {/* Test sources toggle */}
-          <button
-            type="button"
-            onClick={() => setShowTestSources(s => !s)}
-            style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: '13px',
-              letterSpacing: '0.06em',
-              backgroundColor: showTestSources ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
-              border: `1px solid ${showTestSources ? 'color-mix(in srgb, var(--brand-a) 50%, transparent)' : borderStrong}`,
-              borderRadius: '6px',
-              color: showTestSources ? goldColor : textMuted,
-              padding: '5px 12px',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s',
-            }}
-          >
-            {showTestSources ? '⚗ Test: shown' : '⚗ Test: hidden'}
-          </button>
-
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ background: '#3fb950', boxShadow: '0 0 6px rgba(63, 185, 80, 0.5)' }}
+        <label className="ml-auto inline-flex cursor-pointer select-none items-center gap-2 text-ui-regular text-[var(--estate-text-secondary)]">
+          <input
+            type="checkbox"
+            checked={showTestSources}
+            onChange={(e) => setShowTestSources(e.target.checked)}
+            className="size-4 cursor-pointer rounded-xs accent-[var(--brand-a)]"
           />
-          <span>
-            {view === 'discovery' ? 'Estate inventory active' : 'Scanned · Enriched · Embedded'}
-          </span>
-        </div>
+          Show test sources
+        </label>
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         {view === 'discovery' ? (
           <EstateCatalogTab refreshKey={refreshKey} showTestSources={showTestSources} />
         ) : (

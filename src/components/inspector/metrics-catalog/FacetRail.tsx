@@ -4,6 +4,7 @@ import React from 'react';
 import { useCatalogStore, selectFacetCounts, type LayerFacet } from './catalog-store';
 import type { DefKind, GovStatus } from './catalog-types';
 import { MONO, MUTED, INK, INK_DIM, BORDER, GOLD, kindLabel, statusLabel, kindColorVar, statusColorVar } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Faceted filter rail: Status · Type · Theme · Source · personal layers, each
@@ -37,11 +38,11 @@ export function FacetRail() {
       className="agent-labs-scrollbar"
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.08em' }}>FILTERS</span>
         {anyActive && (
           <button
             onClick={clearFacets}
-            style={{ ...MONO, fontSize: 13, color: GOLD, background: 'transparent', border: 'none', cursor: 'pointer' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: inkOf(GOLD), background: 'transparent', border: 'none', cursor: 'pointer' }}
           >
             Clear all
           </button>
@@ -125,7 +126,7 @@ export function FacetRail() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <div style={{ ...MONO, fontSize: 13, color: INK_DIM, letterSpacing: '0.06em', marginBottom: 5 }}>{title.toUpperCase()}</div>
+      <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, letterSpacing: '0.04em', marginBottom: 5 }}>{title.toUpperCase()}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>{children}</div>
     </div>
   );
@@ -143,13 +144,13 @@ function Row({
       style={{
         display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left',
         background: checked ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'transparent', border: 'none',
-        borderRadius: 3, padding: '4px 6px', cursor: 'pointer',
+        borderRadius: 6, padding: '4px 6px', cursor: 'pointer',
       }}
     >
       <span
         aria-hidden
         style={{
-          width: 12, height: 12, borderRadius: 3, flexShrink: 0,
+          width: 12, height: 12, borderRadius: 6, flexShrink: 0,
           border: `1.5px solid ${checked ? GOLD : 'var(--wb-muted, var(--ink-3))'}`,
           background: checked ? GOLD : 'transparent',
         }}
@@ -163,7 +164,7 @@ function Row({
       >
         {label}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: MUTED, flexShrink: 0 }}>{count}</span>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>{count}</span>
     </button>
   );
 }

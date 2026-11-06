@@ -53,7 +53,7 @@ const Tree: React.FC<TreeProps> = ({ data }) => {
             </button>
           )}
           {!hasChildren && <div className="w-6 mr-2" />}
-          <span className="text-sm">{node.name}</span>
+          <span className="text-size-body">{node.name}</span>
         </div>
         
         {hasChildren && isExpanded && (

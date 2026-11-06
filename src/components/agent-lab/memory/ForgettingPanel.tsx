@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useMemo, useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
   GOLD,
   NAVY,
@@ -15,7 +14,8 @@ import {
 import { useTheme } from 'next-themes';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
+import { CHART_TEXT, inkOf } from '@/lib/typography/tokens';
+const ReactECharts = lazy(() => import('echarts-for-react'));
 
 interface ForgettingPanelProps {
   statusBuckets: {
@@ -206,7 +206,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       textStyle: {
         color: tooltipTextHex,
         fontFamily: MONO,
-        fontSize: 13,
+        fontSize: CHART_TEXT.tooltip,
       },
       formatter: (params: any) => {
         if (!params || params.length === 0) return '';
@@ -400,7 +400,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
           text-transform: uppercase;
           white-space: nowrap;
           pointer-events: none;
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding: 4px 10px;
           z-index: 20;
         }
@@ -463,22 +463,22 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── A. HEADER ROW ── */}
       <div className="flex flex-col gap-3 pb-4 border-b border-[var(--foer-border-dim)] md:flex-row md:items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold" style={{ fontFamily: SERIF, color: 'var(--foer-text-pri)' }}>
+          <h2 className="text-size-title-section font-semibold" style={{ fontFamily: SERIF, color: 'var(--foer-text-pri)' }}>
             Grow & Refine
           </h2>
-          <p className="text-xs italic" style={{ fontFamily: SERIF, color: 'var(--foer-text-sec)' }}>
+          <p className="text-size-ui italic" style={{ fontFamily: SERIF, color: 'var(--foer-text-sec)' }}>
             The weekly pass — what stays, what fades, what is never deleted
           </p>
         </div>
         
         <div>
           <span
-            className="rounded border px-2.5 py-1 text-xs font-semibold tracking-wider uppercase"
+            className="rounded border px-2.5 py-1 text-size-ui font-semibold tracking-wide uppercase"
             style={{
               fontFamily: MONO,
               borderColor: `color-mix(in srgb, ${GOLD} 38%, transparent)`,
               backgroundColor: `color-mix(in srgb, ${GOLD} 8%, transparent)`,
-              color: GOLD,
+              color: inkOf(GOLD),
             }}
           >
             refine job: AM3.1 · pending schedule
@@ -489,7 +489,7 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── B. LIFECYCLE RULES (3 cards) ── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: DEDUP */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -497,17 +497,17 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <circle cx="15" cy="12" r="5" className="circle-collapse-2" stroke="var(--foer-text-sec)" opacity="0.6" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-size-ui" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               DEDUP
             </h3>
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
+          <p className="text-size-ui leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
             Cosine similarity &gt; 0.93 within the same task signature → fold counters into the higher-confidence bullet. The duplicate is marked SUPERSEDED.
           </p>
         </div>
 
         {/* Card 2: DECAY TTL */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -521,17 +521,17 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <polyline points="12 6 12 12 16 14" stroke={GOLD} className="clock-spin" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-size-ui" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               DECAY TTL
             </h3>
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
+          <p className="text-size-ui leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
             Rules fade by type: HARD_RULE ∞ · SCHEMA_MAP long · HEURISTIC 30–90d · SOURCE_PREF 14–30d · FAILURE_MODE 7–30d. Lower confidence decays faster.
           </p>
         </div>
 
         {/* Card 3: CONFLICT GC */}
-        <div className="foer-card-glow flex flex-col gap-3 rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition-all duration-200">
+        <div className="foer-card-glow flex flex-col gap-3 rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 transition duration-200">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--foer-border-dim)] text-[var(--foer-gold)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shield-shake">
@@ -540,11 +540,11 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                 <path d="m15 9-6 6" stroke="var(--foer-text-sec)" opacity="0.7" />
               </svg>
             </div>
-            <h3 className="font-semibold tracking-wider uppercase text-xs" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
+            <h3 className="font-semibold tracking-wide uppercase text-size-ui" style={{ fontFamily: MONO, color: 'var(--foer-text-pri)' }}>
               CONFLICT GC
             </h3>
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
+          <p className="text-size-ui leading-relaxed" style={{ color: 'var(--foer-text-sec)' }}>
             If harmful_count &ge; helpful_count AND harmful_count &ge; 3 → SUPERSEDED. The store self-corrects against rules that caused harm.
           </p>
         </div>
@@ -554,51 +554,51 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Status Buckets (Left, span 2 columns) */}
         <div className="flex flex-col gap-3 lg:col-span-2">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+          <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
             Bi-Temporal Memory Partition Status
           </span>
           <div className="grid grid-cols-3 gap-3">
             {/* ACTIVE Bucket */}
             <div
-              className="rounded p-4 flex flex-col gap-1 border"
+              className="rounded-card p-4 flex flex-col gap-1 border"
               style={{
                 borderColor: `color-mix(in srgb, ${GOLD} 25%, transparent)`,
                 backgroundColor: 'var(--foer-surface2)',
               }}
             >
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+              <span className="text-size-ui font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 ACTIVE
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: GOLD }}>
+              <span className="text-size-kpi-lg font-semibold font-mono" style={{ color: GOLD }}>
                 {statusBuckets.ACTIVE.toLocaleString()}
               </span>
-              <span className="text-xs" style={{ color: 'var(--foer-text-sec)' }}>
+              <span className="text-size-ui" style={{ color: 'var(--foer-text-sec)' }}>
                 currently in prompt
               </span>
             </div>
 
             {/* SUPERSEDED Bucket */}
-            <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1 opacity-80">
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+            <div className="rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
+              <span className="text-size-ui font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 SUPERSEDED
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: 'var(--foer-text-pri)' }}>
+              <span className="text-size-kpi-lg font-semibold font-mono" style={{ color: 'var(--foer-text-pri)' }}>
                 {statusBuckets.SUPERSEDED.toLocaleString()}
               </span>
-              <span className="text-xs" style={{ color: 'var(--foer-text-mut)' }}>
+              <span className="text-size-ui" style={{ color: 'var(--foer-text-mut)' }}>
                 bi-temporal: retained, not deleted
               </span>
             </div>
 
             {/* EXPIRED Bucket */}
-            <div className="rounded border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1 opacity-60">
-              <span className="text-xs font-semibold tracking-wider uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
+            <div className="rounded-card border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] p-4 flex flex-col gap-1">
+              <span className="text-size-ui font-semibold tracking-wide uppercase" style={{ fontFamily: MONO, color: 'var(--foer-text-mut)' }}>
                 EXPIRED
               </span>
-              <span className="text-2xl font-bold font-mono" style={{ color: 'var(--foer-text-mut)' }}>
+              <span className="text-size-kpi-lg font-semibold font-mono" style={{ color: 'var(--foer-text-mut)' }}>
                 {statusBuckets.EXPIRED.toLocaleString()}
               </span>
-              <span className="text-xs" style={{ color: 'var(--foer-text-mut)' }}>
+              <span className="text-size-ui" style={{ color: 'var(--foer-text-mut)' }}>
                 {statusBuckets.EXPIRED === 0 ? 'pending AM3.1' : 'faded but present'}
               </span>
             </div>
@@ -606,33 +606,35 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         </div>
 
         {/* Store-Size Sparkline (Right, span 1 column) */}
-        <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded p-4 h-full min-h-[140px] justify-between">
+        <div className="flex flex-col gap-2 lg:col-span-1 border border-[var(--foer-border-dim)] bg-[var(--foer-surface2)] rounded-card p-4 h-full min-h-[140px] justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+            <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
               Store Growth Series (30d)
             </span>
-            <span className="font-mono text-xs text-[var(--foer-text-sec)]">
+            <span className="font-mono text-size-ui text-[var(--foer-text-sec)]">
               {storeSizeSeries.length >= 2 ? `${storeSizeSeries[storeSizeSeries.length - 1].active} active bullets` : 'history pending'}
             </span>
           </div>
 
           <div className="relative w-full h-[80px]">
             {storeSizeSeries.length >= 2 ? (
-              <ReactECharts
-                option={chartOption}
-                style={{ height: '80px', width: '100%' }}
-                opts={{ renderer: 'canvas' }}
-              />
+              <Suspense fallback={null}>
+                <ReactECharts
+                  option={chartOption}
+                  style={{ height: '80px', width: '100%' }}
+                  opts={{ renderer: 'canvas' }}
+                />
+              </Suspense>
             ) : (
               <div className="flex items-center justify-center h-full border border-dashed border-[var(--foer-border-dim)] rounded bg-[var(--foer-bg)] p-2">
-                <span className="font-mono text-xs text-center tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
+                <span className="font-sans text-size-ui text-center tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
                   store history available after 2+ days of data
                 </span>
               </div>
             )}
           </div>
 
-          <p className="text-xs leading-normal" style={{ color: 'var(--foer-text-mut)' }}>
+          <p className="text-size-ui leading-normal" style={{ color: 'var(--foer-text-mut)' }}>
             Growth ≈ decay when the refine job runs. Store size stays bounded.
           </p>
         </div>
@@ -641,14 +643,14 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
       {/* ── E. RULE LIFECYCLE WATERLINE ── */}
       <div className="flex flex-col gap-4 border-t border-[var(--foer-border-dim)] pt-5 -mx-6 px-6">
         <div className="flex items-center justify-between">
-          <span className="font-mono text-xs uppercase tracking-wider text-[var(--foer-text-mut)]">
+          <span className="font-sans text-size-ui uppercase tracking-wide text-[var(--foer-text-mut)]">
             Rule Lifecycle — Retention Waterline
           </span>
           <div className="flex items-center gap-3">
             {Object.entries(RULE_TYPE_COLORS).map(([key, color]) => (
               <div key={key} className="flex items-center gap-1.5">
                 <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                <span className="font-mono text-xs uppercase tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
+                <span className="font-mono text-size-ui uppercase tracking-wide" style={{ color: 'var(--foer-text-mut)' }}>
                   {key.replace(/_/g, ' ')}
                 </span>
               </div>
@@ -788,25 +790,25 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
                   }}
                 >
                   <div
-                    className="rounded px-2.5 py-1.5 shadow-md"
+                    className="rounded-card px-2.5 py-1.5 shadow-md"
                     style={{
                       backgroundColor: TOOLTIP_BG,
                       border: `1px solid ${RULE_TYPE_COLORS[orb.type]}${orb.zone === 'active' ? '60' : '40'}`,
                     }}
                   >
                     <span
-                      className="block text-xs uppercase tracking-wider font-semibold mb-0.5"
+                      className="block text-size-ui uppercase tracking-wide font-semibold mb-0.5"
                       style={{
-                        fontFamily: MONO,
+                        fontFamily: 'var(--font-sans)',
                         color: orb.zone === 'active' ? RULE_TYPE_COLORS[orb.type] : `${withAlpha(RULE_TYPE_COLORS[orb.type], '90')}`,
                       }}
                     >
                       {orb.type.replace(/_/g, ' ')}{orb.zone === 'archived' ? ' · archived' : ''}
                     </span>
                     <span
-                      className="block text-xs leading-tight"
+                      className="block text-size-ui leading-tight"
                       style={{
-                        fontFamily: MONO,
+                        fontFamily: 'var(--font-sans)',
                         color: orb.zone === 'active' ? TOOLTIP_TEXT : `color-mix(in srgb, ${TOOLTIP_TEXT} 67%, transparent)`,
                       }}
                     >
@@ -820,17 +822,17 @@ export function ForgettingPanel({ statusBuckets, storeSizeSeries }: ForgettingPa
         </div>
 
         <div className="flex items-center justify-between px-1">
-          <p className="text-xs leading-normal" style={{ fontFamily: SERIF, color: 'var(--foer-text-sec)' }}>
-            Rules above the waterline are <strong style={{ color: GOLD }}>active in prompt</strong>. Superseded and expired rules sink below — retained for audit, never deleted.
+          <p className="text-size-ui leading-normal" style={{ fontFamily: SERIF, color: 'var(--foer-text-sec)' }}>
+            Rules above the waterline are <strong style={{ color: inkOf(GOLD) }}>active in prompt</strong>. Superseded and expired rules sink below — retained for audit, never deleted.
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: GOLD, opacity: 0.9 }} />
-              <span className="font-mono text-xs" style={{ color: 'var(--foer-text-mut)' }}>bright = active</span>
+              <span className="font-mono text-size-ui" style={{ color: 'var(--foer-text-mut)' }}>bright = active</span>
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: NAVY, opacity: 0.3 }} />
-              <span className="font-mono text-xs" style={{ color: 'var(--foer-text-mut)' }}>dim = archived</span>
+              <span className="font-mono text-size-ui" style={{ color: 'var(--foer-text-mut)' }}>dim = archived</span>
             </span>
           </div>
         </div>

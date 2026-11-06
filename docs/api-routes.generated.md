@@ -1,7 +1,7 @@
 # Generated API route list
 
-**Generated:** 2026-09-27
-**Total:** 138 route handlers
+**Generated:** 2026-10-31
+**Total:** 188 route handlers
 
 ## By prefix
 
@@ -11,14 +11,21 @@
 - `/api/access/permissions`
 - `/api/access/roles`
 
-### `/api/agent-lab/*` (65)
+### `/api/agent-lab/*` (98)
 
+- `/api/agent-lab/agents`
+- `/api/agent-lab/agents/chat`
+- `/api/agent-lab/agents/chats`
+- `/api/agent-lab/agents/chats/[id]`
+- `/api/agent-lab/construction`
+- `/api/agent-lab/construction/class`
 - `/api/agent-lab/context/data-score`
 - `/api/agent-lab/context/estate`
 - `/api/agent-lab/context/estate-briefing`
 - `/api/agent-lab/context/estate/facets`
 - `/api/agent-lab/context/estate/harvest`
 - `/api/agent-lab/context/estate/preview-columns`
+- `/api/agent-lab/context/estate/run-scheduled`
 - `/api/agent-lab/context/estate/scan-coverage`
 - `/api/agent-lab/context/estate/schedule`
 - `/api/agent-lab/context/estate/sync-knowledge`
@@ -29,7 +36,10 @@
 - `/api/agent-lab/context/jobs/[id]/logs`
 - `/api/agent-lab/context/jobs/[id]/objects`
 - `/api/agent-lab/context/jobs/[id]/retry-failed`
+- `/api/agent-lab/context/jobs/active`
+- `/api/agent-lab/context/jobs/cockpit`
 - `/api/agent-lab/context/jobs/dates`
+- `/api/agent-lab/context/jobs/kick-queued`
 - `/api/agent-lab/context/jobs/launch`
 - `/api/agent-lab/context/jobs/plan`
 - `/api/agent-lab/context/jobs/queued`
@@ -48,15 +58,27 @@
 - `/api/agent-lab/context/objects/[id]/resolve-pii`
 - `/api/agent-lab/context/objects/scanned`
 - `/api/agent-lab/context/objects/scanned/facets`
+- `/api/agent-lab/context/pipeline/continue`
+- `/api/agent-lab/context/pipeline/intent`
 - `/api/agent-lab/context/process`
 - `/api/agent-lab/context/silo/links`
 - `/api/agent-lab/context/silo/links/[id]`
 - `/api/agent-lab/context/silo/scan`
 - `/api/agent-lab/context/sources`
+- `/api/agent-lab/context/sources/[id]`
 - `/api/agent-lab/context/sources/[id]/coverage`
 - `/api/agent-lab/context/sources/[id]/harvest`
 - `/api/agent-lab/context/sources/[id]/inventory`
 - `/api/agent-lab/context/sources/[id]/refresh`
+- `/api/agent-lab/flows`
+- `/api/agent-lab/flows/[id]`
+- `/api/agent-lab/flows/[id]/publish`
+- `/api/agent-lab/flows/[id]/versions`
+- `/api/agent-lab/flows/agent-try`
+- `/api/agent-lab/flows/agents`
+- `/api/agent-lab/flows/catalog`
+- `/api/agent-lab/flows/copilot`
+- `/api/agent-lab/flows/simulate`
 - `/api/agent-lab/marcus/reflections`
 - `/api/agent-lab/marcus/reflections/[id]`
 - `/api/agent-lab/memory/[id]`
@@ -74,10 +96,21 @@
 - `/api/agent-lab/memory/signatures`
 - `/api/agent-lab/memory/stats`
 - `/api/agent-lab/memory/synthesize`
+- `/api/agent-lab/memory/topic-map`
 - `/api/agent-lab/memory/trace/[id]`
+- `/api/agent-lab/ops/evals`
+- `/api/agent-lab/ops/prompts`
+- `/api/agent-lab/runs`
+- `/api/agent-lab/runs/[sessionId]`
 - `/api/agent-lab/studio/insights`
+- `/api/agent-lab/workbench/chat`
+- `/api/agent-lab/workbench/commission`
+- `/api/agent-lab/workbench/generate-title`
+- `/api/agent-lab/workbench/handoff`
 - `/api/agent-lab/workbench/sessions`
 - `/api/agent-lab/workbench/sessions/[id]`
+- `/api/agent-lab/workbench/test-run`
+- `/api/agent-lab/workbench/tools`
 
 ### `/api/audit-log/*` (1)
 
@@ -102,6 +135,18 @@
 - `/api/catalog/tools`
 - `/api/catalog/tools/[id]`
 
+### `/api/connections/*` (5)
+
+- `/api/connections`
+- `/api/connections/[id]`
+- `/api/connections/[id]/browse`
+- `/api/connections/[id]/extract`
+- `/api/connections/[id]/test`
+
+### `/api/dashboard/*` (1)
+
+- `/api/dashboard/summary`
+
 ### `/api/databricks/*` (5)
 
 - `/api/databricks/connections`
@@ -110,7 +155,11 @@
 - `/api/databricks/connections/[id]/test`
 - `/api/databricks/connections/[id]/tool`
 
-### `/api/inspector/*` (46)
+### `/api/health/*` (1)
+
+- `/api/health`
+
+### `/api/inspector/*` (48)
 
 - `/api/inspector/boost/dispatch`
 - `/api/inspector/boost/results`
@@ -119,6 +168,7 @@
 - `/api/inspector/charts`
 - `/api/inspector/charts/[chartId]`
 - `/api/inspector/chat`
+- `/api/inspector/chat-models`
 - `/api/inspector/dashboards`
 - `/api/inspector/dashboards/[dashboardId]`
 - `/api/inspector/dashboards/[dashboardId]/collaborators`
@@ -129,6 +179,7 @@
 - `/api/inspector/dashboards/[dashboardId]/versions`
 - `/api/inspector/dashboards/[dashboardId]/widgets/[widgetId]/data`
 - `/api/inspector/digest`
+- `/api/inspector/export`
 - `/api/inspector/memory/rules`
 - `/api/inspector/memory/rules/[ruleId]`
 - `/api/inspector/memory/rules/[ruleId]/promote`
@@ -158,6 +209,17 @@
 - `/api/inspector/teach`
 - `/api/inspector/teach/candidates`
 - `/api/inspector/teach/session/[sessionId]`
+
+### `/api/knowledge/*` (8)
+
+- `/api/knowledge`
+- `/api/knowledge/[id]`
+- `/api/knowledge/[id]/agents`
+- `/api/knowledge/[id]/agents/[agentId]`
+- `/api/knowledge/[id]/documents`
+- `/api/knowledge/[id]/documents/[docId]`
+- `/api/knowledge/[id]/qa`
+- `/api/knowledge/search`
 
 ### `/api/policies/*` (2)
 

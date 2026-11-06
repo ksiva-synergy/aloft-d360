@@ -17,6 +17,7 @@ import { SessionHeader } from './SessionHeader';
 import { VerificationChip } from './VerificationChip';
 import { MemoryRecallExpander } from './MemoryRecallExpander';
 import { ThreadEmptyState } from './states/ThreadEmptyState';
+import { type } from '@/lib/typography/tokens';
 
 const SUBTAG_COLOR: Record<string, string> = {
   'Follow-up question': 'var(--primary)',
@@ -101,7 +102,7 @@ function UserBubble({ m }: { m: TeachMessage }) {
           borderRadius: '15px 15px 4px 15px',
           padding: '13px 16px',
           fontFamily: FONT_BODY,
-          fontSize: 14.5,
+          fontSize: 'var(--type-body-size)',
           lineHeight: 1.6,
           color: 'var(--foreground)',
         }}
@@ -137,18 +138,18 @@ function MarcusBubble({ m, streaming }: { m: TeachMessage; streaming: boolean })
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>
+          <span style={{ ...type.label, color: 'var(--muted-foreground)' }}>
             Captain Track Sparrow
           </span>
           {m.subTag && (
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
+            <span style={{ ...type.label, color: SUBTAG_COLOR[m.subTag] ?? 'var(--muted-foreground)' }}>
               · {m.subTag}
             </span>
           )}
         </div>
 
         {m.content ? (
-          <div style={{ fontFamily: FONT_BODY, fontSize: 14.5, lineHeight: 1.62, color: 'var(--foreground)', whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 'var(--type-body-size)', lineHeight: 1.62, color: 'var(--foreground)', whiteSpace: 'pre-wrap' }}>
             {m.content}
           </div>
         ) : (
@@ -226,16 +227,13 @@ function Composer({
             outline: 'none',
             background: 'transparent',
             fontFamily: FONT_BODY,
-            fontSize: 14,
+            fontSize: 'var(--type-body-size)',
             color: 'var(--foreground)',
           }}
         />
         <span
           style={{
-            fontFamily: FONT_MONO,
-            fontSize: 13,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
+            ...type.label,
             color: 'var(--text-tertiary)',
             border: '1px solid var(--border)',
             padding: '3px 8px',
@@ -282,8 +280,8 @@ const avatarUser: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   fontFamily: FONT_MONO,
-  fontSize: 13,
-  fontWeight: 700,
+  fontSize: 'var(--type-ui-regular-size)',
+  fontWeight: 600,
   color: 'var(--muted-foreground)',
   flexShrink: 0,
 };
@@ -300,7 +298,7 @@ const avatarMarcus: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   fontFamily: FONT_DISPLAY,
-  fontSize: 15,
+  fontSize: 'var(--type-body-size)',
   fontWeight: 600,
   boxShadow: '0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent)',
   flexShrink: 0,

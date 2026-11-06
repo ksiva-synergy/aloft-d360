@@ -6,6 +6,7 @@ import { DatabricksAdapter } from './databricks-adapter';
 import type { ContextSource } from './types';
 import { buildFullPath } from './types';
 import type { PlatformContextSource } from '@prisma/client';
+import { schemaMatchesIncludePatterns } from './job-scope';
 
 /** Objects not inventoried within this window are flagged stale on the estate overview. */
 export const ESTATE_STALE_SWEEP_DAYS = 7;
@@ -37,9 +38,34 @@ function toContextSource(row: PlatformContextSource): ContextSource {
   };
 }
 
+type InventoryRow = {
+  table_catalog: string;
+  table_schema: string;
+  table_name: string;
+};
+
+function inventoryRowInScope(
+  row: InventoryRow,
+  excludeSchemas: string[],
+  includePatterns: string[],
+): boolean {
+  const key = `${row.table_catalog}.${row.table_schema}`;
+  const excludeSet = new Set(excludeSchemas);
+  if (excludeSet.has(key) || excludeSet.has(row.table_schema)) return false;
+  if (!schemaMatchesIncludePatterns(row.table_catalog, row.table_schema, includePatterns)) {
+    return false;
+  }
+  return true;
+}
+
 export async function runEstateInventory(
   sourceId: string,
   orgId: string,
+  opts?: {
+    existingJobId?: string;
+    includePatterns?: string[];
+    excludeSchemas?: string[];
+  },
 ): Promise<EstateInventoryStats> {
   const sweepStart = new Date();
 
@@ -55,6 +81,20 @@ export async function runEstateInventory(
   const adapter = new DatabricksAdapter(conn);
   const source = toContextSource(sourceRow);
 
+  const includePatterns = opts?.includePatterns ?? [];
+  const excludeSchemas = opts?.excludeSchemas ?? [];
+  if (includePatterns.length > 0) {
+    source.scope_include = includePatterns;
+    console.log(`[estate_inventory] overriding scope_include: ${includePatterns.join(', ')}`);
+  }
+  if (excludeSchemas.length > 0) {
+    const extraExcludes = excludeSchemas.map(s =>
+      s.includes('.') ? `${s}.*` : `*.${s}.*`,
+    );
+    source.scope_exclude = [...(source.scope_exclude ?? []), ...extraExcludes];
+    console.log(`[estate_inventory] applying excludeSchemas: ${excludeSchemas.join(', ')}`);
+  }
+
   const stats: EstateInventoryStats = {
     inserted: 0,
     updated: 0,
@@ -63,58 +103,77 @@ export async function runEstateInventory(
     mode: 'system',
   };
 
-  const catalogsSeen = new Set<string>();
+  /** catalog.schema pairs upserted this run — remove diff is limited to these, not whole catalogs. */
+  const schemasSeen = new Set<string>();
 
   for await (const batch of adapter.inventoryEstate(source)) {
     if (batch.length === 0) continue;
 
-    for (const row of batch) {
-      catalogsSeen.add(row.table_catalog);
+    const scopedBatch = batch.filter(row =>
+      inventoryRowInScope(row, excludeSchemas, includePatterns),
+    );
+    if (scopedBatch.length === 0) continue;
+
+    for (const row of scopedBatch) {
+      schemasSeen.add(`${row.table_catalog}.${row.table_schema}`);
     }
 
-    const { insertCount, updateCount } = await upsertBatch(batch, sourceId, orgId);
+    const { insertCount, updateCount } = await upsertBatch(scopedBatch, sourceId, orgId);
     stats.inserted += insertCount;
     stats.updated += updateCount;
   }
 
-  stats.catalogs = catalogsSeen.size;
+  stats.catalogs = new Set(
+    [...schemasSeen].map(key => key.split('.')[0]).filter(Boolean),
+  ).size;
   stats.mode = adapter.queryCount <= 3 ? 'system' : 'per-catalog';
 
-  // Diff soft-delete: within each catalog we actually inventoried this run, mark
-  // active rows that were not refreshed (dropped in Databricks). Do NOT touch
-  // catalogs outside catalogsSeen — a partial sweep (narrow scope, permission
-  // skips, etc.) must not mark the rest of the estate as removed.
-  if (catalogsSeen.size > 0) {
-    const catalogList = Array.from(catalogsSeen);
+  // Diff soft-delete: within each catalog.schema we actually upserted this run,
+  // mark active rows that were not refreshed (gone in Databricks). Do NOT touch
+  // other schemas or catalogs — a partial sweep (one schema, narrow scope, etc.)
+  // must not mark the rest of the estate as removed.
+  if (schemasSeen.size > 0) {
+    const schemaKeyList = Array.from(schemasSeen);
     const removeResult = await prisma.$executeRawUnsafe(
       `UPDATE platform_estate_objects
        SET lifecycle = 'removed'
        WHERE org_id = $1
          AND source_id = $2
          AND lifecycle = 'active'
-         AND catalog_name = ANY($4::text[])
+         AND (catalog_name || '.' || schema_name) = ANY($4::text[])
          AND last_inventoried_at < $3`,
       orgId,
       sourceId,
       sweepStart,
-      catalogList,
+      schemaKeyList,
     );
     stats.removed = removeResult;
   }
 
-  // Audit row
-  await prisma.platformContextJob.create({
-    data: {
-      org_id: orgId,
-      source_id: sourceId,
-      job_kind: 'estate_inventory',
-      trigger: 'on_demand',
-      status: 'succeeded',
-      started_at: sweepStart,
-      finished_at: new Date(),
-      stats: stats as unknown as Prisma.InputJsonValue,
-    },
-  });
+  if (opts?.existingJobId) {
+    await prisma.platformContextJob.update({
+      where: { id: opts.existingJobId },
+      data: {
+        status: 'succeeded',
+        started_at: sweepStart,
+        finished_at: new Date(),
+        stats: stats as unknown as Prisma.InputJsonValue,
+      },
+    });
+  } else {
+    await prisma.platformContextJob.create({
+      data: {
+        org_id: orgId,
+        source_id: sourceId,
+        job_kind: 'estate_inventory',
+        trigger: 'on_demand',
+        status: 'succeeded',
+        started_at: sweepStart,
+        finished_at: new Date(),
+        stats: stats as unknown as Prisma.InputJsonValue,
+      },
+    });
+  }
 
   return stats;
 }

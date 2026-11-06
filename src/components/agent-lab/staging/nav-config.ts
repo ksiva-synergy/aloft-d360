@@ -2,11 +2,14 @@ import {
   HouseIcon, HammerIcon, BrainIcon, StackIcon, ShieldCheckIcon, RobotIcon,
   MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
-  UsersIcon, ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
-  LightningIcon, PathIcon, HardDrivesIcon,
+  UsersIcon,   ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
+  KeyIcon,
+  LightningIcon, PathIcon, HardDrivesIcon, PlugsConnectedIcon, BookBookmarkIcon, CpuIcon,
+  CurrencyCircleDollarIcon,
   type Icon as PhosphorIcon,
 } from '@phosphor-icons/react';
 import { ESTATE_NAV_ITEMS } from '@/lib/estate/nav-items';
+import { hiddenInNav, type SectionLevels } from '@/lib/sections/registry';
 
 export interface NavItem {
   label: string;
@@ -48,11 +51,11 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: HammerIcon,
     items: [
       { label: 'Inspector',       href: '/inspector',            icon: MagnifyingGlassIcon },
-      { label: 'Workbench',       href: '/agent-lab/workbench',    icon: HammerIcon },
       { label: 'Agents',          href: '/agent-lab/agents',       icon: RobotIcon },
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },
       { label: 'Teach',           href: '/agent-lab/teach',      icon: MagicWandIcon },
+      { label: 'Automate',        href: '/agent-lab/automate',   icon: PathIcon },
       { label: 'Performance Lab', href: '/performance-lab',      icon: FlaskIcon },
       { label: 'Bandits',         href: '/agent-lab/bandits',    icon: DiceFiveIcon },
       { label: 'History',         href: '/agent-lab/history',    icon: ClockCounterClockwiseIcon },
@@ -61,10 +64,11 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Memory',
     railLabel: 'Memory',
-    description: 'What your agents have learned',
+    description: 'What your agents know and have learned',
     id: 'memory',
     icon: BrainIcon,
     items: [
+      { label: 'Knowledge',     href: '/agent-lab/knowledge',            icon: BookBookmarkIcon },
       { label: 'FOER',          href: '/agent-lab/memory',               icon: LightbulbIcon, exact: true },
       { label: 'FOER Ops',      href: '/agent-lab/memory/ops',           icon: PulseIcon },
       { label: 'Contributions', href: '/agent-lab/memory/contributions', icon: UsersThreeIcon },
@@ -92,10 +96,14 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'govern',
     icon: ShieldCheckIcon,
     items: [
-      { label: 'Users',     href: '/agent-staging/users',    icon: UsersIcon },
-      { label: 'Policies',  href: '/agent-staging/policies', icon: ShieldCheckIcon },
-      { label: 'Audit Log', href: '/agent-staging/audit',    icon: ScrollIcon },
-      { label: 'Docs',      href: '/docs',                   icon: BookOpenIcon },
+      { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
+      { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Data access', href: '/agent-staging/data-access', icon: KeyIcon },
+      { label: 'Cost monitor', href: '/agent-staging/cost',       icon: CurrencyCircleDollarIcon },
+      { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
+      { label: 'Connections', href: '/agent-staging/connections', icon: PlugsConnectedIcon },
+      { label: 'Audit Log',   href: '/agent-staging/audit',       icon: ScrollIcon },
+      { label: 'Docs',        href: '/docs',                      icon: BookOpenIcon },
     ],
   },
 ];
@@ -108,4 +116,12 @@ export function isActive(item: NavItem, pathname: string): boolean {
 
 export function groupForPath(pathname: string): string {
   return NAV_GROUPS.find((g) => g.items.some((i) => isActive(i, pathname)))?.id ?? NAV_GROUPS[0].id;
+}
+
+/** Nav groups with the sections this person cannot open removed (empty groups dropped). */
+export function filterNavGroups(groups: NavGroup[], levels: SectionLevels | null): NavGroup[] {
+  if (!levels) return groups;
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenInNav(levels, i.href)) }))
+    .filter((g) => g.items.length > 0);
 }

@@ -13,14 +13,15 @@
  * structural hook (scrollbar); it carries no palette of its own.
  */
 import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter } from '@/lib/navigation';
 import { AlertTriangle, ArrowUpRight, History, SquarePen } from 'lucide-react';
 import { useTeachChat } from '@/hooks/useTeachChat';
 import { FONT_MONO } from './teach-tokens';
 import { TeachThread } from './TeachThread';
 import { LearningRail } from './LearningRail';
 import { TeachHistoryDrawer } from './TeachHistoryDrawer';
+import { type } from '@/lib/typography/tokens';
 
 export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--warning) 26%, transparent)',
               color: 'var(--warning)',
               fontFamily: FONT_MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.04em',
             }}
           >
@@ -78,7 +79,7 @@ export default function TeachShell({ sessionId }: { sessionId?: string } = {}) {
               borderBottom: '1px solid color-mix(in srgb, var(--destructive) 26%, transparent)',
               color: 'var(--destructive)',
               fontFamily: FONT_MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               letterSpacing: '0.04em',
             }}
           >
@@ -144,9 +145,6 @@ const controlBtn: React.CSSProperties = {
   border: '1px solid var(--border)',
   boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 10px 30px rgba(0,0,0,.05)',
   color: 'var(--muted-foreground)',
-  fontFamily: FONT_MONO,
-  fontSize: 13,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
+  ...type.label,
   cursor: 'pointer',
 };

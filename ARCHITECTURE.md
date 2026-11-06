@@ -1207,7 +1207,7 @@ npm run db:seed
 | `MEMORY_CAVEAT_GUARD_ENABLED` | off | Filter stale caveat bullets |
 | `MARCUS_REFLECT_ENABLED` | off | Post-hoc trajectory reflection |
 | `MARCUS_FIRST_TURN_ALWAYS` | off | Always reflect on first turn |
-| `INSPECTOR_AUTH_ENFORCE` | off | Enforce service token on Inspector API |
+| `INSPECTOR_AUTH_ENFORCE` | on (unset) | Session-ownership enforcement on Inspector routes; set `false` only as an emergency observe-only opt-out |
 | `INSPECTOR_SERVICE_TOKEN` | — | Service-to-service auth token |
 
 ### 14.3 Optional Configuration
@@ -1287,9 +1287,8 @@ Full reference: `docs/DESIGN_SYSTEM.md`
 
 | Family | Font | Usage |
 |---|---|---|
-| Sans | Inter Tight | UI text, labels, body |
-| Serif | Source Serif 4 | Headings, display |
-| Mono | IBM Plex Mono | Code, terminal, labels |
+| Sans | Inter Variable | All readable text (tokens in `src/styles/typography.css`) |
+| Mono | IBM Plex Mono | Machine text only: code, SQL, ids, paths |
 
 ### 16.3 Theming
 
@@ -1480,6 +1479,7 @@ npx tsx --require ./scripts/context/noserver.cjs scripts/context/orchestrator.ts
 | [docs/ai-agent-memory-guide.html](docs/ai-agent-memory-guide.html) | Interactive visual guide for AI, Agent & Memory |
 | [docs/context-harvesting-guide.html](docs/context-harvesting-guide.html) | Context harvesting: schedules, pipeline steps, Inspector walkthrough |
 | [architecture-guide.html](architecture-guide.html) | Interactive plain-English architecture overview |
+| [docs/business-ai-studio/](docs/business-ai-studio/README.md) | Business AI Studio: Flows core (`src/lib/flows`), capability contracts and policy gateway (`src/lib/capabilities`), preview API and UI, audit, ADRs and delivery plan |
 
 ---
 

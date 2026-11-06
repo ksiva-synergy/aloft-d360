@@ -10,7 +10,7 @@
  *   });
  */
 import { NextResponse } from 'next/server';
-import { ZodError, ZodSchema } from 'zod';
+import { ZodError, type ZodType, type ZodTypeDef } from 'zod';
 
 /** Throwable error that `handle()` turns into a JSON response with a status. */
 export class ApiError extends Error {
@@ -40,7 +40,8 @@ export function clientMeta(req: Request): { ipAddress: string | null; userAgent:
 }
 
 /** Validate `data` against a zod schema, throwing ApiError(400) on failure. */
-export function parse<T>(schema: ZodSchema<T>, data: unknown): T {
+// Input type is unconstrained so schemas with transforms (input differs from output) are accepted.
+export function parse<T>(schema: ZodType<T, ZodTypeDef, unknown>, data: unknown): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     throw new ApiError(400, 'Validation failed', result.error.flatten());

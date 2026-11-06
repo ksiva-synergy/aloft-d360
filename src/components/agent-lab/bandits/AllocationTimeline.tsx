@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { GitBranch } from 'lucide-react';
 import { getModelColor, getModelShortName } from './types';
+import { CHART_TEXT } from '@/lib/typography/tokens';
 
 interface Props {
   series: Record<string, any>[];
@@ -26,10 +27,10 @@ export function AllocationTimeline({ series, models }: Props) {
     <div className="bandit-card overflow-hidden">
       <div className="px-5 py-4 border-b border-[color:var(--line-1)] dark:border-[var(--line-1)] flex items-center gap-2">
         <GitBranch className="h-4 w-4 text-cyan-500" />
-        <h2 className="text-sm font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
+        <h2 className="text-size-body font-semibold text-[color:var(--ink-1)] dark:text-[color:var(--ink-1)]">
           Selection History
         </h2>
-        <span className="text-xs text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
+        <span className="text-size-ui text-[var(--ink-3)] dark:text-[color:var(--ink-3)] ml-1">
           Model allocation over time
         </span>
       </div>
@@ -37,7 +38,7 @@ export function AllocationTimeline({ series, models }: Props) {
       <div className="p-4">
         <div className="flex flex-wrap gap-3 mb-3">
           {models.map(m => (
-            <div key={m} className="flex items-center gap-1.5 text-xs">
+            <div key={m} className="flex items-center gap-1.5 text-size-ui">
               <div
                 className="w-2 h-2 rounded-full"
                 style={{ backgroundColor: getModelColor(m) }}
@@ -52,7 +53,7 @@ export function AllocationTimeline({ series, models }: Props) {
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.1)" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 13, fill: '#94a3b8' }}
+              tick={{ fontSize: CHART_TEXT.tooltip, fill: '#94a3b8' }}
               axisLine={{ stroke: '#334155', strokeWidth: 0.5 }}
               tickLine={false}
               tickFormatter={v => {
@@ -61,7 +62,7 @@ export function AllocationTimeline({ series, models }: Props) {
               }}
             />
             <YAxis
-              tick={{ fontSize: 13, fill: '#94a3b8' }}
+              tick={{ fontSize: CHART_TEXT.tooltip, fill: '#94a3b8' }}
               axisLine={false}
               tickLine={false}
               width={30}
@@ -72,7 +73,7 @@ export function AllocationTimeline({ series, models }: Props) {
                 backgroundColor: 'var(--surface-1)',
                 border: '1px solid var(--line-2)',
                 borderRadius: 8,
-                fontSize: 13,
+                fontSize: CHART_TEXT.tooltip,
                 color: 'var(--ink-1)',
               }}
               formatter={(value: number, name: string) => [

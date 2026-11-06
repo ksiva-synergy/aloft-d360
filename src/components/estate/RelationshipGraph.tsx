@@ -17,6 +17,8 @@ import {
   ReactFlow,
   Background,
   Controls,
+  Handle,
+  Position,
   type Edge,
   type Node,
   type NodeTypes,
@@ -28,8 +30,9 @@ import {
 } from '@xyflow/react';
 import dagre from 'dagre';
 import '@xyflow/react/dist/style.css';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useRouter } from '@/lib/navigation';
+import { Card } from './object-ui';
+import { type } from '@/lib/typography/tokens';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +51,9 @@ export interface ObjectLinkItem {
   signals: unknown;
   llm_verdict: unknown;
   status: string;
+  /** Both ends, included by getObjectAggregate so nodes show names, not ids. */
+  left_object?: { id: string; full_path: string; object_name: string | null; object_kind?: string } | null;
+  right_object?: { id: string; full_path: string; object_name: string | null; object_kind?: string } | null;
 }
 
 export interface EntityGroupObject {
@@ -122,13 +128,6 @@ function shortLabel(fullPath: string, objectName: string | null): string {
   return parts[parts.length - 1] || fullPath;
 }
 
-const KIND_ICONS: Record<string, string> = {
-  table: '▦',
-  view:  '◫',
-  schema: '⊞',
-  catalog: '◉',
-};
-
 function buildGraph(props: RelationshipGraphProps): {
   nodes: Node<GraphNodeData>[];
   edges: Edge<GraphEdgeData>[];
@@ -191,8 +190,16 @@ function buildGraph(props: RelationshipGraphProps): {
   for (const link of objectLinks) {
     const isLeft = link.left_object_id === focusObjectId;
     const targetId = isLeft ? link.right_object_id : link.left_object_id;
+    // getObjectAggregate includes both ends; fall back to a short id for older payloads.
+    const named = (isLeft ? link.right_object : link.left_object) ?? null;
     if (!nodeMap.has(targetId)) {
-      ensureNode(targetId, targetId.slice(0, 8) + '…', 'table', targetId, 'object_link');
+      ensureNode(
+        targetId,
+        named ? shortLabel(named.full_path, named.object_name) : targetId.slice(0, 8) + '…',
+        named?.object_kind ?? 'table',
+        targetId,
+        'object_link',
+      );
     } else {
       const n = nodeMap.get(targetId)!;
       if (!n.sources.includes('object_link')) n.sources.push('object_link');
@@ -287,254 +294,113 @@ function buildGraph(props: RelationshipGraphProps): {
   return { nodes: rfNodes, edges: rfEdges };
 }
 
-// ── Source provenance colors ───────────────────────────────────────────────
-const SOURCE_COLORS: Record<string, string> = {
-  entity_group:  '#3B7A4B',
-  fk_candidate:  '#2F6DB0',
-  object_link:   'var(--brand-a)',
-  co_object:     'var(--ink-3)',
+/// ── Source labels / colours ────────────────────────────────────────────────
+const SOURCE_META: Record<string, { label: string; color: string }> = {
+  entity_group: { label: 'entity_group', color: '#3B7A4B' },
+  fk_candidate: { label: 'fk_candidate', color: '#2F6DB0' },
+  object_link:  { label: 'object_link',  color: 'var(--brand-a)' },
+  co_object:    { label: 'co_object',    color: '#B4801A' },
 };
 
 // ── Custom node component ──────────────────────────────────────────────────
 function RelationNode({ data }: { data: GraphNodeData }) {
-  const inkColor = data.isFocus ? 'var(--brand-a)' : 'var(--estate-ink, #E8E6E1)';
-  const bg = data.isFocus
-    ? 'color-mix(in srgb, var(--brand-a) 10%, transparent)'
-    : 'var(--estate-raised, rgba(13,27,42,0.9))';
-  const border = data.isFocus ? '2px solid var(--brand-a)' : '1px solid rgba(255,255,255,0.10)';
-  const kindIcon = KIND_ICONS[data.kind] ?? '▦';
+  const sources = data.sources.filter((s) => s !== 'focus');
+  const clickable = !data.isFocus && !!data.objectId;
+  const handleStyle: React.CSSProperties = {
+    width: 8,
+    height: 8,
+    border: 'none',
+    background: 'transparent',
+  };
 
   return (
     <div
       style={{
         width: NODE_W,
         minHeight: NODE_H,
-        background: bg,
-        border,
-        borderRadius: 6,
-        padding: '7px 11px',
+        background: data.isFocus ? 'var(--brand-a)' : 'var(--estate-raised)',
+        border: data.isFocus ? '1px solid var(--brand-a)' : '1px solid var(--estate-border)',
+        borderRadius: 10,
+        padding: '8px 12px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 3,
-        backdropFilter: 'blur(4px)',
+        justifyContent: 'center',
+        gap: 2,
+        boxShadow: data.isFocus
+          ? '0 6px 18px color-mix(in srgb, var(--brand-a) 30%, transparent)'
+          : '0 1px 2px rgba(17,19,34,0.06)',
+        cursor: clickable ? 'pointer' : 'default',
       }}
+      title={clickable ? `Open ${data.label}` : data.label}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ fontSize: 13, opacity: 0.55, color: inkColor }}>{kindIcon}</span>
-        <span
-          style={{
-            fontFamily: '"Inter Variable", sans-serif',
-            fontSize: 13,
-            fontWeight: data.isFocus ? 700 : 500,
-            color: inkColor,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            flex: 1,
-          }}
-          title={data.label}
-        >
-          {data.label}
-        </span>
-      </div>
-
-      {/* Source provenance dots */}
-      {!data.isFocus && data.sources.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, marginLeft: 20 }}>
-          {data.sources.filter(s => s !== 'focus').map((src) => (
-            <span
-              key={src}
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: SOURCE_COLORS[src] ?? 'var(--ink-3)',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
-              title={src.replace(/_/g, ' ')}
-            />
-          ))}
-        </div>
+      {!data.isFocus && (
+        <Handle type="target" position={Position.Left} style={handleStyle} />
       )}
+      {data.isFocus && (
+        <Handle type="source" position={Position.Right} style={handleStyle} />
+      )}
+      <span
+        style={{
+          ...type.ui,
+          fontWeight: 600,
+          color: data.isFocus ? '#fff' : 'var(--estate-ink)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {data.label}
+      </span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, ...type.caption, color: data.isFocus ? 'rgba(255,255,255,0.8)' : 'var(--estate-text-muted)', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+        {data.isFocus ? (
+          'This table'
+        ) : (
+          <>
+            {sources.map((s) => (
+              <span key={s} aria-hidden="true" style={{ width: 6, height: 6, borderRadius: 999, background: SOURCE_META[s]?.color ?? 'var(--estate-text-muted)', flexShrink: 0 }} />
+            ))}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {sources.map((s) => SOURCE_META[s]?.label ?? s).join(' · ')}
+            </span>
+          </>
+        )}
+      </span>
     </div>
   );
 }
 
 const nodeTypes: NodeTypes = { relationNode: RelationNode };
 
-// ── Edge legend component ──────────────────────────────────────────────────
+// ── Edge legend ────────────────────────────────────────────────────────────
 const LEGEND_ITEMS = [
-  { color: '#3B7A4B', dash: undefined,  label: 'Confirmed' },
-  { color: 'var(--brand-a-ink)', dash: undefined,  label: 'Proposed' },
-  { color: '#2F6DB0', dash: '3,4',     label: 'Co-query' },
-  { color: '#C25A2E', dash: '6,5',     label: 'Silo (duplicate candidate)' },
+  { color: '#3B7A4B',       dash: undefined, label: 'confirmed' },
+  { color: 'var(--brand-a)', dash: undefined, label: 'proposed' },
+  { color: '#2F6DB0',       dash: '3,4',     label: 'co_query' },
+  { color: '#C25A2E',       dash: '6,5',     label: 'silo (duplicate candidate)' },
 ] as const;
 
 function EdgeLegend() {
   return (
-    <div style={{
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '6px 16px',
-      padding: '8px 12px',
-      borderTop: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
-      background: 'var(--estate-bg, #111322)',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px 18px',
+        padding: '10px 20px',
+        borderTop: '1px solid var(--estate-border)',
+      }}
+    >
       {LEGEND_ITEMS.map(({ color, dash, label }) => (
         <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width={24} height={4} style={{ flexShrink: 0 }}>
-            <line
-              x1={0} y1={2} x2={24} y2={2}
-              stroke={color}
-              strokeWidth={2}
-              strokeDasharray={dash}
-            />
+          <svg width={22} height={4} aria-hidden="true" style={{ flexShrink: 0 }}>
+            <line x1={0} y1={2} x2={22} y2={2} stroke={color} strokeWidth={2} strokeDasharray={dash} />
           </svg>
-          <span style={{
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            color: 'var(--estate-text-muted, var(--ink-3))',
-          }}>
-            {label}
-          </span>
+          <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }}>{label}</span>
         </span>
       ))}
-    </div>
-  );
-}
-
-// ── Co-objects sidebar panel ───────────────────────────────────────────────
-function CoObjectsSidebar({ coObjects }: { coObjects: CoObjectItem[] }) {
-  const total = coObjects.reduce((s, c) => s + (c.co_count ?? 0), 0);
-
-  return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      border: '1px solid var(--estate-border-gold, color-mix(in srgb, var(--brand-a) 15%, transparent))',
-      borderRadius: 8,
-      overflow: 'hidden',
-      background: 'var(--estate-raised, rgba(13,27,42,0.5))',
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '10px 14px',
-        borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 8%, transparent)',
-        background: 'var(--estate-bg, #111322)',
-      }}>
-        <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: 'var(--estate-text-secondary, var(--ink-3))',
-        }}>
-          Usage Co-objects
-        </div>
-        <div style={{
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          color: 'var(--estate-text-muted, var(--ink-3))',
-          marginTop: 2,
-        }}>
-          T3 · {coObjects.length} table{coObjects.length !== 1 ? 's' : ''}
-        </div>
-      </div>
-
-      {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-        {coObjects.length === 0 ? (
-          <div style={{
-            padding: '16px 14px',
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            color: 'var(--estate-text-muted, var(--ink-3))',
-            textAlign: 'center',
-          }}>
-            No co-objects recorded
-          </div>
-        ) : (
-          coObjects.map((co, idx) => {
-            const name = co.full_path.split('.').pop() ?? co.full_path;
-            const n = co.co_count ?? 0;
-            const pct = total > 0 ? Math.round((n / total) * 100) : 0;
-            const href = co.object_id ? `/agent-lab/estate/object/${co.object_id}` : null;
-
-            return (
-              <div
-                key={idx}
-                style={{
-                  padding: '7px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 4,
-                  borderBottom: idx < coObjects.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                  {href ? (
-                    <Link
-                      href={href}
-                      style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        color: 'var(--estate-ink, #E8E6E1)',
-                        textDecoration: 'none',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1,
-                      }}
-                      className="hover:text-[var(--brand-a-ink)] transition-colors"
-                      title={co.full_path}
-                    >
-                      {name}
-                    </Link>
-                  ) : (
-                    <span
-                      style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        color: 'var(--estate-ink, #E8E6E1)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1,
-                      }}
-                      title={co.full_path}
-                    >
-                      {name}
-                    </span>
-                  )}
-                  {n > 0 && (
-                    <span style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
-                      color: 'var(--brand-a-ink)',
-                      flexShrink: 0,
-                    }}>
-                      {pct}%
-                    </span>
-                  )}
-                </div>
-                {/* Mini bar */}
-                {n > 0 && (
-                  <div style={{ height: 3, borderRadius: 2, background: 'color-mix(in srgb, var(--ink-1) 6%, transparent)', overflow: 'hidden' }}>
-                    <div style={{
-                      width: `${pct}%`,
-                      height: '100%',
-                      background: '#2F6DB0',
-                      borderRadius: 2,
-                    }} />
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      <span style={{ ...type.caption, color: 'var(--estate-text-muted)', marginLeft: 'auto' }}>
+        Click a table to open it · drag to rearrange
+      </span>
     </div>
   );
 }
@@ -550,13 +416,18 @@ function GraphInner(props: RelationshipGraphProps) {
     [props.focusObjectId, props.entityGroupObjects, props.fkCandidates, props.objectLinks, props.coObjects],
   );
 
-  const [nodes, , onNodesChange] = useNodesState(initNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
+
+  useEffect(() => {
+    setNodes(initNodes);
+    setEdges(initEdges);
+  }, [initNodes, initEdges, setNodes, setEdges]);
 
   useEffect(() => {
     const timeout = setTimeout(() => fitView({ padding: 0.25 }), 80);
     return () => clearTimeout(timeout);
-  }, [fitView]);
+  }, [fitView, initNodes, initEdges]);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<GraphNodeData>) => {
@@ -584,12 +455,14 @@ function GraphInner(props: RelationshipGraphProps) {
       style={{ background: 'transparent' }}
       proOptions={{ hideAttribution: true }}
     >
-      <Background color="color-mix(in srgb, var(--ink-1) 3%, transparent)" gap={24} />
+      <Background color="color-mix(in srgb, var(--ink-1) 8%, transparent)" gap={20} size={1} />
       <Controls
+        showInteractive={false}
         style={{
-          background: 'var(--estate-raised, rgba(13,27,42,0.85))',
-          border: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
-          borderRadius: 6,
+          background: 'var(--estate-raised)',
+          border: '1px solid var(--estate-border)',
+          borderRadius: 8,
+          overflow: 'hidden',
         }}
       />
     </ReactFlow>
@@ -599,59 +472,26 @@ function GraphInner(props: RelationshipGraphProps) {
 // ── Public component ───────────────────────────────────────────────────────
 
 export default function RelationshipGraph(props: RelationshipGraphProps) {
-  const totalEdges =
-    props.entityGroupObjects.length +
-    props.fkCandidates.length +
-    props.objectLinks.length +
-    props.coObjects.length;
+  const nodeCount = new Set([
+    ...props.entityGroupObjects.map((o) => o.id),
+    ...props.fkCandidates.map((f) => `fk::${f.likely_target}`),
+    ...props.objectLinks.map((l) => (l.left_object_id === props.focusObjectId ? l.right_object_id : l.left_object_id)),
+    ...props.coObjects.map((c) => c.object_id ?? `co::${c.full_path}`),
+  ]).size;
 
-  const hasCoObjects = props.coObjects.length > 0;
+  // The list below carries the empty state — no second empty box here.
+  if (nodeCount === 0) return null;
 
-  if (totalEdges === 0) {
-    return (
-      <div
-        style={{
-          height: 240,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 8,
-          border: '1px dashed color-mix(in srgb, var(--brand-a) 20%, transparent)',
-          background: 'var(--estate-raised, rgba(13,27,42,0.4))',
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          color: 'var(--ink-3)',
-        }}
-      >
-        No relationships found yet — run T3 usage or silo scan to discover connections.
-      </div>
-    );
-  }
+  const height = Math.min(520, Math.max(280, 120 + nodeCount * 36));
 
   return (
-    <div>
-      {/* Graph + Co-objects sidebar in a 2-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: hasCoObjects ? '1fr 260px' : '1fr', gap: 16 }}>
-        {/* Graph area */}
-        <div style={{
-          borderRadius: 8,
-          border: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)',
-          overflow: 'hidden',
-          background: 'var(--estate-raised, rgba(13,27,42,0.7))',
-        }}>
-          <div style={{ height: 420 }}>
-            <ReactFlowProvider>
-              <GraphInner {...props} />
-            </ReactFlowProvider>
-          </div>
-          <EdgeLegend />
-        </div>
-
-        {/* Co-objects sidebar */}
-        {hasCoObjects && (
-          <CoObjectsSidebar coObjects={props.coObjects} />
-        )}
+    <Card title="Relationship map" meta={`${nodeCount} connected table${nodeCount === 1 ? '' : 's'}`} flush>
+      <div style={{ height, background: 'var(--estate-bg)' }}>
+        <ReactFlowProvider>
+          <GraphInner {...props} />
+        </ReactFlowProvider>
       </div>
-    </div>
+      <EdgeLegend />
+    </Card>
   );
 }

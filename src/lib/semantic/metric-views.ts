@@ -17,7 +17,7 @@
 import prisma from '@/lib/db';
 import { compileSafety } from './compiler';
 import { executeDatabricksDDL } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { openDatabricksSession } from '@/lib/databricks/token-client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -201,7 +201,7 @@ export async function applyMetricViews(
     where: { id: connectionId },
   });
 
-  const token = await getAccessToken(connectionId, connection.workspace_host);
+  const session = await openDatabricksSession(connection, 'publish');
 
   let applied = 0;
   let failed = 0;
@@ -211,9 +211,9 @@ export async function applyMetricViews(
     try {
       await executeDatabricksDDL(
         connectionId,
-        connection.workspace_host,
-        connection.default_warehouse_id,
-        token,
+        session.workspaceHost,
+        session.warehouseId,
+        session.token,
         statement,
       );
       applied++;

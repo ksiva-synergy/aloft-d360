@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { executeDatabricksSQL, DATABRICKS_API_MAX_WAIT_SECS } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { openDatabricksSession } from '@/lib/databricks/token-client';
+import type { DatabricksSpRole } from '@/lib/databricks/sp-roles';
 import type {
   ContextSource,
   ObjectRef,
@@ -24,6 +25,16 @@ import { minimatch, matchesScope, catalogMatchesIncludes } from './scope-match';
 function safeId(id: string, label: string): string {
   if (/[`\\]/.test(id)) throw new Error(`Unsafe identifier in ${label}: "${id}"`);
   return id;
+}
+
+/** Trusted AND-fragment from `buildLineageTableSqlFilter`. Rejects extra statements. */
+function lineageSqlPredicate(filter: string | null | undefined): string {
+  const f = filter?.trim() ?? '';
+  if (!f) return '';
+  if (!/^AND\s/i.test(f) || f.includes(';')) {
+    throw new Error('Lineage tableSqlFilter must be a single AND fragment');
+  }
+  return `${f} `;
 }
 
 function safeSqlStr(val: string, label: string): string {
@@ -67,6 +78,8 @@ export interface RawColumnLineageRow {
 
 // ── Adapter ───────────────────────────────────────────────────────────────────
 
+type ExecOpts = { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean; pollTimeoutMs?: number };
+
 export class DatabricksAdapter implements ContextHarvestAdapter {
   readonly kind = 'databricks' as const;
   private _queryCount = 0;
@@ -82,6 +95,26 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
   // Queries: 1 (SHOW CATALOGS) + 1 per candidate catalog
 
   async resolveScope(source: ContextSource): Promise<ObjectRef[]> {
+    const { refs } = await this.listScope(source, false);
+    return refs.map(({ source_altered_at: _alt, ...ref }) => ref);
+  }
+
+  /**
+   * Scoped listing with each table's `last_altered` (metadata only, no data read).
+   * Used by the Continue-pipeline change check. `failedCatalogs` lists catalogs whose
+   * listing failed — callers must not infer drops/changes for those.
+   */
+  async listScopeWithAltered(source: ContextSource): Promise<{
+    refs: Array<ObjectRef & { source_altered_at: Date | null }>;
+    failedCatalogs: string[];
+  }> {
+    return this.listScope(source, true);
+  }
+
+  private async listScope(
+    source: ContextSource,
+    withAltered: boolean,
+  ): Promise<{ refs: Array<ObjectRef & { source_altered_at: Date | null }>; failedCatalogs: string[] }> {
     const includes = source.scope_include ?? ['*.*.*'];
     const excludes = source.scope_exclude ?? [];
 
@@ -96,7 +129,8 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       catalogMatchesIncludes(cat, includes)
     );
 
-    const refs: ObjectRef[] = [];
+    const refs: Array<ObjectRef & { source_altered_at: Date | null }> = [];
+    const failedCatalogs: string[] = [];
 
     for (const catalog of candidateCatalogs) {
       const catSafe = safeId(catalog, 'catalog');
@@ -116,28 +150,34 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       // and a silently truncated listing makes the full-sweep drop pass mark every
       // unlisted table as dropped. A failed page discards the whole catalog so the
       // drop pass never sees a partial listing for it.
-      const catalogRows: Record<string, unknown>[] = [];
-      let catalogFailed = false;
-      for (let offset = 0; ; offset += SCOPE_PAGE_SIZE) {
-        let page;
-        try {
-          page = await this.scopeExec(
-            `SELECT table_catalog, table_schema, table_name ` +
-            `FROM \`${catSafe}\`.information_schema.tables ` +
-            `WHERE ${schemaFilter} ` +
-            `ORDER BY table_schema, table_name ` +
-            `LIMIT ${SCOPE_PAGE_SIZE} OFFSET ${offset}`,
-            { rowLimit: SCOPE_PAGE_SIZE },
-          );
-        } catch (e) {
-          console.warn(`resolveScope: skipping catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
-          catalogFailed = true;
-          break;
+      const listCatalog = async (selectAltered: boolean): Promise<Record<string, unknown>[] | null> => {
+        const rows: Record<string, unknown>[] = [];
+        for (let offset = 0; ; offset += SCOPE_PAGE_SIZE) {
+          let page;
+          try {
+            page = await this.scopeExec(
+              `SELECT table_catalog, table_schema, table_name${selectAltered ? ', last_altered' : ''} ` +
+              `FROM \`${catSafe}\`.information_schema.tables ` +
+              `WHERE ${schemaFilter} ` +
+              `ORDER BY table_schema, table_name ` +
+              `LIMIT ${SCOPE_PAGE_SIZE} OFFSET ${offset}`,
+              { rowLimit: SCOPE_PAGE_SIZE },
+            );
+          } catch (e) {
+            console.warn(`resolveScope: listing failed for catalog ${catalog}:`, e instanceof Error ? e.message : String(e));
+            return null;
+          }
+          rows.push(...page.rows);
+          if (page.rows.length < SCOPE_PAGE_SIZE) return rows;
         }
-        catalogRows.push(...page.rows);
-        if (page.rows.length < SCOPE_PAGE_SIZE) break;
+      };
+
+      // Non-Unity catalogs may lack last_altered — retry the plain listing.
+      const catalogRows = (withAltered ? await listCatalog(true) : null) ?? await listCatalog(false);
+      if (!catalogRows) {
+        failedCatalogs.push(catalog);
+        continue;
       }
-      if (catalogFailed) continue;
 
       for (const row of catalogRows) {
         const cat = String(row['table_catalog'] ?? catalog);
@@ -154,12 +194,13 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
             catalog_name: cat.trim().toLowerCase(),
             schema_name: sch.trim().toLowerCase(),
             object_name: tbl.trim().toLowerCase(),
+            source_altered_at: row['last_altered'] ? new Date(String(row['last_altered'])) : null,
           });
         }
       }
     }
 
-    return refs;
+    return { refs, failedCatalogs };
   }
 
   // ── detectChanges ───────────────────────────────────────────────────────────
@@ -416,7 +457,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       if (statementCount >= budget.maxStatements) {
         throw new Error(`Query budget exceeded before fetching columns for ${ref.full_path}`);
       }
-      const columnsResult = await this.exec(
+      const columnsResult = await this.profileExec(
         `SELECT column_name, data_type, is_nullable ` +
         `FROM \`${catSafe}\`.information_schema.columns ` +
         `WHERE table_schema = '${schSafe}' AND table_name = '${tblSafe}' ` +
@@ -442,18 +483,37 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     // so we still attempt it for them.
     let sizeBytes: number | null = null;
     let tableFormat: string | null = null;
+    let tableDetail: ProfileTableDetail | null = null;
     if (budget.objectKind !== 'view' && statementCount < budget.maxStatements) {
       try {
-        const detailResult = await this.exec(`DESCRIBE DETAIL \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
+        const detailResult = await this.profileExec(`DESCRIBE DETAIL \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
         statementCount++;
         if (detailResult.rows.length > 0) {
           const row = detailResult.rows[0];
           sizeBytes = row.sizeInBytes !== null && row.sizeInBytes !== undefined ? Number(row.sizeInBytes) : null;
           tableFormat = row.format ? String(row.format) : null;
+          tableDetail = readTableDetail(row, tableFormat);
         }
       } catch (e) {
         // Catch view/materialized view errors, or permission issues
         console.log(`DESCRIBE DETAIL failed for ${ref.full_path}:`, e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    // 2b. Exact row count for Delta tables (1 query). Databricks answers COUNT(*)
+    // on Delta from transaction-log statistics, so this does not scan the data.
+    // The profile below may read only a LIMIT window, so its COUNT(*) is not the
+    // table size. Skipped for views / non-Delta (would be a full scan) and when
+    // it would leave no budget for the main profile query.
+    let exactRowCount: number | null = null;
+    if (!isView && tableFormat?.toLowerCase() === 'delta' && statementCount + 2 <= budget.maxStatements) {
+      try {
+        const countResult = await this.profileExec(`SELECT COUNT(*) AS \`__exact_rows\` FROM \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\``);
+        statementCount++;
+        const n = Number(countResult.rows[0]?.['__exact_rows']);
+        if (Number.isFinite(n) && n >= 0) exactRowCount = n;
+      } catch (e) {
+        console.log(`Exact row count failed for ${ref.full_path}:`, e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -470,6 +530,8 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
           sample_pct: 100,
           query_count: statementCount,
           partial: true,
+          ...(exactRowCount !== null ? { row_count_exact: exactRowCount } : {}),
+          ...(tableDetail ? { table_detail: tableDetail } : {}),
           columns: {},
         },
       };
@@ -575,7 +637,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       // pathological view can't stall a sequential T1 job — right-sizing those
       // heavy views is a warehouse concern (WS10), not an adapter one. Tables
       // keep the fast synchronous path.
-      queryResult = await this.exec(
+      queryResult = await this.profileExec(
         query,
         isView
           ? { asyncPolling: true, waitTimeoutSecs: DATABRICKS_API_MAX_WAIT_SECS, pollTimeoutMs: PROFILE_VIEW_POLL_TIMEOUT_MS }
@@ -680,6 +742,8 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
           : 100,
         query_count: statementCount,
         ...(Object.keys(skippedNotes).length > 0 ? { skipped_columns: skippedNotes } : {}),
+        ...(exactRowCount !== null ? { row_count_exact: exactRowCount } : {}),
+        ...(tableDetail ? { table_detail: tableDetail } : {}),
         columns: columnsProfile,
       },
     };
@@ -700,7 +764,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     const tblSafe = safeId(table, 'table');
     const rowLimit = Math.max(1, Math.min(limit, 20));
 
-    const result = await this.exec(
+    const result = await this.profileExec(
       `SELECT * FROM \`${catSafe}\`.\`${schSafe}\`.\`${tblSafe}\` LIMIT ${rowLimit}`,
     );
 
@@ -840,6 +904,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     since: Date,
     until: Date,
     rowCap: number,
+    opts?: { statementTextSqlFilter?: string | null },
   ): Promise<{ rows: RawHistoryRow[]; nextCursor: Date | null }> {
     const sinceIso = since.toISOString().replace('T', ' ').replace('Z', '');
     const untilIso = until.toISOString().replace('T', ' ').replace('Z', '');
@@ -866,12 +931,14 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
         ? `AND start_time < TIMESTAMP '${cursorTime}' `
         : '';
 
+      const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
       const sql =
         `SELECT LEFT(statement_text, 8000) AS statement_text, executed_as, start_time, update_time, query_source, produced_rows ` +
         `FROM system.query.history ` +
         `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
         `  AND start_time < TIMESTAMP '${untilIso}' ` +
         `  AND statement_type = 'SELECT' ` +
+        scopeFilter +
         cursorClause +
         `ORDER BY start_time DESC ` +
         `LIMIT ${PAGE_SIZE}`;
@@ -945,6 +1012,26 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     return { rows: allRows, nextCursor: null };
   }
 
+  /** Count SELECT rows in the window with the same optional scope filter as pull (no row download). */
+  async countQueryHistoryWindow(
+    since: Date,
+    until: Date,
+    opts?: { statementTextSqlFilter?: string | null },
+  ): Promise<number> {
+    const sinceIso = since.toISOString().replace('T', ' ').replace('Z', '');
+    const untilIso = until.toISOString().replace('T', ' ').replace('Z', '');
+    const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
+    const sql =
+      `SELECT COUNT(*) AS n FROM system.query.history ` +
+      `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
+      `  AND start_time < TIMESTAMP '${untilIso}' ` +
+      `  AND statement_type = 'SELECT' ` +
+      scopeFilter;
+    const result = await this.scopeExec(sql, { rowLimit: 1 });
+    const n = result.rows[0]?.['n'];
+    return n != null ? Number(n) : 0;
+  }
+
   // ── pullTableLineage ─────────────────────────────────────────────────────────
   // One windowed scan of system.access.table_lineage. Rows where either
   // endpoint is null are post-filtered out.
@@ -953,6 +1040,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     _source: ContextSource,
     windowDays: number,
     rowCap: number,
+    opts?: { tableSqlFilter?: string | null },
   ): Promise<RawTableLineageRow[]> {
     if (!Number.isInteger(windowDays) || windowDays <= 0) {
       throw new Error(`pullTableLineage: windowDays must be a positive integer, got ${windowDays}`);
@@ -965,6 +1053,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       `SELECT source_table_full_name, target_table_full_name ` +
       `FROM system.access.table_lineage ` +
       `WHERE event_time >= CURRENT_TIMESTAMP() - INTERVAL ${windowDays} DAYS ` +
+      `${lineageSqlPredicate(opts?.tableSqlFilter)}` +
       `LIMIT ${rowCap}`,
       { rowLimit: rowCap },
     );
@@ -985,6 +1074,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     _source: ContextSource,
     windowDays: number,
     rowCap: number,
+    opts?: { tableSqlFilter?: string | null },
   ): Promise<RawColumnLineageRow[]> {
     if (!Number.isInteger(windowDays) || windowDays <= 0) {
       throw new Error(`pullColumnLineage: windowDays must be a positive integer, got ${windowDays}`);
@@ -997,6 +1087,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       `SELECT source_table_full_name, source_column_name, target_table_full_name, target_column_name ` +
       `FROM system.access.column_lineage ` +
       `WHERE event_time >= CURRENT_TIMESTAMP() - INTERVAL ${windowDays} DAYS ` +
+      `${lineageSqlPredicate(opts?.tableSqlFilter)}` +
       `LIMIT ${rowCap}`,
       { rowLimit: rowCap },
     );
@@ -1023,14 +1114,53 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     return this.exec(sql, { ...opts, waitTimeoutSecs: DATABRICKS_API_MAX_WAIT_SECS, asyncPolling: true });
   }
 
-  private async exec(sql: string, opts?: { rowLimit?: number; waitTimeoutSecs?: number; asyncPolling?: boolean; pollTimeoutMs?: number }) {
+  /**
+   * Exact row count for one table, on demand (object page "Count exact rows").
+   * Only for Delta tables: Databricks answers COUNT(*) there from transaction-log
+   * statistics instead of scanning. Views and non-Delta tables are refused
+   * because the same query would read the whole table.
+   */
+  async countExactRows(ref: { catalog_name: string; schema_name: string; object_name: string }): Promise<
+    | { ok: true; rows: number; format: string; sizeBytes: number | null }
+    | { ok: false; reason: 'NOT_DELTA' | 'NO_DETAIL'; format: string | null }
+  > {
+    const fq = `\`${safeId(ref.catalog_name, 'catalog')}\`.\`${safeId(ref.schema_name, 'schema')}\`.\`${safeId(ref.object_name, 'table')}\``;
+    let format: string | null = null;
+    let sizeBytes: number | null = null;
+    try {
+      const detail = await this.profileExec(`DESCRIBE DETAIL ${fq}`);
+      const row = detail.rows[0];
+      format = row?.format ? String(row.format) : null;
+      sizeBytes = row?.sizeInBytes != null ? Number(row.sizeInBytes) : null;
+    } catch {
+      // Views and some external tables have no DESCRIBE DETAIL.
+      return { ok: false, reason: 'NO_DETAIL', format: null };
+    }
+    if (format?.toLowerCase() !== 'delta') return { ok: false, reason: 'NOT_DELTA', format };
+    const result = await this.profileExec(`SELECT COUNT(*) AS \`__exact_rows\` FROM ${fq}`);
+    const n = Number(result.rows[0]?.['__exact_rows']);
+    if (!Number.isFinite(n) || n < 0) throw new Error('COUNT(*) returned no value');
+    return { ok: true, rows: n, format, sizeBytes };
+  }
+
+  /** Structure, query history and lineage: runs as the `metadata` service principal. */
+  private exec(sql: string, opts?: ExecOpts) {
+    return this.run('metadata', sql, opts);
+  }
+
+  /** Reads data values (profiles, samples, row counts): runs as the `profile` service principal. */
+  private profileExec(sql: string, opts?: ExecOpts) {
+    return this.run('profile', sql, opts);
+  }
+
+  private async run(role: DatabricksSpRole, sql: string, opts?: ExecOpts) {
     this._queryCount++;
-    const token = await getAccessToken(this.conn.id, this.conn.workspace_host);
+    const session = await openDatabricksSession(this.conn, role);
     return executeDatabricksSQL(
       this.conn.id,
-      this.conn.workspace_host,
-      this.conn.default_warehouse_id,
-      token,
+      session.workspaceHost,
+      session.warehouseId,
+      session.token,
       {
         statement: sql,
         ...(opts?.rowLimit !== undefined ? { rowLimit: opts.rowLimit } : {}),
@@ -1060,6 +1190,46 @@ const PROFILE_ROW_LIMIT_VIEW = 5_000;
 // default. Deliberately << ASYNC_POLL_TIMEOUT_MS.
 const PROFILE_VIEW_POLL_TIMEOUT_MS = 180_000; // 3 min
 const PROFILE_AVG_ROW_BYTES_HUGE = 1_000_000;
+/**
+ * Physical layout facts from DESCRIBE DETAIL, kept on the profile stats as
+ * `table_detail`. Partition / clustering columns tell query authors which
+ * column to filter on. `last_modified` changes on every write, so the T1
+ * fingerprint ignores this key (see VOLATILE_PROFILE_KEYS in pipeline-freshness).
+ */
+export interface ProfileTableDetail {
+  format: string | null;
+  partition_columns: string[];
+  clustering_columns: string[];
+  num_files: number | null;
+  created_at: string | null;
+  last_modified: string | null;
+}
+
+function detailStringList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map(String);
+  if (typeof v === 'string' && v.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(v);
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function readTableDetail(row: Record<string, unknown>, format: string | null): ProfileTableDetail {
+  const numFiles = row.numFiles !== null && row.numFiles !== undefined ? Number(row.numFiles) : null;
+  return {
+    format,
+    partition_columns: detailStringList(row.partitionColumns),
+    clustering_columns: detailStringList(row.clusteringColumns),
+    num_files: numFiles !== null && Number.isFinite(numFiles) ? numFiles : null,
+    created_at: row.createdAt ? String(row.createdAt) : null,
+    last_modified: row.lastModified ? String(row.lastModified) : null,
+  };
+}
+
 const PROFILE_MAX_FULL_STAT_COLUMNS = 60;
 
 type ColumnProfileMode = 'full' | 'null_only' | 'skipped';

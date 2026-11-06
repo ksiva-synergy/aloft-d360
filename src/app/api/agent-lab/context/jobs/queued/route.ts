@@ -3,10 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { listQueuedJobs } from '@/lib/context/reads';
+import { kickOrphanedQueuedJobs } from '@/lib/context/kick-queued-workers';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const deniedSection = await denyUnlessSection(null, ['estate.jobs', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -14,6 +18,9 @@ export async function GET() {
 
   try {
     const org = await getDefaultOrg();
+    void kickOrphanedQueuedJobs(org.id).catch((err) => {
+      console.error('[kick-queued]', err instanceof Error ? err.message : err);
+    });
     const items = await listQueuedJobs(org.id);
     return NextResponse.json({ data: items });
   } catch (err) {

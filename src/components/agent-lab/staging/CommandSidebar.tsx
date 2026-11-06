@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { usePathname, useRouter } from '@/lib/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { GearSixIcon, MagnifyingGlassIcon, PushPinIcon, PushPinSlashIcon, XIcon } from '@phosphor-icons/react';
@@ -9,19 +9,22 @@ import type { Session } from 'next-auth';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
-import { HOME_ITEM, NAV_GROUPS, groupForPath, isActive, type NavItem } from './nav-config';
+import { HOME_ITEM, groupForPath, isActive, type NavGroup, type NavItem } from './nav-config';
+import { useNavGroups } from './useNavGroups';
 import { useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle } from './nav-shared';
 
 const COLLAPSED_W = 64;
 const EXPANDED_W = 264;
 
-/** Every page, flattened for the jump-to search. */
-const ALL_ITEMS: (NavItem & { group: string })[] = [
-  { ...HOME_ITEM, group: 'Home' },
-  { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
-  ...NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
-];
+/** Every page this person can open, flattened for the jump-to search. */
+function allItems(groups: NavGroup[]): (NavItem & { group: string })[] {
+  return [
+    { ...HOME_ITEM, group: 'Home' },
+    { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
+    ...groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
+  ];
+}
 
 /**
  * "Command center" sidebar: a full-height strip that collapses to icons and expands
@@ -34,6 +37,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   const { data: session } = useSession();
   const shell = useNavShell();
   const { expanded, pinned, mobileOpen } = shell;
+  const groups = useNavGroups();
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [query, setQuery] = useState('');
@@ -58,17 +62,17 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
     return () => window.removeEventListener('keydown', onKey);
   }, [shell.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const areaIndex = Math.max(0, NAV_GROUPS.findIndex((g) => g.id === areaId));
-  const area = NAV_GROUPS[areaIndex];
+  const areaIndex = Math.max(0, groups.findIndex((g) => g.id === areaId));
+  const area = groups[areaIndex];
   const AreaIcon = area.icon;
 
   const q = query.trim().toLowerCase();
   const results = useMemo(
     () =>
       q
-        ? ALL_ITEMS.filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
+        ? allItems(groups).filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
         : [],
-    [q],
+    [q, groups],
   );
 
   const user = (session ?? initialSession)?.user as { name?: string | null; email?: string | null; roleLabel?: string; role?: string } | undefined;
@@ -115,14 +119,14 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
           <div className="-mx-3 flex h-[var(--shell-header-h)] shrink-0 items-center gap-3 border-b border-[var(--header-border)] px-3">
             <Link
               href="/dashboard"
-              aria-label="Synergy Group — Data 360 home"
+              aria-label="Synergy Group — ALOFT home"
               className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
             >
-              <BrandMark size={40} className="!rounded-xl" />
+              <BrandMark size={30} className="!rounded-xl" />
             </Link>
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[14px] font-semibold text-[var(--rail-ink-strong)]">Data 360</p>
-              <p className="truncate text-[11.5px] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
+              <p className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--rail-ink-strong)]">ALOFT</p>
+              <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">Synergy Group · Agent Lab</p>
             </div>
             <button
               onClick={() => (mobileOpen ? shell.setMobileOpen(false) : shell.togglePin())}
@@ -162,9 +166,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               }}
               placeholder="Search or jump to…"
               aria-label="Search pages"
-              className={cn('w-full min-w-0 bg-transparent text-[13px] text-[var(--rail-ink-strong)] outline-none placeholder:text-[var(--rail-muted)]', fade)}
+              className={cn('w-full min-w-0 bg-transparent text-[length:var(--type-ui-regular-size)] text-[var(--rail-ink-strong)] outline-none placeholder:text-[var(--rail-muted)]', fade)}
             />
-            <kbd className={cn('mr-2 shrink-0 rounded-md bg-[var(--rail-hover)] px-1.5 py-0.5 font-sans text-[10.5px] font-semibold text-[var(--rail-ink)]', fade)}>
+            <kbd className={cn('mr-2 shrink-0 rounded-md bg-[var(--rail-hover)] px-1.5 py-0.5 font-sans text-[length:var(--type-caption-size)] font-semibold text-[var(--rail-ink)]', fade)}>
               Ctrl K
             </kbd>
           </label>
@@ -194,7 +198,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                 className="absolute bottom-1 left-1 top-1 rounded-xl bg-[var(--rail-active)] transition-transform ease-sidebar [transition-duration:400ms]"
                 style={{ width: 'calc((100% - 8px) / 4)', transform: `translateX(${areaIndex * 100}%)` }}
               />
-              {NAV_GROUPS.map((g) => {
+              {groups.map((g) => {
                 const Icon = g.icon;
                 const selected = g.id === areaId;
                 const hasActive = g.items.some((i) => isActive(i, pathname));
@@ -206,7 +210,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
                     tabIndex={expanded ? 0 : -1}
                     onClick={() => setAreaId(g.id)}
                     className={cn(
-                      'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[10.5px] font-medium transition-colors',
+                      'relative z-[1] flex flex-col items-center justify-center gap-0.5 rounded-xl text-[length:var(--type-caption-size)] font-medium transition-colors',
                       selected ? 'text-[var(--rail-ink-strong)]' : 'text-[var(--rail-muted)] hover:text-[var(--rail-ink-strong)]',
                     )}
                   >
@@ -227,7 +231,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               <>
                 <SectionLabel expanded={expanded}>Results</SectionLabel>
                 {results.length === 0 ? (
-                  <p className={cn('px-2 py-4 text-[13px] text-[var(--rail-muted)]', fade)}>No pages match “{query}”.</p>
+                  <p className={cn('px-2 py-4 text-[length:var(--type-ui-regular-size)] text-[var(--rail-muted)]', fade)}>No pages match “{query}”.</p>
                 ) : (
                   <ul className="space-y-0.5">
                     {results.map((item, i) => (
@@ -266,9 +270,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
           >
             <UserMenu initialSession={initialSession} placement="top" />
             <div className={cn('min-w-0 flex-1 whitespace-nowrap leading-tight', fade)}>
-              <p className="truncate text-[13px] font-semibold text-[var(--rail-ink-strong)]">{user?.name || user?.email || 'User'}</p>
+              <p className="truncate text-[length:var(--type-ui-regular-size)] font-semibold text-[var(--rail-ink-strong)]">{user?.name || user?.email || 'User'}</p>
               {(user?.roleLabel ?? user?.role) && (
-                <p className="truncate text-[11.5px] text-[var(--rail-muted)]">{user?.roleLabel ?? user?.role}</p>
+                <p className="truncate text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">{user?.roleLabel ?? user?.role}</p>
               )}
             </div>
             <NavStyleToggle
@@ -291,7 +295,7 @@ function SectionLabel({ expanded, children }: { expanded: boolean; children: Rea
       />
       <span
         className={cn(
-          'whitespace-nowrap px-2 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--rail-muted)] transition-opacity',
+          'whitespace-nowrap px-2 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--rail-muted)] transition-opacity',
           expanded ? 'opacity-100' : 'opacity-0',
         )}
       >
@@ -309,7 +313,7 @@ function Row({ item, active, hint, expanded }: { item: NavItem; active: boolean;
       aria-current={active ? 'page' : undefined}
       title={expanded ? undefined : item.label}
       className={cn(
-        'group relative flex h-10 items-center whitespace-nowrap rounded-xl text-[13.5px] font-medium outline-none transition-colors',
+        'group relative flex h-10 items-center whitespace-nowrap rounded-xl text-[length:var(--type-ui-regular-size)] font-medium outline-none transition-colors',
         'focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]',
         active ? 'bg-[var(--rail-active)] text-[var(--rail-ink-strong)]' : 'text-[var(--rail-ink)] hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink-strong)]',
       )}
@@ -326,7 +330,7 @@ function Row({ item, active, hint, expanded }: { item: NavItem; active: boolean;
       <span className={cn('min-w-0 flex-1 truncate pr-3 transition-opacity duration-200', expanded ? 'opacity-100' : 'opacity-0')}>
         {item.label}
       </span>
-      {hint && expanded && <span className="mr-3 shrink-0 text-[11px] text-[var(--rail-muted)]">{hint}</span>}
+      {hint && expanded && <span className="mr-3 shrink-0 text-[length:var(--type-caption-size)] text-[var(--rail-muted)]">{hint}</span>}
     </Link>
   );
 }

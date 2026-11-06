@@ -15,6 +15,13 @@ import {
   type RawBlueprintItem,
 } from '@/lib/dashboards/blueprint-ground';
 import type { ChartBlueprint, ResolvedIntent } from '@/lib/dashboards/guided-types';
+import { denyUnlessSessionRole } from '@/middleware/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -48,6 +55,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ modelId: string }> },
 ) {
+  const denied = await denyUnlessSessionRole('member');
+  if (denied) return denied;
   try {
     const org = await getDefaultOrg();
     const { modelId } = await params;
@@ -77,6 +86,19 @@ export async function POST(
     if (!model) {
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
     }
+
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id ?? null;
+    const role = await getSessionUserRole();
+    try {
+      await assertInteractiveBudget({ orgId: org.id, userId, role });
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        return NextResponse.json({ error: err.message, code: 'BUDGET_EXCEEDED' }, { status: 402 });
+      }
+      throw err;
+    }
+    const refineTurnId = randomUUID();
 
     // ── Load the definition catalog — same load as ../blueprint (uncapped,
     //    non-archived, non-draft; entities filtered FIRST). ────────────────────
@@ -120,8 +142,9 @@ export async function POST(
       // so trip the abort the moment the single refined chart is captured — the
       // generic loop would otherwise make a redundant second forced round-trip.
       const abortSignal = { value: false };
+      let loopUsage = { inputTokens: 0, outputTokens: 0 };
       try {
-        await runAgentLoop({
+        const loopResult = await runAgentLoop({
           modelId: BLUEPRINT_MODEL,
           systemPrompt: buildRefineItemSystemPrompt(intent, catalog, item, feedback),
           messages,
@@ -141,10 +164,25 @@ export async function POST(
           supportsThinking: false,
           abortSignal,
         });
+        loopUsage = loopResult.usage;
       } catch (err) {
         console.warn('[blueprint/refine-item POST] proposal loop failed; grounding fallback:', err);
       }
       rawItems = captured.flat();
+      if (loopUsage.inputTokens + loopUsage.outputTokens > 0) {
+        void logInteractiveLlmTurn({
+          orgId: org.id,
+          userId,
+          surface: 'semantic_blueprint',
+          action: 'refine_item',
+          model: BLUEPRINT_MODEL,
+          inputTokens: loopUsage.inputTokens,
+          outputTokens: loopUsage.outputTokens,
+          turnId: refineTurnId,
+          status: 'success',
+          meta: { modelId, itemId: item.id },
+        });
+      }
     }
 
     // Fallback: no model output → re-ground the item's own current refs so the

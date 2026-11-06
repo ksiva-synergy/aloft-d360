@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await denyUnlessSection(req, ['govern.audit', 'view']);
+  if (denied) return denied;
   try {
     // Aggregate audit entries from multiple lifecycle tables
     const [runs, deploys, incidents, evals] = await Promise.all([

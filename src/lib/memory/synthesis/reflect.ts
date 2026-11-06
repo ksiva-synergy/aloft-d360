@@ -3,10 +3,7 @@ import { getSessionReflections } from '@/lib/marcus/dal';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { createHash } from 'crypto';
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-} from '@aws-sdk/client-bedrock-runtime';
+import { llmLiteCompleteWithMeta } from '@/lib/llmlite/chat';
 import { extractEntityKeywordsFromNodes } from './entities';
 import { SHORT_LABEL_KEEP, deriveBlurb } from './label';
 
@@ -119,14 +116,6 @@ If you cannot name a specific catalog, schema, table, column, or error message, 
 [{"ruleText": "string — imperative instruction, max 250 chars, must name a concrete identifier", "ruleType": "HARD_RULE|HEURISTIC|SOURCE_PREF|FAILURE_MODE|SCHEMA_MAP", "confidence": 0.0-1.0, "rationale": "string — 1 sentence citing the trace node and payload that supports this rule"}]
 
 If the trace has zero tool calls, return: []`;
-
-// ── Bedrock client ───────────────────────────────────────────────────────────
-
-function getBedrockClient(): BedrockRuntimeClient {
-  return new BedrockRuntimeClient({
-    region: process.env.BEDROCK_REGION ?? 'us-east-1',
-  });
-}
 
 // ── taskSignature computation ─────────────────────────────────────────────────
 // SHA-256(agentClass::sorted-unique-tool-names::sorted-entity-keywords)[0:16]
@@ -285,19 +274,15 @@ export async function reflectSession(
     })),
   });
 
-  // 6. Bedrock Sonnet call
+  // 6. LLM Lite (Grok 4.7) call
   // maxTokens: 2400 — 7 bullets × ~250 char ruleText + rationale comfortably fits.
   // 1200 was too tight and caused "Unterminated string in JSON" truncations.
-  const client = getBedrockClient();
-  const res = await client.send(new ConverseCommand({
-    modelId: process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
-    system:  [{ text: SYSTEM_PROMPT }],
-    messages: [{ role: 'user', content: [{ text: userContent }] }],
-    inferenceConfig: { maxTokens: 2400, temperature: 0.2 },
-  }));
+  const llm = await llmLiteCompleteWithMeta({
+    system: SYSTEM_PROMPT, user: userContent, maxTokens: 2400, temperature: 0.2, feature: 'foer_synthesis',
+  });
 
-  const rawText = res.output?.message?.content?.[0]?.text ?? '[]';
-  const stopReason = res.stopReason;
+  const rawText = llm.text || '[]';
+  const stopReason = llm.truncated ? 'max_tokens' : 'end_turn';
 
   // 7. Parse + Zod-validate
   // Strip optional markdown fences, then attempt a truncation repair when the

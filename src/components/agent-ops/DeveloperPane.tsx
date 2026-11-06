@@ -6,8 +6,9 @@ import { buildLiveTimeline, toolCallsFromMessages } from '@/lib/agent-ops/build-
 import type { TraceLoopGroup } from '@/lib/agent-ops/types';
 import type { SessionAnalytics } from '@/lib/agent-ops/session-cockpit';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
+import { inkOf } from '@/lib/typography/tokens';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 
 interface DeveloperPaneProps {
   sessionId: string | null;
@@ -86,7 +87,7 @@ export function DeveloperPane({
       <div
         style={{
           ...mono,
-          fontSize: 10,
+          fontSize: 'var(--type-caption-size)',
           padding: '10px 12px',
           borderBottom: '1px solid color-mix(in srgb, var(--brand-a) 15%, transparent)',
           display: 'flex',
@@ -99,7 +100,7 @@ export function DeveloperPane({
         {selectedModel && <span>MODEL {selectedModel}</span>}
         {contextMode && <span>CTX {contextMode}</span>}
         <span>DB {dbConnected ? 'ON' : 'OFF'}</span>
-        {errorCount > 0 && <span style={{ color: '#D9774B' }}>LIVE ERR {errorCount}</span>}
+        {errorCount > 0 && <span style={{ color: inkOf('#D9774B') }}>LIVE ERR {errorCount}</span>}
         {analytics && (
           <>
             <span>TOOLS {analytics.totalToolCalls}</span>
@@ -107,24 +108,24 @@ export function DeveloperPane({
             <span>TOOL {analytics.avgToolDurationMs}ms avg</span>
           </>
         )}
-        {isStreaming && <span style={{ color: '#f59e0b' }}>STREAMING</span>}
+        {isStreaming && <span style={{ color: inkOf('#f59e0b') }}>STREAMING</span>}
       </div>
       {stuckWarning && (
         <div
           style={{
-            ...mono,
-            fontSize: 11,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 'var(--type-caption-size)',
             padding: '8px 12px',
             background: 'rgba(217,119,75,0.12)',
             borderBottom: '1px solid rgba(217,119,75,0.35)',
-            color: '#D9774B',
+            color: inkOf('#D9774B'),
           }}
         >
           A tool has been running for over 60s — check Databricks auth or server logs.
         </div>
       )}
       {loadError && !liveSpans.length && (
-        <div style={{ ...mono, fontSize: 11, color: 'var(--ink-3)', padding: 12 }}>{loadError}</div>
+        <div style={{ ...mono, fontSize: 'var(--type-caption-size)', color: 'var(--ink-3)', padding: 12 }}>{loadError}</div>
       )}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <AgentTraceTimeline loops={loops} />
@@ -133,7 +134,7 @@ export function DeveloperPane({
         <div style={{ padding: '8px 12px', borderTop: '1px solid color-mix(in srgb, var(--brand-a) 12%, transparent)' }}>
           <a
             href={`/agent-lab/runs/${sessionId}`}
-            style={{ ...mono, fontSize: 10, color: 'var(--brand-a)', textDecoration: 'none' }}
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-caption-size)', color: 'var(--brand-a)', textDecoration: 'none' }}
           >
             Full session intelligence →
           </a>

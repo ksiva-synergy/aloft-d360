@@ -1,0 +1,489 @@
+.surface {
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+}
+
+.surface :is(button, input, select, a):focus-visible {
+  outline: 2px solid var(--brand-a);
+  outline-offset: 3px;
+}
+
+.page {
+  min-height: 100%;
+  padding: clamp(18px, 2.4vw, 32px);
+  background: var(--background);
+}
+
+.content {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.stat {
+  padding: 16px 18px;
+  border: 1px solid var(--estate-border);
+  border-radius: 14px;
+  background: var(--estate-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.statIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--brand-a-soft);
+  color: var(--brand-a-ink);
+}
+
+.stat:nth-child(2) .statIcon { background: var(--ok-bg); color: var(--ok); }
+.stat:nth-child(3) .statIcon { background: var(--warn-bg); color: var(--warn); }
+.stat:nth-child(4) .statIcon { background: var(--brand-b-soft); color: var(--brand-b-ink); }
+
+.directory {
+  border: 1px solid var(--estate-border);
+  border-radius: 16px;
+  background: var(--estate-surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.directoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 20px 14px;
+  border-bottom: 1px solid var(--estate-border);
+}
+
+.input {
+  height: 36px;
+  width: 100%;
+  border: 1px solid var(--estate-btn-border);
+  border-radius: 10px;
+  background: var(--estate-surface);
+  color: var(--estate-ink);
+  padding: 0 12px;
+  font-size: var(--type-ui-size);
+}
+
+.input::placeholder {
+  color: var(--estate-text-dim);
+}
+
+.surface button.primary {
+  background: var(--brand-a);
+  color: var(--on-brand);
+  border: 1px solid var(--brand-a);
+  border-radius: 10px;
+  min-height: 36px;
+  padding: 0 14px;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--brand-a) 28%, transparent);
+}
+
+.surface button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-a) 86%, black);
+}
+
+.surface .iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--estate-surface);
+  border: 1px solid var(--estate-border);
+  color: var(--estate-text-dim);
+}
+
+.surface .selectTrigger {
+  width: auto;
+  min-width: 140px;
+  height: 36px;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--estate-btn-border);
+  background: var(--estate-surface);
+  color: var(--estate-ink);
+  font-size: var(--type-ui-size);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 2%);
+}
+
+.surface.selectMenu,
+:global(.dark) .surface.selectMenu {
+  padding: 5px;
+  border-radius: 12px;
+  border: 1px solid var(--estate-border);
+  background: var(--estate-surface);
+  color: var(--estate-ink);
+  box-shadow: 0 12px 40px rgb(15 23 42 / 14%), 0 2px 8px rgb(15 23 42 / 6%);
+}
+
+.selectMenu .selectItem {
+  min-height: 32px;
+  margin: 1px 0;
+  padding: 6px 10px 6px 30px;
+  border-radius: 8px;
+  font-size: var(--type-ui-size);
+  color: var(--estate-ink);
+  cursor: pointer;
+}
+
+.selectMenu .selectItem[data-highlighted],
+.selectMenu .selectItem[data-state='checked'] {
+  background: color-mix(in srgb, var(--brand-a) 7%, var(--estate-surface));
+  color: var(--brand-a-ink);
+}
+
+.table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 9px 16px;
+  background: var(--estate-th-bg);
+  border-bottom: 1px solid var(--estate-border);
+  color: var(--estate-text-dim);
+  font-size: var(--type-label-size);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--estate-border) 65%, transparent);
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--ink-1) 5%, var(--surface-1));
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--estate-border);
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--estate-text-dim);
+  font-size: var(--type-label-size);
+  font-weight: 600;
+}
+
+.avatarAdmin {
+  background: color-mix(in srgb, var(--brand-a) 9%, var(--estate-surface));
+  border-color: color-mix(in srgb, var(--brand-a) 20%, var(--estate-border));
+  color: var(--brand-a-ink);
+}
+
+.drawer {
+  position: fixed;
+  inset: 12px 12px 12px auto;
+  z-index: 50;
+  width: min(440px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--estate-border);
+  border-radius: 18px;
+  background: var(--estate-surface);
+  box-shadow: 0 20px 80px rgb(0 0 0 / 20%);
+}
+
+.surface.invite,
+:global(.dark) .surface.invite {
+  max-width: 540px;
+  margin: 0;
+  padding: 0;
+  border-radius: 18px;
+  border-color: var(--estate-border);
+  background: var(--estate-surface);
+}
+
+.dialogHeader {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--estate-border);
+}
+
+.formBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.notice {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-a) 16%, var(--estate-border));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-a) 4%, var(--estate-surface));
+}
+
+.surface .dialogFooter {
+  margin: 0;
+  padding: 14px 20px;
+  gap: 8px;
+  border-top: 1px solid var(--estate-border);
+  background: var(--surface-2);
+}
+
+.surface .secondaryButton {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 14px;
+}
+
+.detailSection {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--estate-border);
+}
+
+.detailRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.detailRow + .detailRow {
+  border-top: 1px solid var(--estate-border);
+}
+
+.detailMetric {
+  border: 1px solid var(--estate-border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 12px;
+}
+
+.surface .profileAction {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.surface.actionMenu {
+  padding: 5px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 14%);
+}
+
+.actionMenu button {
+  min-height: 34px;
+  border-radius: 8px;
+}
+
+/* ── Section access (SectionAccessPanel) ── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--estate-border);
+}
+
+.surface .tab {
+  padding: 8px 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--estate-text-dim);
+  font-size: var(--type-ui-size);
+  font-weight: 500;
+}
+
+.surface .tab[aria-selected='true'] {
+  color: var(--estate-ink);
+  border-bottom-color: var(--brand-a);
+}
+
+.saveBar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--estate-border);
+  background: color-mix(in srgb, var(--brand-a) 5%, var(--estate-surface));
+  font-size: var(--type-ui-size);
+}
+
+.saveBar > span { margin-right: auto; }
+
+.matrixWrap {
+  overflow-x: auto;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--type-ui-size);
+}
+
+.matrix th,
+.matrix td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--estate-border);
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  color: var(--estate-text-dim);
+  font-weight: 500;
+}
+
+.matrix .matrixSection {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 260px;
+  max-width: 360px;
+  text-align: left;
+  white-space: normal;
+  font-weight: 400;
+  background: var(--estate-surface);
+}
+
+.matrix thead .matrixSection { z-index: 2; background: var(--surface-2); }
+
+.bundleHead {
+  min-width: 132px;
+  max-width: 180px;
+  border-left: 1px solid var(--estate-border);
+  color: var(--estate-ink) !important;
+}
+
+.bundleCell { border-left: 1px solid var(--estate-border); }
+
+.surface .bundleAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: var(--estate-text-dim);
+  font-size: var(--type-caption-size, 12px);
+}
+
+.surface .bundleAction:hover { background: var(--muted); color: var(--estate-ink); }
+
+.groupRow th,
+.groupRow td {
+  background: color-mix(in srgb, var(--estate-ink) 3%, var(--estate-surface));
+  font-size: var(--type-caption-size, 12px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--estate-text-dim);
+}
+
+.groupRow th { position: sticky; left: 0; }
+
+.cellSelect {
+  height: 28px;
+  min-width: 96px;
+  padding: 0 6px;
+  border: 1px solid var(--estate-btn-border);
+  border-radius: 8px;
+  background: var(--estate-surface);
+  color: var(--estate-ink);
+  font-size: var(--type-ui-size);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.levelChip {
+  display: inline-block;
+  min-width: 56px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--type-caption-size, 12px);
+}
+
+.level_none { color: var(--estate-text-dim); }
+.level_view { background: var(--brand-b-soft); color: var(--brand-b-ink); }
+.level_manage { background: var(--ok-bg); color: var(--ok); }
+.levelMuted { opacity: 0.55; }
+
+.pendingTag {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--muted);
+  color: var(--estate-text-dim);
+  font-size: var(--type-caption-size, 12px);
+}
+
+.memberList {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--estate-border);
+  border-radius: 10px;
+}
+
+.memberList li + li { border-top: 1px solid var(--estate-border); }
+
+.surface button.danger {
+  background: var(--bad);
+  color: #fff;
+  border: 1px solid var(--bad);
+  border-radius: 10px;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+@media (max-width: 900px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .page { padding: 18px 12px; }
+  .summary { gap: 10px; margin: 18px 0; }
+  .stat { padding: 14px; }
+  .toolbar { padding: 12px 14px; gap: 8px; }
+  .directoryHeader { padding: 14px 14px 0; }
+  .surface .selectTrigger { min-width: 0; }
+  .dialogHeader, .formBody, .detailSection { padding: 16px; }
+}

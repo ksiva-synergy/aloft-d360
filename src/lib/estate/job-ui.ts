@@ -2,9 +2,22 @@
  * Shared job status + launch helpers for Estate Jobs UI and APIs.
  */
 
-export type MappedJobStatus = 'queued' | 'running' | 'orchestrating' | 'done' | 'failed' | 'empty';
+export type MappedJobStatus =
+  | 'queued'
+  | 'running'
+  | 'orchestrating'
+  | 'done'
+  | 'failed'
+  | 'cancelled'
+  | 'empty';
 
-const SPLITTABLE_KINDS = new Set(['t0_structural', 't1_profile', 't2_semantic']);
+const SPLITTABLE_KINDS = new Set([
+  't0_structural',
+  't1_profile',
+  't2_semantic',
+  't3_usage',
+  't4_scan',
+]);
 
 export function mapJobStatus(status: string): MappedJobStatus {
   const s = status.toLowerCase();
@@ -12,6 +25,7 @@ export function mapJobStatus(status: string): MappedJobStatus {
   if (s === 'running') return 'running';
   if (['succeeded', 'partial', 'completed', 'success', 'done'].includes(s)) return 'done';
   if (['failed', 'error'].includes(s)) return 'failed';
+  if (s === 'cancelled' || s === 'canceled') return 'cancelled';
   return 'queued';
 }
 
@@ -26,17 +40,121 @@ export function isKickableJob(job: { status: string; scope?: unknown }): boolean
   return job.status === 'queued';
 }
 
+/** Queued jobs, or active jobs that never got a Fargate worker (no logs, blocks overlap). */
+export function canCancelJob(job: { status: string; scope?: unknown }): boolean {
+  const s = job.status.toLowerCase();
+  return s === 'queued' || s === 'running' || s === 'orchestrating';
+}
+
 export function kindUsesEstateExcludeTree(kind: string): boolean {
   return kind === 't0_structural' || kind === 'estate_inventory';
 }
 
 export function launchUsesEstateExcludeTree(kinds: string[]): boolean {
-  return kinds.some(kindUsesEstateExcludeTree);
+  return kinds.some(
+    k => kindUsesEstateExcludeTree(k) || k === 't1_profile' || k === 't2_semantic',
+  );
 }
 
-export function stripExcludeSchemasForKind(kind: string, excludeSchemas: string[]): string[] {
-  if (kind === 't1_profile' || kind === 't2_semantic') return [];
+/** Pass modal exclude tree through to plan/launch for all tiers that honor it in runners. */
+export function stripExcludeSchemasForKind(_kind: string, excludeSchemas: string[]): string[] {
   return excludeSchemas;
+}
+
+/**
+ * When Limit (includePatterns) is set, it defines the positive scope.
+ * Exclude-tree entries must not zero out a deliberate Limit (P1-20 / modal UX).
+ */
+export function resolveLaunchScopeFilters(
+  excludeSchemas: string[],
+  includePatterns: string[],
+): { excludeSchemas: string[]; includePatterns: string[] } {
+  if (includePatterns.length > 0) {
+    return { excludeSchemas: [], includePatterns };
+  }
+  return { excludeSchemas, includePatterns };
+}
+
+/** T1/T2/embed/T3 without a Focus Limit can touch hundreds of tables. */
+export const WIDE_TIER_LAUNCH_THRESHOLD = 50;
+
+const TIER_KINDS_REQUIRING_FOCUS = new Set([
+  't1_profile',
+  't2_semantic',
+  'embed',
+  't3_usage',
+]);
+
+/**
+ * Block launching profile/semantic/embed/usage across a large scanned set unless
+ * the operator set Limit globs or explicitly confirmed full-source launch.
+ */
+export function wideScopeTierLaunchBlocked(
+  kind: string,
+  includePatterns: string[],
+  totalObjects: number,
+  allowFullSourceLaunch?: boolean,
+): { blocked: boolean; message?: string } {
+  if (allowFullSourceLaunch) return { blocked: false };
+  if (!TIER_KINDS_REQUIRING_FOCUS.has(kind)) return { blocked: false };
+  if (includePatterns.length > 0) return { blocked: false };
+  if (totalObjects <= WIDE_TIER_LAUNCH_THRESHOLD) return { blocked: false };
+  return {
+    blocked: true,
+    message:
+      `${kind} would run on ${totalObjects} objects with no Focus Limit. ` +
+      `Set Limit (e.g. catalog.schema.table or catalog.schema.*) in Jobs launch, ` +
+      `or confirm full-source launch.`,
+  };
+}
+
+/** Modal scope: Limit textarea beats include-tree; include-tree beats exclude-tree. */
+export function resolveModalLaunchScope(input: {
+  includePatternsText: string;
+  scopeTreeMode: 'exclude' | 'include';
+  excludeSchemas: string[];
+  includedSchemas: string[];
+}): { excludeSchemas: string[]; includePatterns: string[] } {
+  const textPatterns = input.includePatternsText
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (textPatterns.length > 0) {
+    return resolveLaunchScopeFilters([], textPatterns);
+  }
+  if (input.scopeTreeMode === 'include' && input.includedSchemas.length > 0) {
+    const includePatterns = input.includedSchemas.map(k => (k.includes('*') ? k : `${k}.*`));
+    return { includePatterns, excludeSchemas: [] };
+  }
+  return resolveLaunchScopeFilters(input.excludeSchemas, []);
+}
+
+/**
+ * T0 with Limit can resolve matching tables live from Databricks (resolveScope)
+ * even when `platform_estate_objects` has no rows for that catalog yet.
+ */
+export type T0LiveScopeSchemaGroups = { total: number; excluded: number };
+
+/**
+ * Allow T0 launch when discovery counts are 0 but Databricks listing will still run
+ * (Limit globs, or exclude-only with at least one non-excluded schema group).
+ */
+export function t0AllowsLiveScopeWhenDiscoveryEmpty(
+  kind: string,
+  includePatterns: string[],
+  discoveryObjectCount: number,
+  discoverySchemaGroups?: T0LiveScopeSchemaGroups,
+): boolean {
+  if (kind !== 't0_structural' || discoveryObjectCount > 0) return false;
+  if (includePatterns.length > 0) return true;
+  if (
+    discoverySchemaGroups
+    && discoverySchemaGroups.excluded > 0
+    && discoverySchemaGroups.excluded < discoverySchemaGroups.total
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function isSplittableKind(kind: string): boolean {
@@ -60,6 +178,12 @@ export function getJobPrimaryMetric(
   }
   if (kind === 't2_semantic' && typeof s.objects_enriched === 'number') {
     return { key: 'objects_enriched', value: s.objects_enriched };
+  }
+  if (kind === 't3_usage' && typeof s.objectsProcessed === 'number') {
+    return { key: 'objectsProcessed', value: s.objectsProcessed };
+  }
+  if (kind === 't4_scan' && typeof s.clusters_enqueued === 'number') {
+    return { key: 'clusters_enqueued', value: s.clusters_enqueued };
   }
 
   if (typeof s.objects_swept === 'number') return { key: 'objects_swept', value: s.objects_swept };
@@ -137,4 +261,47 @@ export function scopeSummaryFocus(scope: unknown): string | null {
   const lines = patterns.map(String);
   if (lines.length === 1) return lines[0];
   return `${lines[0]} (+${lines.length - 1} more)`;
+}
+
+/** Plain-language scope for run detail / drawer (client-safe). */
+export function formatJobScopeHuman(scope: unknown): string {
+  if (!scope || typeof scope !== 'object') return 'Full source (no Limit globs)';
+  const s = scope as Record<string, unknown>;
+  const focus = scopeSummaryFocus(scope);
+  if (focus) return `Limit to: ${focus}`;
+  const excludes = Array.isArray(s.excludeSchemas) ? (s.excludeSchemas as string[]) : [];
+  if (excludes.length > 0) return `${excludes.length} schema(s) excluded from run`;
+  const chain = Array.isArray(s.chain) ? s.chain.map(String) : [];
+  if (chain.length > 0) return `Pipeline chain: ${chain.join(' → ')}`;
+  const surface = typeof s.ui_surface === 'string' ? s.ui_surface : null;
+  if (surface) return `Launched from ${surface.replace(/_/g, ' ')}`;
+  return 'Full source';
+}
+
+/** Guided launch wizard on Jobs L1 (Phase 4). On by default; set `NEXT_PUBLIC_JOBS_LAUNCH_WIZARD=false` to hide. */
+export function isJobsLaunchWizardEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_JOBS_LAUNCH_WIZARD !== 'false';
+}
+
+/** Human label for harvest job kinds (shared with Cost monitor and other lightweight UIs). */
+const JOB_KIND_LABELS: Record<string, string> = {
+  t0_structural: 'T0 Structural',
+  t1_profile: 'T1 Profile',
+  t2_semantic: 'T2 Semantic',
+  embed: 'Embed',
+  mapping: 'Mapping',
+  silo_scan: 'Silo Scan',
+  t3_connected: 'T3 Connected',
+  t3_usage: 'T3 Usage Harvest',
+  knowledge_sync: 'Knowledge Sync',
+  estate_inventory: 'Estate Inventory',
+  change_detect: 'Change Detect',
+  recompute_entity_tags: 'Recompute Entity Tags',
+  t4_scan: 'T4 Entity Scan',
+  t4_entity_propose: 'T4 Entity Propose',
+  t4_dim_propose: 'T4 Dimension Propose',
+};
+
+export function getJobKindLabel(kind: string): string {
+  return JOB_KIND_LABELS[kind] ?? kind;
 }

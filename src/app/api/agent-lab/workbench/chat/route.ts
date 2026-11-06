@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server';
+import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
-import { inspectorLlmConfigured, hasXaiCredentials } from '@/lib/inspector/llm-configured';
+import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
-import { resolveBoostModel, resolveWorkbenchModel } from '@/lib/construction/workbench-model';
+import { resolveWorkbenchModel } from '@/lib/construction/workbench-model';
 import {
   buildWorkbenchSystemPrompt,
   buildWorkbenchToolConfig,
@@ -21,7 +22,11 @@ import { deriveReadiness } from '@/lib/construction/readiness';
 import { handleDescribeSchema } from '@/lib/context/dispatch';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
+import { recordInteractiveLlmSpend } from '@/lib/spend/record-spend-event';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
 import { getDefaultOrg } from '@/lib/platform/agents';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -40,11 +45,12 @@ export async function POST(request: NextRequest) {
     return new Response('sessionId required', { status: 400 });
   }
 
-  if (!inspectorLlmConfigured()) {
-    return new Response('Workbench chat requires a configured model backend (AWS Bedrock, instance profile, or xAI).', { status: 503 });
+  if (!inspectorLlmConfigured() || !hasLlmLiteCredentials()) {
+    return new Response('Workbench chat requires LLM Lite gateway credentials (LLMLITE_BASE_URL and LLMLITE_API_KEY).', { status: 503 });
   }
 
-  const resolved = resolveWorkbenchModel(body.model);
+  const role = await getSessionUserRole();
+  const resolved = resolveWorkbenchModel(body.model, role);
   if (!resolved) {
     return new Response('Model not available for workbench', { status: 400 });
   }
@@ -122,6 +128,15 @@ export async function POST(request: NextRequest) {
       console.error('[workbench/chat] initial harvested-catalog research failed', err);
       initialCatalogResearch = JSON.stringify({ error: 'Harvested-catalog search failed. Check server logs.' });
     }
+  }
+
+  try {
+    await assertInteractiveBudget({ orgId: org.id, userId: row.user_id, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, effectiveModelId);
+    }
+    throw err;
   }
 
   const stream = new ReadableStream({
@@ -238,16 +253,8 @@ export async function POST(request: NextRequest) {
           ? await dispatchAgentLoop(boostModel, loopParams)
           : await runAgentLoop(loopParams);
 
-        if (!boostModel && result.outcome === 'errored' && hasXaiCredentials()) {
-          const grok = resolveBoostModel('grok-xai');
-          if (grok) {
-            emit({ type: 'text', delta: 'Primary model unavailable — retrying with Grok 4.7…\n\n' });
-            result = await dispatchAgentLoop(grok, { ...loopParams, modelId: grok.modelId });
-          }
-        }
-
         if (result.outcome === 'errored' && result.errorDetail) {
-          emit({ type: 'error', message: result.errorDetail, recoverable: true });
+          emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/chat'), recoverable: true });
         }
 
         toolErrorCount = result.toolCalls.filter((t) => t.status === 'error').length;
@@ -258,6 +265,22 @@ export async function POST(request: NextRequest) {
           toolErrors: toolErrorCount,
           error: result.errorDetail ?? null,
         });
+
+        if (result.usage.inputTokens + result.usage.outputTokens > 0) {
+          void recordInteractiveLlmSpend({
+            orgId: org.id,
+            userId: row.user_id,
+            surface: 'workbench',
+            model: effectiveModelId,
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            sessionId: body.sessionId,
+            turnId: turnMetrics.turnId,
+            status: result.outcome === 'errored' ? 'failed' : result.outcome,
+            durationMs: turnMetrics.elapsedMs(),
+            toolCalls: result.toolCalls.length,
+          }).catch(() => {});
+        }
 
         stateRef = coerceConstructionState(stateRef);
         // Keep Config-panel edits (and test runs) made while this turn was streaming.
@@ -294,7 +317,7 @@ export async function POST(request: NextRequest) {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Workbench stream failed';
         void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: toolErrorCount, error: msg });
-        emit({ type: 'error', message: msg, recoverable: true });
+        emit({ type: 'error', message: clientStreamError(err, 'workbench/chat'), recoverable: true });
         emit({
           type: 'done',
           outcome: 'errored',

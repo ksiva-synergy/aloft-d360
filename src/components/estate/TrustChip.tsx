@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Tag } from './object-ui';
 
 export type TrustStatus = 'assumed' | 'confirmed' | 'certified';
 
@@ -8,38 +9,13 @@ interface TrustChipProps {
   status: TrustStatus;
 }
 
+const TRUST: Record<TrustStatus, { tone: 'amber' | 'blue' | 'green'; label: string; title: string }> = {
+  assumed:   { tone: 'amber', label: 'assumed',   title: 'LLM-generated — not yet human-validated' },
+  confirmed: { tone: 'blue',  label: 'confirmed', title: 'Reviewed and confirmed by a steward' },
+  certified: { tone: 'green', label: 'certified', title: 'Certified for use' },
+};
+
 export default function TrustChip({ status }: TrustChipProps) {
-  let styles = {};
-
-  if (status === 'certified') {
-    styles = {
-      backgroundColor: 'var(--brand-a)',
-      borderColor: 'var(--brand-a)',
-      color: 'var(--on-brand)',
-      fontWeight: 600,
-    };
-  } else if (status === 'confirmed') {
-    styles = {
-      backgroundColor: 'var(--estate-trust-confirmed-bg)',
-      borderColor: 'var(--estate-trust-confirmed-border)',
-      color: 'var(--estate-trust-confirmed-text)',
-      fontWeight: 500,
-    };
-  } else {
-    styles = {
-      backgroundColor: 'var(--estate-status-default-bg)',
-      borderColor: 'var(--estate-status-default-border)',
-      color: 'var(--estate-status-default-text)',
-      fontWeight: 400,
-    };
-  }
-
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono uppercase tracking-wider border transition-all duration-200"
-      style={styles}
-    >
-      {status}
-    </span>
-  );
+  const t = TRUST[status] ?? TRUST.assumed;
+  return <Tag tone={t.tone} dot title={t.title}>{t.label}</Tag>;
 }

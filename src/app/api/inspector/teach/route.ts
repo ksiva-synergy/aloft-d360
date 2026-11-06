@@ -15,6 +15,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -22,30 +23,30 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { getUserByEmail } from '@/lib/dashboards/permissions';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
 import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
-import { runAgentLoop } from '@/lib/inspector/agent-loop';
+import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
+import { boostModelFromLlmLiteKey } from '@/lib/llmlite/inspector-models';
+import { isLlmLiteConfigured } from '@/lib/llmlite/config';
+import { toLlmLiteModelKey } from '@/lib/llmlite/keys';
+import { getFeatureGatewayModelId } from '@/lib/llmlite/model-settings-store';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
+import { principalForUser } from '@/lib/access/principal';
 import { MARCUS_REFLECT_SYSTEM_PROMPT } from '@/lib/inspector/reflect-prompt';
 import {
   buildReflectToolConfig,
   executeReflectTool,
   type ReflectToolContext,
 } from '@/lib/inspector/reflect-tools';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { budgetExceededStreamResponse } from '@/lib/spend/budget-response';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-// Reflect is a reasoning/extraction task — default to a tool-capable Claude model.
-const REFLECT_MODELS: Record<string, { bedrockId: string; supportsThinking: boolean }> = {
-  'sonnet-5-5': { bedrockId: 'us.anthropic.claude-sonnet-5-5', supportsThinking: true },
-  'opus-5-5': { bedrockId: 'us.anthropic.claude-opus-5-5', supportsThinking: true },
-  'sonnet-4-6': { bedrockId: 'us.anthropic.claude-sonnet-4-6', supportsThinking: true },
-  'opus-4-6': { bedrockId: 'us.anthropic.claude-opus-4-6-v1', supportsThinking: true },
-  'haiku-4-5': { bedrockId: 'us.anthropic.claude-haiku-4-5-20251001-v1:0', supportsThinking: false },
-};
-const DEFAULT_REFLECT_MODEL = 'sonnet-5-5';
-
 function isBedrockConfigured(): boolean {
-  return !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  return isLlmLiteConfigured();
 }
 
 export async function POST(request: NextRequest) {
@@ -59,7 +60,12 @@ export async function POST(request: NextRequest) {
   const authBlock = await guardInspectorChat(request, body.sessionId);
   if (authBlock) return authBlock;
 
-  const modelConfig = REFLECT_MODELS[body.model ?? ''] ?? REFLECT_MODELS[DEFAULT_REFLECT_MODEL];
+  const reflectGatewayModelId = await getFeatureGatewayModelId('teach_reflect');
+  const modelConfig = { bedrockId: reflectGatewayModelId, supportsThinking: false };
+  const reflectBoostModel = boostModelFromLlmLiteKey(
+    toLlmLiteModelKey(reflectGatewayModelId),
+    reflectGatewayModelId,
+  );
 
   const userMessages: Message[] = (body.messages || [])
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
@@ -80,7 +86,6 @@ export async function POST(request: NextRequest) {
     return new Response('Reflect mode requires a configured model backend.', { status: 503 });
   }
 
-  // Resolve org, caller, and the governed connection (for verify_claim).
   const org = await getDefaultOrg();
   let callerUserId: string | null = null;
   try {
@@ -90,6 +95,16 @@ export async function POST(request: NextRequest) {
     callerUserId = caller?.id ?? null;
   } catch {
     /* fail-closed: no caller → capture disabled, org-only recall */
+  }
+
+  const role = await getSessionUserRole();
+  try {
+    await assertInteractiveBudget({ orgId: org.id, userId: callerUserId, role });
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      return budgetExceededStreamResponse(err, modelConfig.bedrockId);
+    }
+    throw err;
   }
 
   let connectionId: string | null = null;
@@ -104,11 +119,11 @@ export async function POST(request: NextRequest) {
     orgId: org.id,
     userId: callerUserId,
     connectionId,
-    // Thread the Teach session id onto captured candidates so the read-only feed
-    // (Phase 3) can scope by author + session. guardInspectorChat above already
-    // verified the caller owns this session.
     sessionId: body.sessionId ?? null,
+    dataPrincipal: callerUserId ? await principalForUser(callerUserId, org.id) : null,
   };
+
+  const turnId = randomUUID();
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -134,7 +149,7 @@ export async function POST(request: NextRequest) {
       try {
         emit({ type: 'stream_start', mode: 'reflect', model: modelConfig.bedrockId, maxLoops: maxInspectorLoops });
 
-        const result = await runAgentLoop({
+        const result = await dispatchAgentLoop(reflectBoostModel, {
           modelId: modelConfig.bedrockId,
           systemPrompt: MARCUS_REFLECT_SYSTEM_PROMPT,
           messages: userMessages,
@@ -161,6 +176,21 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        if (result.usage.inputTokens + result.usage.outputTokens > 0) {
+          void logInteractiveLlmTurn({
+            orgId: org.id,
+            userId: callerUserId,
+            surface: 'inspector_teach',
+            action: 'reflect_turn',
+            model: modelConfig.bedrockId,
+            inputTokens: result.usage.inputTokens,
+            outputTokens: result.usage.outputTokens,
+            sessionId: body.sessionId ?? null,
+            turnId,
+            status: result.outcome === 'errored' ? 'failed' : result.outcome,
+          });
+        }
+
         emit({
           type: 'done',
           outcome: result.outcome,
@@ -169,8 +199,7 @@ export async function POST(request: NextRequest) {
           model: modelConfig.bedrockId,
         });
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Reflect stream failed';
-        emit({ type: 'error', message: msg, recoverable: true });
+        emit({ type: 'error', message: clientStreamError(err, 'inspector/teach'), recoverable: true });
         emit({ type: 'done', outcome: 'errored', loops: 0, usage: { inputTokens: 0, outputTokens: 0 }, model: modelConfig.bedrockId });
       } finally {
         if (!closed.value) {

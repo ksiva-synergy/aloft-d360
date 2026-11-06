@@ -51,9 +51,9 @@ export function NavStyleToggle({ current, className }: { current: NavStyle; clas
 /** Soft blurred violet/cyan light blobs behind the dark sidebar surfaces. */
 export function AuroraGlow({ className }: { className?: string }) {
   return (
-    <span aria-hidden style={{ opacity: 'var(--rail-glow, 1)' }} className={cn('pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]', className)}>
-      <span className="absolute -left-16 -top-16 h-48 w-48 rounded-full bg-[var(--brand-a)] opacity-25 blur-[56px]" />
-      <span className="absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-[var(--rail-accent)] opacity-10 blur-[56px]" />
+    <span aria-hidden style={{ opacity: 'var(--rail-glow, 1)' }} className={cn('pointer-events-none absolute inset-0 rounded-[inherit]', className)}>
+      <span className="absolute left-2 top-2 h-36 w-36 rounded-full bg-[var(--brand-a)] opacity-30 blur-3xl" />
+      <span className="absolute bottom-6 right-2 h-28 w-28 rounded-full bg-[var(--rail-accent)] opacity-20 blur-3xl" />
     </span>
   );
 }

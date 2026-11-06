@@ -1,3 +1,4 @@
+import { FONT_SANS } from '@/lib/typography/tokens';
 /**
  * src/lib/dashboards/inspector-viz-tokens.ts
  *
@@ -124,7 +125,7 @@ export const INK_DIM = 'var(--iv-ink-dim, #768390)' as const;
 // ── Typography roles ─────────────────────────────────────────────────────────
 // Inter for ALL UI (labels, titles, pills). Mono is reserved for the SQL trust
 // panel ONLY — never labels/titles/pills.
-export const UI_FONT = "'Inter Tight', system-ui, sans-serif" as const;
+export const UI_FONT = FONT_SANS;
 export const MONO_FONT = "'IBM Plex Mono', ui-monospace, monospace" as const;
 
 // ── Deterministic measure → colour ───────────────────────────────────────────

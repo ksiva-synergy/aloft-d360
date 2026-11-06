@@ -13,6 +13,7 @@ import { deriveReadiness } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
 import { isEditableField, type EditableField } from '@/lib/construction/user-edits';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
+import { useInspectorChatModels } from '@/hooks/useInspectorChatModels';
 
 const DEFAULT_MODEL = DEFAULT_INSPECTOR_MODEL_KEY;
 
@@ -22,6 +23,7 @@ interface UseWorkbenchChatOptions {
 }
 
 export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchChatOptions) {
+  const { models: availableModels } = useInspectorChatModels();
   const [localMessages, setLocalMessages] = useState<WorkbenchMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [interrupted, setInterrupted] = useState(false);
@@ -30,7 +32,19 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
   const [completionMeta, setCompletionMeta] = useState<
     Record<string, { durationMs: number; tokenCount: number; modelName: string }>
   >({});
-  const [previewModel, setPreviewModel] = useState(DEFAULT_MODEL);
+  const resolveDefaultModelKey = (list: typeof AVAILABLE_MODELS) =>
+    list.some((m) => m.key === DEFAULT_MODEL)
+      ? DEFAULT_MODEL
+      : (list[0]?.key ?? DEFAULT_MODEL);
+
+  const [previewModel, setPreviewModel] = useState(() => resolveDefaultModelKey(AVAILABLE_MODELS));
+
+  useEffect(() => {
+    if (availableModels.length === 0) return;
+    setPreviewModel((current) =>
+      availableModels.some((m) => m.key === current) ? current : resolveDefaultModelKey(availableModels),
+    );
+  }, [availableModels]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId);
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
   const [constructionState, setConstructionState] = useState<ConstructionState | null>(null);
@@ -110,6 +124,9 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
   // overwrite those writes — e.g. undo a commission.
   useEffect(() => {
     if (!currentSessionId) return;
+    // Never autosave an opened session before its stored messages have loaded: the initial
+    // empty list would overwrite the saved conversation (slow or failed load = history wiped).
+    if (sessionId && hydratedSessionId !== sessionId) return;
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
       fetch(`/api/agent-lab/workbench/sessions/${currentSessionId}`, {
@@ -125,7 +142,7 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [currentSessionId, localMessages, attachedToolIds]);
+  }, [currentSessionId, sessionId, hydratedSessionId, localMessages, attachedToolIds]);
 
   const syncSessionConstruction = useCallback((sid: string) => {
     fetch(`/api/agent-lab/workbench/sessions/${sid}`)
@@ -632,5 +649,6 @@ export function useWorkbenchChat({ sessionId, onSessionCreated }: UseWorkbenchCh
     editField,
     recordTestRun,
     hydratedSessionId,
+    availableModels,
   };
 }

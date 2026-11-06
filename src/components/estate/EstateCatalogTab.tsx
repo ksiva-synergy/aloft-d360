@@ -1,15 +1,21 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import EstateFacetTree from './EstateFacetTree';
 import EstateFilterBar, { EstateFilterState } from './EstateFilterBar';
 import EstateTable from './EstateTable';
 import BulkActionBar from './BulkActionBar';
 import PreviewColumnsDrawer from './PreviewColumnsDrawer';
 import Pagination from './Pagination';
+import { isTestSourceDisplayName } from '@/lib/context/test-sources';
+import { buildCatalogPipelineLaunchBody, resolveCatalogPipelineScope } from '@/lib/estate/catalog-pipeline';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
+import { toast } from 'sonner';
 
 export default function EstateCatalogTab({ refreshKey = 0, showTestSources = false }: { refreshKey?: number; showTestSources?: boolean }) {
+  const canRunPipeline = useCanRunEstatePipeline();
   const [filters, setFilters] = useState<EstateFilterState>({
+    sourceId: undefined,
     catalog: undefined,
     schema: undefined,
     kind: undefined,
@@ -19,11 +25,35 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
     pageSize: 50,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/agent-lab/context/sources');
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list = Array.isArray(data.sources) ? data.sources : [];
+        const pick = list.find(
+          (s: { display_name?: string | null; status?: string }) =>
+            s.status === 'active' && (showTestSources || !isTestSourceDisplayName(s.display_name)),
+        );
+        if (pick?.id && !cancelled) {
+          setFilters(prev => (prev.sourceId ? prev : { ...prev, sourceId: pick.id }));
+        }
+      } catch {
+        // estate list remains org-wide until source resolves
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [showTestSources]);
+
   const [total, setTotal] = useState(0);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerPath, setDrawerPath] = useState('');
   const [drawerContextObjectId, setDrawerContextObjectId] = useState<string | null>(null);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [scheduledRunning, setScheduledRunning] = useState(false);
 
   const handleFilterChange = useCallback((updates: Partial<EstateFilterState>) => {
     setFilters(prev => ({ ...prev, ...updates, page: 1 }));
@@ -55,10 +85,18 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paths }),
       });
-      if (!res.ok) throw new Error('Harvest failed');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Harvest failed');
+      const enqueued = Array.isArray(data.enqueued) ? data.enqueued.length : paths.length;
+      toast.success(`Structural harvest (T0) queued for ${enqueued} table(s)`, {
+        description: 'T0 only. Use Scanned → Continue pipeline or Jobs with a Limit for T1→T2→embed.',
+      });
       setFilters(prev => ({ ...prev }));
     } catch (err) {
       console.error('[EstateCatalogTab] harvest error:', err);
+      toast.error('Harvest failed', {
+        description: err instanceof Error ? err.message : 'Could not enqueue T0',
+      });
     }
   }, []);
 
@@ -127,9 +165,81 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
     }
   }, [filters.catalog, filters.schema, handleScheduleChange]);
 
+  const handleRunPipeline = useCallback(async () => {
+    if (!filters.catalog || pipelineRunning) return;
+    const { label } = resolveCatalogPipelineScope(filters.catalog, filters.schema);
+    const body = buildCatalogPipelineLaunchBody(
+      filters.catalog,
+      filters.schema,
+      filters.sourceId,
+    );
+    setPipelineRunning(true);
+    try {
+      const res = await fetch('/api/agent-lab/context/jobs/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data.message === 'string'
+            ? data.message
+            : typeof data.error === 'string'
+              ? data.error
+              : 'Launch failed';
+        toast.error('Pipeline launch failed', { description: msg });
+        return;
+      }
+      const steps = 'T0 → T1 → T2 → embed';
+      toast.success(`Pipeline started for ${label}`, {
+        description: `${steps} sequential on Fargate · Limit ${body.includePatterns[0]}`,
+      });
+    } catch (err) {
+      console.error('[EstateCatalogTab] pipeline launch error:', err);
+      toast.error('Pipeline launch failed', { description: 'Network error' });
+    } finally {
+      setPipelineRunning(false);
+    }
+  }, [filters.catalog, filters.schema, filters.sourceId, pipelineRunning]);
+
+  const handleRunScheduled = useCallback(async () => {
+    if (!filters.sourceId || scheduledRunning) return;
+    setScheduledRunning(true);
+    try {
+      const res = await fetch('/api/agent-lab/context/estate/run-scheduled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: filters.sourceId,
+          ...(filters.catalog ? { catalog: filters.catalog } : {}),
+          ...(filters.schema ? { schema: filters.schema } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error('Scheduled harvest failed', { description: data.error ?? `HTTP ${res.status}` });
+        return;
+      }
+      if ((data.schemasStarted ?? 0) === 0) {
+        toast.message('No scheduled tables in this scope');
+        return;
+      }
+      toast.success(`Started pipeline for ${data.schemasStarted} schema(s)`, {
+        description: `${data.pathsMarkedQueued ?? 0} table(s) marked queued`,
+      });
+    } catch (err) {
+      console.error('[EstateCatalogTab] run-scheduled error:', err);
+      toast.error('Scheduled harvest failed');
+    } finally {
+      setScheduledRunning(false);
+    }
+  }, [filters.sourceId, filters.catalog, filters.schema, scheduledRunning]);
+
   return (
     <div className="flex h-full w-full overflow-hidden">
       <EstateFacetTree
+        sourceId={filters.sourceId}
         selectedCatalog={filters.catalog}
         selectedSchema={filters.schema}
         onSelect={handleFacetSelect}
@@ -143,11 +253,17 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
 
         <BulkActionBar
           count={selectedPaths.size}
+          canRunPipeline={canRunPipeline}
           onHarvest={handleBulkHarvest}
           onSchedule={handleBulkSchedule}
           onUnschedule={handleBulkUnschedule}
           onScheduleCatalog={handleScheduleCatalog}
+          onRunPipeline={canRunPipeline && filters.catalog ? handleRunPipeline : undefined}
+          onRunScheduled={canRunPipeline && filters.catalog && filters.sourceId ? handleRunScheduled : undefined}
+          pipelineRunning={pipelineRunning}
+          scheduledRunning={scheduledRunning}
           catalogScope={filters.catalog ? (filters.schema ? `${filters.catalog}.${filters.schema}` : filters.catalog) : undefined}
+          scopeTotal={total}
           onClear={() => setSelectedPaths(new Set())}
         />
 
@@ -160,6 +276,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
           onHarvest={handleHarvest}
           onSyncKnowledge={handleSyncKnowledge}
           onScheduleChange={handleScheduleChange}
+          canRunPipeline={canRunPipeline}
           drawerOpen={drawerOpen}
           refreshKey={refreshKey}
           showTestSources={showTestSources}
@@ -179,6 +296,7 @@ export default function EstateCatalogTab({ refreshKey = 0, showTestSources = fal
         contextObjectId={drawerContextObjectId}
         onClose={() => setDrawerOpen(false)}
         onHarvest={handleHarvest}
+        canRunPipeline={canRunPipeline}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import React from 'react';
+import { type } from '@/lib/typography/tokens';
 
 // ── Dot ──────────────────────────────────────────────────────
 export interface DotProps { c?: string; s?: number; }
@@ -188,12 +189,10 @@ export function StatusBadge({ s }: StatusBadgeProps) {
 
   return (
     <span style={{
-      fontFamily: 'var(--mono)',
-      fontSize: 13,
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
+      ...type.label,
+      letterSpacing: '0.08em',
       padding: '2px 6px',
-      borderRadius: 3,
+      borderRadius: 6,
       background: bg,
       color,
       border,
@@ -213,12 +212,10 @@ export function Check({ ok, label }: CheckProps) {
       display: 'inline-flex',
       alignItems: 'center',
       gap: 3,
-      fontFamily: 'var(--mono)',
-      fontSize: 13,
-      textTransform: 'uppercase',
-      letterSpacing: '0.1em',
+      ...type.label,
+      letterSpacing: '0.08em',
       padding: '1px 5px',
-      borderRadius: 3,
+      borderRadius: 6,
       border: ok ? '1px solid var(--green)' : '1px solid var(--border)',
       color: ok ? 'var(--green)' : 'var(--label)',
       background: 'transparent',
@@ -236,10 +233,9 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <span style={{
-        fontSize: 13,
-        fontFamily: 'var(--mono)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.1em',
+        fontSize: 'var(--type-ui-regular-size)',
+        ...type.label,
+        letterSpacing: '0.08em',
         color: 'var(--label)',
       }}>
         {k}
@@ -248,7 +244,7 @@ export function MetaCell({ k, v, accent = false }: MetaCellProps) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
-        fontSize: 13,
+        fontSize: 'var(--type-ui-regular-size)',
         fontFamily: 'var(--mono)',
         color: accent ? 'var(--green)' : 'var(--text)',
       }}>

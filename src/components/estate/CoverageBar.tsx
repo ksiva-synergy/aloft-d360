@@ -1,36 +1,46 @@
 'use client';
 
 import React from 'react';
+import { formatCount, percentOf } from '@/lib/estate/stages';
 
 interface CoverageBarProps {
   label: string;
   count: number;
+  /** What the percentage is measured against. */
   total: number;
   color: string;
-  denominator?: number;
+  help?: string;
+  /** e.g. "of 1,240 in source" — shown under the label. */
+  totalLabel?: string;
 }
 
-export default function CoverageBar({ label, count, total, color, denominator }: CoverageBarProps) {
-  const denom = denominator ?? total;
-  const percentage = denom > 0 ? Math.round((count / denom) * 100) : 0;
+export default function CoverageBar({ label, count, total, color, help, totalLabel }: CoverageBarProps) {
+  const percentage = percentOf(count, total);
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium tracking-wide text-[var(--muted-foreground)]">
-          {label}
-        </span>
-        <span className="font-mono text-xs text-[var(--muted-foreground)]">
-          {count} <span className="opacity-60">({percentage}%)</span>
-        </span>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-1.5" title={help}>
+      <div className="flex min-w-0 items-center gap-2">
+        <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <span className="truncate text-ui text-[var(--estate-ink)]">{label}</span>
+        {totalLabel && (
+          <span className="hidden truncate text-caption text-[var(--estate-text-muted)] sm:inline">{totalLabel}</span>
+        )}
       </div>
-      <div className="h-1.5 w-full rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden">
+      <span className="text-ui-regular tabular-nums text-[var(--estate-text-secondary)]">
+        {formatCount(count)}
+        <span className="ml-1.5 inline-block w-10 text-right text-[var(--estate-text-muted)]">{percentage}%</span>
+      </span>
+      <div
+        className="col-span-2 h-1.5 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--estate-ink)_8%,transparent)]"
+        role="progressbar"
+        aria-label={`${label}: ${percentage}%`}
+        aria-valuenow={percentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div
-          className="h-full rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${percentage}%`,
-            backgroundColor: color,
-          }}
+          className="h-full rounded-full transition-[width] duration-500 ease-out-strong"
+          style={{ width: `${percentage}%`, backgroundColor: color }}
         />
       </div>
     </div>

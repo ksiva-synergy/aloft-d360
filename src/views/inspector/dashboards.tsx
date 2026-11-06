@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import {
   LayoutDashboard, Plus, BarChart2, Calendar, User, Search,
   Lock, Building2, Users, MoreHorizontal, Share2, Copy, Trash2, Eye,
 } from 'lucide-react';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const SERIF: React.CSSProperties = { fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif" };
-const SANS: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+import { type, inkOf } from '@/lib/typography/tokens';
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const SERIF: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
+const SANS: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 const GOLD = 'var(--brand-a-ink)';
 
 type DashboardVisibility = 'private' | 'org' | 'shared';
@@ -117,10 +118,10 @@ export default function DashboardsListPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <LayoutDashboard size={18} style={{ color: GOLD }} />
             <div>
-              <h1 style={{ ...SERIF, fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+              <h1 className="type-title-page" style={{ color: 'var(--text-primary)', margin: 0 }}>
                 Dashboards
               </h1>
-              <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', margin: '3px 0 0', letterSpacing: '0.04em' }}>
+              <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', margin: '3px 0 0', letterSpacing: '0.04em' }}>
                 INSPECTOR · SAVED DASHBOARDS
               </p>
             </div>
@@ -129,9 +130,9 @@ export default function DashboardsListPage() {
             onClick={handleNewDashboard}
             disabled={creating}
             style={{
-              ...MONO, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13,
-              letterSpacing: '0.06em', textTransform: 'uppercase', background: 'var(--brand-a)',
-              color: 'var(--on-brand)', border: 'none', borderRadius: 4, padding: '8px 16px',
+              ...MONO, display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--type-ui-regular-size)',
+              letterSpacing: '0.04em', textTransform: 'uppercase', background: 'var(--brand-a)',
+              color: 'var(--on-brand)', border: 'none', borderRadius: 6, padding: '8px 16px',
               cursor: creating ? 'not-allowed' : 'pointer', opacity: creating ? 0.6 : 1, fontWeight: 600,
             }}
           >
@@ -149,7 +150,7 @@ export default function DashboardsListPage() {
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
                 style={{
-                  ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase',
+                  ...type.label,
                   padding: '8px 14px', background: 'transparent', border: 'none',
                   borderBottom: filter === tab.id ? `2px solid ${GOLD}` : '2px solid transparent',
                   color: filter === tab.id ? GOLD : 'var(--text-muted)',
@@ -171,9 +172,9 @@ export default function DashboardsListPage() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search dashboards…"
               style={{
-                ...MONO, fontSize: 13, width: '100%', boxSizing: 'border-box',
+                ...MONO, fontSize: 'var(--type-ui-regular-size)', width: '100%', boxSizing: 'border-box',
                 background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: '1px solid var(--border-default)',
-                borderRadius: 4, color: 'var(--text-primary)', padding: '6px 8px 6px 28px',
+                borderRadius: 6, color: 'var(--text-primary)', padding: '6px 8px 6px 28px',
                 outline: 'none',
               }}
             />
@@ -183,9 +184,9 @@ export default function DashboardsListPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ ...MONO, fontSize: 13, color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 4, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
+        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#F87171', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, padding: '10px 16px', margin: '12px 28px 0', flexShrink: 0 }}>
           {error}
-          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: '#F87171', cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 13 }}>dismiss</button>
+          <button onClick={() => setError(null)} style={{ background: 'transparent', border: 'none', color: inkOf('#F87171'), cursor: 'pointer', marginLeft: 12, textDecoration: 'underline', ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>dismiss</button>
         </div>
       )}
 
@@ -193,14 +194,14 @@ export default function DashboardsListPage() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-            <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>LOADING…</span>
+            <span style={{ ...type.label, }}>LOADING…</span>
           </div>
         )}
 
         {!loading && filtered.length === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 260, gap: 12 }}>
             <BarChart2 size={36} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-            <p style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
+            <p style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.6 }}>
               {search ? 'No dashboards match your search.' : filter === 'mine' ? 'You have not created any dashboards yet.' : filter === 'shared' ? 'No dashboards have been shared with you.' : 'No dashboards yet. Create one to start building visualisations.'}
             </p>
           </div>
@@ -234,11 +235,11 @@ export default function DashboardsListPage() {
             style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 6, padding: 24, width: 340, maxWidth: '90vw' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <p style={{ ...SANS, fontSize: 14, color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>Delete dashboard?</p>
-            <p style={{ ...SANS, fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>This action cannot be undone. All versions and widget configs will be removed.</p>
+            <p style={{ ...SANS, fontSize: 'var(--type-body-size)', color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>Delete dashboard?</p>
+            <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', marginBottom: 20 }}>This action cannot be undone. All versions and widget configs will be removed.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 13, padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 4, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cancel</button>
-              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 13, padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Delete</button>
+              <button onClick={() => setDeleteConfirm(null)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', padding: '7px 14px', background: '#EF4444', border: 'none', borderRadius: 6, color: '#FFFFFF', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Delete</button>
             </div>
           </div>
         </div>
@@ -257,7 +258,7 @@ function VisibilityBadge({ visibility }: { visibility: DashboardVisibility }) {
   };
   const { icon, label, color } = config[visibility] ?? config.org;
   return (
-    <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 3, padding: '2px 5px' }}>
+    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 3, color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 6, padding: '2px 5px' }}>
       {icon}{label}
     </span>
   );
@@ -270,7 +271,7 @@ function RoleBadge({ role }: { role: string | null }) {
   const colors: Record<string, string> = { owner: GOLD, editor: '#A78BFA', viewer: '#8892A4' };
   const color = colors[role] ?? '#8892A4';
   return (
-    <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 3, padding: '2px 5px', textTransform: 'uppercase' }}>
+    <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color, background: `${withAlpha(color, '18')}`, border: `1px solid ${withAlpha(color, '30')}`, borderRadius: 6, padding: '2px 5px', textTransform: 'uppercase' }}>
       {role}
     </span>
   );
@@ -332,14 +333,14 @@ function DashboardCard({
         {/* Title row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
           <LayoutDashboard size={14} style={{ color: GOLD, flexShrink: 0, marginTop: 2 }} />
-          <span style={{ ...SERIF, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1 }}>
+          <span style={{ ...SERIF, fontSize: 'var(--type-body-size)', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, flex: 1 }}>
             {dashboard.name}
           </span>
         </div>
 
         {/* Description */}
         {dashboard.description && (
-          <p style={{ ...SANS, margin: '0 0 8px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          <p style={{ ...SANS, margin: '0 0 8px', fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
             {dashboard.description}
           </p>
         )}
@@ -348,11 +349,11 @@ function DashboardCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           <VisibilityBadge visibility={dashboard.visibility} />
           <RoleBadge role={dashboard.my_role} />
-          <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 3, padding: '2px 6px' }}>
+          <span style={{ ...type.label, color: dashboard.widget_count > 0 ? 'var(--brand-a)' : 'var(--text-muted)', background: dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 8%, transparent)' : 'color-mix(in srgb, var(--ink-1) 4%, transparent)', border: `1px solid ${dashboard.widget_count > 0 ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)'}`, borderRadius: 6, padding: '2px 6px' }}>
             {dashboard.widget_count} {dashboard.widget_count === 1 ? 'WIDGET' : 'WIDGETS'}
           </span>
           {dashboard.collaborator_count > 1 && (
-            <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
               <Users size={9} />{dashboard.collaborator_count} PEOPLE
             </span>
           )}
@@ -360,10 +361,10 @@ function DashboardCard({
 
         {/* Meta footer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
             <User size={9} />{ownerDisplay}
           </span>
-          <span style={{ ...MONO, fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+          <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
             <Calendar size={9} />{updatedDate}
           </span>
         </div>
@@ -373,7 +374,11 @@ function DashboardCard({
       <div style={{ position: 'absolute', top: 10, right: 10 }}>
         <button
           onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-          style={{ background: menuOpen ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, borderRadius: 3, display: 'flex', alignItems: 'center', opacity: hovered || menuOpen ? 1 : 0, transition: 'opacity 0.12s' }}
+          aria-label="Dashboard actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="focus-visible:!opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          style={{ background: menuOpen ? 'color-mix(in srgb, var(--ink-1) 8%, transparent)' : 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', width: 28, height: 28, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: hovered || menuOpen ? 1 : 0, transition: 'opacity 0.12s' }}
         >
           <MoreHorizontal size={14} />
         </button>
@@ -413,7 +418,7 @@ function MenuItem({ icon, label, onClick, danger }: { icon: React.ReactNode; lab
       onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{ ...MONO, display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', background: hov ? 'color-mix(in srgb, var(--ink-1) 6%, transparent)' : 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, letterSpacing: '0.04em', color: danger ? '#F87171' : 'var(--text-primary)', transition: 'background 0.1s' }}
+      style={{ ...MONO, display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 12px', background: hov ? 'color-mix(in srgb, var(--ink-1) 6%, transparent)' : 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em', color: danger ? '#F87171' : 'var(--text-primary)', transition: 'background 0.1s' }}
     >
       {icon}{label}
     </button>

@@ -1,5 +1,26 @@
 import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { extendTailwindMerge } from 'tailwind-merge'
+
+// Teach tailwind-merge the project's custom scales (tailwind.config.js). Without this,
+// a type token such as `text-size-ui` is mistaken for a text colour and dropped when a
+// colour class follows it, and custom radius/duration/easing classes never merge.
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [{
+        text: [
+          'size-caption', 'size-ui', 'size-body', 'size-body-lg', 'size-title-section', 'size-kpi-lg', 'size-display',
+          'display', 'title-page', 'title-section', 'title-card', 'body-lg', 'body', 'ui-lg', 'ui', 'ui-regular',
+          'label', 'caption', 'eyebrow', 'kpi-lg', 'kpi-md', 'kpi-sm', 'code',
+        ],
+      }],
+      rounded: [{ rounded: ['xs', 'ctl', 'card', 'dialog', 'brand'] }],
+      duration: [{ duration: ['press', 'hover', 'pop', 'dialog', 'drawer'] }],
+      ease: [{ ease: ['sidebar', 'out-strong', 'in-out-strong', 'drawer'] }],
+      shadow: [{ shadow: ['card', 'pop', 'nav', 'dialog'] }],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

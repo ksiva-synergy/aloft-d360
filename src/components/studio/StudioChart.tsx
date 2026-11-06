@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useRef, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import type { ChartSpec } from '@/lib/studio/types';
 import { useIsDark } from '@/hooks/useIsDark';
 
@@ -9,10 +8,10 @@ import { useIsDark } from '@/hooks/useIsDark';
 import '@/lib/studio/spinorEchartsTheme';
 // aloft-dark + aloft-light themes registered via echartsCore.ts (shared init for client + SSR).
 import '@/lib/studio/echartsCore';
+import { CHART_TEXT, FONT_MONO } from '@/lib/typography/tokens';
 
-// Dynamic import with ssr:false — ECharts uses browser APIs (canvas, ResizeObserver)
-// that are unavailable during SSR. The skeleton shimmer prevents layout shift.
-const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
+// Lazy-loaded so ECharts stays out of the initial bundle. The skeleton shimmer prevents layout shift.
+const ReactECharts = React.lazy(() => import('echarts-for-react'));
 
 // Tooltip style constants — applied as a base overlay to every chart option to ensure
 // ECharts 6.x theme-level tooltip config isn't silently overridden by per-chart options.
@@ -23,8 +22,8 @@ const TOOLTIP_STYLE_DARK = {
   borderWidth: 1,
   textStyle: {
     color: '#F0F4F8',
-    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-    fontSize: 13,
+    fontFamily: FONT_MONO,
+    fontSize: CHART_TEXT.tooltip,
   },
 };
 const TOOLTIP_STYLE_LIGHT = {
@@ -33,8 +32,8 @@ const TOOLTIP_STYLE_LIGHT = {
   borderWidth: 1,
   textStyle: {
     color: '#374151',
-    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-    fontSize: 13,
+    fontFamily: FONT_MONO,
+    fontSize: CHART_TEXT.tooltip,
   },
 };
 

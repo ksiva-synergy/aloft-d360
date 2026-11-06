@@ -14,6 +14,8 @@ export interface ScheduleDefinition {
   name: string;
   label: string;
   description: string;
+  /** Operator note: what scope EventBridge jobs use (P2-15). */
+  scopeNote: string;
   /** EventBridge cron expression e.g. "cron(0 4 * * ? *)" */
   scheduleExpression: string;
   /** AWS cron inner string e.g. "0 4 * * ? *" */
@@ -51,6 +53,7 @@ function buildScheduleDef(
   id: string,
   label: string,
   description: string,
+  scopeNote: string,
   rule: { Name: string; ScheduleExpression: string; State: string },
   deployment: ScheduleDeployment,
 ): ScheduleDefinition {
@@ -61,6 +64,7 @@ function buildScheduleDef(
     name: rule.Name,
     label,
     description,
+    scopeNote,
     scheduleExpression: rule.ScheduleExpression,
     cronInner: inner,
     cronStandard,
@@ -71,42 +75,50 @@ function buildScheduleDef(
 }
 
 export const HARVEST_SCHEDULES: ScheduleDefinition[] = [
-  // ── Live: deployed EventBridge rules that fire on their cron cadence ─────────
+  // ── Manual: defined in infra/context/eventbridge-rule.json, but deployment is ──
+  // unverified (no EventBridge rule confirmed, and no scheduled runs in the DB since
+  // 2026-10-18). Labelled manual so the UI does not claim an automatic cadence.
+  // Switch back to 'live' once `aws events list-rules --name-prefix aloft-` confirms the rules.
   buildScheduleDef(
     'change_detect_daily',
-    'Daily change-detect',
+    'Daily change check',
     'Detects changed tables since last sweep and enqueues T0 structural harvest',
+    'Per changed table ref (not modal Limit / exclude tree)',
     eventBridgeRules.change_detect_daily,
-    'live',
+    'manual',
   ),
   buildScheduleDef(
     't1_profile_weekly',
-    'Weekly full profile',
+    'Weekly re-profile',
     'Full T1 statistical profiling of all objects regardless of change',
+    'Full source — all scanned tables (ignores Jobs modal Limit)',
     eventBridgeRules.t1_profile_weekly,
-    'live',
+    'manual',
   ),
   buildScheduleDef(
     'estate_inventory_weekly',
-    'Estate Re-inventory',
+    'Weekly re-discovery',
     'Weekly full re-inventory of the Databricks estate via information_schema (Monday 06:00 UTC)',
+    'Full source discovery per connection scope_include/exclude',
     eventBridgeRules.estate_inventory_weekly,
-    'live',
+    'manual',
   ),
   // ── Manual: defined + launchable on demand, but NO EventBridge rule deployed ──
   // These do NOT run automatically. Kept visible so the cadence they *would* use
   // is documented, but labelled manual so the UI stops asserting a weekly run.
   buildScheduleDef(
     't3_usage_weekly',
-    'T3 usage',
+    'Usage & lineage',
     'T3 usage harvest — query history + lineage scan. Manual/on-demand; no EventBridge rule deployed.',
+    'Full source when launched from schedule (use Jobs Limit for scoped T3)',
     eventBridgeRules.t3_usage_weekly,
     'manual',
   ),
   buildScheduleDef(
     't4_semantic_weekly',
-    'T4 semantic bootstrap',
+    'Business model draft',
     'T4 semantic bootstrap — proposes entities, dimensions, and measures for newly-enriched tables. Manual/on-demand; no EventBridge rule deployed.',
+    'Source-wide T4 scan coordinator (requires T2-complete tables)',
     eventBridgeRules.t4_semantic_weekly,
     'manual',
   ),

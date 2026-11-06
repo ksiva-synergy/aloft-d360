@@ -19,6 +19,8 @@ import {
 } from '@/lib/dashboards/widget-cache';
 import type { WidgetSpec, WidgetDataResult } from '@/lib/dashboards/types';
 import type { SemanticQuery } from '@/lib/semantic/types';
+import { principalForUser } from '@/lib/access/principal';
+import { AccessDeniedError } from '@/lib/access/errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +82,8 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const dataPrincipal = await principalForUser(currentUser.id);
+
     // ── Load the current version's widgets ────────────────────────────────────
     if (!ctx.currentVersionId) {
       // Never saved → nothing to render, but not an error.
@@ -108,7 +112,7 @@ export async function GET(
           // against its own connection via the guarded executeRawSql helper
           // (enforceReadOnly runs there again as defense in depth).
           if (isRawSqlWidget(widget)) {
-            const { rows } = await executeRawSql(widget.rawSql, widget.connectionId);
+            const { rows } = await executeRawSql(widget.rawSql, widget.connectionId, dataPrincipal);
             return [
               widget.widgetId,
               {
@@ -165,7 +169,7 @@ export async function GET(
             }
           }
 
-          const result = await executeSemanticQuery(query, ctx.connectionId);
+          const result = await executeSemanticQuery(query, ctx.connectionId, { dataPrincipal });
 
           // Populate/refresh the cache for cached-mode widgets (also on a
           // forced refresh, so the next non-forced read is fresh from now).

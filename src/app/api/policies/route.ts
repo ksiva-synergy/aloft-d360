@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { slugify } from '@/lib/catalog-helpers';
+import { ApiError, clientMeta, created, handle, parse } from '@/lib/http';
+import { resolveAuth } from '@/middleware/auth';
+import { denyUnlessSection, requireSection } from '@/lib/sections/server';
+import { writeAudit } from '@/lib/audit';
+import { policyCreateSchema } from './schema';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const deniedSection = await denyUnlessSection(request, ['govern.policies', 'view']);
+  if (deniedSection) return deniedSection;
   try {
     const sp = request.nextUrl.searchParams;
     const type = sp.get('type');
@@ -33,26 +40,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// Writes need Manage on Policies (admins by default) and accept only the known policy fields (never the raw body).
+export const POST = handle(async (req) => {
+  const auth = await resolveAuth(req);
+  requireSection(auth, ['govern.policies', 'manage']);
+  const body = parse(policyCreateSchema, await req.json());
+  const slug = body.slug ?? `${slugify(body.name)}-${Date.now().toString(36)}`;
   try {
-    const body = await request.json();
-
-    if (!body.name || !body.type) {
-      return NextResponse.json({ error: 'name and type are required' }, { status: 400 });
-    }
-
-    if (!body.slug) {
-      body.slug = slugify(body.name) + '-' + Date.now().toString(36);
-    }
-
-    const data = await prisma.policy_entry.create({ data: body });
-    return NextResponse.json({ item: data }, { status: 201 });
-  } catch (err: unknown) {
-    const e = err as { code?: string; message?: string };
-    if (e.code === 'P2002') {
-      return NextResponse.json({ error: 'A policy with this slug already exists' }, { status: 409 });
-    }
-    console.error('[policies POST] error', err);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    const item = await prisma.policy_entry.create({ data: { ...body, slug } });
+    await writeAudit({ actorId: auth.userId, action: 'policy.created', entityType: 'policy', entityId: item.id, after: item, ...clientMeta(req) });
+    return created({ item });
+  } catch (err) {
+    if ((err as { code?: string }).code === 'P2002') throw new ApiError(409, 'A policy with this slug already exists');
+    throw err;
   }
-}
+});

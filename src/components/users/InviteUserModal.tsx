@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Loader2, Eye, EyeOff, UserPlus } from 'lucide-react';
+import { Loader2, Eye, EyeOff, UserPlus, X, ShieldCheck } from 'lucide-react';
+import { ROLE_ORDER } from './role-copy';
+import { RolePickerField } from './RolePickerField';
+import { UserDialogContent } from './UserDialogContent';
+import styles from './users.module.css';
 
 interface Role {
   id: string;
@@ -21,37 +25,6 @@ interface InviteUserModalProps {
   onSuccess?: () => void;
 }
 
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  platform_admin: 'Full access · sees all users\' data',
-  admin:          'All actions · own data only',
-  member:         'Inspector access · read-only elsewhere',
-  readonly:       'Login and view only · no writes',
-};
-
-// Brand-palette role chips — mirrors ROLE_BADGE_CLASS in UserTable.
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
-  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-};
-
-const ROLE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
-
-function RoleBadge({ role, label }: { role: string; label?: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-block whitespace-nowrap rounded border px-1.5 py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
-        ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly,
-      )}
-    >
-      {label ?? role}
-    </span>
-  );
-}
-
 export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserModalProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -60,26 +33,34 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
   const [selectedRole, setSelectedRole] = useState('member');
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesError, setRolesError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load roles when modal opens
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
     setRolesLoading(true);
+    setRolesError(false);
     fetch('/api/access/roles')
-      .then((r) => r.json())
-      .then((d: { roles?: Role[] }) => {
-        const sorted = (d.roles ?? []).sort(
-          (a, b) => ROLE_ORDER.indexOf(a.name) - ROLE_ORDER.indexOf(b.name),
-        );
-        setRoles(sorted);
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to load roles (${r.status})`);
+        return r.json();
       })
-      .catch(() => {})
-      .finally(() => setRolesLoading(false));
+      .then((d: { roles?: Role[] }) => {
+        if (cancelled) return;
+        // Bundles are roles too, but they are added in Section access, not at invite.
+        const builtIn = (d.roles ?? []).filter((r) => (ROLE_ORDER as readonly string[]).includes(r.name));
+        if (!builtIn.length) throw new Error('No roles available');
+        setRoles([...builtIn].sort(
+          (a, b) => (ROLE_ORDER as readonly string[]).indexOf(a.name) - (ROLE_ORDER as readonly string[]).indexOf(b.name),
+        ));
+      })
+      .catch(() => { if (!cancelled) setRolesError(true); })
+      .finally(() => { if (!cancelled) setRolesLoading(false); });
+    return () => { cancelled = true; };
   }, [open]);
 
-  // Reset form when modal closes
   useEffect(() => {
     if (!open) {
       setEmail('');
@@ -93,11 +74,9 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
-
+    if (submitting || rolesLoading || rolesError) return;
     setSubmitting(true);
     setError(null);
-
     try {
       const body: Record<string, unknown> = {
         email: email.trim().toLowerCase(),
@@ -105,20 +84,16 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
       };
       if (name.trim()) body.name = name.trim();
       if (password.trim()) body.password = password;
-
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data?.error ?? `Failed to create user (${res.status})`);
         return;
       }
-
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -129,164 +104,81 @@ export function InviteUserModal({ open, onOpenChange, onSuccess }: InviteUserMod
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-[var(--estate-surface)] border-[var(--estate-border)]">
-        <DialogHeader>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: 'var(--brand-a-ink)' }}
-            >
-              <UserPlus className="h-4 w-4 text-white" />
-            </div>
-            <DialogTitle className="text-sm">Invite User</DialogTitle>
-          </div>
-          <DialogDescription className="text-xs">
-            Create a new platform account. The user can sign in with their email and password.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 mt-1">
-          {/* Email */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-              Email address <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@company.com"
-              className={cn(
-                'w-full px-3 py-2 text-xs rounded-md border',
-                'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] dark:focus:ring-[var(--brand-a)]',
-                'placeholder:text-muted-foreground',
-              )}
-            />
-          </div>
-
-          {/* Display name */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-              Display name <span className="text-muted-foreground font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Jane Smith"
-              className={cn(
-                'w-full px-3 py-2 text-xs rounded-md border',
-                'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)]',
-                'placeholder:text-muted-foreground',
-              )}
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-              Password <span className="text-muted-foreground font-normal">(optional — omit for SSO-only)</span>
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 8 characters"
-                minLength={password ? 8 : undefined}
-                className={cn(
-                  'w-full px-3 py-2 pr-9 text-xs rounded-md border',
-                  'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-                  'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)]',
-                  'placeholder:text-muted-foreground',
-                )}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((p) => !p)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+    <Dialog open={open} onOpenChange={(value) => { if (!submitting) onOpenChange(value); }}>
+      <UserDialogContent open={open} labelledBy="invite-title" describedBy="invite-description">
+          <DialogHeader className={cn(styles.dialogHeader, '!mb-0')}>
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-9 h-9 rounded-xl bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--brand-a-ink)] flex items-center justify-center shrink-0">
+                <UserPlus className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-caption text-muted-foreground mb-1">Grow your workspace</p>
+                <DialogTitle id="invite-title" className="text-title-section">Invite a new user</DialogTitle>
+              </div>
+              <button type="button" onClick={() => onOpenChange(false)} disabled={submitting} aria-label="Close invite dialog" className={cn(styles.iconButton, 'shrink-0 disabled:opacity-40')}>
+                <X className="h-4 w-4" />
               </button>
             </div>
-          </div>
+            <DialogDescription id="invite-description" className="!text-size-ui !text-[var(--estate-text-dim)]">
+              Give someone access to the platform. Choose their role and how they sign in.
+            </DialogDescription>
+          </DialogHeader>
 
-          {/* Role */}
-          <div>
-            <label className="block text-xs font-medium text-[var(--foreground)] mb-1.5">
-              Role <span className="text-red-500">*</span>
-            </label>
-            {rolesLoading ? (
-              <div className="flex items-center gap-2 py-3 text-muted-foreground text-xs">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Loading roles…
+          <form onSubmit={handleSubmit}>
+            <div className={styles.formBody}>
+              <div className={styles.notice}>
+                <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5 text-[var(--brand-a-ink)]" />
+                <div>
+                  <p className="text-size-ui font-medium">Microsoft single sign-on</p>
+                  <p className="mt-1 text-caption text-muted-foreground">Leave the password empty for SSO-only access. Creating an account does not send an invitation email.</p>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                {(roles.length > 0 ? roles : ROLE_ORDER.map((r) => ({ id: r, name: r, permissions: [] }))).map((role) => (
-                  <label
-                    key={role.name}
-                    className={cn(
-                      'flex items-start gap-3 p-2.5 rounded-md border cursor-pointer transition-colors',
-                      selectedRole === role.name
-                        ? 'border-[var(--brand-a)] bg-[var(--brand-a)]/[0.07] dark:bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] dark:border-[color-mix(in_srgb,var(--brand-a)_60%,transparent)]'
-                        : 'border-[var(--estate-border)] hover:border-[var(--estate-btn-border)]',
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="role"
-                      value={role.name}
-                      checked={selectedRole === role.name}
-                      onChange={() => setSelectedRole(role.name)}
-                      className="mt-0.5 shrink-0 accent-amber-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <RoleBadge role={role.name} />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {ROLE_DESCRIPTIONS[role.name] ?? role.description ?? ''}
-                      </p>
-                    </div>
-                  </label>
-                ))}
+              <div>
+                <label htmlFor="invite-email" className="block text-size-ui font-medium mb-2">
+                  Email address <span className="text-red-500">*</span>
+                </label>
+                <input id="invite-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" className={styles.input} />
               </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="rounded-md border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-400">
-              {error}
+              <div>
+                <label htmlFor="invite-name" className="block text-size-ui font-medium mb-2">
+                  Display name <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input id="invite-name" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" className={styles.input} />
+              </div>
+              <div>
+                <label htmlFor="invite-password" className="block text-size-ui font-medium mb-2">
+                  Password <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <div className="relative">
+                  <input id="invite-password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" aria-describedby="invite-password-help" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 8 characters" minLength={password ? 8 : undefined} className={cn(styles.input, '!pr-10')} />
+                  <button type="button" onClick={() => setShowPassword((p) => !p)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p id="invite-password-help" className="mt-2 text-caption text-muted-foreground">At least 8 characters. Enables email and password sign-in.</p>
+              </div>
+              <div>
+                <label htmlFor="invite-user-role" className="block text-size-ui font-medium mb-2">
+                  Role <span className="text-red-500">*</span>
+                </label>
+                {rolesLoading ? (
+                  <div className="flex items-center gap-2 py-3 text-muted-foreground text-size-ui"><Loader2 className="h-4 w-4 animate-spin" />Loading roles...</div>
+                ) : rolesError ? (
+                  <p role="alert" className="text-size-ui text-red-600 dark:text-red-400">Unable to load available roles. Close this dialog and try again.</p>
+                ) : (
+                  <RolePickerField id="invite-user-role" value={selectedRole} onChange={setSelectedRole} layout="compact" showDetailPanel options={roles.map((r) => r.name)} />
+                )}
+              </div>
+              {error && <div role="alert" className="rounded-sm border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-size-ui text-red-600 dark:text-red-400">{error}</div>}
             </div>
-          )}
-
-          <DialogFooter className="pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={submitting || !email.trim()}
-              className="text-xs gap-1.5"
-            >
-              {submitting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Creating…</> : 'Create User'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
+            <DialogFooter className={styles.dialogFooter}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting} className={cn(styles.secondaryButton, 'text-size-ui')}>Cancel</Button>
+              <Button type="submit" disabled={submitting || !email.trim() || rolesLoading || rolesError} className={cn(styles.primary, 'text-size-ui gap-2')}>
+                {submitting ? <><Loader2 className="h-4 w-4 animate-spin" />Creating...</> : <><UserPlus className="h-4 w-4" />Create user</>}
+              </Button>
+            </DialogFooter>
+          </form>
+      </UserDialogContent>
     </Dialog>
   );
 }

@@ -3,17 +3,16 @@
 import React, { useMemo, useState } from 'react';
 import {
   BORN_COLORS,
-  CARD_BG,
   BORDER,
-  TEXT_PRI,
   TEXT_SEC,
   TEXT_MUT,
   GOLD,
-  SERIF,
   MONO,
   shortName,
 } from '@/lib/bandits/born-tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 import type { CtsgvModelStat } from './types';
+import { PanelHeader, PANEL_PADDING } from './PanelHeader';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
@@ -27,6 +26,12 @@ export interface ProbMatchPanelProps {
   tally: Map<string, number> | null;
 }
 
+/** |belief − allocation| at or below this (in points) counts as "matched". */
+const MATCH_TOLERANCE_PTS = 5;
+
+// Grid: model | belief bar | belief % | allocation bar | allocation % | gap
+const GRID = 'minmax(140px, 1.1fr) minmax(120px, 2fr) 60px minmax(120px, 2fr) 60px 88px';
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPanelProps) {
@@ -38,165 +43,127 @@ export function ProbMatchPanel({ stats, favId, bornProbs, tally }: ProbMatchPane
       ? Array.from(tally.values()).reduce((s, v) => s + v, 0)
       : 0;
 
-    const colorIndexMap = new Map<string, number>();
-    stats.forEach((s, i) => colorIndexMap.set(s.model_id, i));
-
-    return stats.map(stat => {
+    return stats.map((stat, i) => {
       const belief = tally && totalDraws > 0
         ? (tally.get(stat.model_id) ?? 0) / totalDraws
         : (bornProbs.get(stat.model_id) ?? 0);
       const allocation = totalPulls > 0 ? stat.total_pulls / totalPulls : 0;
-      return {
-        modelId: stat.model_id,
-        belief,
-        allocation,
-        colorIndex: colorIndexMap.get(stat.model_id) ?? 0,
-      };
+      return { modelId: stat.model_id, belief, allocation, colorIndex: i };
     }).sort((a, b) => b.belief - a.belief);
   }, [stats, bornProbs, tally]);
 
-  const maxBelief = rows.length > 0 ? rows[0].belief : 1;
+  // One shared scale for both bars so they are directly comparable and never exceed 100%.
+  const scaleMax = Math.max(1e-9, ...rows.map(r => Math.max(r.belief, r.allocation)));
   const displayRows = showAll ? rows : rows.slice(0, 5);
-
-  function hex2rgba(hex: string, opacity: number): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgba(${r},${g},${b},${opacity})`;
-  }
 
   if (stats.length === 0) {
     return (
-      <div style={{
-        background: CARD_BG, border: `1px solid ${BORDER}`,
-        borderRadius: 6, padding: '20px 24px',
-      }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No data.</div>
+      <div className="born-card" style={{ padding: PANEL_PADDING }}>
+        <div style={{ ...type.caption, color: TEXT_MUT }}>No data.</div>
       </div>
     );
   }
 
+  const headCell: React.CSSProperties = { ...type.eyebrow, color: TEXT_MUT, whiteSpace: 'nowrap' };
+
   return (
-    <div style={{
-      background: CARD_BG,
-      border: `1px solid ${BORDER}`,
-      borderRadius: 6,
-      padding: '20px 24px',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
-            Probability Matching Check
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
-            Born rule: allocation should track belief
-          </div>
-        </div>
-        {rows.length > 5 && (
-          <button
-            onClick={() => setShowAll(v => !v)}
-            style={{
-              fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
-              background: 'transparent', border: `1px solid ${BORDER}`,
-              borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
-              letterSpacing: '0.04em', flexShrink: 0,
-            }}
-          >
+    <div className="born-card" style={{ padding: PANEL_PADDING }}>
+      <PanelHeader
+        title="Probability Matching Check"
+        subtitle={<>Born rule: allocation should track belief · within ±{MATCH_TOLERANCE_PTS} pts counts as matched</>}
+        actions={rows.length > 5 && (
+          <button type="button" className="born-btn" onClick={() => setShowAll(v => !v)} style={type.ui}>
             {showAll ? 'Show top 5' : `Show all ${rows.length}`}
           </button>
         )}
-      </div>
+      />
 
-      {/* Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {displayRows.map(row => {
-          const isFav = row.modelId === favId;
-          const color = isFav ? GOLD : BORN_COLORS[row.colorIndex % BORN_COLORS.length];
-          const beliefW = maxBelief > 0 ? (row.belief / maxBelief) * 100 : 0;
-          const allocW = maxBelief > 0 ? (row.allocation / maxBelief) * 100 : 0;
+      <div style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: 720 }}>
+          {/* Column headers */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: GRID, gap: 12, alignItems: 'end',
+            paddingBottom: 8, borderBottom: `1px solid ${BORDER}`,
+          }}>
+            <span style={headCell}>Model</span>
+            <span style={headCell}>Belief</span>
+            <span style={{ ...headCell, textAlign: 'right' }}>%</span>
+            <span style={headCell}>Allocation</span>
+            <span style={{ ...headCell, textAlign: 'right' }}>%</span>
+            <span style={{ ...headCell, textAlign: 'right' }}>Gap</span>
+          </div>
 
-          return (
-            <div key={row.modelId}>
-              {/* Model label */}
-              <div style={{
-                fontFamily: MONO, fontSize: 13,
-                color: isFav ? GOLD : TEXT_SEC,
-                marginBottom: 5,
-                display: 'flex', alignItems: 'center', gap: 6,
+          {displayRows.map(row => {
+            const isFav = row.modelId === favId;
+            const color = isFav ? GOLD : BORN_COLORS[row.colorIndex % BORN_COLORS.length];
+            const gapPts = (row.allocation - row.belief) * 100;
+            const matched = Math.abs(gapPts) <= MATCH_TOLERANCE_PTS;
+            const valueStyle: React.CSSProperties = {
+              ...type.caption, fontFamily: MONO, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+            };
+
+            return (
+              <div key={row.modelId} style={{
+                display: 'grid', gridTemplateColumns: GRID, gap: 12, alignItems: 'center',
+                padding: '10px 0', borderBottom: '1px solid var(--born-overlay-2)',
               }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: color, display: 'inline-block', flexShrink: 0,
-                }} />
-                {shortName(row.modelId)}
-              </div>
-
-              {/* Belief bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{
-                  fontFamily: MONO, fontSize: 13,
-                  color: TEXT_MUT, width: 52, flexShrink: 0,
-                  letterSpacing: '0.04em',
+                {/* Model */}
+                <span title={row.modelId} style={{
+                  ...type.caption, fontFamily: MONO, minWidth: 0,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  color: isFav ? inkOf(GOLD, 70) : TEXT_SEC,
                 }}>
-                  Belief
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {shortName(row.modelId)}
+                  </span>
                 </span>
-                <div style={{
-                  flex: 1, height: 12,
-                  background: 'var(--born-overlay)',
-                  borderRadius: 2, overflow: 'hidden',
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${beliefW}%`,
-                    background: color,
-                    borderRadius: 2,
-                    transition: 'width 300ms ease',
-                  }} />
-                </div>
-                <span style={{
-                  fontFamily: MONO, fontSize: 13,
-                  color: isFav ? GOLD : TEXT_SEC,
-                  width: 42, textAlign: 'right', flexShrink: 0,
-                }}>
+
+                {/* Belief */}
+                <Bar value={row.belief / scaleMax} color={color} />
+                <span style={{ ...valueStyle, color: isFav ? inkOf(GOLD, 70) : TEXT_SEC }}>
                   {(row.belief * 100).toFixed(1)}%
                 </span>
-              </div>
 
-              {/* Allocation bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{
-                  fontFamily: MONO, fontSize: 13,
-                  color: TEXT_MUT, width: 52, flexShrink: 0,
-                  letterSpacing: '0.04em',
-                }}>
-                  Allocation
-                </span>
-                <div style={{
-                  flex: 1, height: 12,
-                  background: 'var(--born-overlay)',
-                  borderRadius: 2, overflow: 'hidden',
-                }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${allocW}%`,
-                    background: hex2rgba(color, 0.5),
-                    borderRadius: 2,
-                    transition: 'width 300ms ease',
-                  }} />
-                </div>
-                <span style={{
-                  fontFamily: MONO, fontSize: 13,
-                  color: TEXT_MUT,
-                  width: 42, textAlign: 'right', flexShrink: 0,
-                }}>
+                {/* Allocation */}
+                <Bar value={row.allocation / scaleMax} color={color} faded />
+                <span style={{ ...valueStyle, color: TEXT_MUT }}>
                   {(row.allocation * 100).toFixed(1)}%
                 </span>
+
+                {/* Gap */}
+                <span style={{ textAlign: 'right' }}>
+                  <span
+                    title={matched ? 'Allocation tracks belief' : gapPts > 0 ? 'Pulled more than belief suggests' : 'Pulled less than belief suggests'}
+                    style={{
+                      ...type.caption, fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+                      padding: '1px 7px', borderRadius: 999, whiteSpace: 'nowrap',
+                      color: matched ? TEXT_MUT : inkOf('#E8A838', 70),
+                      background: matched ? 'var(--born-overlay)' : 'color-mix(in srgb, #E8A838 12%, transparent)',
+                    }}
+                  >
+                    {gapPts >= 0 ? '+' : '−'}{Math.abs(gapPts).toFixed(1)}
+                  </span>
+                </span>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Bar({ value, color, faded }: { value: number; color: string; faded?: boolean }) {
+  return (
+    <div style={{ height: 8, background: 'var(--born-overlay-2)', borderRadius: 999, overflow: 'hidden', minWidth: 0 }}>
+      <div style={{
+        height: '100%',
+        width: `${Math.max(0, Math.min(1, value)) * 100}%`,
+        background: faded ? `color-mix(in srgb, ${color} 45%, transparent)` : color,
+        borderRadius: 999,
+        transition: 'width 300ms ease',
+      }} />
     </div>
   );
 }

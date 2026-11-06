@@ -5,6 +5,8 @@ module.exports = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
     './src/views/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/lib/navigation/**/*.{ts,tsx}',
+    './packages/aloft-shared/src/components/ui/**/*.{ts,tsx}',
     './web/index.html',
     './web/src/**/*.{ts,tsx}',
   ],
@@ -137,38 +139,69 @@ module.exports = {
         },
       },
       fontSize: {
-        xs:   ['0.8125rem', { lineHeight: '1.25rem' }],
-        sm:   ['0.9375rem', { lineHeight: '1.4rem' }],
-        base: ['1rem',      { lineHeight: '1.6rem' }],
-        lg:   ['1.1875rem', { lineHeight: '1.75rem' }],
-        xl:   ['1.375rem',  { lineHeight: '1.9rem' }],
-        '2xl':['1.625rem',  { lineHeight: '2.1rem' }],
+        // Size-only utilities (size + line height, weight/tracking untouched) for places where the
+        // element inherits its weight. Full styles are the token classes below.
+        'size-caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)' }],
+        'size-ui':            ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)' }],
+        'size-body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)' }],
+        'size-body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)' }],
+        'size-title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)' }],
+        'size-kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)' }],
+        'size-display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)' }],
+        // Type tokens — values live in src/styles/typography.css (docs/audits/typography-implementation-plan.md).
+        'display':       ['var(--type-display-size)',       { lineHeight: 'var(--type-display-lh)',       fontWeight: 'var(--type-display-weight)',       letterSpacing: 'var(--type-display-ls)' }],
+        'title-page':    ['var(--type-title-page-size)',    { lineHeight: 'var(--type-title-page-lh)',    fontWeight: 'var(--type-title-page-weight)',    letterSpacing: 'var(--type-title-page-ls)' }],
+        'title-section': ['var(--type-title-section-size)', { lineHeight: 'var(--type-title-section-lh)', fontWeight: 'var(--type-title-section-weight)', letterSpacing: 'var(--type-title-section-ls)' }],
+        'title-card':    ['var(--type-title-card-size)',    { lineHeight: 'var(--type-title-card-lh)',    fontWeight: 'var(--type-title-card-weight)',    letterSpacing: 'var(--type-title-card-ls)' }],
+        'body-lg':       ['var(--type-body-lg-size)',       { lineHeight: 'var(--type-body-lg-lh)',       fontWeight: 'var(--type-body-lg-weight)',       letterSpacing: 'var(--type-body-lg-ls)' }],
+        'body':          ['var(--type-body-size)',          { lineHeight: 'var(--type-body-lh)',          fontWeight: 'var(--type-body-weight)',          letterSpacing: 'var(--type-body-ls)' }],
+        'ui-lg':         ['var(--type-ui-lg-size)',         { lineHeight: 'var(--type-ui-lg-lh)',         fontWeight: 'var(--type-ui-lg-weight)',         letterSpacing: 'var(--type-ui-lg-ls)' }],
+        'ui':            ['var(--type-ui-size)',            { lineHeight: 'var(--type-ui-lh)',            fontWeight: 'var(--type-ui-weight)',            letterSpacing: 'var(--type-ui-ls)' }],
+        'ui-regular':    ['var(--type-ui-regular-size)',    { lineHeight: 'var(--type-ui-regular-lh)',    fontWeight: 'var(--type-ui-regular-weight)',    letterSpacing: 'var(--type-ui-regular-ls)' }],
+        'label':         ['var(--type-label-size)',         { lineHeight: 'var(--type-label-lh)',         fontWeight: 'var(--type-label-weight)',         letterSpacing: 'var(--type-label-ls)' }],
+        'caption':       ['var(--type-caption-size)',       { lineHeight: 'var(--type-caption-lh)',       fontWeight: 'var(--type-caption-weight)',       letterSpacing: 'var(--type-caption-ls)' }],
+        'eyebrow':       ['var(--type-eyebrow-size)',       { lineHeight: 'var(--type-eyebrow-lh)',       fontWeight: 'var(--type-eyebrow-weight)',       letterSpacing: 'var(--type-eyebrow-ls)' }],
+        'kpi-lg':        ['var(--type-kpi-lg-size)',        { lineHeight: 'var(--type-kpi-lg-lh)',        fontWeight: 'var(--type-kpi-lg-weight)',        letterSpacing: 'var(--type-kpi-lg-ls)' }],
+        'kpi-md':        ['var(--type-kpi-md-size)',        { lineHeight: 'var(--type-kpi-md-lh)',        fontWeight: 'var(--type-kpi-md-weight)',        letterSpacing: 'var(--type-kpi-md-ls)' }],
+        'kpi-sm':        ['var(--type-kpi-sm-size)',        { lineHeight: 'var(--type-kpi-sm-lh)',        fontWeight: 'var(--type-kpi-sm-weight)',        letterSpacing: 'var(--type-kpi-sm-ls)' }],
+        'code':          ['var(--type-code-size)',          { lineHeight: 'var(--type-code-lh)',          fontWeight: 'var(--type-code-weight)',          letterSpacing: 'var(--type-code-ls)' }],
       },
       fontFamily: {
-        // REBRAND: Inter → Inter Tight | JetBrains Mono → IBM Plex Mono
-        sans: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
-        serif: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', '"JetBrains Mono"', '"SF Mono"', 'monospace'],
-        // evals-v2 semantic font aliases
-        display: ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'],   // --fd: headings, agent names
-        body:    ['"Inter Variable"', 'Inter', 'system-ui', 'sans-serif'], // --fu: labels, body
+        // One sans, one mono (values in src/styles/typography.css).
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
       borderRadius: {
-        // Spinor Labs: 4px base (inputs/chips/buttons), 6px max (cards/panels)
-        // Use rounded-sm (4px) for interactive elements, rounded-card (6px) for surfaces
-        'sm':    '6px',
-        'card':  '16px',
-        'brand': '16px',
-        // Intentionally NOT overriding 'md'/'lg'/'xl' — their presence in JSX is a violation;
-        // removing the override here surfaces the violation rather than silencing it.
+        // Radius tiers (values in globals.css "Theme v4"): controls 8px, cards 12px,
+        // dialogs/drawers 16px. Tailwind's lg/xl/2xl defaults match the same tiers.
+        // Bare `rounded` was Tailwind's 4px; legacy pages used it everywhere and read as sharp.
+        'DEFAULT': 'var(--radius-ctl)',
+        'sm':     '6px',
+        'xs':     'var(--radius-xs)',
+        'ctl':    'var(--radius-ctl)',
+        'card':   'var(--radius-card)',
+        'dialog': 'var(--radius-dialog)',
+        'brand':  '16px',
       },
       transitionTimingFunction: {
         'sidebar': 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'out-strong': 'var(--ease-out-strong)',
+        'in-out-strong': 'var(--ease-in-out-strong)',
+        'drawer': 'var(--ease-drawer)',
+      },
+      transitionDuration: {
+        'press': '120ms',
+        'hover': '160ms',
+        'pop': '180ms',
+        'dialog': '220ms',
+        'drawer': '280ms',
       },
       boxShadow: {
         'nav': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'card': 'var(--shadow-card)',
         'pop': 'var(--shadow-pop)',
+        'xs': 'var(--shadow-xs)',
+        'dialog': 'var(--shadow-dialog)',
       },
       keyframes: {
         'fade-in': {

@@ -14,10 +14,13 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { enqueue } from '@/lib/context/queue';
 import type { MappingConfig } from '@/lib/context/mapping';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 

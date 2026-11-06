@@ -1,445 +1,686 @@
 'use client';
 
 /**
- * Platform overview dashboard. A read-only, at-a-glance summary of the four core
- * modules — Data Estate, Memory (FOER), User Logins, and Inspector — rendered from
- * a server-aggregated snapshot (see src/lib/dashboard/summary.ts).
+ * Platform home dashboard: a read-only briefing of Data Estate, Memory, people (sign-ins)
+ * and Inspector, rendered from a server-aggregated snapshot (src/lib/dashboard/summary.ts).
  *
- * Purely presentational: all data arrives via props. Styling uses the brand layer
- * (--brand-*, --surface-*, --ink-*) so it reads as one system in light and dark.
+ * Layout: headline that states what needs you → metrics strip (coverage, job success, memory,
+ * Inspector) → estate flow with the job behind each stage + briefing (failed jobs first) →
+ * memory (+ AI spend and team for admins) → memory cred. Each number appears once; colour is reserved
+ * for status (ok / warn / bad) and the estate stages.
  */
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
+import Link from '@/lib/navigation/link';
 import {
-  Database, Lightbulb, Users, LayoutDashboard, ArrowRight, ArrowUpRight,
-  ShieldCheck, ShieldAlert, Sparkles, Activity, Ban, Clock,
-  MessageSquare, TrendingUp, CircleDot,
+  ArrowRight, ChevronRight,
 } from 'lucide-react';
 import type {
-  DashboardSummary, EstateSummary, MemorySummary, LoginsSummary, InspectorSummary,
+  DashboardSummary, EstateSummary, MemorySummary, LoginsSummary, JobsSummary,
+  GovernanceSummary, SpendSummary,
 } from '@/lib/dashboard/summary';
 import { MemoryCredCard } from '@/components/dashboard/MemoryCredCard';
+import { ESTATE_STAGE, estateStageDisplayLabel } from '@/lib/estate/stages';
 import { cn } from '@/lib/utils';
 
-// Local role-name → label map (kept in sync with ROLE_LABELS in src/lib/rbac.ts).
-// Inlined rather than imported so this client bundle never pulls in server-only code.
-const ROLE_LABELS: Record<string, string> = {
-  platform_admin: 'Platform Admin',
-  admin: 'Admin',
-  member: 'Member',
-  readonly: 'Read Only',
-};
-const roleLabelFor = (role: string) => ROLE_LABELS[role] ?? role;
-
-// ── Formatting helpers ────────────────────────────────────────────────────────
+// ── Formatting ───────────────────────────────────────────────────────────────
 
 function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${(n / 1_000).toFixed(0)}K`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
 }
 
 function pct(n: number, total: number): number {
   if (!total) return 0;
-  return Math.round((n / total) * 100);
+  return Math.min(100, Math.round((n / total) * 100));
 }
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return 'never';
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 0 || diff < 60_000) return 'just now';
+  if (diff < 60_000) return 'just now';
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   const days = Math.floor(diff / 86_400_000);
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (days < 60) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
 }
 
-// ── Design tokens ──────────────────────────────────────────────────────────────
+const daysSince = (iso: string | null) => (iso ? (Date.now() - new Date(iso).getTime()) / 86_400_000 : Infinity);
+const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
-const ACCENT = {
-  estate: 'var(--brand-a)',
-  memory: '#0EA5A4',
-  logins: '#F0553F',
-  inspector: '#2563EB',
-} as const;
+// ── Jobs ─────────────────────────────────────────────────────────────────────
 
-const COVERAGE_COLORS = {
-  harvested: '#0EA5A4',
-  profiled: '#2563EB',
-  enriched: 'var(--brand-a-2)',
-  embedded: '#F59E0B',
-} as const;
+type JobKind = JobsSummary['kinds'][number];
 
-const ROLE_COLORS = ['var(--brand-a)', '#0EA5A4', '#F0553F', '#2563EB', '#F59E0B'];
+const JOB_LABELS: Record<string, string> = {
+  estate_inventory: 'Discover',
+  t0_structural: 'Scan',
+  change_detect: 'Change detection',
+  t1_profile: 'Profile',
+  t2_semantic: 'Describe',
+  embed: 'Index',
+  t3_usage: 'Usage & lineage',
+  t4_scan: 'Business model',
+  knowledge_sync: 'Publish to Knowledge',
+  silo_scan: 'Similar-data scan',
+  mapping: 'Schema mapping',
+};
+const MEMORY_JOB_LABELS: Record<string, string> = {
+  synthesize: 'Memory learning',
+  grow_refine: 'Memory refinement',
+  reclassify: 'Memory reclassification',
+};
+const jobLabel = (k: string) => JOB_LABELS[k] ?? k.replace(/_/g, ' ');
+const jobHref = (k: string) => `/agent-lab/estate/jobs?kind=${encodeURIComponent(k)}`;
+const isFailed = (s: string | null) => s === 'failed' || s === 'error';
 
-/** Readable ink for a bright accent, in both themes (mixes the accent toward the text colour). */
-const inkOf = (accent: string) => `color-mix(in srgb, ${accent} 68%, var(--ink-1))`;
-const softOf = (accent: string) => `color-mix(in srgb, ${accent} 14%, transparent)`;
+/** The job that moves tables into each estate stage. */
+const STAGE_JOB: Record<string, string> = {
+  discovered: 'estate_inventory',
+  scanned: 't0_structural',
+  profiled: 't1_profile',
+  enriched: 't2_semantic',
+  searchable: 'embed',
+};
 
-const card = 'rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] shadow-card';
-
-// ── Micro components ─────────────────────────────────────────────────────────
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-[13px] font-semibold text-[var(--ink-3)]">{children}</span>;
+function jobState(k: JobKind | undefined): { tone: 'ok' | 'bad' | 'warn' | 'live' | 'idle'; text: string } {
+  if (!k) return { tone: 'idle', text: 'Never run' };
+  if (k.running > 0) return { tone: 'live', text: 'Running now' };
+  if (isFailed(k.lastStatus)) return { tone: 'bad', text: `Failed ${relativeTime(k.lastFinishedAt)}` };
+  if (k.overdue) return { tone: 'warn', text: k.lastFinishedAt ? `Overdue · ran ${relativeTime(k.lastFinishedAt)}` : 'Overdue · never ran' };
+  if (k.queued > 0) return { tone: 'live', text: 'Queued' };
+  return { tone: 'ok', text: k.lastFinishedAt ? `Ran ${relativeTime(k.lastFinishedAt)}` : 'Never finished' };
 }
 
-/** A small in-card metric: big number + label. */
-function MiniStat({
-  value, label, color, sub,
-}: { value: React.ReactNode; label: string; color?: string; sub?: string }) {
+const JOB_DOT: Record<ReturnType<typeof jobState>['tone'], string> = {
+  ok: 'var(--ok)', bad: 'var(--bad)', warn: 'var(--warn)', live: 'var(--brand-a)', idle: 'var(--line-2)',
+};
+const JOB_TEXT: Partial<Record<ReturnType<typeof jobState>['tone'], string>> = {
+  bad: 'text-[var(--bad)]', warn: 'text-[var(--warn)]',
+};
+
+// ── Shared pieces ────────────────────────────────────────────────────────────
+
+const PANEL = 'rounded-card border border-[var(--line-1)] bg-[var(--surface-1)]';
+const MUTED = 'text-[var(--ink-3)]';
+const NUM = 'font-semibold tabular-nums tracking-[-0.02em] text-[var(--ink-1)]';
+
+/** Section heading that sits above a panel, editorial-style, with an optional link. */
+function Section({
+  title, meta, href, linkLabel = 'Open', className, children,
+}: {
+  title: string; meta?: React.ReactNode; href?: string; linkLabel?: string; className?: string; children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-1">
-      <span
-        className="text-[26px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]"
-        style={color ? { color: inkOf(color) } : undefined}
-      >
-        {value}
-      </span>
-      <Label>{label}</Label>
-      {sub && <span className="text-[13px] text-[var(--ink-3)]">{sub}</span>}
-    </div>
+    <section className={cn('flex min-w-0 flex-col gap-2.5', className)} aria-label={title}>
+      <div className="flex items-baseline justify-between gap-3 px-1">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <h2 className="shrink-0 text-size-ui font-semibold text-[var(--ink-1)]">{title}</h2>
+          {meta && <span className={cn('min-w-0 truncate text-caption', MUTED)}>{meta}</span>}
+        </div>
+        {href && (
+          <Link
+            href={href}
+            className="group inline-flex shrink-0 items-center gap-0.5 text-caption font-medium text-[var(--ink-2)] no-underline transition-colors duration-hover hover:text-[var(--brand-a-ink)]"
+          >
+            {linkLabel}
+            <ChevronRight className="size-3.5 transition-transform duration-hover group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
 
-/** SVG area sparkline for a numeric series. */
-function Sparkline({ data, color, height = 52 }: { data: number[]; color: string; height?: number }) {
-  const width = 220;
-  if (!data || data.length < 2) {
-    return <div className="flex items-center text-sm text-[var(--ink-3)]" style={{ height }}>Not enough history yet</div>;
-  }
+function Unavailable({ what }: { what: string }) {
+  return <p className={cn('px-5 py-8 text-center text-size-ui', MUTED)}>{what} is not available right now.</p>;
+}
+
+/** Thin area sparkline. */
+function Sparkline({ data }: { data: number[] }) {
+  const width = 120;
+  const height = 32;
+  if (!data || data.length < 2) return null;
   const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const stepX = width / (data.length - 1);
-  const pts = data.map((v, i) => {
-    const x = i * stepX;
-    const y = height - 4 - ((v - min) / range) * (height - 8);
-    return [x, y] as const;
-  });
-  const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const area = `0,${height} ${line} ${width},${height}`;
-  const gid = `spark-${color.replace('#', '')}`;
+  const range = Math.max(...data) - min || 1;
+  const step = width / (data.length - 1);
+  const pts = data.map((v, i) => `${(i * step).toFixed(1)},${(height - 2 - ((v - min) / range) * (height - 6)).toFixed(1)}`).join(' ');
+  const last = pts.split(' ').pop()!.split(',');
   return (
-    <svg width="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="block" role="img" aria-label="Trend over time">
+    <svg viewBox={`0 0 ${width} ${height}`} className="block h-8 w-full overflow-visible" aria-hidden>
       <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        <linearGradient id="dash-spark" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="var(--brand-a)" stopOpacity="0.18" />
+          <stop offset="1" stopColor="var(--brand-a)" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={area} fill={`url(#${gid})`} />
-      <polyline points={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="3.2" fill={color} />
+      <polygon points={`0,${height} ${pts} ${width},${height}`} fill="url(#dash-spark)" />
+      <polyline points={pts} fill="none" stroke="var(--brand-a)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <circle cx={last[0]} cy={last[1]} r="2.5" fill="var(--brand-a)" />
     </svg>
   );
 }
 
-/** Small vertical bars (e.g. sessions/day). */
-function MiniBars({ data, color, height = 52 }: { data: number[]; color: string; height?: number }) {
+/** Seven day bars, today emphasised. */
+function DayBars({ data }: { data: number[] }) {
   const max = Math.max(...data, 1);
   return (
-    <div className="flex items-end gap-1.5" style={{ height }}>
-      {data.map((v, i) => (
-        <div key={i} className="flex h-full flex-1 flex-col justify-end">
+    <div className="flex h-8 items-end gap-[3px]" aria-hidden>
+      {data.map((v, i) => {
+        const today = i === data.length - 1;
+        const d = new Date(Date.now() - (data.length - 1 - i) * 86_400_000);
+        return (
           <div
-            className="rounded-md transition-[height] duration-300"
+            key={i}
+            title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${v}`}
+            className="dash-grow-y flex-1 rounded-[2px]"
             style={{
               height: `${Math.max(8, (v / max) * 100)}%`,
-              background: v > 0 ? color : 'var(--line-1)',
-              opacity: v > 0 ? 0.9 : 0.6,
+              background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
+              animationDelay: `${i * 30}ms`,
             }}
-            title={`${v} session${v === 1 ? '' : 's'}`}
           />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-/** Estate pipeline coverage row: label + progress bar + count/pct. */
-function CoverageRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
-  const p = pct(count, total);
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-[74px] font-semibold text-[var(--ink-2)]">{label}</span>
-      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
-        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${p}%`, background: color }} />
-      </div>
-      <span className="w-[54px] text-right font-semibold tabular-nums text-[var(--ink-1)]">{fmt(count)}</span>
-      <span className="w-[42px] text-right font-bold tabular-nums" style={{ color: inkOf(color) }}>{p}%</span>
-    </div>
-  );
-}
+// ── Metrics strip ────────────────────────────────────────────────────────────
 
-/** Card shell: icon + title + subtitle header with a "View" link, then body. */
-function ModuleCard({
-  title, subtitle, icon: Icon, accent, href, linkLabel, index, children,
+function Metric({
+  label, value, of, sub, href, chart,
 }: {
-  title: string; subtitle: string; icon: React.ElementType; accent: string;
-  href: string; linkLabel: string; index: number; children: React.ReactNode;
+  label: string; value: string; of?: string; sub: React.ReactNode; href: string; chart?: React.ReactNode;
 }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: 0.05 * index, ease: 'easeOut' }}
-      className={cn(card, 'flex flex-col gap-5 p-6')}
+    <Link
+      href={href}
+      className="dash-press group relative flex min-w-0 flex-col gap-3 bg-[var(--surface-1)] px-5 py-4 no-underline transition-colors duration-hover hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3.5">
-          <span
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
-            style={{ background: softOf(accent), color: inkOf(accent) }}
-          >
-            <Icon size={22} />
-          </span>
-          <div className="min-w-0">
-            <h2 className="truncate text-xl font-extrabold tracking-tight text-[var(--ink-1)]">{title}</h2>
-            <p className="truncate text-sm text-[var(--ink-3)]">{subtitle}</p>
+      <span className="flex items-center gap-1 text-caption font-medium text-[var(--ink-2)]">
+        {label}
+        <ArrowRight className="size-3 -translate-x-1 text-[var(--ink-3)] opacity-0 transition duration-hover group-hover:translate-x-0 group-hover:opacity-100" aria-hidden />
+      </span>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-1.5">
+            <span className={cn(NUM, 'text-kpi-lg leading-none')}>{value}</span>
+            {of && <span className={cn('truncate text-size-ui tabular-nums', MUTED)}>{of}</span>}
           </div>
+          <div className={cn('mt-2 truncate text-caption tabular-nums', MUTED)}>{sub}</div>
         </div>
-        <Link
-          href={href}
-          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-bold no-underline transition-colors hover:bg-[var(--surface-2)]"
-          style={{ color: inkOf(accent), borderColor: `color-mix(in srgb, ${accent} 40%, transparent)` }}
-        >
-          {linkLabel}
-          <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-        </Link>
+        {chart && <div className="w-[84px] shrink-0 pb-0.5">{chart}</div>}
       </div>
-      {children}
-    </motion.section>
+    </Link>
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+// ── Briefing (needs attention) ───────────────────────────────────────────────
+
+type Tone = 'bad' | 'warn' | 'info';
+interface Attention { key: string; tone: Tone; text: string; action: string; href: string }
+
+function buildAttention(
+  e: EstateSummary | null, m: MemorySummary | null, l: LoginsSummary | null, j: JobsSummary | null,
+  g: GovernanceSummary | null, canReadUsers: boolean,
+): Attention[] {
+  const out: Attention[] = [];
+  j?.kinds.filter(k => isFailed(k.lastStatus) && k.running === 0).forEach(k => {
+    out.push({ key: `job-${k.kind}`, tone: 'bad', text: `${jobLabel(k.kind)} job failed ${relativeTime(k.lastFinishedAt)}`, action: 'Open', href: jobHref(k.kind) });
+  });
+  j?.kinds.filter(k => k.overdue && !isFailed(k.lastStatus) && k.running === 0).forEach(k => {
+    out.push({ key: `late-${k.kind}`, tone: 'warn', text: `${jobLabel(k.kind)} job missed its schedule`, action: 'Open', href: jobHref(k.kind) });
+  });
+  if (g && g.piiPending > 0) {
+    out.push({ key: 'pii', tone: 'warn', text: `${g.piiPending.toLocaleString()} ${plural(g.piiPending, 'table has', 'tables have')} personal data to review`, action: 'Review', href: '/agent-lab/estate/catalog' });
+  }
+  if (g?.review) {
+    const n = g.review.entities + g.review.dimensions + g.review.measures;
+    out.push({ key: 'semantic', tone: 'info', text: `${n.toLocaleString()} business ${plural(n, 'definition')} waiting for review`, action: 'Review', href: '/inspector?panel=semantic' });
+  }
+  const lateMemory = j?.memoryJobs.filter(x => x.status === 'red') ?? [];
+  if (lateMemory.length === 1) {
+    const x = lateMemory[0];
+    const label = MEMORY_JOB_LABELS[x.jobKey] ?? x.jobKey;
+    out.push({ key: 'memjob', tone: 'warn', text: x.ageHours === null ? `${label} has never run` : `${label} has not run for ${Math.floor(x.ageHours / 24)} days`, action: 'Memory', href: '/agent-lab/memory' });
+  } else if (lateMemory.length > 1) {
+    out.push({ key: 'memjob', tone: 'warn', text: `${lateMemory.length} memory jobs are overdue`, action: 'Memory', href: '/agent-lab/memory' });
+  }
+  if (e) {
+    const sweepAge = daysSince(e.lastSweepAt);
+    if (sweepAge > 7) {
+      out.push({ key: 'sweep', tone: 'warn', text: e.lastSweepAt ? `Data estate not scanned for ${Math.floor(sweepAge)} days` : 'Data estate has never been scanned', action: 'Jobs', href: '/agent-lab/estate/jobs' });
+    }
+    if (e.staleCount > 0) {
+      out.push({ key: 'stale', tone: 'warn', text: `${e.staleCount.toLocaleString()} ${plural(e.staleCount, 'table is', 'tables are')} out of date`, action: 'Review', href: '/agent-lab/estate/catalog' });
+    }
+    if (e.queuedJobs > 0) {
+      out.push({ key: 'queued', tone: 'info', text: `${e.queuedJobs} ${plural(e.queuedJobs, 'job')} waiting to run`, action: 'View', href: '/agent-lab/estate/jobs?tab=active' });
+    }
+  }
+  if (l && canReadUsers && l.failed7d > 0) {
+    out.push({ key: 'failed', tone: l.failed7d >= 10 ? 'bad' : 'warn', text: `${l.failed7d} failed ${plural(l.failed7d, 'sign-in')} this week`, action: 'Users', href: '/agent-staging/users' });
+  }
+  if (m) {
+    if (!m.injectEnabled) {
+      out.push({ key: 'inject', tone: 'warn', text: 'Agents are not using memory', action: 'Memory', href: '/agent-lab/memory' });
+    }
+    const rated = m.helpfulTotal + m.harmfulTotal;
+    if (rated >= 20 && m.helpfulRatio < 0.6) {
+      out.push({ key: 'helpful', tone: 'warn', text: `Only ${Math.round(m.helpfulRatio * 100)}% of used memories were helpful`, action: 'Review', href: '/agent-lab/memory' });
+    }
+    if (m.unprocessedSessions > 0) {
+      out.push({ key: 'unprocessed', tone: 'info', text: `${m.unprocessedSessions} ${plural(m.unprocessedSessions, 'session')} not yet learned from`, action: 'Memory', href: '/agent-lab/memory' });
+    }
+  }
+  const rank: Record<Tone, number> = { bad: 0, warn: 1, info: 2 };
+  return out.sort((a, b) => rank[a.tone] - rank[b.tone]);
+}
+
+const TONE_COLOR: Record<Tone, string> = { bad: 'var(--bad)', warn: 'var(--warn)', info: 'var(--line-2)' };
+
+function Briefing({ items, unavailable }: { items: Attention[]; unavailable?: boolean }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? items : items.slice(0, 5);
   return (
-    <div className="rounded-2xl border border-dashed border-[var(--line-2)] px-4 py-6 text-center text-[15px] text-[var(--ink-3)]">
-      {text}
-    </div>
+    <Section title="Briefing" meta={items.length ? `${items.length} ${plural(items.length, 'item')}` : undefined} className="lg:col-span-4">
+      <div className={cn(PANEL, 'flex flex-1 flex-col overflow-hidden')}>
+        {unavailable ? <Unavailable what="The briefing" /> : items.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-1 px-5 py-10 text-center">
+            <span aria-hidden className="mb-2 size-2 rounded-full bg-[var(--ok)] shadow-[0_0_0_4px_var(--ok-bg)]" />
+            <p className="text-size-ui font-medium text-[var(--ink-1)]">Nothing needs you</p>
+            <p className={cn('text-caption', MUTED)}>No failed jobs, stale data, PII to review or sign-in problems.</p>
+          </div>
+        ) : (
+          <ul className="flex flex-col divide-y divide-[var(--line-1)]">
+            {shown.map(i => (
+              <li key={i.key}>
+                <Link
+                  href={i.href}
+                  className="group flex items-center gap-3 px-4 py-3 no-underline transition-colors duration-hover hover:bg-[var(--surface-2)] focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+                >
+                  <span aria-hidden className="h-4 w-[3px] shrink-0 rounded-full" style={{ background: TONE_COLOR[i.tone] }} />
+                  <span className="min-w-0 flex-1 text-size-ui text-[var(--ink-1)]">{i.text}</span>
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-caption text-[var(--ink-3)] transition-colors duration-hover group-hover:text-[var(--brand-a-ink)]">
+                    {i.action}
+                    <ChevronRight className="size-3.5" aria-hidden />
+                  </span>
+                </Link>
+              </li>
+            ))}
+            {items.length > 5 && (
+              <li>
+                <button type="button" onClick={() => setShowAll(v => !v)} className="w-full px-4 py-2.5 text-left text-caption font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
+                  {showAll ? 'Show less' : `Show all ${items.length}`}
+                </button>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+    </Section>
   );
 }
 
-function FootStat({ icon: Icon, text, tone }: { icon: React.ElementType; text: string; tone?: string }) {
+// ── Data estate flow ─────────────────────────────────────────────────────────
+
+function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | null }) {
+  if (!e) {
+    return (
+      <Section title="Data estate" href="/agent-lab/estate" className="lg:col-span-8">
+        <div className={PANEL}><Unavailable what="Estate coverage" /></div>
+      </Section>
+    );
+  }
+  const found = Math.max(e.estateTotal, e.harvested);
+  const stages = [
+    { s: ESTATE_STAGE.discovered, n: found },
+    { s: ESTATE_STAGE.scanned, n: e.harvested },
+    { s: ESTATE_STAGE.profiled, n: e.profiled },
+    { s: ESTATE_STAGE.enriched, n: e.enriched },
+    { s: ESTATE_STAGE.searchable, n: e.embedded },
+  ];
+  // Step-to-step conversion, so each connector reads as "of the previous stage".
+  const conv = stages.slice(1).map((st, i) => pct(st.n, stages[i].n));
+  const worst = found > 0 ? conv.indexOf(Math.min(...conv)) : -1;
+
+  // Where every discovered table sits today (exclusive buckets, furthest stage wins).
+  const searchable = Math.min(e.embedded, found);
+  const described = Math.max(0, Math.min(e.enriched, found) - searchable);
+  const profiled = Math.max(0, Math.min(e.profiled, found) - searchable - described);
+  const scanned = Math.max(0, e.harvested - searchable - described - profiled);
+  const waiting = Math.max(0, found - e.harvested);
+  const buckets = [
+    { label: estateStageDisplayLabel(ESTATE_STAGE.searchable), n: searchable, color: ESTATE_STAGE.searchable.color },
+    { label: estateStageDisplayLabel(ESTATE_STAGE.enriched), n: described, color: ESTATE_STAGE.enriched.color },
+    { label: estateStageDisplayLabel(ESTATE_STAGE.profiled), n: profiled, color: ESTATE_STAGE.profiled.color },
+    { label: 'Scanned only', n: scanned, color: ESTATE_STAGE.scanned.color },
+    { label: 'Not scanned', n: waiting, color: 'var(--surface-3)' },
+  ].filter(b => b.n > 0);
+
+  const stageKinds = new Set(Object.values(STAGE_JOB));
+  const order = Object.keys(JOB_LABELS);
+  const otherJobs = (jobs?.kinds ?? [])
+    .filter(k => !stageKinds.has(k.kind) && JOB_LABELS[k.kind])
+    .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
+
   return (
-    <span
-      className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]"
-      style={tone ? { color: tone } : undefined}
+    <Section
+      title="Data estate"
+      meta={`${e.sources} ${plural(e.sources, 'source')} · last scan ${relativeTime(e.lastSweepAt)}`}
+      href="/agent-lab/estate"
+      className="lg:col-span-8"
     >
-      <Icon size={16} className={tone ? undefined : 'text-[var(--ink-3)]'} />
-      {text}
-    </span>
-  );
-}
+      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
+        <ol className="grid grid-cols-2 gap-y-5 px-5 pb-5 pt-5 sm:grid-cols-5 xl:flex xl:items-stretch">
+          {stages.map((st, i) => (
+            <React.Fragment key={st.s.key}>
+              {i > 0 && (
+                <li
+                  className="hidden shrink-0 items-center gap-0.5 self-end px-2 pb-[3px] xl:flex"
+                  title={`${conv[i - 1]}% of ${stages[i - 1].s.label.toLowerCase()} tables reach ${st.s.label.toLowerCase()}`}
+                >
+                  <ChevronRight aria-hidden className={cn('size-3.5', i - 1 === worst ? 'text-[var(--warn)]' : 'text-[var(--line-2)]')} />
+                  <span
+                    className={cn(
+                      'rounded-full px-1.5 py-px text-caption font-medium tabular-nums',
+                      i - 1 === worst ? 'bg-[var(--warn-bg)] text-[var(--warn)]' : 'bg-[var(--surface-2)] text-[var(--ink-3)]',
+                    )}
+                  >
+                    {conv[i - 1]}%
+                  </span>
+                </li>
+              )}
+              <li className="flex min-w-0 flex-1 flex-col gap-1.5" title={st.s.help}>
+                <span className="flex items-center gap-1.5 text-caption text-[var(--ink-2)]">
+                  <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: st.s.color }} />
+                  {st.s.label}
+                </span>
+                <span className={cn(NUM, 'text-kpi-md leading-none')}>{st.n.toLocaleString()}</span>
+                {jobs && (() => {
+                  const kind = STAGE_JOB[st.s.key];
+                  const js = jobState(jobs.kinds.find(k => k.kind === kind));
+                  return (
+                    <Link
+                      href={jobHref(kind)}
+                      title={`${jobLabel(kind)} job`}
+                      className={cn(
+                        'mt-0.5 inline-flex w-fit max-w-full items-center gap-1.5 truncate text-caption tabular-nums no-underline transition-colors duration-hover hover:text-[var(--brand-a-ink)]',
+                        js.tone === 'bad' || js.tone === 'warn' ? JOB_TEXT[js.tone] : MUTED,
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={cn('size-1.5 shrink-0 rounded-full', js.tone === 'live' && 'animate-pulse')}
+                        style={{ background: JOB_DOT[js.tone] }}
+                      />
+                      <span className="truncate">{js.text}</span>
+                    </Link>
+                  );
+                })()}
+              </li>
+            </React.Fragment>
+          ))}
+        </ol>
 
-const foot = 'flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--line-1)] pt-4';
-
-// ── Module bodies ────────────────────────────────────────────────────────────
-
-function EstateBody({ e }: { e: EstateSummary | null }) {
-  if (!e) return <EmptyState text="Estate metrics unavailable — no data source configured" />;
-  return (
-    <>
-      <div className="grid grid-cols-3 gap-4">
-        <MiniStat value={fmt(e.estateTotal)} label="Objects" color={ACCENT.estate} />
-        <MiniStat value={fmt(e.harvested)} label="Harvested" />
-        <MiniStat value={e.sources} label={e.sources === 1 ? 'Source' : 'Sources'} />
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <CoverageRow label="Harvested" count={e.harvested} total={e.estateTotal || e.harvested} color={COVERAGE_COLORS.harvested} />
-        <CoverageRow label="Profiled" count={e.profiled} total={e.harvested} color={COVERAGE_COLORS.profiled} />
-        <CoverageRow label="Enriched" count={e.enriched} total={e.harvested} color={COVERAGE_COLORS.enriched} />
-        <CoverageRow label="Embedded" count={e.embedded} total={e.harvested} color={COVERAGE_COLORS.embedded} />
-      </div>
-      <div className={foot}>
-        <FootStat icon={Clock} text={`Swept ${relativeTime(e.lastSweepAt)}`} />
-        <FootStat icon={Activity} text={`${fmt(e.queuedJobs)} queued`} tone={e.queuedJobs > 0 ? 'var(--brand-a-ink)' : undefined} />
-        <FootStat icon={CircleDot} text={`${fmt(e.staleCount)} stale`} tone={e.staleCount > 0 ? 'var(--warn)' : undefined} />
-      </div>
-    </>
-  );
-}
-
-function MemoryBody({ m }: { m: MemorySummary | null }) {
-  if (!m) return <EmptyState text="Memory metrics unavailable" />;
-  const ratioPct = Math.round(m.helpfulRatio * 100);
-  return (
-    <>
-      <div className="grid grid-cols-3 gap-4">
-        <MiniStat value={fmt(m.activeMemories)} label="Active memories" color={ACCENT.memory} />
-        <MiniStat value={fmt(m.coreMemories)} label="Core rules" />
-        <MiniStat value={fmt(m.topicCount)} label="Topics" />
-      </div>
-
-      <div>
-        <div className="mb-2 flex justify-between">
-          <Label>Store growth · 30 days</Label>
-          <span className="text-sm text-[var(--ink-3)]">{m.injectEnabled ? 'Injection on' : 'Injection off'}</span>
-        </div>
-        <Sparkline data={m.storeSeries} color={ACCENT.memory} />
-      </div>
-
-      <div className={foot}>
-        <FootStat icon={TrendingUp} text={`${ratioPct}% helpful`} tone={ratioPct >= 60 ? 'var(--ok)' : ratioPct > 0 ? 'var(--warn)' : undefined} />
-        <FootStat icon={Sparkles} text={`${fmt(m.injectedLast24h)} injected 24h`} />
-        <FootStat icon={Ban} text={`${fmt(m.phantomsBlocked7d)} phantoms 7d`} />
-        <FootStat icon={Clock} text={`Synth ${relativeTime(m.lastSynthesisAt)}`} />
-      </div>
-    </>
-  );
-}
-
-function LoginsBody({ l, canReadUsers }: { l: LoginsSummary | null; canReadUsers: boolean }) {
-  if (!l) return <EmptyState text="Login metrics unavailable" />;
-  const roleTotal = l.roleDistribution.reduce((s, r) => s + r.count, 0);
-  const sevenDay = (
-    <div className={foot}>
-      <FootStat icon={Clock} text={`${fmt(l.logins7d)} sign-ins in the last 7 days`} />
-    </div>
-  );
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <MiniStat value={fmt(l.totalUsers)} label="Users" color={ACCENT.logins} />
-        <MiniStat value={fmt(l.activeUsers)} label="Active" />
-        <MiniStat value={fmt(l.logins24h)} label="Logins 24h" />
-        <MiniStat value={fmt(l.failed7d)} label="Failed 7d" color={l.failed7d > 0 ? '#D97706' : undefined} />
-      </div>
-
-      {roleTotal > 0 && (
-        <div className="flex flex-col gap-2.5">
-          <Label>Roles</Label>
-          <div className="flex h-3 overflow-hidden rounded-full bg-[var(--surface-3)]">
-            {l.roleDistribution.map((r, i) => (
+        <div className="border-t border-[var(--line-1)] px-5 pb-4 pt-4">
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <span className="text-caption text-[var(--ink-2)]">Where your {fmt(found)} tables are</span>
+            {worst >= 0 && (
+              <Link href="/agent-lab/estate/jobs" className="text-caption text-[var(--ink-3)] no-underline hover:text-[var(--brand-a-ink)]">
+                Biggest drop: <span className="text-[var(--warn)]">{stages[worst].s.label} → {stages[worst + 1].s.label}</span>
+              </Link>
+            )}
+          </div>
+          <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-full" role="img" aria-label={buckets.map(b => `${b.label} ${b.n}`).join(', ')}>
+            {buckets.map((b, i) => (
               <div
-                key={r.role}
-                title={`${roleLabelFor(r.role)}: ${r.count}`}
-                style={{ width: `${pct(r.count, roleTotal)}%`, background: ROLE_COLORS[i % ROLE_COLORS.length] }}
+                key={b.label}
+                title={`${b.label}: ${b.n.toLocaleString()} (${pct(b.n, found)}%)`}
+                className="dash-grow-x h-full first:rounded-l-full last:rounded-r-full"
+                style={{ width: `${(b.n / found) * 100}%`, minWidth: 3, background: b.color, animationDelay: `${i * 50}ms` }}
               />
             ))}
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {l.roleDistribution.map((r, i) => (
-              <span key={r.role} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ink-2)]">
-                <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: ROLE_COLORS[i % ROLE_COLORS.length] }} />
-                {roleLabelFor(r.role)} · {r.count}
+          <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1">
+            {buckets.map(b => (
+              <span key={b.label} className={cn('inline-flex items-center gap-1.5 text-caption', MUTED)}>
+                <span aria-hidden className="size-2 rounded-[2px]" style={{ background: b.color, boxShadow: b.label === 'Not scanned' ? 'inset 0 0 0 1px var(--line-2)' : undefined }} />
+                {b.label}
+                <span className="tabular-nums text-[var(--ink-2)]">{pct(b.n, found)}%</span>
               </span>
             ))}
           </div>
         </div>
-      )}
 
-      {canReadUsers && l.recent.length > 0 ? (
-        <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
-          <Label>Recent sign-ins</Label>
-          {l.recent.map((r, i) => (
-            <div key={i} className="flex items-center gap-3 text-[15px]">
-              {r.success
-                ? <ShieldCheck size={17} className="shrink-0 text-[var(--ok)]" />
-                : <ShieldAlert size={17} className="shrink-0 text-[var(--warn)]" />}
-              <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.name || r.email}</span>
-              <span className="rounded-full bg-[var(--surface-3)] px-2 py-0.5 text-xs font-bold uppercase text-[var(--ink-2)]">{r.provider}</span>
-              <span className="w-[70px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        sevenDay
-      )}
-    </>
+        {otherJobs.length > 0 && (
+          <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[var(--line-1)] px-5 py-3">
+            <span className={cn('text-caption', MUTED)}>Other jobs</span>
+            {otherJobs.map(k => {
+              const js = jobState(k);
+              return (
+                <Link
+                  key={k.kind}
+                  href={jobHref(k.kind)}
+                  className="group inline-flex items-center gap-1.5 text-caption no-underline"
+                >
+                  <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', js.tone === 'live' && 'animate-pulse')} style={{ background: JOB_DOT[js.tone] }} />
+                  <span className="text-[var(--ink-1)] transition-colors duration-hover group-hover:text-[var(--brand-a-ink)]">{jobLabel(k.kind)}</span>
+                  <span className={cn('tabular-nums', JOB_TEXT[js.tone] ?? MUTED)}>{js.text.toLowerCase()}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Section>
   );
 }
 
-function InspectorBody({ s, canReadUsers }: { s: InspectorSummary | null; canReadUsers: boolean }) {
-  if (!s) return <EmptyState text="Inspector metrics unavailable" />;
+// ── Memory ───────────────────────────────────────────────────────────────────
+
+function MemoryPanel({ m }: { m: MemorySummary | null }) {
   return (
-    <>
-      <div className="grid grid-cols-3 gap-4">
-        <MiniStat value={fmt(s.totalSessions)} label={canReadUsers ? 'Sessions' : 'My sessions'} color={ACCENT.inspector} />
-        <MiniStat value={fmt(s.totalMessages)} label="Messages" />
-        <MiniStat value={canReadUsers ? fmt(s.activeUsers) : fmt(s.sessions7d)} label={canReadUsers ? 'Active users' : 'Last 7 days'} />
-      </div>
+    <Section title="Memory" meta={m ? (m.injectEnabled ? 'In use by agents' : 'Not in use') : undefined} href="/agent-lab/memory" className="lg:col-span-12">
+      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
+        {!m ? <Unavailable what="Memory" /> : (() => {
+          const rated = m.helpfulTotal + m.harmfulTotal;
+          const helpfulPct = Math.round(m.helpfulRatio * 100);
+          const topMax = Math.max(...m.topTopics.map(t => t.count), 1);
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+              <div className="flex flex-col border-b border-[var(--line-1)] md:border-b-0 md:border-r">
+                <div className="flex items-end justify-between gap-4 px-5 pt-5">
+                  <div>
+                    <div className="text-caption text-[var(--ink-2)]">Helpful when used</div>
+                    <div className={cn(NUM, 'mt-1.5 text-kpi-lg leading-none')}>{rated ? `${helpfulPct}%` : '—'}</div>
+                  </div>
+                  <div className={cn('pb-0.5 text-right text-caption tabular-nums', MUTED)}>
+                    {rated ? <>{m.helpfulTotal} helpful<br />{m.harmfulTotal} not helpful</> : 'No ratings yet'}
+                  </div>
+                </div>
+                <div className="mx-5 mt-3 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-[var(--surface-3)]">
+                  {rated > 0 && <div className="dash-grow-x rounded-l-full" style={{ width: `${helpfulPct}%`, background: 'var(--ok)' }} />}
+                  {rated > 0 && helpfulPct < 100 && <div className="dash-grow-x rounded-r-full" style={{ width: `${100 - helpfulPct}%`, background: 'color-mix(in srgb, var(--bad) 55%, transparent)', animationDelay: '80ms' }} />}
+                </div>
+                <p className={cn('mx-5 mb-5 mt-2.5 text-caption tabular-nums', MUTED)}>
+                  {fmt(m.activeMemories)} active · {fmt(m.coreMemories)} core · learned from {fmt(m.tracedSessions)} {plural(m.tracedSessions, 'session')}
+                </p>
+                <dl className="mt-auto grid grid-cols-3 divide-x divide-[var(--line-1)] border-t border-[var(--line-1)]">
+                  {[
+                    { k: 'Used today', v: fmt(m.injectedLast24h) },
+                    { k: 'Blocked this week', v: fmt(m.phantomsBlocked7d), title: 'Low-quality memories kept away from agents' },
+                    { k: 'Last learned', v: relativeTime(m.lastSynthesisAt) },
+                  ].map(x => (
+                    <div key={x.k} className="px-4 py-3" title={x.title}>
+                      <dt className={cn('truncate text-caption', MUTED)}>{x.k}</dt>
+                      <dd className="mt-0.5 truncate text-size-ui font-medium tabular-nums text-[var(--ink-1)]">{x.v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
 
-      <div>
-        <div className="mb-2 flex justify-between">
-          <Label>Sessions · 7 days</Label>
-          <span className="text-sm text-[var(--ink-3)]">{fmt(s.sessions7d)} total</span>
-        </div>
-        <MiniBars data={s.dailyCounts} color={ACCENT.inspector} />
-      </div>
-
-      {s.recent.length > 0 ? (
-        <div className="flex flex-col gap-2.5 border-t border-[var(--line-1)] pt-4">
-          <Label>Recent sessions</Label>
-          {s.recent.map((r, i) => (
-            <div key={i} className="flex items-center gap-3 text-[15px]">
-              <MessageSquare size={17} className="shrink-0 text-[var(--ink-3)]" />
-              <span className="min-w-0 flex-1 truncate font-semibold text-[var(--ink-1)]">{r.title}</span>
-              {canReadUsers && r.user && (
-                <span className="max-w-[110px] truncate text-sm text-[var(--ink-3)]">{r.user}</span>
-              )}
-              <span className="text-sm text-[var(--ink-3)]">{r.messageCount} msg</span>
-              <span className="w-[60px] text-right text-sm text-[var(--ink-3)]">{relativeTime(r.at)}</span>
+              <div className="px-5 py-5">
+                <h3 className={cn('mb-2 text-caption', MUTED)}>What agents remember most</h3>
+                {m.topTopics.length === 0 ? (
+                  <p className={cn('text-size-ui', MUTED)}>No topics yet.</p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {m.topTopics.slice(0, 6).map((t, i) => (
+                      <li key={t.name} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2rem] items-center gap-3 text-size-ui">
+                        <span className="truncate text-[var(--ink-1)]">{t.name}</span>
+                        <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                          <div className="dash-grow-x h-full rounded-full" style={{ width: `${(t.count / topMax) * 100}%`, background: 'color-mix(in srgb, var(--brand-a) 60%, var(--surface-3))', animationDelay: `${i * 40}ms` }} />
+                        </div>
+                        <span className={cn('text-right text-caption tabular-nums', MUTED)}>{t.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className={foot}>
-          <FootStat icon={MessageSquare} text="No inspector sessions yet — start one" />
-        </div>
-      )}
-    </>
+          );
+        })()}
+      </div>
+    </Section>
   );
 }
 
-// ── Hero KPI tile ────────────────────────────────────────────────────────────
+// ── AI spend ─────────────────────────────────────────────────────────────────
 
-function KpiTile({
-  label, value, sub, icon: Icon, accent, href, index,
-}: {
-  label: string; value: string; sub: string; icon: React.ElementType; accent: string; href: string; index: number;
-}) {
+function usd(n: number): string {
+  if (n >= 10_000) return `$${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  if (n >= 100) return `$${Math.round(n)}`;
+  return `$${n.toFixed(2)}`;
+}
+
+function SpendPanel({ s }: { s: SpendSummary | null }) {
+  const change = s && s.prev7d > 0 ? Math.round(((s.last7d - s.prev7d) / s.prev7d) * 100) : null;
+  const max = s ? Math.max(...s.daily, 0.0001) : 1;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: 0.04 * index, ease: 'easeOut' }}
+    <Section title="AI spend" meta="Last 7 days" className="lg:col-span-7">
+      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
+        {!s ? <Unavailable what="Spend" /> : s.last7d === 0 && s.prev7d === 0 ? (
+          <p className={cn('px-5 py-8 text-center text-size-ui', MUTED)}>No model spend recorded in the last two weeks.</p>
+        ) : (
+          <>
+            <div className="flex items-end justify-between gap-6 px-5 pt-5">
+              <div className="min-w-0">
+                <div className={cn(NUM, 'text-kpi-lg leading-none')}>{usd(s.last7d)}</div>
+                <div className={cn('mt-2 text-caption tabular-nums', MUTED)}>
+                  {change === null ? 'Nothing to compare with last week' : (
+                    <><span className="text-[var(--ink-2)]">{change > 0 ? '↑' : change < 0 ? '↓' : ''} {Math.abs(change)}%</span> vs {usd(s.prev7d)} the week before</>
+                  )}
+                </div>
+              </div>
+              <div className="flex h-14 w-[min(55%,260px)] items-end gap-1" aria-hidden>
+                {s.daily.map((v, i) => {
+                  const today = i === s.daily.length - 1;
+                  const d = new Date(Date.now() - (s.daily.length - 1 - i) * 86_400_000);
+                  return (
+                    <div
+                      key={i}
+                      title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${usd(v)}`}
+                      className="dash-grow-y flex-1 rounded-[3px]"
+                      style={{
+                        height: `${Math.max(4, (v / max) * 100)}%`,
+                        background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
+                        animationDelay: `${i * 30}ms`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <ul className="mt-5 flex flex-col gap-2 border-t border-[var(--line-1)] px-5 py-4">
+              {s.byArea.map((a, i) => (
+                <li key={a.area} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_3.5rem_2.5rem] items-center gap-3 text-size-ui">
+                  <span className="truncate text-[var(--ink-1)]">{a.area}</span>
+                  <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                    <div className="dash-grow-x h-full rounded-full" style={{ width: `${pct(a.usd, s.last7d)}%`, background: 'color-mix(in srgb, var(--brand-a) 60%, var(--surface-3))', animationDelay: `${i * 40}ms` }} />
+                  </div>
+                  <span className="text-right tabular-nums text-[var(--ink-1)]">{usd(a.usd)}</span>
+                  <span className={cn('text-right text-caption tabular-nums', MUTED)}>{pct(a.usd, s.last7d)}%</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+// ── Team ─────────────────────────────────────────────────────────────────────
+
+function TeamPanel({ l }: { l: LoginsSummary | null }) {
+  const roles = l ? [...l.roleDistribution].sort((a, b) => b.count - a.count) : [];
+  const max = Math.max(...roles.map(r => r.count), 1);
+  return (
+    <Section
+      title="Team"
+      meta={l ? `${fmt(l.activeUsers)} of ${fmt(l.totalUsers)} active` : undefined}
+      href="/agent-staging/users"
+      linkLabel="Users"
+      className="lg:col-span-5"
     >
-      <Link
-        href={href}
-        className={cn(card, 'group block p-5 no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--line-2)] hover:shadow-pop')}
-      >
-        <div className="flex items-center justify-between">
-          <Label>{label}</Label>
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl"
-            style={{ background: softOf(accent), color: inkOf(accent) }}
-          >
-            <Icon size={19} />
-          </span>
-        </div>
-        <div className="mt-3 text-[34px] font-extrabold leading-none tracking-tight tabular-nums text-[var(--ink-1)]">
-          {value}
-        </div>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="truncate text-sm text-[var(--ink-3)]">{sub}</span>
-          <ArrowUpRight
-            size={17}
-            className="shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-70"
-            style={{ color: inkOf(accent) }}
-          />
-        </div>
-      </Link>
-    </motion.div>
+      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
+        {!l ? <Unavailable what="Team" /> : (
+          <>
+            <div className="px-5 pb-4 pt-5">
+              <h3 className={cn('mb-2 text-caption', MUTED)}>People by role</h3>
+              {roles.length === 0 ? <p className={cn('text-size-ui', MUTED)}>No roles assigned yet.</p> : (
+                <ul className="flex flex-col gap-2">
+                  {roles.slice(0, 6).map((r, i) => (
+                    <li key={r.role} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_2rem] items-center gap-3 text-size-ui">
+                      <span className="truncate text-[var(--ink-1)]">{r.role.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}</span>
+                      <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                        <div className="dash-grow-x h-full rounded-full" style={{ width: `${(r.count / max) * 100}%`, background: 'color-mix(in srgb, var(--ink-3) 70%, var(--surface-3))', animationDelay: `${i * 40}ms` }} />
+                      </div>
+                      <span className={cn('text-right text-caption tabular-nums', MUTED)}>{r.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <dl className="mt-auto grid grid-cols-3 divide-x divide-[var(--line-1)] border-t border-[var(--line-1)]">
+              {[
+                { k: 'Sign-ins today', v: fmt(l.logins24h) },
+                { k: 'This week', v: fmt(l.logins7d) },
+                { k: 'Failed this week', v: fmt(l.failed7d), warn: l.failed7d > 0 },
+              ].map(x => (
+                <div key={x.k} className="px-4 py-3">
+                  <dt className={cn('truncate text-caption', MUTED)}>{x.k}</dt>
+                  <dd className={cn('mt-0.5 truncate text-size-ui font-medium tabular-nums', x.warn ? 'text-[var(--warn)]' : 'text-[var(--ink-1)]')}>{x.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </>
+        )}
+      </div>
+    </Section>
   );
 }
 
-// ── Main view ────────────────────────────────────────────────────────────────
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+const MOTION_CSS = `
+@keyframes dash-grow-x { from { transform: scaleX(0.02); } to { transform: scaleX(1); } }
+@keyframes dash-grow-y { from { transform: scaleY(0.05); } to { transform: scaleY(1); } }
+.dash-grow-x { transform-origin: left center; animation: dash-grow-x 600ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+.dash-grow-y { transform-origin: bottom center; animation: dash-grow-y 500ms cubic-bezier(0.23, 1, 0.32, 1) both; }
+.dash-press { transition-property: background-color, transform; transition-duration: 160ms; transition-timing-function: ease-out; }
+.dash-press:active { transform: scale(0.985); }
+.dash-page { background:
+  radial-gradient(640px 260px at 20% 0, color-mix(in srgb, var(--brand-a) 20%, transparent), transparent 72%); }
+@media (prefers-reduced-motion: reduce) { .dash-grow-x, .dash-grow-y { animation: none; } .dash-press:active { transform: none; } }
+`;
 
 export function DashboardView({
   summary,
@@ -453,8 +694,11 @@ export function DashboardView({
   canReadUsers: boolean;
 }) {
   const { estate, memory, logins, inspector } = summary;
+  const jobs = summary.jobs ?? null;
+  const governance = summary.governance ?? null;
+  const spend = summary.spend ?? null;
 
-  // Time-of-day greeting + dates are client-derived to avoid SSR/timezone drift.
+  // Greeting and date are client-derived to avoid SSR/timezone drift.
   const [mounted, setMounted] = useState(false);
   const [greeting, setGreeting] = useState('Welcome back');
   const [dateStr, setDateStr] = useState('');
@@ -465,81 +709,105 @@ export function DashboardView({
     setDateStr(new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }));
   }, []);
 
+  const attention = buildAttention(estate, memory, logins, jobs, governance, canReadUsers);
+  const urgent = attention.filter(a => a.tone !== 'info').length;
+  const noData = !estate && !memory && !logins && !inspector && !jobs && !governance;
+  const headline = noData
+    ? 'Platform data is not available right now.'
+    : urgent > 0
+    ? `${urgent} ${plural(urgent, 'thing needs', 'things need')} your attention.`
+    : attention.length > 0 ? 'Nothing urgent today.' : 'Everything is running smoothly.';
+  const memGrowth = memory && memory.storeSeries.length > 1 ? memory.storeSeries[memory.storeSeries.length - 1] - memory.storeSeries[0] : null;
+  const found = estate ? Math.max(estate.estateTotal, estate.harvested) : 0;
+  const runs = jobs?.kinds.reduce((a, k) => ({
+    total: a.total + k.runs7d, ok: a.ok + k.succeeded7d, failed: a.failed + k.failed7d, running: a.running + k.running,
+  }), { total: 0, ok: 0, failed: 0, running: 0 });
+  const finished = runs ? runs.ok + runs.failed : 0;
+
   return (
-    <div className="relative h-full overflow-y-auto scrollbar-thin">
-      {/* Soft brand glow behind the page header */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute right-0 top-0 h-72 w-[60%] opacity-50 blur-3xl"
-        style={{
-          background:
-            'radial-gradient(closest-side at 70% 30%, var(--brand-a-soft), transparent), radial-gradient(closest-side at 20% 70%, var(--brand-b-soft), transparent)',
-        }}
-      />
-      <div className="relative mx-auto max-w-[1280px] px-5 pb-16 pt-8 sm:px-8">
-        {/* ── Header ─────────────────────────────────── */}
-        <motion.header
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="mb-8 flex flex-wrap items-end justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-[32px] font-extrabold leading-tight tracking-tight text-[var(--ink-1)] sm:text-4xl">
-              {greeting}, {displayName} <span aria-hidden>👋</span>
-            </h1>
-            <p className="mt-1.5 text-base text-[var(--ink-3)]">
-              Here&rsquo;s what&rsquo;s happening across your ALOFT platform.
+    <div className="dash-page h-full overflow-y-auto scrollbar-thin">
+      <style>{MOTION_CSS}</style>
+      <div className="relative mx-auto flex max-w-[1240px] flex-col gap-8 px-5 pb-16 pt-8 sm:px-8">
+        <header className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div className="min-w-0">
+            <p className={cn('mb-2 text-caption', MUTED)}>
+              {[mounted ? dateStr : null, roleLabel].filter(Boolean).join(' · ')}
             </p>
+            <h1 className="text-title-page">
+              <span className="wl-title">{greeting}, {displayName}.</span>
+              <span className="block text-[var(--ink-3)]">{headline}</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full bg-[var(--brand-a-soft)] px-4 py-1.5 text-sm font-bold text-[var(--brand-a-ink)]">
-              {roleLabel}
-            </span>
-            {mounted && <span className="text-sm font-semibold text-[var(--ink-3)]">{dateStr}</span>}
-          </div>
-        </motion.header>
+          {mounted && (
+            <div className={cn('flex items-center gap-4 text-caption', MUTED)}>
+              {runs && runs.running > 0 && (
+                <Link href="/agent-lab/estate/jobs?tab=active" className="inline-flex items-center gap-1.5 text-[var(--ink-2)] no-underline hover:text-[var(--brand-a-ink)]">
+                  <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-[var(--brand-a)]" />
+                  {runs.running} {plural(runs.running, 'job')} running
+                </Link>
+              )}
+              <span className="inline-flex items-center gap-1.5" title={new Date(summary.generatedAt).toLocaleString()}>
+                <span aria-hidden className="size-1.5 rounded-full bg-[var(--ok)]" />
+                Updated {relativeTime(summary.generatedAt)}
+              </span>
+            </div>
+          )}
+        </header>
 
-        {/* ── Hero KPI strip ─────────────────────────── */}
-        <div className="mb-6 grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4">
-          <KpiTile index={0} label="Data Estate" icon={Database} accent={ACCENT.estate} href="/agent-lab/estate"
-            value={fmt(estate?.estateTotal ?? 0)} sub={`${fmt(estate?.harvested ?? 0)} harvested · ${estate?.sources ?? 0} sources`} />
-          <KpiTile index={1} label="Memory" icon={Lightbulb} accent={ACCENT.memory} href="/agent-lab/memory"
-            value={fmt(memory?.activeMemories ?? 0)} sub={`${fmt(memory?.coreMemories ?? 0)} core · ${fmt(memory?.topicCount ?? 0)} topics`} />
-          <KpiTile index={2} label={canReadUsers ? 'Users' : 'Team'} icon={Users} accent={ACCENT.logins} href="/agent-staging/users"
-            value={fmt(logins?.totalUsers ?? 0)} sub={`${fmt(logins?.logins24h ?? 0)} logins today`} />
-          <KpiTile index={3} label="Inspector" icon={LayoutDashboard} accent={ACCENT.inspector} href="/inspector"
-            value={fmt(inspector?.totalSessions ?? 0)} sub={`${fmt(inspector?.sessions7d ?? 0)} this week`} />
+        <div className={cn(PANEL, 'grid grid-cols-1 gap-px overflow-hidden bg-[var(--line-1)] sm:grid-cols-2 lg:grid-cols-4')}>
+          <Metric
+            label="Searchable tables"
+            href="/agent-lab/estate"
+            value={estate ? fmt(estate.embedded) : '—'}
+            of={estate ? `of ${fmt(found)}` : undefined}
+            sub={estate ? `${pct(estate.embedded, found)}% of everything discovered` : 'Not available'}
+          />
+          <Metric
+            label="Job success"
+            href="/agent-lab/estate/jobs"
+            value={runs && finished > 0 ? `${pct(runs.ok, finished)}%` : '—'}
+            of={runs && finished > 0 ? 'this week' : undefined}
+            sub={!jobs ? 'Not available' : runs && runs.total > 0
+              ? <>{fmt(runs.total)} {plural(runs.total, 'run')}{runs.failed > 0 && <> · <span className="text-[var(--bad)]">{runs.failed} failed</span></>}</>
+              : 'No runs this week'}
+          />
+          <Metric
+            label="Active memories"
+            href="/agent-lab/memory"
+            value={memory ? fmt(memory.activeMemories) : '—'}
+            sub={memory ? (memGrowth !== null ? `${memGrowth >= 0 ? '+' : ''}${fmt(memGrowth)} in ${memory.storeSeries.length} days · ${memory.topicCount} topics` : `${memory.topicCount} topics`) : 'Not available'}
+            chart={memory ? <Sparkline data={memory.storeSeries} /> : undefined}
+          />
+          <Metric
+            label={canReadUsers ? 'Inspector sessions' : 'My sessions'}
+            href="/inspector"
+            value={inspector ? fmt(inspector.sessions7d) : '—'}
+            of={inspector ? 'this week' : undefined}
+            sub={inspector ? (
+              <span title={`All time: ${inspector.totalSessions.toLocaleString()} sessions, ${inspector.totalMessages.toLocaleString()} messages`}>
+                {inspector.totalMessages >= 1_000 && inspector.totalMessages < 10_000 ? `${(inspector.totalMessages / 1_000).toFixed(1)}K` : fmt(inspector.totalMessages)} {plural(inspector.totalMessages, 'message')}{canReadUsers ? ` · ${inspector.activeUsers} ${plural(inspector.activeUsers, 'person', 'people')}` : ' all time'}
+              </span>
+            ) : 'Not available'}
+            chart={inspector ? <DayBars data={inspector.dailyCounts} /> : undefined}
+          />
         </div>
 
-        {/* ── Module grid ────────────────────────────── */}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,440px),1fr))] gap-5">
-          <ModuleCard index={0} title="Data Estate" subtitle="Mendeleev context coverage" icon={Database} accent={ACCENT.estate} href="/agent-lab/estate" linkLabel="Explore">
-            <EstateBody e={estate} />
-          </ModuleCard>
-
-          <ModuleCard index={1} title="Memory" subtitle="FOER agent learning" icon={Lightbulb} accent={ACCENT.memory} href="/agent-lab/memory" linkLabel="Inspect">
-            <MemoryBody m={memory} />
-          </ModuleCard>
-
-          <ModuleCard index={2} title="User Logins" subtitle="Access & authentication" icon={Users} accent={ACCENT.logins} href="/agent-staging/users" linkLabel="Manage">
-            <LoginsBody l={logins} canReadUsers={canReadUsers} />
-          </ModuleCard>
-
-          <ModuleCard index={3} title="Inspector" subtitle="Analysis workbench activity" icon={LayoutDashboard} accent={ACCENT.inspector} href="/inspector" linkLabel="Open">
-            <InspectorBody s={inspector} canReadUsers={canReadUsers} />
-          </ModuleCard>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">
+          <EstateFlow e={estate} jobs={jobs} />
+          <Briefing items={attention} unavailable={noData} />
         </div>
 
-        {/* ── Memory cred leaderboard ─────────────────── */}
-        <div className="mt-5">
-          <MemoryCredCard index={4} />
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">
+          <MemoryPanel m={memory} />
+          {canReadUsers && !noData && (
+            <>
+              <SpendPanel s={spend} />
+              <TeamPanel l={logins} />
+            </>
+          )}
         </div>
 
-        {/* ── Footer ─────────────────────────────────── */}
-        <p className="mt-6 text-sm text-[var(--ink-3)]">
-          ALOFT platform overview{mounted ? ` · refreshed ${relativeTime(summary.generatedAt)}` : ''}
-        </p>
+        <MemoryCredCard index={0} />
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { type } from '@/lib/typography/tokens';
+import { labelForAgentClass } from '@/lib/construction/agent-class-display';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const GOLD       = 'var(--brand-a)';
@@ -10,24 +12,8 @@ const TXT        = 'var(--ink-1)';
 const TXT2       = 'var(--ink-2)';
 const TXT3       = 'var(--ink-3)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const body: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
-
-// ─── Class display names ──────────────────────────────────────────────────────
-
-const CLASS_NAMES: Record<string, string> = {
-  feynman: 'Feynman',
-  fermi: 'Fermi',
-  grossmann: 'Grossmann',
-  rama: 'Rama',
-  // Seneca = agent class (communication, Coming Soon) — not builder persona
-  seneca: 'Seneca',
-  marcus: 'Captain Track Sparrow',
-};
-
-function classDisplayName(classId: string): string {
-  return CLASS_NAMES[classId] ?? (classId.charAt(0).toUpperCase() + classId.slice(1));
-}
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const body: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 // ─── ClassSuggestionChip ──────────────────────────────────────────────────────
 
@@ -88,7 +74,7 @@ export function ClassSuggestionChip({
   };
 
   const confidencePct = Math.round(confidence * 100);
-  const className = classDisplayName(classId);
+  const typeLabel = labelForAgentClass(classId) ?? 'this mission';
 
   return (
     <div style={{
@@ -103,34 +89,33 @@ export function ClassSuggestionChip({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
-          ...mono, fontSize: 13, color: '#1a1205',
+          ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#1a1205',
           background: GOLD,
-          borderRadius: 3,
+          borderRadius: 6,
           padding: '2px 8px',
-          letterSpacing: '0.12em',
-          textTransform: 'uppercase' as const,
+          letterSpacing: '0.04em',
           flexShrink: 0,
         }}>
-          {classId.toUpperCase()}
+          Suggested type
         </span>
-        <span style={{ ...mono, fontSize: 13, color: TXT2 }}>
+        <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT2 }}>
           {confidencePct}% match
         </span>
       </div>
 
       {/* Question */}
-      <p style={{ ...body, fontSize: 14, color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
-        This reads like <strong style={{ color: GOLD }}>{className}</strong>-class territory. Apply it?
+      <p style={{ ...body, fontSize: 'var(--type-body-size)', color: TXT, margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+        This reads like <strong style={{ color: GOLD }}>{typeLabel}</strong> work. Apply it?
       </p>
 
       {/* Rationale */}
-      <p style={{ ...mono, fontSize: 13, color: TXT3, margin: 0, lineHeight: 1.5 }}>
+      <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: TXT3, margin: 0, lineHeight: 1.5 }}>
         {rationale}
       </p>
 
       {/* Error */}
       {error && (
-        <p style={{ ...mono, fontSize: 13, color: '#ef4444', margin: 0 }}>{error}</p>
+        <p style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: '#ef4444', margin: 0 }}>{error}</p>
       )}
 
       {/* Actions */}
@@ -139,13 +124,12 @@ export function ClassSuggestionChip({
           onClick={handleApply}
           disabled={applying}
           style={{
-            ...mono, fontSize: 13,
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.1em',
+            ...type.label,
+            letterSpacing: '0.08em',
             background: NAVY,
             color: '#ffffff',
             border: `1px solid ${NAVY2}`,
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '8px 16px',
             cursor: applying ? 'wait' : 'pointer',
             opacity: applying ? 0.7 : 1,
@@ -158,7 +142,7 @@ export function ClassSuggestionChip({
           onClick={handleKeepClassless}
           disabled={applying}
           style={{
-            ...mono, fontSize: 13,
+            fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)',
             background: 'transparent',
             color: TXT2,
             border: 0,

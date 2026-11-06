@@ -2,33 +2,32 @@
 
 import { useState, useEffect, useCallback, useMemo, type ElementType } from 'react';
 import { useSession } from 'next-auth/react';
-import { Search, UserPlus, Users, RefreshCw, ChevronDown, Shield, UserCheck, KeyRound } from 'lucide-react';
+import { Search, UserPlus, Users, RefreshCw, Shield, UserCheck, KeyRound, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserTable, type UserRow } from '@/components/users/UserTable';
 import { UserDetailDrawer } from '@/components/users/UserDetailDrawer';
 import { InviteUserModal } from '@/components/users/InviteUserModal';
 import { ChangeRoleModal } from '@/components/users/ChangeRoleModal';
+import { SectionAccessPanel } from '@/components/users/SectionAccessPanel';
+import { PersonSectionAccess } from '@/components/users/PersonSectionAccess';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import type { SectionLevel } from '@/lib/sections/registry';
+import styles from '@/components/users/users.module.css';
 
-// Derive permissions from role — mirrors src/lib/rbac.ts permission mappings
-function getPermissionsForRole(role?: string | null) {
-  switch (role) {
-    case 'platform_admin':
-      return {
-        canReadUsers: true, canCreateUsers: true, canUpdateUsers: true,
-        canDeleteUsers: true, canAssignRoles: true,
-      };
-    case 'admin':
-      return {
-        canReadUsers: true, canCreateUsers: true, canUpdateUsers: true,
-        canDeleteUsers: true, canAssignRoles: true,
-      };
-    default:
-      return {
-        canReadUsers: false, canCreateUsers: false, canUpdateUsers: false,
-        canDeleteUsers: false, canAssignRoles: false,
-      };
-  }
+// What this person can do here comes from section access (src/lib/sections): View on Users lists people,
+// Manage invites, edits, re-roles, and removes them. The APIs check the same rules.
+function getPermissionsForLevels(users: SectionLevel | null, dataAccess: SectionLevel | null) {
+  const manage = users === 'manage';
+  return {
+    canReadUsers: users === 'view' || manage,
+    canCreateUsers: manage,
+    canUpdateUsers: manage,
+    canDeleteUsers: manage,
+    canAssignRoles: manage,
+    canManageDataAccess: dataAccess === 'manage',
+  };
 }
 
 const ROLE_OPTIONS = [
@@ -59,20 +58,34 @@ function StatCard({
   icon: ElementType;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] px-4 py-3.5 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-2xl font-bold tabular-nums tracking-tight text-[var(--estate-ink)]">{value}</div>
-          <div className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
-            {label}
-          </div>
-          {sub && <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>}
-        </div>
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] text-[var(--brand-a-ink)]">
-          <Icon className="h-4 w-4" />
-        </div>
+    <div className={styles.stat}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-size-ui font-medium text-muted-foreground">{label}</span>
+        <span className={styles.statIcon}><Icon className="h-4 w-4" aria-hidden="true" /></span>
       </div>
+      <div className="mt-2 text-kpi-md tabular-nums">{value}</div>
+      {sub && <div className="mt-1 text-caption text-muted-foreground">{sub}</div>}
     </div>
+  );
+}
+
+function DirectoryFilter({ label, value, onChange, options }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <Select value={value || 'all'} onValueChange={(next) => onChange(next === 'all' ? '' : next)}>
+      <SelectTrigger aria-label={label} className={styles.selectTrigger}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent position="popper" sideOffset={8} className={cn(styles.surface, styles.selectMenu, 'min-w-[220px] z-[100] [&>div]:!h-auto')}>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value || 'all'} className={styles.selectItem}>{option.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -80,7 +93,9 @@ export default function UsersPage() {
   const { data: session } = useSession();
   const sessionUser = session?.user as { id?: string; role?: string } | undefined;
   const currentUserId = sessionUser?.id;
-  const perms = getPermissionsForRole(sessionUser?.role);
+  const me = useSectionLevels();
+  const perms = getPermissionsForLevels(me?.levels['govern.users'] ?? null, me?.levels['govern.data-access'] ?? null);
+  const [tab, setTab] = useState<'people' | 'sections'>('people');
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +129,7 @@ export default function UsersPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: { users: UserRow[] } = await res.json();
       setUsers(data.users ?? []);
-    } catch (e) {
+    } catch {
       setError('Failed to load users. Please try again.');
     } finally {
       setLoading(false);
@@ -122,6 +137,9 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => { loadUsers(); }, [loadUsers, refreshKey]);
+
+  // The open profile, refreshed from the latest list (so saved changes show without reopening).
+  const drawerCurrent = drawerUser ? (users.find((u) => u.id === drawerUser.id) ?? drawerUser) : null;
 
   // Filtered view
   const filtered = useMemo(() => {
@@ -214,44 +232,45 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1400px] space-y-6">
+    <div className={cn(styles.surface, styles.page)}>
+      <div className={styles.content}>
       {/* Page header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-5">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2.5 text-[var(--estate-ink)]">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
-              <Users className="h-5 w-5 shrink-0 text-[var(--brand-a-ink)]" />
-            </span>
-            Users
-          </h1>
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--estate-text-dim)]">
-            Platform directory · Roles & access control
+          <div className="mb-1 flex items-center gap-2 text-eyebrow uppercase text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-a)]" />
+            Workspace administration
+          </div>
+          <h1 className="text-title-section">Users &amp; access</h1>
+          <p className="mt-1 text-size-ui text-muted-foreground">
+            Manage your people, their roles, and how they access the platform.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
             disabled={loading}
-            className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--muted)] transition-colors disabled:opacity-40"
-            title="Refresh"
+            className={cn(styles.iconButton, 'disabled:opacity-40')}
+            title="Refresh users"
+            aria-label="Refresh users"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           </button>
           {perms.canCreateUsers && (
-            <Button size="sm" onClick={() => setInviteOpen(true)} className="gap-1.5 text-xs">
-              <UserPlus className="h-3.5 w-3.5" />
-              Invite User
+            <Button onClick={() => setInviteOpen(true)} className={cn(styles.primary, 'gap-2 text-size-ui')}>
+              <UserPlus className="h-4 w-4" />
+              Invite user
             </Button>
           )}
         </div>
       </div>
 
       {/* Stats row */}
-      {!loading && !error && users.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Total users" value={stats.total} icon={Users} />
+      {!loading && !error && (
+        <div className={styles.summary}>
+          <StatCard label="Total users" value={stats.total} sub="People in your workspace" icon={Users} />
           <StatCard
-            label="Active"
+            label="Active accounts"
             value={stats.active}
             sub={stats.total - stats.active > 0 ? `${stats.total - stats.active} not active` : 'All accounts active'}
             icon={UserCheck}
@@ -262,84 +281,70 @@ export default function UsersPage() {
             sub={`${stats.platformAdmins} platform · ${stats.admins} admin`}
             icon={Shield}
           />
-          <StatCard label="SSO (Entra)" value={stats.sso} sub="Azure AD sign-in" icon={KeyRound} />
+          <StatCard label="Single sign-on" value={stats.sso} sub="Connected with Microsoft Entra" icon={KeyRound} />
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] px-3 py-2.5 shadow-sm">
+      <div role="tablist" aria-label="Users views" className={cn(styles.tabs, '!px-0 mb-4', (loading || error) && 'mt-5')}>
+        <button role="tab" type="button" id="tab-people" aria-selected={tab === 'people'} aria-controls="panel-people" className={styles.tab} onClick={() => setTab('people')}>
+          People
+        </button>
+        <button role="tab" type="button" id="tab-sections" aria-selected={tab === 'sections'} aria-controls="panel-sections" className={styles.tab} onClick={() => setTab('sections')}>
+          Section access
+        </button>
+      </div>
+
+      {tab === 'sections' ? (
+        <section id="panel-sections" role="tabpanel" aria-labelledby="tab-sections" className={styles.directory}>
+          <div className={styles.directoryHeader}>
+            <h2 className="text-title-card">Section access</h2>
+            <span className="text-caption text-muted-foreground">Who can open each part of ALOFT, and who can make changes there</span>
+          </div>
+          <SectionAccessPanel users={users} onMembersChanged={() => setRefreshKey((k) => k + 1)} notify={showToast} />
+        </section>
+      ) : (
+      <section id="panel-people" role="tabpanel" aria-labelledby="tab-people" className={styles.directory}>
+        <div className={styles.directoryHeader}>
+          <div className="flex items-center gap-3">
+            <h2 id="directory-title" className="text-title-card">People directory</h2>
+            {!loading && !error && <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-caption text-muted-foreground">{users.length} users</span>}
+          </div>
+          <span className="flex items-center gap-1.5 text-caption text-muted-foreground"><Shield className="h-3.5 w-3.5" />Role-based access</span>
+        </div>
+      <div className={styles.toolbar}>
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <div className="relative w-full sm:flex-1 sm:mr-auto sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             placeholder="Search name or email…"
+            aria-label="Search users"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={cn(
-              'w-full pl-8 pr-3 py-1.5 text-xs rounded-md border',
-              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
-              'placeholder:text-muted-foreground',
-            )}
+            className={cn(styles.input, '!pl-10')}
           />
         </div>
 
-        {/* Role filter */}
-        <div className="relative">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className={cn(
-              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
-              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
-            )}
-          >
-            {ROLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-        </div>
+        <DirectoryFilter label="Filter by role" value={roleFilter} onChange={setRoleFilter} options={ROLE_OPTIONS} />
+        <DirectoryFilter label="Filter by status" value={statusFilter} onChange={setStatusFilter} options={STATUS_OPTIONS} />
 
-        {/* Status filter */}
-        <div className="relative">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className={cn(
-              'pl-3 pr-7 py-1.5 text-xs rounded-md border appearance-none',
-              'bg-[var(--estate-surface)] border-[var(--estate-border)] text-[var(--estate-ink)]',
-              'focus:outline-none focus:ring-1 focus:ring-[var(--brand-a)] focus:border-[var(--brand-a)]',
-            )}
-          >
-            {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-        </div>
-
-        {/* Active filter count */}
-        {(search || roleFilter || statusFilter) && (
-          <span className="rounded-full bg-[var(--estate-hover)] px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {filtered.length} / {users.length}
-          </span>
-        )}
         {(search || roleFilter || statusFilter) && (
           <button
             onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}
-            className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+            className="inline-flex items-center gap-1 text-size-ui text-muted-foreground hover:text-foreground"
           >
-            Clear
+            <X className="h-3.5 w-3.5" /> Clear filters
           </button>
         )}
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-lg px-4 py-3 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+        <div role="alert" className="border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 rounded-sm m-5 px-4 py-3 text-size-ui text-red-600 dark:text-red-400 flex items-center gap-2">
           <span>{error}</span>
           <button
             onClick={loadUsers}
-            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-xs"
+            className="ml-auto text-red-500 hover:text-red-700 dark:hover:text-red-300 underline text-size-ui"
           >
             Retry
           </button>
@@ -347,7 +352,7 @@ export default function UsersPage() {
       )}
 
       {/* User table */}
-      <UserTable
+      {!error && <UserTable
         users={filtered}
         loading={loading}
         currentUserId={currentUserId}
@@ -359,16 +364,35 @@ export default function UsersPage() {
         onEditUser={(user) => { setDrawerUser(user); setDrawerOpen(true); }}
         onToggleStatus={handleToggleStatus}
         onDeleteUser={handleDeleteUser}
-      />
+      />}
+      {!loading && !error && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--estate-border)] px-6 py-4 text-caption text-muted-foreground">
+          <span role="status">Showing {filtered.length} of {users.length} users</span>
+          <span>Activity reflects the last 30 days</span>
+        </div>
+      )}
+      </section>
+      )}
 
       {/* Detail drawer */}
       <UserDetailDrawer
-        user={drawerUser}
+        user={drawerCurrent}
         open={drawerOpen}
         currentUserId={currentUserId}
         canAssignRoles={perms.canAssignRoles}
         canUpdateUsers={perms.canUpdateUsers}
         canDeleteUsers={perms.canDeleteUsers}
+        canManageDataAccess={perms.canManageDataAccess}
+        sectionAccess={
+          me?.platformAdmin && drawerCurrent ? (
+            <PersonSectionAccess
+              key={`${drawerCurrent.id}:${drawerCurrent.customRole?.id ?? ''}:${(drawerCurrent.bundles ?? []).map((b) => b.id).join(',')}`}
+              user={drawerCurrent}
+              onSaved={() => setRefreshKey((k) => k + 1)}
+              notify={showToast}
+            />
+          ) : null
+        }
         onClose={() => setDrawerOpen(false)}
         onChangeRole={handleChangeRole}
         onToggleStatus={handleToggleStatus}
@@ -393,8 +417,9 @@ export default function UsersPage() {
       {/* Toast */}
       {toast && (
         <div
+          role={toast.type === 'error' ? 'alert' : 'status'}
           className={cn(
-            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-xs font-medium transition-all',
+            'fixed bottom-5 right-5 z-[100] px-4 py-2.5 rounded-lg shadow-lg text-size-ui font-medium transition',
             toast.type === 'success'
               ? 'bg-emerald-600 dark:bg-emerald-700 text-white'
               : 'bg-red-600 dark:bg-red-700 text-white',
@@ -403,6 +428,7 @@ export default function UsersPage() {
           {toast.msg}
         </div>
       )}
+      </div>
     </div>
   );
 }

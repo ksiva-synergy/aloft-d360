@@ -78,6 +78,12 @@ export const routeLabels: Record<string, string> = {
   environments: 'Environments',
   audit: 'Audit Log',
 
+  // Data estate
+  estate: 'Data Estate',
+  silo: 'Silo Finder',
+  mapper: 'Mapper',
+  object: 'Object',
+
   // Activity tracking
   'activity-tracking': 'Activity Tracking',
   recordings: 'Recordings',

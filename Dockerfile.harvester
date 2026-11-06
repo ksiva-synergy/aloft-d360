@@ -6,7 +6,7 @@
 #   docker build -t aloft-context-harvester -f Dockerfile.harvester .
 # ──────────────────────────────────────────────────────────────────────────────
 
-FROM node:20-alpine AS builder
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS builder
 WORKDIR /app
 
 # Copy prisma first (needed by postinstall)
@@ -16,8 +16,9 @@ COPY prisma ./prisma
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Install tsx for TypeScript execution (dev dep needed at runtime for this image)
-RUN npm install tsx
+# Install tsx for TypeScript execution (dev dep needed at runtime for this image).
+# Exact version from package-lock.json; --no-save keeps the locked tree unchanged.
+RUN npm install --no-save --omit=dev tsx@4.23.1
 
 # Copy source
 COPY tsconfig.json ./
@@ -27,7 +28,7 @@ COPY infra ./infra
 
 # ── Runtime ───────────────────────────────────────────────────────────────────
 
-FROM node:20-alpine AS runner
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runner
 RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 

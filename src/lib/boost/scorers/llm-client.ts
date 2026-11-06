@@ -13,24 +13,31 @@ const DEFAULT_SCORER_MODEL =
   process.env.BOOST_SCORER_MODEL ?? process.env.INSPECTOR_SESSION_SUMMARY_MODEL ?? 'gpt-6-luna';
 
 export function getScorerModelId(): string {
-  return resolveOpenAIChatModelId(DEFAULT_SCORER_MODEL);
+  return resolveOpenAIChatModelId(DEFAULT_SCORER_MODEL, 'boost_scorers');
 }
 
 function resolveTokenParam(modelId: string): 'max_tokens' | 'max_completion_tokens' {
   const registered = BOOST_MODELS.find((m) => m.modelId === modelId || m.key === modelId);
-  return registered?.tokenParam ?? 'max_completion_tokens';
+  if (registered?.tokenParam) return registered.tokenParam;
+  const lower = modelId.toLowerCase();
+  if (lower.includes('gpt') || lower.includes('o3')) return 'max_completion_tokens';
+  return 'max_tokens';
+}
+
+function isLunaOrGatewayModel(model: string): boolean {
+  return model === 'gpt-6-luna' || model.includes('gpt-6-luna') || model.includes('/');
 }
 
 export function getScorerClient(): OpenAI | null {
   const model = getScorerModelId();
+  const lunaClient = getLunaOpenAIChatClient();
+  if (lunaClient && isLunaOrGatewayModel(model)) {
+    return lunaClient;
+  }
+
   const mantle = getBedrockMantleOpenAIClient();
   if (mantle && model.startsWith('openai.')) {
     return mantle;
-  }
-
-  const lunaClient = getLunaOpenAIChatClient();
-  if (lunaClient && (model === 'gpt-6-luna' || model.startsWith('openai.gpt-6-luna'))) {
-    return lunaClient;
   }
 
   const foundryEndpoint = process.env.FOUNDRY_ENDPOINT;

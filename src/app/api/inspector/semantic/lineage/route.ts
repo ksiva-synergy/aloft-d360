@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getDefaultOrg } from '@/lib/platform/agents';
+import { getOrgId } from '@/lib/databricks/connections';
 import { getUserByEmail } from '@/lib/dashboards/permissions';
 import {
   resolveGovernedModel,
@@ -15,8 +15,11 @@ import {
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/inspector/semantic/lineage?focus=<nodeId>&q=<search>
+ * GET /api/inspector/semantic/lineage?focus=<nodeId>&q=<search>&optionsOnly=1
  *
+ * Query flags:
+ *   optionsOnly=1 — returns only { status, model, focusOptions } (no scanConsumers /
+ *     focus graph). Used by debounced picker search; catalog still loads (cached ~30s).
  * The Lineage graph — ONE graph, focus-SCOPED (the populated model has ~12k nodes,
  * so the whole graph is never serialized). Returns:
  *   - focusOptions: a light, searchable list of focusable nodes (measures + entities)
@@ -37,22 +40,36 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
     if (!email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const user = await getUserByEmail(email);
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session.user.id) {
+      const user = await getUserByEmail(email);
+      if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const org = await getDefaultOrg();
+    const orgId = await getOrgId();
 
-    const model = await resolveGovernedModel(org.id);
+    const model = await resolveGovernedModel(orgId);
     if (!model) return NextResponse.json({ status: 'no_governed_model' as const });
 
-    const cat = await loadCatalog(org.id, model.id);
+    const cat = await loadCatalog(orgId, model.id);
     if (!cat) return NextResponse.json({ status: 'no_governed_model' as const });
 
     const url = new URL(request.url);
     const q = url.searchParams.get('q') ?? undefined;
-    const requestedFocus = url.searchParams.get('focus') ?? undefined;
+    const optionsOnly =
+      url.searchParams.get('optionsOnly') === '1' ||
+      url.searchParams.get('optionsOnly') === 'true';
 
     const focusOptions = listFocusOptions(cat, { q });
+
+    if (optionsOnly) {
+      return NextResponse.json({
+        status: 'ok' as const,
+        model,
+        focusOptions,
+      });
+    }
+
+    const requestedFocus = url.searchParams.get('focus') ?? undefined;
 
     // Resolve the focus node: requested (if valid) else the first option.
     const validRequested =
@@ -65,7 +82,7 @@ export async function GET(request: NextRequest) {
 
     const focusId = validRequested ? requestedFocus! : focusOptions.options[0]?.id;
 
-    const consumers = await scanConsumers(org.id);
+    const consumers = await scanConsumers(orgId);
     const focus = focusId ? buildFocusedGraph(cat, consumers, focusId) : null;
 
     return NextResponse.json({

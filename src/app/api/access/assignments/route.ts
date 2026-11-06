@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
-import { PERMISSIONS } from '@/lib/rbac';
+import { PERMISSIONS, canManageRole } from '@/lib/rbac';
 import { writeAudit } from '@/lib/audit';
+import { requireSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +23,18 @@ async function resolve(userId: string, roleName: string) {
   return { user, role };
 }
 
+/** No escalation: grant or revoke only roles at or below the caller's own. */
+function assertCanManage(actorRole: string, roleName: string) {
+  if (!canManageRole(actorRole, roleName)) throw new ApiError(403, `Your role cannot manage the "${roleName}" role`);
+}
+
 // Assign a role to a user.
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(AssignBody, await req.json());
+  assertCanManage(auth.role, body.roleName);
   const { user, role } = await resolve(body.userId, body.roleName);
 
   await prisma.userRole.upsert({
@@ -50,7 +58,9 @@ export const POST = handle(async (req) => {
 export const DELETE = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(AssignBody, await req.json());
+  assertCanManage(auth.role, body.roleName);
   const { user, role } = await resolve(body.userId, body.roleName);
 
   await prisma.userRole.deleteMany({ where: { userId: user.id, roleId: role.id } });

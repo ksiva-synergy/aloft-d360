@@ -7,6 +7,7 @@ import {
 import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -90,6 +91,8 @@ async function fetchAllLogsFromCloudWatch(taskId: string): Promise<LogLine[]> {
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const denied = await denyUnlessSection(null, ['estate.jobs', 'view']);
+  if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {
     return new Response('Unauthorized', { status: 401 });
@@ -279,7 +282,8 @@ function streamLiveJob(
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           if (!msg.includes('ResourceNotFoundException')) {
-            sendData(controller, closed, { type: 'error', message: msg });
+            console.error('[jobs/:id/logs]', err);
+            sendData(controller, closed, { type: 'error', message: 'Failed to read job logs' });
           }
         }
 

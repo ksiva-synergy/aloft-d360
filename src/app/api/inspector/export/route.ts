@@ -2,9 +2,9 @@
  * POST /api/inspector/export
  *
  * Stream a read-only Databricks query result as CSV (up to 100k rows).
- * Separate from chat INLINE execute_tool — uses EXTERNAL_LINKS streaming.
  *
- * Body: { sql: string, filename?: string, maxRows?: number, toolSlug?: string, sessionId?: string }
+ * Preferred body: { resultId, sessionId?, filename?, maxRows?, toolSlug? }
+ * Legacy (ACCESS_MODE=off only): { sql, ... } — deprecated when access is enforced.
  */
 
 import { NextRequest } from 'next/server';
@@ -12,15 +12,17 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import {
-  beginDatabricksSQLExport,
   EXPORT_MAX_ROWS,
   ReadOnlyViolationError,
   MultiStatementError,
 } from '@/lib/databricks/execute';
 import { csvHeaderLine, csvDataLine } from '@/lib/databricks/csv';
-import { getAccessToken } from '@/lib/databricks/token-client';
 import { resolveToolCatalogEntry } from '@/lib/inspector/tools';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
+import { principalForUser } from '@/lib/access/principal';
+import { shouldEnforceDeny } from '@/lib/access/config';
+import { runWarehouseExport } from '@/lib/access/warehouse';
+import { AccessDeniedError } from '@/lib/access/errors';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -33,7 +35,7 @@ function sanitizeFilename(name: string): string {
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return new Response(JSON.stringify({ error: 'UNAUTHORIZED' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
 
   let body: {
     sql?: unknown;
+    resultId?: unknown;
     filename?: unknown;
     maxRows?: unknown;
     toolSlug?: unknown;
@@ -56,17 +59,56 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const sql = typeof body.sql === 'string' ? body.sql.trim() : '';
+  const sessionId = typeof body.sessionId === 'string' ? body.sessionId : undefined;
+  const blocked = await guardInspectorChat(request, sessionId);
+  if (blocked) return blocked;
+
+  const resultId = typeof body.resultId === 'string' ? body.resultId.trim() : '';
+  const legacySql = typeof body.sql === 'string' ? body.sql.trim() : '';
+
+  if (shouldEnforceDeny('export') && !resultId) {
+    return new Response(
+      JSON.stringify({
+        error: 'RESULT_ID_REQUIRED',
+        message: 'Export requires a server-held resultId when data access enforcement is on.',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  if (shouldEnforceDeny('export') && legacySql && !resultId) {
+    return new Response(
+      JSON.stringify({
+        error: 'SQL_FROM_CLIENT_DEPRECATED',
+        message: 'Pass resultId from studio_query_results instead of sql from the browser.',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  let sql = legacySql;
+  if (resultId) {
+    const row = await prisma.studio_query_results.findUnique({
+      where: { id: resultId },
+      select: { sql: true, session_id: true },
+    });
+    if (!row) {
+      return new Response(JSON.stringify({ error: 'RESULT_NOT_FOUND' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const ownerCheck = await guardInspectorChat(request, row.session_id);
+    if (ownerCheck) return ownerCheck;
+    sql = row.sql?.trim() ?? '';
+  }
+
   if (!sql) {
     return new Response(JSON.stringify({ error: 'SQL_REQUIRED' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
   }
-
-  const sessionId = typeof body.sessionId === 'string' ? body.sessionId : undefined;
-  const blocked = await guardInspectorChat(request, sessionId);
-  if (blocked) return blocked;
 
   const maxRows =
     typeof body.maxRows === 'number' && Number.isFinite(body.maxRows)
@@ -82,6 +124,8 @@ export async function POST(request: NextRequest) {
   const toolSlug = typeof body.toolSlug === 'string' && body.toolSlug.trim()
     ? body.toolSlug.trim()
     : 'synergy_dwh';
+
+  const dataPrincipal = await principalForUser(session.user.id);
 
   try {
     const catalogEntry = await resolveToolCatalogEntry(toolSlug);
@@ -115,14 +159,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = await getAccessToken(connectionId, conn.workspace_host);
-    const handle = await beginDatabricksSQLExport(
+    const handle = await runWarehouseExport({
       connectionId,
-      conn.workspace_host,
-      conn.default_warehouse_id,
-      token,
-      { statement: sql, maxRows },
-    );
+      principal: dataPrincipal,
+      statement: sql,
+      purpose: 'inspector_export',
+      level: 'export',
+      surface: 'export',
+      sessionId: sessionId ?? null,
+      maxRows,
+    });
 
     const encoder = new TextEncoder();
 
@@ -154,9 +200,16 @@ export async function POST(request: NextRequest) {
         'X-Export-Row-Limit': String(handle.meta.row_limit),
         'X-Export-Total-Row-Count': String(handle.meta.total_row_count),
         'X-Export-Statement-Id': handle.meta.statement_id,
+        ...(resultId ? { 'X-Export-Result-Id': resultId } : {}),
       },
     });
   } catch (err: unknown) {
+    if (err instanceof AccessDeniedError) {
+      return new Response(
+        JSON.stringify({ error: 'ACCESS_DENIED', message: err.message }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
     if (err instanceof ReadOnlyViolationError) {
       return new Response(
         JSON.stringify({ error: 'READ_ONLY_VIOLATION', message: err.message }),
@@ -169,12 +222,10 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       );
     }
-    const msg = err instanceof Error ? err.message : 'Export failed';
-    console.error('[inspector/export]', msg);
+    console.error('[inspector/export]', err);
     return new Response(
-      JSON.stringify({ error: 'EXPORT_FAILED', message: msg }),
+      JSON.stringify({ error: 'EXPORT_FAILED', message: 'Export failed' }),
       { status: 502, headers: { 'Content-Type': 'application/json' } },
     );
   }
 }
-

@@ -8,6 +8,7 @@ import { saveProfile } from './profile';
 import { countT1Degrade } from './coverage';
 import { makeHeartbeat } from './queue';
 import { selectDroppedPaths } from './scope-match';
+import { isT0Changed } from './pipeline-freshness';
 import type { ContextSource, HarvestConfig, ProfileBudget } from './types';
 
 const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
@@ -18,7 +19,7 @@ function matchesPatterns(fullPath: string, patterns: string[]): boolean {
 
 // ── Prisma → adapter type bridge ──────────────────────────────────────────────
 
-function toContextSource(row: PlatformContextSource): ContextSource {
+export function toContextSource(row: PlatformContextSource): ContextSource {
   return {
     id: row.id,
     org_id: row.org_id,
@@ -68,7 +69,12 @@ export interface HarvestResult {
  */
 export async function runT0Harvest(
   sourceId: string,
-  opts?: { excludeSchemas?: string[]; includePatterns?: string[]; forceFullScan?: boolean },
+  opts?: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+    forceFullScan?: boolean;
+    existingJobId?: string;
+  },
 ): Promise<HarvestResult> {
   // ── 1. Load source ──────────────────────────────────────────────────────────
   const sourceRow = await prisma.platformContextSource.findUniqueOrThrow({
@@ -80,18 +86,23 @@ export async function runT0Harvest(
   // It must force resolveScope regardless of last_sweep_at because detectChanges only returns
   // recently-altered refs — it would miss unaltered tables in the targeted subset.
   //
-  // excludeSchemas is a negative filter ("skip these schemas"). It is NOT a reason to force
-  // resolveScope on its own: if last_sweep_at is set, delta mode (detectChanges) is still
-  // correct and excludeSchemas is applied via scope_exclude before the adapter call either way.
-  // Treating excludeSchemas as a resolveScope trigger was causing subsequent runs to do a
-  // re-scan of the full allowed scope on every manual launch, ignoring the delta baseline.
+  // excludeSchemas from the Jobs modal narrows which schemas to harvest. Delta mode only
+  // returns recently altered tables, so exclude-only scope would often sweep 0 rows.
   const hasIncludeOverride = (opts?.includePatterns?.length ?? 0) > 0;
-  const isFirstRun = sourceRow.last_sweep_at === null || (opts?.forceFullScan ?? false) || hasIncludeOverride;
+  const hasExcludeScope = (opts?.excludeSchemas?.length ?? 0) > 0;
+  const isFirstRun =
+    sourceRow.last_sweep_at === null
+    || (opts?.forceFullScan ?? false)
+    || hasIncludeOverride
+    || hasExcludeScope;
   if (opts?.forceFullScan) {
     console.log(`[t0_structural] forceFullScan=true — using resolveScope instead of detectChanges`);
   }
   if (hasIncludeOverride && !opts?.forceFullScan) {
     console.log(`[t0_structural] includePatterns override (${opts!.includePatterns!.join(', ')}) — forcing resolveScope`);
+  }
+  if (hasExcludeScope && !hasIncludeOverride && !opts?.forceFullScan) {
+    console.log(`[t0_structural] excludeSchemas (${opts!.excludeSchemas!.length} schemas) — forcing resolveScope for narrowed scope`);
   }
   const source = toContextSource(sourceRow);
 
@@ -114,17 +125,27 @@ export async function runT0Harvest(
     console.log(`[t0_structural] applying excludeSchemas: ${opts.excludeSchemas.join(', ')}`);
   }
 
-  // ── 2. Create job row (status = running) ────────────────────────────────────
-  const job = await prisma.platformContextJob.create({
-    data: {
-      org_id: orgId,
-      source_id: sourceId,
-      job_kind: 't0_structural',
-      trigger: 'on_demand',
-      status: 'running',
-      started_at: new Date(),
-    },
-  });
+  // ── 2. Reuse orchestrator-claimed job row, or create a new one if standalone ─
+  let jobId: string;
+  if (opts?.existingJobId) {
+    jobId = opts.existingJobId;
+    await prisma.platformContextJob.update({
+      where: { id: jobId },
+      data: { status: 'running', started_at: new Date() },
+    });
+  } else {
+    const job = await prisma.platformContextJob.create({
+      data: {
+        org_id: orgId,
+        source_id: sourceId,
+        job_kind: 't0_structural',
+        trigger: 'on_demand',
+        status: 'running',
+        started_at: new Date(),
+      },
+    });
+    jobId = job.id;
+  }
 
   try {
     // ── 3. Load connection and build adapter ──────────────────────────────────
@@ -154,8 +175,9 @@ export async function runT0Harvest(
     // ── 6. Upsert objects + columns ───────────────────────────────────────────
     const now = new Date();
     let columnsUpserted = 0;
+    let objectsChanged = 0;
     let objIdx = 0;
-    const beat = makeHeartbeat(job.id);
+    const beat = makeHeartbeat(jobId);
 
     for (const meta of structuralMeta) {
       await beat();
@@ -164,6 +186,29 @@ export async function runT0Harvest(
       if (objIdx % 50 === 0 || objIdx === structuralMeta.length) {
         console.log(`[t0_structural] upserted ${objIdx}/${structuralMeta.length} objects (${columnsUpserted} cols so far)`);
       }
+
+      const stored = await prisma.platformContextObject.findUnique({
+        where: { source_id_full_path: { source_id: sourceId, full_path: meta.ref.full_path } },
+        select: {
+          lifecycle: true,
+          last_t0_at: true,
+          source_altered_at: true,
+          object_kind: true,
+          native_comment: true,
+          columns: {
+            where: { lifecycle: 'active' },
+            select: { name: true, ordinal: true, data_type: true, is_nullable: true, native_comment: true },
+          },
+        },
+      });
+      // Unchanged rescans keep last_t0_at so T1/T2/embed are not marked stale.
+      const changed = isT0Changed(stored, {
+        object_kind: meta.object_kind,
+        native_comment: meta.native_comment,
+        source_altered_at: meta.source_altered_at,
+        columns: meta.columns,
+      });
+      if (changed) objectsChanged++;
 
       const obj = await prisma.platformContextObject.upsert({
         where: {
@@ -186,10 +231,15 @@ export async function runT0Harvest(
           object_kind: meta.object_kind,
           native_comment: meta.native_comment,
           source_altered_at: meta.source_altered_at,
-          last_t0_at: now,
+          ...(changed ? { last_t0_at: now } : {}),
           lifecycle: 'active',
         },
         select: { id: true },
+      });
+
+      await prisma.platformEstateObject.updateMany({
+        where: { org_id: orgId, full_path: meta.ref.full_path },
+        data: { context_object_id: obj.id },
       });
 
       for (const col of meta.columns) {
@@ -229,7 +279,7 @@ export async function runT0Harvest(
     let droppedObjects = 0;
     if (isFirstRun && refs.length > 0) {
       const activeRows = await prisma.platformContextObject.findMany({
-        where: { source_id: sourceId, lifecycle: 'active' },
+        where: { source_id: sourceId, org_id: orgId, lifecycle: 'active' },
         select: { id: true, full_path: true },
       });
       const dropPaths = new Set(selectDroppedPaths({
@@ -267,7 +317,7 @@ export async function runT0Harvest(
       `[t0_structural] estate sync — inserted=${estateSync.inserted} updated=${estateSync.updated}`,
     );
 
-    console.log(`[t0_structural] done — objects=${structuralMeta.length} cols=${columnsUpserted} dropped=${droppedObjects} queries=${adapter.queryCount}`);
+    console.log(`[t0_structural] done — objects=${structuralMeta.length} changed=${objectsChanged} cols=${columnsUpserted} dropped=${droppedObjects} queries=${adapter.queryCount}`);
 
     // ── 8. Stamp last_sweep_at on the source ──────────────────────────────────
     // Only advance last_sweep_at when this run saw the full allowed scope of the source.
@@ -288,6 +338,7 @@ export async function runT0Harvest(
     // ── 9. Mark job succeeded ─────────────────────────────────────────────────
     const stats = {
       objects_swept: structuralMeta.length,
+      objects_changed: objectsChanged,
       columns_upserted: columnsUpserted,
       queries_issued: adapter.queryCount,
       dropped_objects: droppedObjects,
@@ -296,12 +347,12 @@ export async function runT0Harvest(
     };
 
     await prisma.platformContextJob.update({
-      where: { id: job.id },
+      where: { id: jobId },
       data: { status: 'succeeded', finished_at: new Date(), stats },
     });
 
     return {
-      jobId: job.id,
+      jobId,
       objectsSwept: structuralMeta.length,
       columnsUpserted,
       queriesIssued: adapter.queryCount,
@@ -316,13 +367,13 @@ export async function runT0Harvest(
     // Best-effort: update job to failed; don't throw if this update itself fails
     await prisma.platformContextJob
       .update({
-        where: { id: job.id },
+        where: { id: jobId },
         data: { status: 'failed', finished_at: new Date(), error: errorMsg },
       })
       .catch(() => undefined);
 
     return {
-      jobId: job.id,
+      jobId,
       objectsSwept: 0,
       columnsUpserted: 0,
       queriesIssued: 0,
@@ -350,6 +401,8 @@ export async function runT1Profile(
     excludeSchemas?: string[];
     includePatterns?: string[];
     existingJobId?: string;
+    /** Re-profile every object in scope (default: only where last_t1_at < last_t0_at). */
+    forceReprofile?: boolean;
     /** Auto-split: restrict DB query to a single catalog+schema partition */
     partitionCatalog?: string;
     partitionSchema?: string;
@@ -433,6 +486,43 @@ export async function runT1Profile(
       console.log(`[t1_profile] source=${sourceId} objects=${activeObjects.length}`);
     }
 
+    let profileTargets = activeObjects;
+    if (!opts?.forceReprofile) {
+      const totalInScope = profileTargets.length;
+      profileTargets = profileTargets.filter(o => {
+        if (!o.last_t1_at) return true;
+        if (!o.last_t0_at) return true;
+        return o.last_t1_at < o.last_t0_at;
+      });
+      console.log(
+        `[t1_profile] stale-only: ${profileTargets.length}/${totalInScope} objects need profiling`,
+      );
+    }
+
+    if (profileTargets.length === 0 && activeObjects.length > 0) {
+      const stats = {
+        objects_profiled: 0,
+        objects_failed: 0,
+        queries_issued: 0,
+        objects_degraded: 0,
+        columns_skipped: 0,
+        skipped_stale: activeObjects.length,
+      };
+      await prisma.platformContextJob.update({
+        where: { id: jobId },
+        data: { status: 'succeeded', finished_at: new Date(), stats },
+      });
+      return {
+        jobId,
+        objectsSwept: 0,
+        columnsUpserted: 0,
+        queriesIssued: 0,
+        droppedObjects: 0,
+        isFullSweep: false,
+        status: 'succeeded',
+      };
+    }
+
     if (activeObjects.length === 0) {
       const scopeHint = opts?.includePatterns?.length
         ? `includePatterns=${opts.includePatterns.join(', ')}`
@@ -466,14 +556,15 @@ export async function runT1Profile(
 
     let queriesIssued = 0;
     let profilesCreated = 0;
+    let profilesUnchanged = 0;
     const objectErrors: string[] = [];
     // Collect the stats blob of each profile we write so we can count degraded
     // objects/columns (partial sweeps, unqueryable views, skipped columns) for
     // the emitted job stats — additive coverage instrumentation (WS4).
     const profileStatsList: Array<Record<string, unknown>> = [];
-    const beat = makeHeartbeat(opts?.existingJobId);
+    const beat = makeHeartbeat(jobId);
 
-    for (const obj of activeObjects) {
+    for (const obj of profileTargets) {
       await beat();
       console.log(`[T1 Profile] Profiling ${obj.full_path} ...`);
       try {
@@ -503,22 +594,48 @@ export async function runT1Profile(
         queriesIssued += (adapter.queryCount - startQueries);
 
         // 5. Persist profile + compute drift via profile.ts
-        await saveProfile(obj.id, orgId, profileResult, 'on_demand');
+        const saved = await saveProfile(obj.id, orgId, profileResult, 'on_demand');
         profileStatsList.push(profileResult.stats as Record<string, unknown>);
 
         // 6. Update PlatformContextObject row_count_est, size_bytes_est, last_t1_at
         const currStats = profileResult.stats as Record<string, unknown>;
         const rawRowCount = currStats.row_count;
         const rawSizeBytes = currStats.size_bytes;
-        const rowCountVal = rawRowCount !== null && rawRowCount !== undefined ? BigInt(rawRowCount as number) : null;
+        // A sampled profile counts rows inside a LIMIT window. When the count fills
+        // the window it is only a lower bound (e.g. 5,000 for a 1 GB table), not the
+        // table's row count — store null rather than the window size. A count below
+        // the window means the whole table fit, so it is exact.
+        const windowRows = typeof currStats.profile_window_rows === 'number' ? currStats.profile_window_rows : null;
+        const rowCountIsWindowCap =
+          currStats.is_sampled === true
+          && windowRows !== null
+          && typeof rawRowCount === 'number'
+          && rawRowCount >= windowRows;
+        // An exact Delta COUNT(*) (row_count_exact) always wins over the profile count.
+        const exactRows = typeof currStats.row_count_exact === 'number' ? currStats.row_count_exact : null;
+        const rowCountVal = exactRows !== null
+          ? BigInt(exactRows)
+          : rawRowCount !== null && rawRowCount !== undefined && !rowCountIsWindowCap
+            ? BigInt(rawRowCount as number)
+            : null;
         const sizeBytesVal = rawSizeBytes !== null && rawSizeBytes !== undefined ? BigInt(rawSizeBytes as number) : null;
+
+        // Identical profile + description was current → keep it current (skip needless re-describe).
+        const t1Now = new Date();
+        const carryT2 =
+          saved.statsUnchanged
+          && obj.last_t1_at !== null
+          && obj.last_t2_at !== null
+          && obj.last_t2_at >= obj.last_t1_at;
+        if (carryT2) profilesUnchanged++;
 
         await prisma.platformContextObject.update({
           where: { id: obj.id },
           data: {
             row_count_est: rowCountVal,
             size_bytes_est: sizeBytesVal,
-            last_t1_at: new Date(),
+            last_t1_at: t1Now,
+            ...(carryT2 ? { last_t2_at: t1Now } : {}),
           },
         });
 
@@ -539,6 +656,7 @@ export async function runT1Profile(
     const degrade = countT1Degrade(profileStatsList);
     const stats = {
       objects_profiled: profilesCreated,
+      objects_unchanged: profilesUnchanged,
       objects_failed: objectErrors.length,
       queries_issued: queriesIssued,
       // Additive coverage signal (WS4): green T1 jobs can still hide degraded

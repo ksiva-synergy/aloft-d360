@@ -74,6 +74,10 @@ describe('runtime prompt', () => {
     expect(live).toContain('saved agent');
     expect(live).not.toContain('test-run');
     expect(live).toContain(INSTRUCTIONS);
+    expect(live).toContain('Name things, not just codes');
+    expect(live).toContain('HOW TO WRITE THE ANSWER');
+    expect(live).toContain('Do not add a sources or joins section');
+    expect(live).not.toMatch(/keep the final answer concise/i);
   });
 
   it('reads a live brief only when the catalog has instructions', () => {

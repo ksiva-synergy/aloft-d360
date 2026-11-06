@@ -7,6 +7,14 @@ import { Prisma } from '@prisma/client';
 import { DatabricksAdapter } from './databricks-adapter';
 import type { RawHistoryRow } from './databricks-adapter';
 import { getHarvestLlmModelId, harvestLlmComplete } from './harvest-llm';
+import {
+  pathExcludedBySchemas,
+  pathMatchesIncludePatterns,
+  buildLineageTableSqlFilter,
+  buildQueryHistoryStatementSqlFilter,
+  prefilterHistoryRowsForObjects,
+  statementReferencesObject,
+} from './job-scope';
 
 // ── Usage narrative prompt ────────────────────────────────────────────────────
 
@@ -43,6 +51,8 @@ export const NARRATIVE_PROMPT_VERSION = 'usage_narrative_v1';
 // ── Public result type ────────────────────────────────────────────────────────
 
 export interface T3UsageResult {
+  /** Tables in job scope (after Limit / exclude). */
+  objectsInScope: number;
   objectsProcessed: number;
   snapshotsWritten: number;
   skipped: number;
@@ -222,7 +232,10 @@ function extractKeyColumns(
     result.push({ column: col, ...t, score });
   }
 
+  // Only columns the queries actually reference — zero-score columns (e.g. every
+  // column when queries are SELECT *) were being stored as "key columns".
   return result
+    .filter((r) => r.score > 0 || r.grouped_n > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 20);
 }
@@ -454,22 +467,64 @@ export async function getUsageSignalsForEnrich(
 
 // ── runT3Usage ────────────────────────────────────────────────────────────────
 
+function maxTimestamp(dates: Array<Date | null | undefined>): Date | null {
+  let max: number | null = null;
+  for (const d of dates) {
+    if (!d) continue;
+    const t = d.getTime();
+    if (Number.isNaN(t)) continue;
+    if (max === null || t > max) max = t;
+  }
+  return max === null ? null : new Date(max);
+}
+
 export async function runT3Usage(
   orgId: string,
   sourceId: string,
-  opts?: { since?: Date; until?: Date; windowDays?: number; rowCap?: number; lineageRowCap?: number; narrativeTopN?: number },
+  opts?: {
+    since?: Date;
+    until?: Date;
+    windowDays?: number;
+    rowCap?: number;
+    lineageRowCap?: number;
+    narrativeTopN?: number;
+    includePatterns?: string[];
+    excludeSchemas?: string[];
+  },
 ): Promise<T3UsageResult> {
   // `until` is explicit for continuation jobs, otherwise current time
   const until = opts?.until ?? new Date();
   const rowCap = opts?.rowCap ?? 50_000;
   const lineageRowCap = opts?.lineageRowCap ?? 10_000;
   const narrativeTopN = opts?.narrativeTopN ?? 10;
+  const scopePatterns = opts?.includePatterns ?? [];
+  const excludeSchemas = opts?.excludeSchemas ?? [];
+  const scoped = scopePatterns.length > 0 || excludeSchemas.length > 0;
 
-  // Determine window start: explicit `since`, last harvest, or default 7-day window
+  // In-scope objects first so a Limit uses those tables' last T3 time, not the source max.
+  const objectsRaw = await prisma.platformContextObject.findMany({
+    where: { org_id: orgId, source_id: sourceId },
+    include: {
+      columns: { where: { lifecycle: 'active' }, select: { name: true } },
+    },
+  });
+  const objects = objectsRaw.filter(o => {
+    if (excludeSchemas.length > 0 && pathExcludedBySchemas(o.full_path, excludeSchemas)) return false;
+    if (scopePatterns.length > 0 && !pathMatchesIncludePatterns(o.full_path, scopePatterns)) return false;
+    return true;
+  });
+  console.log(`[t3_usage] objects to process: ${objects.length}${scoped ? ' (scoped)' : ''}`);
+
+  // Determine window start: explicit `since`, scoped last harvest, source last harvest, or 7 days.
   let since: Date;
   if (opts?.since) {
     since = opts.since;
     console.log(`[t3_usage] continuation mode since=${since.toISOString()} until=${until.toISOString()}`);
+  } else if (scoped) {
+    const defaultWindowDays = opts?.windowDays ?? 7;
+    const lastT3 = maxTimestamp(objects.map(o => o.last_t3_at));
+    since = lastT3 ?? new Date(until.getTime() - defaultWindowDays * 24 * 60 * 60 * 1000);
+    console.log(`[t3_usage] scoped window since=${since.toISOString()} until=${until.toISOString()} (${lastT3 ? 'in-scope last harvest' : `${defaultWindowDays}d default`})`);
   } else {
     const defaultWindowDays = opts?.windowDays ?? 7;
     const lastHarvest = await prisma.$queryRawUnsafe<Array<{ max_t3: Date | null }>>(
@@ -482,7 +537,21 @@ export async function runT3Usage(
     console.log(`[t3_usage] window since=${since.toISOString()} until=${until.toISOString()} (${lastT3 ? 'last harvest' : `${defaultWindowDays}d default`})`);
   }
 
-  const windowDays = Math.ceil((until.getTime() - since.getTime()) / (24 * 60 * 60 * 1000));
+  const windowDays = Math.max(1, Math.ceil((until.getTime() - since.getTime()) / (24 * 60 * 60 * 1000)));
+
+  if (objects.length === 0) {
+    console.log('[t3_usage] no in-scope objects — skipping warehouse reads');
+    return {
+      objectsInScope: 0,
+      objectsProcessed: 0,
+      snapshotsWritten: 0,
+      skipped: 0,
+      narrativesApplied: 0,
+      windowStart: since.toISOString(),
+      windowEnd: until.toISOString(),
+      nextCursor: null,
+    };
+  }
 
   // ── Load source + connection ────────────────────────────────────────────────
   const sourceRow = await prisma.platformContextSource.findUniqueOrThrow({
@@ -508,25 +577,37 @@ export async function runT3Usage(
   };
 
   // ── STEP A: windowed query history scan (cursor-paginated, capped) ───────────
-  console.log(`[t3_usage] pulling query history: since=${since.toISOString()} until=${until.toISOString()} rowCap=${rowCap}`);
-  const { rows: historyRows, nextCursor } = await adapter.pullQueryHistoryWindow(source, since, until, rowCap);
-  console.log(`[t3_usage] history rows fetched: ${historyRows.length}${nextCursor ? ` (capped — nextCursor=${nextCursor.toISOString()})` : ''}`);
+  const statementTextSqlFilter =
+    scopePatterns.length > 0 || excludeSchemas.length > 0
+      ? buildQueryHistoryStatementSqlFilter(objects)
+      : null;
+  console.log(
+    `[t3_usage] pulling query history: since=${since.toISOString()} until=${until.toISOString()} rowCap=${rowCap}` +
+      (statementTextSqlFilter ? ' (scoped SQL filter)' : ''),
+  );
+  const { rows: historyRowsRaw, nextCursor } = await adapter.pullQueryHistoryWindow(
+    source,
+    since,
+    until,
+    rowCap,
+    { statementTextSqlFilter },
+  );
+  const historyRows = prefilterHistoryRowsForObjects(historyRowsRaw, objects);
+  console.log(
+    `[t3_usage] history rows fetched: ${historyRowsRaw.length}${nextCursor ? ` (capped — nextCursor=${nextCursor.toISOString()})` : ''} → ${historyRows.length} after in-scope table filter`,
+  );
 
-  // ── STEP A2: lineage scans (before per-object loop — one scan each) ──────────
-  const tableLineageRows = await adapter.pullTableLineage(source, windowDays, lineageRowCap);
-  console.log(`[t3_usage] table_lineage rows: ${tableLineageRows.length}${tableLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
-
-  const columnLineageRows = await adapter.pullColumnLineage(source, windowDays, lineageRowCap);
-  console.log(`[t3_usage] column_lineage rows: ${columnLineageRows.length}${columnLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}`);
-
-  // ── STEP B: per-object attribution ──────────────────────────────────────────
-  const objects = await prisma.platformContextObject.findMany({
-    where: { org_id: orgId, source_id: sourceId },
-    include: {
-      columns: { where: { lifecycle: 'active' }, select: { name: true } },
-    },
+  // ── STEP A2: lineage scans limited to in-scope tables ────────────────────────
+  const lineageFilter = buildLineageTableSqlFilter(objects);
+  const tableLineageRows = await adapter.pullTableLineage(source, windowDays, lineageRowCap, {
+    tableSqlFilter: lineageFilter,
   });
-  console.log(`[t3_usage] objects to process: ${objects.length}`);
+  console.log(`[t3_usage] table_lineage rows: ${tableLineageRows.length}${tableLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}${lineageFilter ? ' (scoped)' : ''}`);
+
+  const columnLineageRows = await adapter.pullColumnLineage(source, windowDays, lineageRowCap, {
+    tableSqlFilter: lineageFilter,
+  });
+  console.log(`[t3_usage] column_lineage rows: ${columnLineageRows.length}${columnLineageRows.length === lineageRowCap ? ' (TRUNCATED — hit cap)' : ''}${lineageFilter ? ' (scoped)' : ''}`);
 
   const now = until;
   const windowStart = since;
@@ -544,12 +625,10 @@ export async function runT3Usage(
   }> = [];
 
   for (const obj of objects) {
-    const objectNameLower = (obj.object_name ?? '').toLowerCase();
-    if (!objectNameLower) { skipped++; continue; }
+    if (!obj.object_name) { skipped++; continue; }
 
-    // Case-insensitive plain includes (not regex) against statement_text
     const matched = historyRows.filter(r =>
-      (r.statement_text ?? '').toLowerCase().includes(objectNameLower)
+      statementReferencesObject(r.statement_text ?? '', obj),
     );
 
     if (matched.length === 0) {
@@ -569,6 +648,15 @@ export async function runT3Usage(
 
     // ── access_stats ──────────────────────────────────────────────────────────
     const executors = new Set(matched.map(r => r.executed_as).filter((e): e is string => e != null));
+    // Who runs these queries — top 10 executed_as with query counts (was only a count).
+    const executorTally = new Map<string, number>();
+    for (const r of matched) {
+      if (r.executed_as) executorTally.set(r.executed_as, (executorTally.get(r.executed_as) ?? 0) + 1);
+    }
+    const top_executors = [...executorTally.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([executed_as, n]) => ({ executed_as, n }));
     const startTimes = matched
       .map(r => r.start_time)
       .filter((t): t is string => t != null)
@@ -585,6 +673,7 @@ export async function runT3Usage(
     const accessStats = {
       n_queries: matched.length,
       n_distinct_executors: executors.size,
+      top_executors,
       n_jobs,
       n_adhoc,
       n_dashboard,
@@ -773,6 +862,7 @@ export async function runT3Usage(
   console.log(`[t3_usage] narratives applied=${narrativesApplied} / attempted=${topObjects.length}`);
 
   return {
+    objectsInScope: objects.length,
     objectsProcessed,
     snapshotsWritten,
     skipped,

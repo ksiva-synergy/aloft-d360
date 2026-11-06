@@ -4,6 +4,7 @@ import { assembleDigest, renderDigestNarrative } from '@/lib/inspector/digest';
 import type { T4DigestPayload } from '@/lib/inspector/digest';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { ProfileResult } from '@/lib/studio/types';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,8 @@ export const dynamic = 'force-dynamic';
  * Returns 404 if no succeeded t4_scan exists for this org.
  */
 export async function GET(req: NextRequest) {
+  const denied = await denyUnlessSessionRole('member');
+  if (denied) return denied;
   try {
     const org = await getDefaultOrg();
     const runId = req.nextUrl.searchParams.get('runId') ?? undefined;

@@ -12,13 +12,16 @@ export function AgentLayout() {
       style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}
     >
       <UnifiedAgentSidebar initialSession={session} />
+      {/* The column owns the page background so the transparent header blends into it.
+          Pages that paint their own wash (e.g. .born-page) extend it under the header via
+          `.agent-column:has(...)` rules in globals.css. */}
       <div
-        className="flex min-w-0 flex-1 flex-col overflow-hidden"
+        className="agent-column flex min-w-0 flex-1 flex-col overflow-hidden bg-[var(--main-bg)]"
         style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}
       >
         <StagingHeader />
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--main-bg)]"
+          className="flex-1 overflow-y-auto overflow-x-hidden"
           style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
         >
           <Outlet />

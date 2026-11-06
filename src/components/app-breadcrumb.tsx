@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import Link from '@/lib/navigation/link'
+import { usePathname, useRouter } from '@/lib/navigation'
 import { Home } from 'lucide-react'
 import { motion } from 'framer-motion'
 import {
@@ -15,6 +15,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { routeLabels, noBreadcrumbRoutes } from '@/lib/breadcrumb-config'
+import { useBreadcrumbLabels } from '@/lib/breadcrumb-labels'
 
 export interface AppBreadcrumbProps {
   /**
@@ -25,6 +26,8 @@ export interface AppBreadcrumbProps {
   dynamicLabels?: Record<string, string>
   /** Additional className for the wrapper */
   className?: string
+  /** Small caption-size trail (used by the shell, which has no header bar) */
+  compact?: boolean
 }
 
 interface BreadcrumbSegment {
@@ -57,9 +60,11 @@ function buildSegments(
 
 const MAX_VISIBLE_ITEMS = 4
 
-export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbProps) {
+export function AppBreadcrumb({ dynamicLabels = {}, className, compact = false }: AppBreadcrumbProps) {
   const pathname = usePathname()
   const router = useRouter()
+  // Labels registered by the current page (e.g. object UUID → table name).
+  const pageLabels = useBreadcrumbLabels((s) => s.labels)
 
   // Alt+ArrowUp → navigate to parent route
   useEffect(() => {
@@ -81,7 +86,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbPr
 
   if (noBreadcrumbRoutes.has(pathname)) return null
 
-  const segments = buildSegments(pathname, dynamicLabels)
+  const segments = buildSegments(pathname, { ...pageLabels, ...dynamicLabels })
 
   if (segments.length === 0) return null
 
@@ -105,7 +110,7 @@ export function AppBreadcrumb({ dynamicLabels = {}, className }: AppBreadcrumbPr
       className={className}
     >
       <Breadcrumb>
-        <BreadcrumbList className="text-xs sm:text-sm">
+        <BreadcrumbList className={compact ? 'gap-1 text-caption sm:gap-1' : 'text-size-ui sm:text-size-body'}>
           {/* Home icon anchor */}
           <BreadcrumbItem>
             <BreadcrumbLink asChild>

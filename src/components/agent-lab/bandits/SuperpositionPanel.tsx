@@ -21,6 +21,8 @@ import {
   shortName,
 } from '@/lib/bandits/born-tokens';
 import type { CtsgvModelStat } from './types';
+import { inkOf, type } from '@/lib/typography/tokens';
+import { Segmented } from './Segmented';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -84,8 +86,11 @@ export interface SuperpositionPanelProps {
   onTallySnapshot: (tally: Map<string, number>) => void;
   onMeasureStart: () => void;
   onReset: () => void;
-  konamiCollapse?: boolean;
+  /** Easter egg 2 phase, driven by the parent's key handler. */
+  konamiPhase?: KonamiPhase;
 }
+
+export type KonamiPhase = 'idle' | 'collapsing' | 'expanding';
 
 // ── Component ──────────────────────────────────────────────────────────────
 
@@ -96,7 +101,7 @@ export function SuperpositionPanel({
   onTallySnapshot,
   onMeasureStart,
   onReset,
-  konamiCollapse,
+  konamiPhase = 'idle',
 }: SuperpositionPanelProps) {
   const [mode, setMode] = useState<'overlap' | 'ridgeline'>('overlap');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -112,16 +117,14 @@ export function SuperpositionPanel({
   const [eggFrozen, setEggFrozen] = useState(false);
   const measureClickTimesRef = useRef<number[]>([]);
 
-  // EASTER EGG 2: Konami Code — ↑↑↓↓←→←→BA collapses all posteriors
-  const [konamiPhase, setKonamiPhase] = useState<'idle' | 'collapsing' | 'expanding'>('idle');
-
   const rafRef = useRef<number | null>(null);
+  // Latest frame callback; the rAF loop calls through this so runFrame never references itself.
+  const runFrameRef = useRef<(ts: number) => void>(() => {});
   const tallyRef = useRef(new Map<string, number>());
   const lastFrameRef = useRef(0);
   const frameCountRef = useRef(0);
   const drawCountRef = useRef(K_TOTAL);
   const dotKeyRef = useRef(0);
-  const globalMaxYRef = useRef(1);
 
   // ── Build curve data ─────────────────────────────────────────────────────
 
@@ -218,7 +221,7 @@ export function SuperpositionPanel({
 
     const elapsed = timestamp - lastFrameRef.current;
     if (elapsed < FRAME_MS) {
-      rafRef.current = requestAnimationFrame(runFrame);
+      rafRef.current = requestAnimationFrame(ts => runFrameRef.current(ts));
       return;
     }
     lastFrameRef.current = timestamp;
@@ -240,13 +243,14 @@ export function SuperpositionPanel({
     // Update tally
     tallyRef.current.set(bestId, (tallyRef.current.get(bestId) ?? 0) + 1);
 
-    // Place dot on winning arm's curve at x = bestVal
+    // Place dot on the winning arm's rendered curve at x = bestVal. Reading the curve's own
+    // point keeps the dot on the curve in Ridgeline mode too (the old formula ignored the offset).
     let newDot: Dot | null = null;
     if (bestCurve) {
       const clampedX = Math.max(0.01, Math.min(0.99, bestVal));
-      const dotPx = PAD_LEFT + clampedX * PLOT_W;
-      const dotPy = PAD_TOP + PLOT_H - (betaPDF(clampedX, bestCurve.alpha, bestCurve.beta) / globalMaxYRef.current) * PLOT_H;
-      newDot = { cx: dotPx, cy: Math.max(PAD_TOP + 4, dotPy), opacity: 1, key: dotKeyRef.current++ };
+      const i = Math.round(((clampedX - 0.01) / 0.98) * (N_POINTS - 1));
+      const pt = bestCurve.points[Math.max(0, Math.min(N_POINTS - 1, i))];
+      newDot = { cx: pt.px, cy: Math.max(PAD_TOP + 4, pt.py), opacity: 1, key: dotKeyRef.current++ };
     }
 
     // Snapshot every N frames for live bar updates
@@ -265,8 +269,10 @@ export function SuperpositionPanel({
       return next.slice(-MAX_DOTS);
     });
 
-    rafRef.current = requestAnimationFrame(runFrame);
+    rafRef.current = requestAnimationFrame(ts => runFrameRef.current(ts));
   }, [curves, onMeasureComplete, onTallySnapshot, stopMeasure]);
+
+  useEffect(() => { runFrameRef.current = runFrame; }, [runFrame]);
 
   const startMeasure = useCallback(() => {
     // EASTER EGG 1: Rapid Measure — 5 clicks in 3s freezes mid-draw
@@ -295,8 +301,8 @@ export function SuperpositionPanel({
     setMeasured(false);
     onMeasureStart();
     lastFrameRef.current = 0;
-    rafRef.current = requestAnimationFrame(runFrame);
-  }, [runFrame, onMeasureStart, stopMeasure]);
+    rafRef.current = requestAnimationFrame(ts => runFrameRef.current(ts));
+  }, [onMeasureStart, stopMeasure]);
 
   const resetMeasure = useCallback(() => {
     stopMeasure();
@@ -310,31 +316,6 @@ export function SuperpositionPanel({
   }, [stopMeasure, onReset]);
 
   useEffect(() => () => stopMeasure(), [stopMeasure]);
-
-  // ── Global max for dot y-scaling ─────────────────────────────────────────
-
-  useMemo(() => {
-    if (curves.length === 0) { globalMaxYRef.current = 1; return; }
-    globalMaxYRef.current = Math.max(...curves.flatMap(c => c.points.map(p => p.y)), 1);
-  }, [curves]);
-
-  // Handle Konami collapse prop — trigger visual-only collapse/expand
-  useEffect(() => {
-    if (konamiCollapse && konamiPhase === 'idle') {
-      setKonamiPhase('collapsing');
-      const expandTimer = setTimeout(() => {
-        setKonamiPhase('expanding');
-      }, 3000);
-      return () => clearTimeout(expandTimer);
-    }
-  }, [konamiCollapse]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (konamiPhase === 'expanding') {
-      const clearTimer = setTimeout(() => setKonamiPhase('idle'), 1500);
-      return () => clearTimeout(clearTimer);
-    }
-  }, [konamiPhase]);
 
   // ── Tooltip mouse handlers ────────────────────────────────────────────────
 
@@ -352,9 +333,12 @@ export function SuperpositionPanel({
   function handlePathMouseMove(e: React.MouseEvent<SVGPathElement>, c: CurveData) {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
+    // Flip the tooltip to the cursor's left near the right edge so it never spills out of the card.
+    const TIP_W = 220;
+    const localX = e.clientX - rect.left;
     setTooltip({
-      x: e.clientX - rect.left + 12,
-      y: e.clientY - rect.top - 8,
+      x: localX + 12 + TIP_W > rect.width ? Math.max(0, localX - 12 - TIP_W) : localX + 12,
+      y: Math.max(0, e.clientY - rect.top - 8),
       stat: c.stat,
       alpha: c.alpha,
       beta: c.beta,
@@ -378,8 +362,8 @@ export function SuperpositionPanel({
 
   if (stats.length === 0) {
     return (
-      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '20px 24px' }}>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT }}>No arm data available.</div>
+      <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: 'var(--born-r-card)', padding: '20px 24px' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: TEXT_MUT }}>No arm data available.</div>
       </div>
     );
   }
@@ -388,51 +372,56 @@ export function SuperpositionPanel({
     <div style={{
       background: CARD_BG,
       border: `1px solid ${BORDER}`,
-      borderRadius: 6,
+      borderRadius: 'var(--born-r-card)',
+      boxShadow: 'var(--shadow-xs)',
       padding: '20px 24px',
       position: 'relative',
     }}>
       <style>{shimmerStyle}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div>
-          <div style={{ fontFamily: SERIF, fontSize: 18, fontWeight: 600, color: TEXT_PRI }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: SERIF, fontSize: 'var(--type-title-section-size)', fontWeight: 600, color: TEXT_PRI }}>
             Superposition
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 2 }}>
-            Beta distribution beliefs
+          <div style={{ ...type.caption, color: TEXT_MUT, marginTop: 2 }}>
+            Beta posterior per arm · hover a curve or legend item to isolate it
           </div>
         </div>
-        <button
-          onClick={() => setMode(m => m === 'overlap' ? 'ridgeline' : 'overlap')}
-          style={{
-            fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
-            background: 'transparent', border: `1px solid ${BORDER}`,
-            borderRadius: 4, padding: '3px 8px', cursor: 'pointer',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {mode === 'overlap' ? 'Overlap' : 'Ridgeline'}
-        </button>
+        <Segmented
+          options={[{ label: 'Overlap', value: 'overlap' }, { label: 'Ridgeline', value: 'ridgeline' }]}
+          value={mode}
+          onChange={setMode}
+        />
       </div>
 
-      {/* Legend */}
+      {/* Legend — hovering an item highlights its curve */}
       <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: '6px 16px',
-        marginBottom: 10, fontFamily: MONO, fontSize: 13,
+        display: 'flex', flexWrap: 'wrap', gap: '6px 8px',
+        marginBottom: 10,
       }}>
         {stats.map((stat, idx) => {
           const { alpha, beta } = armAlphaBeta(stat);
           const mean = alpha / (alpha + beta);
           const isFav = stat.model_id === favId;
+          const dimmed = hoveredId !== null && hoveredId !== stat.model_id;
           return (
             <span
               key={stat.model_id}
+              title={stat.model_id}
+              onMouseEnter={() => setHoveredId(stat.model_id)}
+              onMouseLeave={() => setHoveredId(null)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                color: isFav ? GOLD : TEXT_SEC,
+                ...type.caption, fontFamily: MONO,
+                display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0, maxWidth: 280,
+                padding: '2px 8px', borderRadius: 999,
+                border: `1px solid ${hoveredId === stat.model_id ? BORDER : 'transparent'}`,
+                background: hoveredId === stat.model_id ? 'var(--born-overlay-2)' : 'transparent',
+                color: isFav ? inkOf(GOLD, 70) : TEXT_SEC,
+                opacity: dimmed ? 0.45 : 1,
                 cursor: 'default',
+                transition: 'opacity 120ms ease, background-color 120ms ease',
               }}
             >
               <span style={{
@@ -440,8 +429,10 @@ export function SuperpositionPanel({
                 background: isFav ? GOLD : BORN_COLORS[idx % BORN_COLORS.length],
                 display: 'inline-block', flexShrink: 0,
               }} />
-              {shortName(stat.model_id)}
-              <span style={{ color: TEXT_MUT }}>{(mean * 100).toFixed(1)}%</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {shortName(stat.model_id)}
+              </span>
+              <span style={{ color: TEXT_MUT, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{(mean * 100).toFixed(1)}%</span>
             </span>
           );
         })}
@@ -522,13 +513,13 @@ export function SuperpositionPanel({
               if (!isFav) {
                 konamiStyle = { opacity: 0.05, transition: 'opacity 800ms ease-in-out' };
               } else {
-                konamiStyle = { transform: 'scaleX(0.15)', transformOrigin: 'center', transition: 'transform 800ms ease-in-out, opacity 800ms' };
+                konamiStyle = { transform: 'scaleX(0.15)', transformOrigin: 'center', transformBox: 'fill-box', transition: 'transform 800ms ease-in-out, opacity 800ms' };
               }
             } else if (konamiPhase === 'expanding') {
               if (!isFav) {
                 konamiStyle = { opacity: 1, transition: 'opacity 1500ms ease-in-out' };
               } else {
-                konamiStyle = { transform: 'scaleX(1)', transformOrigin: 'center', transition: 'transform 1500ms ease-in-out' };
+                konamiStyle = { transform: 'scaleX(1)', transformOrigin: 'center', transformBox: 'fill-box', transition: 'transform 1500ms ease-in-out' };
               }
             }
 
@@ -583,17 +574,18 @@ export function SuperpositionPanel({
               top: tooltip.y,
               background: CARD_BG,
               border: `1px solid ${BORDER}`,
-              borderRadius: 6,
+              borderRadius: 'var(--born-r-inner)',
               padding: '8px 12px',
               fontFamily: MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               color: TEXT_SEC,
               pointerEvents: 'none',
               zIndex: 10,
               lineHeight: 1.6,
-              whiteSpace: 'nowrap',
+              width: 220,
+              boxShadow: 'var(--shadow-dialog)',
             }}>
-              <div style={{ color: TEXT_PRI, fontWeight: 600, marginBottom: 3 }}>
+              <div style={{ color: TEXT_PRI, fontWeight: 600, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {shortName(stat.model_id)}
               </div>
               <div>α: {alpha.toFixed(1)} &nbsp; β: {beta.toFixed(1)}</div>
@@ -629,22 +621,22 @@ export function SuperpositionPanel({
             <div style={{
               background: CARD_BG,
               border: `1px solid ${GOLD}`,
-              borderRadius: 6,
+              borderRadius: 'var(--born-r-inner)',
               padding: '20px 28px',
               textAlign: 'center',
             }}>
               <div style={{
-                fontFamily: "'Source Serif 4', serif",
+                fontFamily: 'var(--font-sans)',
                 fontStyle: 'italic',
-                fontSize: 18,
-                color: GOLD,
+                fontSize: 'var(--type-title-section-size)',
+                color: inkOf(GOLD),
                 marginBottom: 8,
               }}>
                 Superposition holds.
               </div>
               <div style={{
-                fontFamily: "'Inter Variable', sans-serif",
-                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 'var(--type-ui-regular-size)',
                 color: TEXT_SEC,
               }}>
                 Nothing is decided until you let go.
@@ -666,17 +658,17 @@ export function SuperpositionPanel({
             zIndex: 20,
           }}>
             <div style={{
-              fontFamily: "'Source Serif 4', serif",
+              fontFamily: 'var(--font-sans)',
               fontStyle: 'italic',
-              fontSize: 20,
-              color: GOLD,
+              fontSize: 'var(--type-title-section-size)',
+              color: inkOf(GOLD),
               marginBottom: 8,
             }}>
               Wave function collapsed.
             </div>
             <div style={{
-              fontFamily: "'Inter Variable', sans-serif",
-              fontSize: 13,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
               color: TEXT_SEC,
             }}>
               The favourite was never in doubt.
@@ -687,62 +679,49 @@ export function SuperpositionPanel({
 
       {/* MEASURE controls */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 16,
-        marginTop: 16,
+        display: 'flex', alignItems: 'center', gap: 14,
+        marginTop: 16, paddingTop: 14, borderTop: `1px solid ${BORDER}`,
+        minHeight: 34,
       }}>
         {!measuring && !measured && (
-          <button
-            onClick={startMeasure}
-            style={{
-              fontFamily: "'Inter Variable', sans-serif",
-              fontSize: 13,
-              fontWeight: 600,
-              padding: '7px 18px',
-              borderRadius: 6,
-              border: `1px solid ${GOLD}`,
-              background: CARD_BG,
-              color: GOLD,
-              cursor: 'pointer',
-              letterSpacing: '0.02em',
-              transition: 'background 0.15s, color 0.15s',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = GOLD;
-              (e.currentTarget as HTMLButtonElement).style.color = '#05090f';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = CARD_BG;
-              (e.currentTarget as HTMLButtonElement).style.color = GOLD;
-            }}
-          >
-            ▶ MEASURE
-          </button>
+          <>
+            <button type="button" className="born-btn born-btn--primary" onClick={startMeasure} style={type.ui}>
+              ▶ Measure
+            </button>
+            <span style={{ ...type.caption, color: TEXT_MUT }}>
+              Run {K_TOTAL} Thompson draws and watch the Born distribution fill in.
+            </span>
+          </>
         )}
 
         {measuring && (
-          <span
+          <div
             onClick={startMeasure}
-            style={{ fontFamily: MONO, fontSize: 13, color: GOLD, cursor: 'pointer' }}
+            role="progressbar"
+            aria-label="Measuring"
+            aria-valuemin={0}
+            aria-valuemax={K_TOTAL}
+            aria-valuenow={K_TOTAL - drawCount}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer' }}
           >
-            K = {drawCount}
-          </span>
+            <span style={{ ...type.caption, fontFamily: MONO, color: inkOf(GOLD), whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+              Draw {K_TOTAL - drawCount} / {K_TOTAL}
+            </span>
+            <div style={{ flex: 1, height: 4, borderRadius: 999, background: 'var(--born-overlay-2)', overflow: 'hidden' }}>
+              <div style={{
+                width: `${((K_TOTAL - drawCount) / K_TOTAL) * 100}%`, height: '100%',
+                background: GOLD, borderRadius: 999,
+              }} />
+            </div>
+          </div>
         )}
 
         {measured && (
           <>
-            <span style={{ fontFamily: MONO, fontSize: 13, color: GOLD }}>
-              K = 0 · MEASURED
+            <span style={{ ...type.caption, fontFamily: MONO, color: inkOf(GOLD) }}>
+              Measured · {K_TOTAL} draws
             </span>
-            <button
-              onClick={resetMeasure}
-              style={{
-                fontFamily: MONO, fontSize: 13,
-                padding: '5px 12px', borderRadius: 4,
-                border: `1px solid ${BORDER}`,
-                background: 'transparent', color: TEXT_MUT,
-                cursor: 'pointer',
-              }}
-            >
+            <button type="button" className="born-btn" onClick={resetMeasure} style={type.ui}>
               Reset
             </button>
           </>

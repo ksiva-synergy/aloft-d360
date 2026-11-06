@@ -15,6 +15,13 @@ import {
   type RawBlueprintItem,
 } from '@/lib/dashboards/blueprint-ground';
 import type { ResolvedIntent, GuidedBlueprint, BlueprintModelStatus } from '@/lib/dashboards/guided-types';
+import { denyUnlessSessionRole } from '@/middleware/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import { logInteractiveLlmTurn } from '@/lib/spend/log-llm-turn';
+import { getSessionUserRole } from '@/lib/inspector/session-role';
+import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -50,6 +57,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ modelId: string }> },
 ) {
+  const denied = await denyUnlessSessionRole('member');
+  if (denied) return denied;
   try {
     const org = await getDefaultOrg();
     const { modelId } = await params;
@@ -69,6 +78,20 @@ export async function POST(
       return NextResponse.json({ error: 'Model not found' }, { status: 404 });
     }
     const modelStatus: BlueprintModelStatus = model.status === 'governed' ? 'governed' : 'candidate';
+
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id ?? null;
+    const role = await getSessionUserRole();
+    try {
+      await assertInteractiveBudget({ orgId: org.id, userId, role });
+    } catch (err) {
+      if (err instanceof BudgetExceededError) {
+        return NextResponse.json({ error: err.message, code: 'BUDGET_EXCEEDED' }, { status: 402 });
+      }
+      throw err;
+    }
+
+    const blueprintTurnId = randomUUID();
 
     // ── Load the definition catalog — same load as resolve-intent (uncapped,
     //    non-archived, non-draft). Entities filtered FIRST so a live def inside
@@ -120,8 +143,9 @@ export async function POST(
       // forced second LLM round-trip never fires. One call, not two — and no
       // duplicate proposal from a redundant forced turn.
       const abortSignal = { value: false };
+      let loopUsage = { inputTokens: 0, outputTokens: 0 };
       try {
-        await runAgentLoop({
+        const loopResult = await runAgentLoop({
           modelId: BLUEPRINT_MODEL,
           systemPrompt: buildBlueprintSystemPrompt(catalog),
           messages,
@@ -143,10 +167,25 @@ export async function POST(
           cacheSystemPrompt: true,
           abortSignal,
         });
+        loopUsage = loopResult.usage;
       } catch (err) {
         console.warn('[blueprint POST] proposal loop failed; grounding empty proposal:', err);
       }
       rawItems = captured.flat();
+      if (loopUsage.inputTokens + loopUsage.outputTokens > 0) {
+        void logInteractiveLlmTurn({
+          orgId: org.id,
+          userId,
+          surface: 'semantic_blueprint',
+          action: 'propose',
+          model: BLUEPRINT_MODEL,
+          inputTokens: loopUsage.inputTokens,
+          outputTokens: loopUsage.outputTokens,
+          turnId: blueprintTurnId,
+          status: 'success',
+          meta: { modelId },
+        });
+      }
     }
 
     // ── Ground server-side — the guarantee. No fabricated id can survive. ──────

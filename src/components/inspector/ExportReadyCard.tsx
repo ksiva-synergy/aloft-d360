@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { ExportReadyMessage } from '@/hooks/useInspectorChat';
 import { downloadInspectorCsv } from '@/lib/inspector/download-csv';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 const GOLD = 'var(--brand-a)';
 const MUTED = 'var(--ink-3)';
@@ -61,19 +62,16 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
     >
       <div
         style={{
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.10em',
-          textTransform: 'uppercase',
-          color: GOLD,
+          ...type.label,
+          color: inkOf(GOLD),
           marginBottom: 6,
         }}
       >
         CSV export ready
       </div>
-      <div style={{ fontSize: 13, color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
+      <div style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--wb-ink, #e6ecf4)', marginBottom: 10, lineHeight: 1.45 }}>
         Download up to <strong>{message.maxRows.toLocaleString()}</strong> rows
-        as <code style={{ ...MONO, fontSize: 13 }}>{message.filename}</code>.
+        as <code style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)' }}>{message.filename}</code>.
         This re-runs the query on the warehouse (not the preview slice).
       </div>
       <button
@@ -84,10 +82,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
           display: 'inline-flex',
           alignItems: 'center',
           gap: 8,
-          ...MONO,
-          fontSize: 13,
-          letterSpacing: '0.08em',
-          textTransform: 'uppercase',
+          ...type.label,
           padding: '7px 12px',
           borderRadius: 6,
           border: `1px solid ${GOLD}`,
@@ -100,7 +95,7 @@ export function ExportReadyCard({ message }: ExportReadyCardProps) {
         {busy ? 'Preparing…' : done ? 'Download again' : 'Download CSV'}
       </button>
       {error && (
-        <div style={{ ...MONO, fontSize: 13, color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
+        <div style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: error.startsWith('Download complete') ? MUTED : '#f87171', marginTop: 8 }}>
           {error}
         </div>
       )}

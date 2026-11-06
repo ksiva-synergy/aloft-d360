@@ -2,7 +2,10 @@ generator client {
   provider        = "prisma-client-js"
   output          = "../node_modules/.prisma/client"
   previewFeatures = ["postgresqlExtensions"]
-  binaryTargets   = ["native", "linux-musl-openssl-3.0.x"]
+  // linux-musl-arm64-openssl-3.0.x: web image is compiled on x86 (Dockerfile
+  // BUILDPLATFORM) and runs on t4g. Generate the Graviton engine here so the
+  // arm64 image does not run prisma generate under QEMU.
+  binaryTargets   = ["native", "linux-musl-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -48,6 +51,8 @@ model User {
   sessions     Session[]
   actions      Action[]
   auditLogs    AuditLog[]    @relation("AuditActor")
+  access_department_members AccessDepartmentMember[]
+  access_clearances         AccessClearance[]
 
   @@index([status])
   @@index([deletedAt])
@@ -449,8 +454,11 @@ model tool_invocation_log {
 
 model budget_config {
   id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id        String?
   scope         String?   @default("global")
   budget_amount Decimal?  @default(2400) @db.Decimal(12, 2)
+  period        String?   @default("monthly")
+  mode          String?   @default("soft")
   alert_pct     Int?      @default(80)
   alert_email   String?
   auto_heal     Boolean?  @default(false)
@@ -458,6 +466,7 @@ model budget_config {
   updated_at    DateTime? @default(now()) @db.Timestamptz(6)
 
   @@index([scope], map: "idx_budget_config_scope")
+  @@index([org_id], map: "idx_budget_config_org")
   @@map("budget_config")
 }
 
@@ -1318,6 +1327,12 @@ model PlatformOrg {
   updated_at             DateTime                       @updatedAt @db.Timestamptz(6)
   agents                 PlatformAgent[]
   databricks_connections PlatformDatabricksConnection[]
+  access_departments     AccessDepartment[]
+  access_grants          AccessGrant[]
+  access_labels          AccessLabel[]
+  access_clearances      AccessClearance[]
+  access_policy_version  AccessPolicyVersion?
+  access_column_labels   AccessColumnLabel[]
 
   @@index([clerk_org_id], map: "idx_platform_orgs_clerk_id")
   @@map("platform_orgs")
@@ -1393,9 +1408,154 @@ model PlatformDatabricksConnection {
   created_at                  DateTime    @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime    @updatedAt @db.Timestamptz(6)
   org                         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  credentials                 PlatformDatabricksCredential[]
 
   @@index([org_id], map: "idx_platform_databricks_connections_org_id")
   @@map("platform_databricks_connections")
+}
+
+/// One service principal role on a Databricks connection (src/lib/databricks/sp-roles.ts).
+/// The secret lives in Secrets Manager at secret_ref; this row never holds it.
+model PlatformDatabricksCredential {
+  id             String                       @id @default(cuid())
+  connection_id  String
+  role           String
+  secret_ref     String
+  warehouse_id   String?
+  status         String                       @default("untested")
+  last_tested_at DateTime?                    @db.Timestamptz(6)
+  last_error     String?
+  created_at     DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                     @updatedAt @db.Timestamptz(6)
+  connection     PlatformDatabricksConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+
+  @@unique([connection_id, role], map: "uq_platform_databricks_credential_role")
+  @@map("platform_databricks_credentials")
+}
+
+/// Departments for data access grants (docs/access/data-access-architecture.md).
+model AccessDepartment {
+  id             String                   @id @default(cuid())
+  org_id         String
+  key            String
+  name           String
+  entra_group_id String?
+  archived_at    DateTime?                @db.Timestamptz(6)
+  created_at     DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                 @updatedAt @db.Timestamptz(6)
+  org            PlatformOrg              @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  members        AccessDepartmentMember[]
+
+  @@unique([org_id, key], map: "uq_access_department_org_key")
+  @@index([org_id], map: "idx_access_departments_org_id")
+  @@map("access_departments")
+}
+
+model AccessDepartmentMember {
+  department_id String
+  user_id       String
+  source        String           @default("manual")
+  added_by      String?
+  added_at      DateTime         @default(now()) @db.Timestamptz(6)
+  department    AccessDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([department_id, user_id])
+  @@map("access_department_members")
+}
+
+model AccessGrant {
+  id              String      @id @default(cuid())
+  org_id          String
+  principal_type  String
+  principal_id    String
+  path            String
+  path_depth      Int
+  level           String
+  effect          String
+  expires_at      DateTime?   @db.Timestamptz(6)
+  reason          String?
+  created_by      String?
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  org             PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([principal_type, principal_id, path, effect], map: "uq_access_grant_principal_path_effect")
+  @@index([path], map: "idx_access_grants_path")
+  @@index([org_id], map: "idx_access_grants_org_id")
+  @@map("access_grants")
+}
+
+model AccessLabel {
+  id         String      @id @default(cuid())
+  org_id     String
+  path       String
+  path_depth Int
+  label      String
+  reason     String?
+  set_by     String?
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, path], map: "uq_access_label_org_path")
+  @@map("access_labels")
+}
+
+model AccessClearance {
+  org_id     String
+  user_id    String
+  level      String
+  reason     String?
+  granted_by String?
+  expires_at DateTime?   @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([org_id, user_id])
+  @@map("access_clearances")
+}
+
+model AccessPolicyVersion {
+  org_id     String      @id
+  version    BigInt      @default(0)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("access_policy_version")
+}
+
+model AccessDecisionLog {
+  id         String   @id @default(cuid())
+  ts         DateTime @default(now()) @db.Timestamptz(6)
+  org_id     String
+  user_id    String?
+  surface    String
+  level      String
+  paths      String[] @default([])
+  decision   String
+  reason     String?
+  mode       String
+  session_id String?
+  tier       String?
+
+  @@index([org_id, ts(sort: Desc)], map: "idx_access_decision_log_org_ts")
+  @@map("access_decision_log")
+}
+
+/// Column-level sensitivity (Phase 7); table present before compiler wiring.
+model AccessColumnLabel {
+  id          String      @id @default(cuid())
+  org_id      String
+  table_path  String
+  column_name String
+  label       String
+  reason      String?
+  set_by      String?
+  updated_at  DateTime    @updatedAt @db.Timestamptz(6)
+  org         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, table_path, column_name], map: "uq_access_column_label_org_table_column")
+  @@map("access_column_labels")
 }
 
 model knowledge_sources {
@@ -1433,6 +1593,18 @@ model knowledge_sources {
   doc_count          Int?
   score_computed_at  DateTime?                    @db.Timestamptz(6)
   slug               String?
+  /// Knowledge bases (migration 20261028_knowledge_phase0): owner and level; team from Phase 2.
+  owner_id           String?
+  /// personal | team | org
+  scope              String                       @default("org")
+  team_id            String?                      @db.Uuid
+  archived_at        DateTime?                    @db.Timestamptz(6)
+  connection_id      String?                      @db.Uuid
+  folder_path        String?
+  approved_by        String?
+  approved_at        DateTime?                    @db.Timestamptz(6)
+  documents          knowledge_documents[]
+  jobs               knowledge_jobs[]
   chunks             knowledge_chunks[]
   dimension_checks   knowledge_dimension_checks[]
   error_logs         knowledge_error_logs[]
@@ -1452,16 +1624,110 @@ model knowledge_chunks {
   source_id   String                 @db.Uuid
   org_id      String
   content     String
-  embedding   Unsupported("vector")?
+  embedding   Unsupported("vector(1024)")?
   chunk_index Int
   doc_ref     String?
   metadata    Json?
   created_at  DateTime               @default(now()) @db.Timestamptz(6)
+  document_id  String?               @db.Uuid
+  section_path String?
+  page         Int?
+  /// text | row | slide | qa | image
+  chunk_type   String                @default("text")
+  content_hash String?
+  /// Generated by the database from section_path + content (full-text search).
+  content_tsv  Unsupported("tsvector")?
   source      knowledge_sources      @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  document    knowledge_documents?   @relation(fields: [document_id], references: [id], onDelete: Cascade)
 
   @@index([source_id], map: "idx_kc_source")
   @@index([org_id], map: "idx_kc_org")
+  @@index([document_id], map: "idx_kc_document")
   @@map("knowledge_chunks")
+}
+
+/// One file version or Q&A entry in a knowledge base (migration 20261028_knowledge_phase0).
+model knowledge_documents {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source_id      String             @db.Uuid
+  org_id         String
+  /// file | qa
+  kind           String
+  /// upload | connection | qa
+  origin         String
+  name           String
+  path           String?
+  mime_type      String?
+  size_bytes     BigInt?
+  storage_ref    String?
+  question       String?
+  answer         String?
+  content_hash   String?
+  version        Int                @default(1)
+  /// pending | indexing | indexed | failed | superseded
+  status         String             @default("pending")
+  error          String?
+  page_count     Int?
+  chunk_count    Int                @default(0)
+  ocr_pages      Int                @default(0)
+  failed_pages   Int[]              @default([])
+  effective_date DateTime?          @db.Date
+  superseded_by  String?            @db.Uuid
+  created_by     String
+  created_at     DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
+  indexed_at     DateTime?          @db.Timestamptz(6)
+  source         knowledge_sources  @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  chunks         knowledge_chunks[]
+  jobs           knowledge_jobs[]
+
+  @@index([source_id, status], map: "idx_kd_source_status")
+  @@map("knowledge_documents")
+}
+
+/// Background work for knowledge bases: index a document, later refresh a folder.
+model knowledge_jobs {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  /// index_document | refresh_folder
+  kind         String
+  source_id    String?              @db.Uuid
+  document_id  String?              @db.Uuid
+  /// queued | running | done | failed
+  status       String               @default("queued")
+  attempts     Int                  @default(0)
+  max_attempts Int                  @default(5)
+  run_after    DateTime             @default(now()) @db.Timestamptz(6)
+  locked_at    DateTime?            @db.Timestamptz(6)
+  locked_by    String?
+  last_error   String?
+  payload      Json                 @default("{}")
+  created_at   DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  finished_at  DateTime?            @db.Timestamptz(6)
+  source       knowledge_sources?   @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  document     knowledge_documents? @relation(fields: [document_id], references: [id], onDelete: Cascade)
+
+  @@index([status, run_after], map: "idx_kj_ready")
+  @@map("knowledge_jobs")
+}
+
+/// Every knowledge search, for quality and gap reports.
+model knowledge_queries {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  user_id      String?
+  /// agent | automation | test_search | script
+  surface      String
+  source_ids   String[] @default([]) @db.Uuid
+  question     String
+  results      Json     @default("[]")
+  result_count Int      @default(0)
+  top_score    Float?
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([org_id, created_at(sort: Desc)], map: "idx_kq_org_created")
+  @@map("knowledge_queries")
 }
 
 model knowledge_dimension_checks {
@@ -2019,6 +2285,8 @@ model PlatformContextJob {
   source_id     String?                     @db.Uuid
   job_kind      String
   trigger       String?
+  /// User who launched an on-demand job (null for scheduled/system).
+  triggered_by_user_id String?
   scope         Json?
   status        String                      @default("queued")
   started_at    DateTime?                   @db.Timestamptz(6)
@@ -2037,7 +2305,42 @@ model PlatformContextJob {
 
   @@index([org_id, status], map: "idx_pcj_org_status")
   @@index([parent_job_id], map: "idx_pcj_parent")
+  @@index([triggered_by_user_id], map: "idx_pcj_triggered_by_user")
   @@map("platform_context_jobs")
+}
+
+/// Unified spend ledger: who spent how much, where (interactive vs harvest).
+model PlatformSpendEvent {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  occurred_at        DateTime  @default(now()) @db.Timestamptz(6)
+  bucket             String
+  user_id            String?
+  surface            String
+  action             String
+  usd                Decimal   @default(0) @db.Decimal(12, 6)
+  input_tokens       Int?      @default(0)
+  output_tokens      Int?      @default(0)
+  cache_read_tokens  Int?      @default(0)
+  cache_write_tokens Int?      @default(0)
+  model              String?
+  status             String?   @default("success")
+  session_id         String?
+  turn_id            String?
+  job_id             String?   @db.Uuid
+  agent_slug         String?
+  job_kind           String?
+  source_id          String?   @db.Uuid
+  reference_type     String?
+  reference_id       String?
+  meta               Json?
+  created_at         DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@unique([reference_type, reference_id, action], map: "uq_platform_spend_event_ref")
+  @@index([org_id, occurred_at(sort: Desc)], map: "idx_platform_spend_org_time")
+  @@index([user_id, occurred_at(sort: Desc)], map: "idx_platform_spend_user_time")
+  @@index([bucket, occurred_at(sort: Desc)], map: "idx_platform_spend_bucket_time")
+  @@map("platform_spend_events")
 }
 
 model PlatformJobLog {
@@ -2107,6 +2410,7 @@ model PlatformMarcusReflection {
 model PlatformEstateObject {
   id                   String    @id
   org_id               String
+  /// Postgres TEXT (UUID string). Do not use `source_id = $n::uuid` in raw SQL — see `estate-source-sql.ts`.
   source_id            String?
   connection_ref       String?
   full_path            String
@@ -2293,10 +2597,10 @@ model PlatformTeachCandidate {
 }
 
 model PlatformMemoryInjection {
-  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-  orgId        String    @map("org_id")
-  runId        String    @map("run_id")
-  bulletId     String    @map("bullet_id")
+  id                String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  orgId             String    @map("org_id")
+  runId             String    @map("run_id")
+  bulletId          String    @map("bullet_id")
   phase             String
   attributedAt      DateTime? @map("attributed_at") @db.Timestamptz(6)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -2325,20 +2629,20 @@ model PlatformMemoryContribution {
 }
 
 model PlatformUserReputation {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orgId       String    @map("org_id")
-  userId      String    @map("user_id")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orgId       String   @map("org_id")
+  userId      String   @map("user_id")
   domain      String
-  role        String    @default("member")
-  pos         Float     @default(0)
-  neg         Float     @default(0)
-  lastDecayAt DateTime  @default(now()) @map("last_decay_at") @db.Timestamptz
-  capDay      DateTime  @default(now()) @map("cap_day") @db.Date
-  capPosToday Float     @default(0) @map("cap_pos_today")
-  seasonId    String    @default("S1") @map("season_id")
-  seasonXp    Float     @default(0) @map("season_xp")
-  lastRank    Int?      @map("last_rank")
-  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  role        String   @default("member")
+  pos         Float    @default(0)
+  neg         Float    @default(0)
+  lastDecayAt DateTime @default(now()) @map("last_decay_at") @db.Timestamptz
+  capDay      DateTime @default(now()) @map("cap_day") @db.Date
+  capPosToday Float    @default(0) @map("cap_pos_today")
+  seasonId    String   @default("S1") @map("season_id")
+  seasonXp    Float    @default(0) @map("season_xp")
+  lastRank    Int?     @map("last_rank")
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
   @@unique([orgId, userId, domain], name: "uq_reputation_user_domain")
   @@index([orgId, domain, seasonXp(sort: Desc)])
@@ -2435,8 +2739,8 @@ model platform_sem_dimensions {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
-  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
-  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
+  created_by            String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String? // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([entity_id, column_name], map: "ux_psd_entity_col")
@@ -2455,7 +2759,7 @@ model platform_sem_entities {
   created_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at                                                                  DateTime                  @default(now()) @db.Timestamptz(6)
   status                                                                      String                    @default("candidate")
-  created_by                                                                  String?                   // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  created_by                                                                  String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
   platform_sem_dimensions                                                     platform_sem_dimensions[]
   platform_semantic_models                                                    platform_semantic_models  @relation(fields: [model_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   platform_sem_joins_platform_sem_joins_from_entity_idToplatform_sem_entities platform_sem_joins[]      @relation("platform_sem_joins_from_entity_idToplatform_sem_entities")
@@ -2502,8 +2806,8 @@ model platform_sem_measures {
   created_at            DateTime              @default(now()) @db.Timestamptz(6)
   updated_at            DateTime              @default(now()) @db.Timestamptz(6)
   status                String                @default("candidate")
-  created_by            String?               // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
-  nl_intent             String?               // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
+  created_by            String? // NEW (3.5A) — NULL = system/T4-generated; set = user-authored draft owner
+  nl_intent             String? // NEW (3.5B) — natural-language question this definition answers; NULL on T4/governed
   platform_sem_entities platform_sem_entities @relation(fields: [entity_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([org_id], map: "idx_psmeas_org")
@@ -2630,16 +2934,16 @@ model platform_dashboard_collaborators {
 //     recomputed on hydrate. guided_session reserves the guided flow's non-widget
 //     state (intent+blueprint+cursor) so enabling it needs no later migration.
 model platform_dashboard_drafts {
-  id             String   @id
-  dashboard_id   String
-  user_id        String
-  org_id         String
+  id              String   @id
+  dashboard_id    String
+  user_id         String
+  org_id          String
   base_version_id String?
-  widgets        Json     @default("[]")
-  layouts        Json     @default("{}")
-  guided_session Json?
-  created_at     DateTime @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  widgets         Json     @default("[]")
+  layouts         Json     @default("{}")
+  guided_session  Json?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@unique([dashboard_id, user_id], map: "uq_pdd_dashboard_user")
   @@index([dashboard_id], map: "idx_pdd_dashboard")
@@ -2666,15 +2970,15 @@ model platform_charts {
   // ── Phase 3.5C: raw-SQL escape-hatch charts ────────────────────────────────
   // Discriminates a governed semantic chart from an ungoverned raw-SQL chart.
   // Defaults to 'semantic' so existing rows need no backfill.
-  chart_source      String    @default("semantic") // 'semantic' | 'raw_sql'
+  chart_source  String  @default("semantic") // 'semantic' | 'raw_sql'
   // The frozen SQL string (raw_sql charts only). enforceReadOnly-guarded at save.
-  raw_sql           String?
+  raw_sql       String?
   // Frozen result columns [{ name, type }] the chart_dsl binds to (raw_sql only).
-  result_schema     Json?
+  result_schema Json?
   // The natural-language question this chart answers (prefilled from the prompt).
-  nl_intent         String?
+  nl_intent     String?
   // Which warehouse this raw SQL runs against (raw_sql charts carry their own).
-  connection_id     String?
+  connection_id String?
 }
 
 // ── Maxwell watchdog models (MX0) ─────────────────────────────────────────────
@@ -3093,4 +3397,103 @@ model agent_loop_log {
 
   @@index([session_id, turn_id, loop], map: "idx_agent_loop_log_session")
   @@map("agent_loop_log")
+}
+
+// ─── Flows (describe-an-automation) — see docs/flows-design.md ───────────────
+
+model PlatformFlow {
+  id                 String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id             String
+  name               String
+  slug               String
+  owner              String
+  status             String                @default("draft")
+  current_version_id String?               @db.Uuid
+  created_at         DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  versions           PlatformFlowVersion[]
+  runs               PlatformFlowRun[]
+
+  @@unique([org_id, slug], map: "uq_platform_flow_org_slug")
+  @@index([org_id, status], map: "idx_platform_flow_org_status")
+  @@map("platform_flows")
+}
+
+model PlatformFlowVersion {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  flow_id    String            @db.Uuid
+  version    Int
+  definition Json
+  created_by String
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  flow       PlatformFlow      @relation(fields: [flow_id], references: [id], onDelete: Cascade)
+  runs       PlatformFlowRun[]
+
+  @@unique([flow_id, version], map: "uq_platform_flow_version")
+  @@map("platform_flow_versions")
+}
+
+model PlatformFlowRun {
+  id           String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id       String
+  flow_id      String                @db.Uuid
+  version_id   String                @db.Uuid
+  trigger      String
+  status       String                @default("queued")
+  inputs       Json                  @default("{}")
+  error        String?
+  triggered_by String?
+  total_tokens Int                   @default(0)
+  cost_usd     Decimal               @default(0) @db.Decimal(10, 6)
+  started_at   DateTime?             @db.Timestamptz(6)
+  finished_at  DateTime?             @db.Timestamptz(6)
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  flow         PlatformFlow          @relation(fields: [flow_id], references: [id], onDelete: Cascade)
+  version      PlatformFlowVersion   @relation(fields: [version_id], references: [id])
+  steps        PlatformFlowStepRun[]
+
+  @@index([org_id, status], map: "idx_platform_flow_run_org_status")
+  @@index([flow_id, created_at(sort: Desc)], map: "idx_platform_flow_run_flow_created")
+  @@map("platform_flow_runs")
+}
+
+model PlatformFlowStepRun {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_id      String          @db.Uuid
+  step_id     String
+  status      String          @default("pending")
+  attempt     Int             @default(0)
+  output      Json?
+  error       String?
+  llm_call_id String?
+  started_at  DateTime?       @db.Timestamptz(6)
+  finished_at DateTime?       @db.Timestamptz(6)
+  run         PlatformFlowRun @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  @@unique([run_id, step_id], map: "uq_platform_flow_step_run")
+  @@map("platform_flow_step_runs")
+}
+
+/// External storage connections (S3, Azure Blob, SharePoint). Non-secret settings only; credentials
+/// live in AWS Secrets Manager under `secret_ref` (aloft/connections/<id>). Migration 20261027_connections.
+model PlatformConnection {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  name           String
+  kind           String
+  config         Json      @default("{}")
+  secret_ref     String    @default("")
+  status         String    @default("untested")
+  last_tested_at DateTime? @db.Timestamptz(6)
+  last_error     String?
+  created_by     String
+  /// 'private' (owner only) or 'org' (usable by everyone in the organisation)
+  visibility     String    @default("private")
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, created_by, name], map: "uq_platform_connection_owner_name")
+  @@index([org_id, kind], map: "idx_platform_connection_org_kind")
+  @@index([org_id, visibility], map: "idx_platform_connection_org_visibility")
+  @@map("platform_connections")
 }

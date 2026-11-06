@@ -11,9 +11,10 @@
  * of the Teach surface, and only ever shows teach sessions.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { X, Clock, Plus, Trash2, Loader2, MessageSquare } from 'lucide-react';
 import { FONT_BODY, FONT_MONO } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 interface TeachSessionRow {
   id: string;
@@ -96,7 +97,7 @@ export function TeachHistoryDrawer({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Clock size={13} color="var(--primary)" />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.1em', color: 'var(--primary)', textTransform: 'uppercase' }}>
+            <span style={{ ...type.label, }}>
               Teach History
             </span>
           </div>
@@ -117,7 +118,7 @@ export function TeachHistoryDrawer({
               padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
               background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
               border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-              color: 'var(--primary)', fontSize: 13, fontWeight: 500,
+              color: 'var(--primary)', fontSize: 'var(--type-ui-regular-size)', fontWeight: 500,
             }}
           >
             <Plus size={13} /> New Teach Session
@@ -129,12 +130,12 @@ export function TeachHistoryDrawer({
           {loading ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 40, gap: 8, color: 'var(--muted-foreground)' }}>
               <Loader2 size={14} style={{ animation: 'tm-spin 1s linear infinite' }} />
-              <span style={{ fontFamily: FONT_MONO, fontSize: 13 }}>Loading…</span>
+              <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)' }}>Loading…</span>
             </div>
           ) : sessions.length === 0 ? (
             <div style={{ textAlign: 'center', paddingTop: 40, color: 'var(--muted-foreground)' }}>
               <MessageSquare size={26} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-              <p style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.04em' }}>No teaching sessions yet.</p>
+              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', letterSpacing: '0.04em' }}>No teaching sessions yet.</p>
             </div>
           ) : (
             sessions.map((s) => {
@@ -153,20 +154,20 @@ export function TeachHistoryDrawer({
                   onMouseLeave={(e) => { if (!isCurrent) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)', padding: '1px 4px', borderRadius: 2 }}>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, letterSpacing: '0.08em', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)', padding: '1px 4px', borderRadius: 2 }}>
                       TEACH
                     </span>
                     {isCurrent && (
-                      <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: 'var(--success)', letterSpacing: '0.06em' }}>ACTIVE</span>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--success)', letterSpacing: '0.04em' }}>ACTIVE</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {s.title || 'Untitled teaching session'}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                    <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: 'var(--text-tertiary)' }}>{relativeTime(s.updated_at)}</span>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-tertiary)' }}>{relativeTime(s.updated_at)}</span>
                     {(s.message_count ?? 0) > 0 && (
-                      <span style={{ fontFamily: FONT_MONO, fontSize: 13, color: 'var(--text-tertiary)' }}>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-tertiary)' }}>
                         · {s.message_count} msg{(s.message_count ?? 0) !== 1 ? 's' : ''}
                       </span>
                     )}
@@ -175,7 +176,7 @@ export function TeachHistoryDrawer({
                     onClick={(e) => handleDelete(e, s.id)}
                     disabled={deleting === s.id}
                     title="Delete"
-                    style={{ position: 'absolute', top: 7, right: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 4, background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: 0.7 }}
+                    style={{ position: 'absolute', top: 7, right: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 6, background: 'transparent', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', opacity: 0.7 }}
                   >
                     {deleting === s.id ? <Loader2 size={10} style={{ animation: 'tm-spin 1s linear infinite' }} /> : <Trash2 size={10} />}
                   </button>

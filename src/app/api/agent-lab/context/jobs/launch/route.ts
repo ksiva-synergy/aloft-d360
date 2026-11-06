@@ -1,12 +1,13 @@
 import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import {
   enqueue,
   enqueueWithChildren,
-  planSplit,
+  planForKind,
   launchChildTask,
   MAX_CONCURRENT_TASKS,
   MAX_CONCURRENT_BY_KIND,
@@ -17,13 +18,61 @@ import {
   isLocalHarvestRuntime,
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
-import { stripExcludeSchemasForKind } from '@/lib/estate/job-ui';
+import {
+  resolveLaunchScopeFilters,
+  stripExcludeSchemasForKind,
+  t0AllowsLiveScopeWhenDiscoveryEmpty,
+  wideScopeTierLaunchBlocked,
+} from '@/lib/estate/job-ui';
+import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
+import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
+import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
+import { failJobsAfterLaunchError } from '@/lib/context/orphan-jobs';
+import { estimateLaunchHarvestUsd } from '@/lib/context/launch-cost-estimate';
+import { assertHarvestBudget, BudgetExceededError } from '@/lib/spend/budgets';
+import {
+  type JobScopeRunnerFlags,
+  mergeJobScopeRunnerFlags,
+} from '@/lib/context/job-scope-flags';
 
 class NoObjectsInScopeError extends Error {
   kind: JobKind;
   constructor(kind: JobKind) {
     super(`No scanned objects match scope for ${kind}. Check Focus globs and Catalog → Scanned & beyond.`);
     this.kind = kind;
+  }
+}
+
+class WideScopeLaunchError extends Error {
+  kind: JobKind;
+  constructor(kind: JobKind, message: string) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
+async function assertTierLaunchNotTooWide(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  excludeSchemas: string[],
+  includePatterns: string[],
+  allowFullSourceLaunch: boolean,
+): Promise<void> {
+  const scope = resolveLaunchScopeFilters(
+    stripExcludeSchemasForKind(kind, excludeSchemas),
+    includePatterns,
+  );
+  const plan = await planForKind(orgId, kind, sourceId, scope);
+  const { blocked, message } = wideScopeTierLaunchBlocked(
+    kind,
+    scope.includePatterns,
+    plan.totalObjects,
+    allowFullSourceLaunch,
+  );
+  if (blocked && message) {
+    throw new WideScopeLaunchError(kind, message);
   }
 }
 
@@ -35,8 +84,22 @@ async function assertObjectsInScope(
   includePatterns: string[],
 ): Promise<void> {
   if (!SPLITTABLE_KINDS.has(kind)) return;
-  const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+  const scope = resolveLaunchScopeFilters(
+    stripExcludeSchemasForKind(kind, excludeSchemas),
+    includePatterns,
+  );
+  const plan = await planForKind(orgId, kind, sourceId, scope);
   if (plan.totalObjects === 0) {
+    if (
+      t0AllowsLiveScopeWhenDiscoveryEmpty(
+        kind,
+        scope.includePatterns,
+        0,
+        plan.discoverySchemaGroups,
+      )
+    ) {
+      return;
+    }
     throw new NoObjectsInScopeError(kind);
   }
 }
@@ -72,29 +135,46 @@ async function launchKind(
   excludeSchemas: string[],
   includePatterns: string[],
   chain: JobKind[],
+  runnerFlags: JobScopeRunnerFlags = {},
+  uiSurface?: string,
+  pipelineRunId?: string,
+  triggeredByUserId?: string | null,
 ): Promise<{ jobsEnqueued: number; taskArn: string | null; failures: { arn?: string; reason?: string }[] }> {
-  const scope: Record<string, unknown> = {};
+  let scope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) scope.excludeSchemas = excludeSchemas;
   if (includePatterns.length > 0) scope.includePatterns = includePatterns;
   if (chain.length > 0) scope.chain = chain;
+  scope = mergeJobScopeRunnerFlags(scope, runnerFlags);
+  if (uiSurface) scope.ui_surface = uiSurface;
+  if (pipelineRunId) scope.pipeline_run_id = pipelineRunId;
   const scopeOrNull = Object.keys(scope).length > 0 ? scope : null;
 
   let jobsEnqueued = 0;
   const sourceIds: (string | null)[] = [];
+  const enqueuedJobIds: string[] = [];
   if (['t0_structural', 't1_profile', 't2_semantic', 'embed', 'estate_inventory', 't3_usage'].includes(kind)) {
     for (const src of sources) {
-      await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId);
+      const row = await enqueue(kind, src.id, scopeOrNull, 'on_demand', orgId, triggeredByUserId);
       sourceIds.push(src.id);
+      enqueuedJobIds.push(row.id);
       jobsEnqueued++;
     }
   } else {
     const sid = sources[0]?.id ?? null;
-    await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId);
+    const row = await enqueue(kind, sid, scopeOrNull, 'on_demand', orgId, triggeredByUserId);
     sourceIds.push(sid);
+    enqueuedJobIds.push(row.id);
     jobsEnqueued++;
   }
 
   const { taskId, taskArn, error } = await launchHarvesterTask(['--kind', kind]);
+
+  if (!taskId && enqueuedJobIds.length > 0) {
+    await failJobsAfterLaunchError(
+      enqueuedJobIds,
+      error ?? 'Harvester RunTask failed — no worker started',
+    );
+  }
 
   if (taskId) {
     // Merge fargate_task_id into the existing scope using JSONB || so we don't
@@ -141,6 +221,10 @@ async function launchSplitKind(
   excludeSchemas: string[],
   includePatterns: string[],
   chain: JobKind[],
+  runnerFlags: JobScopeRunnerFlags = {},
+  uiSurface?: string,
+  pipelineRunId?: string,
+  triggeredByUserId?: string | null,
 ): Promise<{
   parentJobId: string;
   totalChildren: number;
@@ -149,12 +233,15 @@ async function launchSplitKind(
   failures: { arn?: string; reason?: string }[];
 }> {
   // Plan the split
-  const plan = await planSplit(orgId, kind, sourceId, { excludeSchemas, includePatterns });
+  const plan = await planForKind(orgId, kind, sourceId, { excludeSchemas, includePatterns });
 
-  const baseScope: Record<string, unknown> = {};
+  let baseScope: Record<string, unknown> = {};
   if (excludeSchemas.length > 0) baseScope.excludeSchemas = excludeSchemas;
   if (includePatterns.length > 0) baseScope.includePatterns = includePatterns;
   if (chain.length > 0) baseScope.chain = chain;
+  baseScope = mergeJobScopeRunnerFlags(baseScope, runnerFlags);
+  if (uiSurface) baseScope.ui_surface = uiSurface;
+  if (pipelineRunId) baseScope.pipeline_run_id = pipelineRunId;
 
   // Create parent + child job rows atomically
   const { parentJobId, childJobIds } = await enqueueWithChildren(
@@ -164,6 +251,7 @@ async function launchSplitKind(
     plan,
     baseScope,
     'on_demand',
+    triggeredByUserId,
   );
 
   // Launch up to MAX_CONCURRENT workers immediately (1 when HARVEST_RUNTIME=local)
@@ -212,8 +300,11 @@ async function launchSplitKind(
  * auto-enqueues the next tier via job.scope.chain on completion.
  */
 export async function POST(req: NextRequest) {
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
+
   const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const triggeredByUserId = session?.user?.id ?? null;
 
   const body = await req.json();
 
@@ -226,18 +317,66 @@ export async function POST(req: NextRequest) {
   const excludeSchemas: string[] = Array.isArray(body.excludeSchemas) ? body.excludeSchemas : [];
   const includePatterns: string[] = Array.isArray(body.includePatterns) ? body.includePatterns : [];
   const sequential: boolean = body.sequential === true;
+  const runnerFlags: JobScopeRunnerFlags = {
+    forceReprofile: body.forceReprofile === true,
+    forceReEnrich: body.forceReEnrich === true,
+    forceFullScan: body.forceFullScan === true,
+    allowFullSourceLaunch: body.allowFullSourceLaunch === true,
+  };
+  const uiSurface =
+    typeof body.uiSurface === 'string' && body.uiSurface.trim()
+      ? body.uiSurface.trim()
+      : typeof body.ui_surface === 'string' && body.ui_surface.trim()
+        ? body.ui_surface.trim()
+        : undefined;
+  const requestedSourceId =
+    typeof body.sourceId === 'string' ? body.sourceId : typeof body.source_id === 'string' ? body.source_id : undefined;
 
-  const kinds = rawKinds.filter(k => VALID_KINDS.includes(k as JobKind)) as JobKind[];
+  const disabled = rawKinds.filter(k => isLaunchDisabledKind(k));
+  if (disabled.length > 0) {
+    return NextResponse.json(
+      { error: 'KIND_NOT_AVAILABLE', kinds: disabled, message: 'Selected job type is not available from launch yet.' },
+      { status: 400 },
+    );
+  }
+
+  const kinds = filterLaunchableKinds(
+    rawKinds.filter(k => VALID_KINDS.includes(k as JobKind)),
+  ) as JobKind[];
   if (kinds.length === 0) {
     return NextResponse.json({ error: 'INVALID_KIND', valid: VALID_KINDS }, { status: 400 });
   }
 
   try {
     const orgId = await getOrgId();
-    const sources = await prisma.platformContextSource.findMany({
-      where: { org_id: orgId, status: 'active' },
-      select: { id: true },
+    const sources = await resolveLaunchSources(orgId, requestedSourceId);
+
+    const pipelineRunId = sequential && kinds.length > 1 ? randomUUID() : undefined;
+
+    for (const src of sources) {
+      const conflict = await findScopedLaunchConflict(src.id, kinds, includePatterns);
+      if (conflict) {
+        return NextResponse.json(
+          {
+            error: 'ACTIVE_JOB_OVERLAP',
+            message: `A ${conflict.job_kind} job is already active for overlapping scope.`,
+            jobId: conflict.id,
+            job_kind: conflict.job_kind,
+          },
+          { status: 409 },
+        );
+      }
+    }
+
+    const launchEstimateUsd = await estimateLaunchHarvestUsd({
+      orgId,
+      kinds,
+      sourceIds: sources.map((s) => s.id),
+      excludeSchemas,
+      includePatterns,
+      sequential,
     });
+    await assertHarvestBudget({ orgId, estimatedUsd: launchEstimateUsd });
 
     let totalJobsEnqueued = 0;
     let allFailures: { arn?: string; reason?: string }[] = [];
@@ -245,30 +384,60 @@ export async function POST(req: NextRequest) {
     const splitSummaries: { kind: string; parentJobId: string; totalChildren: number }[] = [];
 
     const launchOne = async (kind: JobKind, chain: JobKind[]) => {
-      const effectiveExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
-      const sourceId = sources[0]?.id;
-      if (SPLITTABLE_KINDS.has(kind) && sourceId) {
-        await assertObjectsInScope(orgId, kind, sourceId, effectiveExcludes, includePatterns);
-        const plan = await planSplit(orgId, kind, sourceId, {
-          excludeSchemas: effectiveExcludes,
+      const strippedExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
+      const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
+
+      for (const src of sources) {
+        await assertTierLaunchNotTooWide(
+          orgId,
+          kind,
+          src.id,
+          strippedExcludes,
           includePatterns,
-        });
+          runnerFlags.allowFullSourceLaunch === true,
+        );
 
-        if (plan.needsSplit) {
-          const result = await launchSplitKind(kind, orgId, sourceId, effectiveExcludes, includePatterns, chain);
-          splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
-          totalJobsEnqueued += result.totalChildren + 1; // children + parent
-          allFailures.push(...result.failures);
-          taskArns.push(...result.taskArns);
-          return;
+        if (SPLITTABLE_KINDS.has(kind)) {
+          await assertObjectsInScope(orgId, kind, src.id, strippedExcludes, includePatterns);
+          const plan = await planForKind(orgId, kind, src.id, scope);
+
+          if (plan.needsSplit) {
+            const result = await launchSplitKind(
+              kind,
+              orgId,
+              src.id,
+              scope.excludeSchemas,
+              scope.includePatterns,
+              chain,
+              runnerFlags,
+              uiSurface,
+              pipelineRunId,
+              triggeredByUserId,
+            );
+            splitSummaries.push({ kind, parentJobId: result.parentJobId, totalChildren: result.totalChildren });
+            totalJobsEnqueued += result.totalChildren + 1;
+            allFailures.push(...result.failures);
+            taskArns.push(...result.taskArns);
+            continue;
+          }
         }
-      }
 
-      // Non-split path
-      const result = await launchKind(kind, orgId, sources, effectiveExcludes, includePatterns, chain);
-      totalJobsEnqueued += result.jobsEnqueued;
-      allFailures.push(...result.failures);
-      if (result.taskArn) taskArns.push(result.taskArn);
+        const result = await launchKind(
+          kind,
+          orgId,
+          [src],
+          scope.excludeSchemas,
+          scope.includePatterns,
+          chain,
+          runnerFlags,
+          uiSurface,
+          pipelineRunId,
+          triggeredByUserId,
+        );
+        totalJobsEnqueued += result.jobsEnqueued;
+        allFailures.push(...result.failures);
+        if (result.taskArn) taskArns.push(result.taskArn);
+      }
     };
 
     if (sequential && kinds.length > 1) {
@@ -292,13 +461,34 @@ export async function POST(req: NextRequest) {
       sequential,
       jobs_enqueued: totalJobsEnqueued,
       task_arns: taskArns,
+      pipeline_run_id: pipelineRunId,
       split_summaries: splitSummaries.length > 0 ? splitSummaries : undefined,
     });
   } catch (err) {
+    if (err instanceof LaunchSourceNotFoundError) {
+      return NextResponse.json({ error: 'SOURCE_NOT_FOUND' }, { status: 404 });
+    }
     if (err instanceof NoObjectsInScopeError) {
       return NextResponse.json(
         { error: 'NO_OBJECTS_IN_SCOPE', message: err.message, kind: err.kind },
         { status: 400 },
+      );
+    }
+    if (err instanceof WideScopeLaunchError) {
+      return NextResponse.json(
+        {
+          error: 'WIDE_SCOPE_LAUNCH_BLOCKED',
+          message: err.message,
+          kind: err.kind,
+          hint: 'Set includePatterns (Limit) on launch, or pass allowFullSourceLaunch: true to confirm.',
+        },
+        { status: 400 },
+      );
+    }
+    if (err instanceof BudgetExceededError) {
+      return NextResponse.json(
+        { error: 'BUDGET_EXCEEDED', message: err.message, details: err.details },
+        { status: 402 },
       );
     }
     console.error('[context/jobs/launch POST]', err);

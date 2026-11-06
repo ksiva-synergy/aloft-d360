@@ -1,32 +1,35 @@
 'use client';
 
-// SemanticCard — DS3a extended version.
+// SemanticCard — the T2 description of this table: summary, entity, grain,
+// time columns, key columns, measures, JSON columns, caveats, PII, example
+// queries, and the review trail (TrustActionBar).
 //
-// Changes from original:
-// - Surfaces previously hidden fields: entity, time_columns, measures, json_blob_columns
-// - Renders usage_patterns as intent label + formatted SQL (not stringified blobs)
-// - Integrates TrustActionBar (inline confirm/certify)
-// - PII banner: shows Resolve button, disabled with tooltip (endpoint ships in DS3c)
-// - Unified card system: --estate-raised/--estate-border-gold wrapper + T2 tier chip
-//   No gold/navy/pink per-tier background — tier indicated only by the T2 chip.
+// Card shape (from enrich.ts ObjectCardSchema): time_columns is
+// { event, ingest } and json_blob_columns is { column: { observed_keys } };
+// usage_patterns are { intent, sql_sketch }. Older cards stored arrays /
+// { sql } — both shapes are read here (they were silently hidden before).
 
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import TrustChip from './TrustChip';
 import TrustActionBar from './TrustActionBar';
+import { Card, CardBlock, Field, Tag, Callout, CodeBlock, BTN_SECONDARY } from './object-ui';
+import { type } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
+
+type UsagePattern = string | { intent?: string; sql?: string; sql_sketch?: string; pattern?: string };
 
 export interface SemanticCardData {
   summary?: string;
   grain?: string;
   key_columns?: string[];
-  usage_patterns?: Array<string | { intent?: string; sql?: string; pattern?: string }>;
+  usage_patterns?: UsagePattern[];
   caveats?: string[];
   pii_columns?: string[];
-  /** DS3a: recovered hidden fields */
   entity?: string;
-  time_columns?: string[];
+  time_columns?: string[] | { event?: string | null; ingest?: string | null } | null;
   measures?: string[];
-  json_blob_columns?: string[];
+  json_blob_columns?: string[] | Record<string, { observed_keys?: string[] }> | null;
   /** DS3c: PII review annotation (added after resolve-pii endpoint ships) */
   _pii_review?: { resolution: string; reviewed_by: string; reviewed_at: string; version?: number } | null;
 }
@@ -47,83 +50,31 @@ export interface SemanticCardProps {
   piiResolutions?: Record<string, { resolution: string; reviewed_by: string; reviewed_at: string }>;
 }
 
-function renderUsagePattern(pat: string | { intent?: string; sql?: string; pattern?: string }, idx: number): React.ReactNode {
-  const inkColor = 'var(--estate-ink)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const innerBg = 'var(--estate-bg, var(--estate-hover))';
-
-  if (typeof pat === 'string') {
-    // Legacy string format — detect if it looks like SQL
-    const trimmed = pat.trim();
-    const looksLikeSql = /^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|MERGE)\b/i.test(trimmed);
-    return (
-      <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <pre
-          style={{
-            padding: '10px 12px',
-            borderRadius: 4,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            overflowX: 'auto',
-            borderLeft: '2px solid var(--brand-a)',
-            background: innerBg,
-            color: inkColor,
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          <code>{trimmed}</code>
-        </pre>
-        {!looksLikeSql && (
-          <div style={{ fontFamily: '"Inter Variable", sans-serif', fontSize: 13, color: mutedColor, paddingLeft: 4 }}>
-            {trimmed}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Structured format { intent?, sql?, pattern? }
-  const intent = pat.intent ?? pat.pattern ?? null;
-  const sql = pat.sql ?? null;
-  return (
-    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {intent && (
-        <div
-          style={{
-            fontFamily: '"Inter Variable", sans-serif',
-            fontSize: 13,
-            fontWeight: 500,
-            color: inkColor,
-            paddingLeft: 2,
-          }}
-        >
-          {intent}
-        </div>
-      )}
-      {sql && (
-        <pre
-          style={{
-            padding: '10px 12px',
-            borderRadius: 4,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            overflowX: 'auto',
-            borderLeft: '2px solid var(--brand-a)',
-            background: innerBg,
-            color: inkColor,
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          <code>{sql.trim()}</code>
-        </pre>
-      )}
-    </div>
-  );
+function timeColumns(tc: SemanticCardData['time_columns']): { label: string; column: string }[] {
+  if (!tc) return [];
+  if (Array.isArray(tc)) return tc.map((c) => ({ label: 'time_columns', column: c }));
+  const out: { label: string; column: string }[] = [];
+  if (tc.event) out.push({ label: 'time_columns.event', column: tc.event });
+  if (tc.ingest) out.push({ label: 'time_columns.ingest', column: tc.ingest });
+  return out;
 }
+
+function jsonColumns(j: SemanticCardData['json_blob_columns']): { column: string; keys: string[] }[] {
+  if (!j) return [];
+  if (Array.isArray(j)) return j.map((c) => ({ column: c, keys: [] }));
+  return Object.entries(j).map(([column, v]) => ({ column, keys: Array.isArray(v?.observed_keys) ? v.observed_keys : [] }));
+}
+
+function normalisePattern(p: UsagePattern): { intent: string | null; sql: string | null } {
+  if (typeof p === 'string') {
+    const t = p.trim();
+    const isSql = /^\s*(SELECT|WITH|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|MERGE)\b/i.test(t);
+    return isSql ? { intent: null, sql: t } : { intent: t, sql: null };
+  }
+  return { intent: p.intent ?? p.pattern ?? null, sql: (p.sql_sketch ?? p.sql ?? null)?.trim() || null };
+}
+
+const PATTERNS_VISIBLE = 2;
 
 export default function SemanticCard({
   card,
@@ -137,578 +88,213 @@ export default function SemanticCard({
   onColumnClick,
   piiResolutions,
 }: SemanticCardProps) {
+  const canAct = useCanRunEstatePipeline();
   const [localStatus, setLocalStatus] = useState(status);
   const [localPiiResolutions, setLocalPiiResolutions] = useState<Record<string, { resolution: string; reviewed_by: string; reviewed_at: string }>>(piiResolutions ?? {});
   const [piiLoading, setPiiLoading] = useState(false);
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
 
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const mutedColor = 'var(--estate-text-muted)';
-  const innerBg = 'var(--estate-bg, var(--estate-hover))';
-  const borderColor = 'var(--estate-border-gold)';
+  if (!card) return null;
 
-  const hasContent = card && (
-    card.summary ||
-    card.grain ||
-    (Array.isArray(card.key_columns) && card.key_columns.length > 0) ||
-    (Array.isArray(card.usage_patterns) && card.usage_patterns.length > 0) ||
-    (Array.isArray(card.caveats) && card.caveats.length > 0) ||
-    (Array.isArray(card.pii_columns) && card.pii_columns.length > 0) ||
-    card.entity ||
-    (Array.isArray(card.time_columns) && card.time_columns.length > 0) ||
-    (Array.isArray(card.measures) && card.measures.length > 0) ||
-    (Array.isArray(card.json_blob_columns) && card.json_blob_columns.length > 0)
-  );
+  const keyCols = Array.isArray(card.key_columns) ? card.key_columns : [];
+  const measures = Array.isArray(card.measures) ? card.measures : [];
+  const caveats = Array.isArray(card.caveats) ? card.caveats : [];
+  const piiCols = Array.isArray(card.pii_columns) ? card.pii_columns : [];
+  const times = timeColumns(card.time_columns);
+  const jsonCols = jsonColumns(card.json_blob_columns);
+  const patterns = (Array.isArray(card.usage_patterns) ? card.usage_patterns : []).map(normalisePattern).filter((p) => p.intent || p.sql);
 
+  const hasContent = card.summary || card.grain || card.entity || keyCols.length || measures.length
+    || caveats.length || piiCols.length || times.length || jsonCols.length || patterns.length;
   if (!hasContent) return null;
 
+  const colTag = (col: string, key: React.Key, tone: 'neutral' | 'blue' | 'violet' = 'neutral') => (
+    <Tag key={key} tone={tone} mono onClick={onColumnClick ? () => onColumnClick(col) : undefined} title={onColumnClick ? `Show ${col} in the columns table` : undefined}>
+      {col}
+    </Tag>
+  );
+
+  // ── PII ──
+  const resolvedPii = piiCols.filter((c) => localPiiResolutions[c]);
+  const unresolvedPii = piiCols.filter((c) => !localPiiResolutions[c]);
+  const allPiiResolved = piiCols.length > 0 && unresolvedPii.length === 0;
+
+  const handleResolvePii = async () => {
+    if (!objectId || !semanticCardId || semanticVersion == null || unresolvedPii.length === 0) return;
+    setPiiLoading(true);
+    try {
+      const res = await fetch(`/api/agent-lab/context/objects/${objectId}/resolve-pii`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          semanticId: semanticCardId,
+          version: semanticVersion,
+          resolution: 'acknowledged',
+          columns: unresolvedPii,
+        }),
+      });
+      if (res.ok) {
+        const now = new Date().toISOString();
+        const next = { ...localPiiResolutions };
+        for (const col of unresolvedPii) next[col] = { resolution: 'acknowledged', reviewed_by: 'you', reviewed_at: now };
+        setLocalPiiResolutions(next);
+        toast.success(`PII acknowledged for ${unresolvedPii.length} column${unresolvedPii.length !== 1 ? 's' : ''}`);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        if (json.error === 'VERSION_SUPERSEDED') {
+          toast.warning(`A newer version of this card exists (v${json.latestVersion}). Refresh the page to review before resolving.`, { duration: 8000 });
+        } else {
+          toast.error(json.message || 'Failed to resolve PII');
+        }
+      }
+    } catch {
+      toast.error('Failed to resolve PII');
+    } finally {
+      setPiiLoading(false);
+    }
+  };
+
+  const visiblePatterns = showAllPatterns ? patterns : patterns.slice(0, PATTERNS_VISIBLE);
+  const metaParts = [
+    'T2',
+    confidence != null ? `${Math.round(confidence * 100)}% confidence` : null,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <div
-      style={{
-        background: 'var(--estate-raised)',
-        border: '1px solid var(--estate-border-gold)',
-        borderRadius: 8,
-        overflow: 'hidden',
-      }}
+    <Card
+      title="Semantic Context"
+      meta={metaParts}
+      actions={<TrustChip status={localStatus as any} />}
     >
-      {/* Card header — T2 tier chip + title + TrustChip */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '13px 18px',
-          borderBottom: '1px solid var(--estate-border)',
-          background: 'var(--estate-hover, rgba(0,0,0,0.02))',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* T2 tier chip — unified card system */}
-          <span
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              fontWeight: 600,
-              padding: '2px 6px',
-              borderRadius: 3,
-              background: 'var(--estate-ink, var(--brand-a-ink))',
-              color: '#fff',
-              letterSpacing: '0.04em',
-            }}
-          >
-            T2
-          </span>
-          <span
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: labelColor,
-            }}
-          >
-            Semantic Context
-          </span>
-        </div>
-        <TrustChip status={localStatus as any} />
-      </div>
+      {/* Summary */}
+      {card.summary && (
+        <p style={{ ...type['body-lg'], color: 'var(--estate-ink)', margin: 0, maxWidth: '85ch' }}>{card.summary}</p>
+      )}
 
-      {/* Card body */}
-      <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-        {/* Summary */}
-        {card.summary && (
-          <p
-            style={{
-              fontFamily: '"Inter Variable", sans-serif',
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: inkColor,
-              margin: 0,
-            }}
-          >
-            {card.summary}
-          </p>
-        )}
-
-        {/* Entity — recovered hidden field */}
-        {card.entity && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: mutedColor,
-              }}
-            >
-              Entity
-            </div>
-            <div
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                fontWeight: 600,
-                color: inkColor,
-              }}
-            >
-              {card.entity}
-            </div>
-          </div>
-        )}
-
-        {/* Grain + Key Columns */}
-        {(card.grain || (Array.isArray(card.key_columns) && card.key_columns.length > 0)) && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 16,
-              borderTop: `1px solid ${borderColor}`,
-              paddingTop: 14,
-            }}
-          >
-            {card.grain && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: mutedColor,
-                  }}
-                >
-                  Grain
-                </div>
-                <div
-                  style={{
-                    fontFamily: '"Inter Variable", sans-serif',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: inkColor,
-                  }}
-                >
-                  {card.grain}
-                </div>
-              </div>
-            )}
-
-            {Array.isArray(card.key_columns) && card.key_columns.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: mutedColor,
-                  }}
-                >
-                  Key Columns
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                  {card.key_columns.map((col, idx) =>
-                    onColumnClick ? (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => onColumnClick(col)}
-                        style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 13,
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                          border: `1px solid ${borderColor}`,
-                          background: innerBg,
-                          color: inkColor,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {col}
-                      </button>
-                    ) : (
-                      <span
-                        key={idx}
-                        style={{
-                          fontFamily: '"IBM Plex Mono", monospace',
-                          fontSize: 13,
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                          border: `1px solid ${borderColor}`,
-                          background: innerBg,
-                          color: inkColor,
-                        }}
-                      >
-                        {col}
-                      </span>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Recovered hidden fields: time_columns, measures, json_blob_columns */}
-        {((Array.isArray(card.time_columns) && card.time_columns.length > 0) ||
-          (Array.isArray(card.measures) && card.measures.length > 0) ||
-          (Array.isArray(card.json_blob_columns) && card.json_blob_columns.length > 0)) && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: 12,
-              borderTop: `1px solid ${borderColor}`,
-              paddingTop: 14,
-            }}
-          >
-            {Array.isArray(card.time_columns) && card.time_columns.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: mutedColor,
-                  }}
-                >
-                  Time Columns
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {card.time_columns.map((c, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        padding: '2px 5px',
-                        borderRadius: 3,
-                        border: '1px solid rgba(47,109,176,0.3)',
-                        color: '#2F6DB0',
-                        background: 'transparent',
-                      }}
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {Array.isArray(card.measures) && card.measures.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: mutedColor,
-                  }}
-                >
-                  Measures
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {card.measures.map((m, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        padding: '2px 5px',
-                        borderRadius: 3,
-                        border: '1px solid rgba(59,122,75,0.3)',
-                        color: '#3B7A4B',
-                        background: 'transparent',
-                      }}
-                    >
-                      {m}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {Array.isArray(card.json_blob_columns) && card.json_blob_columns.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: mutedColor,
-                  }}
-                >
-                  JSON Blob Cols
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {card.json_blob_columns.map((c, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        fontFamily: '"IBM Plex Mono", monospace',
-                        fontSize: 13,
-                        padding: '2px 5px',
-                        borderRadius: 3,
-                        border: '1px solid rgba(180,128,26,0.3)',
-                        color: '#B4801A',
-                        background: 'transparent',
-                      }}
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Usage Patterns — formatted SQL, not stringified blobs */}
-        {card.usage_patterns && Array.isArray(card.usage_patterns) && card.usage_patterns.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              borderTop: `1px solid ${borderColor}`,
-              paddingTop: 14,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: mutedColor,
-              }}
-            >
-              Usage Patterns
-            </div>
-            {card.usage_patterns.map((pat, idx) => renderUsagePattern(pat, idx))}
-          </div>
-        )}
-
-        {/* Caveats */}
-        {Array.isArray(card.caveats) && card.caveats.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              borderTop: `1px solid ${borderColor}`,
-              paddingTop: 14,
-            }}
-          >
-            <div
-              style={{
-                fontFamily: '"IBM Plex Mono", monospace',
-                fontSize: 13,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: mutedColor,
-              }}
-            >
-              Caveats & Warnings
-            </div>
-            {card.caveats.map((cav, idx) => (
-              <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                  padding: '8px 10px',
-                  borderRadius: 4,
-                  background: 'rgba(180,128,26,0.05)',
-                  border: '1px solid rgba(180,128,26,0.15)',
-                }}
-              >
-                <span style={{ fontSize: 13, color: '#B4801A', flexShrink: 0 }}>⚠</span>
-                <span
-                  style={{
-                    fontFamily: '"Inter Variable", sans-serif',
-                    fontSize: 13,
-                    color: '#B4801A',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {cav}
-                </span>
-              </div>
+      {/* Key facts */}
+      {(card.entity || card.grain || times.length > 0) && (
+        <CardBlock first={!card.summary}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 18 }}>
+            {card.entity && <Field label="Entity"><span style={{ fontWeight: 600 }}>{card.entity}</span></Field>}
+            {card.grain && <Field label="Grain">{card.grain}</Field>}
+            {times.map((t) => (
+              <Field key={t.label + t.column} label={t.label}>{colTag(t.column, t.column, 'blue')}</Field>
             ))}
           </div>
-        )}
+        </CardBlock>
+      )}
 
-        {/* PII banner — per-column resolution state + Resolve button (DS3c enabled) */}
-        {Array.isArray(card.pii_columns) && card.pii_columns.length > 0 && (() => {
-          const totalFlagged = card.pii_columns!.length;
-          const resolvedColumns = card.pii_columns!.filter(c => localPiiResolutions[c]);
-          const unresolvedColumns = card.pii_columns!.filter(c => !localPiiResolutions[c]);
-          const allResolved = unresolvedColumns.length === 0;
-          const partiallyResolved = resolvedColumns.length > 0 && !allResolved;
-
-          const handleResolvePii = async () => {
-            if (!objectId || !semanticCardId || semanticVersion == null || unresolvedColumns.length === 0) return;
-            setPiiLoading(true);
-            try {
-              const res = await fetch(
-                `/api/agent-lab/context/objects/${objectId}/resolve-pii`,
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    semanticId: semanticCardId,
-                    version: semanticVersion,
-                    resolution: 'acknowledged',
-                    columns: unresolvedColumns,
-                  }),
-                },
-              );
-              if (res.ok) {
-                const now = new Date().toISOString();
-                const newResolutions = { ...localPiiResolutions };
-                for (const col of unresolvedColumns) {
-                  newResolutions[col] = { resolution: 'acknowledged', reviewed_by: 'you', reviewed_at: now };
-                }
-                setLocalPiiResolutions(newResolutions);
-                toast.success(`PII acknowledged for ${unresolvedColumns.length} column${unresolvedColumns.length !== 1 ? 's' : ''}`);
-              } else {
-                const json = await res.json().catch(() => ({}));
-                if (json.error === 'VERSION_SUPERSEDED') {
-                  toast.warning(
-                    `A newer version of this card exists (v${json.latestVersion}). Refresh the page to review before resolving.`,
-                    { duration: 8000 },
-                  );
-                } else {
-                  toast.error(json.message || 'Failed to resolve PII');
-                }
-              }
-            } catch {
-              toast.error('Failed to resolve PII');
-            } finally {
-              setPiiLoading(false);
-            }
-          };
-
-          return (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 4,
-                background: allResolved ? 'rgba(59,122,75,0.05)' : 'rgba(178,58,50,0.05)',
-                border: `1px solid ${allResolved ? 'rgba(59,122,75,0.2)' : 'rgba(178,58,50,0.2)'}`,
-                borderTop: `1px solid ${borderColor}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, color: allResolved ? '#3B7A4B' : '#B23A32', flexShrink: 0 }}>⚑</span>
-                <div>
-                  <span
-                    style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: allResolved ? '#3B7A4B' : '#B23A32',
-                      marginRight: 8,
-                    }}
-                  >
-                    {allResolved
-                      ? 'PII Resolved:'
-                      : partiallyResolved
-                        ? `PII (${resolvedColumns.length} of ${totalFlagged} resolved):`
-                        : 'PII Detected:'}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: '"IBM Plex Mono", monospace',
-                      fontSize: 13,
-                      color: allResolved ? '#3B7A4B' : '#B23A32',
-                    }}
-                  >
-                    {card.pii_columns!.map((col, i) => (
-                      <span key={col}>
-                        {i > 0 && ', '}
-                        <span style={{ opacity: localPiiResolutions[col] ? 0.5 : 1, textDecoration: localPiiResolutions[col] ? 'line-through' : 'none' }}>
-                          {col}
-                        </span>
-                      </span>
-                    ))}
-                  </span>
+      {/* Columns that matter */}
+      {(keyCols.length > 0 || measures.length > 0 || jsonCols.length > 0) && (
+        <CardBlock>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 18 }}>
+            {keyCols.length > 0 && (
+              <Field label="Key columns">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{keyCols.map((c, i) => colTag(c, i))}</div>
+              </Field>
+            )}
+            {measures.length > 0 && (
+              <Field label="Measures">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{measures.map((c, i) => colTag(c, i, 'violet'))}</div>
+              </Field>
+            )}
+            {jsonCols.length > 0 && (
+              <Field label="JSON blob columns">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {jsonCols.map((j) => (
+                    <span key={j.column} title={j.keys.length ? `observed_keys: ${j.keys.join(', ')}` : undefined}>
+                      {colTag(j.column, j.column)}
+                    </span>
+                  ))}
                 </div>
-              </div>
+              </Field>
+            )}
+          </div>
+        </CardBlock>
+      )}
 
-              {!allResolved && (
+      {/* Caveats + PII */}
+      {(caveats.length > 0 || piiCols.length > 0) && (
+        <CardBlock label="Caveats & PII">
+          {caveats.map((cav, idx) => (
+            <Callout key={idx} tone="amber" icon="!">{cav}</Callout>
+          ))}
+          {piiCols.length > 0 && (
+            <Callout
+              tone={allPiiResolved ? 'green' : 'red'}
+              icon="⚑"
+              title={allPiiResolved
+                ? 'PII resolved'
+                : resolvedPii.length > 0
+                  ? `PII — ${resolvedPii.length} of ${piiCols.length} resolved`
+                  : `PII detected (pii_columns: ${piiCols.length})`}
+              action={!allPiiResolved && canAct ? (
                 <button
                   type="button"
                   disabled={piiLoading || !objectId || !semanticCardId || semanticVersion == null}
                   onClick={handleResolvePii}
-                  style={{
-                    fontFamily: '"IBM Plex Mono", monospace',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    padding: '3px 10px',
-                    borderRadius: 3,
-                    border: '1px solid rgba(178,58,50,0.4)',
-                    background: 'transparent',
-                    color: piiLoading ? 'rgba(178,58,50,0.4)' : '#B23A32',
-                    cursor: piiLoading ? 'not-allowed' : 'pointer',
-                    flexShrink: 0,
-                  }}
+                  className={BTN_SECONDARY}
                 >
                   {piiLoading ? 'Resolving…' : 'Resolve'}
                 </button>
-              )}
-            </div>
-          );
-        })()}
+              ) : undefined}
+            >
+              <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {piiCols.map((col) => (
+                  <span key={col} style={{ opacity: localPiiResolutions[col] ? 0.55 : 1, textDecoration: localPiiResolutions[col] ? 'line-through' : 'none' }}>
+                    {colTag(col, col)}
+                  </span>
+                ))}
+              </span>
+            </Callout>
+          )}
+        </CardBlock>
+      )}
 
-        {/* Footer meta */}
-        {(modelId || promptVersion || confidence) && (
-          <div
-            style={{
-              fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 13,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              paddingTop: 8,
-              borderTop: `1px solid ${borderColor}`,
-              color: mutedColor,
-            }}
-          >
-            {modelId && <span>MODEL: {modelId}</span>}
-            {modelId && promptVersion && <span>·</span>}
-            {promptVersion && <span>PROMPT: {promptVersion}</span>}
-            {(modelId || promptVersion) && confidence != null && <span>·</span>}
-            {confidence != null && <span>CONFIDENCE: {Math.round(confidence * 100)}%</span>}
+      {/* Example queries */}
+      {patterns.length > 0 && (
+        <CardBlock
+          label="Usage patterns"
+          aside={patterns.length > PATTERNS_VISIBLE ? (
+            <button
+              type="button"
+              onClick={() => setShowAllPatterns((v) => !v)}
+              style={{ ...type.ui, color: 'var(--brand-a-ink)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              {showAllPatterns ? 'Show fewer' : `Show all ${patterns.length}`}
+            </button>
+          ) : undefined}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {visiblePatterns.map((p, idx) => (
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {p.intent && <span style={{ ...type.ui, color: 'var(--estate-ink)', fontWeight: 500 }}>{p.intent}</span>}
+                {p.sql && <CodeBlock code={p.sql} />}
+              </div>
+            ))}
           </div>
-        )}
+        </CardBlock>
+      )}
 
-        {/* TrustActionBar — inline confirm/certify, version-guarded */}
-        {semanticCardId && objectId && (
+      {/* Review trail */}
+      {semanticCardId && objectId && (
+        <CardBlock label="Trust">
           <TrustActionBar
             objectId={objectId}
             semanticCardId={semanticCardId}
             currentStatus={localStatus}
             onConfirmed={(s) => setLocalStatus(s)}
           />
-        )}
+        </CardBlock>
+      )}
 
-      </div>
-    </div>
+      {/* Provenance */}
+      {(modelId || promptVersion) && (
+        <div style={{ ...type.caption, color: 'var(--estate-text-muted)', marginTop: 14 }}>
+          {[modelId && `model_id ${modelId}`, promptVersion && `prompt_version ${promptVersion}`, semanticVersion != null && `version ${semanticVersion}`]
+            .filter(Boolean).join(' · ')}
+        </div>
+      )}
+    </Card>
   );
 }

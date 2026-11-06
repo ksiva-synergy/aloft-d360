@@ -11,7 +11,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
   return (
     <div className="h-full w-full flex items-center justify-center p-8 bg-[var(--background)]">
       <div
-        className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-5 transition-all duration-300 shadow-card"
+        className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-5 transition duration-300 shadow-card"
         style={{
           backgroundColor: 'var(--estate-raised)',
           borderColor: 'var(--estate-border-gold)',
@@ -25,7 +25,7 @@ export default function StubPage({ title, phase }: StubPageProps) {
 
         {/* Phase Badge */}
         <span
-          className="font-mono text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded border transition-colors duration-200"
+     className="text-label px-2 py-0.5 rounded border transition-colors duration-200"
           style={{
             backgroundColor: 'var(--estate-hover)',
             borderColor: 'var(--estate-border-gold)',
@@ -36,12 +36,12 @@ export default function StubPage({ title, phase }: StubPageProps) {
         </span>
 
         {/* Title */}
-        <h2 className="text-xl font-serif font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: "'Source Serif 4', serif" }}>
+        <h2 className="text-size-title-section font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: 'var(--font-sans)' }}>
           {title}
         </h2>
 
         {/* Description */}
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: "'Inter Variable', sans-serif" }}>
+        <p className="text-size-ui leading-relaxed" style={{ color: 'var(--estate-text-secondary)', fontFamily: 'var(--font-sans)' }}>
           This view is scheduled for a future integration phase. The database models, schemas, and API endpoints are already live in the substrate layer.
         </p>
       </div>

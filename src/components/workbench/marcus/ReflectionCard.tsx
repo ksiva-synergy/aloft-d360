@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { type } from '@/lib/typography/tokens';
 
 const TECHNIQUE_LABELS: Record<string, string> = {
   self_examination:     'CAPTAIN TRACK SPARROW · SELF-EXAMINATION',
@@ -75,11 +76,7 @@ export function ReflectionCard({
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: dotColor, flexShrink: 0 }} />
         <div style={{
-          fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-          fontSize: '13px',
-          fontWeight: 500,
-          letterSpacing: '0.14em',
-          textTransform: 'uppercase',
+          ...type.label,
           color: 'var(--brand-a-ink)',
         }}>
           {label}
@@ -88,17 +85,17 @@ export function ReflectionCard({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{
-          fontFamily: "'Inter Variable', 'Inter', system-ui, sans-serif",
+          fontFamily: 'var(--font-sans)',
           fontStyle: 'italic',
-          fontSize: '17px',
+          fontSize: 'var(--type-body-lg-size)',
           fontWeight: 400,
           color: 'var(--ink-1)',
         }}>
           {headline}
         </div>
         <div style={{
-          fontFamily: "'Inter Variable', system-ui, sans-serif",
-          fontSize: '14px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 'var(--type-body-size)',
           color: 'var(--ink-2)',
           lineHeight: 1.55,
         }}>
@@ -111,8 +108,8 @@ export function ReflectionCard({
           <button
             onClick={() => onAct(id, suggestedAction)}
             style={{
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: '13px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
@@ -131,8 +128,8 @@ export function ReflectionCard({
           <button
             onClick={() => onAcknowledge(id)}
             style={{
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              fontSize: '13px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--type-ui-regular-size)',
               fontWeight: 500,
               padding: '6px 14px',
               borderRadius: '6px',
@@ -151,8 +148,8 @@ export function ReflectionCard({
         <button
           onClick={() => onDismiss(id)}
           style={{
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            fontSize: '13px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-ui-regular-size)',
             fontWeight: 500,
             padding: '6px 14px',
             borderRadius: '6px',

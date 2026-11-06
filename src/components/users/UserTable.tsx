@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import {
   MoreHorizontal, Pencil, Shield, UserX, Trash2, User, Clock, Ban,
-  MessagesSquare, Brain,
+  MessagesSquare, Brain, Bot,
 } from 'lucide-react';
+import { RoleBadge } from './RoleBadge';
+import styles from './users.module.css';
 
 export interface UserRow {
   id: string;
@@ -19,12 +22,17 @@ export interface UserRow {
   primaryRole: string;
   roleLabel: string;
   roles: { role: { name: string } }[];
+  /** Section access bundles on top of the role (Users → Section access). */
+  bundles?: { id: string; name: string }[];
+  /** A custom role (sets every section exactly); primaryRole is then its built-in base. */
+  customRole?: { id: string; name: string; base: 'readonly' | 'member' | 'admin' } | null;
   // Engagement metrics (aggregated server-side; default 0 when absent)
   logins7d?: number;
   logins30d?: number;
   sessions7d?: number;
   sessions30d?: number;
   inspectorChats?: number;
+  agentChats?: number;
   memoriesContributed?: number;
 }
 
@@ -41,15 +49,6 @@ interface UserTableProps {
   onToggleStatus?: (user: UserRow) => void;
   onDeleteUser?: (user: UserRow) => void;
 }
-
-// Role chips sourced from the Spinor Labs brand palette (gold / navy / slate)
-// so they read consistently in both themes — see globals.css --estate-* tokens.
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  platform_admin: 'text-[var(--brand-a-ink)] dark:text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_10%,transparent)] border-[color-mix(in_srgb,var(--brand-a)_30%,transparent)]',
-  admin:          'text-[var(--brand-a-ink)] dark:text-[#5B9DFF] bg-[var(--brand-a-ink)]/[0.07] dark:bg-[#5B9DFF]/10 border-[color-mix(in_srgb,var(--brand-a-ink)_20%,transparent)] dark:border-[#5B9DFF]/25',
-  member:         'text-[#5A6A7A] dark:text-[var(--ink-3)] bg-[color-mix(in_srgb,var(--ink-3)_10%,transparent)] border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-  readonly:       'text-[#8A9BAD] dark:text-[#5A6A85] bg-transparent border-[color-mix(in_srgb,var(--ink-3)_25%,transparent)]',
-};
 
 const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string }> = {
   ACTIVE:      { dot: 'bg-emerald-500',  text: 'text-emerald-600 dark:text-emerald-400', label: 'Active' },
@@ -85,21 +84,6 @@ function formatJoinDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function RoleBadge({ role, label }: { role: string; label: string }) {
-  const style = ROLE_BADGE_CLASS[role] ?? ROLE_BADGE_CLASS.readonly;
-  return (
-    <span
-      className={cn(
-        'inline-block whitespace-nowrap rounded border px-[7px] py-px',
-        'font-mono text-xs font-semibold uppercase leading-[1.6] tracking-[0.05em]',
-        style,
-      )}
-    >
-      {label}
-    </span>
-  );
-}
-
 /** Compact 30d / 7d metric for the activity column. */
 function MetricChip({
   label,
@@ -112,26 +96,13 @@ function MetricChip({
   d7: number;
   title: string;
 }) {
-  const active = d30 > 0 || d7 > 0;
   return (
-    <div
-      title={title}
-      className={cn(
-        'min-w-[4.5rem] rounded-md border px-2 py-1.5',
-        active
-          ? 'border-[color-mix(in_srgb,var(--brand-a)_22%,transparent)] bg-[color-mix(in_srgb,var(--brand-a)_6%,transparent)]'
-          : 'border-[var(--estate-border)] bg-[var(--estate-hover)]/50',
-      )}
-    >
-      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--estate-text-dim)]">
-        {label}
+    <div title={title} className="min-w-[64px]">
+      <div className="flex items-baseline gap-1.5 text-size-ui">
+        <span className="font-semibold tabular-nums">{d30}</span>
+        <span className="text-caption text-muted-foreground">{label.toLowerCase()}</span>
       </div>
-      <div className="mt-0.5 flex items-baseline gap-1 tabular-nums">
-        <span className={cn('text-sm font-semibold leading-none', active ? 'text-[var(--estate-ink)]' : 'text-muted-foreground/40')}>
-          {d30}
-        </span>
-        <span className="text-[10px] text-muted-foreground">/ {d7}·7d</span>
-      </div>
+      <div className="mt-1 text-caption text-muted-foreground">{d7} in 7 days</div>
     </div>
   );
 }
@@ -142,21 +113,28 @@ function ActivityCell({ user }: { user: UserRow }) {
   const s30 = user.sessions30d ?? 0;
   const s7 = user.sessions7d ?? 0;
   const insp = user.inspectorChats ?? 0;
+  const agent = user.agentChats ?? 0;
   const mem = user.memoriesContributed ?? 0;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-3">
       <MetricChip label="Logins" d30={l30} d7={l7} title={`${l30} sign-ins (30d) · ${l7} (7d)`} />
       <MetricChip label="Sessions" d30={s30} d7={s7} title={`${s30} workbench sessions (30d) · ${s7} (7d)`} />
-      {(insp > 0 || mem > 0) && (
-        <div className="flex flex-col gap-0.5 pl-1" title={`${insp} inspector chats · ${mem} memories`}>
+      {(insp > 0 || agent > 0 || mem > 0) && (
+        <div className="flex flex-col gap-0.5 pl-1" title={`${insp} inspector chats · ${agent} agent chats · ${mem} memories`}>
           {insp > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[length:var(--type-caption-size)] text-muted-foreground">
               <MessagesSquare className="h-3 w-3 shrink-0 opacity-70" />
               <span className="tabular-nums font-medium text-[var(--foreground)]">{insp}</span>
             </span>
           )}
+          {agent > 0 && (
+            <span className="inline-flex items-center gap-1 text-[length:var(--type-caption-size)] text-muted-foreground">
+              <Bot className="h-3 w-3 shrink-0 opacity-70" />
+              <span className="tabular-nums font-medium text-[var(--foreground)]">{agent}</span>
+            </span>
+          )}
           {mem > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[length:var(--type-caption-size)] text-muted-foreground">
               <Brain className="h-3 w-3 shrink-0 opacity-70" />
               <span className="tabular-nums font-medium text-[var(--foreground)]">{mem}</span>
             </span>
@@ -167,20 +145,15 @@ function ActivityCell({ user }: { user: UserRow }) {
   );
 }
 
-const TH =
-  'text-left px-4 py-3 font-mono text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--estate-text-dim)] whitespace-nowrap';
-
 function ProviderBadge({ provider }: { provider: string }) {
   const isAad = provider === 'aad';
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide',
-        isAad
-          ? 'border-[color-mix(in_srgb,var(--brand-a)_25%,transparent)] bg-[color-mix(in_srgb,var(--brand-a)_8%,transparent)] text-[var(--brand-a-ink)]'
-          : 'border-[var(--estate-border)] bg-[var(--estate-hover)] text-muted-foreground',
+        'inline-flex items-center gap-2 whitespace-nowrap text-size-ui text-muted-foreground',
       )}
     >
+      {isAad && <Shield className="h-3.5 w-3.5" aria-hidden="true" />}
       {isAad ? 'Entra ID' : provider === 'credentials' ? 'Password' : provider}
     </span>
   );
@@ -209,14 +182,32 @@ function ActionsMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [position, setPosition] = useState({ top: 0, right: 0 });
   const isSelf = user.id === currentUserId;
 
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (!ref.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setOpen(false); triggerRef.current?.focus(); }
+    }
+    function close() { setOpen(false); }
+    if (open) {
+      document.addEventListener('mousedown', handle);
+      document.addEventListener('keydown', onKey);
+      window.addEventListener('resize', close);
+      window.addEventListener('scroll', close, true);
+      menuRef.current?.querySelector('button')?.focus();
+    }
+    return () => {
+      document.removeEventListener('mousedown', handle);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
+    };
   }, [open]);
 
   const hasActions = canAssignRoles || canUpdateUsers || canDeleteUsers;
@@ -225,27 +216,34 @@ function ActionsMenu({
   return (
     <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
-        onClick={() => setOpen((p) => !p)}
-        className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-[var(--estate-hover)] transition-colors"
+        ref={triggerRef}
+        aria-label={`Actions for ${user.name || user.email}`}
+        aria-expanded={open}
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          setPosition({ top: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 210)), right: Math.max(8, window.innerWidth - rect.right) });
+          setOpen((p) => !p);
+        }}
+        className="flex items-center justify-center w-8 h-8 rounded-sm text-muted-foreground hover:text-foreground hover:bg-[var(--estate-hover)]"
       >
         <MoreHorizontal className="h-3.5 w-3.5" />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-1 w-44 bg-[var(--estate-surface)] border border-[var(--estate-border)] rounded-lg shadow-lg overflow-hidden z-50">
+      {open && createPortal(
+        <div ref={menuRef} style={position} className={cn(styles.surface, styles.actionMenu, 'fixed w-52 bg-[var(--estate-surface)] border border-[var(--estate-border)] overflow-hidden z-50')}>
           {canUpdateUsers && (
             <button
               onClick={() => { setOpen(false); onEditUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-              Edit Profile
+              View profile
             </button>
           )}
           {canAssignRoles && (
             <button
               onClick={() => { setOpen(false); onChangeRole?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[var(--foreground)] hover:bg-[var(--muted)] transition-colors"
             >
               <Shield className="h-3.5 w-3.5 text-muted-foreground" />
               Change Role
@@ -255,7 +253,7 @@ function ActionsMenu({
             <button
               onClick={() => { setOpen(false); onToggleStatus?.(user); }}
               className={cn(
-                'flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors',
+                'flex items-center gap-2 w-full px-3 py-2 text-size-ui transition-colors',
                 user.status === 'SUSPENDED'
                   ? 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
                   : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10',
@@ -270,13 +268,14 @@ function ActionsMenu({
           {canDeleteUsers && !isSelf && (
             <button
               onClick={() => { setOpen(false); onDeleteUser?.(user); }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-xs text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
+              className="flex items-center gap-2 w-full px-3 py-2 text-size-ui text-[color:var(--ink-2)] dark:text-[color:var(--ink-3)] hover:bg-[var(--estate-hover)] transition-colors border-t border-[var(--estate-border)]"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Remove User
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -298,7 +297,6 @@ function SkeletonRow() {
       <td className="px-4 py-3"><div className="h-3 w-16 bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] rounded" /></td>
       <td className="px-4 py-3"><div className="h-3 w-20 bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] rounded" /></td>
       <td className="px-4 py-3"><div className="h-3 w-14 bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] rounded" /></td>
-      <td className="px-4 py-3"><div className="h-3 w-20 bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] rounded" /></td>
       <td className="px-4 py-3"><div className="h-3 w-24 bg-[color:var(--surface-2)] dark:bg-[color:var(--surface-2)] rounded" /></td>
       <td className="px-4 py-3" />
     </tr>
@@ -318,62 +316,36 @@ export function UserTable({
   onToggleStatus,
   onDeleteUser,
 }: UserTableProps) {
-  if (loading) {
+  if (!loading && users.length === 0) {
     return (
-      <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[1024px] text-sm">
-          <thead>
-            <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
-              <th className={TH}>User</th>
-              <th className={TH}>Role</th>
-              <th className={TH}>Status</th>
-              <th className={TH}>Provider</th>
-              <th className={TH}>Last login</th>
-              <th className={TH}>Joined</th>
-              <th className={TH}>Activity (30d)</th>
-              <th className="px-4 py-3 w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
-          </tbody>
-        </table>
-        </div>
-      </div>
-    );
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <User className="h-10 w-10 mb-3 opacity-20" />
-          <p className="text-sm font-medium">No users found</p>
-          <p className="text-xs mt-1 opacity-75">Adjust your search or filters</p>
+      <div className={styles.surface}>
+        <div className="flex flex-col items-center justify-center px-6 py-20 text-muted-foreground text-center">
+          <div className="mb-4 rounded-full bg-[var(--muted)] p-4"><User className="h-6 w-6" /></div>
+          <p className="text-title-card text-[var(--estate-ink)]">No users found</p>
+          <p className="text-size-ui mt-2">Try a different search or filter, or invite someone to get started.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-[var(--estate-border)] bg-[var(--estate-surface)] overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
-      <table className="w-full min-w-[1024px] text-sm">
+    <div className={styles.surface}>
+      <div className="overflow-x-auto" role="region" aria-label="User directory table" tabIndex={0}>
+      <table className={styles.table} aria-busy={loading}>
+        <caption className="sr-only">{loading ? 'Loading users' : 'Workspace users, roles, access, and activity'}</caption>
         <thead>
           <tr className="border-b border-[var(--estate-border)] bg-[var(--estate-th-bg)]">
-            <th className={cn(TH, 'min-w-[220px]')}>User</th>
-            <th className={TH}>Role</th>
-            <th className={TH}>Status</th>
-            <th className={TH}>Provider</th>
-            <th className={TH}>Last login</th>
-            <th className={TH}>Joined</th>
-            <th className={cn(TH, 'min-w-[200px]')}>Activity (30d)</th>
-            <th className="px-4 py-3 w-10" aria-label="Actions" />
+            <th scope="col" className="min-w-[250px]">Name</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Sign-in method</th>
+            <th scope="col">Last login / joined</th>
+            <th scope="col" className="min-w-[200px]">Activity <span className="ml-1 text-muted-foreground">(30d)</span></th>
+            <th scope="col" className="w-10"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => {
+          {loading ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />) : users.map((user) => {
             const status = STATUS_CONFIG[user.status] ?? STATUS_CONFIG.DEACTIVATED;
             const initials = getInitials(user.name, user.email);
             const isSelf = user.id === currentUserId;
@@ -384,46 +356,42 @@ export function UserTable({
                 onClick={() => onRowClick?.(user)}
                 className={cn(
                   'border-b border-[var(--estate-border)] last:border-b-0 transition-colors',
-                  onRowClick ? 'cursor-pointer hover:bg-[var(--estate-hover)]' : '',
-                  isSelf && 'bg-[color-mix(in_srgb,var(--brand-a)_4%,transparent)]',
+                  onRowClick ? 'cursor-pointer hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,var(--surface-1))]' : '',
                 )}
               >
                 {/* User column */}
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full text-[11px] font-bold ring-1 ring-[color-mix(in_srgb,var(--brand-a)_28%,transparent)]"
-                      style={{
-                        background: 'color-mix(in srgb, var(--brand-a) 16%, transparent)',
-                        color: 'var(--brand-a-ink)',
-                      }}
+                      className={cn(styles.avatar, ['platform_admin', 'admin'].includes(user.primaryRole) && styles.avatarAdmin)}
+                      aria-hidden="true"
                     >
                       {initials}
                     </div>
                     <div className="min-w-0 max-w-[240px]">
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-[var(--foreground)]">
-                        <span className="truncate">
+                      <div className="flex items-center gap-1.5 text-size-ui font-medium text-[var(--foreground)]">
+                        <button type="button" onClick={(event) => { event.stopPropagation(); onRowClick?.(user); }} className="truncate text-left hover:text-[var(--brand-a-ink)]" aria-label={`View profile for ${user.name || user.email}`}>
                           {user.name || <span className="italic text-muted-foreground font-normal">No name</span>}
-                        </span>
+                        </button>
                         {isSelf && (
-                          <span className="shrink-0 rounded px-1.5 py-px font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--brand-a-ink)] bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)]">
-                            you
+                          <span className="shrink-0 rounded-sm px-1.5 py-px text-caption text-muted-foreground bg-[var(--muted)]">
+                            You
                           </span>
                         )}
                       </div>
-                      <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                      <div className="mt-0.5 truncate text-caption text-muted-foreground" title={user.email}>{user.email}</div>
                     </div>
                   </div>
                 </td>
 
                 {/* Role column */}
                 <td className="px-4 py-3">
-                  <RoleBadge role={user.primaryRole} label={user.roleLabel} />
+                  <RoleBadge role={user.primaryRole} label={user.roleLabel} className="whitespace-nowrap !rounded-full !font-medium !px-3 !py-1.5" />
                 </td>
 
                 {/* Status column */}
                 <td className="px-4 py-3">
-                  <span className={cn('inline-flex items-center gap-1.5 text-xs', status.text)}>
+                  <span className={cn('inline-flex items-center gap-1.5 text-size-ui', status.text)}>
                     <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.dot)} />
                     {status.label}
                   </span>
@@ -436,15 +404,11 @@ export function UserTable({
 
                 {/* Last Login column */}
                 <td className="px-4 py-3.5 whitespace-nowrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs text-[var(--estate-ink)]">
+                  <span className="inline-flex items-center gap-1.5 text-size-ui text-[var(--estate-ink)]">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     {formatRelative(user.lastLoginAt)}
                   </span>
-                </td>
-
-                {/* Joined column */}
-                <td className="px-4 py-3.5 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                  {formatJoinDate(user.createdAt)}
+                  <div className="mt-1 text-caption text-muted-foreground">Joined {formatJoinDate(user.createdAt)}</div>
                 </td>
 
                 {/* Activity column */}

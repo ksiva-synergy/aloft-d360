@@ -271,11 +271,11 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
       className="border-r overflow-y-auto py-4 min-h-0 select-none flex flex-col gap-2 shrink-0 w-[260px] sticky top-0"
       style={{ borderColor, height: '100%' }}
     >
-      <div className="px-4 pb-2 font-mono text-xs tracking-widest text-[#5A6A85] uppercase">
+   <div className="px-4 pb-2 text-label text-[#5A6A85] ">
         Navigator
       </div>
 
-      <div className="flex flex-col gap-1.5 font-sans text-xs">
+      <div className="flex flex-col gap-1.5 font-sans text-size-ui">
         {sources.map((src) => {
           const node = treeNodes[src.id] || { count: null, catalogs: {}, expanded: false };
           const isSelected =
@@ -285,7 +285,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
             <div key={src.id} className="flex flex-col">
               {/* Source Node */}
               <div
-                className="flex items-center justify-between py-1.5 px-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                className="flex items-center justify-between py-1.5 px-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                 style={{
                   backgroundColor: isSelected ? activeBgColor : 'transparent',
                   borderLeftColor: isSelected ? 'var(--brand-a)' : 'transparent',
@@ -297,7 +297,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className="font-bold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
+                    className="font-semibold text-[var(--brand-a-ink)] text-size-ui w-3 flex justify-center transform transition-transform duration-200"
                     style={{ transform: node.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                   >
                     &rsaquo;
@@ -306,7 +306,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                     {src.display_name || 'Unnamed Source'}
                   </span>
                 </div>
-                <span className="font-mono text-xs" style={{ color: mutedColor }}>
+                <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
                   {node.count === 'loading' ? '...' : node.count !== null ? node.count : ''}
                 </span>
               </div>
@@ -323,7 +323,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                     return (
                       <div key={cat.name} className="flex flex-col">
                         <div
-                          className="flex items-center justify-between py-1.5 pl-8 pr-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                          className="flex items-center justify-between py-1.5 pl-8 pr-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                           style={{
                             backgroundColor: isCatSelected ? activeBgColor : 'transparent',
                             borderLeftColor: isCatSelected ? 'var(--brand-a)' : 'transparent',
@@ -335,16 +335,16 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className="font-bold text-[var(--brand-a-ink)] text-xs w-3 flex justify-center transform transition-transform duration-200"
+                              className="font-semibold text-[var(--brand-a-ink)] text-size-ui w-3 flex justify-center transform transition-transform duration-200"
                               style={{ transform: cat.expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                             >
                               &rsaquo;
                             </span>
-                            <span className="truncate font-mono text-xs" style={{ color: labelColor }}>
+                            <span className="truncate font-mono text-size-ui" style={{ color: labelColor }}>
                               {cat.name}
                             </span>
                           </div>
-                          <span className="font-mono text-xs" style={{ color: mutedColor }}>
+                          <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
                             {cat.count === 'loading' ? '...' : cat.count !== null ? cat.count : ''}
                           </span>
                         </div>
@@ -361,7 +361,7 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                               return (
                                 <div
                                   key={sche.name}
-                                  className="flex items-center justify-between py-1.5 pl-12 pr-4 cursor-pointer transition-all duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                                  className="flex items-center justify-between py-1.5 pl-12 pr-4 cursor-pointer transition duration-150 border-l-[3px] border-l-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                                   style={{
                                     backgroundColor: isScheSelected ? activeBgColor : 'transparent',
                                     borderLeftColor: isScheSelected ? 'var(--brand-a)' : 'transparent',
@@ -370,10 +370,10 @@ export default function CatalogTree({ filters, onChange }: CatalogTreeProps) {
                                     onChange({ sourceId: src.id, catalog: cat.name, schema: sche.name });
                                   }}
                                 >
-                                  <span className="truncate font-mono text-xs" style={{ color: labelColor }}>
+                                  <span className="truncate font-mono text-size-ui" style={{ color: labelColor }}>
                                     {sche.name}
                                   </span>
-                                  <span className="font-mono text-xs" style={{ color: mutedColor }}>
+                                  <span className="font-mono text-size-ui" style={{ color: mutedColor }}>
                                     {sche.count === 'loading' ? '...' : sche.count !== null ? sche.count : ''}
                                   </span>
                                 </div>

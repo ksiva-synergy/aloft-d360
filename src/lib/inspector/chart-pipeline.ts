@@ -328,6 +328,7 @@ export interface SemanticChartPipelineInput {
   sessionId: string;
   /** User's natural-language intent — surfaced in the semantic_plan event. */
   intent?: string;
+  dataPrincipal?: import('@/lib/access/types').AccessPrincipal | null;
   /** Optional progressive-streaming sink. No-op when omitted. */
   onProgress?: (event: SemanticProgressEvent) => void;
 }
@@ -464,7 +465,9 @@ export async function runSemanticChartPipeline(
 
   let execResult: Awaited<ReturnType<typeof executeSemanticQuery>>;
   try {
-    execResult = await executeSemanticQuery(query, connectionId);
+    execResult = await executeSemanticQuery(query, connectionId, {
+      dataPrincipal: input.dataPrincipal,
+    });
   } catch (err: unknown) {
     const reason = err instanceof Error ? err.message : 'Semantic query execution failed';
     return { ok: false, reason };

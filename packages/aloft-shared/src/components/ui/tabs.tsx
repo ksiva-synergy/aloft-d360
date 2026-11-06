@@ -14,7 +14,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-11 items-center gap-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 p-1 text-slate-500 dark:text-slate-400 backdrop-blur-sm",
+      "inline-flex h-9 items-center gap-0.5 rounded-[10px] border border-[var(--line-1)] bg-[var(--surface-2)] p-[3px] text-[var(--ink-3)]",
       className
     )}
     {...props}
@@ -29,15 +29,12 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold",
-      "ring-offset-background transition-all duration-200 ease-out",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      "inline-flex h-full items-center justify-center gap-1.5 whitespace-nowrap rounded-[7px] px-3 text-ui",
+      "transition-[background-color,color,box-shadow] duration-hover ease-out-strong",
+      "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
       "disabled:pointer-events-none disabled:opacity-50",
-      "data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-md data-[state=active]:shadow-indigo-500/10",
-      "dark:data-[state=active]:bg-slate-700 dark:data-[state=active]:text-indigo-300 dark:data-[state=active]:shadow-indigo-900/20",
-      "data-[state=inactive]:text-slate-500 dark:data-[state=inactive]:text-slate-400",
-      "data-[state=inactive]:hover:text-slate-700 data-[state=inactive]:hover:bg-white/50",
-      "dark:data-[state=inactive]:hover:text-slate-300 dark:data-[state=inactive]:hover:bg-slate-700/30",
+      "data-[state=inactive]:hover:text-[var(--ink-1)]",
+      "data-[state=active]:bg-[var(--surface-1)] data-[state=active]:text-[var(--ink-1)] data-[state=active]:shadow-xs",
       className
     )}
     {...props}
@@ -52,8 +49,8 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      "animate-in fade-in-0 duration-200",
+      "mt-3 rounded-ctl focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
+      "animate-in fade-in-0 duration-pop",
       className
     )}
     {...props}

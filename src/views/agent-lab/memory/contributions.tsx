@@ -6,12 +6,12 @@ export default function MemoryContributionsPage() {
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
           <h1
-            className="text-[1.4rem] font-semibold tracking-tight"
-            style={{ fontFamily: '"Inter Variable", Inter, sans-serif' }}
+            className="text-[length:var(--type-title-section-size)] font-semibold tracking-tight"
+            style={{ fontFamily: 'var(--font-sans)' }}
           >
             Memory Contributions
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-size-body text-muted-foreground mt-1">
             Per-domain memory-cred leaderboard — reputation earned through accepted memory contributions.
           </p>
         </div>

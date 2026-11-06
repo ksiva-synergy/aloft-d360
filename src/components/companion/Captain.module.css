@@ -61,3 +61,14 @@
 .settings { margin-left: auto; display: inline-flex; padding: 6px; border-radius: 6px; color: var(--wb-muted, var(--ink-3)); }
 .settings:focus-visible { outline: 2px solid var(--brand-a); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) { .settings:hover { background: var(--surface-2); color: var(--ink-1); } }
+.labelText { display: inline-block; animation: label-in 220ms cubic-bezier(.23,1,.32,1); }
+.elapsed { color: var(--wb-muted, var(--ink-3)); font-variant-numeric: tabular-nums; }
+/* Light sweep across the label while a turn is in flight — the "still working" cue between tokens. */
+.status:is([data-companion-status='reading'], [data-companion-status='thinking'], [data-companion-status='tools'], [data-companion-status='writing']) .labelText {
+  background: linear-gradient(90deg, var(--wb-ink-dim, var(--ink-2)) 0 40%, var(--ink-1) 50%, var(--wb-ink-dim, var(--ink-2)) 60% 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: label-in 220ms cubic-bezier(.23,1,.32,1), label-shimmer 2.2s linear infinite;
+}
+@keyframes label-in { from { opacity: 0; transform: translateY(3px); } }
+@keyframes label-shimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+@media (prefers-reduced-motion: reduce) { .labelText { animation: none !important; } }

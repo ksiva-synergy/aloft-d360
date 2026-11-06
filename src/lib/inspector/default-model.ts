@@ -1,5 +1,8 @@
+import { DEFAULT_LLM_LITE_GATEWAY_MODEL_ID } from '@/lib/llmlite/default-model';
+import { toLlmLiteModelKey } from '@/lib/llmlite/keys';
+
 /**
  * Default Inspector / Explore Data LLM key (client + server should agree).
- * Server also honors INSPECTOR_DEFAULT_MODEL and XAI_API_KEY when resolving defaults.
+ * Always an LLM Lite gateway model: Grok 4.7.
  */
-export const DEFAULT_INSPECTOR_MODEL_KEY = 'grok-xai';
+export const DEFAULT_INSPECTOR_MODEL_KEY = toLlmLiteModelKey(DEFAULT_LLM_LITE_GATEWAY_MODEL_ID);

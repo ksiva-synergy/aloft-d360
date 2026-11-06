@@ -54,16 +54,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const org = await getDefaultOrg();
-    // Best-effort author resolution so saved charts attribute to the real user
-    // (the "What I've taught" view + intent-embedding ownership depend on this).
-    // Falls back to the client-supplied createdBy, then 'system'.
+    // Saved charts are always attributed to the signed-in user (the "What I've taught"
+    // view, intent-embedding ownership and delete rights depend on this). A client-supplied
+    // createdBy is never trusted.
     let sessionUserId: string | null = null;
     try {
       const session = await getServerSession(authOptions);
       const email = session?.user?.email ?? null;
       const u = email ? await getUserByEmail(email) : null;
       sessionUserId = u?.id ?? null;
-    } catch { /* anonymous / service caller */ }
+    } catch { /* treated as unauthenticated below */ }
+    if (!sessionUserId) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
     const body = await request.json() as {
       chartSource?: 'semantic' | 'raw_sql';
       modelId?: string;
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
       }
 
       const rawId = createId();
-      const rawAuthor = sessionUserId ?? body.createdBy ?? 'system';
+      const rawAuthor = sessionUserId;
       const chart = await prisma.platform_charts.create({
         data: {
           id: rawId,
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
     const measureSnapshots = await computeMeasureSnapshots(measureIds, org.id);
 
     const id = createId();
-    const actor = sessionUserId ?? body.createdBy ?? 'system';
+    const actor = sessionUserId;
 
     const chart = await prisma.platform_charts.create({
       data: {

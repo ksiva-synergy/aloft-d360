@@ -14,6 +14,7 @@
 // If no last_t0_at exists, renders nothing (object is not yet inventoried).
 
 import React from 'react';
+import { Tag, type Tone } from './object-ui';
 
 export type LifecycleState = 'discovered' | 'harvested' | 'published';
 
@@ -27,34 +28,10 @@ export interface LifecycleBadgeProps {
   hasEmbedding: boolean;
 }
 
-const STATE_STYLES: Record<LifecycleState, { bg: string; color: string; border: string; dot: string; label: string }> = {
-  discovered: {
-    bg:     'rgba(138,130,113,.16)',
-    color:  '#8a8271',
-    border: 'rgba(138,130,113,.4)',
-    dot:    '#8a8271',
-    label:  'Discovered',
-  },
-  harvested: {
-    bg:     'rgba(47,109,176,.14)',
-    color:  '#2F6DB0',
-    border: 'rgba(47,109,176,.4)',
-    dot:    '#2F6DB0',
-    label:  'Harvested',
-  },
-  published: {
-    bg:     'rgba(59,122,75,.15)',
-    color:  '#3B7A4B',
-    border: 'rgba(59,122,75,.4)',
-    dot:    '#3B7A4B',
-    label:  'Published',
-  },
-};
-
-const STALE_STYLE = {
-  bg:     'rgba(194,90,46,.14)',
-  color:  '#C25A2E',
-  border: 'rgba(194,90,46,.4)',
+const STATE: Record<LifecycleState, { tone: Tone; label: string; title: string }> = {
+  discovered: { tone: 'neutral', label: 'Discovered', title: 'Found in the source — not described yet' },
+  harvested:  { tone: 'blue',    label: 'Harvested',  title: 'Profiled and described — not yet in agent knowledge' },
+  published:  { tone: 'green',   label: 'Published',  title: 'Available to agents through the knowledge base' },
 };
 
 export function deriveLifecycleState(
@@ -78,65 +55,20 @@ export default function LifecycleBadge({
   const state = deriveLifecycleState(last_t0_at, last_t2_at, last_knowledge_sync_at);
   if (!state) return null;
 
-  const s = STATE_STYLES[state];
-  const isPublished = state === 'published';
-  const knowledgeStale = isPublished && (freshnessStale || !hasEmbedding);
+  const s = STATE[state];
+  const knowledgeStale = state === 'published' && (freshnessStale || !hasEmbedding);
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      {/* State badge */}
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 5,
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 13,
-          fontWeight: 600,
-          letterSpacing: '0.08em',
-          padding: '3px 8px',
-          borderRadius: 4,
-          backgroundColor: s.bg,
-          color: s.color,
-          border: `1px solid ${s.border}`,
-          textTransform: 'uppercase',
-        }}
-      >
-        <span
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            backgroundColor: s.dot,
-            display: 'inline-block',
-            flexShrink: 0,
-          }}
-        />
-        {s.label}
-      </span>
-
-      {/* Knowledge-stale warning — only when Published AND stale */}
+    <>
+      <Tag tone={s.tone} dot title={s.title}>{s.label}</Tag>
       {knowledgeStale && (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-            fontFamily: '"IBM Plex Mono", monospace',
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            padding: '2px 6px',
-            borderRadius: 3,
-            backgroundColor: STALE_STYLE.bg,
-            color: STALE_STYLE.color,
-            border: `1px solid ${STALE_STYLE.border}`,
-            textTransform: 'uppercase',
-          }}
+        <Tag
+          tone="red"
+          title={!hasEmbedding ? 'Synced to knowledge, but the search index is missing' : 'The source changed after agents were last updated'}
         >
-          ⚠ Knowledge Stale
-        </span>
+          Knowledge stale
+        </Tag>
       )}
-    </div>
+    </>
   );
 }

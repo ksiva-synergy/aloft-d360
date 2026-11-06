@@ -10,6 +10,7 @@
 import React from 'react';
 import type { TeachCounters } from '@/hooks/useTeachChat';
 import { FONT_DISPLAY, FONT_MONO } from './teach-tokens';
+import { type } from '@/lib/typography/tokens';
 
 export function SessionHeader({ topic, counters }: { topic: string | null; counters: TeachCounters }) {
   const tiles: { n: number; label: string; color: string }[] = [
@@ -39,20 +40,16 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
       {/* Left — Reflect pill + topic */}
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+          <span style={{ ...type.label, color: 'var(--text-tertiary)' }}>
             Teach Session
           </span>
           <ReflectPill />
         </div>
         <h1
+          className="type-title-page"
           style={{
-            fontFamily: FONT_DISPLAY,
-            fontSize: 25,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
             color: 'var(--foreground)',
             margin: '6px 0 0',
-            lineHeight: 1.2,
           }}
         >
           {topic || 'What should Captain Track Sparrow understand?'}
@@ -73,10 +70,10 @@ export function SessionHeader({ topic, counters }: { topic: string | null; count
               minWidth: 64,
             }}
           >
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, lineHeight: 1, color: t.color }}>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 'var(--type-title-section-size)', fontWeight: 600, lineHeight: 1, color: t.color }}>
               {t.n}
             </div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginTop: 5 }}>
+            <div style={{ ...type.label, color: 'var(--text-tertiary)', marginTop: 5 }}>
               {t.label}
             </div>
           </div>
@@ -100,7 +97,7 @@ export function ReflectPill() {
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
-      <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--primary)' }}>
+      <span style={{ ...type.label, color: 'var(--primary)' }}>
         Reflect · Learning, not executing
       </span>
     </span>

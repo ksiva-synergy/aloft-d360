@@ -3,24 +3,14 @@
 import React, { useMemo, useState } from 'react';
 import type { CtsgvModelStat } from './types';
 import {
-  CARD_BG, BORDER, GOLD,
+  BORDER, GOLD,
   TEXT_PRI, TEXT_SEC, TEXT_MUT,
-  SERIF, MONO,
+  MONO, BORN_COLORS,
 } from '@/lib/bandits/born-tokens';
 import { shortName } from '@/lib/bandits/born-tokens';
-
-const REFINED_PALETTE = [
-  '#6C9BD2',
-  '#E8A838',
-  '#D4605A',
-  '#6BC5B0',
-  '#7EC46A',
-  '#C4A44E',
-  '#A77FC4',
-  '#E8889A',
-  '#A68E7A',
-  '#8E9FAA',
-] as const;
+import { type, inkOf } from '@/lib/typography/tokens';
+import { PanelHeader, PANEL_PADDING } from './PanelHeader';
+import { Segmented } from './Segmented';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -160,9 +150,12 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
     return opts;
   }, [normalised.length]);
 
+  // Same hue per model as every other BORN panel: BORN_COLORS by position in `stats`.
+  const statIndex = useMemo(() => new Map(stats.map((s, i) => [s.model_id, i])), [stats]);
   const modelColor = (id: string, idx: number): string => {
     if (id === favId) return GOLD;
-    return REFINED_PALETTE[idx % REFINED_PALETTE.length];
+    const i = statIndex.get(id) ?? stats.length + idx;
+    return BORN_COLORS[i % BORN_COLORS.length];
   };
 
   const columns = useMemo(() => {
@@ -180,73 +173,23 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
   const emptyState = normalised.length < 2;
 
   return (
-    <div style={{
-      background: CARD_BG,
-      border: `1px solid ${BORDER}`,
-      borderRadius: 6,
-      padding: '24px 28px',
-    }}>
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-            <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: TEXT_PRI }}>
-              Posterior Evolution
-            </span>
-            <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.04em' }}>
-              {normalised.length} DAYS
-            </span>
-          </div>
-
-          {/* Granularity pill selector */}
-          {!emptyState && (
-            <div style={{
-              display: 'flex',
-              gap: 2,
-              background: 'var(--born-overlay)',
-              border: `1px solid ${BORDER}`,
-              borderRadius: 4,
-              padding: 2,
-            }}>
-              {availableOptions.map(opt => {
-                const isActive = granularity === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => setGranularity(opt.value)}
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: 13,
-                      letterSpacing: '0.04em',
-                      padding: '3px 9px',
-                      borderRadius: 3,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: isActive ? GOLD : 'transparent',
-                      color: isActive ? 'var(--on-brand)' : TEXT_MUT,
-                      fontWeight: isActive ? 600 : 400,
-                      transition: 'background 0.12s, color 0.12s',
-                    }}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, marginTop: 4 }}>
+    <div className="born-card" style={{ padding: PANEL_PADDING }}>
+      <PanelHeader
+        title="Posterior Evolution"
+        meta={`${normalised.length} days`}
+        subtitle={<>
           Model allocation share over time · {granularityLabel[activeGranularity]} buckets
-          {granularity === 'auto' && (
-            <span style={{ opacity: 0.5 }}> (auto)</span>
-          )}
-        </div>
-      </div>
+          {granularity === 'auto' && ' (auto)'}
+        </>}
+        actions={!emptyState && (
+          <Segmented options={availableOptions} value={granularity} onChange={setGranularity} />
+        )}
+      />
 
       {emptyState ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: 100, fontFamily: MONO, fontSize: 13, color: TEXT_MUT, opacity: 0.5,
+          height: 100, ...type.caption, color: TEXT_MUT,
         }}>
           Insufficient data for timeline — need ≥ 2 days of observations.
         </div>
@@ -256,41 +199,37 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
             width: '100%',
             borderCollapse: 'collapse',
             fontFamily: MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
           }}>
             <thead>
               <tr>
                 {/* Model name column */}
                 <th style={{
+                  ...type.eyebrow,
                   textAlign: 'left',
                   padding: '0 16px 10px 0',
-                  fontFamily: MONO,
-                  fontSize: 13,
-                  fontWeight: 500,
                   color: TEXT_MUT,
-                  letterSpacing: '0.06em',
                   whiteSpace: 'nowrap',
                   borderBottom: `1px solid ${BORDER}`,
-                  minWidth: 120,
+                  minWidth: 160,
                 }}>
-                  MODEL
+                  Model
                 </th>
                 {columns.map(col => (
                   <th key={col.key} style={{
+                    ...type.caption,
+                    fontFamily: MONO,
                     textAlign: 'right',
                     padding: '0 0 10px 12px',
-                    fontFamily: MONO,
-                    fontSize: 13,
                     fontWeight: 500,
                     color: TEXT_MUT,
-                    letterSpacing: '0.04em',
                     whiteSpace: 'nowrap',
                     borderBottom: `1px solid ${BORDER}`,
                     minWidth: 80,
                   }}>
                     <div>{col.label}</div>
                     {col.sublabel && (
-                      <div style={{ fontSize: 13, opacity: 0.5, marginTop: 1 }}>{col.sublabel}</div>
+                      <div style={{ opacity: 0.6, marginTop: 1, fontWeight: 400 }}>{col.sublabel}</div>
                     )}
                   </th>
                 ))}
@@ -302,7 +241,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                 const isFav = id === favId;
                 return (
                   <tr key={id} style={{
-                    background: isFav ? 'color-mix(in srgb, var(--brand-a) 4%, transparent)' : 'transparent',
+                    background: isFav ? `color-mix(in srgb, ${GOLD} 6%, transparent)` : 'transparent',
                   }}>
                     {/* Model label */}
                     <td style={{
@@ -310,25 +249,20 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                       borderBottom: `1px solid var(--born-overlay)`,
                       whiteSpace: 'nowrap',
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, maxWidth: 260 }} title={id}>
                         <div style={{
-                          width: 8, height: 8, borderRadius: 2,
+                          width: 8, height: 8, borderRadius: '50%',
                           background: color, flexShrink: 0,
                         }} />
                         <span style={{
-                          color: isFav ? GOLD : TEXT_SEC,
+                          color: isFav ? inkOf(GOLD, 70) : TEXT_SEC,
                           fontWeight: isFav ? 600 : 400,
-                          fontSize: 13,
+                          overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>
                           {shortName(id)}
                         </span>
                         {isFav && (
-                          <span style={{
-                            fontSize: 13, color: GOLD, opacity: 0.7,
-                            letterSpacing: '0.06em', marginLeft: 2,
-                          }}>
-                            ★
-                          </span>
+                          <span aria-label="favourite" style={{ color: GOLD, opacity: 0.8, flexShrink: 0 }}>★</span>
                         )}
                       </div>
                     </td>
@@ -350,9 +284,9 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                           {share > 0.002 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                               <span style={{
-                                color: isLeader ? (isFav ? GOLD : TEXT_PRI) : TEXT_MUT,
+                                color: isLeader ? (isFav ? inkOf(GOLD, 70) : TEXT_PRI) : TEXT_MUT,
                                 fontWeight: isLeader ? 600 : 400,
-                                fontSize: 13,
+                                fontVariantNumeric: 'tabular-nums',
                               }}>
                                 {pct}%
                               </span>
@@ -372,7 +306,7 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
                               </div>
                             </div>
                           ) : (
-                            <span style={{ color: TEXT_MUT, opacity: 0.3, fontSize: 13 }}>—</span>
+                            <span style={{ color: TEXT_MUT, opacity: 0.4 }}>—</span>
                           )}
                         </td>
                       );
@@ -384,18 +318,18 @@ export function PosteriorTimelinePanel({ allocationSeries, stats, favId }: Props
               {/* Totals row */}
               <tr>
                 <td style={{
+                  ...type.eyebrow,
                   padding: '10px 16px 0 0',
-                  fontFamily: MONO, fontSize: 13,
-                  color: TEXT_MUT, letterSpacing: '0.05em',
+                  color: TEXT_MUT,
                 }}>
-                  TOTAL CALLS
+                  Total calls
                 </td>
                 {columns.map(col => (
                   <td key={col.key} style={{
                     padding: '10px 0 0 12px',
                     textAlign: 'right',
-                    fontFamily: MONO, fontSize: 13,
-                    color: TEXT_MUT,
+                    fontFamily: MONO, fontSize: 'var(--type-ui-regular-size)',
+                    color: TEXT_MUT, fontVariantNumeric: 'tabular-nums',
                   }}>
                     {col.total > 0 ? col.total.toLocaleString() : '—'}
                   </td>

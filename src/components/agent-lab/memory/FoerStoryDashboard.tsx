@@ -8,10 +8,11 @@
  * Theme follows global sidebar toggle via next-themes; CSS variables drive styling.
  */
 
+import { Select } from '@/components/form/Select';
 import React, { useState, useMemo } from 'react';
 import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import Link from 'next/link';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter, usePathname, useSearchParams } from '@/lib/navigation';
 import { useTheme } from 'next-themes';
 import { FOER_THEME } from '@/lib/foer/foer-theme';
 import { Loader2 } from 'lucide-react';
@@ -36,6 +37,7 @@ import {
 } from '@/lib/foer/foer-tokens';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
+import { type, inkOf } from '@/lib/typography/tokens';
 // ── One QueryClient per mount (not module-level to avoid SSR issues) ──────────
 function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000 } } });
@@ -214,8 +216,6 @@ function FoerStoryInner() {
       <EasterEggs />
       {/* Injected CSS for @keyframes and utility classes */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;1,400;1,600&family=Inter+Tight:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
         [data-foer-theme] * { box-sizing: border-box; }
 
         @keyframes foer-pulse-gold {
@@ -244,7 +244,7 @@ function FoerStoryInner() {
         .foer-filter-btn {
           background:    var(--foer-filter-bg);
           border:        1px solid var(--foer-border-dim);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding:       0.3rem 0.75rem;
           font-size:     0.75rem;
           font-family:   ${MONO};
@@ -263,7 +263,7 @@ function FoerStoryInner() {
         .foer-select {
           background:    var(--foer-filter-bg);
           border:        1px solid var(--foer-border-dim);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           padding:       0.3rem 0.65rem;
           font-size:     0.75rem;
           font-family:   ${MONO};
@@ -291,7 +291,7 @@ function FoerStoryInner() {
 
         .foer-skeleton {
           background:    var(--foer-surface);
-          border-radius: 4px;
+          border-radius: var(--radius-ctl);
           animation:     foer-pulse-gold 1.6s ease-in-out infinite;
         }
       `}</style>
@@ -316,7 +316,7 @@ function FoerStoryInner() {
           href="/agent-lab/memory/ops"
           style={{
             fontFamily:     BODY,
-            fontSize:       '13px',
+            fontSize: 'var(--type-ui-regular-size)',
             color:          'var(--foer-text-mut)',
             textDecoration: 'none',
             transition:     'color 0.15s',
@@ -343,11 +343,7 @@ function FoerStoryInner() {
         <p
           id="foer-kicker"
           style={{
-            fontFamily:    MONO,
-            fontSize:      '13px',
-            letterSpacing: '0.28em',
-            color:         'var(--foer-text-mut)',
-            textTransform: 'uppercase',
+            ...type.label,
             marginBottom:  '14px',
           }}
         >
@@ -359,10 +355,10 @@ function FoerStoryInner() {
           id="foer-wordmark"
           style={{
             fontFamily:   SERIF,
-            fontSize:     '64px',
+            fontSize: 'var(--type-display-size)',
             fontWeight:   600,
             color:        'var(--foer-wordmark)',
-            letterSpacing: '0.01em',
+            letterSpacing: '0',
             lineHeight:   1,
             margin:       '18px 0 0',
           }}
@@ -375,7 +371,7 @@ function FoerStoryInner() {
           id="foer-narrative"
           style={{
             fontFamily:  SERIF,
-            fontSize:    '20px',
+            fontSize: 'var(--type-title-section-size)',
             fontStyle:   'italic',
             color:       'var(--foer-text-sec)',
             maxWidth:    '640px',
@@ -424,9 +420,9 @@ function FoerStoryInner() {
               borderRadius: '6px',
               border:       `1px solid ${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '30')}`,
               background:   `${withAlpha(RULE_TYPE_COLORS.FAILURE_MODE, '10')}`,
-              color:        RULE_TYPE_COLORS.FAILURE_MODE,
-              fontFamily:   MONO,
-              fontSize:     '0.8rem',
+              color:        inkOf(RULE_TYPE_COLORS.FAILURE_MODE),
+              fontFamily:   'var(--font-sans)',
+              fontSize: 'var(--type-ui-regular-size)',
             }}
           >
             Failed to load FOER stats — check network or API.
@@ -451,10 +447,7 @@ function FoerStoryInner() {
                 {/* Label */}
                 <div
                   style={{
-                    fontFamily:    MONO,
-                    fontSize:      '13px',
-                    letterSpacing: '0.13em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     color:         'var(--foer-text-mut)',
                   }}
                 >
@@ -463,12 +456,12 @@ function FoerStoryInner() {
                 {/* Value */}
                 <div
                   style={{
-                    fontSize:           '26px',
+                    fontSize: 'var(--type-kpi-lg-size)',
                     fontWeight:         600,
                     fontVariantNumeric: 'tabular-nums',
-                    color:              kpi.accent ?? 'var(--foer-text-pri)',
+                    color:              'var(--foer-text-pri)', // accent colors failed contrast (1.7:1) as small-number text
                     lineHeight:         1,
-                    letterSpacing:      '-0.01em',
+                    letterSpacing: '-0.01em',
                   }}
                 >
                   {kpi.value}
@@ -477,8 +470,8 @@ function FoerStoryInner() {
                 {kpi.sub && (
                   <div
                     style={{
-                      fontFamily:    MONO,
-                      fontSize:      '13px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 'var(--type-ui-regular-size)',
                       letterSpacing: '0.04em',
                       color:         'var(--foer-text-sec)',
                       lineHeight:    1.3,
@@ -511,16 +504,12 @@ function FoerStoryInner() {
           <label
             htmlFor="foer-filter-topic"
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Topic
           </label>
-          <select
+          <Select
             id="foer-filter-topic"
             className="foer-select"
             value={topicParam}
@@ -535,18 +524,14 @@ function FoerStoryInner() {
                 </option>
               ))
             )}
-          </select>
+          </Select>
         </div>
 
         {/* Window filter */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Window
@@ -570,11 +555,7 @@ function FoerStoryInner() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label
             style={{
-              fontFamily:    MONO,
-              fontSize:      '0.65rem',
-              letterSpacing: '0.1em',
-              color:         'var(--foer-text-mut)',
-              textTransform: 'uppercase',
+              ...type.label,
             }}
           >
             Rule Type
@@ -662,7 +643,7 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily:  SERIF,
-                  fontSize:    '1rem',
+                  fontSize: 'var(--type-body-lg-size)',
                   fontWeight:  600,
                   color:       'var(--foer-text-sec)',
                   marginBottom: '0.2rem',
@@ -673,9 +654,9 @@ function FoerStoryInner() {
               <div
                 style={{
                   fontFamily: MONO,
-                  fontSize:   '0.67rem',
+                  fontSize: 'var(--type-caption-size)',
                   color:      'var(--foer-text-mut)',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                 }}
               >
                 PLACEHOLDER · FOER-2+
@@ -700,7 +681,7 @@ function FoerStoryInner() {
             borderRadius: '999px',
             padding:   '0.4rem 0.8rem',
             fontFamily:MONO,
-            fontSize:  '0.7rem',
+            fontSize: 'var(--type-caption-size)',
             color:     'var(--foer-text-sec)',
             boxShadow: 'var(--shadow-card)',
             zIndex:    50,
@@ -730,7 +711,7 @@ export function FoerStoryDashboard() {
               height:         '100%',
               color:          'var(--ink-3)',
               fontFamily:     MONO,
-              fontSize:       '0.8rem',
+              fontSize: 'var(--type-ui-regular-size)',
               gap:            '0.5rem',
             }}
           >

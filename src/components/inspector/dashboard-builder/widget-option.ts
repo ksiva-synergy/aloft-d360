@@ -17,6 +17,7 @@ import type { WidgetSpec, RawSqlWidgetSpec, SemanticWidgetSpec } from '@/lib/das
 import { isRawSqlWidget } from '@/lib/dashboards/types';
 import type { ChartSpec } from '@/lib/studio/types';
 import { toAlias } from '@/lib/semantic/compiler';
+import { CHART_TEXT, FONT_MONO } from '@/lib/typography/tokens';
 
 export type DefinitionMap = Map<
   string,
@@ -242,13 +243,13 @@ export function buildPreviewOption(
     xAxis: {
       type: kind === 'scatter' ? 'value' : 'category',
       name: xLabel ?? '',
-      nameTextStyle: { fontSize: 13, fontFamily: "'IBM Plex Mono', monospace" },
+      nameTextStyle: { fontSize: CHART_TEXT.tooltip, fontFamily: FONT_MONO },
       data: categories,
     },
     yAxis: {
       type: 'value',
       name: yLabels[0] ?? '',
-      nameTextStyle: { fontSize: 13, fontFamily: "'IBM Plex Mono', monospace" },
+      nameTextStyle: { fontSize: CHART_TEXT.tooltip, fontFamily: FONT_MONO },
     },
     series: seriesArr,
   };
@@ -267,8 +268,8 @@ export function buildPreviewOption(
           type: 'text',
           style: {
             text: 'PREVIEW — NO DATA',
-            fontSize: 13,
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: CHART_TEXT.tooltip,
+            fontFamily: FONT_MONO,
             fill: '#8892A4',
           },
           left: 'center',
@@ -303,7 +304,7 @@ export function buildHeatmapOption(
         elements: [
           {
             type: 'text',
-            style: { text: 'PREVIEW — NO DATA', fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
+            style: { text: 'PREVIEW — NO DATA', fontSize: CHART_TEXT.tooltip, fontFamily: FONT_MONO, fill: '#8892A4' },
             left: 'center',
             top: 'center',
           },
@@ -363,13 +364,13 @@ export function buildKpiOption(label: string, value: unknown): Record<string, un
           type: 'text',
           left: 'center',
           top: 'middle',
-          style: { text: display, fontSize: 34, fontFamily: "'IBM Plex Mono', monospace", fill: '#F0F4F8', fontWeight: 600 },
+          style: { text: display, fontSize: CHART_TEXT.kpi, fontFamily: FONT_MONO, fill: '#F0F4F8', fontWeight: 600 },
         },
         {
           type: 'text',
           left: 'center',
           top: '68%',
-          style: { text: label.toUpperCase(), fontSize: 13, fontFamily: "'IBM Plex Mono', monospace", fill: '#8892A4' },
+          style: { text: label.toUpperCase(), fontSize: CHART_TEXT.tooltip, fontFamily: FONT_MONO, fill: '#8892A4' },
         },
       ],
     },

@@ -4,12 +4,17 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { getJob } from '@/lib/context/reads';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
+import { stopHarvesterTask } from '@/lib/context/launch-harvester';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  const deniedSection = await denyUnlessSection(_req, ['estate.jobs', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -36,14 +41,12 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
 /**
  * DELETE /api/agent-lab/context/jobs/:id
  *
- * Cancel a queued job. Only jobs with status='queued' can be cancelled.
- * Running jobs cannot be cancelled via this endpoint.
+ * Cancel queued/running/orchestrating jobs. When a Fargate/local worker is attached,
+ * attempts StopTask / SIGTERM then marks the job failed (cancelled).
  */
 export async function DELETE(_req: NextRequest, { params }: RouteParams) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const { id } = await params;
   if (!id) {
@@ -55,18 +58,27 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
 
     const job = await prisma.platformContextJob.findFirst({
       where: { id, org_id: org.id },
-      select: { id: true, status: true, job_kind: true },
+      select: { id: true, status: true, job_kind: true, scope: true },
     });
 
     if (!job) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
 
-    if (job.status !== 'queued') {
+    const scope = (job.scope ?? {}) as Record<string, unknown>;
+    const hasWorker = typeof scope.fargate_task_id === 'string' && scope.fargate_task_id.length > 0;
+    const active = ['queued', 'running', 'orchestrating'].includes(job.status);
+
+    if (!active) {
       return NextResponse.json(
-        { error: 'CANNOT_CANCEL', message: `Job is ${job.status}, only queued jobs can be cancelled.` },
+        { error: 'CANNOT_CANCEL', message: `Job is ${job.status} and cannot be cancelled.` },
         { status: 409 },
       );
+    }
+
+    let workerStop: { stopped: boolean; error?: string } | undefined;
+    if (hasWorker) {
+      workerStop = await stopHarvesterTask(String(scope.fargate_task_id), 'Cancelled by user (Estate UI)');
     }
 
     await prisma.platformContextJob.update({
@@ -74,7 +86,11 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
       data: { status: 'failed', error: 'Cancelled by user', finished_at: new Date() },
     });
 
-    return NextResponse.json({ id, status: 'cancelled' });
+    return NextResponse.json({
+      id,
+      status: 'cancelled',
+      ...(workerStop ? { worker_stop: workerStop } : {}),
+    });
   } catch (err) {
     console.error('[context/jobs/:id DELETE]', err);
     return NextResponse.json({ error: 'INTERNAL' }, { status: 500 });

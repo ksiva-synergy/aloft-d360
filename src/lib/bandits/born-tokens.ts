@@ -1,3 +1,4 @@
+import { FONT_SANS, FONT_MONO } from '@/lib/typography/tokens';
 /**
  * BORN design tokens — colours, typography roles, geometry.
  * Extracted from the BORN Dashboard style strip (BORN Dashboard.dc.html).
@@ -38,12 +39,14 @@ export const TEXT_SEC = 'var(--born-text-sec)' as const;
 export const TEXT_MUT = 'var(--born-text-mut)' as const;
 
 // ── Typography roles ──
-export const SERIF = "'Source Serif 4'" as const;
-export const BODY  = "'Inter Tight'"    as const;
-export const MONO  = "'IBM Plex Mono'"  as const;
+// One sans, one mono (see src/lib/typography/tokens.ts). SERIF/BODY are kept as aliases so importers do not change.
+export const SERIF = FONT_SANS;
+export const BODY  = FONT_SANS;
+export const MONO  = FONT_MONO;
 
 // ── Geometry ──
-export const RADIUS_MAX = 6 as const;
+// Card radius; the full scale (--born-r-card / -inner / -control) lives in globals.css.
+export const RADIUS_MAX = 16 as const;
 
 // ── CTSGV axis colours ──
 export const CTSGV_COLORS = {
@@ -65,6 +68,7 @@ export const MODEL_SHORT_NAMES: Record<string, string> = {
   'gpt-5.4-PBC':                               'GPT-5.4',
   'gpt-6-luna':                                'GPT-6 Luna',
   'openai.gpt-6-luna':                         'GPT-6 Luna',
+  'global.openai.gpt-6-luna':                  'GPT-6 Luna',
   'o3-pro-PBC':                                'o3-pro',
   'o3-mini':                                   'o3-mini',
   'grok-4.3-PBC':                              'Grok 4.3',
@@ -100,6 +104,7 @@ export const MODEL_COLOR_MAP: Record<string, string> = {
   'gpt-5.4-PBC':                               BORN_COLORS[0],  // steel-blue
   'gpt-6-luna':                                BORN_COLORS[0],  // steel-blue
   'openai.gpt-6-luna':                         BORN_COLORS[0],  // steel-blue
+  'global.openai.gpt-6-luna':                  BORN_COLORS[0],  // steel-blue
   'o3-pro-PBC':                                BORN_COLORS[1],  // orange
   'o3-mini':                                   BORN_COLORS[2],  // red
   'grok-4.3-PBC':                              BORN_COLORS[3],  // teal

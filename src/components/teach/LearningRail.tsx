@@ -12,6 +12,7 @@ import { Pencil } from 'lucide-react';
 import type { Learning, LearningState } from '@/lib/inspector/reflect-tools';
 import { FONT_MONO } from './teach-tokens';
 import { LearningCard } from './LearningCard';
+import { type } from '@/lib/typography/tokens';
 
 export function LearningRail({
   learnings,
@@ -60,11 +61,11 @@ export function LearningRail({
               boxShadow: '0 0 9px var(--primary)',
             }}
           />
-          <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--foreground)' }}>
+          <span style={{ ...type.label, color: 'var(--foreground)' }}>
             What Captain Track Sparrow is learning
           </span>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--text-tertiary)', margin: '7px 0 0', lineHeight: 1.5 }}>
           Live-extracted learnings from this session. Reviewable now; committed to memory later.
         </p>
       </div>
@@ -108,7 +109,7 @@ function RailEmpty() {
       >
         <Pencil size={16} />
       </div>
-      <p style={{ fontSize: 13, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 'var(--type-ui-regular-size)', color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
         Nothing yet. As you teach Captain Track Sparrow, each learning appears here — tagged, tracked, and checked
         against the estate.
       </p>

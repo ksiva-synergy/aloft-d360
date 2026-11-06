@@ -146,12 +146,31 @@ export interface EmbedSubjectsResult {
  * matches the already-stored value. Ingest-org and search-org invariant:
  * all rows are written with orgId, and existing rows are loaded with orgId.
  */
+// Postgres allows at most 32,767 bind parameters per statement; each `in:` list
+// below becomes one parameter per ID, so large batches are split.
+const EMBED_LOOKUP_CHUNK_SIZE = 5000;
+
 export async function embedSubjects(
   orgId: string,
   subjectKind: 'object' | 'column',
   subjectIds: string[],
 ): Promise<EmbedSubjectsResult> {
   if (subjectIds.length === 0) return { embedded: 0, skipped: 0, failed: 0 };
+
+  if (subjectIds.length > EMBED_LOOKUP_CHUNK_SIZE) {
+    const total: EmbedSubjectsResult = { embedded: 0, skipped: 0, failed: 0 };
+    for (let i = 0; i < subjectIds.length; i += EMBED_LOOKUP_CHUNK_SIZE) {
+      const part = await embedSubjects(
+        orgId,
+        subjectKind,
+        subjectIds.slice(i, i + EMBED_LOOKUP_CHUNK_SIZE),
+      );
+      total.embedded += part.embedded;
+      total.skipped += part.skipped;
+      total.failed += part.failed;
+    }
+    return total;
+  }
 
   // Load existing embedding rows for change-detection (org-scoped)
   const existing = await prisma.platformContextEmbedding.findMany({
@@ -182,6 +201,7 @@ export async function embedSubjects(
     }
 
     const pending: PendingEmbed[] = [];
+    const unchangedIds: string[] = [];
     for (const obj of objects) {
       const card = semanticMap.get(obj.id);
       if (!card) {
@@ -201,6 +221,7 @@ export async function embedSubjects(
 
       const embedText = composeEmbedText('object', row);
       if (existingMap.get(obj.id) === embedText) {
+        unchangedIds.push(obj.id);
         tallies.skipped++;
         continue;
       }
@@ -208,6 +229,13 @@ export async function embedSubjects(
       pending.push({ subjectId: obj.id, embedText });
     }
     await flushPendingEmbeds(orgId, 'object', pending, tallies);
+    // Mark unchanged vectors as verified-current against the latest semantic card.
+    for (let i = 0; i < unchangedIds.length; i += 500) {
+      await prisma.platformContextEmbedding.updateMany({
+        where: { org_id: orgId, subject_kind: 'object', subject_id: { in: unchangedIds.slice(i, i + 500) } },
+        data: { created_at: new Date() },
+      });
+    }
   } else {
     // Columns — include object full_path via relation
     const columns = await prisma.platformContextColumn.findMany({

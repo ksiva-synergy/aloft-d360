@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { inkOf } from '@/lib/typography/tokens';
 
 const MONO: React.CSSProperties = {
-  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+  fontFamily: 'var(--font-mono)',
 };
 
 /** Amber, muted. The visible line between governed and escape-hatch. */
@@ -30,17 +31,17 @@ export function RawSqlBadge({
     <span
       title={title}
       style={{
-        ...MONO,
+        fontFamily: 'var(--font-sans)',
         fontSize,
-        letterSpacing: '0.06em',
+        letterSpacing: '0.04em',
         textTransform: 'uppercase',
         display: 'inline-flex',
         alignItems: 'center',
         gap: 3,
         padding: size === 'xs' ? '1px 5px' : '2px 6px',
-        borderRadius: 3,
+        borderRadius: 6,
         background: 'color-mix(in srgb, var(--brand-a) 12%, transparent)',
-        color: AMBER,
+        color: inkOf(AMBER),
         border: '1px solid color-mix(in srgb, var(--brand-a) 30%, transparent)',
         whiteSpace: 'nowrap',
         flexShrink: 0,

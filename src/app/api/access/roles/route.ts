@@ -4,12 +4,14 @@ import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS } from '@/lib/rbac';
 import { writeAudit } from '@/lib/audit';
+import { requireSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_READ);
+  requireSection(auth, ['govern.users', 'view']);
   const roles = await prisma.role.findMany({
     orderBy: { name: 'asc' },
     include: { permissions: { include: { permission: { select: { key: true } } } } },
@@ -34,9 +36,13 @@ const CreateRole = z.object({
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
   requirePermission(auth, PERMISSIONS.ROLE_ASSIGN);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(CreateRole, await req.json());
 
   const permKeys = body.permissions ?? [];
+  if (permKeys.some((k) => k.startsWith('section:'))) {
+    throw new ApiError(400, 'Section access is set in Users → Section access (bundles), not here.');
+  }
   const perms = await prisma.permission.findMany({ where: { key: { in: permKeys } } });
   if (perms.length !== permKeys.length) throw new ApiError(400, 'One or more permission keys are unknown');
 

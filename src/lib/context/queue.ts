@@ -8,19 +8,14 @@ import {
   launchHarvesterTask,
 } from '@/lib/context/launch-harvester';
 import { deriveT2CostPerObject } from './cost-model';
-
-const minimatch = require('minimatch') as (p: string, pattern: string, opts?: { dot?: boolean }) => boolean;
-
-function schemaMatchesIncludePatterns(catalog: string, schema: string, patterns: string[]): boolean {
-  if (!patterns.length) return true;
-  const qualified = `${catalog}.${schema}`;
-  const wildcard = `${qualified}.*`;
-  return patterns.some(
-    pat =>
-      minimatch(wildcard, pat, { dot: true }) ||
-      minimatch(qualified, pat, { dot: true }),
-  );
-}
+import { recordHarvestJobSpend } from '@/lib/spend/record-spend-event';
+import { ESTATE_OBJECTS_BY_SOURCE_SQL } from './estate-source-sql';
+import {
+  catalogSchemaMatchesIncludePatterns,
+  pathMatchesIncludePatterns,
+  tablePatternsMayMatchSchema,
+  usesEstateObjectPlan,
+} from './job-scope';
 
 export type JobKind =
   | 'change_detect'
@@ -121,6 +116,7 @@ export async function enqueue(
   scope: Record<string, unknown> | null,
   trigger: TriggerKind,
   orgId: string,
+  triggeredByUserId?: string | null,
 ): Promise<PlatformContextJob> {
   return prisma.platformContextJob.create({
     data: {
@@ -129,6 +125,7 @@ export async function enqueue(
       job_kind: jobKind,
       trigger,
       status: 'queued',
+      triggered_by_user_id: triggeredByUserId ?? null,
       ...(scope !== null ? { scope: scope as Prisma.InputJsonValue } : {}),
     },
   });
@@ -176,6 +173,19 @@ export async function claimNext(orgId: string, kindFilter?: string): Promise<Pla
 
     return job;
   }
+}
+
+/** Claim one queued job by id. Returns null if it was already taken or is not queued. */
+export async function claimById(jobId: string): Promise<PlatformContextJob | null> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    UPDATE platform_context_jobs
+    SET status = 'running', started_at = NOW(), updated_at = NOW()
+    WHERE id = ${jobId}::uuid
+      AND status = 'queued'
+    RETURNING id
+  `;
+  if (rows.length === 0) return null;
+  return prisma.platformContextJob.findUnique({ where: { id: jobId } });
 }
 
 /**
@@ -320,6 +330,9 @@ export async function finalize(
       ...(error !== undefined ? { error } : {}),
     },
   });
+  void recordHarvestJobSpend(jobId).catch((err) => {
+    console.error('[context/queue] recordHarvestJobSpend failed', jobId, err);
+  });
 }
 
 // ── Auto-split: planner ───────────────────────────────────────────────────────
@@ -334,6 +347,13 @@ export interface SplitPartition {
   objectCount: number;
 }
 
+export interface DiscoverySchemaGroups {
+  /** Distinct catalog.schema groups in discovery for this source */
+  total: number;
+  /** Groups that match the exclude list */
+  excluded: number;
+}
+
 export interface SplitPlan {
   /** whether a split is needed at all */
   needsSplit: boolean;
@@ -343,6 +363,50 @@ export interface SplitPlan {
   estimatedWallClockMinutes: number;
   estimatedCostUsd: number;
   totalObjects: number;
+  /** Set for estate-backed plans (T0 / inventory) */
+  discoverySchemaGroups?: DiscoverySchemaGroups;
+}
+
+interface ScopedSchemaGroup {
+  catalog_name: string;
+  schema_name: string;
+  cnt: number;
+  /** Set when only table-level Limit globs matched — the matching object names. */
+  objectNames?: string[];
+}
+
+/**
+ * Apply excludeSchemas + includePatterns to per-schema counts. Schemas matched only by
+ * table-level globs (catalog.schema.table) are counted per object path, so a single-table
+ * Limit plans one object instead of zero.
+ */
+async function filterSchemaGroupsForScope(
+  rows: Array<{ catalog_name: string; schema_name: string; cnt: bigint }>,
+  excludeSchemas: string[],
+  includePatterns: string[],
+  fetchObjects: (catalog: string, schema: string) => Promise<Array<{ object_name: string | null; full_path: string }>>,
+): Promise<ScopedSchemaGroup[]> {
+  const excludeSet = new Set(excludeSchemas);
+  const groups: ScopedSchemaGroup[] = [];
+  for (const r of rows) {
+    const key = `${r.catalog_name}.${r.schema_name}`;
+    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) continue;
+    if (catalogSchemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) {
+      groups.push({ catalog_name: r.catalog_name, schema_name: r.schema_name, cnt: Number(r.cnt) });
+      continue;
+    }
+    if (!tablePatternsMayMatchSchema(r.catalog_name, r.schema_name, includePatterns)) continue;
+    const objects = await fetchObjects(r.catalog_name, r.schema_name);
+    const names = objects
+      .filter(o => pathMatchesIncludePatterns(o.full_path, includePatterns))
+      .map(o => o.object_name ?? '')
+      .filter(Boolean)
+      .sort();
+    if (names.length > 0) {
+      groups.push({ catalog_name: r.catalog_name, schema_name: r.schema_name, cnt: names.length, objectNames: names });
+    }
+  }
+  return groups;
 }
 
 /**
@@ -380,17 +444,18 @@ export async function planSplit(
     sourceId,
   );
 
-  // Apply excludeSchemas filter
-  const excludeSet = new Set(opts.excludeSchemas ?? []);
-  const includePatterns = opts.includePatterns ?? [];
-  const filtered = rows.filter(r => {
-    const key = `${r.catalog_name}.${r.schema_name}`;
-    if (excludeSet.has(key) || excludeSet.has(r.schema_name)) return false;
-    if (!schemaMatchesIncludePatterns(r.catalog_name, r.schema_name, includePatterns)) return false;
-    return true;
-  });
+  const filtered = await filterSchemaGroupsForScope(
+    rows,
+    opts.excludeSchemas ?? [],
+    opts.includePatterns ?? [],
+    (catalog, schema) =>
+      prisma.platformContextObject.findMany({
+        where: { org_id: orgId, source_id: sourceId, catalog_name: catalog, schema_name: schema, lifecycle: 'active' },
+        select: { object_name: true, full_path: true },
+      }),
+  );
 
-  const totalObjects = filtered.reduce((s, r) => s + Number(r.cnt), 0);
+  const totalObjects = filtered.reduce((s, r) => s + r.cnt, 0);
 
   // Determine if split is needed
   if (totalObjects <= maxObjectsPerChild) {
@@ -409,7 +474,7 @@ export async function planSplit(
   const partitions: SplitPartition[] = [];
 
   for (const row of filtered) {
-    const cnt = Number(row.cnt);
+    const cnt = row.cnt;
     const schemaKey = `${row.catalog_name}.${row.schema_name}`;
 
     if (cnt <= maxObjectsPerChild) {
@@ -417,12 +482,12 @@ export async function planSplit(
         schemaKey,
         catalog: row.catalog_name,
         schema: row.schema_name,
-        objectNames: [],
+        objectNames: row.objectNames ?? [],
         objectCount: cnt,
       });
     } else {
       // Schema exceeds child cap — fetch object names and split alphabetically
-      const objects = await prisma.platformContextObject.findMany({
+      const names = row.objectNames ?? (await prisma.platformContextObject.findMany({
         where: {
           org_id: orgId,
           source_id: sourceId,
@@ -432,9 +497,7 @@ export async function planSplit(
         },
         select: { object_name: true },
         orderBy: { object_name: 'asc' },
-      });
-
-      const names = objects.map(o => o.object_name ?? '').filter(Boolean);
+      })).map(o => o.object_name ?? '').filter(Boolean);
       for (let i = 0; i < names.length; i += maxObjectsPerChild) {
         const slice = names.slice(i, i + maxObjectsPerChild);
         partitions.push({
@@ -463,6 +526,142 @@ export async function planSplit(
   };
 }
 
+/**
+ * Plan split/count against discovery registry (`platform_estate_objects`).
+ * Used for T0 / estate_inventory so first-time structural harvest is not blocked
+ * when Scanned rows do not exist yet (P0-3).
+ */
+export async function planEstateSplit(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  opts: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+  },
+): Promise<SplitPlan> {
+  const rate = RATE_PER_MINUTE[kind] ?? 25;
+  const maxObjectsPerChild = Math.floor(rate * TIME_BUDGET_MINUTES);
+  const costPerObject = 0;
+
+  const rows = await prisma.$queryRawUnsafe<Array<{ catalog_name: string; schema_name: string; cnt: bigint }>>(
+    `SELECT catalog_name, schema_name, COUNT(*) AS cnt
+     FROM platform_estate_objects
+     WHERE org_id = $1
+       AND ${ESTATE_OBJECTS_BY_SOURCE_SQL}
+       AND lifecycle = 'active'
+     GROUP BY catalog_name, schema_name
+     ORDER BY catalog_name, schema_name`,
+    orgId,
+    sourceId,
+  );
+
+  const excludeSet = new Set(opts.excludeSchemas ?? []);
+  const includePatterns = opts.includePatterns ?? [];
+  const discoverySchemaGroups: DiscoverySchemaGroups = {
+    total: rows.length,
+    excluded: rows.filter(r => {
+      const key = `${r.catalog_name}.${r.schema_name}`;
+      return excludeSet.has(key) || excludeSet.has(r.schema_name);
+    }).length,
+  };
+  const filtered = await filterSchemaGroupsForScope(
+    rows,
+    opts.excludeSchemas ?? [],
+    includePatterns,
+    (catalog, schema) =>
+      prisma.platformEstateObject.findMany({
+        where: { org_id: orgId, source_id: sourceId, catalog_name: catalog, schema_name: schema, lifecycle: 'active' },
+        select: { object_name: true, full_path: true },
+      }),
+  );
+
+  const totalObjects = filtered.reduce((s, r) => s + r.cnt, 0);
+
+  if (totalObjects <= maxObjectsPerChild) {
+    return {
+      needsSplit: false,
+      partitions: [],
+      maxObjectsPerChild,
+      estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
+      estimatedWallClockMinutes: Math.ceil(totalObjects / rate) || 0,
+      estimatedCostUsd: totalObjects * costPerObject,
+      totalObjects,
+      discoverySchemaGroups,
+    };
+  }
+
+  const partitions: SplitPartition[] = [];
+
+  for (const row of filtered) {
+    const cnt = row.cnt;
+    const schemaKey = `${row.catalog_name}.${row.schema_name}`;
+
+    if (cnt <= maxObjectsPerChild) {
+      partitions.push({
+        schemaKey,
+        catalog: row.catalog_name,
+        schema: row.schema_name,
+        objectNames: row.objectNames ?? [],
+        objectCount: cnt,
+      });
+    } else {
+      const names = row.objectNames ?? (await prisma.platformEstateObject.findMany({
+        where: {
+          org_id: orgId,
+          source_id: sourceId,
+          catalog_name: row.catalog_name,
+          schema_name: row.schema_name,
+          lifecycle: 'active',
+        },
+        select: { object_name: true },
+        orderBy: { object_name: 'asc' },
+      })).map(o => o.object_name ?? '').filter(Boolean);
+      for (let i = 0; i < names.length; i += maxObjectsPerChild) {
+        const slice = names.slice(i, i + maxObjectsPerChild);
+        partitions.push({
+          schemaKey: `${schemaKey}[${i / maxObjectsPerChild}]`,
+          catalog: row.catalog_name,
+          schema: row.schema_name,
+          objectNames: slice,
+          objectCount: slice.length,
+        });
+      }
+    }
+  }
+
+  const maxConcurrent = MAX_CONCURRENT_BY_KIND[kind] ?? MAX_CONCURRENT_TASKS;
+  const waves = Math.ceil(partitions.length / maxConcurrent);
+  const estimatedWallClockMinutes = waves * TIME_BUDGET_MINUTES;
+
+  return {
+    needsSplit: true,
+    partitions,
+    maxObjectsPerChild,
+    estimatedMinutesPerChild: TIME_BUDGET_MINUTES,
+    estimatedWallClockMinutes,
+    estimatedCostUsd: totalObjects * costPerObject,
+    totalObjects,
+    discoverySchemaGroups,
+  };
+}
+
+/** Kind-aware planner: discovery registry for T0/inventory, Scanned for T1/T2. */
+export async function planForKind(
+  orgId: string,
+  kind: JobKind,
+  sourceId: string,
+  opts: {
+    excludeSchemas?: string[];
+    includePatterns?: string[];
+  },
+): Promise<SplitPlan> {
+  if (usesEstateObjectPlan(kind)) {
+    return planEstateSplit(orgId, kind, sourceId, opts);
+  }
+  return planSplit(orgId, kind, sourceId, opts);
+}
+
 // ── Auto-split: enqueue parent + children ────────────────────────────────────
 
 export interface EnqueueWithChildrenResult {
@@ -482,6 +681,7 @@ export async function enqueueWithChildren(
   plan: SplitPlan,
   baseScope: Record<string, unknown>,
   trigger: TriggerKind,
+  triggeredByUserId?: string | null,
 ): Promise<EnqueueWithChildrenResult> {
   return prisma.$transaction(async (tx) => {
     // Create parent job with status=orchestrating
@@ -492,6 +692,7 @@ export async function enqueueWithChildren(
         job_kind: kind,
         trigger,
         status: 'orchestrating',
+        triggered_by_user_id: triggeredByUserId ?? null,
         scope: {
           ...baseScope,
           is_parent: true,
@@ -531,6 +732,7 @@ export async function enqueueWithChildren(
           job_kind: kind,
           trigger,
           status: 'queued',
+          triggered_by_user_id: triggeredByUserId ?? null,
           parent_job_id: parent.id,
           child_index: i,
           scope: childScope as Prisma.InputJsonValue,

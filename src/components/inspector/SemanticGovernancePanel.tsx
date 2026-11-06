@@ -5,6 +5,7 @@ import { MyDraftsSection } from './authoring/MyDraftsSection';
 import { SynonymEditor } from './authoring/SynonymEditor';
 import { WhatIveTaughtSection } from './authoring/WhatIveTaughtSection';
 import type { AuthoringScope } from './authoring/scope';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 // ── Brand tokens (mirrors InspectorShell / DashboardPane) ─────────────────────
 const GOLD   = 'var(--brand-a)';
@@ -21,8 +22,8 @@ const GREEN_BD  = 'rgba(34,197,94,0.30)';
 const ARCH_BG   = 'rgba(136,146,164,0.08)';
 const ARCH_BD   = 'rgba(136,146,164,0.25)';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
-const sans: React.CSSProperties = { fontFamily: "'Inter Variable', system-ui, sans-serif" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
+const sans: React.CSSProperties = { fontFamily: 'var(--font-sans)' };
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
@@ -88,8 +89,8 @@ function StatusBadge({ status }: { status: string }) {
   }
   return (
     <span style={{
-      ...mono, fontSize: 13, letterSpacing: '0.10em', textTransform: 'uppercase',
-      background: bg, border: `1px solid ${bd}`, color, borderRadius: 4, padding: '2px 7px',
+      ...type.label,
+      background: bg, border: `1px solid ${bd}`, color, borderRadius: 6, padding: '2px 7px',
       flexShrink: 0,
     }}>
       {label}
@@ -136,10 +137,10 @@ function EditableField({
           cursor: 'text', minHeight: 20,
           borderBottom: `1px dashed ${BORDER_SUBTLE}`,
           padding: '2px 0', color: 'var(--wb-ink)',
-          ...sans, fontSize: 13,
+          ...sans, fontSize: 'var(--type-ui-regular-size)',
         }}
       >
-        <span style={{ ...mono, fontSize: 13, color: MUTED, marginRight: 6 }}>{label}</span>
+        <span style={{ ...type['ui-regular'], color: MUTED, marginRight: 6 }}>{label}</span>
         {value || <span style={{ color: MUTED, fontStyle: 'italic' }}>—</span>}
       </div>
     );
@@ -147,7 +148,7 @@ function EditableField({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{label}</span>
+      <span style={{ ...type['ui-regular'], color: MUTED }}>{label}</span>
       {multiline ? (
         <textarea
           autoFocus
@@ -155,9 +156,9 @@ function EditableField({
           onChange={e => setDraft(e.target.value)}
           rows={3}
           style={{
-            ...sans, fontSize: 13,
+            ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
-            borderRadius: 4, color: 'var(--wb-ink)', padding: '4px 6px',
+            borderRadius: 6, color: 'var(--wb-ink)', padding: '4px 6px',
             resize: 'vertical', width: '100%',
           }}
         />
@@ -168,9 +169,9 @@ function EditableField({
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
           style={{
-            ...sans, fontSize: 13,
+            ...sans, fontSize: 'var(--type-ui-regular-size)',
             background: SURFACE, border: `1px solid ${BORDER_STRONG}`,
-            borderRadius: 4, color: 'var(--wb-ink)', padding: '3px 6px',
+            borderRadius: 6, color: 'var(--wb-ink)', padding: '3px 6px',
           }}
         />
       )}
@@ -179,9 +180,9 @@ function EditableField({
           onClick={handleSave}
           disabled={saving}
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.06em',
+            ...type['ui-regular'],
             background: saving ? SURFACE : GOLD, color: saving ? MUTED : NAVY,
-            border: 'none', borderRadius: 4, padding: '3px 10px', cursor: saving ? 'default' : 'pointer',
+            border: 'none', borderRadius: 6, padding: '3px 10px', cursor: saving ? 'default' : 'pointer',
           }}
         >
           {saving ? 'SAVING…' : 'SAVE'}
@@ -189,16 +190,16 @@ function EditableField({
         <button
           onClick={() => { setEditing(false); setEditError(null); }}
           style={{
-            ...mono, fontSize: 13, letterSpacing: '0.06em',
+            ...type['ui-regular'],
             background: 'transparent', color: MUTED,
-            border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+            border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
           }}
         >
           CANCEL
         </button>
       </div>
       {editError && (
-        <span style={{ ...mono, fontSize: 13, color: '#f43f5e', lineHeight: 1.4 }}>{editError}</span>
+        <span style={{ ...type['ui-regular'], color: '#f43f5e', lineHeight: 1.4 }}>{editError}</span>
       )}
     </div>
   );
@@ -273,7 +274,7 @@ function EntityCard({
         onClick={() => setExpanded(e => !e)}
       >
         <span style={{
-          ...mono, fontSize: 13, color: MUTED, flexShrink: 0,
+          ...type['ui-regular'], color: MUTED, flexShrink: 0,
           transition: 'transform 0.15s',
           display: 'inline-block',
           transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
@@ -281,17 +282,17 @@ function EntityCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
-            <span style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)' }}>
+            <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)' }}>
               {entity.entity_label}
             </span>
             <StatusBadge status={entity.status} />
           </div>
-          <div style={{ ...mono, fontSize: 13, color: MUTED, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+          <div style={{ ...type['ui-regular'], color: MUTED, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
             {entity.full_path}
           </div>
         </div>
 
-        <div style={{ ...mono, fontSize: 13, color: MUTED, flexShrink: 0, display: 'flex', gap: 10 }}>
+        <div style={{ ...type['ui-regular'], color: MUTED, flexShrink: 0, display: 'flex', gap: 10 }}>
           <span>{entity.dimensions.length}D</span>
           <span>{entity.measures.length}M</span>
           <span>{entity.joins.length}J</span>
@@ -307,10 +308,10 @@ function EntityCard({
               disabled={acting !== null}
               title="Promote to governed"
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: acting === 'promote' ? SURFACE : GOLD,
                 color: acting === 'promote' ? MUTED : NAVY,
-                border: 'none', borderRadius: 4, padding: '4px 10px',
+                border: 'none', borderRadius: 6, padding: '4px 10px',
                 cursor: acting !== null ? 'default' : 'pointer',
               }}
             >
@@ -323,9 +324,9 @@ function EntityCard({
               disabled={acting !== null}
               title="Archive"
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: 'transparent', color: MUTED,
-                border: `1px solid ${ARCH_BD}`, borderRadius: 4, padding: '4px 10px',
+                border: `1px solid ${ARCH_BD}`, borderRadius: 6, padding: '4px 10px',
                 cursor: acting !== null ? 'default' : 'pointer',
               }}
             >
@@ -363,17 +364,17 @@ function EntityCard({
           {/* Dimensions */}
           {entity.dimensions.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 DIMENSIONS ({entity.dimensions.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {entity.dimensions.map(d => (
-                  <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
+                  <div key={d.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{d.dimension_type}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>·</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{d.column_name}</span>
+                      <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{d.dimension_label}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{d.dimension_type}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{d.column_name}</span>
                     </div>
                     <EditableField label="LABEL" value={d.dimension_label} onSave={v => patchField('dimension', d.id, 'dimension_label', v)} />
                     <EditableField label="DESCRIPTION" value={d.description ?? ''} multiline onSave={v => patchField('dimension', d.id, 'description', v)} />
@@ -394,18 +395,18 @@ function EntityCard({
           {/* Measures */}
           {entity.measures.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 MEASURES ({entity.measures.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {entity.measures.map(m => (
-                  <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '6px 8px' }}>
+                  <div key={m.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '6px 8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' as const }}>
-                      <span style={{ ...sans, fontSize: 13, fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{m.aggregate}</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>·</span>
-                      <span style={{ ...mono, fontSize: 13, color: MUTED }}>{m.metric_type}</span>
-                      {m.unit && <span style={{ ...mono, fontSize: 13, color: MUTED }}>· {m.unit}</span>}
+                      <span style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 500, color: 'var(--wb-ink)' }}>{m.measure_label}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{m.aggregate}</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>·</span>
+                      <span style={{ ...type['ui-regular'], color: MUTED }}>{m.metric_type}</span>
+                      {m.unit && <span style={{ ...type['ui-regular'], color: MUTED }}>· {m.unit}</span>}
                     </div>
                     <EditableField label="LABEL" value={m.measure_label} onSave={v => patchField('measure', m.id, 'measure_label', v)} />
                     <EditableField label="DESCRIPTION" value={m.description ?? ''} multiline onSave={v => patchField('measure', m.id, 'description', v)} />
@@ -427,14 +428,14 @@ function EntityCard({
           {/* Joins */}
           {entity.joins.length > 0 && (
             <div>
-              <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: GOLD, marginBottom: 6 }}>
+              <div style={{ ...type['ui-regular'], color: inkOf(GOLD), marginBottom: 6 }}>
                 JOINS ({entity.joins.length})
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {entity.joins.map(j => (
-                  <div key={j.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 4, padding: '5px 8px' }}>
-                    <span style={{ ...mono, fontSize: 13, color: MUTED }}>{j.join_type.toUpperCase()}</span>
-                    <span style={{ ...mono, fontSize: 13, color: 'var(--wb-ink-dim)', marginLeft: 8 }}>{j.join_on_sql}</span>
+                  <div key={j.id} style={{ background: SURFACE, border: `1px solid ${BORDER_SUBTLE}`, borderRadius: 6, padding: '5px 8px' }}>
+                    <span style={{ ...type['ui-regular'], color: MUTED }}>{j.join_type.toUpperCase()}</span>
+                    <span style={{ ...type['ui-regular'], color: 'var(--wb-ink-dim)', marginLeft: 8 }}>{j.join_on_sql}</span>
                   </div>
                 ))}
               </div>
@@ -548,7 +549,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
   if (loading) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--wb-canvas)' }}>
-        <span style={{ ...mono, fontSize: 13, color: MUTED }}>LOADING SEMANTIC MODEL…</span>
+        <span style={{ ...type['ui-regular'], color: MUTED }}>LOADING SEMANTIC MODEL…</span>
       </div>
     );
   }
@@ -556,7 +557,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
   if (error) {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--wb-canvas)' }}>
-        <span style={{ ...mono, fontSize: 13, color: '#f43f5e' }}>ERROR: {error}</span>
+        <span style={{ ...type['ui-regular'], color: inkOf('#f43f5e') }}>ERROR: {error}</span>
       </div>
     );
   }
@@ -583,13 +584,13 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <div>
-            <div style={{ ...sans, fontSize: 13, fontWeight: 600, color: 'var(--wb-ink)' }}>
+            <div style={{ ...sans, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: 'var(--wb-ink)' }}>
               {data.model.name}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-              <span style={{ ...mono, fontSize: 13, color: GOLD }}>{candidateCount} CANDIDATE</span>
-              <span style={{ ...mono, fontSize: 13, color: GREEN }}>{governedCount} GOVERNED</span>
-              {archivedCount > 0 && <span style={{ ...mono, fontSize: 13, color: MUTED }}>{archivedCount} ARCHIVED</span>}
+              <span style={{ ...type['ui-regular'], color: inkOf(GOLD) }}>{candidateCount} CANDIDATE</span>
+              <span style={{ ...type['ui-regular'], color: GREEN }}>{governedCount} GOVERNED</span>
+              {archivedCount > 0 && <span style={{ ...type['ui-regular'], color: MUTED }}>{archivedCount} ARCHIVED</span>}
             </div>
           </div>
           {candidateCount > 0 && (
@@ -597,10 +598,10 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
               onClick={handlePromoteAll}
               disabled={bulkActing}
               style={{
-                ...mono, fontSize: 13, letterSpacing: '0.06em',
+                ...type['ui-regular'],
                 background: bulkActing ? SURFACE : GOLD,
                 color: bulkActing ? MUTED : NAVY,
-                border: 'none', borderRadius: 4, padding: '5px 12px',
+                border: 'none', borderRadius: 6, padding: '5px 12px',
                 cursor: bulkActing ? 'default' : 'pointer',
                 flexShrink: 0,
               }}
@@ -622,11 +623,11 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
             metrics, synonyms, standing rules (teach/promote/retire), SQL charts. */}
         <WhatIveTaughtSection scope={scope} />
 
-        <div style={{ ...mono, fontSize: 13, letterSpacing: '0.10em', color: MUTED, margin: '4px 0 8px' }}>
+        <div style={{ ...type['ui-regular'], color: MUTED, margin: '4px 0 8px' }}>
           GOVERNANCE QUEUE
         </div>
         {data.entities.length === 0 ? (
-          <div style={{ ...mono, fontSize: 13, color: MUTED, textAlign: 'center', marginTop: 16 }}>
+          <div style={{ ...type['ui-regular'], color: MUTED, textAlign: 'center', marginTop: 16 }}>
             No submitted entities yet
           </div>
         ) : (
@@ -649,7 +650,7 @@ export function SemanticGovernancePanel({ modelId, authoringScope, authorModelId
         borderTop: `1px solid ${BORDER_SUBTLE}`,
         flexShrink: 0,
       }}>
-        <span style={{ ...mono, fontSize: 13, color: MUTED, letterSpacing: '0.06em' }}>
+        <span style={{ ...type['ui-regular'], color: MUTED, letterSpacing: '0.04em' }}>
           SEMANTIC GOVERNANCE · ALOFT v0.4
         </span>
       </div>
@@ -666,13 +667,15 @@ interface RightPaneTabBarProps {
   onChange: (tab: RightPaneTab) => void;
   showSemantic?: boolean;
   showDeveloper?: boolean;
+  /** Right-aligned actions (e.g. the Inspector's minimize button). */
+  trailing?: React.ReactNode;
 }
 
-export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false }: RightPaneTabBarProps) {
+export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, showDeveloper = false, trailing }: RightPaneTabBarProps) {
   const tabs: { id: RightPaneTab; label: string }[] = [
-    { id: 'results', label: 'RESULTS' },
-    ...(showSemantic ? [{ id: 'semantic' as const, label: 'SEMANTIC' }] : []),
-    ...(showDeveloper ? [{ id: 'developer' as const, label: 'DEVELOPER' }] : []),
+    { id: 'results', label: 'Results' },
+    ...(showSemantic ? [{ id: 'semantic' as const, label: 'Semantic' }] : []),
+    ...(showDeveloper ? [{ id: 'developer' as const, label: 'Developer' }] : []),
   ];
 
   return (
@@ -693,10 +696,7 @@ export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, show
             key={tab.id}
             onClick={() => onChange(tab.id)}
             style={{
-              ...mono,
-              fontSize: 13,
-              letterSpacing: '0.10em',
-              textTransform: 'uppercase',
+              ...type.label,
               background: 'transparent',
               border: 'none',
               borderBottom: isActive ? `2px solid ${GOLD}` : '2px solid transparent',
@@ -713,6 +713,7 @@ export function RightPaneTabBar({ activeTab, onChange, showSemantic = true, show
           </button>
         );
       })}
+      {trailing && <div style={{ marginLeft: 'auto', paddingRight: 8, display: 'flex', alignItems: 'center' }}>{trailing}</div>}
     </div>
   );
 }

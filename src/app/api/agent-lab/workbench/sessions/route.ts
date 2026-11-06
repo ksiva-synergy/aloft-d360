@@ -5,36 +5,31 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '@prisma/client';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { constructionStateSchema } from '@/lib/construction/constructionState';
-import { flattenPermissions, userAuthInclude, PERMISSIONS } from '@/lib/rbac';
+import { PERMISSIONS } from '@/lib/rbac';
+import { authenticateSession } from '@/middleware/auth';
+import { parseSurfaceList, surfacesWhere } from '@/lib/sessions/surfaces';
+import { hideOtherAdminsAgentChatsWhere } from '@/lib/agents/agent-chats';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id ?? request.headers.get('x-user-id') ?? 'anonymous';
+    // Identity comes only from the server session. Never fall back to a client header.
+    const auth = await authenticateSession();
+    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    const userId = auth.userId;
     const artifactType = request.nextUrl.searchParams.get('type');
     const surface = request.nextUrl.searchParams.get('surface');
     const scope = request.nextUrl.searchParams.get('scope'); // 'all' | 'mine'
 
     // Only platform_admin (session:read:all) may view other users' sessions.
-    let canReadAll = false;
-    if (session?.user?.id) {
-      const dbUser = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
-      canReadAll = dbUser ? flattenPermissions(dbUser).has(PERMISSIONS.SESSION_READ_ALL) : false;
-    }
+    const canReadAll = auth.permissions.has(PERMISSIONS.SESSION_READ_ALL);
     const wantAll = canReadAll && scope === 'all';
+    const adminChatFilter = wantAll ? await hideOtherAdminsAgentChatsWhere(userId) : {};
 
-    // Build surface filter (null = workbench for pre-Inspector sessions).
-    // Without an explicit 'teach' branch, ?surface=teach would fall through to
-    // {} and leak every surface into the Teach history drawer.
-    const surfaceFilter = surface === 'inspector'
-      ? { surface: 'inspector' as string }
-      : surface === 'teach'
-        ? { surface: 'teach' as string }
-        : surface === 'workbench'
-          ? { OR: [{ surface: 'workbench' as string }, { surface: null }] }
-          : {};
+    // Surface filter: one or a comma list (`?surface=workbench,inspector`); null = workbench for
+    // pre-Inspector sessions. No or unknown value = every surface.
+    const surfaceFilter = surfacesWhere(parseSurfaceList(surface));
 
     const data = await prisma.workbench_sessions.findMany({
       select: {
@@ -59,6 +54,7 @@ export async function GET(request: NextRequest) {
         ...(wantAll ? {} : { user_id: userId }),
         ...(artifactType ? { artifact_type: artifactType } : {}),
         ...surfaceFilter,
+        ...adminChatFilter,
       },
       orderBy: [{ pinned: 'desc' }, { updated_at: 'desc' }],
       take: wantAll ? 1000 : 200,
@@ -92,8 +88,9 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id ?? request.headers.get('x-user-id') ?? 'anonymous';
+    const auth = await authenticateSession();
+    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    const userId = auth.userId;
     const body = await request.json();
     const ids: string[] = Array.isArray(body?.ids) ? body.ids : [];
     if (ids.length === 0) return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
@@ -137,6 +134,10 @@ export async function POST(request: NextRequest) {
       typeof body.surface === 'string' && body.surface.trim()
         ? body.surface.trim()
         : 'workbench';
+    // Agent chats are created by /api/agent-lab/agents/chat, which links them to their agent.
+    if (surface === 'agent_use') {
+      return NextResponse.json({ error: 'Agent chats are created by sending a message to the agent' }, { status: 400 });
+    }
 
     const data = await prisma.workbench_sessions.create({
       data: {

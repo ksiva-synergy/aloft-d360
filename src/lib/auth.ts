@@ -1,5 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import AzureADProvider from 'next-auth/providers/azure-ad';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/db';
 import {
   provisionUserByOid,
@@ -10,8 +11,10 @@ import {
   DEFAULT_ROLE,
   AccountLinkRequiredError,
 } from '@/lib/rbac';
+import { credentialsLoginEnabled, verifyCredentialsLogin } from '@/lib/auth-credentials';
 
 const SESSION_MAX_AGE_DEFAULT = 8 * 60 * 60; // 8 hours
+const ROLE_RECHECK_MS = 5 * 60_000;
 
 async function recordLoginEvent(params: {
   email: string;
@@ -95,6 +98,23 @@ export const authOptions: NextAuthOptions = {
     debug() {},
   },
   providers: [
+    ...(credentialsLoginEnabled()
+      ? [
+          CredentialsProvider({
+            id: 'credentials',
+            name: 'Email and password',
+            credentials: {
+              email: { label: 'Email', type: 'email' },
+              password: { label: 'Password', type: 'password' },
+            },
+            async authorize(credentials) {
+              const email = credentials?.email ?? '';
+              const password = credentials?.password ?? '';
+              return verifyCredentialsLogin(email, password);
+            },
+          }),
+        ]
+      : []),
     // Azure AD SSO — activated only when all three env vars are present
     ...(process.env.AZURE_AD_CLIENT_ID &&
     process.env.AZURE_AD_CLIENT_SECRET &&
@@ -116,6 +136,23 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      if (account?.provider === 'credentials') {
+        const email = (user?.email ?? '').toLowerCase();
+        const userId = (user as { id?: string })?.id;
+        if (!userId || !email) {
+          await recordLoginEvent({
+            email: email || 'unknown',
+            provider: 'credentials',
+            success: false,
+            failureReason: 'INVALID_CREDENTIALS',
+          });
+          return false;
+        }
+        await recordLoginEvent({ email, userId, provider: 'credentials', success: true });
+        await updateProfileOnLogin(userId, null);
+        return true;
+      }
+
       if (account?.provider === 'azure-ad') {
         const p = (profile ?? {}) as Record<string, unknown>;
         const oid = (p.oid as string) ?? (p.sub as string) ?? undefined;
@@ -180,7 +217,6 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // SSO is the only supported interactive authentication method.
       return false;
     },
 
@@ -213,10 +249,12 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // On every token refresh (trigger === 'update' or subsequent requests), re-resolve the
-      // role from the DB so that role changes by an admin take effect without requiring
-      // the user to sign out and back in.
-      if (trigger !== undefined && token.id) {
+      // Re-resolve the role from the DB on sign-in/update and at most every ROLE_RECHECK_MS on
+      // ordinary requests (trigger is undefined then), so demotions and suspensions take effect
+      // within minutes instead of at the 8h token expiry.
+      const lastCheck = typeof token.roleCheckedAt === 'number' ? token.roleCheckedAt : 0;
+      const recheckDue = Date.now() - lastCheck > ROLE_RECHECK_MS;
+      if (token.id && (trigger !== undefined || recheckDue)) {
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
@@ -226,9 +264,14 @@ export const authOptions: NextAuthOptions = {
             const role = resolvePrimaryRole(dbUser);
             token.role = role;
             token.roleLabel = resolveRoleLabel(role);
+            token.revoked = false;
+          } else {
+            // Deleted, suspended or deactivated: the proxy rejects revoked tokens on /api.
+            token.revoked = true;
           }
+          token.roleCheckedAt = Date.now();
         } catch {
-          // Non-critical: keep existing token.role on DB error
+          // Non-critical: keep existing token.role on DB error and retry on the next request
         }
       }
 
@@ -236,6 +279,10 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
+      if (token?.revoked) {
+        session.error = 'SessionRevoked';
+        return session;
+      }
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;

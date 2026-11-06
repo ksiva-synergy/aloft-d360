@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { prisma } from '@/lib/prisma';
 import { embedQuery } from '@/lib/context/embed';
 import { scrubBulletText } from '@/lib/memory/synthesis/scrub';
+import { canCurateBullet, forbidden, requireMemoryCaller } from '@/lib/memory/curation-access';
+import { writeAudit } from '@/lib/audit';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -23,10 +23,8 @@ export async function POST(
   { params: paramsPromise }: { params: Promise<{ id: string }> },
 ) {
   const params = await paramsPromise;
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
+  const caller = await requireMemoryCaller();
+  if (caller instanceof NextResponse) return caller;
 
   const { id } = params;
 
@@ -52,9 +50,17 @@ export async function POST(
     if (!existing) {
       return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 });
     }
+    if (!canCurateBullet(caller, existing)) return forbidden();
 
     const { action } = parsed.data;
     const now = new Date();
+    void writeAudit({
+      actorId: caller.userId,
+      action: `memory.bullet.${action}`,
+      entityType: 'platform_agent_memory',
+      entityId: id,
+      before: { ruleText: existing.ruleText, status: existing.status, visibility: existing.visibility },
+    });
 
     if (action === 'approve') {
       const bullet = await prisma.platformAgentMemory.update({

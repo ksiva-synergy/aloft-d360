@@ -16,10 +16,6 @@
     "jsx": "react-jsx",
     "types": ["vite/client"],
     "paths": {
-      "next/link": ["./src/compat/next-link.tsx"],
-      "next/navigation": ["./src/compat/next-navigation.tsx"],
-      "next/dynamic": ["./src/compat/next-dynamic.tsx"],
-      "next/image": ["./src/compat/next-image.tsx"],
       "@/components/ui/*": ["../packages/aloft-shared/src/components/ui/*"],
       "@/lib/utils": ["../packages/aloft-shared/src/lib/utils"],
       "@/*": ["../src/*"]

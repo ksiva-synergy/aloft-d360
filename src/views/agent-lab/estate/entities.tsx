@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Database, Ruler, Tag, ArrowRight, Info } from 'lucide-react';
-
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from '@/lib/navigation/link';
+import { ArrowRight, Boxes, Database, Info, Ruler, Tag } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { CatalogSearch } from '@/components/estate/EstateFilterBar';
+import { CATALOG_BTN } from '@/components/estate/catalog-ui';
+import { ApprovalDot, ApprovalPill, FieldRef, isApproved } from '@/components/estate/semantic-ui';
 // ── Response shape (mirrors /api/inspector/semantic/entities-catalog) ──────────
 interface DefConsumer { dashboardId: string; name: string; modelGoverned: boolean }
 interface DimEntry {
@@ -29,39 +32,141 @@ type CatalogResponse =
   | { status: 'ok'; model: { id: string; name: string }; entities: EntityEntry[]; total: number; hasMore: boolean; dimensionTypes: string[]; omissions: { field: string; reason: string }[]; note: string }
   | { error: string };
 
-const GOLD = 'var(--brand-a)';
-
-function StatusBadge({ status }: { status: string }) {
-  const governed = status === 'governed';
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold tracking-wider uppercase rounded-full px-2 py-0.5"
-      style={
-        governed
-          ? { color: '#2DD4A0', background: 'rgba(45,212,160,0.12)', border: '1px solid rgba(45,212,160,0.5)' }
-          : { color: GOLD, background: 'color-mix(in srgb, var(--brand-a) 10%, transparent)', border: '1px dashed color-mix(in srgb, var(--brand-a) 60%, transparent)' }
-      }
-    >
-      <span
-        className="w-1.5 h-1.5 rounded-full"
-        style={governed ? { background: '#2DD4A0' } : { border: `1.5px dashed ${GOLD}` }}
-      />
-      {governed ? 'Governed' : 'Candidate'}
-    </span>
-  );
-}
-
-function FieldPill({ full, col, expr }: { full: string; col: string | null; expr: string | null }) {
-  return (
-    <span className="font-mono text-xs" style={{ color: 'var(--estate-text-secondary)' }}>
-      <span style={{ color: '#5B9DFF' }}>{full}</span>
-      {col ? <span style={{ color: 'var(--estate-ink)' }}>.{col}</span> : null}
-      {expr ? <span style={{ color: GOLD }}> · expression</span> : null}
-    </span>
-  );
-}
-
 const PAGE = 40;
+
+function dashboardCount(e: EntityEntry): number {
+  const ids = new Set<string>();
+  for (const d of [...e.dimensions, ...e.measures]) for (const c of d.consumers) ids.add(c.dashboardId);
+  return ids.size;
+}
+
+const TH = 'px-3 py-2 text-left text-caption font-normal uppercase tracking-wide text-[var(--estate-text-muted)]';
+const TD = 'px-3 py-2.5 align-middle';
+
+function SectionHeader({ icon: Icon, title, count }: { icon: React.ElementType; title: string; count: number }) {
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <Icon aria-hidden className="size-3.5 text-[var(--estate-text-muted)]" />
+      <h3 className="text-ui text-[var(--estate-ink)]">{title}</h3>
+      <span className="text-caption tabular-nums text-[var(--estate-text-muted)]">{count}</span>
+    </div>
+  );
+}
+
+function EntityDetail({ e }: { e: EntityEntry }) {
+  const dashboards = dashboardCount(e);
+  const drafts = [...e.dimensions, ...e.measures].filter((d) => !isApproved(d.status)).length;
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-ctl bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)] text-[var(--brand-a-ink,var(--brand-a))]">
+          <Database aria-hidden className="size-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-title-card text-[var(--estate-ink)]">{e.label}</h2>
+            <ApprovalPill status={e.status} />
+          </div>
+          <div className="mt-0.5 truncate font-mono text-ui-regular text-[var(--estate-text-muted)]">{e.fullPath}</div>
+          {e.description && <p className="mt-2 text-ui-regular text-[var(--estate-text-secondary)]">{e.description}</p>}
+        </div>
+        <Link href={`/agent-lab/estate/lineage?focus=${encodeURIComponent(e.nodeId)}`} className={cn(CATALOG_BTN, 'h-8 shrink-0')}>
+          View lineage <ArrowRight aria-hidden className="size-3.5" />
+        </Link>
+      </header>
+
+      <dl className="grid grid-cols-2 overflow-hidden rounded-card border border-[var(--estate-border-gold)] bg-[var(--estate-raised)] sm:grid-cols-4 sm:divide-x sm:divide-[var(--estate-border)]">
+        {[
+          { label: 'Dimensions', value: e.dimensions.length },
+          { label: 'Metrics', value: e.measures.length },
+          { label: 'Dashboards', value: dashboards },
+          { label: 'Drafts', value: drafts },
+        ].map((s) => (
+          <div key={s.label} className="px-4 py-3">
+            <dt className="text-caption text-[var(--estate-text-muted)]">{s.label}</dt>
+            <dd className={cn('mt-0.5 text-kpi-sm tabular-nums', s.label === 'Drafts' && s.value > 0 ? 'text-[var(--warn)]' : 'text-[var(--estate-ink)]')}>{s.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {e.dimensions.length === 0 && e.measures.length === 0 && (
+        <p className="rounded-card border border-dashed border-[var(--estate-border-gold)] p-6 text-center text-ui-regular text-[var(--estate-text-muted)]">
+          This table has no active dimensions or metrics yet.
+        </p>
+      )}
+
+      {e.measures.length > 0 && (
+        <section>
+          <SectionHeader icon={Ruler} title="Metrics" count={e.measures.length} />
+          <div className="overflow-hidden rounded-card border border-[var(--estate-border-gold)] bg-[var(--estate-raised)]">
+            <table className="w-full table-fixed">
+              <colgroup><col className="w-[24%]" /><col className="w-[18%]" /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /></colgroup>
+              <thead className="border-b border-[var(--estate-border)]">
+                <tr><th className={TH}>Metric</th><th className={TH}>Calculation</th><th className={TH}>Source</th><th className={cn(TH, 'text-right')}>Dashboards</th><th className={TH}>Status</th><th className={TH}><span className="sr-only">Lineage</span></th></tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--estate-border)]">
+                {e.measures.map((m) => (
+                  <tr key={m.id} className="transition-colors duration-hover hover:bg-[var(--estate-hover)]">
+                    <td className={TD}>
+                      <div className="truncate text-ui text-[var(--estate-ink)]">{m.label}</div>
+                      {m.classification.synonyms.length > 0 && <div className="truncate text-caption text-[var(--estate-text-muted)]">Also: {m.classification.synonyms.join(', ')}</div>}
+                    </td>
+                    <td className={cn(TD, 'text-ui-regular text-[var(--estate-text-secondary)]')}>
+                      <span className="capitalize">{m.aggregate.replace(/_/g, ' ')}</span>{m.unit ? <span className="text-[var(--estate-text-muted)]"> {'\u00b7'} {m.unit}</span> : null}
+                    </td>
+                    <td className={TD}><FieldRef fullPath={m.resolvesTo.fullPath} column={m.resolvesTo.column} expression={m.resolvesTo.expression} /></td>
+                    <td className={cn(TD, 'text-right text-ui-regular tabular-nums text-[var(--estate-text-secondary)]')}>{m.consumers.length || '\u2014'}</td>
+                    <td className={TD}><ApprovalPill status={m.status} /></td>
+                    <td className={cn(TD, 'text-right')}>
+                      <Link href={`/agent-lab/estate/lineage?focus=${encodeURIComponent(m.nodeId)}`} className="inline-flex items-center gap-1 text-label text-[var(--brand-a-ink,var(--brand-a))] hover:underline">
+                        Lineage <ArrowRight aria-hidden className="size-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {e.dimensions.length > 0 && (
+        <section>
+          <SectionHeader icon={Tag} title="Dimensions" count={e.dimensions.length} />
+          <div className="overflow-hidden rounded-card border border-[var(--estate-border-gold)] bg-[var(--estate-raised)]">
+            <table className="w-full table-fixed">
+              <colgroup><col className="w-[24%]" /><col className="w-[18%]" /><col /><col className="w-24" /><col className="w-24" /><col className="w-24" /></colgroup>
+              <thead className="border-b border-[var(--estate-border)]">
+                <tr><th className={TH}>Dimension</th><th className={TH}>Type</th><th className={TH}>Source</th><th className={cn(TH, 'text-right')}>Dashboards</th><th className={TH}>Status</th><th className={TH}><span className="sr-only">Used by</span></th></tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--estate-border)]">
+                {e.dimensions.map((d) => (
+                  <tr key={d.id} className="transition-colors duration-hover hover:bg-[var(--estate-hover)]">
+                    <td className={TD}>
+                      <div className="truncate text-ui text-[var(--estate-ink)]">{d.label}</div>
+                      {d.classification.synonyms.length > 0 && <div className="truncate text-caption text-[var(--estate-text-muted)]">Also: {d.classification.synonyms.join(', ')}</div>}
+                    </td>
+                    <td className={cn(TD, 'text-ui-regular capitalize text-[var(--estate-text-secondary)]')}>{d.dimensionType}</td>
+                    <td className={TD}><FieldRef fullPath={d.resolvesTo.fullPath} column={d.resolvesTo.column} /></td>
+                    <td className={cn(TD, 'text-right text-ui-regular tabular-nums text-[var(--estate-text-secondary)]')}>{d.consumers.length || '\u2014'}</td>
+                    <td className={TD}><ApprovalPill status={d.status} /></td>
+                    <td className={cn(TD, 'text-right text-caption text-[var(--estate-text-muted)]')}>
+                      {d.usedByMetrics.length > 0 ? (
+                        <span title={`Used in: ${d.usedByMetrics.map((x) => x.label).join(', ')}`}>
+                          {d.usedByMetrics.length} metric{d.usedByMetrics.length > 1 ? 's' : ''}
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
 
 export default function EntitiesPage() {
   const [meta, setMeta] = useState<{ status: string; model?: { id: string; name: string }; total?: number; hasMore?: boolean; note?: string; omissions?: { field: string; reason: string }[] } | null>(null);
@@ -70,6 +175,7 @@ export default function EntitiesPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const load = React.useCallback(async (query: string, offset: number) => {
     const first = offset === 0;
@@ -98,182 +204,148 @@ export default function EntitiesPage() {
     return () => clearTimeout(t);
   }, [q, load]);
 
-  const ink = 'var(--estate-ink)';
-  const muted = 'var(--estate-text-secondary)';
-  const raised = 'var(--estate-raised)';
-  const borderGold = 'var(--estate-border-gold)';
+  const selected = useMemo(
+    () => entities.find((e) => e.id === selectedId) ?? entities[0] ?? null,
+    [entities, selectedId],
+  );
+
+  const totals = useMemo(() => {
+    let dims = 0, metrics = 0, drafts = 0;
+    for (const e of entities) {
+      dims += e.dimensions.length;
+      metrics += e.measures.length;
+      drafts += [...e.dimensions, ...e.measures].filter((d) => !isApproved(d.status)).length;
+    }
+    return { dims, metrics, drafts };
+  }, [entities]);
+
+  const infoTip = [
+    meta?.note,
+    ...(meta?.omissions ?? []).map((o) => `Not available yet: ${o.field} \u2014 ${o.reason}`),
+  ].filter(Boolean).join('\n');
+
+  if (!loading && err) {
+    return (
+      <div className="h-full overflow-y-auto px-6 py-5">
+        <div className="mx-auto max-w-[1180px] rounded-card border border-dashed border-[var(--estate-border-gold)] bg-[var(--estate-raised)] p-6 text-ui-regular text-[var(--estate-text-secondary)]">{err}</div>
+      </div>
+    );
+  }
+
+  if (!loading && meta?.status === 'no_governed_model') {
+    return (
+      <div className="flex h-full items-start justify-center overflow-y-auto px-6 py-12">
+        <div className="flex w-full max-w-md flex-col items-center gap-3 rounded-card border border-dashed border-[var(--estate-border-gold)] bg-[var(--estate-raised)] p-10 text-center">
+          <span className="flex size-12 items-center justify-center rounded-card bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)] text-[var(--brand-a-ink,var(--brand-a))]">
+            <Boxes aria-hidden className="size-6" />
+          </span>
+          <h2 className="text-title-card text-[var(--estate-ink)]">No business model yet</h2>
+          <p className="text-ui-regular text-[var(--estate-text-secondary)]">
+            Entities appear here once a business model is approved. Review and approve one to list its tables, dimensions and metrics.
+          </p>
+          <Link href="/agent-lab/estate/catalog" className={cn(CATALOG_BTN, 'mt-1 h-8')}>
+            Open the Catalog <ArrowRight aria-hidden className="size-3.5" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 overflow-y-auto h-full scrollbar-thin bg-[var(--background)]">
-      <div className="max-w-[1180px] mx-auto">
-        <div className="mb-5">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>
-            Entities
-          </h1>
-          <p className="text-sm mt-1.5" style={{ color: muted, fontFamily: "'Inter Variable', sans-serif" }}>
-            Governed semantic model — entities (physical tables), their dimensions &amp; measures, and what consumes them.
-          </p>
-        </div>
-
-        {/* Search */}
-        {(!err && (loading || (meta && meta.status === 'ok'))) && (
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search entities by name or catalog.schema.table…"
-            className="w-full mb-4 rounded-lg px-3 py-2.5 text-xs font-mono outline-none border"
-            style={{ background: raised, borderColor: borderGold, color: ink }}
-          />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-[var(--estate-border)] px-6 py-2.5 text-ui-regular text-[var(--estate-text-secondary)]">
+        {meta?.model && (
+          <span className="inline-flex items-center gap-1.5">
+            <Boxes aria-hidden className="size-3.5 text-[var(--estate-text-muted)]" />
+            <b className="font-medium text-[var(--estate-ink)]">{meta.model.name}</b>
+          </span>
         )}
+        {meta?.status === 'ok' && (
+          <span className="tabular-nums">
+            {(meta.total ?? entities.length).toLocaleString()} tables {'\u00b7'} {totals.dims} dimensions {'\u00b7'} {totals.metrics} metrics
+            {totals.drafts > 0 && <> {'\u00b7'} <span className="text-[var(--warn)]">{totals.drafts} drafts</span></>}
+          </span>
+        )}
+        {infoTip && (
+          <span title={infoTip} aria-label={infoTip} className="inline-flex cursor-help text-[var(--estate-text-muted)]">
+            <Info aria-hidden className="size-3.5" />
+          </span>
+        )}
+      </div>
 
-        {loading && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2].map((i) => (
-              <div key={i} className="animate-pulse h-[220px] border rounded p-5" style={{ backgroundColor: raised, borderColor: borderGold }} />
-            ))}
+      <div className="flex min-h-0 flex-1">
+        <aside className="flex w-[300px] shrink-0 flex-col border-r border-[var(--estate-border)]">
+          <div className="p-3">
+            <CatalogSearch value={q} onChange={setQ} placeholder={'Search tables\u2026'} />
           </div>
-        )}
-
-        {!loading && err && (
-          <div className="border border-dashed rounded-lg p-6 text-sm" style={{ backgroundColor: raised, borderColor: borderGold, color: muted }}>
-            {err}
-          </div>
-        )}
-
-        {!loading && !err && meta && meta.status === 'no_governed_model' && (
-          <div className="flex justify-center py-12">
-            <div className="max-w-md w-full border border-dashed rounded-lg p-10 flex flex-col items-center text-center gap-4" style={{ backgroundColor: raised, borderColor: borderGold }}>
-              <span className="w-11 h-11 relative block" style={{ opacity: 0.7 }}>
-                <span className="absolute inset-0 border-2 rotate-45" style={{ borderColor: GOLD }} />
-                <span className="absolute inset-3 border-2 rotate-45 opacity-60" style={{ borderColor: GOLD }} />
-              </span>
-              <h2 className="text-xl font-serif font-semibold" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>No governed model yet</h2>
-              <p className="text-xs leading-relaxed" style={{ color: muted }}>
-                The entities catalog surfaces a <b style={{ color: ink }}>governed</b> semantic model. Promote a model to governed to see its entities here.
-              </p>
-              <Link href="/agent-lab/estate/catalog" className="font-mono text-xs hover:underline" style={{ color: GOLD }}>
-                Go to Catalog &rarr;
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!loading && !err && meta && meta.status === 'ok' && (
-          <>
-            <div className="flex items-center gap-2 mb-4 text-xs font-mono" style={{ color: muted }}>
-              <Info size={13} style={{ color: GOLD }} />
-              <span>Model <b style={{ color: ink }}>{meta.model?.name}</b> · showing {entities.length} of {meta.total} entities · {meta.note}</span>
-            </div>
-
-            {/* First-class omissions — fields with no backing in the real model, named explicitly */}
-            {meta.omissions && meta.omissions.length > 0 && (
-              <div className="border border-dashed rounded-lg px-3 py-2 mb-4 text-xs font-mono" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', color: muted }}>
-                Not resolvable from stored metadata: {meta.omissions.map((o) => `${o.field} — ${o.reason}`).join(' · ')}
+          <nav aria-label="Tables" className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 scrollbar-thin">
+            {loading && entities.length === 0 && (
+              <div className="flex flex-col gap-1.5 px-1" aria-busy="true">
+                {[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-12 animate-pulse rounded-ctl bg-[var(--estate-hover)]" />)}
               </div>
             )}
-
-            {entities.length === 0 && (
-              <div className="text-xs py-8 text-center" style={{ color: muted }}>No entities match “{q}”.</div>
+            {!loading && entities.length === 0 && (
+              <p className="px-3 py-6 text-center text-ui-regular text-[var(--estate-text-muted)]">No tables match {'\u201c'}{q}{'\u201d'}.</p>
             )}
+            <ul className="flex flex-col gap-0.5">
+              {entities.map((e) => {
+                const active = selected?.id === e.id;
+                return (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(e.id)}
+                      aria-current={active ? 'true' : undefined}
+                      className={cn(
+                        'relative flex w-full items-center gap-2.5 rounded-ctl px-3 py-2 text-left transition-colors duration-hover',
+                        active ? 'bg-[var(--estate-hover)]' : 'hover:bg-[var(--estate-hover)]',
+                      )}
+                    >
+                      {active && <span aria-hidden className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--brand-a)]" />}
+                      <ApprovalDot status={e.status} />
+                      <span className="min-w-0 flex-1">
+                        <span className={cn('block truncate text-ui', active ? 'text-[var(--estate-ink)]' : 'text-[var(--estate-text-secondary)]')}>{e.label}</span>
+                        <span className="block truncate font-mono text-caption text-[var(--estate-text-dim)]">{e.fullPath}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2 text-caption tabular-nums text-[var(--estate-text-muted)]">
+                        <span className="inline-flex items-center gap-0.5" title={`${e.measures.length} metrics`}><Ruler aria-hidden className="size-3" />{e.measures.length}</span>
+                        <span className="inline-flex items-center gap-0.5" title={`${e.dimensions.length} dimensions`}><Tag aria-hidden className="size-3" />{e.dimensions.length}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {meta?.hasMore && (
+              <button
+                type="button"
+                onClick={() => void load(q, entities.length)}
+                disabled={loadingMore}
+                className="mt-2 w-full rounded-ctl px-3 py-2 text-left text-label text-[var(--brand-a-ink,var(--brand-a))] hover:bg-[var(--estate-hover)] disabled:opacity-50"
+              >
+                {loadingMore ? 'Loading\u2026' : `Show ${Math.min(PAGE, (meta.total ?? 0) - entities.length)} more`}
+              </button>
+            )}
+          </nav>
+          <div className="flex items-center gap-3 border-t border-[var(--estate-border)] px-4 py-2.5 text-caption text-[var(--estate-text-muted)]">
+            <span className="inline-flex items-center gap-1.5"><ApprovalDot status="governed" /> Approved</span>
+            <span className="inline-flex items-center gap-1.5"><ApprovalDot status="candidate" /> Draft</span>
+          </div>
+        </aside>
 
-            <div className="flex flex-col gap-4">
-              {entities.map((e) => (
-                <div key={e.id} className="border rounded-xl p-5" style={{ backgroundColor: raised, borderColor: borderGold }}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <Database size={18} style={{ color: GOLD }} />
-                    <div className="min-w-0">
-                      <div className="text-lg" style={{ color: ink, fontFamily: "'Source Serif 4', serif" }}>{e.label}</div>
-                      <div className="font-mono text-xs" style={{ color: '#5B9DFF' }}>{e.fullPath}</div>
-                    </div>
-                    <div className="ml-auto"><StatusBadge status={e.status} /></div>
-                  </div>
-
-                  {/* Dimensions */}
-                  {e.dimensions.length > 0 && (
-                    <div className="mb-3">
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
-                        <Tag size={11} /> Dimensions
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                        {e.dimensions.map((d) => (
-                          <div key={d.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-xs" style={{ color: ink }}>{d.label}</span>
-                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{d.dimensionType}</span>
-                              <span className="ml-auto"><StatusBadge status={d.status} /></span>
-                            </div>
-                            <FieldPill full={d.resolvesTo.fullPath} col={d.resolvesTo.column} expr={null} />
-                            {d.classification.synonyms.length > 0 && (
-                              <div className="mt-1.5 text-xs" style={{ color: muted }}>
-                                syn: {d.classification.synonyms.join(', ')}
-                              </div>
-                            )}
-                            {d.usedByMetrics.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1 text-xs" style={{ color: muted }}>
-                                <span>used by:</span>
-                                {d.usedByMetrics.map((m) => (
-                                  <span key={m.measureId} className="font-mono px-1.5 rounded" style={{ background: 'rgba(167,139,250,0.14)', color: '#A78BFA' }}>{m.label}</span>
-                                ))}
-                              </div>
-                            )}
-                            {d.consumers.length > 0 && (
-                              <div className="mt-1 text-xs" style={{ color: muted }}>{d.consumers.length} dashboard{d.consumers.length > 1 ? 's' : ''}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Measures */}
-                  {e.measures.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 text-xs font-mono tracking-widest uppercase mb-2" style={{ color: muted }}>
-                        <Ruler size={11} /> Measures
-                      </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                        {e.measures.map((m) => (
-                          <div key={m.id} className="border rounded-lg p-3" style={{ borderColor: 'var(--estate-border, rgba(148,163,196,0.2))', background: 'rgba(0,0,0,0.02)' }}>
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className="text-xs" style={{ color: ink }}>{m.label}</span>
-                              <span className="font-mono text-xs uppercase tracking-wide" style={{ color: muted }}>{m.metricType} · {m.aggregate}{m.unit ? ` · ${m.unit}` : ''}</span>
-                              <span className="ml-auto"><StatusBadge status={m.status} /></span>
-                            </div>
-                            <FieldPill full={m.resolvesTo.fullPath} col={m.resolvesTo.column} expr={m.resolvesTo.expression} />
-                            <div className="mt-1.5 flex items-center gap-2 text-xs" style={{ color: muted }}>
-                              <Link href={`/agent-lab/estate/lineage?focus=${m.nodeId}`} className="inline-flex items-center gap-1 hover:underline" style={{ color: GOLD }}>
-                                lineage <ArrowRight size={11} />
-                              </Link>
-                              {m.consumers.length > 0 && <span>· {m.consumers.length} dashboard{m.consumers.length > 1 ? 's' : ''}</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {e.dimensions.length === 0 && e.measures.length === 0 && (
-                    <div className="text-xs" style={{ color: muted }}>No non-archived dimensions or measures.</div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {meta.hasMore && (
-              <div className="flex justify-center mt-5">
-                <button
-                  type="button"
-                  onClick={() => void load(q, entities.length)}
-                  disabled={loadingMore}
-                  className="font-mono text-xs font-semibold tracking-wider uppercase border rounded px-4 py-2 disabled:opacity-50"
-                  style={{ borderColor: GOLD, color: GOLD, background: 'transparent' }}
-                >
-                  {loadingMore ? 'Loading…' : `Load more (${(meta.total ?? 0) - entities.length} left)`}
-                </button>
+        <main className="min-w-0 flex-1 overflow-y-auto px-6 py-5 scrollbar-thin">
+          <div className="mx-auto max-w-[960px]">
+            {loading && entities.length === 0 ? (
+              <div className="flex flex-col gap-4" aria-busy="true">
+                <div className="h-14 animate-pulse rounded-card bg-[var(--estate-hover)]" />
+                <div className="h-20 animate-pulse rounded-card bg-[var(--estate-hover)]" />
+                <div className="h-48 animate-pulse rounded-card bg-[var(--estate-hover)]" />
               </div>
-            )}
-          </>
-        )}
+            ) : selected ? (
+              <EntityDetail e={selected} />
+            ) : null}
+          </div>
+        </main>
       </div>
     </div>
   );

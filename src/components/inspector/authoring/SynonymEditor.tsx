@@ -2,8 +2,9 @@
 
 import React, { useState, useCallback } from 'react';
 import { Plus, X, Tag } from 'lucide-react';
+import { type } from '@/lib/typography/tokens';
 
-const MONO: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const MONO: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const GOLD = 'var(--brand-a)';
 const NAVY = 'var(--on-brand)';
 const MUTED = 'var(--ink-3)';
@@ -98,7 +99,7 @@ export function SynonymEditor({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: compact ? 4 : 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Tag size={compact ? 10 : 11} color={MUTED} />
-        <span style={{ ...MONO, fontSize: 13, letterSpacing: '0.08em', color: MUTED, textTransform: 'uppercase' }}>
+        <span style={{ ...type.label, }}>
           Also called
         </span>
       </div>
@@ -108,7 +109,7 @@ export function SynonymEditor({
             key={syn}
             style={{
               ...MONO,
-              fontSize: 13,
+              fontSize: 'var(--type-ui-regular-size)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: 4,
@@ -140,7 +141,7 @@ export function SynonymEditor({
           </span>
         ))}
         {list.length === 0 && (
-          <span style={{ ...MONO, fontSize: 13, color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: MUTED, fontStyle: 'italic' }}>no aliases yet</span>
         )}
       </div>
       <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -155,12 +156,12 @@ export function SynonymEditor({
           disabled={saving}
           style={{
             ...MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             flex: 1,
             minWidth: 0,
             background: 'rgba(0,0,0,0.2)',
             border: '1px solid rgba(74,96,128,0.35)',
-            borderRadius: 4,
+            borderRadius: 6,
             color: 'var(--wb-ink, #E6ECF5)',
             padding: '4px 8px',
             outline: 'none',
@@ -172,7 +173,7 @@ export function SynonymEditor({
           title="Add alias"
           style={{
             ...MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             letterSpacing: '0.04em',
             display: 'inline-flex',
             alignItems: 'center',
@@ -180,7 +181,7 @@ export function SynonymEditor({
             background: input.trim() && !saving ? GOLD : 'transparent',
             color: input.trim() && !saving ? NAVY : MUTED,
             border: `1px solid ${input.trim() && !saving ? GOLD : 'rgba(136,146,164,0.35)'}`,
-            borderRadius: 4,
+            borderRadius: 6,
             padding: '4px 9px',
             cursor: input.trim() && !saving ? 'pointer' : 'default',
           }}
@@ -190,7 +191,7 @@ export function SynonymEditor({
         </button>
       </div>
       {error && (
-        <span style={{ ...MONO, fontSize: 13, color: '#f43f5e', lineHeight: 1.4 }}>{error}</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#f43f5e', lineHeight: 1.4 }}>{error}</span>
       )}
     </div>
   );

@@ -1,8 +1,14 @@
 'use client';
 
+// JobsMiniTable — the last few harvest jobs that touched this object, as a
+// compact list: what ran, its status, when, how long, and why (trigger).
+// Each row opens the job page.
+
 import React from 'react';
-import Link from 'next/link';
+import Link from '@/lib/navigation/link';
 import StatusChip from './StatusChip';
+import { Card, EmptyNote, relTime, fullTime } from './object-ui';
+import { type } from '@/lib/typography/tokens';
 
 export interface JobItem {
   id: string;
@@ -11,107 +17,74 @@ export interface JobItem {
   status: string;
   started_at: string | null;
   finished_at: string | null;
+  error?: string | null;
 }
 
 interface JobsMiniTableProps {
   lastJobs: JobItem[];
 }
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return '—';
-  const dateObj = new Date(iso);
-  const diff = Date.now() - dateObj.getTime();
-  if (diff < 0 || diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  const days = Math.floor(diff / 86_400_000);
-  if (days < 7) return `${days}d ago`;
-  return dateObj.toLocaleDateString();
-}
+// job_kind and trigger are shown as stored (t1_profile, on_demand, …).
 
-function getDuration(startedAt: string | null, finishedAt: string | null): string {
-  if (!startedAt || !finishedAt) return '—';
-  const start = new Date(startedAt).getTime();
-  const finish = new Date(finishedAt).getTime();
-  const diff = finish - start;
-  if (isNaN(diff) || diff < 0) return '—';
-  return `${(diff / 1000).toFixed(1)}s`;
+function duration(startedAt: string | null, finishedAt: string | null): string | null {
+  if (!startedAt || !finishedAt) return null;
+  const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+  if (Number.isNaN(ms) || ms < 0) return null;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const m = Math.floor(ms / 60_000);
+  return m < 60 ? `${m}m ${Math.round((ms % 60_000) / 1000)}s` : `${Math.floor(m / 60)}h ${m % 60}m`;
 }
 
 export default function JobsMiniTable({ lastJobs }: JobsMiniTableProps) {
-  const borderColor = 'var(--estate-border-gold)';
-  const inkColor = 'var(--estate-ink)';
-  const labelColor = 'var(--estate-text-secondary)';
-  const thBg = 'var(--estate-th-bg)';
-
-  if (!lastJobs || lastJobs.length === 0) {
-    return (
-      <div
-        className="p-8 border border-dashed rounded text-center text-xs font-sans shadow-sm select-none"
-        style={{ borderColor, color: labelColor }}
-      >
-        No recent jobs
-      </div>
-    );
-  }
-
   return (
-    <div className="border rounded overflow-hidden shadow-sm" style={{ borderColor }}>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-xs text-left">
-          <thead>
-            <tr
-              className="sticky top-0 z-10 border-b select-none"
-              style={{
-                backgroundColor: thBg,
-                borderColor: borderColor,
-              }}
-            >
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-32" style={{ color: labelColor }}>Kind</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-28" style={{ color: labelColor }}>Trigger</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase w-24" style={{ color: labelColor }}>Status</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase" style={{ color: labelColor }}>Started</th>
-              <th className="p-2.5 font-mono text-xs font-bold tracking-widest uppercase text-right w-20" style={{ color: labelColor }}>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lastJobs.map((job, idx) => (
-              <tr
-                key={job.id}
-                style={{ backgroundColor: idx % 2 === 0 ? 'var(--estate-row-even)' : 'var(--estate-row-odd)', borderBottom: `1px solid ${borderColor}`, height: '36px' }}
-                className="transition-colors duration-150 font-sans"
-              >
-                {/* Kind — links to job detail */}
-                <td className="p-2.5 font-mono text-xs font-semibold" style={{ color: inkColor }}>
-                  <Link
-                    href={`/agent-lab/estate/jobs/${job.id}`}
-                    className="px-1.5 py-0.5 rounded border bg-black/5 dark:bg-white/5 hover:underline"
-                    style={{ borderColor, color: inkColor, textDecoration: 'none' }}
-                  >
-                    {job.job_kind}
-                  </Link>
-                </td>
-                {/* Trigger */}
-                <td className="p-2.5 text-xs" style={{ color: labelColor }}>
-                  {job.trigger || '—'}
-                </td>
-                {/* Status */}
-                <td className="p-2.5">
+    <Card
+      title="Recent jobs"
+      style={{ height: "100%" }}
+      meta={lastJobs.length > 0 ? `Last ${lastJobs.length}` : undefined}
+      actions={
+        <Link href="/agent-lab/estate/jobs" style={{ ...type.ui, color: 'var(--brand-a-ink)', textDecoration: 'none' }} className="hover:underline">
+          All jobs →
+        </Link>
+      }
+      flush={lastJobs.length > 0}
+    >
+      {lastJobs.length === 0 ? (
+        <EmptyNote>No jobs have run for this table yet.</EmptyNote>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {lastJobs.map((job, i) => {
+            const dur = duration(job.started_at, job.finished_at);
+            const trigger = job.trigger ?? null;
+            return (
+              <li key={job.id} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--estate-border)' }}>
+                <Link
+                  href={`/agent-lab/estate/jobs/${job.id}`}
+                  className="hover:bg-[var(--estate-hover)] transition-colors"
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', textDecoration: 'none' }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+                    <span style={{ ...type.ui, color: 'var(--estate-ink)', fontWeight: 500 }}>
+                      <code style={type['code-inline']}>{job.job_kind}</code>
+                    </span>
+                    <span style={{ ...type.caption, color: 'var(--estate-text-muted)' }} title={fullTime(job.started_at)}>
+                      {[relTime(job.started_at ?? null), dur, trigger].filter(Boolean).join(' · ')}
+                    </span>
+                    {job.error && (
+                      <span
+                        title={job.error}
+                        style={{ ...type.caption, color: 'var(--estate-status-error-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {job.error}
+                      </span>
+                    )}
+                  </div>
                   <StatusChip status={job.status} />
-                </td>
-                {/* Started */}
-                <td className="p-2.5 text-xs" style={{ color: labelColor }}>
-                  {relativeTime(job.started_at)}
-                </td>
-                {/* Duration */}
-                <td className="p-2.5 text-right font-mono text-xs" style={{ color: inkColor }}>
-                  {getDuration(job.started_at, job.finished_at)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }

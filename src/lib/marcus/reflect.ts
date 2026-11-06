@@ -1,4 +1,5 @@
 import { createReflection } from './dal';
+import { llmLiteComplete } from '@/lib/llmlite/chat';
 import { checkThrottle, shouldSkipEvaluation } from './throttle';
 import { ReflectionEvalResultSchema } from './types';
 import type { ReflectionStatus } from './types';
@@ -51,22 +52,9 @@ export async function evaluateForReflection(input: ReflectInput): Promise<void> 
       DATASOURCE_CAVEATS:  input.datasourceCaveats ?? [],
     });
 
-    // Bedrock call via existing client pattern
-    const {
-      BedrockRuntimeClient,
-      ConverseCommand,
-    } = await import('@aws-sdk/client-bedrock-runtime');
-
-    const client = new BedrockRuntimeClient({ region: process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'us-east-1' });
-
-    const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
-      system:   [{ text: template }],
-      messages: [{ role: 'user', content: [{ text: userContent }] }],
-      inferenceConfig: { maxTokens: 800, temperature: 0.3 },
-    }));
-
-    const rawText: string = res.output?.message?.content?.[0]?.text ?? '{"surface":false}';
+    const rawText: string = (await llmLiteComplete({
+      system: template, user: userContent, maxTokens: 800, temperature: 0.3, feature: 'teach_reflect',
+    })) || '{"surface":false}';
 
     let evalResult;
     try {
@@ -117,15 +105,6 @@ async function evaluateFirstTurn(input: ReflectInput): Promise<void> {
   try {
     const template = FIRST_TURN_V1_PROMPT;
 
-    const {
-      BedrockRuntimeClient,
-      ConverseCommand,
-    } = await import('@aws-sdk/client-bedrock-runtime');
-
-    const client = new BedrockRuntimeClient({ 
-      region: process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
-    });
-
     // Use the last user message as the mission statement.
     // transcriptTail content may be a plain string or a JSON-serialised ContentBlock[].
     const rawContent = input.transcriptTail
@@ -139,14 +118,9 @@ async function evaluateFirstTurn(input: ReflectInput): Promise<void> {
       } catch { /* keep rawContent */ }
     }
 
-    const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
-      system:   [{ text: template }],
-      messages: [{ role: 'user', content: [{ text: missionStatement }] }],
-      inferenceConfig: { maxTokens: 600, temperature: 0.3 },
-    }));
-
-    const rawText: string = res.output?.message?.content?.[0]?.text ?? '{"surface":false}';
+    const rawText: string = (await llmLiteComplete({
+      system: template, user: missionStatement, maxTokens: 600, temperature: 0.3, feature: 'teach_reflect',
+    })) || '{"surface":false}';
 
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     let evalResult;
@@ -193,23 +167,9 @@ export async function evaluateInspectorFirstTurn(params: {
   if (process.env.MARCUS_FIRST_TURN_ALWAYS !== 'true') return;
 
   try {
-    const {
-      BedrockRuntimeClient,
-      ConverseCommand,
-    } = await import('@aws-sdk/client-bedrock-runtime');
-
-    const client = new BedrockRuntimeClient({
-      region: process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'us-east-1',
-    });
-
-    const res = await client.send(new ConverseCommand({
-      modelId:  process.env.BEDROCK_SONNET_MODEL_ID ?? 'us.anthropic.claude-sonnet-5-5',
-      system:   [{ text: INSPECTOR_FIRST_TURN_PROMPT }],
-      messages: [{ role: 'user', content: [{ text: params.firstQuestion }] }],
-      inferenceConfig: { maxTokens: 600, temperature: 0.3 },
-    }));
-
-    const rawText: string = res.output?.message?.content?.[0]?.text ?? '{"surface":false}';
+    const rawText: string = (await llmLiteComplete({
+      system: INSPECTOR_FIRST_TURN_PROMPT, user: params.firstQuestion, maxTokens: 600, temperature: 0.3, feature: 'teach_reflect',
+    })) || '{"surface":false}';
 
     const cleaned = rawText.replace(/```json|```/g, '').trim();
     let evalResult;

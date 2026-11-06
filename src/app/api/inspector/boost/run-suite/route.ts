@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runBenchmarkCase } from '@/lib/boost/runner';
 import { BOOST_SUITE_V1 } from '@/lib/boost/suite';
 import { BOOST_MODELS } from '@/lib/boost/models';
+import { denyUnlessSessionRole } from '@/middleware/auth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 600;
@@ -9,6 +10,8 @@ export const maxDuration = 600;
 const ALL_CONTEXT_MODES: ('harvested' | 'warehouse_only')[] = ['harvested', 'warehouse_only'];
 
 export async function POST(request: NextRequest) {
+  const denied = await denyUnlessSessionRole('admin');
+  if (denied) return denied;
   const body = await request.json().catch(() => ({})) as {
     modelKeys?: string[];
     contextModes?: string[];

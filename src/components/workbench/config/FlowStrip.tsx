@@ -3,6 +3,8 @@
 import React from 'react';
 import { ChevronRight, Database, FileOutput, MessageSquare, Brain, Wrench } from 'lucide-react';
 import type { ConstructionState } from '@/lib/construction/constructionState';
+import { countDatasourceTables } from '@/lib/construction/datasource-tables';
+import { labelForAgentClass } from '@/lib/construction/agent-class-display';
 import { cn } from '@/lib/utils';
 
 type NodeStatus = 'done' | 'partial' | 'empty';
@@ -20,10 +22,10 @@ interface FlowNode {
 /** The agent's runtime path, derived from the draft: question → data → reasoning → tools → answer. */
 export function buildFlowNodes(state: ConstructionState): FlowNode[] {
   const instructions = state.prompt.instructions.trim().length;
-  const sources = state.tools.datasources.length;
+  const sources = countDatasourceTables(state.tools.datasources);
   const actions = state.tools.actions.length;
   const lastRun = state.validation.lastTestRun;
-  const className = state.class?.id ? state.class.id.charAt(0).toUpperCase() + state.class.id.slice(1) : null;
+  const classLabel = labelForAgentClass(state.class?.id ?? null);
 
   return [
     {
@@ -45,8 +47,8 @@ export function buildFlowNodes(state: ConstructionState): FlowNode[] {
     {
       key: 'reason',
       label: 'Reasoning',
-      detail: className ?? (instructions > 0 ? 'No class' : 'Not written'),
-      status: className && instructions >= 40 ? 'done' : instructions > 0 || className ? 'partial' : 'empty',
+      detail: classLabel ?? (instructions > 0 ? 'No type set' : 'Not written'),
+      status: classLabel && instructions >= 40 ? 'done' : instructions > 0 || classLabel ? 'partial' : 'empty',
       icon: Brain,
       target: 'wb-sec-instructions',
     },
@@ -89,9 +91,9 @@ export function FlowStrip({ state }: { state: ConstructionState }) {
           >
             <span className="flex w-full items-center gap-1">
               <n.icon className={cn('h-3.5 w-3.5 shrink-0', n.status === 'done' ? 'text-[var(--ok)]' : 'text-[var(--ink-3)]')} />
-              <span className="truncate text-[11px] font-semibold text-[var(--ink-1)]">{n.label}</span>
+              <span className="truncate text-[length:var(--type-caption-size)] font-semibold text-[var(--ink-1)]">{n.label}</span>
             </span>
-            <span className="w-full truncate text-[10.5px] text-[var(--ink-3)]">{n.detail}</span>
+            <span className="w-full truncate text-[length:var(--type-caption-size)] text-[var(--ink-3)]">{n.detail}</span>
           </button>
         </React.Fragment>
       ))}

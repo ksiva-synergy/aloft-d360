@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { FONT_BODY, FONT_DISPLAY, FONT_MONO } from '../teach-tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 
 const STARTERS = [
   "Here's what actually counts as ‘the fleet’.",
@@ -44,7 +45,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
           alignItems: 'center',
           justifyContent: 'center',
           fontFamily: FONT_DISPLAY,
-          fontSize: 26,
+          fontSize: 'var(--type-kpi-lg-size)',
           fontWeight: 600,
           boxShadow: '0 4px 14px color-mix(in srgb, var(--primary) 30%, transparent)',
         }}
@@ -72,19 +73,15 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         }}
       >
         <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', animation: 'tm-pulse 1.8s ease-in-out infinite' }} />
-        <span style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--primary)' }}>
+        <span style={{ ...type.label, color: inkOf('var(--primary)', 70) }}>
           Reflect Mode · Captain Track Sparrow is listening
         </span>
       </span>
 
       {/* Headline */}
       <h1
+        className="type-display"
         style={{
-          fontFamily: FONT_DISPLAY,
-          fontSize: 40,
-          fontWeight: 400,
-          lineHeight: 1.12,
-          letterSpacing: '-0.01em',
           color: 'var(--foreground)',
           margin: '20px 0 0',
           maxWidth: 560,
@@ -93,14 +90,14 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
         What should Captain Track Sparrow <span style={{ fontStyle: 'italic', color: 'var(--primary)' }}>understand</span> today?
       </h1>
 
-      <p style={{ fontFamily: FONT_BODY, fontSize: 14.5, lineHeight: 1.6, color: 'var(--muted-foreground)', margin: '14px 0 0', maxWidth: 500 }}>
+      <p style={{ fontFamily: FONT_BODY, fontSize: 'var(--type-body-size)', lineHeight: 1.6, color: 'var(--muted-foreground)', margin: '14px 0 0', maxWidth: 500 }}>
         Teach him a definition, a convention, or a piece of vocabulary. He&rsquo;ll ask questions,
         check the estate, and write down what he learns.
       </p>
 
       {/* Starters */}
       <div style={{ marginTop: 26, width: '100%', maxWidth: 460 }}>
-        <div style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 10 }}>
+        <div style={{ ...type.label, color: 'var(--text-tertiary)', marginBottom: 10 }}>
           Try starting with
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -113,7 +110,7 @@ export function ThreadEmptyState({ onPick }: { onPick: (prompt: string) => void 
               style={{
                 fontFamily: FONT_DISPLAY,
                 fontStyle: 'italic',
-                fontSize: 16,
+                fontSize: 'var(--type-body-lg-size)',
                 textAlign: 'left',
                 padding: '14px 16px',
                 borderRadius: 12,

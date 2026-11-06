@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/lib/navigation';
 import { History, SquarePen, Bot } from 'lucide-react';
 import { PromptCanvas } from '@/components/workbench/PromptCanvas';
 import { HistoryDrawer } from '@/components/workbench/HistoryDrawer';
@@ -9,13 +9,20 @@ import { ConfigPanel } from '@/components/workbench/ConfigPanel';
 import { AloftSigil } from '@/components/workbench/atoms';
 import { useWorkbenchChat } from '@/hooks/useWorkbenchChat';
 import { useSession } from 'next-auth/react';
-import { canViewAgentOpsRole } from '@/lib/agent-ops/role-gate';
 import { DeveloperPane } from '@/components/agent-ops/DeveloperPane';
 import { canCommissionAgent } from '@/lib/construction/readiness';
 import { emptyConstructionDraft } from '@/lib/construction/empty-draft';
 import { takeWorkbenchSeed } from '@/lib/construction/handoff';
+import { useDeveloperMode } from '@/hooks/useDeveloperMode';
+import { type, inkOf } from '@/lib/typography/tokens';
+import {
+  AGENTS_LIST_HREF,
+  AGENTS_WORKBENCH_HREF,
+  agentsWorkbenchSessionHref,
+  isAgentsWorkbenchBasePath,
+} from '@/lib/navigation/agents-routes';
 
-const mono: React.CSSProperties = { fontFamily: "'IBM Plex Mono', ui-monospace, monospace" };
+const mono: React.CSSProperties = { fontFamily: 'var(--font-mono)' };
 const GOLD = '#FDB515';
 
 export default function WorkbenchShell({ sessionId: initialSessionId }: { sessionId?: string } = {}) {
@@ -24,14 +31,18 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sessionTitle, setSessionTitle] = useState('New Session');
   const [rightPane, setRightPane] = useState<'config' | 'developer'>('config');
-  const { data: authSession } = useSession();
-  const showDeveloperTab = canViewAgentOpsRole(authSession?.user?.role);
+  const { developerMode } = useDeveloperMode();
+  const showDeveloperTab = developerMode;
+
+  useEffect(() => {
+    if (!showDeveloperTab && rightPane === 'developer') setRightPane('config');
+  }, [showDeveloperTab, rightPane]);
 
   const wb = useWorkbenchChat({
     sessionId: initialSessionId ?? null,
     onSessionCreated: (id) => {
-      if (typeof window !== 'undefined' && window.location.pathname === '/agent-lab/workbench') {
-        window.history.replaceState(null, '', `/agent-lab/workbench/${id}`);
+      if (typeof window !== 'undefined' && isAgentsWorkbenchBasePath(window.location.pathname)) {
+        window.history.replaceState(null, '', agentsWorkbenchSessionHref(id));
       }
     },
   });
@@ -86,19 +97,16 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
           height: 48,
           flexShrink: 0,
           borderBottom: '1px solid var(--wb-border-subtle)',
-          ...mono,
-          fontSize: 11,
+          ...type['ui-regular'],
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--wb-muted)' }}>
           <AloftSigil size={14} />
-          <span style={{ textTransform: 'uppercase', fontSize: 10 }}>DATA 360</span>
+          <span style={{ ...type.label, color: inkOf(GOLD) }}>Agent Lab</span>
           <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ textTransform: 'uppercase', fontSize: 10, color: GOLD }}>AGENT LAB</span>
+          <span style={{ ...type.label, color: 'var(--wb-ink-dim)' }}>Workbench</span>
           <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ color: 'var(--wb-ink-dim)', fontSize: 10 }}>WORKBENCH</span>
-          <span style={{ opacity: 0.5 }}>/</span>
-          <span style={{ color: 'var(--wb-ink-dim)', fontSize: 10, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ color: 'var(--wb-ink-dim)', fontSize: 'var(--type-caption-size)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {sessionTitle}
           </span>
         </div>
@@ -108,7 +116,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             onClick={() => {
               wb.reset();
               setSessionTitle('New Session');
-              router.push('/agent-lab/workbench');
+              router.push(AGENTS_WORKBENCH_HREF);
             }}
             title="New agent"
             style={{
@@ -120,17 +128,16 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
               borderRadius: 6,
               background: 'transparent',
               border: `1px solid rgba(253,181,21,0.30)`,
-              color: GOLD,
+              color: inkOf(GOLD),
               cursor: 'pointer',
-              ...mono,
-              fontSize: 9,
+              ...type['ui-regular'],
             }}
           >
-            <SquarePen size={11} /> NEW
+            <SquarePen size={11} /> New
           </button>
           <button
             type="button"
-            onClick={() => router.push('/agent-lab/agents')}
+            onClick={() => router.push(AGENTS_LIST_HREF)}
             title="Saved agents"
             style={{
               display: 'flex',
@@ -143,11 +150,10 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
               border: '1px solid rgba(253,181,21,0.15)',
               color: 'var(--wb-muted)',
               cursor: 'pointer',
-              ...mono,
-              fontSize: 9,
+              ...type['ui-regular'],
             }}
           >
-            <Bot size={11} /> AGENTS
+            <Bot size={11} /> Agents
           </button>
           <button
             type="button"
@@ -174,8 +180,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
       {(wb.error || wb.sessionLoadError) && (
         <div
           style={{
-            ...mono,
-            fontSize: 11,
+            ...type['ui-regular'],
             padding: '8px 24px',
             flexShrink: 0,
             color: '#ef4444',
@@ -210,13 +215,14 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             isCommissioning={wb.isCommissioning}
             selectedModel={wb.selectedModel}
             onModelChange={wb.setSelectedModel}
+            modelOptions={wb.availableModels}
             attachedToolIds={wb.attachedToolIds}
             onAttachTool={(id) => wb.setAttachedToolIds((prev) => [...prev, id])}
             onDetachTool={(id) => wb.setAttachedToolIds((prev) => prev.filter((x) => x !== id))}
             canCommission={canCommission && !wb.commissionResult}
             onReset={() => {
               wb.reset();
-              router.push('/agent-lab/workbench');
+              router.push(AGENTS_WORKBENCH_HREF);
             }}
             assumptionLedger={wb.assumptionLedger}
             classSuggestion={wb.classSuggestion}
@@ -225,6 +231,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
             onEditAssumption={wb.onEditAssumption}
             onApplyClass={wb.onApplyClass}
             onDismissClassSuggestion={() => wb.setClassSuggestion(null)}
+            showDeveloperToolSteps={developerMode}
           />
         </div>
         <div style={{ width: '42%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -236,10 +243,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
                   type="button"
                   onClick={() => setRightPane(tab)}
                   style={{
-                    ...mono,
-                    fontSize: 10,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
+                    ...type.label,
                     flex: 1,
                     height: 32,
                     border: 'none',
@@ -249,7 +253,7 @@ export default function WorkbenchShell({ sessionId: initialSessionId }: { sessio
                     cursor: 'pointer',
                   }}
                 >
-                  {tab === 'config' ? 'CONFIG' : 'DEVELOPER'}
+                  {tab === 'config' ? 'Config' : 'Developer'}
                 </button>
               ))}
             </div>

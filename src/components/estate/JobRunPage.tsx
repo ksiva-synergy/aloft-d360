@@ -1,8 +1,8 @@
 ﻿'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Link from '@/lib/navigation/link';
+import { useRouter } from '@/lib/navigation';
 import {
   ArrowLeft, Copy, Check, RefreshCw, Terminal, Database,
   Activity, Settings, ChevronDown, Download, Search, X,
@@ -11,7 +11,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ChildJobsPanel from './ChildJobsPanel';
-import { mapJobStatus, isKickableJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
+import { mapJobStatus, isKickableJob, canCancelJob, isOrchestratingParent, resolveDisplayJobStatus } from '@/lib/estate/job-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
+import { inkOf } from '@/lib/typography/tokens';
 
 export { mapJobStatus };
 
@@ -104,7 +106,7 @@ function KindBadge({ kind }: { kind: string }) {
   const s = getKindStyle(kind);
   return (
     <span
-      className="px-2.5 py-1 rounded border text-xs font-mono font-semibold uppercase tracking-wider"
+   className="px-2.5 py-1 rounded border text-label "
       style={{ color: s.color, backgroundColor: s.bg, borderColor: s.border }}
     >
       {s.label}
@@ -115,8 +117,8 @@ function KindBadge({ kind }: { kind: string }) {
 function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknown; jobKind?: string }) {
   const mapped = resolveDisplayJobStatus(status, stats, jobKind);
   if (mapped === 'orchestrating') return (
-    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(147,197,253,0.35)', color: '#93C5FD', backgroundColor: 'rgba(147,197,253,0.08)' }}>
+  <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-label border"
+      style={{ borderColor: 'rgba(147,197,253,0.35)', color: inkOf('#93C5FD'), backgroundColor: 'rgba(147,197,253,0.08)' }}>
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#93C5FD] opacity-75" />
         <span className="relative inline-flex rounded-full h-2 w-2 bg-[#93C5FD]" />
@@ -125,7 +127,7 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
     </span>
   );
   if (mapped === 'running') return (
-    <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+  <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded text-label border"
       style={{ borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
       <span className="relative flex h-2 w-2">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--brand-a)] opacity-75" />
@@ -135,26 +137,26 @@ function StatusChip({ status, stats, jobKind }: { status: string; stats?: unknow
     </span>
   );
   if (mapped === 'done') return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-label border"
       style={{ borderColor: 'rgba(134,239,172,0.3)', color: 'var(--ok)', backgroundColor: 'rgba(134,239,172,0.08)' }}>
       <CheckCircle2 size={11} />done
     </span>
   );
   if (mapped === 'failed') return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-label border"
       style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--bad)', backgroundColor: 'rgba(239,68,68,0.08)' }}>
       <AlertTriangle size={11} />failed
     </span>
   );
   if (mapped === 'empty') return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
-      style={{ borderColor: 'rgba(245,158,11,0.35)', color: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.08)' }}
+  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-label border"
+      style={{ borderColor: 'rgba(245,158,11,0.35)', color: inkOf('#F59E0B'), backgroundColor: 'rgba(245,158,11,0.08)' }}
       title="Succeeded but processed 0 objects">
       <AlertTriangle size={11} />empty
     </span>
   );
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border"
+  <span className="inline-flex items-center px-2.5 py-1 rounded text-label border"
       style={{ borderColor: 'rgba(136,146,164,0.3)', color: 'var(--ink-3)', backgroundColor: 'rgba(136,146,164,0.08)' }}>
       queued
     </span>
@@ -197,10 +199,10 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
     <div className="p-8 space-y-10">
       {parent && (
         <section>
-          <h3 className="font-mono text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#8892A4' }}>
+     <h3 className="text-label text-[length:var(--type-caption-size)] mb-4" style={{ color: inkOf('#8892A4') }}>
             Child chunks
           </h3>
-          <p className="text-xs font-mono mb-4" style={{ color: '#8892A4' }}>
+          <p className="text-size-ui font-sans mb-4" style={{ color: inkOf('#8892A4') }}>
             This job is a split parent — open a child for logs and per-chunk errors.
           </p>
           <ChildJobsPanel jobId={job.id} />
@@ -209,7 +211,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
 
       {/* Execution Timeline */}
       <section>
-        <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-5"
+    <h3 className="text-label mb-5"
           style={{ color: 'var(--ink-3)' }}>
           Execution Timeline
         </h3>
@@ -246,12 +248,12 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
       {/* Stats Grid */}
       {statCards.length > 0 && (
         <section>
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-5"
+     <h3 className="text-label mb-5"
             style={{ color: 'var(--ink-3)' }}>
             Run Statistics
           </h3>
           {allStatsZero && mapped === 'failed' && (
-            <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg border font-mono text-xs"
+            <div className="mb-4 flex items-center gap-2 px-4 py-3 rounded-lg border font-sans text-size-ui"
               style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', borderColor: 'var(--line-1)' }}>
               <AlertTriangle size={12} className="shrink-0" style={{ color: '#6b7280' }} />
               Job failed before producing any results — all counters are zero.
@@ -275,9 +277,9 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
               style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.15)' }}>
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} className="text-red-400 shrink-0" />
-                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-red-400">Error</h3>
+        <h3 className="text-label text-red-400">Error</h3>
                 {finishedDate && (
-                  <span className="font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
+                  <span className="font-mono text-size-ui" style={{ color: 'var(--ink-3)' }}>
                     · {finishedDate.toLocaleString()}
                   </span>
                 )}
@@ -285,12 +287,12 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onTabChange('logs')}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono transition-colors"
-                  style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.25)', backgroundColor: 'transparent' }}>
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-size-ui font-sans transition-colors"
+                  style={{ color: inkOf('#93C5FD'), borderColor: 'rgba(147,197,253,0.25)', backgroundColor: 'transparent' }}>
                   <Terminal size={10} /> View Logs
                 </button>
                 <button onClick={copyError}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border text-size-ui font-mono transition-colors"
                   style={{ color: errorCopied ? 'var(--ok)' : 'var(--ink-3)', borderColor: 'var(--line-2)', backgroundColor: 'transparent' }}>
                   {errorCopied ? <Check size={10} /> : <Copy size={10} />}
                   {errorCopied ? 'Copied' : 'Copy'}
@@ -300,18 +302,18 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
 
             {/* Error body */}
             <div className="p-5 space-y-4">
-              <pre className="font-mono text-xs text-red-300 whitespace-pre-wrap break-words leading-relaxed max-h-48 overflow-y-auto p-3 rounded border"
+              <pre className="font-mono text-size-ui text-red-300 whitespace-pre-wrap break-words leading-relaxed max-h-48 overflow-y-auto p-3 rounded border"
                 style={{ backgroundColor: 'rgba(0,0,0,0.25)', borderColor: 'rgba(239,68,68,0.12)' }}>
                 {job.error || 'No error details recorded.'}
               </pre>
 
               {/* Contextual help for CANCELED errors */}
               {isCanceled && (
-                <div className="flex gap-2 px-3 py-2.5 rounded border font-mono text-xs"
+                <div className="flex gap-2 px-3 py-2.5 rounded border font-mono text-size-ui"
                   style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)', borderColor: 'var(--line-1)' }}>
                   <AlertTriangle size={12} className="shrink-0 mt-0.5" style={{ color: '#d97706' }} />
                   <span>
-                    <span style={{ color: '#fbbf24' }}>Query CANCELED</span> typically means the ECS task was stopped externally,
+                    <span style={{ color: inkOf('#fbbf24') }}>Query CANCELED</span> typically means the ECS task was stopped externally,
                     the Fargate task ran out of memory, or an upstream timeout killed the database query.
                     Check the Logs tab and CloudWatch for the full trace.
                   </span>
@@ -325,7 +327,7 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
       {/* Quick Debug Panel — for failed jobs */}
       {mapped === 'failed' && (
         <section>
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4"
+     <h3 className="text-label mb-4"
             style={{ color: 'var(--ink-3)' }}>
             Quick Debug
           </h3>
@@ -343,12 +345,12 @@ function OverviewTab({ job, onTabChange }: { job: JobItem; onTabChange: (t: TabI
             {taskId && (
               <div className="flex gap-4 px-5 py-3 items-center border-t"
                 style={{ borderColor: 'var(--line-1)' }}>
-                <span className="font-mono text-xs uppercase tracking-wider shrink-0 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>CloudWatch</span>
+        <span className="text-label shrink-0 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>CloudWatch</span>
                 <a
                   href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${taskId}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 font-mono text-xs transition-colors"
-                  style={{ color: '#93C5FD' }}>
+                  className="inline-flex items-center gap-1.5 font-sans text-size-ui transition-colors"
+                  style={{ color: inkOf('#93C5FD') }}>
                   <ExternalLink size={11} /> Open log stream
                 </a>
               </div>
@@ -373,9 +375,9 @@ function DebugRow({ label, value, copy, hasBorder }: { label: string; value: str
   return (
     <div className="flex gap-4 px-5 py-3 items-start"
       style={{ borderTop: hasBorder ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-      <span className="font-mono text-xs uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
+   <span className="text-label shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="font-mono text-xs break-all" style={{ color: 'var(--ink-1)' }}>{value}</span>
+        <span className="font-mono text-size-ui break-all" style={{ color: 'var(--ink-1)' }}>{value}</span>
         {copy && value !== '—' && (
           <button onClick={handleCopy} className="shrink-0 p-1 rounded hover:bg-[color-mix(in_srgb,var(--ink-1)_10%,transparent)] transition-colors" style={{ color: copied ? 'var(--ok)' : '#4a5568' }}>
             {copied ? <Check size={10} /> : <Copy size={10} />}
@@ -396,7 +398,7 @@ function TimelineStep({
   return (
     <div className="flex gap-4">
       <div className="flex flex-col items-center">
-        <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-300"
+        <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition duration-300"
           style={{
             borderColor: dotColor,
             backgroundColor: active ? dotColor + '22' : 'var(--card,#1c2128)',
@@ -419,23 +421,23 @@ function TimelineStep({
       </div>
       <div className="pb-8 flex-1">
         <div className="flex items-center gap-3 mt-0.5">
-          <span className="font-mono text-sm font-bold uppercase tracking-wider"
+     <span className="text-label "
             style={{ color: active ? dotColor : '#374151' }}>
             {label}
           </span>
           {time && (
-            <span className="font-mono text-xs" style={{ color: 'var(--estate-ink,#e2e8f0)' }}>
+            <span className="font-mono text-size-ui" style={{ color: 'var(--estate-ink,#e2e8f0)' }}>
               {time}
             </span>
           )}
         </div>
         {connector && (
-          <div className="mt-1.5 font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
+          <div className="mt-1.5 font-mono text-size-ui" style={{ color: 'var(--ink-3)' }}>
             {connector}
           </div>
         )}
         {running && !connector && (
-          <div className="mt-1.5 flex items-center gap-1.5 font-mono text-xs text-amber-400">
+          <div className="mt-1.5 flex items-center gap-1.5 font-mono text-size-ui text-amber-400">
             <Loader2 size={11} className="animate-spin" />
             In progress…
           </div>
@@ -463,7 +465,7 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
 
   return (
     <div
-      className="rounded-xl border p-4 flex flex-col gap-2 group transition-all duration-150 hover:scale-[1.02]"
+      className="rounded-xl border p-4 flex flex-col gap-2 group transition duration-150 hover:scale-[1.02]"
       style={{
         backgroundColor: 'color-mix(in srgb, var(--ink-1) 3%, transparent)',
         borderColor: 'color-mix(in srgb, var(--brand-a) 15%, transparent)',
@@ -473,13 +475,13 @@ function StatCard({ label, value, muted }: { label: string; value: number; muted
     >
       <div className="flex items-center justify-between">
         <span style={{ color: 'var(--ink-3)' }}>{icon}</span>
-        <span className="font-mono text-2xl font-bold" style={{ color: accentColor }}>
+        <span className="font-mono text-size-kpi-lg font-semibold" style={{ color: accentColor }}>
           {typeof value === 'number' && !isNaN(value)
             ? value % 1 === 0 ? value.toLocaleString() : value.toFixed(4)
             : String(value)}
         </span>
       </div>
-      <span className="font-mono text-xs uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
+   <span className="text-label " style={{ color: 'var(--ink-3)' }}>
         {label.replace(/_/g, ' ')}
       </span>
     </div>
@@ -495,7 +497,7 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
         className="w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)]"
         style={{ backgroundColor: 'rgba(0,0,0,0.2)' }}
       >
-        <span className="font-mono text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--ink-3)' }}>
+    <span className="text-label " style={{ color: 'var(--ink-3)' }}>
           {title}
         </span>
         <ChevronDown
@@ -509,19 +511,19 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 }
 
 function StructuredJson({ data }: { data: unknown }) {
-  if (!data) return <p className="font-mono text-sm italic" style={{ color: 'var(--ink-3)' }}>No data</p>;
+  if (!data) return <p className="font-mono text-size-body italic" style={{ color: 'var(--ink-3)' }}>No data</p>;
   if (typeof data === 'object' && !Array.isArray(data)) {
     const entries = Object.entries(data as Record<string, unknown>);
     return (
       <div className="space-y-1.5">
         {entries.map(([k, v]) => (
-          <div key={k} className="flex gap-3 items-start font-mono text-xs">
+          <div key={k} className="flex gap-3 items-start font-mono text-size-ui">
             <span className="min-w-[140px] shrink-0 font-semibold" style={{ color: 'var(--brand-a-ink)' }}>{k}</span>
             <span className="break-all" style={{ color: 'var(--ink-1)' }}>
               {Array.isArray(v) ? (
                 <span className="flex flex-wrap gap-1">
                   {(v as unknown[]).map((item, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-xs border"
+                    <span key={i} className="px-1.5 py-0.5 rounded text-size-ui border"
                       style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                       {String(item)}
                     </span>
@@ -529,7 +531,7 @@ function StructuredJson({ data }: { data: unknown }) {
                   <span style={{ color: 'var(--ink-3)' }}>({(v as unknown[]).length})</span>
                 </span>
               ) : typeof v === 'object' && v !== null ? (
-                <pre className="text-xs whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>
+                <pre className="text-size-ui whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>
                   {JSON.stringify(v, null, 2)}
                 </pre>
               ) : (
@@ -543,7 +545,7 @@ function StructuredJson({ data }: { data: unknown }) {
       </div>
     );
   }
-  return <pre className="font-mono text-xs whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>{JSON.stringify(data, null, 2)}</pre>;
+  return <pre className="font-mono text-size-ui whitespace-pre-wrap" style={{ color: 'var(--ink-3)' }}>{JSON.stringify(data, null, 2)}</pre>;
 }
 // ── Logs Tab ───────────────────────────────────────────────────────────────────
 
@@ -668,9 +670,9 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
   const warnCount = lines.filter(l => isWarnLine(l.message)).length;
 
   const logBody = (
-    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0, fontFamily: 'IBM Plex Mono, monospace' }}>
+    <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--terminal-bg)', minHeight: 0, fontFamily: 'var(--font-mono)' }}>
       {isLoading && (
-        <div className="flex items-center gap-2 px-5 py-4" style={{ color: 'var(--ink-3)', fontSize: 13 }}>
+        <div className="flex items-center gap-2 px-5 py-4" style={{ color: 'var(--ink-3)', fontSize: 'var(--type-ui-regular-size)' }}>
           <Loader2 size={12} className="animate-spin" /> Loading logs…
         </div>
       )}
@@ -679,18 +681,18 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
               <AlertTriangle size={15} className="text-red-400 shrink-0 mt-0.5" />
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-red-400">Failed to load logs</span>
+       <span className="text-label text-red-400">Failed to load logs</span>
             </div>
             <button onClick={loadLogs}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-mono shrink-0 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-size-ui font-mono shrink-0 transition-colors"
               style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 40%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)' }}>
               <RefreshCw size={11} /> Retry
             </button>
           </div>
-          <pre className="font-mono text-xs text-red-300 whitespace-pre-wrap break-words leading-relaxed p-3 rounded border" style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(239,68,68,0.15)' }}>
+          <pre className="font-mono text-size-ui text-red-300 whitespace-pre-wrap break-words leading-relaxed p-3 rounded border" style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderColor: 'rgba(239,68,68,0.15)' }}>
             {errorMsg}
           </pre>
-          <div className="space-y-2 font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
+          <div className="space-y-2 font-mono text-size-ui" style={{ color: 'var(--ink-3)' }}>
             <p>Possible causes:</p>
             <ul className="list-disc list-inside space-y-1 ml-2" style={{ color: '#6b7280' }}>
               <li>The database is temporarily unavailable — retry in a moment</li>
@@ -702,8 +704,8 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             <a
               href={`https://ap-south-1.console.aws.amazon.com/cloudwatch/home?region=ap-south-1#logsV2:log-groups/log-group/%2Fecs%2Faloft-context-harvester/log-events/harvester%252Fcontext-harvester%252F${meta.taskId}`}
               target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-mono transition-colors"
-              style={{ color: '#93C5FD' }}>
+              className="inline-flex items-center gap-1.5 text-size-ui font-sans transition-colors"
+              style={{ color: inkOf('#93C5FD') }}>
               <ExternalLink size={11} /> Open in CloudWatch console
             </a>
           )}
@@ -712,9 +714,9 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
       {!isLoading && !errorMsg && filteredLines.length === 0 && (
         <div className="px-5 py-8 space-y-2">
           {lines.length > 0 ? (
-            <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No lines match the current filter.</p>
+            <p className="text-size-ui font-sans" style={{ color: 'var(--ink-3)' }}>No lines match the current filter.</p>
           ) : isLive ? (
-            <div className="flex items-center gap-1.5 text-xs font-mono" style={{ color: 'var(--ink-3)' }}>
+            <div className="flex items-center gap-1.5 text-size-ui font-sans" style={{ color: 'var(--ink-3)' }}>
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a)' }} />
                 <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a)' }} />
@@ -723,11 +725,11 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>No logs found for this job.</p>
-              <p className="text-xs font-mono" style={{ color: '#4a5568' }}>
+              <p className="text-size-ui font-sans" style={{ color: 'var(--ink-3)' }}>No logs found for this job.</p>
+              <p className="text-size-ui font-sans" style={{ color: '#4a5568' }}>
                 This can happen when the Fargate container never started, or when CloudWatch log retention has expired.
               </p>
-              <button onClick={loadLogs} className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded border transition-colors mt-1"
+              <button onClick={loadLogs} className="flex items-center gap-1.5 text-size-ui font-sans px-3 py-1.5 rounded border transition-colors mt-1"
                 style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 6%, transparent)' }}>
                 <RefreshCw size={10} /> Try again
               </button>
@@ -739,22 +741,22 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
         const isErr = isErrorLine(line.message);
         const isWarn = isWarnLine(line.message);
         return (
-          <div key={i} className="flex gap-3 px-4 py-0.5 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] group text-xs leading-relaxed"
+          <div key={i} className="flex gap-3 px-4 py-0.5 hover:bg-[color-mix(in_srgb,var(--ink-1)_5%,transparent)] group text-size-ui leading-relaxed"
             style={{ backgroundColor: isErr ? 'rgba(239,68,68,0.08)' : isWarn ? 'rgba(234,179,8,0.05)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
             <span className="shrink-0 select-none tabular-nums w-[7ch]" style={{ color: '#4a5568' }}>{formatTs(line.ts)}</span>
-            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'transparent', fontSize: 13 }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
+            <span className="w-5 shrink-0 select-none text-center" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'transparent', fontSize: 'var(--type-ui-regular-size)' }}>{isErr ? '●' : isWarn ? '▲' : '·'}</span>
             <span className="flex-1 break-all whitespace-pre-wrap" style={{ color: isErr ? 'var(--bad)' : isWarn ? 'var(--warn)' : 'var(--ink-1)' }}>{line.message.replace(/\n$/, '')}</span>
           </div>
         );
       })}
       {isDone && lines.length > 0 && (
-        <div className="px-5 py-2 text-xs border-t mt-1" style={{ color: '#4a5568', borderColor: 'var(--line-1)' }}>
+        <div className="px-5 py-2 text-size-ui border-t mt-1" style={{ color: '#4a5568', borderColor: 'var(--line-1)' }}>
           — end of log · {lines.length} line{lines.length !== 1 ? 's' : ''} —
         </div>
       )}
       {!autoScroll && filteredLines.length > 0 && (
         <button onClick={() => { setAutoScroll(true); if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }}
-          className="sticky bottom-2 mx-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border shadow-lg"
+          className="sticky bottom-2 mx-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-size-ui font-sans border shadow-lg"
           style={{ backgroundColor: 'var(--surface-2)', borderColor: 'color-mix(in srgb, var(--brand-a) 30%, transparent)', color: 'var(--brand-a-ink)', left: '50%', transform: 'translateX(-50%)' }}>
           <ChevronDown size={11} /> Resume scroll
         </button>
@@ -767,14 +769,14 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
       <div className="relative flex-1 min-w-[160px]">
         <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
         <input type="text" placeholder="Search logs…" value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-7 pr-3 py-1.5 rounded border text-xs font-mono outline-none"
+          className="w-full pl-7 pr-3 py-1.5 rounded border text-size-ui font-mono outline-none"
           style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', borderColor: 'var(--line-1)', color: 'var(--ink-1)' }} />
         {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }}><X size={11} /></button>}
       </div>
       <div className="flex gap-1">
         {(['all','error','warn','info'] as const).map(f => (
           <button key={f} onClick={() => setLevelFilter(f)}
-            className="px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider border transition-colors"
+      className="px-2.5 py-1 rounded text-label border transition-colors"
             style={{ backgroundColor: levelFilter === f ? 'color-mix(in srgb, var(--brand-a) 15%, transparent)' : 'transparent', borderColor: levelFilter === f ? 'color-mix(in srgb, var(--brand-a) 40%, transparent)' : 'color-mix(in srgb, var(--ink-1) 8%, transparent)', color: levelFilter === f ? 'var(--brand-a-ink)' : 'var(--ink-3)' }}>
             {f === 'error' ? (errorCount > 0 ? `error (${errorCount})` : 'error') : f === 'warn' ? (warnCount > 0 ? `warn (${warnCount})` : 'warn') : f}
           </button>
@@ -782,14 +784,14 @@ function LogsTab({ jobId, isLive }: { jobId: string; isLive: boolean }) {
       </div>
       <div className="flex items-center gap-1 ml-auto">
         {isLive && !isDone && (
-          <span className="flex items-center gap-1.5 text-xs font-mono mr-2" style={{ color: 'var(--brand-a-ink)' }}>
+          <span className="flex items-center gap-1.5 text-size-ui font-mono mr-2" style={{ color: 'var(--brand-a-ink)' }}>
             <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: 'var(--brand-a)' }} /><span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: 'var(--brand-a)' }} /></span>
             live
           </span>
         )}
-        {meta && <span className="font-mono text-xs mr-2 hidden md:block" style={{ color: '#4a5568' }} title={meta.logStream}>{meta.taskId.slice(-12)}</span>}
+        {meta && <span className="font-mono text-size-ui mr-2 hidden md:block" style={{ color: '#4a5568' }} title={meta.logStream}>{meta.taskId.slice(-12)}</span>}
         {lines.length > 0 && (
-          <span className="font-mono text-xs px-1.5 py-0.5 rounded mr-1 hidden md:block" style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)' }}>
+          <span className="font-mono text-size-ui px-1.5 py-0.5 rounded mr-1 hidden md:block" style={{ color: 'var(--ink-3)', backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)' }}>
             {lines.length.toLocaleString()} lines
           </span>
         )}
@@ -850,14 +852,14 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
   );
 
   if (error) return (
-    <div className="p-8 text-sm font-mono text-red-400">Error loading objects: {error}</div>
+    <div className="p-8 text-size-body font-sans text-red-400">Error loading objects: {error}</div>
   );
 
   if (objects.length === 0) return (
     <div className="flex flex-col items-center justify-center p-16 gap-4">
       <Database size={40} style={{ color: '#374151' }} />
-      <p className="font-mono text-sm" style={{ color: 'var(--ink-3)' }}>No objects touched during this run</p>
-      <p className="font-mono text-xs text-center max-w-xs" style={{ color: '#4a5568' }}>
+      <p className="font-sans text-size-body" style={{ color: 'var(--ink-3)' }}>No objects touched during this run</p>
+      <p className="font-sans text-size-ui text-center max-w-xs" style={{ color: '#4a5568' }}>
         Objects are correlated via tier timestamps. This job may not have processed any objects or may still be running.
       </p>
     </div>
@@ -869,20 +871,20 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
         <div className="relative flex-1">
           <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
           <input type="text" placeholder={`Search ${objects.length} objects…`} value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-7 pr-3 py-1.5 rounded border text-xs font-mono outline-none"
+            className="w-full pl-7 pr-3 py-1.5 rounded border text-size-ui font-mono outline-none"
             style={{ backgroundColor: 'color-mix(in srgb, var(--ink-1) 5%, transparent)', borderColor: 'var(--line-1)', color: 'var(--ink-1)' }} />
         </div>
-        <span className="font-mono text-xs shrink-0" style={{ color: 'var(--ink-3)' }}>{filtered.length} of {objects.length}</span>
+        <span className="font-mono text-size-ui shrink-0" style={{ color: 'var(--ink-3)' }}>{filtered.length} of {objects.length}</span>
       </div>
       <div className="overflow-y-auto" style={{ maxHeight: '540px' }}>
-        <table className="w-full text-xs font-mono border-collapse">
+        <table className="w-full text-size-ui font-mono border-collapse">
           <thead>
             <tr style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}>
-              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Object</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Schema</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Kind</th>
-              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Tiers</th>
-              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wider text-xs" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}></th>
+              <th className="text-left px-5 py-2.5 font-semibold uppercase tracking-wide text-size-ui" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Object</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-size-ui" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Schema</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-size-ui" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Kind</th>
+              <th className="text-left px-4 py-2.5 font-semibold uppercase tracking-wide text-size-ui" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}>Tiers</th>
+              <th className="text-right px-5 py-2.5 font-semibold uppercase tracking-wide text-size-ui" style={{ color: 'var(--ink-3)', borderBottom: '1px solid var(--line-1)' }}></th>
             </tr>
           </thead>
           <tbody>
@@ -893,11 +895,11 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}>
                 <td className="px-5 py-3">
                   <span className="font-medium" style={{ color: 'var(--estate-ink,#e2e8f0)' }}>{obj.object_name ?? obj.full_path.split('.').pop()}</span>
-                  <div className="text-xs mt-0.5 truncate max-w-[280px]" style={{ color: 'var(--ink-3)' }}>{obj.full_path}</div>
+                  <div className="text-size-ui mt-0.5 truncate max-w-[280px]" style={{ color: 'var(--ink-3)' }}>{obj.full_path}</div>
                 </td>
                 <td className="px-4 py-3" style={{ color: 'var(--ink-3)' }}>{obj.schema_name ?? '—'}</td>
                 <td className="px-4 py-3">
-                  <span className="px-1.5 py-0.5 rounded border text-xs uppercase" style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
+                  <span className="px-1.5 py-0.5 rounded border text-size-ui uppercase" style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                     {obj.object_kind}
                   </span>
                 </td>
@@ -906,7 +908,7 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
                     {obj.tiers_touched.map(tier => {
                       const tc = TIER_COLORS[tier] ?? { color: 'var(--ink-3)', bg: 'rgba(136,146,164,0.1)' };
                       return (
-                        <span key={tier} className="px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider"
+                        <span key={tier} className="px-1.5 py-0.5 rounded text-size-ui font-semibold uppercase tracking-wide"
                           style={{ color: tc.color, backgroundColor: tc.bg }}>
                           {tier.replace('_', ' ')}
                         </span>
@@ -916,7 +918,7 @@ function ObjectsTab({ jobId, onCountChange }: { jobId: string; onCountChange: (n
                 </td>
                 <td className="px-5 py-3 text-right">
                   <Link href={`/agent-lab/estate/object/${obj.id}`}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded border text-xs font-mono transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded border text-size-ui font-mono transition-colors"
                     style={{ color: 'var(--brand-a-ink)', borderColor: 'color-mix(in srgb, var(--brand-a) 20%, transparent)', backgroundColor: 'transparent' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'color-mix(in srgb, var(--brand-a) 10%, transparent)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}>
@@ -947,7 +949,7 @@ function ConfigTab({ job }: { job: JobItem }) {
     <div className="p-8 space-y-8">
       {/* Infrastructure */}
       <section>
-        <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--ink-3)' }}>Infrastructure</h3>
+    <h3 className="text-label mb-4" style={{ color: 'var(--ink-3)' }}>Infrastructure</h3>
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--line-1)' }}>
           {[
             { label: 'Job ID', value: job.id, mono: true },
@@ -960,8 +962,8 @@ function ConfigTab({ job }: { job: JobItem }) {
           ].map(({ label, value, mono }, idx) => (
             <div key={label} className="flex gap-4 px-5 py-3 items-start"
               style={{ borderTop: idx > 0 ? '1px solid rgba(255,255,255,0.05)' : undefined }}>
-              <span className="font-mono text-xs uppercase tracking-wider shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
-              <span className={mono ? 'font-mono text-xs break-all' : 'text-sm'} style={{ color: 'var(--ink-1)' }}>{String(value)}</span>
+       <span className="text-label shrink-0 pt-0.5 min-w-[120px]" style={{ color: 'var(--ink-3)' }}>{label}</span>
+              <span className={mono ? 'font-mono text-size-ui break-all' : 'text-size-body'} style={{ color: 'var(--ink-1)' }}>{String(value)}</span>
             </div>
           ))}
         </div>
@@ -970,11 +972,11 @@ function ConfigTab({ job }: { job: JobItem }) {
       {/* Scope Details */}
       {(excludeSchemas || includePatterns || chain) && (
         <section>
-          <h3 className="font-mono text-xs font-bold uppercase tracking-widest mb-4" style={{ color: 'var(--ink-3)' }}>Scope Configuration</h3>
+     <h3 className="text-label mb-4" style={{ color: 'var(--ink-3)' }}>Scope Configuration</h3>
           <div className="space-y-4">
             {excludeSchemas && excludeSchemas.length > 0 && (
               <div>
-                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
+        <p className="text-label mb-2" style={{ color: 'var(--ink-3)' }}>
                   Excluded Schemas ({excludeSchemas.length})
                 </p>
                 <div
@@ -982,7 +984,7 @@ function ConfigTab({ job }: { job: JobItem }) {
                   style={{ maxHeight: showAllSchemas ? 'none' : '160px' }}
                 >
                   {excludeSchemas.map((s, i) => (
-                    <span key={i} className="px-2 py-1 rounded border text-xs font-mono"
+                    <span key={i} className="px-2 py-1 rounded border text-size-ui font-mono"
                       style={{ color: '#93C5FD', borderColor: 'rgba(147,197,253,0.2)', backgroundColor: 'rgba(147,197,253,0.06)' }}>
                       {s}
                     </span>
@@ -991,7 +993,7 @@ function ConfigTab({ job }: { job: JobItem }) {
                 {excludeSchemas.length > SCHEMA_LIMIT && (
                   <button
                     onClick={() => setShowAllSchemas(v => !v)}
-                    className="mt-2 font-mono text-xs uppercase tracking-wider transition-colors"
+          className="mt-2 text-label transition-colors"
                     style={{ color: 'var(--brand-a-ink)' }}>
                     {showAllSchemas ? 'Show less ↑' : `Show all ${excludeSchemas.length} schemas ↓`}
                   </button>
@@ -1000,12 +1002,12 @@ function ConfigTab({ job }: { job: JobItem }) {
             )}
             {includePatterns && includePatterns.length > 0 && (
               <div>
-                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
+        <p className="text-label mb-2" style={{ color: 'var(--ink-3)' }}>
                   Include Patterns ({includePatterns.length})
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {includePatterns.map((s, i) => (
-                    <span key={i} className="px-2 py-1 rounded border text-xs font-mono"
+                    <span key={i} className="px-2 py-1 rounded border text-size-ui font-mono"
                       style={{ color: 'var(--ok)', borderColor: 'rgba(134,239,172,0.2)', backgroundColor: 'rgba(134,239,172,0.06)' }}>
                       {s}
                     </span>
@@ -1015,7 +1017,7 @@ function ConfigTab({ job }: { job: JobItem }) {
             )}
             {chain && chain.length > 0 && (
               <div>
-                <p className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--ink-3)' }}>
+        <p className="text-label mb-2" style={{ color: 'var(--ink-3)' }}>
                   Chained Jobs
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1024,7 +1026,7 @@ function ConfigTab({ job }: { job: JobItem }) {
                     return (
                       <React.Fragment key={k}>
                         {i > 0 && <span style={{ color: 'var(--brand-a-ink)' }}>→</span>}
-                        <span className="px-2 py-1 rounded border text-xs font-mono font-semibold uppercase"
+            <span className="px-2 py-1 rounded border text-label "
                           style={{ color: s.color, borderColor: s.border, backgroundColor: s.bg }}>
                           {s.label}
                         </span>
@@ -1057,10 +1059,12 @@ function ConfigTab({ job }: { job: JobItem }) {
 
 export default function JobRunPage({ job }: { job: JobItem }) {
   const router = useRouter();
+  const canRunPipeline = useCanRunEstatePipeline();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [objectCount, setObjectCount] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [kicking, setKicking] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [jobStatus, setJobStatus] = useState(job.status);
   const [jobLive, setJobLive] = useState(job);
 
@@ -1094,6 +1098,38 @@ export default function JobRunPage({ job }: { job: JobItem }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCancel = async () => {
+    if (cancelling) return;
+    const taskId = (jobLive.scope ?? job.scope as Record<string, unknown> | null)?.fargate_task_id;
+    const msg = taskId
+      ? 'Stop this job and its Fargate worker? Work already written stays in the catalog.'
+      : 'Cancel this job? You can launch a new run after it is cleared.';
+    if (!window.confirm(msg)) return;
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/agent-lab/context/jobs/${job.id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const stop = json.worker_stop as { stopped?: boolean; error?: string } | undefined;
+        if (stop && stop.stopped === false && stop.error) {
+          toast.warning('Job marked cancelled', {
+            description: `Worker may still be stopping: ${stop.error}`,
+          });
+        } else {
+          toast.success(taskId ? 'Job stopped' : 'Job cancelled');
+        }
+        setJobStatus('failed');
+        setJobLive((prev) => ({ ...prev, status: 'failed', error: 'Cancelled by user' }));
+      } else {
+        toast.error('Cannot cancel', { description: json.message ?? json.error ?? 'Unknown error' });
+      }
+    } catch {
+      toast.error('Network error — could not cancel job');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleKick = async () => {
     if (kicking) return;
     setKicking(true);
@@ -1104,7 +1140,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
         toast.success(
           <span>
             Fargate container launched.{' '}
-            <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 13, opacity: 0.7 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-ui-regular-size)', opacity: 0.7 }}>
               {json.task_id?.slice(0, 12)}
             </span>
           </span>
@@ -1149,7 +1185,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <Link href="/agent-lab/estate/jobs"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-xs font-mono mt-0.5 shrink-0 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-size-ui font-mono mt-0.5 shrink-0 transition-colors"
                 style={{ color: 'var(--ink-3)', borderColor: 'var(--line-1)', backgroundColor: 'transparent' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'color-mix(in srgb, var(--ink-1) 5%, transparent)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}>
@@ -1157,17 +1193,42 @@ export default function JobRunPage({ job }: { job: JobItem }) {
               </Link>
               <div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="font-serif text-xl font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: "'Source Serif 4', serif" }}>
+                  <h1 className="text-size-title-section font-semibold" style={{ color: 'var(--estate-ink)', fontFamily: 'var(--font-sans)' }}>
                     Job Run
                   </h1>
                   <KindBadge kind={job.job_kind} />
                   <StatusChip status={jobStatus} stats={jobLive.stats} jobKind={job.job_kind} />
-                  {isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
+                  {canRunPipeline && canCancelJob({ status: jobStatus, scope: jobLive.scope ?? job.scope }) && (
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      disabled={cancelling}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded border text-label transition-colors"
+                      style={{
+                        color: '#FCA5A5',
+                        borderColor: cancelling ? 'color-mix(in srgb, #EF4444 25%, transparent)' : 'color-mix(in srgb, #EF4444 40%, transparent)',
+                        backgroundColor: 'color-mix(in srgb, #EF4444 8%, transparent)',
+                        opacity: cancelling ? 0.7 : 1,
+                        cursor: cancelling ? 'default' : 'pointer',
+                      }}
+                      title={
+                        (jobLive.scope ?? job.scope as Record<string, unknown> | null)?.fargate_task_id
+                          ? 'Stop Fargate worker and mark job cancelled'
+                          : 'Stop this job so you can launch a scoped run'
+                      }
+                    >
+                      {cancelling
+                        ? <><Loader2 size={11} className="animate-spin" /> Cancelling…</>
+                        : <><X size={11} /> Cancel</>
+                      }
+                    </button>
+                  )}
+                  {canRunPipeline && isKickableJob({ status: jobStatus, scope: job.scope }) && !(job.scope as any)?.fargate_task_id && (
                     <button
                       type="button"
                       onClick={handleKick}
                       disabled={kicking}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded border text-xs font-mono font-semibold uppercase tracking-wider transition-colors"
+           className="inline-flex items-center gap-1.5 px-3 py-1 rounded border text-label transition-colors"
                       style={{
                         color: 'var(--brand-a-ink)',
                         borderColor: kicking ? 'color-mix(in srgb, var(--brand-a) 30%, transparent)' : 'color-mix(in srgb, var(--brand-a) 50%, transparent)',
@@ -1185,23 +1246,23 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                  <button onClick={handleCopyId} className="flex items-center gap-1.5 font-mono text-xs hover:underline"
+                  <button onClick={handleCopyId} className="flex items-center gap-1.5 font-mono text-size-ui hover:underline"
                     style={{ color: 'var(--ink-3)' }} title="Copy full ID">
                     {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
                     {job.id.slice(0, 8)}…
                   </button>
                   {job.trigger && (
-                    <span className="font-mono text-xs" style={{ color: 'var(--ink-3)' }}>
+                    <span className="font-mono text-size-ui" style={{ color: 'var(--ink-3)' }}>
                       trigger: <span style={{ color: 'var(--ink-1)' }}>{job.trigger}</span>
                     </span>
                   )}
                   {runMs !== null && (
-                    <span className="font-mono text-xs px-2 py-0.5 rounded" style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
+                    <span className="font-mono text-size-ui px-2 py-0.5 rounded" style={{ color: 'var(--brand-a-ink)', backgroundColor: 'color-mix(in srgb, var(--brand-a) 8%, transparent)', border: '1px solid color-mix(in srgb, var(--brand-a) 20%, transparent)' }}>
                       {formatDuration(runMs)}
                     </span>
                   )}
                   {queueMs !== null && queueMs > 0 && (
-                    <span className="font-mono text-xs flex items-center gap-1" style={{ color: 'var(--ink-3)' }}>
+                    <span className="font-mono text-size-ui flex items-center gap-1" style={{ color: 'var(--ink-3)' }}>
                       <Clock size={10} /> queued {formatDuration(Math.max(0, queueMs))}
                     </span>
                   )}
@@ -1216,7 +1277,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="relative flex items-center gap-1.5 px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider transition-colors border-b-2"
+        className="relative flex items-center gap-1.5 px-4 py-2 text-label transition-colors border-b-2"
                 style={{
                   color: activeTab === tab.id ? 'var(--brand-a-ink)' : 'var(--ink-3)',
                   borderBottomColor: activeTab === tab.id ? 'var(--brand-a-ink)' : 'transparent',
@@ -1225,7 +1286,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
                 {tab.icon}
                 {tab.label}
                 {tab.badge !== undefined && (
-                  <span className="px-1.5 py-0.5 rounded-full text-xs font-bold"
+                  <span className="px-1.5 py-0.5 rounded-full text-size-ui font-semibold"
                     style={{
                       backgroundColor: tab.badge === 'live' ? 'color-mix(in srgb, var(--brand-a) 20%, transparent)' : 'color-mix(in srgb, var(--ink-1) 10%, transparent)',
                       color: tab.badge === 'live' ? 'var(--brand-a-ink)' : 'var(--ink-1)',
@@ -1247,7 +1308,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
           {activeTab === 'logs' && (
             isOrchestratingParent({ status: jobStatus, scope: job.scope })
               ? (
-                <div className="p-8 font-mono text-sm" style={{ color: '#8892A4' }}>
+                <div className="p-8 font-sans text-size-body" style={{ color: inkOf('#8892A4') }}>
                   Parent orchestrator jobs have no CloudWatch stream. Open a child chunk from Overview.
                 </div>
               )
@@ -1260,7 +1321,7 @@ export default function JobRunPage({ job }: { job: JobItem }) {
 
         {/* Keyboard hint footer */}
         <div className="max-w-7xl mx-auto px-6 pb-6">
-          <div className="flex items-center gap-4 font-mono text-xs uppercase tracking-wider" style={{ color: '#374151' }}>
+     <div className="flex items-center gap-4 text-label " style={{ color: '#374151' }}>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>G</kbd> Overview</span>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>L</kbd> Logs</span>
             <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: '#374151' }}>O</kbd> Objects</span>

@@ -3,12 +3,17 @@
 import React, { useRef, useEffect } from 'react';
 import type { RecentRun } from './types';
 import {
-  CARD_BG, BORDER, GOLD,
+  BORDER, GOLD,
   TEXT_PRI, TEXT_MUT,
-  SERIF, MONO,
+  MONO,
+  modelColor,
 } from '@/lib/bandits/born-tokens';
 import { shortName } from '@/lib/bandits/born-tokens';
+import { type, inkOf } from '@/lib/typography/tokens';
 import { CtsgvMicroBar } from './CtsgvMicroBar';
+import { PanelHeader, PANEL_PADDING } from './PanelHeader';
+
+const FEED_GRID = '18px minmax(0, 1fr) 76px 56px 56px 52px 64px';
 
 import { withAlpha } from '@/lib/theme/with-alpha';
 function stripPrefix(s: string): string {
@@ -111,62 +116,29 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
   }, [recentRuns]);
 
   return (
-    <div style={{
-      background: CARD_BG,
-      border: `1px solid ${BORDER}`,
-      borderRadius: 6,
-      padding: '24px 28px',
-    }}>
+    <div className="born-card" style={{ padding: PANEL_PADDING }}>
       <InjectStyle />
 
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 18,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: SERIF, fontSize: 20, fontWeight: 600, color: TEXT_PRI }}>
-            Live Feed
-          </span>
-          <span style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: '#4ADE80',
-            boxShadow: '0 0 6px rgba(74,222,128,0.4)',
-            animation: 'pulseDot 2s ease-in-out infinite',
-            display: 'inline-block',
-          }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, letterSpacing: '0.04em' }}>
-            Last {recentRuns.length} runs
-          </span>
-          <span style={{
-            fontFamily: MONO, fontSize: 13,
-            color: TEXT_MUT, opacity: 0.7,
-            background: 'var(--born-overlay)',
-            padding: '2px 8px', borderRadius: 3,
-            border: '1px solid var(--born-border)',
-          }}>
-            auto-scroll
-          </span>
-        </div>
-      </div>
+      <PanelHeader
+        title="Recent Runs"
+        meta={recentRuns.length > 0 ? `${recentRuns.length} most recent` : undefined}
+        subtitle="Newest first · refreshes with the filters above"
+      />
 
       {/* Column headers */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '18px 1fr 70px 48px 48px 44px 60px',
+        gridTemplateColumns: FEED_GRID,
         gap: 8,
         padding: '0 0 8px 0',
         borderBottom: `1px solid ${BORDER}`,
         marginBottom: 4,
       }}>
-        {['', 'Task', 'Time', 'Dur', 'Tok', 'Score', 'CTSGV'].map((h, i) => (
+        {['', 'Task · model', 'When', 'Dur', 'Tokens', 'Score', 'CTSGV'].map((h, i) => (
           <span key={i} style={{
-            fontFamily: MONO, fontSize: 13,
-            letterSpacing: '0.06em', color: TEXT_MUT,
+            ...type.eyebrow, color: TEXT_MUT,
             textAlign: i > 1 ? 'right' : 'left',
-            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
           }}>
             {h}
           </span>
@@ -184,7 +156,7 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
         {recentRuns.length === 0 ? (
           <div style={{
             padding: '40px 0', textAlign: 'center',
-            fontFamily: MONO, fontSize: 13, color: TEXT_MUT, opacity: 0.5,
+            ...type.caption, color: TEXT_MUT,
           }}>
             No runs recorded yet.
           </div>
@@ -194,13 +166,14 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
             const isErrored = run.status === 'errored' || run.status === 'failed' || run.status === 'error';
 
             const taskName = stripPrefix(run.sheet_type || run.sheet_id || '');
-            const modelDisplay = shortName(run.model_id || run.agent_id || '');
+            const modelId = run.model_id || run.agent_id || '';
+            const modelDisplay = shortName(modelId);
             const durationMs = run.duration_ms ?? run.total_duration_ms;
             const tokens = (run.input_tokens != null && run.output_tokens != null)
               ? run.input_tokens + run.output_tokens
               : run.total_tokens ?? null;
             const composite = run.composite_score ?? run.quality_score;
-            const isFavRun = (run.model_id || run.agent_id) === favId;
+            const isFavRun = modelId === favId;
             const srcConfig = run.source ? sourceConfig(String(run.source)) : null;
 
             return (
@@ -209,14 +182,13 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                 className={idx === 0 ? 'born-feed-row-new' : undefined}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '18px 1fr 70px 48px 48px 44px 60px',
+                  gridTemplateColumns: FEED_GRID,
                   gap: 8,
                   alignItems: 'center',
-                  minHeight: 42,
-                  borderBottom: `1px solid rgba(22,39,61,0.6)`,
+                  minHeight: 48,
+                  borderBottom: '1px solid var(--born-overlay-2)',
                   padding: '8px 0',
                   transition: 'background 0.15s ease',
-                  borderRadius: 3,
                   cursor: 'default',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--born-hover)'; }}
@@ -242,59 +214,75 @@ export function LiveFeedPanel({ recentRuns, favId }: Props) {
                   )}
                 </div>
 
-                {/* Task + source */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  <span style={{
-                    fontFamily: MONO, fontSize: 13,
-                    color: isFavRun ? GOLD : TEXT_PRI,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    fontWeight: isFavRun ? 500 : 400,
-                  }} title={taskName}>
-                    {taskName || modelDisplay}
-                  </span>
-                  {srcConfig && (
+                {/* Task + source, with the model that ran underneath */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                     <span style={{
-                      fontFamily: MONO, fontSize: 13,
-                      padding: '1px 6px', borderRadius: 3,
-                      flexShrink: 0,
-                      background: srcConfig.bg,
-                      color: srcConfig.color,
-                      border: `1px solid ${withAlpha(srcConfig.color, '20')}`,
+                      ...type.caption, fontFamily: MONO,
+                      color: TEXT_PRI,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontWeight: 500,
+                    }} title={taskName || modelDisplay}>
+                      {taskName || modelDisplay}
+                    </span>
+                    {srcConfig && (
+                      <span style={{
+                        ...type.caption,
+                        padding: '0 6px', borderRadius: 999,
+                        flexShrink: 0,
+                        background: srcConfig.bg,
+                        color: inkOf(srcConfig.color, 70),
+                        border: `1px solid ${withAlpha(srcConfig.color, '30')}`,
+                      }}>
+                        {srcConfig.label}
+                      </span>
+                    )}
+                  </div>
+                  {taskName && modelId && (
+                    <span title={modelId} style={{
+                      ...type.caption, fontFamily: MONO, color: isFavRun ? inkOf(GOLD, 70) : TEXT_MUT,
+                      display: 'flex', alignItems: 'center', gap: 6, minWidth: 0,
                     }}>
-                      {srcConfig.label}
+                      <span style={{
+                        width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                        background: isFavRun ? GOLD : modelColor(modelId),
+                      }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {modelDisplay}
+                      </span>
                     </span>
                   )}
                 </div>
 
                 {/* Time ago */}
                 <span style={{
-                  fontFamily: MONO, fontSize: 13, color: TEXT_MUT,
-                  textAlign: 'right',
+                  ...type.caption, fontFamily: MONO, color: TEXT_MUT,
+                  textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums',
                 }}>
                   {run.created_at ? timeAgo(run.created_at) : '--'}
                 </span>
 
                 {/* Duration */}
-                <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, textAlign: 'right' }}>
+                <span style={{ ...type.caption, fontFamily: MONO, color: TEXT_MUT, textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtDuration(durationMs)}
                 </span>
 
                 {/* Tokens */}
-                <span style={{ fontFamily: MONO, fontSize: 13, color: TEXT_MUT, textAlign: 'right' }}>
+                <span style={{ ...type.caption, fontFamily: MONO, color: TEXT_MUT, textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtTokens(tokens)}
                 </span>
 
                 {/* Composite score */}
                 <div style={{ textAlign: 'right' }}>
                   <span style={{
-                    fontFamily: MONO, fontSize: 13,
-                    color: qualityColor(composite),
+                    ...type.caption, fontFamily: MONO, fontVariantNumeric: 'tabular-nums',
+                    color: composite != null ? inkOf(qualityColor(composite), 75) : TEXT_MUT,
                     fontWeight: composite != null ? 600 : 400,
                     padding: composite != null && composite >= 0.85 ? '1px 4px' : undefined,
                     background: composite != null && composite >= 0.85 ? 'rgba(74,222,128,0.08)' : undefined,
-                    borderRadius: 3,
+                    borderRadius: 999,
                   }}>
                     {composite != null ? composite.toFixed(2) : '--'}
                   </span>

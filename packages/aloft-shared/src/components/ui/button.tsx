@@ -16,34 +16,34 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, icon, children, disabled, inlineChildren = true, asChild, ...props }, ref) => {
     const variants = {
-      primary: 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800 dark:bg-[var(--primary)] dark:hover:bg-[#6cb6ff] text-white shadow-sm hover:shadow-md',
-      secondary: 'bg-slate-600 hover:bg-slate-700 active:bg-slate-800 dark:bg-[var(--muted)] dark:hover:bg-[var(--table-row-hover-dark)] text-white dark:text-[var(--text-primary)] shadow-sm hover:shadow-md',
-      outline: 'border border-slate-300 dark:border-[var(--border)] bg-white dark:bg-[var(--card)] text-slate-700 dark:text-[var(--text-primary)] hover:bg-slate-50 dark:hover:bg-[var(--table-row-hover-dark)] hover:border-slate-400 dark:hover:border-[var(--border-hover)]',
-      ghost: 'hover:bg-slate-100 dark:hover:bg-[var(--table-row-hover-dark)] hover:text-slate-900 dark:hover:text-[var(--text-primary)]',
-      destructive: 'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm hover:shadow-md',
-      default: 'bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white shadow-sm hover:shadow-md',
-      icon: 'h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-[var(--table-row-hover-dark)]',
+      primary: 'bg-[var(--brand-a)] text-[var(--on-brand)] shadow-xs hover:bg-[color-mix(in_srgb,var(--brand-a)_88%,black)] active:bg-[color-mix(in_srgb,var(--brand-a)_80%,black)]',
+      secondary: 'bg-[var(--surface-2)] text-[var(--ink-1)] border border-[var(--line-1)] hover:bg-[var(--surface-3)]',
+      outline: 'border border-[var(--line-2)] bg-[var(--surface-1)] text-[var(--ink-1)] shadow-xs hover:bg-[var(--surface-2)] hover:border-[color-mix(in_srgb,var(--ink-3)_45%,var(--line-2))]',
+      ghost: 'text-[var(--ink-2)] hover:bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] hover:text-[var(--ink-1)]',
+      destructive: 'bg-[var(--destructive)] text-white shadow-xs hover:bg-[color-mix(in_srgb,var(--destructive)_88%,black)]',
+      default: 'bg-[var(--brand-a)] text-[var(--on-brand)] shadow-xs hover:bg-[color-mix(in_srgb,var(--brand-a)_88%,black)]',
+      icon: 'text-[var(--ink-2)] hover:bg-[color-mix(in_srgb,var(--ink-1)_6%,transparent)] hover:text-[var(--ink-1)]',
     }
 
     const sizes = {
-      xs: 'px-2 py-1 text-xs',
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-4 py-2',
-      lg: 'px-6 py-3 text-lg',
-      xl: 'px-8 py-4 text-xl',
+      xs: 'h-7 px-2.5 text-ui',
+      sm: 'h-8 px-3 text-ui',
+      md: 'h-9 px-3.5 text-ui',
+      lg: 'h-10 px-4 text-ui-lg',
+      xl: 'h-11 px-5 text-ui-lg',
       icon: 'h-8 w-8 p-0',
     }
 
     const buttonClassName = cn(
-      "rounded-lg font-medium transition-all duration-200 ease-out",
-      "flex items-center justify-center gap-2",
+      "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-ctl font-medium select-none",
+      "transition-[background-color,border-color,color,box-shadow,transform] duration-hover ease-out-strong",
+      "focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
-      "active:scale-[0.97]",
+      "active:scale-[0.97] active:duration-press",
       variants[variant],
-      sizes[size],
+      sizes[variant === 'icon' ? 'icon' : size],
       className
     )
-
     // If asChild is true, clone the child element and merge props
     if (asChild && React.isValidElement(children)) {
       return React.cloneElement(children as React.ReactElement, {

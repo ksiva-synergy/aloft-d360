@@ -4,6 +4,7 @@ import React from 'react';
 import { BarChart3, LayoutGrid, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useCatalogStore, selectCoverage, type CoverageBucket } from './catalog-store';
 import { MONO, SERIF, MUTED, INK, INK_DIM, BORDER, GOLD } from './mc-ui';
+import { inkOf } from '@/lib/typography/tokens';
 
 /**
  * Coverage — governed / candidate / draft by theme. Collapsed by default to a
@@ -46,7 +47,7 @@ export function CoveragePanel() {
           textAlign: 'left',
         }}
       >
-        <span style={{ ...SERIF, fontSize: 13, fontWeight: 600, color: INK, flexShrink: 0 }}>
+        <span style={{ ...SERIF, fontSize: 'var(--type-ui-regular-size)', fontWeight: 600, color: INK, flexShrink: 0 }}>
           Coverage
         </span>
         {/* Mini stacked bar */}
@@ -54,7 +55,7 @@ export function CoveragePanel() {
           style={{
             flex: '0 0 100px',
             height: 8,
-            borderRadius: 3,
+            borderRadius: 6,
             overflow: 'hidden',
             background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
             display: 'flex',
@@ -77,10 +78,10 @@ export function CoveragePanel() {
             />
           )}
         </span>
-        <span style={{ ...MONO, fontSize: 13, color: overallPct < 50 ? GOLD : INK_DIM }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(overallPct < 50 ? GOLD : INK_DIM) }}>
           {overallPct}% governed
         </span>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED }}>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
           {buckets.length} theme{buckets.length !== 1 ? 's' : ''}
         </span>
         {gapCount > 0 && (
@@ -90,8 +91,8 @@ export function CoveragePanel() {
               alignItems: 'center',
               gap: 4,
               ...MONO,
-              fontSize: 13,
-              color: GOLD,
+              fontSize: 'var(--type-ui-regular-size)',
+              color: inkOf(GOLD),
             }}
           >
             <AlertTriangle size={11} />
@@ -121,7 +122,7 @@ export function CoveragePanel() {
               marginBottom: 10,
             }}
           >
-            <span style={{ ...MONO, fontSize: 13, color: MUTED, letterSpacing: '0.06em' }}>
+            <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, letterSpacing: '0.04em' }}>
               GOVERNED / CANDIDATE / DRAFT BY THEME
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -131,19 +132,19 @@ export function CoveragePanel() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 5,
-                  ...MONO,
-                  fontSize: 13,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 'var(--type-ui-regular-size)',
                   padding: '4px 9px',
-                  borderRadius: 4,
+                  borderRadius: 6,
                   cursor: 'pointer',
                   border: `1px solid ${gapsOnly ? GOLD : BORDER}`,
                   background: gapsOnly ? 'color-mix(in srgb, var(--brand-a) 12%, transparent)' : 'transparent',
-                  color: gapsOnly ? GOLD : MUTED,
+                  color: inkOf(gapsOnly ? GOLD : MUTED),
                 }}
               >
                 <AlertTriangle size={11} /> Gaps only {gapCount ? `(${gapCount})` : ''}
               </button>
-              <div style={{ display: 'flex', gap: 2, border: `1px solid ${BORDER}`, borderRadius: 4, padding: 2 }}>
+              <div style={{ display: 'flex', gap: 2, border: `1px solid ${BORDER}`, borderRadius: 6, padding: 2 }}>
                 <ModeBtn active={mode === 'bars'} onClick={() => setMode('bars')} icon={<BarChart3 size={12} />} />
                 <ModeBtn active={mode === 'treemap'} onClick={() => setMode('treemap')} icon={<LayoutGrid size={12} />} />
               </div>
@@ -179,7 +180,7 @@ function ModeBtn({ active, onClick, icon }: { active: boolean; onClick: () => vo
         display: 'flex',
         alignItems: 'center',
         padding: '3px 7px',
-        borderRadius: 3,
+        borderRadius: 6,
         border: 'none',
         cursor: 'pointer',
         background: active ? GOLD : 'transparent',
@@ -210,7 +211,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         width: '100%',
         background: active ? 'color-mix(in srgb, var(--brand-a) 6%, transparent)' : 'transparent',
         border: 'none',
-        borderRadius: 4,
+        borderRadius: 6,
         padding: '3px 6px',
         cursor: 'pointer',
         textAlign: 'left',
@@ -221,7 +222,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         <span
           style={{
             ...MONO,
-            fontSize: 13,
+            fontSize: 'var(--type-ui-regular-size)',
             color: active ? GOLD : INK_DIM,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -230,13 +231,13 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         >
           {bucket.theme}
         </span>
-        <span style={{ ...MONO, fontSize: 13, color: MUTED, flexShrink: 0 }}>{bucket.total}</span>
+        <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: MUTED, flexShrink: 0 }}>{bucket.total}</span>
       </span>
       <span
         style={{
           display: 'flex',
           height: 12,
-          borderRadius: 3,
+          borderRadius: 6,
           overflow: 'hidden',
           background: 'color-mix(in srgb, var(--ink-1) 4%, transparent)',
         }}
@@ -245,7 +246,7 @@ function CoverageBar({ bucket, active, onClick }: { bucket: CoverageBucket; acti
         {bucket.candidate > 0 && <span style={{ width: pct(bucket.candidate), background: SEG_CAND }} />}
         {bucket.draft > 0 && <span style={{ width: pct(bucket.draft), background: SEG_DRAFT }} />}
       </span>
-      <span style={{ ...MONO, fontSize: 13, color: bucket.gap ? GOLD : MUTED, textAlign: 'right' }}>
+      <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: inkOf(bucket.gap ? GOLD : MUTED), textAlign: 'right' }}>
         {Math.round(bucket.govPct * 100)}% gov
       </span>
     </button>
@@ -267,7 +268,7 @@ function Treemap({ buckets, activeThemes, onPick }: { buckets: CoverageBucket[];
             style={{
               flex: `1 1 ${basis}px`,
               minHeight: 54,
-              borderRadius: 4,
+              borderRadius: 6,
               padding: '8px 10px',
               cursor: 'pointer',
               textAlign: 'left',
@@ -281,10 +282,10 @@ function Treemap({ buckets, activeThemes, onPick }: { buckets: CoverageBucket[];
           >
             <span style={{ position: 'absolute', inset: 0, background: 'rgba(7,11,17,0.55)' }} />
             <span style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ ...MONO, fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: '#fff', display: 'flex', alignItems: 'center', gap: 5 }}>
                 {b.gap && <AlertTriangle size={10} color={GOLD} />} {b.theme}
               </span>
-              <span style={{ ...MONO, fontSize: 13, color: 'rgba(255,255,255,0.75)' }}>
+              <span style={{ ...MONO, fontSize: 'var(--type-ui-regular-size)', color: 'rgba(255,255,255,0.75)' }}>
                 {b.total} · {Math.round(b.govPct * 100)}% gov
               </span>
             </span>

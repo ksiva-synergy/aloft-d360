@@ -1,8 +1,7 @@
-import { getServerSession } from 'next-auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
+import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +15,8 @@ export const dynamic = 'force-dynamic';
  * - exclude: clears harvest_state to NULL on matching active estate rows (unless already queued/harvested)
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  const denied = await denyUnlessEstatePipelineOperator();
+  if (denied) return denied;
 
   const body = await req.json();
   const action: string = body.action;

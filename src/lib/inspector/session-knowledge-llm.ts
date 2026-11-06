@@ -23,6 +23,8 @@ function isLlmSummaryEnabled(): boolean {
   const flag = process.env.INSPECTOR_SESSION_SUMMARY_LLM;
   if (flag === 'false' || flag === '0') return false;
   return !!(
+    (process.env.LLMLITE_BASE_URL || process.env.llmlite_base_url) &&
+    (process.env.LLMLITE_API_KEY || process.env.llmlite_api_key) ||
     process.env.BEDROCK_MANTLE_API_KEY ||
     (process.env.FOUNDRY_ENDPOINT && process.env.FOUNDRY_API_KEY) ||
     (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
@@ -77,11 +79,15 @@ ${assistantLine}
 Session recap:`;
 }
 
-async function callFoundrySummary(prompt: string): Promise<string | null> {
+async function callFoundrySummary(prompt: string): Promise<{
+  text: string | null;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+}> {
   const client = getSummaryChatClient();
-  if (!client) return null;
-
-  const modelId = resolveOpenAIChatModelId(DEFAULT_SUMMARY_MODEL);
+  const modelId = resolveOpenAIChatModelId(DEFAULT_SUMMARY_MODEL, 'session_titles');
+  if (!client) return { text: null, modelId, inputTokens: 0, outputTokens: 0 };
 
   // Prefer registry tokenParam; newer Foundry chat models reject `max_tokens`.
   let tokenParam: 'max_tokens' | 'max_completion_tokens' = 'max_completion_tokens';
@@ -110,7 +116,13 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
       ],
       ...tokenConfig,
     });
-    return response.choices[0]?.message?.content?.trim() ?? null;
+    const text = response.choices[0]?.message?.content?.trim() ?? null;
+    return {
+      text,
+      modelId,
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+    };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     // One retry with the alternate param if the deployment rejects the first.
@@ -128,13 +140,24 @@ async function callFoundrySummary(prompt: string): Promise<string | null> {
         ],
         [alt]: 220,
       });
-      return response.choices[0]?.message?.content?.trim() ?? null;
+      const text = response.choices[0]?.message?.content?.trim() ?? null;
+      return {
+        text,
+        modelId,
+        inputTokens: response.usage?.prompt_tokens ?? 0,
+        outputTokens: response.usage?.completion_tokens ?? 0,
+      };
     }
     throw err;
   }
 }
 
-async function callBedrockSummary(prompt: string): Promise<string | null> {
+async function callBedrockSummary(prompt: string): Promise<{
+  text: string | null;
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+}> {
   const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime');
   const region = process.env.BEDROCK_REGION ?? process.env.AWS_REGION ?? 'us-east-1';
   const client = new BedrockRuntimeClient({ region });
@@ -147,15 +170,21 @@ async function callBedrockSummary(prompt: string): Promise<string | null> {
     }),
   );
 
-  return (
-    (response.output?.message?.content?.[0] as { text?: string } | undefined)?.text?.trim() ?? null
-  );
+  const text =
+    (response.output?.message?.content?.[0] as { text?: string } | undefined)?.text?.trim() ?? null;
+  const usage = response.usage;
+  return {
+    text,
+    modelId: BEDROCK_FALLBACK_MODEL,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
+  };
 }
 
 export async function generateNarrativeSessionSummary(
   knowledge: InspectorSessionKnowledge,
   trajectory: TrajectoryEntry[],
-  meta: { userMessage?: string; assistantExcerpt?: string },
+  meta: { userMessage?: string; assistantExcerpt?: string; orgId?: string; userId?: string | null; sessionId?: string },
 ): Promise<string | null> {
   if (!isLlmSummaryEnabled()) return null;
   if (knowledge.schemaPaths.length === 0 && knowledge.entities.length === 0) return null;
@@ -163,11 +192,29 @@ export async function generateNarrativeSessionSummary(
   const prompt = buildSummaryPrompt(knowledge, trajectory, meta);
 
   try {
-    let text: string | null = null;
+    let llm: Awaited<ReturnType<typeof callFoundrySummary>>;
     if (getSummaryChatClient()) {
-      text = await callFoundrySummary(prompt);
+      llm = await callFoundrySummary(prompt);
     } else {
-      text = await callBedrockSummary(prompt);
+      llm = await callBedrockSummary(prompt);
+    }
+
+    const text = llm.text;
+    if (text && (llm.inputTokens > 0 || llm.outputTokens > 0) && meta.orgId && meta.sessionId) {
+      const { logInteractiveLlmTurn } = await import('@/lib/spend/log-llm-turn');
+      const { randomUUID } = await import('crypto');
+      void logInteractiveLlmTurn({
+        orgId: meta.orgId,
+        userId: meta.userId ?? null,
+        surface: 'inspector',
+        action: 'session_summary',
+        model: llm.modelId,
+        inputTokens: llm.inputTokens,
+        outputTokens: llm.outputTokens,
+        sessionId: meta.sessionId,
+        turnId: randomUUID(),
+        status: 'success',
+      });
     }
 
     if (!text || text.length < 20) return null;

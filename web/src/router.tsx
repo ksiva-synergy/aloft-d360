@@ -18,6 +18,7 @@ import {
   RunSessionRoute,
   TeachSessionRoute,
   WorkbenchSessionRoute,
+  WorkbenchLegacyRedirect,
 } from './routes/adapters';
 
 /**
@@ -75,7 +76,11 @@ export const routes: RouteObject[] = [
                 },
                 children: estateRoutes,
               },
+              { path: 'agent-lab/automate', lazy: page(() => import('@/views/agent-lab/flows/index')), handle: title('Automate · ALOFT') },
+              { path: 'agent-lab/flows', element: <RedirectTo to="/agent-lab/automate" /> },
               { path: 'agent-lab/history', lazy: page(() => import('@/views/agent-lab/history')) },
+              { path: 'agent-lab/knowledge', lazy: page(() => import('@/views/agent-lab/knowledge/index')), handle: title('Knowledge · ALOFT') },
+              { path: 'agent-lab/knowledge/:id', lazy: page(() => import('@/views/agent-lab/knowledge/detail')), handle: title('Knowledge · ALOFT') },
               {
                 path: 'agent-lab/memory',
                 lazy: page(() => import('@/views/agent-lab/memory/index')),
@@ -103,17 +108,41 @@ export const routes: RouteObject[] = [
                 handle: title('Teach · Candidate hand-off'),
               },
               { path: 'agent-lab/teach/:sessionId', Component: TeachSessionRoute, handle: title('Teach · Captain Track Sparrow Reflect') },
-              { path: 'agent-lab/agents', lazy: page(() => import('@/views/agent-lab/agents/index')) },
-              { path: 'agent-lab/agents/:slug', lazy: page(() => import('@/views/agent-lab/agents/use')) },
-              { path: 'agent-lab/workbench', lazy: page(() => import('@/views/agent-lab/workbench')) },
-              { path: 'agent-lab/workbench/:sessionId', Component: WorkbenchSessionRoute },
+              {
+                path: 'agent-lab/agents',
+                lazy: async () => {
+                  const Layout = (await import('@/views/agent-lab/agents/AgentsLayout')).default;
+                  return { Component: () => <Layout /> };
+                },
+                children: [
+                  { index: true, lazy: page(() => import('@/views/agent-lab/agents/index')) },
+                  { path: 'workbench', lazy: page(() => import('@/views/agent-lab/workbench')) },
+                  { path: 'workbench/:sessionId', Component: WorkbenchSessionRoute },
+                  { path: ':slug', lazy: page(() => import('@/views/agent-lab/agents/use')) },
+                ],
+              },
+              { path: 'agent-lab/workbench', element: <RedirectTo to="/agent-lab/agents/workbench" /> },
+              { path: 'agent-lab/workbench/:sessionId', Component: WorkbenchLegacyRedirect },
 
               // ── Govern (agent-staging) ─────────────────────────────────────────────
               { path: 'agent-staging', element: <RedirectTo to="/docs/agents" /> },
-              { path: 'agent-staging/audit', lazy: page(() => import('@/views/agent-staging/audit')) },
-              { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
-              { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
-              { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+              {
+                // Section access gate (src/lib/sections): no access → explanation; view → read-only notice.
+                lazy: async () => {
+                  const Gate = (await import('@/components/sections/SectionGate')).default;
+                  return { Component: () => <Gate><Outlet /></Gate> };
+                },
+                children: [
+                  { path: 'agent-staging/models', lazy: page(() => import('@/views/agent-staging/models')), handle: title('Models & AI Gateway · ALOFT') },
+                  { path: 'agent-staging/audit', lazy: page(() => import('@/views/agent-staging/audit')) },
+                  { path: 'agent-staging/connections', lazy: page(() => import('@/views/agent-staging/connections')), handle: title('Connections · ALOFT') },
+                  { path: 'agent-staging/policies', lazy: page(() => import('@/views/agent-staging/policies')) },
+                  { path: 'agent-staging/try', lazy: page(() => import('@/views/agent-staging/try')) },
+                  { path: 'agent-staging/users', lazy: page(() => import('@/views/agent-staging/users')) },
+                  { path: 'agent-staging/data-access', lazy: page(() => import('@/views/agent-staging/data-access')), handle: title('Data access · ALOFT') },
+                  { path: 'agent-staging/cost', lazy: page(() => import('@/views/agent-staging/cost-monitor')), handle: title('Cost monitor · ALOFT') },
+                ],
+              },
 
               // ── Docs ───────────────────────────────────────────────────────────────
               { path: 'docs', lazy: page(() => import('@/views/docs/index')) },
