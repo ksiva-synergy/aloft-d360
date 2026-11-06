@@ -14,7 +14,7 @@
  *
  * Only the edges are mocked (NextAuth session, Prisma, audit, LLM jobs). Real auth and guard code runs.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Role = 'platform_admin' | 'admin' | 'member' | 'readonly';
 const PERMS: Record<Role, string[]> = {
@@ -269,6 +269,19 @@ describe('F7 expensive batch routes', () => {
 describe('F8 user status changes', () => {
   const patch = (id: string, body: unknown) => patchUser(json(`http://test/api/users/${id}`, 'PATCH', body), params({ id }));
 
+  it('a plain admin can no longer change account status (View on Users, section access 2026-11-06)', async () => {
+    expect((await patch('u-member', { status: 'SUSPENDED' })).status).toBe(403);
+    expect(db.user.update).not.toHaveBeenCalled();
+  });
+
+  describe('admin with a bundle that gives Manage on Users', () => {
+  beforeEach(() => {
+    PERMS.admin.push('section:govern.users:manage');
+  });
+  afterEach(() => {
+    PERMS.admin = PERMS.admin.filter((k) => k !== 'section:govern.users:manage');
+  });
+
   it('forbids an admin from suspending a platform admin', async () => {
     expect((await patch('u-pa', { status: 'SUSPENDED' })).status).toBe(403);
     expect(db.user.update).not.toHaveBeenCalled();
@@ -280,6 +293,7 @@ describe('F8 user status changes', () => {
 
   it('still lets an admin suspend a member', async () => {
     expect((await patch('u-member', { status: 'SUSPENDED' })).status).toBe(200);
+  });
   });
 });
 

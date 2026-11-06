@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import prisma from '@/lib/db';
 import { writeAuditRow } from '@/lib/semantic/governance';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,8 @@ const VALID_TRANSITIONS: Record<string, string> = {
  * This constraint is documented in PHASE_DS3A_DECISIONS.md.
  */
 export async function POST(req: NextRequest, { params }: RouteParams) {
+  const deniedSection = await denyUnlessSection(req, ['estate.catalog', 'manage']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

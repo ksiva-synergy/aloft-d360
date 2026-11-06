@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { getOrgId } from '@/lib/databricks/connections';
 import prisma from '@/lib/db';
 import { executeDatabricksSQL } from '@/lib/databricks/execute';
-import { getAccessToken } from '@/lib/databricks/token-client';
+import { openDatabricksSession } from '@/lib/databricks/token-client';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,8 @@ function safeSqlStr(val: string, label: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  const deniedSection = await denyUnlessSection(req, ['estate.catalog', 'view']);
+  if (deniedSection) return deniedSection;
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
 
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest) {
     });
     if (!conn) return NextResponse.json({ error: 'NO_CONNECTION' }, { status: 404 });
 
-    const token = await getAccessToken(conn.id, conn.workspace_host);
+    const session = await openDatabricksSession(conn, 'metadata');
 
     const sql = `SELECT column_name, data_type, is_nullable, comment, ordinal_position
       FROM \`${safeId(catalog, 'catalog')}\`.information_schema.columns
@@ -49,9 +52,9 @@ export async function GET(req: NextRequest) {
 
     const result = await executeDatabricksSQL(
       conn.id,
-      conn.workspace_host,
-      conn.default_warehouse_id,
-      token,
+      session.workspaceHost,
+      session.warehouseId,
+      session.token,
       { statement: sql },
     );
 

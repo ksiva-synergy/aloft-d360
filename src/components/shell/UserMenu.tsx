@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from './AppearanceControls';
+import { DeveloperModeToggle } from './DeveloperModeToggle';
 import { forgetFirstName } from '@/lib/login-greeting';
 import type { Session } from 'next-auth';
 
@@ -194,6 +195,9 @@ export function UserMenu({
           <div className="space-y-1 p-3">
             <div className="px-1 pb-1 text-size-ui font-semibold uppercase tracking-wide text-[var(--ink-3)]">Theme</div>
             <ThemeSwitch />
+          </div>
+          <div className="border-t border-[var(--line-1)] p-3">
+            <DeveloperModeToggle />
           </div>
           <div className="border-t border-[var(--line-1)] p-3">
             <AppearanceControls />

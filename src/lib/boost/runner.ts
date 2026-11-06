@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { getDefaultOrg } from '@/lib/org';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { executeInspectorTool } from '@/lib/inspector/tools';
+import { systemPrincipal } from '@/lib/access/principal';
 import { buildSystemPrompt, buildToolConfig } from '@/lib/inspector/prompts';
 import { BOOST_SUITE_V1, BOOST_SUITE_V2, BOOST_SUITE_VERSION } from '@/lib/boost/suite';
 import { BOOST_MODELS } from '@/lib/boost/models';
@@ -132,7 +133,17 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
         ? new Set(resolveInjectionTableOrder(boostCase))
         : new Set();
 
+    const benchmarkPrincipal = systemPrincipal('benchmark', orgId);
+
     const wrappedExecuteTool = (toolName: string, toolInput: Record<string, unknown>, callId: string): Promise<string> => {
+      const toolContext = {
+        queryResults: [] as import('@/hooks/useInspectorChat').QueryResult[],
+        model: boostModel.modelId,
+        lastUserMessage: boostCase.prompt,
+        sessionId: '',
+        connectionId: null as string | null,
+        dataPrincipal: benchmarkPrincipal,
+      };
       if (
         injectedPaths.size > 0 &&
         toolName === 'describe_schema' &&
@@ -140,13 +151,10 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
       ) {
         const calledPath = typeof toolInput.path === 'string' ? toolInput.path : null;
         if (calledPath && injectedPaths.has(calledPath)) {
-          // Mark as phantom: model called describe_schema on a table whose card was
-          // already pre-injected in the system prompt. The scorer sees this flag in
-          // the serialized trajectory (toolTrajectory JSON passed to scoreGroundedness).
-          return executeInspectorTool(toolName, { ...toolInput, phantomCatalogCall: true }, callId);
+          return executeInspectorTool(toolName, { ...toolInput, phantomCatalogCall: true }, callId, () => {}, toolContext);
         }
       }
-      return executeInspectorTool(toolName, toolInput, callId);
+      return executeInspectorTool(toolName, toolInput, callId, () => {}, toolContext);
     };
 
     const result = await dispatchAgentLoop(boostModel, {

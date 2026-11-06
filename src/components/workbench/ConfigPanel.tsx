@@ -4,6 +4,7 @@ import React from 'react';
 import { Check, CheckCircle2, Circle, ExternalLink, Lightbulb, Loader2, Lock, Rocket, Sparkles } from 'lucide-react';
 import type { ConstructionState } from '@/lib/construction/constructionState';
 import { canCommissionAgent } from '@/lib/construction/readiness';
+import { countDatasourceTables } from '@/lib/construction/datasource-tables';
 import type { EditableField } from '@/lib/construction/user-edits';
 import { cn } from '@/lib/utils';
 import { ClassPicker, DatasourceEditor, InlineText, ProvenanceBadge, ToolEditor, type SaveFn } from './config/FieldEditors';
@@ -79,7 +80,7 @@ export function ConfigPanel({
 
   const checks = [
     { label: 'Name', done: !!state.name?.trim() },
-    { label: 'Agent class', done: !!state.class?.id },
+    { label: 'Agent type', done: !!state.class?.id },
     { label: `Instructions (${MIN_INSTRUCTIONS}+ characters)`, done: instructions.length >= MIN_INSTRUCTIONS },
   ];
 
@@ -234,7 +235,7 @@ export function ConfigPanel({
       </Section>
 
       {/* ── Class ──────────────────────────────────────── */}
-      <Section id="wb-sec-class" title="Class" badge={<ProvenanceBadge state={state} field="class.id" />}>
+      <Section id="wb-sec-class" title="Agent type" badge={<ProvenanceBadge state={state} field="class.id" />}>
         <ClassPicker value={state.class?.id ?? null} onSave={saver('class.id')} disabled={readOnly} />
       </Section>
 
@@ -258,7 +259,7 @@ export function ConfigPanel({
       <Section
         id="wb-sec-data"
         title="Data sources"
-        count={state.tools.datasources.length}
+        count={countDatasourceTables(state.tools.datasources)}
         badge={<ProvenanceBadge state={state} field="tools.datasources" />}
       >
         <DatasourceEditor items={state.tools.datasources} onSave={saver('tools.datasources')} disabled={readOnly} />

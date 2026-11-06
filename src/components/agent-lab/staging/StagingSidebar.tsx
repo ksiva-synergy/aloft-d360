@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
-import { NAV_GROUPS, groupForPath, isActive, type NavItem } from './nav-config';
+import { groupForPath, isActive, type NavItem } from './nav-config';
+import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
 import { CommandSidebar } from './CommandSidebar';
@@ -45,6 +46,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
+  const groups = useNavGroups();
 
   // Follow navigation: show the panel for the section you are in.
   useEffect(() => {
@@ -52,7 +54,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
     setFilter('');
   }, [pathname]);
 
-  const area = NAV_GROUPS.find((g) => g.id === areaId) ?? NAV_GROUPS[0];
+  const area = groups.find((g) => g.id === areaId) ?? groups[0];
   const q = filter.trim().toLowerCase();
   const items = q ? area.items.filter((i) => i.label.toLowerCase().includes(q)) : area.items;
 
@@ -104,7 +106,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
 
           <div className="relative flex flex-col items-center gap-1">
             <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
-            {NAV_GROUPS.map((g) => (
+            {groups.map((g) => (
               <RailButton
                 key={g.id}
                 label={g.railLabel}
@@ -294,9 +296,10 @@ function PanelLink({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 function HomePanel({ pathname }: { pathname: string }) {
+  const groups = useNavGroups();
   return (
     <div className="space-y-2.5">
-      {NAV_GROUPS.map((g) => (
+      {groups.map((g) => (
         <section key={g.id}>
           <h3 className="px-3 pb-1 text-[length:var(--type-caption-size)] font-semibold uppercase tracking-wide text-[var(--ink-3)]">{g.label}</h3>
           <ul className="space-y-0.5">

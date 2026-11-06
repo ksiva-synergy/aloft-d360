@@ -53,7 +53,7 @@ export default function SavedAgentsPage() {
     const q = query.trim().toLowerCase();
     if (!q) return agents;
     return agents.filter((agent) =>
-      [agent.name, agent.description, agent.agentClass, agent.status]
+      [agent.name, agent.description, agent.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q)),
     );
@@ -118,11 +118,11 @@ export default function SavedAgentsPage() {
             <li key={agent.id}>
               <article className="flex h-full flex-col rounded-2xl border border-[var(--line-1)] bg-[var(--surface-1)] p-4 transition-colors hover:border-[color-mix(in_srgb,var(--brand-a)_55%,var(--line-1))]">
                 <div className="flex items-start gap-3">
-                  <AgentAvatar name={agent.name} hint={[agent.description, agent.agentClass].filter(Boolean).join(' ')} size="md" />
+                  <AgentAvatar name={agent.name} hint={agent.description ?? ''} size="md" />
                   <div className="min-w-0">
                     <h2 className="truncate text-[length:var(--type-body-size)] font-semibold text-[var(--ink-1)]">{agent.name}</h2>
                     <p className="mt-0.5 truncate text-size-ui text-[var(--ink-3)]">
-                      {[agent.agentClass, agent.status].filter(Boolean).join(' · ') || 'Agent'}
+                      {agent.status || 'Agent'}
                       {agent.updatedAt ? ` · ${when(agent.updatedAt)}` : ''}
                     </p>
                   </div>

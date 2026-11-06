@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import ScanCoverageModal from '@/components/estate/ScanCoverageModal';
 import type { ScanCoverageResult } from '@/components/estate/ScanCoverageModal';
 import { isTestSourceDisplayName } from '@/lib/context/test-sources';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 import { ESTATE_STAGE, ESTATE_STAGES, formatCount, percentOf, estateStageDisplayLabel } from '@/lib/estate/stages';
 
 interface Source {
@@ -106,6 +107,7 @@ export default function EstateOverviewPage() {
   const [scanLoading, setScanLoading] = useState(false);
   const [scanResult, setScanResult] = useState<ScanCoverageResult | null>(null);
   const [showAllAttention, setShowAllAttention] = useState(false);
+  const canAct = useCanRunEstatePipeline();
 
   const handleScanCoverage = useCallback(async () => {
     if (sourcesData.length === 0) return;
@@ -191,11 +193,11 @@ export default function EstateOverviewPage() {
         key: `never-${source.id}`,
         tone: 'warn',
         text: <><b className="font-medium text-[var(--estate-ink)]">{nameOf(source)}</b> has never been scanned{found > 0 ? ` \u00b7 ${formatCount(found)} objects waiting` : ''}</>,
-        action: (
+        action: canAct ? (
           <button type="button" className={CATALOG_BTN} onClick={() => { void queueSourceScan(source.id); }}>
             <ScanLine aria-hidden className="size-3.5" /> Scan now
           </button>
-        ),
+        ) : null,
       });
       continue;
     }
@@ -268,7 +270,7 @@ export default function EstateOverviewPage() {
                     {formatCount(totals.searchable)} of {formatCount(totals.found)} objects across {sourcesData.length} source{sourcesData.length === 1 ? '' : 's'} are ready for agents
                   </p>
                 </div>
-                <button
+                {canAct && <button
                   type="button"
                   onClick={handleScanCoverage}
                   disabled={scanLoading}
@@ -277,7 +279,7 @@ export default function EstateOverviewPage() {
                 >
                   {scanLoading ? <RefreshCw aria-hidden className="size-3.5 animate-spin" /> : <ScanSearch aria-hidden className="size-3.5" />}
                   {scanLoading ? 'Checking\u2026' : 'Check coverage'}
-                </button>
+                </button>}
               </div>
               <div className={cn(card, 'flex flex-col divide-y divide-[var(--estate-border)] md:flex-row md:divide-x md:divide-y-0')}>
                 {funnel.map((s, i) => (

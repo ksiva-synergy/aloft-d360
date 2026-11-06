@@ -26,7 +26,7 @@ const FIELD_LABELS: Record<string, string> = {
   'prompt.useCaseTag': 'use case',
   'prompt.persona': 'persona',
   'prompt.instructions': 'instructions',
-  'class.id': 'agent class',
+  'class.id': 'agent type',
   'name': 'agent name',
 };
 

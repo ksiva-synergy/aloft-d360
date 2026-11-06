@@ -19,6 +19,8 @@ export interface ListInput {
   connection: string;
   page?: number;
   pageSize?: number;
+  /** When set, restrict to these context object ids (data access). Null = no filter. */
+  visibleObjectIds?: string[] | null;
 }
 
 export interface ObjectListItem {
@@ -39,11 +41,25 @@ export interface ListResult {
   available_connections?: string[];
 }
 
+function visibleIdFilter(visibleObjectIds?: string[] | null): { id?: { in: string[] } } {
+  if (visibleObjectIds == null) return {};
+  if (visibleObjectIds.length === 0) {
+    return { id: { in: ['00000000-0000-0000-0000-000000000000'] } };
+  }
+  return { id: { in: visibleObjectIds } };
+}
+
+function isObjectVisible(objectId: string, visibleObjectIds?: string[] | null): boolean {
+  if (visibleObjectIds == null) return true;
+  return visibleObjectIds.includes(objectId);
+}
+
 export interface DescribeInput {
   orgId: string;
   connection: string;
   path: string;
   detail?: 'compact' | 'full';
+  visibleObjectIds?: string[] | null;
 }
 
 export interface ColumnCard {
@@ -65,6 +81,7 @@ export interface ProfileInput {
   orgId: string;
   connection: string;
   path: string;
+  visibleObjectIds?: string[] | null;
 }
 
 export interface ProfileColumnStats {
@@ -281,7 +298,11 @@ export async function listObjects(input: ListInput): Promise<ListResult> {
 
   const [rows, total] = await Promise.all([
     prisma.platformContextObject.findMany({
-      where: { source_id: { in: sourceIds }, lifecycle: 'active' },
+      where: {
+        source_id: { in: sourceIds },
+        lifecycle: 'active',
+        ...visibleIdFilter(input.visibleObjectIds),
+      },
       select: {
         id: true,
         full_path: true,
@@ -294,7 +315,11 @@ export async function listObjects(input: ListInput): Promise<ListResult> {
       take: pageSize,
     }),
     prisma.platformContextObject.count({
-      where: { source_id: { in: sourceIds }, lifecycle: 'active' },
+      where: {
+        source_id: { in: sourceIds },
+        lifecycle: 'active',
+        ...visibleIdFilter(input.visibleObjectIds),
+      },
     }),
   ]);
 
@@ -362,6 +387,7 @@ export async function describeObject(input: DescribeInput): Promise<DescribeResu
   });
 
   if (!obj) return null;
+  if (!isObjectVisible(obj.id, input.visibleObjectIds)) return null;
 
   const isCompact = (input.detail ?? 'compact') === 'compact';
   const allCols = obj.columns;
@@ -509,6 +535,7 @@ export async function profileObject(input: ProfileInput): Promise<ProfileResult 
   });
 
   if (!obj) return null;
+  if (!isObjectVisible(obj.id, input.visibleObjectIds)) return null;
 
   const latestProfile = await prisma.platformContextProfile.findFirst({
     where: { object_id: obj.id },
@@ -620,6 +647,7 @@ export interface SearchInput {
   orgId: string;
   query: string;
   k?: number; // default 5, max 20
+  visibleObjectIds?: string[] | null;
 }
 
 export interface SearchResultItem {
@@ -822,6 +850,7 @@ export async function searchObjects(input: SearchInput): Promise<SearchResult> {
   for (const { id, score, semantic_score, keyword_score, exact_name_match, match_type } of extPool.slice(0, k)) {
     const obj = extObjMap.get(id);
     if (!obj) continue;
+    if (!isObjectVisible(id, input.visibleObjectIds)) continue;
 
     const rawSummary = summaryMap.get(id) ?? obj.native_comment ?? 'No summary available.';
     const groupLabel = groupLabelByPath.get(obj.full_path);
@@ -857,6 +886,7 @@ export interface RelationsInput {
   orgId: string;
   connection: string;
   path: string;
+  visibleObjectIds?: string[] | null;
 }
 
 export interface RelationItem {
@@ -895,6 +925,7 @@ export async function relationsObject(input: RelationsInput): Promise<RelationsR
     },
   });
   if (!obj) return null;
+  if (!isObjectVisible(obj.id, input.visibleObjectIds)) return null;
 
   const items: RelationItem[] = [];
 
@@ -1021,6 +1052,7 @@ const USAGE_STALE_DAYS = 8;
 export async function usageObject(
   path: string,
   orgId: string,
+  opts?: { visibleObjectIds?: string[] | null },
 ): Promise<UsageObjectResult | null> {
   // Step 1: resolve path → context_object_id
   const obj = await prisma.platformContextObject.findFirst({
@@ -1028,6 +1060,7 @@ export async function usageObject(
     select: { id: true, full_path: true, last_t3_at: true },
   });
   if (!obj) return null;
+  if (!isObjectVisible(obj.id, opts?.visibleObjectIds)) return null;
 
   // Step 2: load the latest usage snapshot (highest version)
   const usage = await prisma.platformContextUsage.findFirst({

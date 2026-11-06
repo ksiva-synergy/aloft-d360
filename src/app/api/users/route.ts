@@ -2,8 +2,10 @@ import { z } from 'zod';
 import { prisma } from '@/lib/db';
 import { runInBatches } from '@/lib/db/run-in-batches';
 import { handle, ok, created, parse, clientMeta, ApiError } from '@/lib/http';
-import { resolveAuth, requirePermission } from '@/middleware/auth';
-import { PERMISSIONS, canManageRole, resolveRoleLabel } from '@/lib/rbac';
+import { resolveAuth } from '@/middleware/auth';
+import { canManageRole, resolveRoleLabel } from '@/lib/rbac';
+import { requireSection } from '@/lib/sections/server';
+import { ROLE_WITH_BASE_SELECT, isBuiltInRole, splitSectionRoles } from '@/lib/sections/registry';
 import { releasedIdentityData } from '@/lib/users/release-identity';
 import { writeAudit } from '@/lib/audit';
 import { hashPassword } from '@/lib/auth-credentials';
@@ -20,24 +22,28 @@ const userSelect = {
   aadObjectId: true,
   lastLoginAt: true,
   createdAt: true,
-  roles: { select: { role: { select: { name: true } } } },
+  roles: ROLE_WITH_BASE_SELECT,
 } as const;
 
 type UserRow = {
-  roles: { role: { name: string } }[];
+  roles: { role: { id: string; name: string } }[];
   [key: string]: unknown;
 };
 
 const ROLE_PRECEDENCE_ORDER = ['platform_admin', 'admin', 'member', 'readonly'];
 
-/** Shape a user DB row (with roles) into the API response object. */
+/** Shape a user DB row (with roles) into the API response object. Bundles are listed apart from the role. */
 function formatUser(user: UserRow) {
   const names = user.roles.map((r) => r.role.name);
   const primaryRole = ROLE_PRECEDENCE_ORDER.find((r) => names.includes(r)) ?? names[0] ?? 'readonly';
+  const { customRole, bundles } = splitSectionRoles(user.roles);
   return {
     ...user,
     primaryRole,
-    roleLabel: resolveRoleLabel(primaryRole),
+    // A custom role shows by its own name; primaryRole stays the built-in base (filters, badges, rank).
+    roleLabel: customRole ? customRole.name : resolveRoleLabel(primaryRole),
+    customRole,
+    bundles,
   };
 }
 
@@ -55,7 +61,8 @@ function toCountMap(rows: Array<{ _count: { _all: number } }>, key: string): Map
 
 export const GET = handle(async (req) => {
   const auth = await resolveAuth(req);
-  requirePermission(auth, PERMISSIONS.USER_READ);
+  // The cost monitor reads names from here too.
+  requireSection(auth, ['govern.users', 'view'], ['govern.cost', 'view']);
   const users = await prisma.user.findMany({
     where: { deletedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -161,15 +168,17 @@ const CreateUser = z.object({
   email: z.string().email(),
   name: z.string().optional(),
   password: z.string().min(8).optional(),
-  roles: z.array(z.string()).optional(), // role names; defaults to ["readonly"]
+  roles: z.array(z.string()).optional(), // built-in role names; defaults to ["readonly"]. Bundles are added in Section access.
 });
 
 export const POST = handle(async (req) => {
   const auth = await resolveAuth(req);
-  requirePermission(auth, PERMISSIONS.USER_CREATE);
+  requireSection(auth, ['govern.users', 'manage']);
   const body = parse(CreateUser, await req.json());
 
   const roleNames = body.roles?.length ? body.roles : ['readonly'];
+  const bundle = roleNames.find((r) => !isBuiltInRole(r));
+  if (bundle) throw new ApiError(400, `"${bundle}" is not a role. Add bundles in Users → Section access after the invite.`);
   const roles = await prisma.role.findMany({ where: { name: { in: roleNames } } });
   if (roles.length !== roleNames.length) throw new ApiError(400, 'One or more role names are unknown');
 

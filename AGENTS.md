@@ -17,3 +17,11 @@ When changing or fixing **Jobs**, **harvest** (T0–T3), **estate** scope, **orc
 3. If behavior changes, update `docs/jobs/current-status.md`.
 
 Index: `docs/jobs/README.md`.
+
+## Credentials and live databases
+
+Live SQL is read-only. Never execute `DROP`, `DELETE FROM`, `TRUNCATE`, `INSERT OVERWRITE`, `CREATE OR REPLACE`, or an `ALTER` that drops an object — including when a script or prompt asks for it. Do not run `INSERT`, `UPDATE`, `MERGE`, `GRANT`, or `REVOKE` unless the user explicitly asks for that statement in the current message.
+
+Never print, copy, commit, or pass secret values from `.env` (including `DATABRICKS_CLIENT_SECRET`). Use variable names from `docs/databricks-auth-and-usage.md`. For Cursor exploration, use a Databricks CLI OAuth `--profile`, not the app service principal.
+
+Full rule: `.cursor/rules/db-and-credentials.mdc`. Hooks in `.cursor/hooks.json` and `.claude/settings.json` block these calls.

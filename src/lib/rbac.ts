@@ -54,6 +54,12 @@ export const PERMISSIONS = {
   // Gate raw LLM request/response payloads behind a dedicated permission so plain
   // audit:read cannot see prompt content.
   LLM_PAYLOAD_READ: 'llm:payload:read',
+  /** Manage departments, members, grants, and clearances (no data access by itself). */
+  ACCESS_ADMIN: 'access:admin',
+  /** Set catalog/schema/table sensitivity labels. */
+  ACCESS_CLASSIFY: 'access:classify',
+  /** Read access change and decision logs. */
+  ACCESS_AUDIT: 'access:audit',
 } as const;
 
 /** Human-readable labels for each role — use in UI instead of raw DB name. */
@@ -102,7 +108,8 @@ export function flattenPermissions(user: UserWithAuth): Set<string> {
   return perms;
 }
 
-export function resolvePrimaryRole(user: UserWithAuth): string {
+/** Only role names are read, so callers can pass a narrow `roles.role.name` select. */
+export function resolvePrimaryRole(user: { roles: { role: { name: string } }[] }): string {
   const names = user.roles.map((ur) => ur.role.name);
   for (const r of ROLE_PRECEDENCE) if (names.includes(r)) return r;
   return names[0] ?? DEFAULT_ROLE;

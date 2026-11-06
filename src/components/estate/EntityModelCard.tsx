@@ -22,6 +22,7 @@ import React, { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { type } from '@/lib/typography/tokens';
 import { Card, Tag, BTN_PRIMARY, BTN_SECONDARY, EmptyNote, CodeBlock, TONE_COLOR, relTime, fullTime, type Tone } from './object-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 // ── Types (serialized SemanticModelView from reads.ts) ───────────────────────
 
@@ -454,6 +455,7 @@ export default function EntityModelCard({
   onColumnClick,
   onPromoted,
 }: EntityModelCardProps) {
+  const canAct = useCanRunEstatePipeline();
   const [promoting, setPromoting] = useState(false);
   const [localStatus, setLocalStatus] = useState(status);
 
@@ -512,7 +514,7 @@ export default function EntityModelCard({
       actions={
         <>
           <Tag tone={STATUS_TONE[localStatus] ?? 'neutral'} dot>{localStatus}</Tag>
-          {localStatus === 'candidate' && entity_model_id && (
+          {localStatus === 'candidate' && entity_model_id && canAct && (
             <button type="button" disabled={promoting} onClick={handlePromote} className={BTN_PRIMARY} style={{ border: 'none', cursor: promoting ? 'not-allowed' : 'pointer' }}>
               {promoting ? 'Promoting…' : 'Promote to governed'}
             </button>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveAuth } from '@/middleware/auth';
+import { denyUnlessSection } from '@/lib/sections/server';
 import { getLlmLiteApiKey, getLlmLiteBaseUrl } from '@/lib/llmlite/config';
 import { TITAN_EMBED_MODEL, DEFAULT_EMBED_DIMS, embedWithTitan } from '@/lib/azure/embed-client';
 
@@ -49,11 +49,9 @@ async function probeEmbedding(modelId: string) {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    await resolveAuth(req);
-  } catch {
-    return NextResponse.json({ error: 'Unauthenticated' }, { status: 401 });
-  }
+  // Probing a model spends gateway tokens: same rule as changing model settings.
+  const deniedSection = await denyUnlessSection(req, ['govern.models', 'manage']);
+  if (deniedSection) return deniedSection;
 
   let body: { modelId?: string; kind?: 'chat' | 'embedding' };
   try {

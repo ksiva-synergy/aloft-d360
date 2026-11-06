@@ -6,6 +6,7 @@ import { runAgentLoop, type AgentLoopParams, type AgentLoopResult, type LoopMetr
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { principalForUser } from '@/lib/access/principal';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { TurnMetricsRecorder } from '@/lib/agent-ops/record-turn-metrics';
@@ -214,6 +215,9 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
   }
 
   const orgId = getDefaultOrg().id;
+  const dataPrincipal = input.person?.userId
+    ? await principalForUser(input.person.userId, orgId)
+    : null;
   try {
     await assertInteractiveBudget({
       orgId,
@@ -297,7 +301,7 @@ export async function runCatalogAgent(input: RunCatalogAgentInput): Promise<RunC
             if (event.type === 'query_result') queryResults.push(event as unknown as QueryResult);
             input.onToolEvent?.(event);
           },
-          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId },
+          { queryResults, model: effectiveModelId, lastUserMessage: input.message, sessionId: runSessionId, connectionId, dataPrincipal },
         ),
       );
     },

@@ -17,6 +17,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { type } from '@/lib/typography/tokens';
 import { BTN_PRIMARY, TONE_COLOR } from './object-ui';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 type TrustStatus = 'assumed' | 'confirmed' | 'certified';
 
@@ -58,6 +59,7 @@ export default function TrustActionBar({
   currentStatus,
   onConfirmed,
 }: TrustActionBarProps) {
+  const canAct = useCanRunEstatePipeline();
   const [loading, setLoading] = useState(false);
   const [localStatus, setLocalStatus] = useState(currentStatus);
 
@@ -154,7 +156,7 @@ export default function TrustActionBar({
         })}
       </ol>
 
-      {nextStatus ? (
+      {nextStatus && !canAct ? null : nextStatus ? (
         <button type="button" disabled={loading} onClick={handleAdvance} className={BTN_PRIMARY} style={{ border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}>
           {loading ? 'Saving…' : NEXT_ACTION[nextStatus]}
         </button>

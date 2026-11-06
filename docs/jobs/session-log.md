@@ -5,6 +5,46 @@
 
 ---
 
+### 2026-11-06: Push consolidated work to `dev` including docs and graphify (Composer)
+
+- **What:** All local changes were committed and merged into `dev`, then pushed to `synergy-marine` so the branch carries documentation updates (`docs/CHANGELOG.md`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`, and other `docs/**` additions), research notes, and `graphify-out/` (graph report and artifacts).
+- **Verified:** `git push synergy-marine dev`.
+- **Not done:** Next.js dev logs under `.next/` are not in git (ignored).
+
+### 2026-11-06: Estate routes `enrich` and `logs` put under section access (Claude)
+
+- **What:**
+  - A new route coverage test (`src/lib/sections/__tests__/route-coverage.test.ts`) found two estate routes still on the old admin check.
+  - `objects/[id]/enrich` starts a harvest. It now needs Manage on Catalog, so platform admins only (admins could call it before; the button was already hidden).
+  - `jobs/[id]/logs` (live job log stream) now needs View on Jobs. Admins and platform admins have it, as before.
+- **Files:** `src/app/api/agent-lab/context/objects/[id]/enrich/route.ts`, `src/app/api/agent-lab/context/jobs/[id]/logs/route.ts`, `src/lib/sections/__tests__/route-coverage.test.ts`.
+- **Verified:** vitest `src/lib/sections` and `src/app/api/agent-lab` (56 tests); `tsc --noEmit` clean. Not run against live jobs.
+- **Not done:** Not checked in a browser.
+
+### 2026-11-06: Data Estate section access, admins view only (Claude)
+
+- **Files:**
+  - New: `src/lib/sections/*`, `src/app/api/me/sections/route.ts`.
+  - Estate pages and components: `EstateLayout`, `EstateNav`, `index`, `mapper`, `silo`, `SourceCard`, `ChildJobsPanel`, `EntityModelCard`, `HarvestActionBar`, `HeroSection`, `RelationshipList`, `TrustActionBar`, `SemanticCard`.
+  - 29 `src/app/api/agent-lab/context/**/route.ts` files. Full list in `docs/CHANGELOG.md`.
+- **Before → after:**
+  - **Before:** any signed-in user could open the Data Estate and read every estate API. Run, harvest, and schedule controls were already platform-admin only, but confirm-semantic, resolve-pii, mapping status, and silo link status could be changed by anyone. Overview and object-page actions showed for everyone.
+  - **After:**
+    - Admins see everything view-only, with a banner, and all actions are hidden or disabled.
+    - Members and read-only users have no Data Estate (hidden from the sidebar; the APIs return 403).
+    - Platform admins are unchanged.
+  - The orchestrator and job launch paths are unchanged.
+- **Not done:**
+  - Not browser-checked.
+  - Section access for other areas.
+  - Bundle editor.
+ `metadata` / `profile` service principal roles (Cursor)
+
+- **Files:** `src/lib/context/databricks-adapter.ts` (`exec` → `metadata` role; new `profileExec` → `profile` role for `harvestProfile`, `fetchSampleRows`, `countExactRows`), `src/lib/databricks/{sp-roles,token-client,secrets,test-connection}.ts`, `scripts/context/diagnose-query-history.ts`. Full list in `docs/CHANGELOG.md`.
+- **Before → after:** Every harvest query used the connection's single SP. Now each query names a role. With no role credentials configured (today), both roles resolve to the same default SP, so harvest behaviour is unchanged. Once an admin sets a role SP, T0/T3 and T1 run under different identities. `DATABRICKS_SP_REQUIRED_ROLES` stops the fallback.
+- **Also:** `src/lib/databricks/secrets.ts` now uses the AWS default credential chain when `AWS_ACCESS_KEY_ID` is unset, so the Fargate harvester can read role secrets through its task role.
+- **Not done:** No live harvest run. The `platform_databricks_credentials` migration has not been applied. No role SPs exist yet. Whether `DESCRIBE DETAIL` works with `BROWSE` alone was not checked, so it runs as `profile`.
+
 ### 2026-11-04: T3 usage keeps executor names; key_columns only referenced columns (Claude)
 
 - **Files:** `src/lib/context/usage.ts` (`access_stats.top_executors` = top 10 `executed_as` with query counts; `extractKeyColumns` drops columns with no references), `src/components/estate/UsagePanel.tsx`, `HeroSection.tsx`, `ObjectKnowledgePage.tsx`.

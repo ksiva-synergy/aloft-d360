@@ -15,6 +15,7 @@ import TrustChip from './TrustChip';
 import TrustActionBar from './TrustActionBar';
 import { Card, CardBlock, Field, Tag, Callout, CodeBlock, BTN_SECONDARY } from './object-ui';
 import { type } from '@/lib/typography/tokens';
+import { useCanRunEstatePipeline } from '@/lib/estate/useEstatePipelineAccess';
 
 type UsagePattern = string | { intent?: string; sql?: string; sql_sketch?: string; pattern?: string };
 
@@ -87,6 +88,7 @@ export default function SemanticCard({
   onColumnClick,
   piiResolutions,
 }: SemanticCardProps) {
+  const canAct = useCanRunEstatePipeline();
   const [localStatus, setLocalStatus] = useState(status);
   const [localPiiResolutions, setLocalPiiResolutions] = useState<Record<string, { resolution: string; reviewed_by: string; reviewed_at: string }>>(piiResolutions ?? {});
   const [piiLoading, setPiiLoading] = useState(false);
@@ -226,7 +228,7 @@ export default function SemanticCard({
                 : resolvedPii.length > 0
                   ? `PII — ${resolvedPii.length} of ${piiCols.length} resolved`
                   : `PII detected (pii_columns: ${piiCols.length})`}
-              action={!allPiiResolved ? (
+              action={!allPiiResolved && canAct ? (
                 <button
                   type="button"
                   disabled={piiLoading || !objectId || !semanticCardId || semanticVersion == null}

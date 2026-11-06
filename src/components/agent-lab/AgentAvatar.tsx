@@ -1,39 +1,42 @@
-import type { CSSProperties } from 'react';
 import {
-  Atom, BarChart3, BookOpen, Bot, Brain, CalendarClock, Code2, Compass, DatabaseZap, HeartHandshake,
-  Layers, LifeBuoy, Lightbulb, Megaphone, Orbit, Package, Scale, ShieldCheck, Sparkles, TrendingUp,
-  Users, Wallet, type LucideIcon,
+  Anchor, Atom, Award, BarChart3, BookOpen, BookUser, Bot, Brain, CalendarClock, Code2, Compass, DatabaseZap,
+  GraduationCap, HardHat, HeartHandshake, HeartPulse, Layers, Leaf, LifeBuoy, Lightbulb, Megaphone, Orbit,
+  Package, ReceiptText, Scale, Ship, ShieldCheck, Sparkles, TrendingUp, UsersRound, Wallet, Wrench,
+  type LucideIcon,
 } from 'lucide-react';
 
-// Hues are mixed with --ink-1 / transparency at render time, so one value reads well in light and dark themes.
-const HUE = {
-  rose: '#F43F5E', emerald: '#10B981', sky: '#0EA5E9', amber: '#F59E0B', orange: '#F97316',
-  pink: '#EC4899', teal: '#14B8A6', indigo: '#6366F1', cyan: '#06B6D4', violet: '#8B5CF6',
-  slate: '#64748B', lime: '#84CC16',
-} as const;
+type Look = { icon: LucideIcon };
 
-type Look = { icon: LucideIcon; hue: string };
-
-// First match wins, so more specific domains come before generic ones (finance before sales' "account").
+// First match wins, so the most specific concept comes first: what the agent *does* (appraise, keep records,
+// buy) beats who it serves (crew, HR), which beats generic analytics. Words are prefix-matched at a word start.
 const RULES: Array<{ words: string[]; look: Look }> = [
-  { words: ['hr', 'hrms', 'employee', 'people', 'workforce', 'talent', 'recruit', 'hiring', 'headcount', 'darwinbox', 'staff', 'attrition'], look: { icon: Users, hue: HUE.rose } },
-  { words: ['finance', 'financial', 'revenue', 'invoice', 'billing', 'spend', 'budget', 'accounting', 'ledger', 'payment', 'expense', 'payroll'], look: { icon: Wallet, hue: HUE.emerald } },
-  { words: ['security', 'compliance', 'audit', 'risk', 'fraud', 'governance', 'pii', 'access'], look: { icon: ShieldCheck, hue: HUE.indigo } },
-  { words: ['support', 'ticket', 'incident', 'helpdesk', 'service desk', 'sla', 'escalation'], look: { icon: LifeBuoy, hue: HUE.amber } },
-  { words: ['customer', 'churn', 'retention', 'nps', 'feedback', 'csat', 'onboarding'], look: { icon: HeartHandshake, hue: HUE.pink } },
-  { words: ['sales', 'deal', 'crm', 'opportunit', 'lead', 'quota', 'salesforce', 'growth'], look: { icon: TrendingUp, hue: HUE.sky } },
-  { words: ['marketing', 'campaign', 'seo', 'brand', 'advert', 'social'], look: { icon: Megaphone, hue: HUE.orange } },
-  { words: ['inventory', 'supply', 'logistic', 'shipment', 'procurement', 'vendor', 'order', 'stock'], look: { icon: Package, hue: HUE.teal } },
-  { words: ['legal', 'contract', 'clause', 'regulat'], look: { icon: Scale, hue: HUE.slate } },
-  { words: ['quality', 'freshness', 'lineage', 'schema', 'etl', 'dbt', 'ingest', 'catalog', 'table', 'warehouse'], look: { icon: DatabaseZap, hue: HUE.cyan } },
-  { words: ['code', 'engineer', 'deploy', 'devops', 'api', 'bug', 'sql'], look: { icon: Code2, hue: HUE.lime } },
-  { words: ['schedule', 'calendar', 'meeting', 'shift', 'roster'], look: { icon: CalendarClock, hue: HUE.teal } },
-  { words: ['doc', 'knowledge', 'faq', 'wiki', 'policy', 'handbook', 'research'], look: { icon: BookOpen, hue: HUE.violet } },
-  { words: ['report', 'dashboard', 'kpi', 'metric', 'analytics', 'analyst', 'insight', 'forecast', 'trend'], look: { icon: BarChart3, hue: HUE.violet } },
+  { words: ['appraisal', 'performance review', 'evaluation', 'scorecard', 'promotion'], look: { icon: Award } },
+  { words: ['record', 'certificate', 'certification', 'licence', 'license', 'passport', 'visa', 'registry', 'dossier'], look: { icon: BookUser } },
+  { words: ['training', 'course', 'competenc', 'learning', 'cbt', 'stcw'], look: { icon: GraduationCap } },
+  { words: ['safety', 'hse', 'hseq', 'accident', 'near miss', 'injury', 'hazard', 'ltif', 'casualty'], look: { icon: HardHat } },
+  { words: ['medical', 'health', 'fatigue', 'wellbeing', 'well-being', 'rest hour'], look: { icon: HeartPulse } },
+  { words: ['purchase', 'procurement', 'requisition', 'vendor', 'supplier', 'sourcing'], look: { icon: ReceiptText } },
+  { words: ['emission', 'carbon', 'cii', 'eexi', 'decarbon', 'esg', 'sustainab', 'fuel', 'bunker'], look: { icon: Leaf } },
+  { words: ['maintenance', 'machinery', 'engine', 'spare', 'repair', 'technical', 'pms', 'dry dock', 'drydock'], look: { icon: Wrench } },
+  { words: ['sire', 'vetting', 'ocimf', 'rightship', 'port state', 'psc', 'vessel', 'ship', 'fleet', 'voyage', 'tanker', 'charter', 'marine', 'maritime'], look: { icon: Ship } },
+  { words: ['seafarer', 'crew', 'mariner', 'manning', 'sailor', 'cadet'], look: { icon: Anchor } },
+  { words: ['hr', 'hrms', 'employee', 'people', 'workforce', 'talent', 'recruit', 'hiring', 'headcount', 'darwinbox', 'staff', 'attrition'], look: { icon: UsersRound } },
+  { words: ['finance', 'financial', 'revenue', 'invoice', 'billing', 'spend', 'budget', 'accounting', 'ledger', 'payment', 'expense', 'payroll'], look: { icon: Wallet } },
+  { words: ['security', 'compliance', 'audit', 'risk', 'fraud', 'governance', 'pii', 'access'], look: { icon: ShieldCheck } },
+  { words: ['support', 'ticket', 'incident', 'helpdesk', 'service desk', 'sla', 'escalation'], look: { icon: LifeBuoy } },
+  { words: ['customer', 'churn', 'retention', 'nps', 'feedback', 'csat', 'onboarding'], look: { icon: HeartHandshake } },
+  { words: ['sales', 'deal', 'crm', 'opportunit', 'lead', 'quota', 'salesforce', 'growth'], look: { icon: TrendingUp } },
+  { words: ['marketing', 'campaign', 'seo', 'brand', 'advert', 'social'], look: { icon: Megaphone } },
+  { words: ['inventory', 'supply', 'logistic', 'shipment', 'order', 'stock', 'warehouse stock'], look: { icon: Package } },
+  { words: ['legal', 'contract', 'clause', 'regulat'], look: { icon: Scale } },
+  { words: ['quality', 'freshness', 'lineage', 'schema', 'etl', 'dbt', 'ingest', 'catalog', 'table', 'warehouse'], look: { icon: DatabaseZap } },
+  { words: ['code', 'engineer', 'deploy', 'devops', 'api', 'bug', 'sql'], look: { icon: Code2 } },
+  { words: ['schedule', 'calendar', 'meeting', 'shift', 'roster'], look: { icon: CalendarClock } },
+  { words: ['doc', 'knowledge', 'faq', 'wiki', 'policy', 'handbook', 'research'], look: { icon: BookOpen } },
+  { words: ['report', 'dashboard', 'kpi', 'metric', 'analytics', 'analyst', 'insight', 'forecast', 'trend'], look: { icon: BarChart3 } },
 ];
 
 const FALLBACK_ICONS: LucideIcon[] = [Bot, Sparkles, Compass, Lightbulb, Brain, Orbit, Atom, Layers];
-const FALLBACK_HUES = [HUE.sky, HUE.violet, HUE.teal, HUE.indigo, HUE.emerald, HUE.pink, HUE.cyan, HUE.amber];
 
 const escape = (word: string) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const COMPILED = RULES.map(rule => ({ re: new RegExp(`\\b(${rule.words.map(escape).join('|')})`, 'i'), look: rule.look }));
@@ -44,7 +47,7 @@ function hash(text: string) {
   return h >>> 0;
 }
 
-/** Deterministic icon + tint for an agent; the name is checked before the description so the title wins. */
+/** Deterministic icon for an agent; the name is checked before the description so the title wins. */
 export function agentLook(name: string, hint?: string | null): Look {
   for (const text of [name, hint ?? '']) {
     if (!text) continue;
@@ -52,7 +55,7 @@ export function agentLook(name: string, hint?: string | null): Look {
     if (hit) return hit.look;
   }
   const h = hash(name.trim().toLowerCase() || 'agent');
-  return { icon: FALLBACK_ICONS[h % FALLBACK_ICONS.length], hue: FALLBACK_HUES[(h >>> 8) % FALLBACK_HUES.length] };
+  return { icon: FALLBACK_ICONS[h % FALLBACK_ICONS.length] };
 }
 
 const SIZES = {
@@ -67,15 +70,10 @@ export function AgentAvatar({ name, hint, size = 'sm', className = '' }: {
   size?: keyof typeof SIZES;
   className?: string;
 }) {
-  const { icon: Icon, hue } = agentLook(name, hint);
+  const { icon: Icon } = agentLook(name, hint);
   const s = SIZES[size];
-  const style: CSSProperties = {
-    background: `color-mix(in srgb, ${hue} 14%, transparent)`,
-    border: `1px solid color-mix(in srgb, ${hue} 24%, transparent)`,
-    color: `color-mix(in srgb, ${hue} 72%, var(--ink-1))`,
-  };
   return (
-    <span className={`flex shrink-0 items-center justify-center ${s.box} ${className}`} style={style} aria-hidden>
+    <span className={`flex shrink-0 items-center justify-center border border-[var(--line-1)] bg-[var(--surface-2)] text-[var(--ink-2)] ${s.box} ${className}`} aria-hidden>
       <Icon className={s.icon} strokeWidth={1.9} />
     </span>
   );

@@ -51,6 +51,8 @@ model User {
   sessions     Session[]
   actions      Action[]
   auditLogs    AuditLog[]    @relation("AuditActor")
+  access_department_members AccessDepartmentMember[]
+  access_clearances         AccessClearance[]
 
   @@index([status])
   @@index([deletedAt])
@@ -1325,6 +1327,12 @@ model PlatformOrg {
   updated_at             DateTime                       @updatedAt @db.Timestamptz(6)
   agents                 PlatformAgent[]
   databricks_connections PlatformDatabricksConnection[]
+  access_departments     AccessDepartment[]
+  access_grants          AccessGrant[]
+  access_labels          AccessLabel[]
+  access_clearances      AccessClearance[]
+  access_policy_version  AccessPolicyVersion?
+  access_column_labels   AccessColumnLabel[]
 
   @@index([clerk_org_id], map: "idx_platform_orgs_clerk_id")
   @@map("platform_orgs")
@@ -1400,9 +1408,154 @@ model PlatformDatabricksConnection {
   created_at                  DateTime    @default(now()) @db.Timestamptz(6)
   updated_at                  DateTime    @updatedAt @db.Timestamptz(6)
   org                         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  credentials                 PlatformDatabricksCredential[]
 
   @@index([org_id], map: "idx_platform_databricks_connections_org_id")
   @@map("platform_databricks_connections")
+}
+
+/// One service principal role on a Databricks connection (src/lib/databricks/sp-roles.ts).
+/// The secret lives in Secrets Manager at secret_ref; this row never holds it.
+model PlatformDatabricksCredential {
+  id             String                       @id @default(cuid())
+  connection_id  String
+  role           String
+  secret_ref     String
+  warehouse_id   String?
+  status         String                       @default("untested")
+  last_tested_at DateTime?                    @db.Timestamptz(6)
+  last_error     String?
+  created_at     DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                     @updatedAt @db.Timestamptz(6)
+  connection     PlatformDatabricksConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+
+  @@unique([connection_id, role], map: "uq_platform_databricks_credential_role")
+  @@map("platform_databricks_credentials")
+}
+
+/// Departments for data access grants (docs/access/data-access-architecture.md).
+model AccessDepartment {
+  id             String                   @id @default(cuid())
+  org_id         String
+  key            String
+  name           String
+  entra_group_id String?
+  archived_at    DateTime?                @db.Timestamptz(6)
+  created_at     DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime                 @updatedAt @db.Timestamptz(6)
+  org            PlatformOrg              @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  members        AccessDepartmentMember[]
+
+  @@unique([org_id, key], map: "uq_access_department_org_key")
+  @@index([org_id], map: "idx_access_departments_org_id")
+  @@map("access_departments")
+}
+
+model AccessDepartmentMember {
+  department_id String
+  user_id       String
+  source        String           @default("manual")
+  added_by      String?
+  added_at      DateTime         @default(now()) @db.Timestamptz(6)
+  department    AccessDepartment @relation(fields: [department_id], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([department_id, user_id])
+  @@map("access_department_members")
+}
+
+model AccessGrant {
+  id              String      @id @default(cuid())
+  org_id          String
+  principal_type  String
+  principal_id    String
+  path            String
+  path_depth      Int
+  level           String
+  effect          String
+  expires_at      DateTime?   @db.Timestamptz(6)
+  reason          String?
+  created_by      String?
+  created_at      DateTime    @default(now()) @db.Timestamptz(6)
+  org             PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([principal_type, principal_id, path, effect], map: "uq_access_grant_principal_path_effect")
+  @@index([path], map: "idx_access_grants_path")
+  @@index([org_id], map: "idx_access_grants_org_id")
+  @@map("access_grants")
+}
+
+model AccessLabel {
+  id         String      @id @default(cuid())
+  org_id     String
+  path       String
+  path_depth Int
+  label      String
+  reason     String?
+  set_by     String?
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, path], map: "uq_access_label_org_path")
+  @@map("access_labels")
+}
+
+model AccessClearance {
+  org_id     String
+  user_id    String
+  level      String
+  reason     String?
+  granted_by String?
+  expires_at DateTime?   @db.Timestamptz(6)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([org_id, user_id])
+  @@map("access_clearances")
+}
+
+model AccessPolicyVersion {
+  org_id     String      @id
+  version    BigInt      @default(0)
+  updated_at DateTime    @updatedAt @db.Timestamptz(6)
+  org        PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@map("access_policy_version")
+}
+
+model AccessDecisionLog {
+  id         String   @id @default(cuid())
+  ts         DateTime @default(now()) @db.Timestamptz(6)
+  org_id     String
+  user_id    String?
+  surface    String
+  level      String
+  paths      String[] @default([])
+  decision   String
+  reason     String?
+  mode       String
+  session_id String?
+  tier       String?
+
+  @@index([org_id, ts(sort: Desc)], map: "idx_access_decision_log_org_ts")
+  @@map("access_decision_log")
+}
+
+/// Column-level sensitivity (Phase 7); table present before compiler wiring.
+model AccessColumnLabel {
+  id          String      @id @default(cuid())
+  org_id      String
+  table_path  String
+  column_name String
+  label       String
+  reason      String?
+  set_by      String?
+  updated_at  DateTime    @updatedAt @db.Timestamptz(6)
+  org         PlatformOrg @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  @@unique([org_id, table_path, column_name], map: "uq_access_column_label_org_table_column")
+  @@map("access_column_labels")
 }
 
 model knowledge_sources {

@@ -5,14 +5,14 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { pathToIncludePattern } from '@/lib/context/job-scope';
 import { enqueueAndLaunchHarvest, findScopedHarvestConflict } from '@/lib/context/enqueue-and-launch';
 import prisma from '@/lib/db';
-import { denyUnlessSessionRole } from '@/middleware/auth';
+import { denyUnlessSection } from '@/lib/sections/server';
 
 export const dynamic = 'force-dynamic';
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(_req: NextRequest, { params }: RouteParams) {
-  const denied = await denyUnlessSessionRole('admin');
+  const denied = await denyUnlessSection(null, ['estate.catalog', 'manage']);
   if (denied) return denied;
   const session = await getServerSession(authOptions);
   if (!session) {

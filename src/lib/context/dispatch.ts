@@ -4,7 +4,12 @@
 
 import 'server-only';
 import { getDefaultOrg } from '@/lib/platform/agents';
+import prisma from '@/lib/db';
 import { listObjects, describeObject, profileObject, searchObjects, relationsObject, usageObject } from './describe';
+import type { AccessPrincipal } from '@/lib/access/types';
+import { shouldEvaluateAccess } from '@/lib/access/config';
+import { visibleObjectIds } from '@/lib/access/visibility';
+import type { AccessLevel } from '@/lib/access/types';
 
 /** Agent turns fire several describe_schema tools at once; keep them from filling the pool. */
 let describeActive = 0;
@@ -42,11 +47,22 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-export function handleDescribeSchema(input: Record<string, unknown>): Promise<string> {
-  return withDescribeSlot(() => runDescribeSchema(input));
+export function handleDescribeSchema(
+  input: Record<string, unknown>,
+  dataPrincipal?: AccessPrincipal | null,
+): Promise<string> {
+  return withDescribeSlot(() => runDescribeSchema(input, dataPrincipal));
 }
 
-async function runDescribeSchema(input: Record<string, unknown>): Promise<string> {
+function levelForDescribeAction(action: string): AccessLevel {
+  if (action === 'profile' || action === 'usage') return 'query';
+  return 'discover';
+}
+
+async function runDescribeSchema(
+  input: Record<string, unknown>,
+  dataPrincipal?: AccessPrincipal | null,
+): Promise<string> {
   const action = (input.action as string | undefined) ?? '';
   const connection = (input.connection as string | undefined) ?? '';
   const path = input.path as string | undefined;
@@ -54,6 +70,10 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
 
   if (!connection) {
     return JSON.stringify({ error: "Missing required parameter 'connection'." });
+  }
+
+  if (shouldEvaluateAccess() && !dataPrincipal) {
+    return JSON.stringify({ error: 'Data access principal is required for describe_schema.' });
   }
 
   let orgId: string;
@@ -65,10 +85,23 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
     return JSON.stringify({ error: `Could not resolve org: ${msg}` });
   }
 
+  const visibleIds =
+    dataPrincipal != null && shouldEvaluateAccess()
+      ? await visibleObjectIds(
+          dataPrincipal,
+          levelForDescribeAction(action),
+          await prisma.platformContextObject.findMany({
+            where: { org_id: orgId, lifecycle: 'active' },
+            select: { id: true, full_path: true },
+          }),
+        )
+      : null;
+  const visibility = { visibleObjectIds: visibleIds };
+
   if (action === 'list') {
     const { resolveConnectionName } = await import('./describe');
     const resolvedConnection = await resolveConnectionName(connection);
-    const result = await listObjects({ orgId, connection: resolvedConnection });
+    const result = await listObjects({ orgId, connection: resolvedConnection, ...visibility });
     return JSON.stringify(result);
   }
 
@@ -78,7 +111,7 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
         error: "Action 'describe' requires a 'path' argument (catalog.schema.table).",
       });
     }
-    const result = await describeObject({ orgId, connection, path, detail });
+    const result = await describeObject({ orgId, connection, path, detail, ...visibility });
     if (!result) {
       return JSON.stringify({
         error: `Object not found: '${path}'. Use action:'list' to see available objects for this connection.`,
@@ -93,7 +126,7 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
         error: "Action 'profile' requires a 'path' argument (catalog.schema.table).",
       });
     }
-    const result = await profileObject({ orgId, connection, path });
+    const result = await profileObject({ orgId, connection, path, ...visibility });
     if (!result) {
       return JSON.stringify({
         error: `Object not found: '${path}'. Use action:'list' to see available objects for this connection.`,
@@ -110,7 +143,7 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
       });
     }
     const k = typeof input.k === 'number' ? input.k : 5;
-    const result = await searchObjects({ orgId, query, k });
+    const result = await searchObjects({ orgId, query, k, ...visibility });
     return JSON.stringify(result);
   }
 
@@ -122,12 +155,12 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
       });
     }
     const k = typeof input.k === 'number' ? Math.min(Math.max(input.k, 1), 5) : 5;
-    const search = await searchObjects({ orgId, query, k });
+    const search = await searchObjects({ orgId, query, k, ...visibility });
     // One candidate at a time. Parallel describe + relations across every hit
     // filled the Prisma pool before the next connection lookup could start.
     const candidates = await mapWithConcurrency(search.results, 1, async (candidate) => {
-      const description = await describeObject({ orgId, connection, path: candidate.path, detail: 'compact' });
-      const relations = await relationsObject({ orgId, connection, path: candidate.path });
+      const description = await describeObject({ orgId, connection, path: candidate.path, detail: 'compact', ...visibility });
+      const relations = await relationsObject({ orgId, connection, path: candidate.path, ...visibility });
 
       return {
         ...candidate,
@@ -166,7 +199,7 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
         error: "Action 'relations' requires a 'path' argument (catalog.schema.table).",
       });
     }
-    const result = await relationsObject({ orgId, connection, path });
+    const result = await relationsObject({ orgId, connection, path, ...visibility });
     if (!result) {
       return JSON.stringify({
         error: `Object not found: '${path}'. Use action:'list' to see available objects for this connection.`,
@@ -181,7 +214,7 @@ async function runDescribeSchema(input: Record<string, unknown>): Promise<string
         error: "Action 'usage' requires a 'path' argument (catalog.schema.table).",
       });
     }
-    const result = await usageObject(path, orgId);
+    const result = await usageObject(path, orgId, visibility);
     if (!result) {
       return JSON.stringify({
         error: `No usage data for: '${path}'. The object may not exist or T3 harvest has not run for it.`,

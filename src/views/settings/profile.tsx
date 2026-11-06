@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import { Monitor, Moon, Sun, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from '@/components/shell/AppearanceControls';
+import { DeveloperModeToggle } from '@/components/shell/DeveloperModeToggle';
 import { CompanionSettings } from '@/components/companion/CompanionSettings';
 
 const THEMES = [
@@ -116,6 +117,16 @@ export default function ProfileSettingsPage() {
         <p className="mt-1 text-size-body text-[var(--ink-3)]">Light, dark, or follow your system preference.</p>
         <div className="mt-4">
           <ThemeSwitch />
+        </div>
+      </section>
+
+      <section className="rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
+        <h2 className="text-size-body font-semibold text-[var(--ink-1)]">Developer mode</h2>
+        <p className="mt-1 text-size-body text-[var(--ink-3)]">
+          Platform and org admins only. Shows tool steps, SQL inspect panels, and Developer tabs in Inspector, Agents, and the workbench.
+        </p>
+        <div className="mt-4 border-t border-[var(--line-1)] pt-4">
+          <DeveloperModeToggle />
         </div>
       </section>
 

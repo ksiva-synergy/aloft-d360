@@ -22,6 +22,10 @@ export interface UserRow {
   primaryRole: string;
   roleLabel: string;
   roles: { role: { name: string } }[];
+  /** Section access bundles on top of the role (Users → Section access). */
+  bundles?: { id: string; name: string }[];
+  /** A custom role (sets every section exactly); primaryRole is then its built-in base. */
+  customRole?: { id: string; name: string; base: 'readonly' | 'member' | 'admin' } | null;
   // Engagement metrics (aggregated server-side; default 0 when absent)
   logins7d?: number;
   logins30d?: number;

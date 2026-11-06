@@ -8,6 +8,7 @@ import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/l
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
 import { executeInspectorTool, resolveToolCatalogEntry } from '@/lib/inspector/tools';
+import { principalForUser } from '@/lib/access/principal';
 import type { QueryResult } from '@/hooks/useInspectorChat';
 import { withAgentOpsToolLog } from '@/lib/agent-ops/log-tool-invocation';
 import { buildTestRunSystemPrompt } from '@/lib/construction/prompts';
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
   } catch { /* no warehouse — describe_schema still works */ }
 
   const sessionId = body.sessionId;
+  const dataPrincipal = row.user_id ? await principalForUser(row.user_id, org.id) : null;
   const runId = `test-run-${crypto.randomUUID()}`;
   const turnMetrics = new TurnMetricsRecorder({ sessionId, surface: 'workbench_test_run' });
   const messages: Message[] = [{ role: 'user', content: [{ text: question } as ContentBlock] }];
@@ -128,6 +130,7 @@ export async function POST(request: NextRequest) {
                 lastUserMessage: question,
                 sessionId,
                 connectionId,
+                dataPrincipal,
               }),
             );
           },

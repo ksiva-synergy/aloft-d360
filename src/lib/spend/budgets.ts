@@ -2,6 +2,8 @@ import 'server-only';
 
 import { prisma } from '@/lib/db';
 import { ApiError } from '@/lib/http';
+import { DEFAULT_ROLE, resolvePrimaryRole } from '@/lib/rbac';
+import type { RoleCapGroup } from '@/lib/spend/cost-types';
 
 export type BudgetBucket = 'interactive' | 'harvest';
 export type BudgetMode = 'soft' | 'hard';
@@ -29,6 +31,8 @@ export interface BudgetStatusRow {
   pctUsed: number;
   alert: boolean;
   exceeded: boolean;
+  /** Role caps only: combined total and per-person breakdown. See `RoleCapGroup`. */
+  group?: RoleCapGroup;
 }
 
 export class BudgetExceededError extends ApiError {
@@ -51,6 +55,7 @@ function scopeLabel(scope: string): string {
     if (scope.startsWith('org:')) return 'Org — interactive AI';
     if (scope.startsWith('user:')) return 'User override — interactive';
     if (scope.startsWith('role:')) return `Role ${scope.split(':')[1]} — interactive`;
+    if (scope.startsWith('role-total:')) return `Role ${scope.split(':')[1]} — combined interactive`;
   }
   if (scope.endsWith(':harvest')) return 'Org — harvest / platform jobs';
   return scope;
@@ -125,12 +130,126 @@ export async function ensureDefaultBudgetPolicies(orgId: string): Promise<void> 
   });
 }
 
+type PersonSpend = { userId: string; usd: number; overridden: boolean };
+
+/** Personal interactive overrides (`user:<id>:interactive`) in the policy list. */
+function overriddenUserIds(policies: BudgetPolicyRow[]): Set<string> {
+  return new Set(
+    policies
+      .filter((p) => p.scope.startsWith('user:') && p.scope.endsWith(':interactive'))
+      .map((p) => p.scope.split(':')[1])
+      .filter((id): id is string => !!id),
+  );
+}
+
+/**
+ * Interactive spend per person this period, keyed by primary role (same rule as the session
+ * role), largest first. `overridden` marks people with a personal cap: per-person role caps
+ * skip them, combined role caps (`role-total:`) count them, since they still hold the role.
+ */
+async function interactiveSpendByRole(
+  orgId: string,
+  period: BudgetPeriod,
+  overridden: Set<string>,
+): Promise<Map<string, PersonSpend[]>> {
+  const rows = await prisma.platformSpendEvent.groupBy({
+    by: ['user_id'],
+    where: { org_id: orgId, bucket: 'interactive', occurred_at: { gte: periodStart(period) }, user_id: { not: null } },
+    _sum: { usd: true },
+  });
+  const spend = rows
+    .map((r) => ({ userId: r.user_id as string, usd: Number(r._sum.usd ?? 0), overridden: overridden.has(r.user_id as string) }))
+    .filter((r) => r.usd > 0);
+  if (!spend.length) return new Map();
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: spend.map((s) => s.userId) } },
+    select: { id: true, roles: { select: { role: { select: { name: true } } } } },
+  });
+  const roleOf = new Map(users.map((u) => [u.id, resolvePrimaryRole(u)]));
+  const byRole = new Map<string, PersonSpend[]>();
+  for (const s of spend) {
+    // Spend from a user id that no longer exists gets the same default role a session would.
+    const role = roleOf.get(s.userId) ?? DEFAULT_ROLE;
+    const list = byRole.get(role) ?? [];
+    list.push(s);
+    byRole.set(role, list);
+  }
+  for (const list of byRole.values()) list.sort((a, b) => b.usd - a.usd);
+  return byRole;
+}
+
+function roleCapGroup(people: { userId: string; usd: number }[], amountUsd: number, alertPct: number): RoleCapGroup {
+  const over = amountUsd > 0 ? people.filter((p) => p.usd >= amountUsd).length : 0;
+  const alerting = amountUsd > 0 ? people.filter((p) => p.usd < amountUsd && (p.usd / amountUsd) * 100 >= alertPct).length : 0;
+  return {
+    totalUsd: people.reduce((s, p) => s + p.usd, 0),
+    people: people.length,
+    topUserId: people[0]?.userId ?? null,
+    topUserUsd: people[0]?.usd ?? 0,
+    overCount: over,
+    alertCount: alerting,
+  };
+}
+
 export async function getBudgetStatuses(orgId: string): Promise<BudgetStatusRow[]> {
   await ensureDefaultBudgetPolicies(orgId);
   const policies = await listBudgetPolicies(orgId);
   const out: BudgetStatusRow[] = [];
 
+  const overridden = overriddenUserIds(policies);
+  const roleSpend = new Map<BudgetPeriod, Promise<Map<string, PersonSpend[]>>>();
+  const roleSpendFor = (period: BudgetPeriod) => {
+    let p = roleSpend.get(period);
+    if (!p) {
+      p = interactiveSpendByRole(orgId, period, overridden);
+      roleSpend.set(period, p);
+    }
+    return p;
+  };
+
   for (const p of policies) {
+    if (p.scope.startsWith('role-total:') && p.scope.endsWith(':interactive')) {
+      // One cap on everyone with the role together, overrides included.
+      const role = p.scope.split(':')[1] ?? '';
+      const group = roleCapGroup((await roleSpendFor(p.period)).get(role) ?? [], 0, p.alertPct);
+      const pctUsed = p.amountUsd > 0 ? (group.totalUsd / p.amountUsd) * 100 : 0;
+      out.push({
+        scope: p.scope,
+        label: scopeLabel(p.scope),
+        amountUsd: p.amountUsd,
+        spentUsd: group.totalUsd,
+        period: p.period,
+        mode: p.mode,
+        alertPct: p.alertPct,
+        pctUsed,
+        alert: pctUsed >= p.alertPct,
+        exceeded: p.amountUsd > 0 && group.totalUsd >= p.amountUsd,
+        group,
+      });
+      continue;
+    }
+    if (p.scope.startsWith('role:') && p.scope.endsWith(':interactive')) {
+      const role = p.scope.split(':')[1] ?? '';
+      const governed = ((await roleSpendFor(p.period)).get(role) ?? []).filter((s) => !s.overridden);
+      const group = roleCapGroup(governed, p.amountUsd, p.alertPct);
+      const pctUsed = p.amountUsd > 0 ? (group.topUserUsd / p.amountUsd) * 100 : 0;
+      out.push({
+        scope: p.scope,
+        label: scopeLabel(p.scope),
+        amountUsd: p.amountUsd,
+        spentUsd: group.totalUsd,
+        period: p.period,
+        mode: p.mode,
+        alertPct: p.alertPct,
+        pctUsed,
+        alert: group.overCount + group.alertCount > 0,
+        exceeded: group.overCount > 0,
+        group,
+      });
+      continue;
+    }
+
     let userId: string | null = null;
     if (p.scope.startsWith('user:')) {
       userId = p.scope.split(':')[1] ?? null;
@@ -206,16 +325,29 @@ export async function assertInteractiveBudget(opts: {
 }): Promise<void> {
   await ensureDefaultBudgetPolicies(opts.orgId);
   const policies = await listBudgetPolicies(opts.orgId);
+  const estimate = opts.estimatedUsd ?? 0.05;
   const policy = pickUserInteractivePolicy(policies, opts.orgId, opts.userId, opts.role);
-  if (!policy || policy.mode !== 'hard' || policy.amountUsd <= 0) return;
+  if (policy && policy.mode === 'hard' && policy.amountUsd > 0) {
+    const spentUsd = await spentForPolicy(opts.orgId, policy, opts.userId);
+    if (spentUsd + estimate > policy.amountUsd) {
+      throw new BudgetExceededError(
+        `Interactive AI budget exceeded (${scopeLabel(policy.scope)}: ${spentUsd.toFixed(2)} / ${policy.amountUsd.toFixed(2)} USD this ${policy.period}).`,
+        { scope: policy.scope, spentUsd, limitUsd: policy.amountUsd },
+      );
+    }
+  }
 
-  const spentUsd = await spentForPolicy(opts.orgId, policy, opts.userId);
-  const projected = spentUsd + (opts.estimatedUsd ?? 0.05);
-  if (projected > policy.amountUsd) {
-    throw new BudgetExceededError(
-      `Interactive AI budget exceeded (${scopeLabel(policy.scope)}: ${spentUsd.toFixed(2)} / ${policy.amountUsd.toFixed(2)} USD this ${policy.period}).`,
-      { scope: policy.scope, spentUsd, limitUsd: policy.amountUsd },
-    );
+  // Combined role cap: shared by everyone with the role, personal overrides included.
+  const pool = opts.role ? policies.find((p) => p.scope === `role-total:${opts.role}:interactive`) : undefined;
+  if (pool && pool.mode === 'hard' && pool.amountUsd > 0) {
+    const byRole = await interactiveSpendByRole(opts.orgId, pool.period, overriddenUserIds(policies));
+    const spentUsd = (byRole.get(opts.role!) ?? []).reduce((s, p) => s + p.usd, 0);
+    if (spentUsd + estimate > pool.amountUsd) {
+      throw new BudgetExceededError(
+        `Interactive AI budget exceeded (${scopeLabel(pool.scope)}: ${spentUsd.toFixed(2)} / ${pool.amountUsd.toFixed(2)} USD this ${pool.period}).`,
+        { scope: pool.scope, spentUsd, limitUsd: pool.amountUsd },
+      );
+    }
   }
 }
 
