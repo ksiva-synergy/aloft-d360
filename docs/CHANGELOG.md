@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data tab: explain Use vs protected column values (two-step model)
+
+- **What:** Summary pills renamed Step 1 Use / Step 2 column values, each with a short hint; callout when Use + protected columns coexist; help walks through Marine + salary scenario.
+- **Why:** Admins gave Use on a catalog and expected it to cover protected columns; the UI did not state that protection grants are separate.
+- **Paths:** `DataView.tsx`, `console.module.css`.
+
 ## 2026-11-08 — Data tab UI: summary pills, cleaner detail panel
 
 - **What:** Right-hand panel shows path breadcrumb, three summary pills (who can use, whole-path protection, columns inside), collapsed help, top action buttons, side-by-side rule/protection cards, and a single inherited section. Tree rows show access level and parent inheritance.

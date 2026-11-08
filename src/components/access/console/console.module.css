@@ -226,6 +226,30 @@
   line-height: 1.4;
 }
 
+.statPillHint {
+  margin-top: 4px;
+  color: var(--estate-text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.twoLayerCallout {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-a) 28%, var(--estate-border));
+  background: color-mix(in srgb, var(--brand-a-soft) 55%, var(--estate-surface));
+  font-size: var(--type-label-size);
+  line-height: 1.45;
+  color: var(--estate-ink);
+}
+
+.twoLayerCallout strong {
+  font-weight: 600;
+}
+
 .helpPanel {
   border: 1px solid var(--estate-border);
   border-radius: 10px;

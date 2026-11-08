@@ -72,37 +72,80 @@ function treeSubtitle(node: DataNode, hint?: string): string {
   return accessPart + prot;
 }
 
-function accessStat(a: NodeAccess): string {
-  if (a.rules.length === 0 && a.inheritedRules.length === 0) return 'Nobody yet — pick someone and give Use.';
+function hasUseAccess(a: NodeAccess): boolean {
+  return (
+    a.rules.some((r) => r.access !== 'block') || a.inheritedRules.some((r) => r.access !== 'block')
+  );
+}
+
+function accessStatParts(a: NodeAccess, protectedColumns: number, kindWord: string): { value: string; hint: string } {
+  if (a.rules.length === 0 && a.inheritedRules.length === 0) {
+    return {
+      value: 'Nobody yet',
+      hint: 'Step 1: Give Use to a group (e.g. Marine) or built-in role so they can open tables and read unprotected fields.',
+    };
+  }
   const bits: string[] = [];
   for (const r of a.rules) bits.push(`${r.holderName}: ${ACCESS_LABEL[r.access]}${r.autoApprove ? ' · auto-approve' : ''}`);
   if (a.inheritedRules.length) {
     const inh = a.inheritedRules
       .filter((r) => r.access !== 'block')
-      .map((r) => `${r.holderName} from ${r.from.split('.').pop() ?? r.from}`)
+      .map((r) => `${r.holderName} (from ${r.from.split('.').pop() ?? r.from})`)
       .join(', ');
     if (inh) bits.push(`Inherited: ${inh}`);
   }
-  return bits.join(' · ') || 'Only blocks or removes apply here.';
+  const value = bits.join(' · ') || 'Only blocks apply on this path';
+  let hint = `They can run queries on this ${kindWord} and see unprotected columns with real values.`;
+  if (protectedColumns > 0) {
+    hint =
+      `Use alone does not reveal protected values. ${protectedColumns} column(s) below stay ••• until you grant each protection on the Protections tab.`;
+  } else if (!hasUseAccess(a)) {
+    hint = 'Block rules apply; add Use if people should open data here.';
+  }
+  return { value, hint };
 }
 
-function protectionStat(a: NodeAccess, kindWord: string): string {
-  if (a.protections.length) return a.protections.map((p) => p.name).join(', ');
-  if (a.inheritedProtections.length) return `From parent: ${a.inheritedProtections.map((p) => p.name).join(', ')}`;
-  return `No whole-${kindWord} protection`;
+function protectionStatParts(a: NodeAccess, kindWord: string): { value: string; hint: string } {
+  if (a.protections.length) {
+    return {
+      value: a.protections.map((p) => p.name).join(', '),
+      hint: `The whole ${kindWord} is sensitive: people need this protection even if they have Use.`,
+    };
+  }
+  if (a.inheritedProtections.length) {
+    return {
+      value: a.inheritedProtections.map((p) => p.name).join(', '),
+      hint: `Inherited from parent — blocks or limits the whole ${kindWord} for people without the protection.`,
+    };
+  }
+  return {
+    value: 'Not protected as a whole',
+    hint: `Optional. Use this only if the entire ${kindWord} is confidential. Column protections (step 2) are separate.`,
+  };
 }
 
-function columnsStat(a: NodeAccess, depth: number): string {
-  if (depth === 3) return 'See list below';
-  if (!a.protectedColumns) return 'None inside';
-  return `${a.protectedColumns} column${a.protectedColumns === 1 ? '' : 's'} protected inside`;
+function columnsStatParts(a: NodeAccess, depth: number): { value: string; hint: string } {
+  if (depth === 3) {
+    return {
+      value: 'Listed below',
+      hint: 'Protect columns here, or open the Protections tab to choose who may see each protection’s values.',
+    };
+  }
+  if (!a.protectedColumns) {
+    return { value: 'None tagged inside', hint: 'Tag sensitive columns on the Protections tab or inside a table.' };
+  }
+  return {
+    value: `${a.protectedColumns} protected column${a.protectedColumns === 1 ? '' : 's'}`,
+    hint: 'Step 2: In Protections, grant each tag (e.g. Compensation) only to payroll — not to everyone who has Use.',
+  };
 }
 
-function StatPill({ label, value }: { label: string; value: string }) {
+function StatPill({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className={s.statPill} role="listitem">
       <span className={s.statPillLabel}>{label}</span>
       <span className={s.statPillValue}>{value}</span>
+      {hint ? <span className={s.statPillHint}>{hint}</span> : null}
     </div>
   );
 }
@@ -388,10 +431,20 @@ function NodeDetail({
           </nav>
           {estateHint ? <p className={s.summaryLine}>In the estate: {estateHint}</p> : null}
           <div className={s.statRow} role="list" aria-label="Summary">
-            <StatPill label="Who can use" value={accessStat(a)} />
-            <StatPill label="Whole-path protection" value={protectionStat(a, kindWord)} />
-            <StatPill label="Columns inside" value={columnsStat(a, node.depth)} />
+            <StatPill label="Step 1 · Use (open data)" {...accessStatParts(a, a.protectedColumns, kindWord)} />
+            <StatPill label="Optional · Whole path" {...protectionStatParts(a, kindWord)} />
+            <StatPill label="Step 2 · Column values" {...columnsStatParts(a, node.depth)} />
           </div>
+          {a.protectedColumns > 0 && hasUseAccess(a) ? (
+            <p className={cn(s.twoLayerCallout, 'mt-3')} role="note">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-a-ink)]" aria-hidden="true" />
+              <span>
+                <strong>Two steps.</strong> Use on this {kindWord} lets Marine open tables and see <em>unprotected</em> fields. The{' '}
+                {a.protectedColumns} protected column{a.protectedColumns === 1 ? '' : 's'} still show ••• unless you grant each protection on the{' '}
+                <strong>Protections</strong> tab (Give access on Compensation → only payroll, not Everyone).
+              </span>
+            </p>
+          ) : null}
         </div>
         {readOnly ? null : (
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -421,16 +474,21 @@ function NodeDetail({
       </header>
 
       <details className={s.helpPanel}>
-        <summary>How access and protection work</summary>
-        <ul>
-          <li>
-            <strong>Use</strong> — read rows in dashboards and chat. <strong>Use + export</strong> — download too. Rules on a {kindWord} apply to everything inside it.
+        <summary>How to let Marine use the catalog but not salary</summary>
+        <ol className="m-0 list-decimal pl-4">
+          <li className="mb-2">
+            <strong>Data tab (here):</strong> Give <strong>Marine</strong> (or Members) <strong>Use</strong> on the catalog — not Everyone unless you mean every signed-in person.
+          </li>
+          <li className="mb-2">
+            <strong>Protections tab:</strong> Confirm sensitive columns are tagged (e.g. Compensation on <code>revised_salary</code>).
+          </li>
+          <li className="mb-2">
+            <strong>Protections tab → Give access</strong> on that protection: grant <strong>Exact values</strong> only to payroll — do not grant it to Marine if they should see •••.
           </li>
           <li>
-            <strong>Protection</strong> — even people with Use need the protection to see real values (otherwise ••• or refused).
+            <strong>Optional:</strong> &ldquo;Protect catalog&rdquo; here blocks the entire path even for people with Use; use only for fully confidential catalogs.
           </li>
-          <li>Names are always visible; values need access. Changes need a short reason in the audit log.</li>
-        </ul>
+        </ol>
       </details>
 
       {giving ? (
