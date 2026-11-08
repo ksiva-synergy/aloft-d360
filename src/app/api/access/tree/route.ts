@@ -48,7 +48,7 @@ export const GET = handle(async (req) => {
 
   const { nodes, truncated } = q
     ? { nodes: await searchEstateTables(orgId, q), truncated: false }
-    : await listEstateChildren(orgId, parent, snapshotPolicyPaths(policy));
+    : await listEstateChildren(orgId, parent, policy);
 
   const roleNames = userId ? await loadUserRoleNames(userId) : [];
   const user = userId

@@ -34,7 +34,15 @@ function lower(s: string | null | undefined): string {
 
 /** Paths that carry policy (grants, labels, rules, protections) even if the estate has no such object. */
 export function snapshotPolicyPaths(policy: PolicySnapshot): string[] {
-  return [...policy.grants.map((g) => g.path), ...policy.labels.map((l) => l.path)];
+  return [
+    ...(policy.grants ?? []).map((g) => g.path),
+    ...(policy.labels ?? []).map((l) => l.path),
+  ];
+}
+
+/** `listEstateChildren` accepts either precomputed paths (simplified model) or a legacy snapshot. */
+function resolvePolicyPaths(policyPathsOrSnapshot: string[] | PolicySnapshot): string[] {
+  return Array.isArray(policyPathsOrSnapshot) ? policyPathsOrSnapshot : snapshotPolicyPaths(policyPathsOrSnapshot);
 }
 
 function policyPathsAt(policyPaths: string[], parent: string | null, depth: number): string[] {
@@ -53,8 +61,9 @@ function policyPathsAt(policyPaths: string[], parent: string | null, depth: numb
 export async function listEstateChildren(
   orgId: string,
   parent: string | null,
-  policyPaths: string[],
+  policyPathsOrSnapshot: string[] | PolicySnapshot,
 ): Promise<{ nodes: EstateNode[]; truncated: boolean }> {
+  const policyPaths = resolvePolicyPaths(policyPathsOrSnapshot);
   const parentParts = parent ? parent.split('.') : [];
   const depth = (parentParts.length + 1) as 1 | 2 | 3;
   const nodes = new Map<string, EstateNode>();

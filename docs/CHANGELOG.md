@@ -2,6 +2,13 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Fix Data tab `data-tree` 500 (path list vs legacy snapshot)
+
+- **What:** `listEstateChildren` now accepts either `string[]` (simplified model via `adminPolicyPaths`) or a legacy `PolicySnapshot`; `snapshotPolicyPaths` tolerates missing `grants`/`labels`.
+- **Why:** A stale or mixed dev bundle could call the old helper with an array as if it were a snapshot (`policy.grants` undefined → 500 on `GET /api/access/data-tree`).
+- **Verified:** Local dev `GET /api/access/data-tree` 200 after HMR; commit `fix(access)` on `feature/automate-runs`.
+- **Not done:** After pull, run `npx prisma generate` and restart dev so `PUT /api/access/rules` sees `auto_approve`; apply `20261108_access_requests_extras` on the DB if the column is missing.
+
 ## 2026-11-08 — Committed working tree on `feature/automate-runs`
 
 - **What:** Split commits on branch `feature/automate-runs` (base after `dff3f78` access work from an earlier session):
