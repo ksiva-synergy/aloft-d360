@@ -144,30 +144,6 @@ export default function DataAccessPage() {
 
         <ConsoleReadOnlyContext.Provider value={readOnly}>
         <section className={cn(userStyles.directory, 'mt-5')}>
-          <details className={cn(s.helpPanel, 'mx-3 mt-2 mb-0 border-0 bg-transparent px-0')}>
-            <summary className="text-caption">Where search, protect, and ⓘ column info live</summary>
-            <dl className="mt-2 grid gap-2 text-caption sm:grid-cols-2">
-              <div>
-                <dt className="font-medium text-foreground">Data tab</dt>
-                <dd className="text-muted-foreground">Tree + Use rules; Find a table (name + embedding meaning); table columns + ⓘ</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-foreground">Protections tab</dt>
-                <dd className="text-muted-foreground">Tag columns (name + meaning search), ⓘ, Give access on who sees values</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-foreground">Harvest / embeddings</dt>
-                <dd className="text-muted-foreground">Semantic search uses estate vectors; sample values stay in harvest + ⓘ only</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-foreground">Full map</dt>
-                <dd className="text-muted-foreground">
-                  <code className="text-[11px]">docs/access/feature-map.md</code>
-                </dd>
-              </div>
-            </dl>
-          </details>
-
           <nav className={s.nav} role="tablist" aria-label="Data access sections">
             {TABS.map((t) => {
               const count = tabCount(t.id);

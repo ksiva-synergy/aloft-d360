@@ -2,6 +2,11 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data tab: move long help into “How it works” dialog
+
+- **What:** Removed inline help block, two-step callout, and pill hints; summary shows short values only; **How it works** opens a dialog (like column ⓘ). Dropped top-of-page feature accordion.
+- **Paths:** `DataView.tsx`, `data-access.tsx`.
+
 ## 2026-11-08 — Protections tab: ⓘ on every column, compact help, meaning opt-in
 
 - **What:** Tagged column list has ⓘ on each row; page help in collapsible details; embedding search opt-in (same as Data tab); inline descriptions removed from meaning hits (use ⓘ).

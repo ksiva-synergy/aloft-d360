@@ -1,8 +1,9 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ChevronRight, Database, Lock, Search, Table2, UsersRound, X } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Database, Info, Lock, Search, Table2, UsersRound, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
 import { accessFetch, keyFromName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
@@ -140,13 +141,68 @@ function columnsStatParts(a: NodeAccess, depth: number): { value: string; hint: 
   };
 }
 
-function StatPill({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function StatPill({ label, value }: { label: string; value: string; hint?: string }) {
   return (
     <div className={s.statPill} role="listitem">
       <span className={s.statPillLabel}>{label}</span>
       <span className={s.statPillValue}>{value}</span>
-      {hint ? <span className={s.statPillHint}>{hint}</span> : null}
     </div>
+  );
+}
+
+function DataAccessHelpDialog({
+  open,
+  onClose,
+  kindWord,
+  protectedColumns,
+  hasUse,
+  onOpenProtections,
+}: {
+  open: boolean;
+  onClose: () => void;
+  kindWord: string;
+  protectedColumns: number;
+  hasUse: boolean;
+  onOpenProtections?: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
+      <DialogContent className={cn(userStyles.surface, 'max-w-lg overflow-x-hidden')}>
+        <div role="dialog" aria-modal="true" aria-label="How data access works">
+          <div className="mb-3 flex items-start gap-2">
+            <h2 className="flex-1 text-title-card">Use vs protected values</h2>
+            <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Close" onClick={onClose}>
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+          <ol className="m-0 list-decimal space-y-2 pl-4 text-caption leading-relaxed text-muted-foreground">
+            <li>
+              <strong className="text-foreground">Use (Data tab):</strong> who can open this {kindWord} and read <em>unprotected</em> columns.
+            </li>
+            <li>
+              <strong className="text-foreground">Protections tab:</strong> tag sensitive columns; <strong className="text-foreground">Give access</strong> on each protection for who sees real values (everyone else gets •••).
+            </li>
+            <li>
+              <strong className="text-foreground">Optional whole-path protect:</strong> blocks the entire {kindWord} even for people with Use.
+            </li>
+          </ol>
+          {protectedColumns > 0 && hasUse ? (
+            <p className="mt-3 text-caption text-muted-foreground">
+              This {kindWord} has <strong className="text-foreground">{protectedColumns}</strong> protected column{protectedColumns === 1 ? '' : 's'} inside. Use does not unlock them.
+              {onOpenProtections ? (
+                <>
+                  {' '}
+                  <button type="button" className={cn(s.linkBtn, 'font-medium')} onClick={() => { onClose(); onOpenProtections(); }}>
+                    Open Protections tab
+                  </button>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          <p className="mt-3 text-caption text-muted-foreground">Table/column ⓘ buttons show harvest detail and sample values (admins only).</p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -494,6 +550,7 @@ function NodeDetail({
   const a = node.access;
   const [giving, setGiving] = useState(false);
   const [protecting, setProtecting] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const kindWord = node.depth === 1 ? 'catalog' : node.depth === 2 ? 'schema' : node.kind === 'view' ? 'view' : 'table';
   const crumbs = node.path.split('.');
   const titleName = crumbs[crumbs.length - 1] ?? node.path;
@@ -517,42 +574,29 @@ function NodeDetail({
             ))}
           </nav>
           {estateHint ? <p className={s.summaryLine}>In the estate: {estateHint}</p> : null}
-          {selectSource === 'search-name' ? (
-            <p className="mt-2 text-caption text-muted-foreground" role="status">
-              Opened from a <strong className="font-medium text-foreground">table name</strong> search — access and protections below are for this path (not the search summary).
-            </p>
-          ) : null}
           {selectSource === 'search-meaning' && node.description ? (
-            <p className="mt-2 rounded-[8px] bg-[var(--surface-2)] px-3 py-2 text-caption text-muted-foreground" role="status">
-              <strong className="font-medium text-foreground">Similar meaning:</strong> {node.description}
+            <p className="mt-1 truncate text-caption text-muted-foreground" title={node.description} role="status">
+              Meaning match: {node.description}
             </p>
           ) : null}
           <div className={s.statRow} role="list" aria-label="Summary">
-            <StatPill label="Step 1 · Use (open data)" {...accessStatParts(a, a.protectedColumns, kindWord)} />
-            <StatPill label="Optional · Whole path" {...protectionStatParts(a, kindWord)} />
-            <StatPill label="Step 2 · Column values" {...columnsStatParts(a, node.depth)} />
+            <StatPill label="Use" value={accessStatParts(a, a.protectedColumns, kindWord).value} />
+            <StatPill label="Whole path" value={protectionStatParts(a, kindWord).value} />
+            <StatPill label="Column values" value={columnsStatParts(a, node.depth).value} />
           </div>
-          {a.protectedColumns > 0 && hasUseAccess(a) ? (
-            <p className={cn(s.twoLayerCallout, 'mt-3')} role="note">
-              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-a-ink)]" aria-hidden="true" />
-              <span>
-                <strong>Two steps.</strong> Use on this {kindWord} lets Marine open tables and see <em>unprotected</em> fields. The{' '}
-                {a.protectedColumns} protected column{a.protectedColumns === 1 ? '' : 's'} still show ••• unless you grant each protection on the{' '}
-                <strong>Protections</strong> tab (Give access on Compensation → only payroll, not Everyone).
-                {onOpenProtections ? (
-                  <>
-                    {' '}
-                    <button type="button" className={cn(s.linkBtn, 'font-medium')} onClick={onOpenProtections}>
-                      Open Protections tab
-                    </button>
-                  </>
-                ) : null}
-              </span>
-            </p>
-          ) : null}
         </div>
-        {readOnly ? null : (
-          <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={cn(userStyles.iconButton, 'inline-flex items-center gap-1 px-2 text-caption')}
+            onClick={() => setHelpOpen(true)}
+            aria-label="How Use and protection work"
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden="true" />
+            How it works
+          </button>
+          {readOnly ? null : (
+            <>
             <button
               type="button"
               className={cn(userStyles.primary, 'inline-flex items-center gap-1.5')}
@@ -574,27 +618,19 @@ function NodeDetail({
             >
               Protect {kindWord}
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </header>
 
-      <details className={s.helpPanel}>
-        <summary>How to let Marine use the catalog but not salary</summary>
-        <ol className="m-0 list-decimal pl-4">
-          <li className="mb-2">
-            <strong>Data tab (here):</strong> Give <strong>Marine</strong> (or Members) <strong>Use</strong> on the catalog — not Everyone unless you mean every signed-in person.
-          </li>
-          <li className="mb-2">
-            <strong>Protections tab:</strong> Confirm sensitive columns are tagged (e.g. Compensation on <code>revised_salary</code>).
-          </li>
-          <li className="mb-2">
-            <strong>Protections tab → Give access</strong> on that protection: grant <strong>Exact values</strong> only to payroll — do not grant it to Marine if they should see •••.
-          </li>
-          <li>
-            <strong>Optional:</strong> &ldquo;Protect catalog&rdquo; here blocks the entire path even for people with Use; use only for fully confidential catalogs.
-          </li>
-        </ol>
-      </details>
+      <DataAccessHelpDialog
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        kindWord={kindWord}
+        protectedColumns={a.protectedColumns}
+        hasUse={hasUseAccess(a)}
+        onOpenProtections={onOpenProtections}
+      />
 
       {giving ? (
         <section className={s.card} aria-label="Give access">
