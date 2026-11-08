@@ -462,6 +462,7 @@ export async function executeInspectorTool(
           sql: statement,
           rowCount: sqlResult.row_count,
           truncated: sqlResult.truncated || sqlResult.rows.length > 1000,
+          ...('access_note' in sqlResult && sqlResult.access_note ? { accessNote: sqlResult.access_note } : {}),
         });
 
         return JSON.stringify(sqlResult);

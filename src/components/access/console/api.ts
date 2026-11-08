@@ -243,3 +243,72 @@ export function reasonText(reason: DenyReason | null, label?: Sensitivity): stri
       return '—';
   }
 }
+
+// ── Column access: data tags, access groups, tag grants (pii-protection-backlog.md §7) ──
+
+export type TagLevel = 'aggregate' | 'full';
+
+export const TAG_LEVEL_LABEL: Record<TagLevel, string> = { aggregate: 'Totals only', full: 'Full' };
+export const TAG_LEVEL_HINT: Record<TagLevel, string> = {
+  aggregate: 'Averages and totals for groups of 5 or more; no individual values',
+  full: 'Real values',
+};
+
+export type DataTag = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  requiresTwoApprovals: boolean;
+  maxDurationDays: number | null;
+  columnCount?: number;
+  grantCount?: number;
+};
+
+export type ColumnTagRow = {
+  id: string;
+  tablePath: string;
+  column: string;
+  tagId: string;
+  status: string;
+  source: string;
+  reason: string | null;
+  setBy: string | null;
+  updatedAt: string;
+};
+
+export type TagGrant = {
+  id: string;
+  tagId: string;
+  principalType: 'group' | 'user';
+  principalId: string;
+  level: TagLevel;
+  expiresAt: string | null;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type GroupPerson = { userId: string; email: string | null; name: string | null };
+
+export type GroupMember = GroupPerson & {
+  expiresAt: string | null;
+  expired: boolean;
+  reason: string | null;
+  addedAt: string;
+};
+
+export type AccessGroup = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  owners: GroupPerson[];
+  members: GroupMember[];
+  grants: TagGrant[];
+};
+
+/** "Payroll team" → "payroll_team" (keys must start with a letter). */
+export function keyFromName(name: string): string {
+  const k = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return /^[a-z]/.test(k) ? k.slice(0, 64) : `t_${k}`.slice(0, 64);
+}

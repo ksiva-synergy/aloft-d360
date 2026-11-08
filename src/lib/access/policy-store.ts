@@ -1,7 +1,14 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { withPrismaReadRetry } from '@/lib/db/with-prisma-read-retry';
-import type { GrantRow, LabelRow, PolicySnapshot, SensitivityLabel } from './types';
+import type {
+  ColumnPolicy,
+  GrantRow,
+  LabelRow,
+  PolicySnapshot,
+  SensitivityLabel,
+  TagGrantRow,
+} from './types';
 
 type Tx = Prisma.TransactionClient;
 
@@ -17,6 +24,11 @@ const CACHE_TTL_MS = 60_000;
 
 function isMissingTable(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2021';
+}
+
+/** Current policy version (bumped on every access change). */
+export async function readPolicyVersion(orgId: string): Promise<bigint> {
+  return readVersion(orgId);
 }
 
 async function readVersion(orgId: string): Promise<bigint> {
@@ -85,7 +97,81 @@ async function loadSnapshotFromDb(orgId: string, version: bigint): Promise<Polic
     clearances,
     membersByUser,
     legacyOpen: grants.length === 0,
+    columns: await loadColumnPolicy(orgId),
   };
+}
+
+export function emptyColumnPolicy(): ColumnPolicy {
+  return { tags: new Map(), columnTags: new Map(), tagGrants: [], groupsByUser: new Map() };
+}
+
+/**
+ * Confirmed column tags, tag grants and access group memberships. Loaded separately so a
+ * database without the 20261107 migration still gets a valid (empty) column policy.
+ */
+async function loadColumnPolicy(orgId: string): Promise<ColumnPolicy> {
+  const policy = emptyColumnPolicy();
+  try {
+    const [tagRows, columnTagRows, grantRows, groupRows] = await Promise.all([
+      prisma.accessTag.findMany({ where: { org_id: orgId, archived_at: null } }),
+      prisma.accessColumnTag.findMany({
+        where: { org_id: orgId, status: 'confirmed' },
+        select: { table_path: true, column_name: true, tag_id: true },
+      }),
+      prisma.accessTagGrant.findMany({ where: { org_id: orgId } }),
+      prisma.accessGroup.findMany({ where: { org_id: orgId, archived_at: null }, select: { id: true } }),
+    ]);
+
+    for (const t of tagRows) {
+      policy.tags.set(t.id, {
+        id: t.id,
+        key: t.key,
+        name: t.name,
+        requiresTwoApprovals: t.requires_two_approvals,
+      });
+    }
+
+    for (const c of columnTagRows) {
+      if (!policy.tags.has(c.tag_id)) continue; // archived tag: not enforced
+      const table = c.table_path.toLowerCase();
+      const column = c.column_name.toLowerCase();
+      const byColumn = policy.columnTags.get(table) ?? new Map<string, string[]>();
+      const ids = byColumn.get(column) ?? [];
+      if (!ids.includes(c.tag_id)) ids.push(c.tag_id);
+      byColumn.set(column, ids);
+      policy.columnTags.set(table, byColumn);
+    }
+
+    const activeGroups = new Set(groupRows.map((g) => g.id));
+
+    for (const g of grantRows) {
+      if (!policy.tags.has(g.tag_id)) continue;
+      if (g.principal_type === 'group' && !activeGroups.has(g.principal_id)) continue;
+      policy.tagGrants.push({
+        tagId: g.tag_id,
+        principalType: g.principal_type as TagGrantRow['principalType'],
+        principalId: g.principal_id,
+        level: g.level as TagGrantRow['level'],
+        expiresAt: g.expires_at,
+      });
+    }
+
+    if (activeGroups.size > 0) {
+      const memberRows = await prisma.accessGroupMember.findMany({
+        where: { group_id: { in: [...activeGroups] } },
+        select: { group_id: true, user_id: true, expires_at: true },
+      });
+      for (const m of memberRows) {
+        const list = policy.groupsByUser.get(m.user_id) ?? [];
+        list.push({ groupId: m.group_id, expiresAt: m.expires_at });
+        policy.groupsByUser.set(m.user_id, list);
+      }
+    }
+  } catch (err) {
+    if (!isMissingTable(err)) throw err;
+    return emptyColumnPolicy();
+  }
+  return policy;
 }
 
 export async function loadPolicySnapshot(orgId: string): Promise<PolicySnapshot> {

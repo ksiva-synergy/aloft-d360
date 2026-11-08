@@ -1537,8 +1537,15 @@ model AccessDecisionLog {
   mode       String
   session_id String?
   tier       String?
+  /// Column check (shadow | enforce) and what it did or would do (migration 20261108_column_guard_log).
+  column_mode     String?
+  masked_columns  String[] @default([])
+  refused_columns String[] @default([])
+  parser_ok       Boolean?
+  timings         Json?    @db.JsonB
 
   @@index([org_id, ts(sort: Desc)], map: "idx_access_decision_log_org_ts")
+  @@index([org_id, column_mode, ts(sort: Desc)], map: "idx_access_decision_log_column_mode")
   @@map("access_decision_log")
 }
 
@@ -1556,6 +1563,211 @@ model AccessColumnLabel {
 
   @@unique([org_id, table_path, column_name], map: "uq_access_column_label_org_table_column")
   @@map("access_column_labels")
+}
+
+/// Column access by data tag and access group (docs/access/pii-protection-backlog.md §7).
+/// Migration 20261107_column_access. Foreign keys exist in SQL; models are scalar-only.
+model AccessTag {
+  id                     String    @id @default(cuid())
+  org_id                 String
+  key                    String
+  name                   String
+  description            String?
+  requires_two_approvals Boolean   @default(false)
+  max_duration_days      Int?
+  archived_at            DateTime? @db.Timestamptz(6)
+  created_by             String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, key], map: "uq_access_tag_org_key")
+  @@map("access_tags")
+}
+
+model AccessColumnTag {
+  id          String    @id @default(cuid())
+  org_id      String
+  table_path  String
+  column_name String
+  tag_id      String
+  status      String    @default("confirmed")
+  source      String    @default("steward")
+  confidence  Float?
+  reason      String?
+  set_by      String?
+  reviewed_by String?
+  reviewed_at DateTime? @db.Timestamptz(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@unique([org_id, table_path, column_name, tag_id], map: "uq_access_column_tag")
+  @@index([org_id, table_path], map: "idx_access_column_tags_table")
+  @@index([tag_id], map: "idx_access_column_tags_tag")
+  @@map("access_column_tags")
+}
+
+model AccessGroup {
+  id                          String    @id @default(cuid())
+  org_id                      String
+  key                         String
+  name                        String
+  description                 String?
+  archived_at                 DateTime? @db.Timestamptz(6)
+  created_by                  String?
+  created_at                  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime  @updatedAt @db.Timestamptz(6)
+  /// Set when copied from a department (simplified model, S2).
+  migrated_from_department_id String?   @unique(map: "uq_access_group_migrated_department")
+
+  @@unique([org_id, key], map: "uq_access_group_org_key")
+  @@map("access_groups")
+}
+
+/// Simplified model: holder (person | group | builtin) can USE a path (optionally export) or is BLOCKED.
+/// Migration 20261108_simplified_access. Scalar-only, like the other access models.
+model AccessRule {
+  id                     String    @id @default(cuid())
+  org_id                 String
+  holder_type            String
+  holder_id              String
+  path                   String
+  path_depth             Int
+  effect                 String
+  allow_export           Boolean   @default(false)
+  /// Requests for data this rule covers are approved at once (unprotected data only).
+  auto_approve           Boolean   @default(false)
+  expires_at             DateTime? @db.Timestamptz(6)
+  reason                 String?
+  created_by             String?
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  migrated_from_grant_id String?   @unique(map: "uq_access_rule_migrated_grant")
+
+  @@unique([org_id, holder_type, holder_id, path, effect], map: "uq_access_rule_holder_path_effect")
+  @@index([org_id, path], map: "idx_access_rules_org_path")
+  @@map("access_rules")
+}
+
+/// In-app notices for access requests (routed, decided, questions, expiring). Migration 20261108_access_requests_extras.
+model AccessNotification {
+  id         String    @id @default(cuid())
+  org_id     String
+  user_id    String
+  kind       String
+  title      String
+  body       String?
+  link       String?
+  request_id String?
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  read_at    DateTime? @db.Timestamptz(6)
+
+  @@unique([request_id, user_id, kind], map: "uq_access_notification_once")
+  @@index([user_id, read_at, created_at(sort: Desc)], map: "idx_access_notifications_user_unread")
+  @@map("access_notifications")
+}
+
+/// Simplified model: a protection (access_tags row) on a whole catalog, schema or table.
+model AccessPathProtection {
+  id                     String   @id @default(cuid())
+  org_id                 String
+  tag_id                 String
+  path                   String
+  path_depth             Int
+  reason                 String?
+  set_by                 String?
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  migrated_from_label_id String?  @unique(map: "uq_access_path_protection_migrated_label")
+
+  @@unique([org_id, tag_id, path], map: "uq_access_path_protection")
+  @@map("access_path_protections")
+}
+
+model AccessGroupOwner {
+  group_id String
+  user_id  String
+  added_by String?
+  added_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([group_id, user_id])
+  @@map("access_group_owners")
+}
+
+model AccessGroupMember {
+  group_id              String
+  user_id               String
+  expires_at            DateTime? @db.Timestamptz(6)
+  reason                String?
+  granted_by            String?
+  granted_by_request_id String?
+  added_at              DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@id([group_id, user_id])
+  @@index([user_id], map: "idx_access_group_members_user")
+  @@map("access_group_members")
+}
+
+model AccessTagGrant {
+  id             String    @id @default(cuid())
+  org_id         String
+  tag_id         String
+  principal_type String
+  principal_id   String
+  level          String
+  expires_at     DateTime? @db.Timestamptz(6)
+  reason         String?
+  created_by     String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([tag_id, principal_type, principal_id], map: "uq_access_tag_grant")
+  @@index([org_id], map: "idx_access_tag_grants_org")
+  @@map("access_tag_grants")
+}
+
+/// Access requests (E9). Tables only in step 1; no API yet.
+model AccessRequest {
+  id                 String    @id @default(cuid())
+  seq                BigInt    @unique(map: "uq_access_requests_seq") @default(autoincrement())
+  org_id             String
+  requester_id       String
+  target_type        String
+  tag_id             String?
+  path               String?
+  level              String
+  duration_days      Int?
+  reason             String
+  ticket_ref         String?
+  source_decision_id String?
+  status             String    @default("pending")
+  routed_to          String[]  @default([])
+  decided_by         String?
+  decided_at         DateTime? @db.Timestamptz(6)
+  granted_until      DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+
+  @@index([org_id, created_at(sort: Desc)], map: "idx_access_requests_org_created")
+  @@index([requester_id], map: "idx_access_requests_requester")
+  @@index([org_id, status], map: "idx_access_requests_status")
+  @@map("access_requests")
+}
+
+/// Append-only (a database trigger refuses UPDATE and DELETE). All rows are kept; the UI shows up to 90 days.
+model AccessRequestEvent {
+  id             String   @id @default(cuid())
+  org_id         String
+  request_id     String
+  type           String
+  actor_id       String?
+  ts             DateTime @default(now()) @db.Timestamptz(6)
+  before         Json?    @db.JsonB
+  after          Json?    @db.JsonB
+  comment        String?
+  ip_address     String?
+  user_agent     String?
+  policy_version BigInt?
+
+  @@index([org_id, ts(sort: Desc)], map: "idx_access_request_events_org_ts")
+  @@index([request_id, ts], map: "idx_access_request_events_request")
+  @@map("access_request_events")
 }
 
 model knowledge_sources {
@@ -3443,6 +3655,8 @@ model PlatformFlowRun {
   inputs       Json                  @default("{}")
   error        String?
   triggered_by String?
+  /// Same key for the same flow means the same run (migration 20261107_flow_run_idempotency; partial unique index).
+  idempotency_key String?
   total_tokens Int                   @default(0)
   cost_usd     Decimal               @default(0) @db.Decimal(10, 6)
   started_at   DateTime?             @db.Timestamptz(6)

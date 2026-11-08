@@ -32,7 +32,8 @@ function parseQualifiedTable(raw: string): string | null {
   if (!token || /\($/.test(token) || token.includes('(')) return null;
   const parts = token.split('.').filter(Boolean);
   if (parts.length !== 3) return null;
-  if (parts.some((p) => !/^[a-zA-Z0-9_$]+$/.test(p))) return null;
+  // Hyphens appear in backticked Databricks names (e.g. `synergymarine-export-prod`).
+  if (parts.some((p) => !/^[a-zA-Z0-9_$-]+$/.test(p))) return null;
   return parts.join('.').toLowerCase();
 }
 

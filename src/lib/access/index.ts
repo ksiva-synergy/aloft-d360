@@ -12,3 +12,4 @@ export * from './errors';
 export * from './paths';
 export * from './guards';
 export * from './effective-summary';
+export * from './decide-column';

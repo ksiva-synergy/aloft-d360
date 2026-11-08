@@ -1,6 +1,7 @@
 import { ApiError } from '@/lib/http';
 
-const SEGMENT = /^[a-z0-9_]+$/;
+/** Lowercase letters, digits, underscores and hyphens (Databricks allows hyphens in backticked names). */
+const SEGMENT = /^[a-z0-9_-]+$/;
 
 /** Normalize and validate a catalog / schema / table path (lowercase, 1–3 segments). */
 export function normalizeCatalogPath(raw: string): { path: string; pathDepth: number } {
@@ -11,7 +12,7 @@ export function normalizeCatalogPath(raw: string): { path: string; pathDepth: nu
   }
   for (const p of parts) {
     if (!SEGMENT.test(p)) {
-      throw new ApiError(400, 'Path segments may only contain lowercase letters, digits, and underscores');
+      throw new ApiError(400, 'Path segments may only contain lowercase letters, digits, underscores and hyphens');
     }
   }
   return { path: parts.join('.'), pathDepth: parts.length };

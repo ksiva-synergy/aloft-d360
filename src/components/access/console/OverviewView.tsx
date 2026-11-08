@@ -9,7 +9,7 @@ import type { AccessStatus } from './api';
 import { Card, Mono } from './parts';
 import s from './console.module.css';
 
-export type ConsoleTab = 'map' | 'people' | 'labels' | 'log' | 'setup';
+export type ConsoleTab = 'map' | 'people' | 'labels' | 'columns' | 'log' | 'setup';
 
 type Step = {
   title: string;

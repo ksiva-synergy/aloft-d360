@@ -51,7 +51,12 @@ export function handleDescribeSchema(
   input: Record<string, unknown>,
   dataPrincipal?: AccessPrincipal | null,
 ): Promise<string> {
-  return withDescribeSlot(() => runDescribeSchema(input, dataPrincipal));
+  return withDescribeSlot(async () => {
+    const raw = await runDescribeSchema(input, dataPrincipal);
+    // Protected column values never reach the AI for people without the protection (enforce mode).
+    const { filterDescribeResult } = await import('@/lib/access/describe-filter');
+    return filterDescribeResult(raw, dataPrincipal, (input.path as string | undefined) ?? null);
+  });
 }
 
 function levelForDescribeAction(action: string): AccessLevel {

@@ -3,7 +3,7 @@ import { handle, ok, ApiError } from '@/lib/http';
 import { getOrgId } from '@/lib/databricks/connections';
 import { requireAccessAdmin, requireAccessClassify } from '@/lib/access/admin-api';
 import { loadPolicySnapshot, clearanceForUser, departmentsForUser } from '@/lib/access/policy-store';
-import { listEstateChildren, searchEstateTables } from '@/lib/access/estate-tree';
+import { listEstateChildren, searchEstateTables, snapshotPolicyPaths } from '@/lib/access/estate-tree';
 import { explainUserPath, holderNodeAccess, labelSource, pathTags } from '@/lib/access/explain';
 import { effectiveDataRoles, loadUserRoleNames } from '@/lib/access/roles';
 import { normalizeCatalogPath } from '@/lib/access/paths';
@@ -48,7 +48,7 @@ export const GET = handle(async (req) => {
 
   const { nodes, truncated } = q
     ? { nodes: await searchEstateTables(orgId, q), truncated: false }
-    : await listEstateChildren(orgId, parent, policy);
+    : await listEstateChildren(orgId, parent, snapshotPolicyPaths(policy));
 
   const roleNames = userId ? await loadUserRoleNames(userId) : [];
   const user = userId

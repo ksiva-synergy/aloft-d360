@@ -16,6 +16,8 @@ export interface QueryResult {
   sql: string;
   rowCount: number;
   truncated: boolean;
+  /** Protected columns were hidden (•••) or totals were limited; never contains values. */
+  accessNote?: { message: string; request: string | null };
   persistedId?: string;
   cachedProfiles?: import('@/lib/studio/types').ColumnProfile[];
   cachedSpecs?: import('@/lib/studio/types').ChartSpec[];
@@ -449,6 +451,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
                 sql: event.sql as string,
                 rowCount: event.rowCount as number,
                 truncated: event.truncated as boolean,
+                ...(event.accessNote ? { accessNote: event.accessNote as QueryResult['accessNote'] } : {}),
               };
               setQueryResults(prev => {
                 const appendIndex = prev.length;

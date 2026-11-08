@@ -144,6 +144,9 @@ export const routes: RouteObject[] = [
                 ],
               },
 
+              // ── My data access (every signed-in person) ─────────────────────────────
+              { path: 'my-access', lazy: page(() => import('@/views/my-access')), handle: title('My data access · ALOFT') },
+
               // ── Docs ───────────────────────────────────────────────────────────────
               { path: 'docs', lazy: page(() => import('@/views/docs/index')) },
               { path: 'docs/agents', lazy: page(() => import('@/views/docs/agents')) },

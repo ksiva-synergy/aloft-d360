@@ -32,10 +32,15 @@ function lower(s: string | null | undefined): string {
   return (s ?? '').trim().toLowerCase();
 }
 
-function policyPathsAt(policy: PolicySnapshot, parent: string | null, depth: number): string[] {
+/** Paths that carry policy (grants, labels, rules, protections) even if the estate has no such object. */
+export function snapshotPolicyPaths(policy: PolicySnapshot): string[] {
+  return [...policy.grants.map((g) => g.path), ...policy.labels.map((l) => l.path)];
+}
+
+function policyPathsAt(policyPaths: string[], parent: string | null, depth: number): string[] {
   const out = new Set<string>();
   const prefix = parent ? `${parent}.` : '';
-  for (const p of [...policy.grants.map((g) => g.path), ...policy.labels.map((l) => l.path)]) {
+  for (const p of policyPaths) {
     const parts = p.split('.');
     if (parts.length < depth) continue;
     const candidate = parts.slice(0, depth).join('.');
@@ -48,7 +53,7 @@ function policyPathsAt(policy: PolicySnapshot, parent: string | null, depth: num
 export async function listEstateChildren(
   orgId: string,
   parent: string | null,
-  policy: PolicySnapshot,
+  policyPaths: string[],
 ): Promise<{ nodes: EstateNode[]; truncated: boolean }> {
   const parentParts = parent ? parent.split('.') : [];
   const depth = (parentParts.length + 1) as 1 | 2 | 3;
@@ -125,7 +130,7 @@ export async function listEstateChildren(
     }
   }
 
-  for (const path of policyPathsAt(policy, parent, depth)) {
+  for (const path of policyPathsAt(policyPaths, parent, depth)) {
     if (nodes.has(path)) continue;
     nodes.set(path, {
       path,

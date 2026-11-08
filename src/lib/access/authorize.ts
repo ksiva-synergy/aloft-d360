@@ -1,9 +1,8 @@
 import { prisma } from '@/lib/db';
 import { accessMode, isSurfaceEnforced, shouldEvaluateAccess } from './config';
-import { authorizePaths as decideAuthorizePaths } from './decide';
 import { AccessDeniedError } from './errors';
-import { enrichUserPrincipal } from './principal';
-import { loadPolicySnapshot } from './policy-store';
+import { authorizeWithModel, missingPathProtections } from './engine';
+import { getAccessModel } from './model-store';
 import { extractTablesForAuthorization } from './sql-tables';
 import type {
   AccessPrincipal,
@@ -58,14 +57,18 @@ async function writeDecisionLog(
   }
 }
 
-function denialMessage(result: Extract<AuthorizePathsResult, { ok: false }>): string {
+function denialMessage(result: Extract<AuthorizePathsResult, { ok: false }>, protections: string[]): string {
+  const table = result.failedPath ? ` ${result.failedPath}` : ' one or more tables';
+  // Prefilled request form (My data access); the person never picks the approver.
+  const link = result.failedPath ? ` Request it at /my-access?path=${encodeURIComponent(result.failedPath)}` : ' Request it at /my-access';
   if (result.reason === 'needs_clearance') {
-    return 'You do not have clearance for one or more tables in this query.';
+    const what = protections.length ? `${protections.join(', ')} data` : 'protected data';
+    return `You don't have access to ${what} (in${table}). If you need it, request access.${link}`;
   }
   if (result.reason === 'explicit_deny') {
-    return 'Access to one or more tables was explicitly denied.';
+    return `Access to${table} is blocked for you.`;
   }
-  return 'One or more tables are not available to you.';
+  return `You don't have access to${table}. If you need it, request access.${link}`;
 }
 
 export async function authorizePaths(
@@ -78,11 +81,9 @@ export async function authorizePaths(
     return { ok: true, tier: 'internal' };
   }
 
-  const snapshot = await loadPolicySnapshot(principal.orgId);
-  const effective =
-    principal.kind === 'user' ? enrichUserPrincipal(principal, snapshot) : principal;
-
-  const result = decideAuthorizePaths(effective, paths, level, snapshot);
+  // Simplified model (docs/access/simplified-access-model.md): access rules + protections.
+  const { model } = await getAccessModel(principal.orgId);
+  const result = authorizeWithModel(model, principal, paths, level);
 
   if (result.ok) {
     await writeDecisionLog(principal, paths, level, ctx, result, result.tier);
@@ -92,7 +93,8 @@ export async function authorizePaths(
   await writeDecisionLog(principal, paths, level, ctx, result);
 
   const block = isSurfaceEnforced(ctx.surface);
-  const error = new AccessDeniedError(denialMessage(result), {
+  const protections = result.failedPath ? missingPathProtections(model, principal, result.failedPath) : [];
+  const error = new AccessDeniedError(denialMessage(result, protections), {
     reason: result.reason,
     surface: ctx.surface,
     level,

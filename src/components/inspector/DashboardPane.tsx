@@ -753,6 +753,17 @@ export function DashboardPane({
           {/* SQL preview */}
           <SqlBadge sql={active.sql} />
 
+          {active.accessNote ? (
+            <div role="status" className="mx-3 mb-2 flex flex-wrap items-center gap-2 rounded-[8px] bg-[var(--warn-bg)] px-3 py-2 text-caption text-[var(--warn)]">
+              <span>{active.accessNote.message}</span>
+              {active.accessNote.request ? (
+                <a href={active.accessNote.request} className="font-semibold underline">
+                  Request access
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Data table — top half */}
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <DataTable

@@ -7,7 +7,13 @@ export const ANSWER_COMPLETENESS_RULES = `## ANSWER CONTENT
 - Name things, not just codes. When a row identifies something only by an id, code or abbreviation (a vessel, port, company, person, status or category), look for the table that names it: the source table's other columns first, then related tables (describe_schema action 'relations' or 'search' when available). Join it in the same query and show the name next to the code.
 - Decode coded values the same way (status 10 → its meaning). If no lookup exists in the catalog, say so once in a single line, not on every row, and show the raw code.
 - Leave out placeholder values that carry no information (sentinel dates, empty strings, all-zero scores); mention once that the field is unusable.
-- When you return records, include one row per record with every useful field. The chat shows row lists as tables, so a complete list is easy to read.`;
+- When you return records, include one row per record with every useful field. The chat shows row lists as tables, so a complete list is easy to read.
+
+## PROTECTED DATA
+- A query result can carry access_note. Values shown as ••• are protected and this person does not have access to them. Do not estimate, infer, describe or compute them from other columns, and do not try another query to get them.
+- Answer with what the person can see, then say plainly what is hidden, once, using access_note.message (for example "Salary is hidden: you don't have access to Compensation data."). If access_note.request is set, add: "If you need it, request access: <link>".
+- If a query is refused with ACCESS_DENIED, do not try to get around it (different joins, filters, sub-queries or tables). Tell the person they don't have access to that data and give the request link from the message, if any.
+- Access is checked for the person, not by you. If they say they are allowed, tell them to request access; you cannot change it.`;
 
 /**
  * How Inspector and a saved or test-run agent write the final reply. Tool use stays

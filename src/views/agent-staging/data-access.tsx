@@ -1,61 +1,62 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ElementType } from 'react';
-import { LayoutList, Network, RefreshCw, ScrollText, Tags, Users } from 'lucide-react';
+import { Database, Lock, RefreshCw, ScrollText, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from '@/lib/navigation';
 import userStyles from '@/components/users/users.module.css';
-import {
-  accessFetch,
-  runAsync,
-  type AccessStatus,
-  type Department,
-  type Person,
-} from '@/components/access/console/api';
-import { OverviewView, type ConsoleTab } from '@/components/access/console/OverviewView';
-import { DataMapView } from '@/components/access/console/DataMapView';
-import { LabelsView } from '@/components/access/console/LabelsView';
-import { PeopleView } from '@/components/access/console/PeopleView';
-import { AccessLogView } from '@/components/access/console/AccessLogView';
+import { accessFetch, runAsync, type AccessStatus, type Person } from '@/components/access/console/api';
+import { RequestsView } from '@/components/access/console/RequestsView';
+import { ColumnAccessView } from '@/components/access/console/ColumnAccessView';
+import { DataView } from '@/components/access/console/DataView';
+import { PeopleGroupsView } from '@/components/access/console/PeopleGroupsView';
 import s from '@/components/access/console/console.module.css';
 import { ConsoleReadOnlyContext } from '@/components/access/console/readOnly';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
-const TABS: { id: ConsoleTab; label: string; icon: ElementType }[] = [
-  { id: 'map', label: 'Data map', icon: Network },
-  { id: 'people', label: 'People', icon: Users },
-  { id: 'labels', label: 'Labels', icon: Tags },
-  { id: 'log', label: 'Access log', icon: ScrollText },
-  { id: 'setup', label: 'Setup guide', icon: LayoutList },
+/** Simplified model (docs/access/simplified-access-model.md §4): four tabs. */
+type Tab = 'data' | 'protections' | 'people' | 'log';
+
+const TABS: { id: Tab; label: string; icon: ElementType }[] = [
+  { id: 'data', label: 'Data', icon: Database },
+  { id: 'protections', label: 'Protections', icon: Lock },
+  { id: 'people', label: 'People & groups', icon: Users },
+  { id: 'log', label: 'Requests & log', icon: ScrollText },
 ];
 
-const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+/** Old links (?tab=map, labels, columns, setup) land on the tab that replaced them. */
+const TAB_ALIASES: Record<string, Tab> = {
+  data: 'data',
+  map: 'data',
+  setup: 'data',
+  protections: 'protections',
+  labels: 'protections',
+  columns: 'protections',
+  people: 'people',
+  log: 'log',
+};
 
-function ModeBanner({ status }: { status: AccessStatus }) {
+/** Small status badge next to the title. The full explanation is in the hover text and the Setup guide. */
+function ModeBadge({ status }: { status: AccessStatus }) {
   const { accessMode, legacyOpen } = status;
-  const tone = accessMode === 'enforce' ? s.modeEnforce : accessMode === 'observe' ? s.modeObserve : s.modeOff;
-  const color = accessMode === 'enforce' ? 'text-[var(--ok)]' : accessMode === 'observe' ? 'text-[var(--brand-b-ink)]' : 'text-[var(--warn)]';
-  let text: string;
-  if (accessMode === 'off') {
-    text =
-      'Enforcement is off. Everything set here is saved but nothing is checked or logged yet. Finish setup, then turn on observe mode.';
-  } else if (accessMode === 'observe') {
-    text =
-      'Observe mode. Every decision is logged and nothing is blocked. Check the Access log for “would block” entries before enforcing.';
-  } else {
-    text = `Enforcing on ${status.enforcedSurfaces.join(', ') || 'no surfaces'}. People can only use what this policy allows.`;
-  }
-  if (legacyOpen && accessMode !== 'off') {
-    text += ' No path grants exist yet, so all unlabelled data is still open.';
-  }
+  const color = accessMode === 'enforce' ? 'var(--ok)' : accessMode === 'observe' ? 'var(--brand-b-ink)' : 'var(--warn)';
+  const label = accessMode === 'off' ? 'Not enforced' : accessMode === 'observe' ? 'Observe mode' : 'Enforced';
+  let detail: string;
+  if (accessMode === 'off') detail = 'Settings are saved but nothing is checked or logged yet.';
+  else if (accessMode === 'observe') detail = 'Decisions are logged; nothing is blocked.';
+  else detail = `Enforcing on ${status.enforcedSurfaces.join(', ') || 'no surfaces'}.`;
+  if (legacyOpen && accessMode !== 'off') detail += ' No access rules exist yet, so unprotected data is still open.';
   return (
-    <div className={cn(s.modeBanner, tone)} role="status">
-      <span className={cn(s.modeDot, color)} aria-hidden="true" />
-      <p className="text-foreground">
-        <span className="font-semibold capitalize">{accessMode === 'off' ? 'Not enforced' : accessMode}</span>
-        <span className="text-muted-foreground"> · {text}</span>
-      </p>
-    </div>
+    <span
+      role="status"
+      title={detail}
+      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--estate-border)] px-2.5 py-0.5 text-caption font-medium"
+      style={{ color }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} aria-hidden="true" />
+      {label}
+      <span className="sr-only">. {detail}</span>
+    </span>
   );
 }
 
@@ -65,11 +66,8 @@ export default function DataAccessPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab');
   const initialUser = searchParams.get('user');
-  const [tab, setTab] = useState<ConsoleTab>(
-    initialUser ? 'people' : initialTab && TAB_IDS.has(initialTab) ? (initialTab as ConsoleTab) : 'map',
-  );
+  const [tab, setTab] = useState<Tab>(initialUser ? 'people' : (initialTab && TAB_ALIASES[initialTab]) || 'data');
   const [status, setStatus] = useState<AccessStatus | null>(null);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,13 +75,11 @@ export default function DataAccessPage() {
   /** Reload shared data. Sets state only after the request returns. */
   const refresh = useCallback(async () => {
     try {
-      const [st, d, u] = await Promise.all([
+      const [st, u] = await Promise.all([
         accessFetch<AccessStatus>('/api/access/status'),
-        accessFetch<{ departments: Department[] }>('/api/access/departments'),
         accessFetch<{ users: Person[] }>('/api/access/users'),
       ]);
       setStatus(st);
-      setDepartments(d.departments);
       setPeople(u.users);
       setError(null);
     } catch (e) {
@@ -102,11 +98,8 @@ export default function DataAccessPage() {
     void refresh();
   };
 
-  const tabCount = (id: ConsoleTab): number | null => {
+  const tabCount = (id: Tab): number | null => {
     if (!status) return null;
-    if (id === 'map') return status.counts.departmentGrants;
-    if (id === 'people') return people.length;
-    if (id === 'labels') return status.counts.labels;
     if (id === 'log') return status.counts.denies7d || null;
     return null;
   };
@@ -120,11 +113,10 @@ export default function DataAccessPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-a)]" />
               Workspace administration
             </div>
-            <h1 className="text-title-section">Data access</h1>
-            <p className="mt-1 max-w-[80ch] text-size-ui text-muted-foreground">
-              Map catalogs, schemas, and tables to departments, then give each person their departments. Separate from
-              app roles: being an Admin gives no data.
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-title-section">Data access</h1>
+              {status ? <ModeBadge status={status} /> : null}
+            </div>
           </div>
           <button
             type="button"
@@ -137,8 +129,6 @@ export default function DataAccessPage() {
             <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
           </button>
         </div>
-
-        {status ? <ModeBanner status={status} /> : null}
 
         {error ? (
           <div
@@ -177,29 +167,25 @@ export default function DataAccessPage() {
 
           {!status ? (
             <p className="p-6 text-size-ui text-muted-foreground">{loading ? 'Loading…' : 'Nothing to show.'}</p>
-          ) : tab === 'setup' ? (
-            <OverviewView status={status} onGo={setTab} />
-          ) : tab === 'map' ? (
-            <DataMapView
-              departments={departments}
-              roles={status.roles}
-              isPlatformAdmin={status.me.platformAdmin}
-              onChanged={refresh}
-            />
+          ) : tab === 'data' ? (
+            <DataView people={people} meId={status.me.userId} isPlatformAdmin={status.me.platformAdmin} />
           ) : tab === 'people' ? (
-            <PeopleView
+            <PeopleGroupsView
               people={people}
-              departments={departments}
-              roles={status.roles}
               meId={status.me.userId}
               isPlatformAdmin={status.me.platformAdmin}
-              focusId={initialUser}
+              focusUserId={initialUser}
               onChanged={refresh}
             />
-          ) : tab === 'labels' ? (
-            <LabelsView isPlatformAdmin={status.me.platformAdmin} onChanged={refresh} />
+          ) : tab === 'protections' ? (
+            <ColumnAccessView
+              people={people}
+              meId={status.me.userId}
+              isPlatformAdmin={status.me.platformAdmin}
+              onChanged={refresh}
+            />
           ) : (
-            <AccessLogView people={people} />
+            <RequestsView people={people} meId={status.me.userId} isPlatformAdmin={status.me.platformAdmin} />
           )}
         </section>
         </ConsoleReadOnlyContext.Provider>
