@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data tab UI: summary pills, cleaner detail panel
+
+- **What:** Right-hand panel shows path breadcrumb, three summary pills (who can use, whole-path protection, columns inside), collapsed help, top action buttons, side-by-side rule/protection cards, and a single inherited section. Tree rows show access level and parent inheritance.
+- **Why:** Admins found the old layout sparse and hard to scan; all options remain, reorganized.
+- **Paths:** `src/components/access/console/DataView.tsx`, `console.module.css`, `DataAndPeopleViews.test.tsx`.
+
 ## 2026-11-08 — Data access: “Applying to” line on Give access form
 
 - **What:** `GiveRuleForm` shows which catalog, schema, or table the rule will apply to (`Applying to this catalog: curated_db`).

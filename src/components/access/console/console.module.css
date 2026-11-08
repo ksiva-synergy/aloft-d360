@@ -171,6 +171,86 @@
   line-height: 1.5;
 }
 
+.pathCrumb {
+  margin-top: 4px;
+  color: var(--estate-text-dim);
+  font-size: var(--type-label-size);
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.pathCrumbStrong {
+  color: var(--estate-ink);
+  font-weight: 600;
+}
+
+.pathSep {
+  opacity: 0.55;
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (min-width: 720px) {
+  .statRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.statPill {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--estate-border);
+  background: color-mix(in srgb, var(--surface-2) 50%, var(--estate-surface));
+  min-width: 0;
+}
+
+.statPillLabel {
+  color: var(--estate-text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statPillValue {
+  color: var(--estate-ink);
+  font-size: var(--type-label-size);
+  line-height: 1.4;
+}
+
+.helpPanel {
+  border: 1px solid var(--estate-border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--surface-2) 35%, transparent);
+  color: var(--estate-text-dim);
+  font-size: var(--type-label-size);
+  line-height: 1.45;
+}
+
+.helpPanel summary {
+  cursor: pointer;
+  color: var(--estate-ink);
+  font-weight: 500;
+}
+
+.helpPanel ul {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+}
+
+.helpPanel li + li {
+  margin-top: 4px;
+}
+
 /* ── Cards ───────────────────────────────────────────────── */
 
 .card {

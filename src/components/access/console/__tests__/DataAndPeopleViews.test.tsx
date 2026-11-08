@@ -19,7 +19,16 @@ const people: Person[] = [
 ];
 
 const none = { rules: [], inheritedRules: [], protections: [], inheritedProtections: [], protectedColumns: 0 };
-const marineRule = { id: 'r1', holderType: 'group', holderId: 'g1', holderName: 'Marine', access: 'use', expiresAt: null, from: 'curated_db' };
+const marineRule = {
+  id: 'r1',
+  holderType: 'group',
+  holderId: 'g1',
+  holderName: 'Marine',
+  access: 'use',
+  autoApprove: false,
+  expiresAt: null,
+  from: 'curated_db',
+};
 const restricted = { id: 'p1', tagId: 't-r', name: 'Restricted', from: 'system' };
 
 const ROOT = [
@@ -86,7 +95,7 @@ describe('DataView', () => {
     fakeApi();
     renderData();
     expect(await screen.findByText('curated_db')).toBeTruthy();
-    expect(screen.getByText('Marine')).toBeTruthy();
+    expect(screen.getByText(/Marine · Use/)).toBeTruthy();
     expect(screen.getByLabelText('Protected')).toBeTruthy();
     expect(screen.getByText('Nobody can use')).toBeTruthy();
   });
@@ -102,8 +111,8 @@ describe('DataView', () => {
     renderData();
     fireEvent.click(await screen.findByText('system'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
-    expect(within(panel).getByText('Nobody yet.')).toBeTruthy();
-    expect(within(panel).getByText('Restricted')).toBeTruthy();
+    expect(within(panel).getByText('No rules on this path yet.')).toBeTruthy();
+    expect(within(panel).getByRole('list', { name: 'Summary' }).textContent).toContain('Restricted');
     fireEvent.click(within(panel).getByRole('button', { name: 'Give access' }));
     fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Everyone in ops needs it' } });
     fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);
@@ -122,7 +131,7 @@ describe('DataView', () => {
     fireEvent.click(await screen.findByLabelText('Expand hr'));
     fireEvent.click(await screen.findByText('payroll'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
-    expect(within(panel).getByText('From above')).toBeTruthy();
+    expect(within(panel).getByText('Inherited from above')).toBeTruthy();
     expect(await within(panel).findByText('salary')).toBeTruthy();
     expect(within(panel).getByText('Compensation')).toBeTruthy();
   });
