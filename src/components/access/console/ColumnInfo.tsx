@@ -30,7 +30,16 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** ⓘ next to a column: everything the estate knows about it (Data access admins; sample values shown). */
-export function ColumnInfoButton({ table, column }: { table: string; column: string }) {
+export function ColumnInfoButton({
+  table,
+  column,
+  onOpen,
+}: {
+  table: string;
+  column: string;
+  /** Parent opens one shared dialog (e.g. row click on the protections table). */
+  onOpen?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -42,17 +51,18 @@ export function ColumnInfoButton({ table, column }: { table: string; column: str
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setOpen(true);
+          if (onOpen) onOpen();
+          else setOpen(true);
         }}
       >
         <Info className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
-      {open ? <ColumnInfoDialog table={table} column={column} onClose={() => setOpen(false)} /> : null}
+      {!onOpen && open ? <ColumnInfoDialog table={table} column={column} onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
 
-function ColumnInfoDialog({ table, column, onClose }: { table: string; column: string; onClose: () => void }) {
+export function ColumnInfoDialog({ table, column, onClose }: { table: string; column: string; onClose: () => void }) {
   const [info, setInfo] = useState<Info | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {

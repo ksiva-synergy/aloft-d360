@@ -1,11 +1,41 @@
 /* Data access console — built on the estate tokens used by Users & access. */
 
+.navBar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border-bottom: 1px solid var(--estate-border);
+  padding-right: 8px;
+}
+
 .nav {
   display: flex;
+  flex: 1;
   gap: 2px;
   overflow-x: auto;
   padding: 0 12px;
-  border-bottom: 1px solid var(--estate-border);
+  min-width: 0;
+}
+
+.navHelpBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  margin: 6px 4px 6px auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--estate-border);
+  background: var(--estate-surface);
+  color: var(--estate-text-dim);
+  font-size: var(--type-label-size);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.navHelpBtn:hover {
+  color: var(--estate-ink);
+  background: var(--surface-2);
 }
 
 .navBtn {
@@ -153,6 +183,125 @@
 .detailPane {
   min-width: 0;
   padding: 20px;
+}
+
+.detailHeadCompact {
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.protectToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--estate-border);
+  background: color-mix(in srgb, var(--surface-2) 80%, var(--estate-surface));
+}
+
+.protectAddBlock {
+  margin-bottom: 10px;
+}
+
+.protectCompactBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: var(--type-label-size);
+  white-space: nowrap;
+}
+
+.protectCompactInput {
+  height: 32px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 1.85rem !important;
+  font-size: var(--type-label-size) !important;
+}
+
+.protectAccessBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--estate-border);
+  background: var(--surface-2);
+}
+
+.protectAccessBannerWarn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--estate-border));
+  background: color-mix(in srgb, var(--warn-bg) 55%, var(--estate-surface));
+}
+
+.inheritPanel {
+  overflow: hidden;
+}
+
+.inheritPanel > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.inheritPanel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.inheritPanel[open] > summary {
+  border-bottom: 1px solid var(--estate-border);
+}
+
+.protectListHead {
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.protectColumnList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--estate-border);
+  border-radius: 10px;
+  overflow: auto;
+  background: var(--estate-surface);
+}
+
+.protectColumnRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--estate-border);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font-size: var(--type-ui-size);
+}
+
+.protectColumnList > li:last-child .protectColumnRow {
+  border-bottom: 0;
+}
+
+.protectColumnRow:hover {
+  background: var(--surface-2);
+}
+
+.protectColumnRowSelected,
+.protectColumnRowSelected:hover {
+  background: var(--brand-a-soft);
 }
 
 .detailHead {

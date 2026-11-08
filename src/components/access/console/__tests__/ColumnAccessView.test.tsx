@@ -100,7 +100,7 @@ describe('ColumnAccessView', () => {
     expect(within(list).getByText('Salary')).toBeTruthy();
     expect(within(list).getByText('Contact details')).toBeTruthy();
     expect(within(list).getByText('Can see: Payroll team (1)')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Salary' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Salary/ })).toBeTruthy();
     expect(screen.queryByText('email')).toBeNull(); // belongs to Contact details
     expect(screen.getByText(/curated\.finance/)).toBeTruthy();
   });
@@ -112,9 +112,9 @@ describe('ColumnAccessView', () => {
     fireEvent.click(within(protections()).getByText('Contact details'));
     expect(await screen.findByText('email')).toBeTruthy();
     expect(screen.queryByText('salary_amount')).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Contact details' })).toBeTruthy();
-    expect(screen.getByText(/1 column · Can see:/)).toBeTruthy();
-    expect(screen.getByText('nobody yet')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /Contact details/ })).toBeTruthy();
+    expect(screen.getByText(/1 Protected column/)).toBeTruthy();
+    expect(screen.getAllByText(/Can see: nobody yet/).length).toBeGreaterThan(0);
   });
 
   it('add columns: search, tick, reason → tags each table once for the open protection', async () => {
@@ -281,7 +281,7 @@ describe('ColumnAccessView', () => {
     const calls = fakeApi();
     renderPage();
     await screen.findByText('salary_amount');
-    fireEvent.click(screen.getByRole('button', { name: 'Who can see · give access' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Give access' }));
     const dialog = await screen.findByRole('dialog', { name: 'Who can see Salary' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Give access' }));
     pickPerson(dialog, 'People', 'Ben Ko');
@@ -301,7 +301,7 @@ describe('ColumnAccessView', () => {
     fakeApi();
     renderPage({ meId: 'u-ben' });
     await screen.findByText('salary_amount');
-    fireEvent.click(screen.getByRole('button', { name: 'Who can see · give access' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Give access' }));
     const dialog = await screen.findByRole('dialog', { name: 'Who can see Salary' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Give access' }));
     fireEvent.change(within(dialog).getByLabelText('People'), { target: { value: 'Ben' } });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import { Lock, Plus, Unlock, Search, ShieldCheck, User, UserPlus, UsersRound, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ import {
   type TagGrant,
 } from './api';
 import { Empty, Segmented } from './parts';
-import { ColumnInfoButton } from './ColumnInfo';
+import { ColumnInfoButton, ColumnInfoDialog } from './ColumnInfo';
 import {
   AccessFields,
   DURATIONS,
@@ -58,6 +58,7 @@ type Row = {
   /** Search by meaning: the column's description and how close it is (0–1). Never values. */
   description?: string | null;
   score?: number;
+  match?: 'name' | 'meaning';
 };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -88,6 +89,8 @@ export function ColumnAccessView({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Map<string, Row>>(new Map());
   const [dialog, setDialog] = useState<'change' | 'unprotect' | 'new' | { tagId: string } | null>(null);
+  const [columnDetail, setColumnDetail] = useState<{ table: string; column: string } | null>(null);
+  const [listFilter, setListFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -148,11 +151,37 @@ export function ColumnAccessView({
     [grants, groupById, people],
   );
 
+  useEffect(() => {
+    setColumnDetail(null);
+    setListFilter('');
+  }, [selectedId]);
+
   const current = selectedId ? (tagById.get(selectedId) ?? null) : null;
+
+  const openColumnDetail = (table: string, column: string) => setColumnDetail({ table, column });
+
+  const onColumnRowClick = (table: string, column: string) => (e: MouseEvent | KeyboardEvent) => {
+    const target = e.target;
+    if (target instanceof Element && target.closest('input, button, a, select, textarea')) return;
+    if ('key' in e && e.key !== 'Enter' && e.key !== ' ') return;
+    if ('key' in e) e.preventDefault();
+    openColumnDetail(table, column);
+  };
   const columns = current ? protectedRows.filter((r) => r.tagIds.includes(current.id)) : [];
   const countFor = (id: string) => protectedRows.filter((r) => r.tagIds.includes(id)).length;
+  const filterTerm = listFilter.trim().toLowerCase();
+  const filteredColumns = useMemo(() => {
+    if (!filterTerm) return columns;
+    return columns.filter((r) => r.column.toLowerCase().includes(filterTerm) || r.tablePath.toLowerCase().includes(filterTerm));
+  }, [columns, filterTerm]);
+  const flatColumns = useMemo(
+    () => [...filteredColumns].sort((a, b) => a.column.localeCompare(b.column) || a.tablePath.localeCompare(b.tablePath)),
+    [filteredColumns],
+  );
   const chosen = [...selected.values()];
-  const allSelected = columns.length > 0 && columns.every((r) => selected.has(r.key));
+  const allSelected = filteredColumns.length > 0 && filteredColumns.every((r) => selected.has(r.key));
+  const accessSummary = current ? whoCanSee(current.id) : '';
+  const accessOpen = accessSummary === 'nobody yet';
 
   function pick(id: string) {
     setSelectedId(id);
@@ -243,44 +272,31 @@ export function ColumnAccessView({
           </Empty>
         ) : (
           <>
-            <header className="flex flex-wrap items-start justify-between gap-3">
+            <header className={cn(s.detailHead, s.detailHeadCompact)}>
               <div className="min-w-0 flex-1">
-                <h2 className="flex items-center gap-2 text-title-section">
+                <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-title-section">
                   <Lock className="h-4 w-4 text-[var(--brand-a-ink)]" aria-hidden="true" />
                   {current.name}
+                  <span className={cn('text-caption font-normal', accessOpen ? 'text-[var(--warn)]' : 'text-muted-foreground')}>
+                    · Can see: {accessSummary}
+                  </span>
                 </h2>
-                <p className="text-caption text-muted-foreground">
-                  {plural(columns.length, 'column')} · Can see: <strong className="font-medium text-foreground">{whoCanSee(current.id)}</strong>
-                </p>
-                <details className={cn(s.helpPanel, 'mt-2 max-w-prose')}>
-                  <summary>How to use this tab</summary>
-                  <ul>
-                    <li>
-                      <strong>Search</strong> to tag columns onto this protection. Use <strong>ⓘ</strong> on any row for description, sample values, and harvest dates (admin only).
-                    </li>
-                    <li>
-                      <strong>Who can see · give access</strong> chooses who gets real values; everyone else sees ••• even if they have Use on the table (set Use on the Data tab).
-                    </li>
-                    <li>Optional: protect a whole catalog/schema/table on the <strong>Data</strong> tab — same protection name.</li>
-                  </ul>
-                  {wholePaths.some((w) => w.tagId === current.id) ? (
-                    <p className="mt-2 text-caption">
-                      Whole-path:{' '}
-                      {wholePaths
-                        .filter((w) => w.tagId === current.id)
-                        .map((w) => w.path)
-                        .join(', ')}
-                    </p>
-                  ) : null}
-                </details>
+                {wholePaths.some((w) => w.tagId === current.id) ? (
+                  <p className="mt-0.5 truncate text-caption text-muted-foreground" title={wholePaths.filter((w) => w.tagId === current.id).map((w) => w.path).join(', ')}>
+                    Whole path on Data tab: {wholePaths.filter((w) => w.tagId === current.id).map((w) => w.path).join(', ')}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
-                className={cn(userStyles.secondaryButton, 'inline-flex items-center gap-1.5')}
+                className={cn(
+                  s.protectCompactBtn,
+                  accessOpen && isPlatformAdmin && !readOnly ? userStyles.primary : userStyles.secondaryButton,
+                )}
                 onClick={() => setDialog({ tagId: current.id })}
               >
-                <UsersRound className="h-4 w-4" aria-hidden="true" />
-                {isPlatformAdmin && !readOnly ? 'Who can see · give access' : 'Who can see'}
+                <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
+                {isPlatformAdmin && !readOnly ? 'Give access' : 'Who can see'}
               </button>
             </header>
 
@@ -292,75 +308,78 @@ export function ColumnAccessView({
               />
             )}
 
-            <div className={cn(s.card, 'overflow-hidden')}>
-              {columns.length === 0 ? (
-                <Empty icon={<Search className="h-5 w-5" aria-hidden="true" />}>
-                  No columns yet. Search above, for example <strong>salary</strong>, and add them.
-                </Empty>
-              ) : (
-                <div className="compact-scroll max-h-[min(55vh,520px)]">
-                  <table className="w-full table-fixed text-left text-size-ui">
-                    <colgroup>
-                      <col className="w-10" />
-                      <col className="w-9" />
-                      <col className="w-[32%]" />
-                      <col />
-                    </colgroup>
-                    <thead className="sticky top-0 z-[1] border-b border-[var(--estate-border)] bg-[var(--estate-surface)] text-eyebrow uppercase text-muted-foreground">
-                      <tr>
-                        <th className="px-3 py-2">
-                          {readOnly || !isPlatformAdmin ? null : (
+            <div className={s.card}>
+              <div className={cn(s.cardHead, s.protectListHead)}>
+                <h3 className={s.cardTitle}>{plural(columns.length, 'Protected column')}</h3>
+                <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:justify-end">
+                  {columns.length > 4 ? (
+                    <div className="relative w-full min-w-0 flex-1 sm:max-w-xs">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                      <Input
+                        className={cn(userStyles.input, '!h-8 !py-1 !pl-8 text-caption')}
+                        value={listFilter}
+                        onChange={(e) => setListFilter(e.target.value)}
+                        placeholder="Filter…"
+                        aria-label="Filter protected columns"
+                      />
+                    </div>
+                  ) : null}
+                  {!readOnly && isPlatformAdmin && filteredColumns.length > 0 ? (
+                    <button
+                      type="button"
+                      className={cn(s.linkBtn, 'shrink-0 text-caption')}
+                      onClick={() => filteredColumns.forEach((r) => toggle(r, !allSelected))}
+                    >
+                      {allSelected ? 'Clear selection' : 'Select all'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              <div className={cn(s.cardBody, '!pt-0')}>
+                {columns.length === 0 ? (
+                  <Empty icon={<Search className="h-5 w-5" aria-hidden="true" />}>
+                    No columns yet. Use <strong>Add columns</strong> above, for example <strong>salary</strong>.
+                  </Empty>
+                ) : filteredColumns.length === 0 ? (
+                  <p className="py-8 text-center text-caption text-muted-foreground">No columns match “{listFilter.trim()}”.</p>
+                ) : (
+                  <ul className={cn(s.protectColumnList, 'compact-scroll max-h-[min(50vh,480px)]')}>
+                    {flatColumns.map((r) => (
+                      <li key={r.key}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          title={r.tablePath}
+                          className={cn(s.protectColumnRow, selected.has(r.key) && s.protectColumnRowSelected)}
+                          onClick={onColumnRowClick(r.tablePath, r.column)}
+                          onKeyDown={onColumnRowClick(r.tablePath, r.column)}
+                        >
+                          {!readOnly && isPlatformAdmin ? (
                             <input
                               type="checkbox"
-                              aria-label="Select all"
-                              checked={allSelected}
-                              onChange={(e) => columns.forEach((r) => toggle(r, e.target.checked))}
+                              className="shrink-0"
+                              aria-label={`Select ${r.column} in ${r.tablePath}`}
+                              checked={selected.has(r.key)}
+                              onChange={(e) => toggle(r, e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
                             />
-                          )}
-                        </th>
-                        <th className="px-1 py-2 text-center font-normal" scope="col">
-                          <span className="sr-only">About column</span>ⓘ
-                        </th>
-                        <th className="px-3 py-2 font-medium">Column</th>
-                        <th className="px-3 py-2 font-medium">Table</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {columns.map((r) => (
-                        <tr
-                          key={r.key}
-                          className={cn('border-b border-[var(--estate-border)] last:border-b-0', selected.has(r.key) && 'bg-[var(--brand-a-soft)]')}
-                        >
-                          <td className="px-3 py-2 align-top">
-                            {readOnly || !isPlatformAdmin ? null : (
-                              <input
-                                type="checkbox"
-                                aria-label={`Select ${r.column} in ${r.tablePath}`}
-                                checked={selected.has(r.key)}
-                                onChange={(e) => toggle(r, e.target.checked)}
-                              />
-                            )}
-                          </td>
-                          <td className="px-1 py-1.5 align-top text-center">
-                            <ColumnInfoButton table={r.tablePath} column={r.column} />
-                          </td>
-                          <td className="truncate px-3 py-2 align-top font-medium" title={r.column}>
-                            {r.column}
-                            {r.tagIds.length > 1 ? (
-                              <span className="ml-1.5 text-caption font-normal text-muted-foreground">
-                                also {r.tagIds.filter((id) => id !== current.id).map((id) => tagById.get(id)?.name).join(', ')}
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="truncate px-3 py-2 align-top text-caption text-muted-foreground" title={r.tablePath}>
+                          ) : null}
+                          <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.column}</span>
+                          <span className="hidden min-w-0 max-w-[48%] truncate text-caption text-muted-foreground sm:inline" title={r.tablePath}>
                             {shortTable(r.tablePath)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                          </span>
+                          {r.tagIds.length > 1 ? (
+                            <span className={cn(s.chip, s.chipFaint, 'hidden shrink-0 lg:inline-flex')}>
+                              +{r.tagIds.length - 1}
+                            </span>
+                          ) : null}
+                          <span className="sr-only"> — {r.tablePath}. Open for details.</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             {chosen.length > 0 ? (
@@ -382,6 +401,10 @@ export function ColumnAccessView({
           </>
         )}
       </section>
+
+      {columnDetail ? (
+        <ColumnInfoDialog table={columnDetail.table} column={columnDetail.column} onClose={() => setColumnDetail(null)} />
+      ) : null}
 
       <ProtectDialog
         open={dialog === 'change'}
@@ -447,9 +470,6 @@ function AddColumns({
 }) {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Row[] | null>(null);
-  const [meaning, setMeaning] = useState<Row[] | null>(null);
-  const [meaningBusy, setMeaningBusy] = useState(false);
-  const [meaningTried, setMeaningTried] = useState(false);
   const [truncated, setTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<Map<string, Row>>(new Map());
@@ -462,8 +482,6 @@ function AddColumns({
   if (forTag !== tag.id) {
     setForTag(tag.id);
     setHits(null);
-    setMeaning(null);
-    setMeaningTried(false);
     setPicked(new Map());
     setQ('');
     setReason('');
@@ -481,8 +499,6 @@ function AddColumns({
       setHits(res.columns.map((h) => ({ ...h, key: rowKey(h.tablePath, h.column) })));
       setTruncated(res.truncated);
       setPicked(new Map());
-      setMeaning(null);
-      setMeaningTried(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
     } finally {
@@ -490,26 +506,8 @@ function AddColumns({
     }
   }
 
-  async function searchMeaning() {
-    const term = q.trim();
-    if (term.length < 2) return;
-    setMeaningBusy(true);
-    setMeaningTried(true);
-    try {
-      const m = await accessFetch<{ columns: Omit<Row, 'key'>[] }>(`/api/access/column-search?q=${encodeURIComponent(term)}&by=meaning`);
-      setMeaning(m.columns.map((h) => ({ ...h, key: rowKey(h.tablePath, h.column) })));
-    } catch {
-      setMeaning([]);
-    } finally {
-      setMeaningBusy(false);
-    }
-  }
-
   const addable = (hits ?? []).filter((h) => !h.tagIds.includes(tag.id));
-  // Meaning matches not already listed by name; "Select all" covers name matches only.
-  const nameKeys = new Set((hits ?? []).map((h) => h.key));
-  const meaningExtra = (meaning ?? []).filter((h) => !nameKeys.has(h.key));
-  const meaningTop = meaning?.[0]?.score ?? 0;
+  const meaningTop = (hits ?? []).find((h) => h.match === 'meaning')?.score ?? hits?.[0]?.score ?? 0;
   const allPicked = addable.length > 0 && addable.every((h) => picked.has(h.key));
   const chosen = [...picked.values()];
 
@@ -552,31 +550,32 @@ function AddColumns({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn(s.protectAddBlock, 'flex flex-col gap-1.5')}>
       <form
-        className="flex gap-2"
+        className={cn(s.protectToolbar, 'gap-1.5 !py-1.5')}
         onSubmit={(e) => {
           e.preventDefault();
           void search();
         }}
       >
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <span className="hidden shrink-0 text-caption font-medium text-muted-foreground sm:inline">Add</span>
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
-            className={cn(userStyles.input, '!pl-9')}
+            className={cn(userStyles.input, s.protectCompactInput)}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={`Add columns to ${tag.name}: search, e.g. salary`}
+            placeholder="Find columns, e.g. salary"
             aria-label="Search columns"
           />
         </div>
-        <button type="submit" className={userStyles.primary} disabled={q.trim().length < 2 || searching}>
-          {searching ? 'Searching…' : 'Search'}
+        <button type="submit" className={cn(s.protectCompactBtn, userStyles.primary)} disabled={q.trim().length < 2 || searching}>
+          {searching ? '…' : 'Search'}
         </button>
         {hits ? (
           <button
             type="button"
-            className={userStyles.secondaryButton}
+            className={cn(s.linkBtn, s.protectCompactBtn, '!px-2')}
             onClick={() => {
               setHits(null);
               setPicked(new Map());
@@ -586,18 +585,13 @@ function AddColumns({
           </button>
         ) : null}
       </form>
-      {hits && q.trim().length >= 2 ? (
-        <button type="button" className={cn(s.linkBtn, 'self-start text-left')} disabled={meaningBusy} onClick={() => void searchMeaning()}>
-          {meaningBusy ? 'Searching similar meaning…' : meaningTried ? 'Search similar meaning again' : 'Also search similar meaning (embeddings)'}
-        </button>
-      ) : null}
 
       {error ? <p className={s.errorText} role="alert">{error}</p> : null}
 
       {hits ? (
         <div className="rounded-[10px] border border-[var(--estate-border)] bg-[var(--surface-2)] p-2">
           {hits.length === 0 ? (
-            <p className="px-2 py-1 text-caption text-muted-foreground">No column names match “{q.trim()}”.</p>
+            <p className="px-2 py-1 text-caption text-muted-foreground">No columns match name or meaning for “{q.trim()}”.</p>
           ) : (
             <>
               <label className="flex items-center gap-2 px-2 py-1 text-caption font-medium">
@@ -631,6 +625,11 @@ function AddColumns({
                           {h.kind === 'view' ? ' · view' : ''}
                         </span>
                         <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                          {h.match === 'meaning' ? (
+                            <span className={cn(s.chip, 'shrink-0')} title={h.description ?? undefined}>
+                              {strength(h.score ?? 0, meaningTop)}
+                            </span>
+                          ) : null}
                           {others.map((n) => (
                             <span key={n} className={s.chip}>
                               also {n}
@@ -645,48 +644,6 @@ function AddColumns({
               </ul>
             </>
           )}
-
-          {meaningTried ? (
-            <div className="mt-3">
-              <p className="flex items-center gap-2 px-2 py-1 text-caption font-medium">
-                Similar meaning
-                <span className="font-normal text-muted-foreground">
-                  {meaningBusy ? '· searching…' : meaning ? `· ${meaningExtra.length} more` : ''} · use ⓘ for details
-                </span>
-              </p>
-              {meaning && meaningExtra.length > 0 ? (
-                <ul className="compact-scroll max-h-64 rounded-[8px] border border-[var(--estate-border)] bg-[var(--estate-surface)]">
-                  {meaningExtra.map((h) => {
-                    const already = h.tagIds.includes(tag.id);
-                    return (
-                      <li key={h.key} className="border-b border-[var(--estate-border)] last:border-b-0">
-                        <label className={cn('flex min-w-0 cursor-pointer items-center gap-2 px-3 py-1.5 text-caption', already && 'cursor-default opacity-60')}>
-                          <input
-                            type="checkbox"
-                            aria-label={`Select ${h.column} in ${h.tablePath}`}
-                            disabled={already}
-                            checked={already || picked.has(h.key)}
-                            onChange={(e) => toggle(h, e.target.checked)}
-                          />
-                          <ColumnInfoButton table={h.tablePath} column={h.column} />
-                          <span className="shrink-0 font-medium text-foreground">{h.column}</span>
-                          <span className="min-w-0 truncate text-muted-foreground" title={h.tablePath}>
-                            {shortTable(h.tablePath)}
-                          </span>
-                          <span className={cn(s.chip, 'ml-auto shrink-0')} title={`Similarity ${(h.score ?? 0).toFixed(2)}`}>
-                            {strength(h.score ?? 0, meaningTop)}
-                          </span>
-                          {already ? <span className={cn(s.chip, s.chipBrand, 'shrink-0')}>already in {tag.name}</span> : null}
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : meaning && !meaningBusy ? (
-                <p className="px-2 text-caption text-muted-foreground">Nothing else with a similar meaning.</p>
-              ) : null}
-            </div>
-          ) : null}
 
           {chosen.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 px-1">

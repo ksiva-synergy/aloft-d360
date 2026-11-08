@@ -2,10 +2,53 @@
 
 Single running log of changes made in this repo, **newest first**.
 
-## 2026-11-08 — Data tab: move long help into “How it works” dialog
+## 2026-11-08 — Table + column search: Luna re-rank after hybrid merge
 
-- **What:** Removed inline help block, two-step callout, and pill hints; summary shows short values only; **How it works** opens a dialog (like column ⓘ). Dropped top-of-page feature accordion.
-- **Paths:** `DataView.tsx`, `data-access.tsx`.
+- **What:** **Columns** (`column-search`) and **tables** (`data-tree?q=`) pin strong name/path hits, then **gpt-6-luna** re-ranks embedding tails. `ACCESS_TABLE_SEARCH_RERANK=false` or `ACCESS_COLUMN_SEARCH_RERANK=false`.
+- **Paths:** `table-search-rerank.ts`, `column-search-rerank.ts`, `search-rerank-parse.ts`, `data-tree/route.ts`, `column-search/route.ts`.
+- **Verified:** `table-search-rerank.test.ts`, `column-search-rerank.test.ts`, `column-access-routes.test.ts`.
+
+## 2026-11-08 — Data tab UX (aligned with Protections patterns)
+
+- **What:** Compact browse search; detail header with one-line access summary + warn banner when nobody has Use; merged “Set on this …” card; collapsible inherited; table column list with filter and row ⓘ.
+- **Paths:** `DataView.tsx`, `console.module.css`.
+
+## 2026-11-08 — Column ⓘ: allow spaced column names (e.g. “po number”)
+
+- **What:** `normalizeColumnName` accepts spaces and hyphens so `/api/access/column-info` and column tagging match harvested Databricks names.
+- **Paths:** `src/lib/access/column-admin.ts`.
+
+## 2026-11-08 — Access search: hybrid name + embeddings by default
+
+- **What:** `column-search` and `data-tree?q=` run **name and meaning** together; removed separate “Meaning” / “Also search similar meaning” steps in Data and Protections add UI. `?by=name` and `?by=meaning` still available.
+- **Paths:** `column-search/route.ts`, `data-tree/route.ts`, `column-search-hybrid.ts`, `table-search-hybrid.ts`, `ColumnAccessView.tsx`, `DataView.tsx`.
+- **Verified:** `column-access-routes.test.ts`, `ColumnAccessView.test.tsx`.
+
+## 2026-11-08 — Protections: compact give access + add-column search
+
+- **What:** **Can see** inline in the title row with a small **Give access** button; add-column search is one toolbar (no card/hint); meaning search as a compact link on the same row.
+- **Paths:** `ColumnAccessView.tsx`, `console.module.css`.
+
+## 2026-11-08 — Protections: simpler protected-column list
+
+- **What:** Flat list (column + table on one row), single scroll panel, compact header with filter and **Select all** link; row click still opens column detail.
+- **Paths:** `ColumnAccessView.tsx`, `console.module.css`.
+
+## 2026-11-08 — Protections tab: clearer layout (grouped columns, access banner)
+
+- **What:** Access summary banner with **Give access** CTA; **Add columns** and **Protected columns** in separate cards; row click opens column detail.
+- **Paths:** `ColumnAccessView.tsx`, `console.module.css`, `AccessConsoleHelp.tsx`.
+
+## 2026-11-08 — Protections column list: row opens column ⓘ dialog
+
+- **What:** Clicking a row (or ⓘ) in the tagged-column table opens the full column detail dialog; checkbox only selects for bulk move/remove.
+- **Paths:** `ColumnAccessView.tsx`, `ColumnInfo.tsx`.
+
+## 2026-11-08 — Data access: “How it works” in tab bar (top-right)
+
+- **What:** One **How it works** control in the tab bar’s top-right corner; content switches with Data / Protections / People / Requests. Removed per-tab inline help, Data detail **How it works**, and Protections help panel. Data tab keeps compact summary pills only.
+- **Paths:** `AccessConsoleHelp.tsx`, `data-access.tsx`, `DataView.tsx`, `ColumnAccessView.tsx`, `console.module.css`.
+- **Verified:** `DataAndPeopleViews.test.tsx`, `ColumnAccessView.test.tsx`.
 
 ## 2026-11-08 — Protections tab: ⓘ on every column, compact help, meaning opt-in
 

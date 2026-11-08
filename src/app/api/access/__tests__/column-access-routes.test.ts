@@ -104,6 +104,14 @@ vi.mock('@/middleware/auth', () => ({
   resolveAuth: vi.fn(async () => state.caller),
   authenticateSession: vi.fn(async () => state.caller),
 }));
+vi.mock('@/lib/access/semantic-search', () => ({
+  searchColumnsByMeaning: vi.fn(async () => []),
+  searchTablesByMeaning: vi.fn(async () => []),
+  RELATIVE_CUTOFF: 0.75,
+}));
+vi.mock('@/lib/access/column-search-rerank', () => ({
+  rerankColumnSearchHits: vi.fn(async (_q: string, hits: unknown[]) => hits),
+}));
 
 import * as tagsRoute from '../tags/route';
 import * as tagRoute from '../tags/[id]/route';
@@ -411,8 +419,8 @@ describe('column search', () => {
     expect(res.status).toBe(200);
     const body = await json(res);
     expect(body.columns).toEqual([
-      { tablePath: 'main.hr.payroll', column: 'salary', type: 'decimal', kind: 'table', tagIds: [tagId] },
-      { tablePath: 'main.crew.contracts', column: 'base_salary', type: 'decimal', kind: 'table', tagIds: [] },
+      { tablePath: 'main.hr.payroll', column: 'salary', type: 'decimal', kind: 'table', tagIds: [tagId], match: 'name' },
+      { tablePath: 'main.crew.contracts', column: 'base_salary', type: 'decimal', kind: 'table', tagIds: [], match: 'name' },
     ]);
     expect(columnsModel().findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ where: { org_id: 'org', name: { contains: 'salary', mode: 'insensitive' } } }),

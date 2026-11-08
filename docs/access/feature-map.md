@@ -21,8 +21,8 @@ Uses `src/lib/access/semantic-search.ts` → `embedQuery` → `platform_context_
 
 | Where | Query | API |
 |-------|--------|-----|
-| Data → Find a table | **Name** first; optional **Also search similar meaning** | `GET data-tree?q=` then `&by=meaning` |
-| Protections → column list + Add columns | **ⓘ** on every row; name search; optional **Similar meaning** | `column-search`, `column-info` |
+| Data → Find a table | Hybrid name+embeddings; Luna re-rank (`ACCESS_TABLE_SEARCH_RERANK`) | `GET data-tree?q=` |
+| Protections → column list + Add columns | **ⓘ** on every row; hybrid name+embedding search; Luna re-rank on noisy tails (`ACCESS_COLUMN_SEARCH_RERANK`) | `column-search`, `column-info` |
 | My data access → Find a table | Same | `GET my-access?q=&by=meaning` |
 
 Search responses: names, types, descriptions, scores — **never** embed text or sample values (e2e step 12).

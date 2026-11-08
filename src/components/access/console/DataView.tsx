@@ -1,15 +1,14 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, ChevronRight, Database, Info, Lock, Search, Table2, UsersRound, X } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Database, Lock, Search, Table2, UsersRound, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
 import { accessFetch, keyFromName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
 import { Empty } from './parts';
 import { PeoplePicker } from './GiveAccess';
-import { ColumnInfoButton } from './ColumnInfo';
+import { ColumnInfoDialog } from './ColumnInfo';
 import s from './console.module.css';
 import { useConsoleReadOnly } from './readOnly';
 
@@ -37,6 +36,8 @@ type DataNode = {
   access: NodeAccess;
   /** Search by meaning: the table's summary (never values). */
   description?: string | null;
+  score?: number;
+  match?: 'name' | 'meaning';
 };
 type Column = { name: string; type: string | null; protections: { tagId: string; name: string }[] };
 
@@ -125,97 +126,24 @@ function protectionStatParts(a: NodeAccess, kindWord: string): { value: string; 
   };
 }
 
-function columnsStatParts(a: NodeAccess, depth: number): { value: string; hint: string } {
-  if (depth === 3) {
-    return {
-      value: 'Listed below',
-      hint: 'Protect columns here, or open the Protections tab to choose who may see each protection’s values.',
-    };
-  }
-  if (!a.protectedColumns) {
-    return { value: 'None tagged inside', hint: 'Tag sensitive columns on the Protections tab or inside a table.' };
-  }
-  return {
-    value: `${a.protectedColumns} protected column${a.protectedColumns === 1 ? '' : 's'}`,
-    hint: 'Step 2: In Protections, grant each tag (e.g. Compensation) only to payroll — not to everyone who has Use.',
-  };
-}
-
-function StatPill({ label, value }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className={s.statPill} role="listitem">
-      <span className={s.statPillLabel}>{label}</span>
-      <span className={s.statPillValue}>{value}</span>
-    </div>
-  );
-}
-
-function DataAccessHelpDialog({
-  open,
-  onClose,
-  kindWord,
-  protectedColumns,
-  hasUse,
-  onOpenProtections,
-}: {
-  open: boolean;
-  onClose: () => void;
-  kindWord: string;
-  protectedColumns: number;
-  hasUse: boolean;
-  onOpenProtections?: () => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
-      <DialogContent className={cn(userStyles.surface, 'max-w-lg overflow-x-hidden')}>
-        <div role="dialog" aria-modal="true" aria-label="How data access works">
-          <div className="mb-3 flex items-start gap-2">
-            <h2 className="flex-1 text-title-card">Use vs protected values</h2>
-            <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Close" onClick={onClose}>
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-          <ol className="m-0 list-decimal space-y-2 pl-4 text-caption leading-relaxed text-muted-foreground">
-            <li>
-              <strong className="text-foreground">Use (Data tab):</strong> who can open this {kindWord} and read <em>unprotected</em> columns.
-            </li>
-            <li>
-              <strong className="text-foreground">Protections tab:</strong> tag sensitive columns; <strong className="text-foreground">Give access</strong> on each protection for who sees real values (everyone else gets •••).
-            </li>
-            <li>
-              <strong className="text-foreground">Optional whole-path protect:</strong> blocks the entire {kindWord} even for people with Use.
-            </li>
-          </ol>
-          {protectedColumns > 0 && hasUse ? (
-            <p className="mt-3 text-caption text-muted-foreground">
-              This {kindWord} has <strong className="text-foreground">{protectedColumns}</strong> protected column{protectedColumns === 1 ? '' : 's'} inside. Use does not unlock them.
-              {onOpenProtections ? (
-                <>
-                  {' '}
-                  <button type="button" className={cn(s.linkBtn, 'font-medium')} onClick={() => { onClose(); onOpenProtections(); }}>
-                    Open Protections tab
-                  </button>
-                </>
-              ) : null}
-            </p>
-          ) : null}
-          <p className="mt-3 text-caption text-muted-foreground">Table/column ⓘ buttons show harvest detail and sample values (admins only).</p>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+function dataAccessSummary(a: NodeAccess, protectedColumns: number, kindWord: string): string {
+  const use = accessStatParts(a, protectedColumns, kindWord).value;
+  const prot = protectionStatParts(a, kindWord).value;
+  const bits = [`Use: ${use}`];
+  bits.push(prot === 'Not protected as a whole' ? 'Whole path: none' : `Whole path: ${prot}`);
+  if (protectedColumns > 0) bits.push(`${protectedColumns} protected column${protectedColumns === 1 ? '' : 's'}`);
+  else if (kindWord === 'table') bits.push('Columns: see list below');
+  return bits.join(' · ');
 }
 
 export function DataView({
   people,
   meId,
   isPlatformAdmin,
-  onOpenProtections,
 }: {
   people: Person[];
   meId: string;
   isPlatformAdmin: boolean;
-  onOpenProtections?: () => void;
 }) {
   const readOnly = useConsoleReadOnly();
   const [children, setChildren] = useState<Record<string, DataNode[]>>({});
@@ -223,9 +151,6 @@ export function DataView({
   const [selected, setSelected] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [results, setResults] = useState<DataNode[] | null>(null);
-  const [meaning, setMeaning] = useState<DataNode[] | null>(null);
-  const [meaningBusy, setMeaningBusy] = useState(false);
-  const [meaningTried, setMeaningTried] = useState(false);
   type SelectSource = 'tree' | 'search-name' | 'search-meaning';
   const [selectSource, setSelectSource] = useState<SelectSource>('tree');
   const [groups, setGroups] = useState<AccessGroup[]>([]);
@@ -257,12 +182,8 @@ export function DataView({
     if (results && q.trim().length >= 2) {
       const res = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(q.trim())}`);
       setResults(res.nodes);
-      if (meaningTried) {
-        const m = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(q.trim())}&by=meaning`);
-        setMeaning(m.nodes);
-      }
     }
-  }, [expanded, loadLevel, results, q, meaningTried]);
+  }, [expanded, loadLevel, results, q]);
 
   async function toggle(node: DataNode) {
     const next = new Set(expanded);
@@ -280,26 +201,9 @@ export function DataView({
     try {
       const res = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(term)}`);
       setResults(res.nodes);
-      setMeaning(null);
-      setMeaningTried(false);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
-    }
-  }
-
-  async function searchMeaning() {
-    const term = q.trim();
-    if (term.length < 2) return;
-    setMeaningBusy(true);
-    setMeaningTried(true);
-    try {
-      const m = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(term)}&by=meaning`);
-      setMeaning(m.nodes);
-    } catch {
-      setMeaning([]);
-    } finally {
-      setMeaningBusy(false);
     }
   }
 
@@ -307,12 +211,8 @@ export function DataView({
     const m = new Map<string, DataNode>();
     for (const list of Object.values(children)) for (const n of list) m.set(n.path, n);
     for (const n of results ?? []) m.set(n.path, n);
-    // Meaning hits must not replace name-search rows (same path keeps name match metadata on the right).
-    for (const n of meaning ?? []) {
-      if (!m.has(n.path)) m.set(n.path, n);
-    }
     return m;
-  }, [children, results, meaning]);
+  }, [children, results]);
   const current = selected ? (allNodes.get(selected) ?? null) : null;
 
   const roots = children[ROOT];
@@ -342,38 +242,31 @@ export function DataView({
   return (
     <div className={cn(s.split, 'min-h-[600px]')}>
       <aside className={cn(s.listPane, 'min-w-0')} aria-label="Data">
-        <div className={s.listHead}>
+        <div className={cn(s.listHead, '!pb-2')}>
+          <span className="text-eyebrow uppercase text-muted-foreground">Browse</span>
           <form
-            className="flex gap-2"
+            className={cn(s.protectToolbar, 'gap-1.5 !py-1.5')}
             onSubmit={(e) => {
               e.preventDefault();
               void searchNames();
             }}
           >
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input className={cn(userStyles.input, '!pl-9')} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a table by name" aria-label="Find a table by name" />
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                className={cn(userStyles.input, s.protectCompactInput)}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Find tables…"
+                aria-label="Find tables"
+              />
             </div>
             {results ? (
-              <button
-                type="button"
-                className={s.linkBtn}
-                onClick={() => {
-                  setResults(null);
-                  setMeaning(null);
-                  setMeaningTried(false);
-                  setSelected(null);
-                }}
-              >
+              <button type="button" className={cn(s.linkBtn, s.protectCompactBtn, '!px-2')} onClick={() => { setResults(null); setSelected(null); }}>
                 Clear
               </button>
             ) : null}
           </form>
-          {results && q.trim().length >= 2 ? (
-            <button type="button" className={cn(s.linkBtn, 'self-start text-left')} disabled={meaningBusy} onClick={() => void searchMeaning()}>
-              {meaningBusy ? 'Searching similar meaning…' : meaningTried ? 'Search similar meaning again' : 'Also search similar meaning (embeddings)'}
-            </button>
-          ) : null}
         </div>
         <div className={cn(s.listBody, 'compact-scroll')}>
           {nobodyCanUse && !results ? (
@@ -386,53 +279,24 @@ export function DataView({
           {results ? (
             <>
               {results.length === 0 ? (
-                <p className="p-3 text-caption text-muted-foreground">No table names match.</p>
+                <p className="p-3 text-caption text-muted-foreground">No tables match name or meaning.</p>
               ) : (
-                <>
-                  <p className="border-b border-[var(--estate-border)] px-3 py-1.5 text-eyebrow uppercase text-muted-foreground">Table name matches</p>
-                  {results.map((n) => (
-                    <TreeRow
-                      key={n.path}
-                      node={n}
-                      level={0}
-                      open={false}
-                      selected={selected === n.path && selectSource === 'search-name'}
-                      onSelect={() => {
-                        setSelectSource('search-name');
-                        setSelected(n.path);
-                      }}
-                      showPath
-                    />
-                  ))}
-                </>
+                results.map((n) => (
+                  <TreeRow
+                    key={n.path}
+                    node={n}
+                    level={0}
+                    open={false}
+                    selected={selected === n.path && (selectSource === 'search-name' || selectSource === 'search-meaning')}
+                    onSelect={() => {
+                      setSelectSource(n.match === 'meaning' ? 'search-meaning' : 'search-name');
+                      setSelected(n.path);
+                    }}
+                    showPath
+                    hint={n.match === 'meaning' ? (n.description ?? 'Similar meaning') : undefined}
+                  />
+                ))
               )}
-              {meaningTried ? (
-                <>
-                  <p className="border-b border-[var(--estate-border)] px-3 py-2 text-eyebrow uppercase text-muted-foreground">
-                    Similar meaning{meaningBusy ? ' · searching…' : ''}
-                  </p>
-                  {(meaning ?? [])
-                    .filter((n) => !results?.some((r) => r.path === n.path))
-                    .map((n) => (
-                      <TreeRow
-                        key={`m:${n.path}`}
-                        node={n}
-                        level={0}
-                        open={false}
-                        selected={selected === n.path && selectSource === 'search-meaning'}
-                        onSelect={() => {
-                          setSelectSource('search-meaning');
-                          setSelected(n.path);
-                        }}
-                        showPath
-                        hint={n.description ?? undefined}
-                      />
-                    ))}
-                  {meaning && !meaningBusy && meaning.filter((n) => !results?.some((r) => r.path === n.path)).length === 0 ? (
-                    <p className="p-3 text-caption text-muted-foreground">Nothing else with a similar meaning.</p>
-                  ) : null}
-                </>
-              ) : null}
             </>
           ) : !roots ? (
             <p className="p-3 text-caption text-muted-foreground">Loading…</p>
@@ -442,7 +306,7 @@ export function DataView({
         </div>
       </aside>
 
-      <section className={cn(s.detailPane, 'min-w-0')} aria-label="Selected data">
+      <section className={cn(s.detailPane, 'min-w-0')} role="region" aria-label="Selected data">
         {!current ? (
           <Empty icon={<Database className="h-5 w-5" aria-hidden="true" />}>
             Select something in the tree. You will see who can use it, what is protected, and (for tables) each column.
@@ -460,7 +324,6 @@ export function DataView({
             onChanged={async () => {
               await Promise.all([reloadAll(), loadSide()]);
             }}
-            onOpenProtections={onOpenProtections}
             selectSource={selectSource}
           />
         )}
@@ -533,7 +396,6 @@ function NodeDetail({
   readOnly,
   isPlatformAdmin,
   onChanged,
-  onOpenProtections,
   selectSource,
 }: {
   node: DataNode;
@@ -544,96 +406,83 @@ function NodeDetail({
   readOnly: boolean;
   isPlatformAdmin: boolean;
   onChanged: () => Promise<void>;
-  onOpenProtections?: () => void;
   selectSource: 'tree' | 'search-name' | 'search-meaning';
 }) {
   const a = node.access;
   const [giving, setGiving] = useState(false);
   const [protecting, setProtecting] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
   const kindWord = node.depth === 1 ? 'catalog' : node.depth === 2 ? 'schema' : node.kind === 'view' ? 'view' : 'table';
-  const crumbs = node.path.split('.');
-  const titleName = crumbs[crumbs.length - 1] ?? node.path;
+  const titleName = node.path.split('.').pop() ?? node.path;
   const estateHint =
     node.tableCount != null && node.depth < 3
       ? `${node.childCount ?? 0} schema${(node.childCount ?? 0) === 1 ? '' : 's'}, ${node.tableCount} table${node.tableCount === 1 ? '' : 's'}`
       : null;
 
+  const summary = dataAccessSummary(a, a.protectedColumns, kindWord);
+  const needsUse = !hasUseAccess(a);
+
   return (
-    <div className="flex flex-col gap-4">
-      <header className={s.detailHead}>
+    <div className="flex flex-col gap-3">
+      <header className={cn(s.detailHead, s.detailHeadCompact)}>
         <div className="min-w-0 flex-1">
-          <p className="text-eyebrow uppercase text-muted-foreground">{kindWord}</p>
-          <h2 className="break-all text-title-section">{titleName}</h2>
-          <nav className={s.pathCrumb} aria-label="Full path">
-            {crumbs.map((part, i) => (
-              <span key={i}>
-                {i > 0 ? <span className={s.pathSep}> › </span> : null}
-                <span className={i === crumbs.length - 1 ? s.pathCrumbStrong : undefined}>{part}</span>
-              </span>
-            ))}
-          </nav>
-          {estateHint ? <p className={s.summaryLine}>In the estate: {estateHint}</p> : null}
+          <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-title-section">
+            {titleName}
+            <span className="text-caption font-normal text-muted-foreground">· {kindWord}</span>
+          </h2>
+          <p className="truncate text-caption text-muted-foreground" title={node.path}>
+            {node.path}
+          </p>
+          <p className="text-caption text-muted-foreground" role="status" aria-label="Access summary">
+            {summary}
+          </p>
+          {estateHint ? <p className="text-caption text-muted-foreground">Estate: {estateHint}</p> : null}
           {selectSource === 'search-meaning' && node.description ? (
-            <p className="mt-1 truncate text-caption text-muted-foreground" title={node.description} role="status">
-              Meaning match: {node.description}
+            <p className="truncate text-caption text-[var(--brand-a-ink)]" title={node.description}>
+              Similar meaning: {node.description}
             </p>
           ) : null}
-          <div className={s.statRow} role="list" aria-label="Summary">
-            <StatPill label="Use" value={accessStatParts(a, a.protectedColumns, kindWord).value} />
-            <StatPill label="Whole path" value={protectionStatParts(a, kindWord).value} />
-            <StatPill label="Column values" value={columnsStatParts(a, node.depth).value} />
-          </div>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={cn(userStyles.iconButton, 'inline-flex items-center gap-1 px-2 text-caption')}
-            onClick={() => setHelpOpen(true)}
-            aria-label="How Use and protection work"
-          >
-            <Info className="h-3.5 w-3.5" aria-hidden="true" />
-            How it works
-          </button>
-          {readOnly ? null : (
-            <>
+        {readOnly ? null : (
+          <div className="flex shrink-0 flex-wrap gap-1.5">
             <button
               type="button"
-              className={cn(userStyles.primary, 'inline-flex items-center gap-1.5')}
+              className={cn(s.protectCompactBtn, needsUse ? userStyles.primary : userStyles.secondaryButton)}
               onClick={() => {
                 setProtecting(false);
                 setGiving(true);
               }}
             >
-              <UsersRound className="h-4 w-4" aria-hidden="true" />
+              <UsersRound className="h-3.5 w-3.5" aria-hidden="true" />
               Give access
             </button>
             <button
               type="button"
-              className={userStyles.secondaryButton}
+              className={cn(s.protectCompactBtn, userStyles.secondaryButton)}
               onClick={() => {
                 setGiving(false);
                 setProtecting(true);
               }}
             >
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
               Protect {kindWord}
             </button>
-            </>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
-      <DataAccessHelpDialog
-        open={helpOpen}
-        onClose={() => setHelpOpen(false)}
-        kindWord={kindWord}
-        protectedColumns={a.protectedColumns}
-        hasUse={hasUseAccess(a)}
-        onOpenProtections={onOpenProtections}
-      />
+      {!readOnly && needsUse ? (
+        <div className={cn(s.protectAccessBanner, s.protectAccessBannerWarn)} role="status">
+          <p className="text-caption">
+            <span className="font-medium text-foreground">Nobody can use this {kindWord} yet.</span> Use <strong>Give access</strong> above to add a Use rule.
+          </p>
+        </div>
+      ) : null}
 
       {giving ? (
         <section className={s.card} aria-label="Give access">
+          <div className={cn(s.cardHead, '!pb-0')}>
+            <h3 className={s.cardTitle}>Give Use on this {kindWord}</h3>
+          </div>
           <div className={s.cardBody}>
             <GiveRuleForm
               path={node.path}
@@ -653,6 +502,10 @@ function NodeDetail({
       ) : null}
       {protecting ? (
         <section className={s.card} aria-label="Add protection">
+          <div className={cn(s.cardHead, '!pb-0')}>
+            <h3 className={s.cardTitle}>Protect whole {kindWord}</h3>
+            <p className={s.cardHint}>Everyone with Use still needs this protection to see values.</p>
+          </div>
           <div className={s.cardBody}>
             <ProtectPathForm
               path={node.path}
@@ -668,71 +521,66 @@ function NodeDetail({
         </section>
       ) : null}
 
-      <div className={s.cardGrid}>
-        <section className={s.card} aria-label="Access rules on this path">
-          <div className={s.cardHead}>
-            <h3 className={s.cardTitle}>Rules set here</h3>
-          </div>
-          <div className={cn(s.cardBody, 'flex flex-col gap-2')}>
-            {a.rules.length === 0 ? <p className="text-caption text-muted-foreground">No rules on this path yet.</p> : null}
+      <section className={s.card} aria-label="Access on this path">
+        <div className={cn(s.cardHead, s.protectListHead)}>
+          <h3 className={s.cardTitle}>Set on this {kindWord}</h3>
+        </div>
+        <div className={cn(s.cardBody, '!pt-2')}>
+          <p className="mb-2 text-eyebrow uppercase text-muted-foreground">Who can use</p>
+          {a.rules.length === 0 ? <p className="mb-3 text-caption text-muted-foreground">No rules on this path yet.</p> : null}
+          <div className="flex flex-col gap-2">
             {a.rules.map((r) => (
               <RuleRow key={r.id} rule={r} path={node.path} readOnly={readOnly} onChanged={onChanged} />
             ))}
           </div>
-        </section>
-
-        <section className={s.card} aria-label="Protections on this path">
-          <div className={s.cardHead}>
-            <h3 className={s.cardTitle}>Protections set here</h3>
-          </div>
-          <div className={cn(s.cardBody, 'flex flex-col gap-2')}>
-            {a.protections.length === 0 ? <p className="text-caption text-muted-foreground">Nothing protects the whole {kindWord} here.</p> : null}
-            {a.protections.map((p) => (
-              <div key={p.id} className="flex flex-wrap items-center gap-2">
-                <span className={cn(s.chip, s.chipBrand)}>
-                  <Lock className="h-3 w-3" aria-hidden="true" />
-                  {p.name}
+          <p className="mb-2 mt-4 text-eyebrow uppercase text-muted-foreground">Whole-path protection</p>
+          {a.protections.length === 0 ? (
+            <p className="text-caption text-muted-foreground">None on this path — tag columns on Protections or protect the whole {kindWord} above.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {a.protections.map((p) => (
+                <span key={p.id} className="inline-flex items-center gap-1">
+                  <span className={cn(s.chip, s.chipBrand)}>
+                    <Lock className="h-3 w-3" aria-hidden="true" />
+                    {p.name}
+                  </span>
+                  {!readOnly && isPlatformAdmin ? (
+                    <InlineReason
+                      label="Remove"
+                      onConfirm={(reason) => send('/api/access/path-protections', 'DELETE', { tagId: p.tagId, path: node.path, reason }).then(onChanged)}
+                    />
+                  ) : null}
                 </span>
-                {!readOnly && isPlatformAdmin ? (
-                  <InlineReason
-                    label="Remove"
-                    onConfirm={(reason) => send('/api/access/path-protections', 'DELETE', { tagId: p.tagId, path: node.path, reason }).then(onChanged)}
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {a.inheritedRules.length || a.inheritedProtections.length ? (
-        <section className={s.card} aria-label="Inherited from parent paths">
-          <div className={s.cardHead}>
-            <h3 className={s.cardTitle}>Inherited from above</h3>
-            <p className={s.cardHint}>These apply too. Change them on the parent catalog or schema, not here.</p>
-          </div>
-          <div className={cn(s.cardBody, 'flex flex-col gap-3')}>
-            {a.inheritedRules.length ? (
-              <ul className="flex flex-col gap-1.5">
-                {a.inheritedRules.map((r) => (
-                  <li key={r.id} className="text-caption text-muted-foreground">
-                    <span className={cn('font-medium', r.access === 'block' ? 'text-[var(--bad)]' : 'text-foreground')}>{r.holderName}</span>
-                    {' · '}
-                    {ACCESS_LABEL[r.access]}
-                    {' · '}
-                    on <code className="text-foreground">{r.from}</code>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+        <details className={cn(s.card, s.inheritPanel)} aria-label="Inherited from parent paths">
+          <summary className={cn(s.cardHead, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden')}>
+            <span className={s.cardTitle}>Inherited from above</span>
+            <span className="text-caption text-muted-foreground">Edit on parent catalog or schema</span>
+          </summary>
+          <div className={cn(s.cardBody, '!pt-0 flex flex-col gap-2')}>
+            {a.inheritedRules.map((r) => (
+              <p key={r.id} className="text-caption text-muted-foreground">
+                <span className={cn('font-medium', r.access === 'block' ? 'text-[var(--bad)]' : 'text-foreground')}>{r.holderName}</span>
+                {' · '}
+                {ACCESS_LABEL[r.access]}
+                {' · '}
+                <code className="text-foreground">{r.from}</code>
+              </p>
+            ))}
             {a.inheritedProtections.map((p) => (
               <p key={p.id} className="text-caption text-muted-foreground">
                 <Lock className="mr-1 inline h-3 w-3" aria-hidden="true" />
-                {p.name} on <code className="text-foreground">{p.from}</code>
+                {p.name} · <code className="text-foreground">{p.from}</code>
               </p>
             ))}
           </div>
-        </section>
+        </details>
       ) : null}
 
       {node.depth === 3 ? <ColumnsCard table={node.path} tags={tags} readOnly={readOnly} isPlatformAdmin={isPlatformAdmin} onChanged={onChanged} /> : null}
@@ -1053,6 +901,8 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
   const [tagId, setTagId] = useState(tags[0]?.id ?? '');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
+  const [detail, setDetail] = useState<{ column: string } | null>(null);
 
   const load = useCallback(async () => {
     const res = await accessFetch<{ columns: Column[] }>(`/api/access/data-tree/columns?table=${encodeURIComponent(table)}`);
@@ -1061,6 +911,10 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
   useEffect(() => {
     runAsync(() => load().catch((e) => setError(e instanceof Error ? e.message : 'Could not load columns')));
   }, [load]);
+
+  const term = filter.trim().toLowerCase();
+  const shown =
+    cols?.filter((c) => !term || c.name.toLowerCase().includes(term) || (c.type?.toLowerCase().includes(term) ?? false)) ?? [];
 
   async function protect() {
     if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
@@ -1077,80 +931,114 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
 
   return (
     <section className={s.card} aria-label="Columns">
-      <div className={s.cardHead}>
-        <div>
-          <h3 className={s.cardTitle}>Columns</h3>
-          <p className={s.cardHint}>People without a column's protection see ••• and can request access.</p>
-        </div>
+      <div className={cn(s.cardHead, s.protectListHead)}>
+        <h3 className={s.cardTitle}>
+          Table columns
+          {cols ? <span className="ml-2 font-normal text-muted-foreground">({cols.length})</span> : null}
+        </h3>
+        {cols && cols.length > 8 ? (
+          <div className="relative w-full min-w-0 max-w-xs sm:w-40">
+            <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              className={cn(userStyles.input, s.protectCompactInput)}
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter…"
+              aria-label="Filter columns"
+            />
+          </div>
+        ) : null}
       </div>
-      <div className={s.cardBody}>
+      <div className={cn(s.cardBody, '!pt-0')}>
+        <p className="mb-2 text-caption text-muted-foreground">Click a row for ⓘ detail · bulk-tag on Protections tab</p>
         {error ? <p className={cn(s.errorText, 'mb-2')}>{error}</p> : null}
         {cols === null ? (
           <p className="text-caption text-muted-foreground">Loading…</p>
         ) : cols.length === 0 ? (
           <p className="text-caption text-muted-foreground">No harvested columns for this table.</p>
+        ) : shown.length === 0 ? (
+          <p className="py-4 text-center text-caption text-muted-foreground">No columns match “{filter.trim()}”.</p>
         ) : (
-          <ul className="compact-scroll max-h-80 divide-y divide-[var(--estate-border)] rounded-[8px] border border-[var(--estate-border)]">
-            {cols.map((c) => (
-              <li key={c.name} className="flex min-w-0 items-center gap-2 px-3 py-1.5 text-caption">
-                {readOnly || tags.length === 0 ? null : (
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${c.name}`}
-                    checked={picked.has(c.name)}
-                    onChange={(e) =>
-                      setPicked((cur) => {
-                        const next = new Set(cur);
-                        if (e.target.checked) next.add(c.name);
-                        else next.delete(c.name);
-                        return next;
-                      })
+          <ul className={cn(s.protectColumnList, 'compact-scroll max-h-[min(45vh,420px)]')}>
+            {shown.map((c) => (
+              <li key={c.name}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className={cn(s.protectColumnRow, picked.has(c.name) && s.protectColumnRowSelected)}
+                  onClick={(e) => {
+                    if ((e.target as Element).closest('input,button')) return;
+                    setDetail({ column: c.name });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      if ((e.target as Element).closest('input,button')) return;
+                      e.preventDefault();
+                      setDetail({ column: c.name });
                     }
-                  />
-                )}
-                <span className="min-w-0 truncate font-medium text-foreground" title={c.name}>
-                  {c.name}
-                </span>
-                <ColumnInfoButton table={table} column={c.name} />
-                {c.type ? <span className="text-muted-foreground">{c.type}</span> : null}
-                <span className="ml-auto flex shrink-0 flex-wrap items-center gap-1">
-                  {c.protections.map((p) => (
-                    <span key={p.tagId} className={cn(s.chip, s.chipBrand)}>
-                      <Lock className="h-3 w-3" aria-hidden="true" />
-                      {p.name}
-                      {!readOnly && isPlatformAdmin ? (
-                        <InlineReason
-                          label="×"
-                          ariaLabel={`Stop protecting ${c.name} as ${p.name}`}
-                          onConfirm={(reason) =>
-                            send('/api/access/column-tags', 'DELETE', { tablePath: table, column: c.name, tagId: p.tagId, reason }).then(() => Promise.all([load(), onChanged()]))
-                          }
-                        />
-                      ) : null}
-                    </span>
-                  ))}
-                </span>
+                  }}
+                >
+                  {!readOnly && tags.length > 0 ? (
+                    <input
+                      type="checkbox"
+                      className="shrink-0"
+                      aria-label={`Select ${c.name}`}
+                      checked={picked.has(c.name)}
+                      onChange={(e) =>
+                        setPicked((cur) => {
+                          const next = new Set(cur);
+                          if (e.target.checked) next.add(c.name);
+                          else next.delete(c.name);
+                          return next;
+                        })
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                  {c.type ? <span className="hidden truncate text-caption text-muted-foreground sm:inline">{c.type}</span> : null}
+                  <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+                    {c.protections.map((p) => (
+                      <span key={p.tagId} className={cn(s.chip, s.chipBrand, 'max-w-[8rem] truncate')} title={p.name}>
+                        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        {p.name}
+                        {!readOnly && isPlatformAdmin ? (
+                          <InlineReason
+                            label="×"
+                            ariaLabel={`Stop protecting ${c.name} as ${p.name}`}
+                            onConfirm={(reason) =>
+                              send('/api/access/column-tags', 'DELETE', { tablePath: table, column: c.name, tagId: p.tagId, reason }).then(() =>
+                                Promise.all([load(), onChanged()]),
+                              )
+                            }
+                          />
+                        ) : null}
+                      </span>
+                    ))}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
         )}
         {picked.size > 0 ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-[var(--estate-border)] bg-[var(--surface-2)] p-2">
             <span className="text-caption font-medium">Protect {picked.size} as</span>
-            <select className={cn(userStyles.input, 'h-8 w-auto py-0')} value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Protection for columns">
+            <select className={cn(userStyles.input, s.protectCompactInput, '!w-auto')} value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Protection for columns">
               {tags.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
                 </option>
               ))}
             </select>
-            <Input className={cn(userStyles.input, 'h-8 min-w-[180px] flex-1')} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason for columns" />
-            <button type="button" className={userStyles.primary} onClick={() => void protect()}>
+            <Input className={cn(userStyles.input, s.protectCompactInput, 'min-w-[140px] flex-1')} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason for columns" />
+            <button type="button" className={cn(s.protectCompactBtn, userStyles.primary)} onClick={() => void protect()}>
               Protect
             </button>
           </div>
         ) : null}
       </div>
+      {detail ? <ColumnInfoDialog table={table} column={detail.column} onClose={() => setDetail(null)} /> : null}
     </section>
   );
 }

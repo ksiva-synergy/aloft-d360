@@ -86,7 +86,7 @@ afterEach(() => vi.restoreAllMocks());
 const renderData = (opts: { readOnly?: boolean; platformAdmin?: boolean } = {}) =>
   render(
     <ConsoleReadOnlyContext.Provider value={opts.readOnly ?? false}>
-      <DataView people={people} meId="u-pa" isPlatformAdmin={opts.platformAdmin ?? true} onOpenProtections={() => {}} />
+      <DataView people={people} meId="u-pa" isPlatformAdmin={opts.platformAdmin ?? true} />
     </ConsoleReadOnlyContext.Provider>,
   );
 
@@ -112,7 +112,7 @@ describe('DataView', () => {
     fireEvent.click(await screen.findByText('system'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
     expect(within(panel).getByText('No rules on this path yet.')).toBeTruthy();
-    expect(within(panel).getByRole('list', { name: 'Summary' }).textContent).toMatch(/Restricted|Whole path/);
+    expect(within(panel).getByRole('status', { name: 'Access summary' }).textContent).toMatch(/Restricted|Whole path/);
     fireEvent.click(within(panel).getByRole('button', { name: 'Give access' }));
     fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Everyone in ops needs it' } });
     fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);

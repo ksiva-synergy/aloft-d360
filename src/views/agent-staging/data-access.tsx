@@ -10,6 +10,7 @@ import { RequestsView } from '@/components/access/console/RequestsView';
 import { ColumnAccessView } from '@/components/access/console/ColumnAccessView';
 import { DataView } from '@/components/access/console/DataView';
 import { PeopleGroupsView } from '@/components/access/console/PeopleGroupsView';
+import { AccessConsoleHelpButton } from '@/components/access/console/AccessConsoleHelp';
 import s from '@/components/access/console/console.module.css';
 import { ConsoleReadOnlyContext } from '@/components/access/console/readOnly';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
@@ -144,36 +145,34 @@ export default function DataAccessPage() {
 
         <ConsoleReadOnlyContext.Provider value={readOnly}>
         <section className={cn(userStyles.directory, 'mt-5')}>
-          <nav className={s.nav} role="tablist" aria-label="Data access sections">
-            {TABS.map((t) => {
-              const count = tabCount(t.id);
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === t.id}
-                  className={cn(s.navBtn, tab === t.id && s.navBtnActive)}
-                  onClick={() => setTab(t.id)}
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {t.label}
-                  {count !== null ? <span className={s.navCount}>{count}</span> : null}
-                </button>
-              );
-            })}
-          </nav>
+          <div className={s.navBar}>
+            <nav className={s.nav} role="tablist" aria-label="Data access sections">
+              {TABS.map((t) => {
+                const count = tabCount(t.id);
+                const Icon = t.icon;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === t.id}
+                    className={cn(s.navBtn, tab === t.id && s.navBtnActive)}
+                    onClick={() => setTab(t.id)}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    {t.label}
+                    {count !== null ? <span className={s.navCount}>{count}</span> : null}
+                  </button>
+                );
+              })}
+            </nav>
+            <AccessConsoleHelpButton tab={tab} onGoProtections={() => setTab('protections')} />
+          </div>
 
           {!status ? (
             <p className="p-6 text-size-ui text-muted-foreground">{loading ? 'Loading…' : 'Nothing to show.'}</p>
           ) : tab === 'data' ? (
-            <DataView
-              people={people}
-              meId={status.me.userId}
-              isPlatformAdmin={status.me.platformAdmin}
-              onOpenProtections={() => setTab('protections')}
-            />
+            <DataView people={people} meId={status.me.userId} isPlatformAdmin={status.me.platformAdmin} />
           ) : tab === 'people' ? (
             <PeopleGroupsView
               people={people}
