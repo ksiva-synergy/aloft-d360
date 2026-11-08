@@ -20,7 +20,7 @@ export type Actor = { userId: string; role: string; orgId: string };
 
 const isPlatformAdmin = (a: Actor) => a.role === 'platform_admin';
 
-async function loadFlow(id: string, actor: Actor) {
+export async function loadFlow(id: string, actor: Actor) {
   const flow = await prisma.platformFlow.findUnique({ where: { id } });
   // Same answer for "missing", "other org" and "not yours": no existence leak.
   if (!flow || flow.org_id !== actor.orgId || (flow.owner !== actor.userId && !isPlatformAdmin(actor))) {

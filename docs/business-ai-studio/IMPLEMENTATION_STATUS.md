@@ -12,7 +12,7 @@ A signed-in user with `inspector:use` can open **`/agent-lab/flows`**, describe 
 - which checks would block publishing,
 - a step-by-step simulated run with mocked side effects and optional failure drills.
 
-Simulation reads no real data and contacts no external system. Saved workflows are stored in the dev database; published ones are not runnable yet.
+Simulation reads no real data and contacts no external system. Saved workflows are stored in the dev database. Published ones can be run through `POST /api/agent-lab/flows/[id]/runs` (steps saved per run; agent, knowledge search, transform, save and approval steps only; a paused approval is approved or rejected from the Runs panel or `POST .../runs/[runId]/approval`; use **Runs** in the builder header for Run now and run history; needs migration `20261107_flow_run_idempotency` applied).
 
 ## Implemented (with tests)
 
