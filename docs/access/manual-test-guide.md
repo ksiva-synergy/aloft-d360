@@ -30,8 +30,10 @@ Use `shadow` / `observe` instead to watch what *would* happen without blocking a
 ## 2. Protections: protect salary (A)
 
 1. **Protections** tab → **+ New protection** → name "Compensation test" → *Specific people* → pick **C** → reason → Create.
-2. Search `salary`, tick a column in `curated_db`, reason → **Add 1 column to Compensation test**.
-3. Data tab → open that table → Columns shows the 🔒 chip.
+2. Search `salary` (name matches). Try `revised pay` or `crew compensation` under **Similar meaning** (embedding search; needs harvested columns).
+3. Use **ⓘ** on a hit → confirm description and sample values (admin only).
+4. Tick a column, reason → **Add to protection**.
+5. Data tab → open that table → Columns shows the 🔒 chip and ⓘ.
 
 ## 3. As B: masking in chat
 

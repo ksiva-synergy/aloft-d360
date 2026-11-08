@@ -150,7 +150,17 @@ function StatPill({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-export function DataView({ people, meId, isPlatformAdmin }: { people: Person[]; meId: string; isPlatformAdmin: boolean }) {
+export function DataView({
+  people,
+  meId,
+  isPlatformAdmin,
+  onOpenProtections,
+}: {
+  people: Person[];
+  meId: string;
+  isPlatformAdmin: boolean;
+  onOpenProtections?: () => void;
+}) {
   const readOnly = useConsoleReadOnly();
   const [children, setChildren] = useState<Record<string, DataNode[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -323,6 +333,7 @@ export function DataView({ people, meId, isPlatformAdmin }: { people: Person[]; 
             onChanged={async () => {
               await Promise.all([reloadAll(), loadSide()]);
             }}
+            onOpenProtections={onOpenProtections}
           />
         )}
       </section>
@@ -394,6 +405,7 @@ function NodeDetail({
   readOnly,
   isPlatformAdmin,
   onChanged,
+  onOpenProtections,
 }: {
   node: DataNode;
   groups: AccessGroup[];
@@ -403,6 +415,7 @@ function NodeDetail({
   readOnly: boolean;
   isPlatformAdmin: boolean;
   onChanged: () => Promise<void>;
+  onOpenProtections?: () => void;
 }) {
   const a = node.access;
   const [giving, setGiving] = useState(false);
@@ -442,6 +455,14 @@ function NodeDetail({
                 <strong>Two steps.</strong> Use on this {kindWord} lets Marine open tables and see <em>unprotected</em> fields. The{' '}
                 {a.protectedColumns} protected column{a.protectedColumns === 1 ? '' : 's'} still show ••• unless you grant each protection on the{' '}
                 <strong>Protections</strong> tab (Give access on Compensation → only payroll, not Everyone).
+                {onOpenProtections ? (
+                  <>
+                    {' '}
+                    <button type="button" className={cn(s.linkBtn, 'font-medium')} onClick={onOpenProtections}>
+                      Open Protections tab
+                    </button>
+                  </>
+                ) : null}
               </span>
             </p>
           ) : null}

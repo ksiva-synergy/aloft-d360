@@ -86,7 +86,7 @@ afterEach(() => vi.restoreAllMocks());
 const renderData = (opts: { readOnly?: boolean; platformAdmin?: boolean } = {}) =>
   render(
     <ConsoleReadOnlyContext.Provider value={opts.readOnly ?? false}>
-      <DataView people={people} meId="u-pa" isPlatformAdmin={opts.platformAdmin ?? true} />
+      <DataView people={people} meId="u-pa" isPlatformAdmin={opts.platformAdmin ?? true} onOpenProtections={() => {}} />
     </ConsoleReadOnlyContext.Provider>,
   );
 

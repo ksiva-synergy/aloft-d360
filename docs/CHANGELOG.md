@@ -2,6 +2,12 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data access feature map (audit: search, protect, ⓘ all present)
+
+- **What:** `docs/access/feature-map.md` lists every access feature and tab/API; page header accordion “Where search, protect, and ⓘ live”; Data tab links to Protections; manual test guide covers meaning search + ⓘ.
+- **Why:** Confirm nothing from the embedding / protect / column-info workstream was dropped when simplifying the Data UI.
+- **Verified:** Code grep + e2e steps 12–13; unit tests on DataView.
+
 ## 2026-11-08 — Data tab: explain Use vs protected column values (two-step model)
 
 - **What:** Summary pills renamed Step 1 Use / Step 2 column values, each with a short hint; callout when Use + protected columns coexist; help walks through Marine + salary scenario.
