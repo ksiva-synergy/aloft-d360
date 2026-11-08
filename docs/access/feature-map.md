@@ -22,7 +22,7 @@ Uses `src/lib/access/semantic-search.ts` → `embedQuery` → `platform_context_
 | Where | Query | API |
 |-------|--------|-----|
 | Data → Find a table | **Name** first; optional **Also search similar meaning** | `GET data-tree?q=` then `&by=meaning` |
-| Protections → Add columns | Name, then **Similar meaning** | `GET column-search?q=&by=meaning` |
+| Protections → column list + Add columns | **ⓘ** on every row; name search; optional **Similar meaning** | `column-search`, `column-info` |
 | My data access → Find a table | Same | `GET my-access?q=&by=meaning` |
 
 Search responses: names, types, descriptions, scores — **never** embed text or sample values (e2e step 12).

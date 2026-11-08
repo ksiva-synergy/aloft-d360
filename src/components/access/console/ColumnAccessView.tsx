@@ -244,24 +244,35 @@ export function ColumnAccessView({
         ) : (
           <>
             <header className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h2 className="flex items-center gap-2 text-title-section">
                   <Lock className="h-4 w-4 text-[var(--brand-a-ink)]" aria-hidden="true" />
                   {current.name}
                 </h2>
                 <p className="text-caption text-muted-foreground">
-                  {plural(columns.length, 'column')} · Can see: {whoCanSee(current.id)} · everyone else sees •••
+                  {plural(columns.length, 'column')} · Can see: <strong className="font-medium text-foreground">{whoCanSee(current.id)}</strong>
                 </p>
-                {wholePaths.some((w) => w.tagId === current.id) ? (
-                  <p className="text-caption text-muted-foreground">
-                    Also protects as a whole:{' '}
-                    {wholePaths
-                      .filter((w) => w.tagId === current.id)
-                      .map((w) => w.path)
-                      .join(', ')}{' '}
-                    (change in the Data tab)
-                  </p>
-                ) : null}
+                <details className={cn(s.helpPanel, 'mt-2 max-w-prose')}>
+                  <summary>How to use this tab</summary>
+                  <ul>
+                    <li>
+                      <strong>Search</strong> to tag columns onto this protection. Use <strong>ⓘ</strong> on any row for description, sample values, and harvest dates (admin only).
+                    </li>
+                    <li>
+                      <strong>Who can see · give access</strong> chooses who gets real values; everyone else sees ••• even if they have Use on the table (set Use on the Data tab).
+                    </li>
+                    <li>Optional: protect a whole catalog/schema/table on the <strong>Data</strong> tab — same protection name.</li>
+                  </ul>
+                  {wholePaths.some((w) => w.tagId === current.id) ? (
+                    <p className="mt-2 text-caption">
+                      Whole-path:{' '}
+                      {wholePaths
+                        .filter((w) => w.tagId === current.id)
+                        .map((w) => w.path)
+                        .join(', ')}
+                    </p>
+                  ) : null}
+                </details>
               </div>
               <button
                 type="button"
@@ -291,7 +302,8 @@ export function ColumnAccessView({
                   <table className="w-full table-fixed text-left text-size-ui">
                     <colgroup>
                       <col className="w-10" />
-                      <col className="w-[34%]" />
+                      <col className="w-9" />
+                      <col className="w-[32%]" />
                       <col />
                     </colgroup>
                     <thead className="sticky top-0 z-[1] border-b border-[var(--estate-border)] bg-[var(--estate-surface)] text-eyebrow uppercase text-muted-foreground">
@@ -305,6 +317,9 @@ export function ColumnAccessView({
                               onChange={(e) => columns.forEach((r) => toggle(r, e.target.checked))}
                             />
                           )}
+                        </th>
+                        <th className="px-1 py-2 text-center font-normal" scope="col">
+                          <span className="sr-only">About column</span>ⓘ
                         </th>
                         <th className="px-3 py-2 font-medium">Column</th>
                         <th className="px-3 py-2 font-medium">Table</th>
@@ -325,6 +340,9 @@ export function ColumnAccessView({
                                 onChange={(e) => toggle(r, e.target.checked)}
                               />
                             )}
+                          </td>
+                          <td className="px-1 py-1.5 align-top text-center">
+                            <ColumnInfoButton table={r.tablePath} column={r.column} />
                           </td>
                           <td className="truncate px-3 py-2 align-top font-medium" title={r.column}>
                             {r.column}
@@ -431,6 +449,7 @@ function AddColumns({
   const [hits, setHits] = useState<Row[] | null>(null);
   const [meaning, setMeaning] = useState<Row[] | null>(null);
   const [meaningBusy, setMeaningBusy] = useState(false);
+  const [meaningTried, setMeaningTried] = useState(false);
   const [truncated, setTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<Map<string, Row>>(new Map());
@@ -444,6 +463,7 @@ function AddColumns({
     setForTag(tag.id);
     setHits(null);
     setMeaning(null);
+    setMeaningTried(false);
     setPicked(new Map());
     setQ('');
     setReason('');
@@ -461,17 +481,27 @@ function AddColumns({
       setHits(res.columns.map((h) => ({ ...h, key: rowKey(h.tablePath, h.column) })));
       setTruncated(res.truncated);
       setPicked(new Map());
-      // Search by meaning runs after the name search (it needs an embedding call, ~1 s).
       setMeaning(null);
-      setMeaningBusy(true);
-      void accessFetch<{ columns: Omit<Row, 'key'>[] }>(`/api/access/column-search?q=${encodeURIComponent(term)}&by=meaning`)
-        .then((m) => setMeaning(m.columns.map((h) => ({ ...h, key: rowKey(h.tablePath, h.column) }))))
-        .catch(() => setMeaning([]))
-        .finally(() => setMeaningBusy(false));
+      setMeaningTried(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
     } finally {
       setSearching(false);
+    }
+  }
+
+  async function searchMeaning() {
+    const term = q.trim();
+    if (term.length < 2) return;
+    setMeaningBusy(true);
+    setMeaningTried(true);
+    try {
+      const m = await accessFetch<{ columns: Omit<Row, 'key'>[] }>(`/api/access/column-search?q=${encodeURIComponent(term)}&by=meaning`);
+      setMeaning(m.columns.map((h) => ({ ...h, key: rowKey(h.tablePath, h.column) })));
+    } catch {
+      setMeaning([]);
+    } finally {
+      setMeaningBusy(false);
     }
   }
 
@@ -556,6 +586,11 @@ function AddColumns({
           </button>
         ) : null}
       </form>
+      {hits && q.trim().length >= 2 ? (
+        <button type="button" className={cn(s.linkBtn, 'self-start text-left')} disabled={meaningBusy} onClick={() => void searchMeaning()}>
+          {meaningBusy ? 'Searching similar meaning…' : meaningTried ? 'Search similar meaning again' : 'Also search similar meaning (embeddings)'}
+        </button>
+      ) : null}
 
       {error ? <p className={s.errorText} role="alert">{error}</p> : null}
 
@@ -611,52 +646,47 @@ function AddColumns({
             </>
           )}
 
-          {/* Similar meaning: columns whose description / embedding matches, even if the name doesn't. */}
-          <div className="mt-3">
-            <p className="flex items-center gap-2 px-2 py-1 text-caption font-medium">
-              Similar meaning
-              <span className="font-normal text-muted-foreground">
-                {meaningBusy ? '· searching…' : meaning ? `· ${meaningExtra.length} more` : ''} · tick the ones that really hold {tag.name} data
-              </span>
-            </p>
-            {meaning && meaningExtra.length > 0 ? (
-              <ul className="compact-scroll max-h-64 rounded-[8px] border border-[var(--estate-border)] bg-[var(--estate-surface)]">
-                {meaningExtra.map((h) => {
-                  const already = h.tagIds.includes(tag.id);
-                  return (
-                    <li key={h.key} className="border-b border-[var(--estate-border)] last:border-b-0">
-                      <label className={cn('flex min-w-0 cursor-pointer items-start gap-2 px-3 py-1.5 text-caption', already && 'cursor-default opacity-60')}>
-                        <input
-                          type="checkbox"
-                          className="mt-0.5"
-                          aria-label={`Select ${h.column} in ${h.tablePath}`}
-                          disabled={already}
-                          checked={already || picked.has(h.key)}
-                          onChange={(e) => toggle(h, e.target.checked)}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="shrink-0 font-medium text-foreground">{h.column}</span>
-                            <ColumnInfoButton table={h.tablePath} column={h.column} />
-                            <span className="min-w-0 truncate text-muted-foreground" title={h.tablePath}>
-                              {shortTable(h.tablePath)}
-                            </span>
-                            <span className={cn(s.chip, 'ml-auto shrink-0')} title={`Similarity ${(h.score ?? 0).toFixed(2)}`}>
-                              {strength(h.score ?? 0, meaningTop)}
-                            </span>
-                            {already ? <span className={cn(s.chip, s.chipBrand, 'shrink-0')}>already in {tag.name}</span> : null}
+          {meaningTried ? (
+            <div className="mt-3">
+              <p className="flex items-center gap-2 px-2 py-1 text-caption font-medium">
+                Similar meaning
+                <span className="font-normal text-muted-foreground">
+                  {meaningBusy ? '· searching…' : meaning ? `· ${meaningExtra.length} more` : ''} · use ⓘ for details
+                </span>
+              </p>
+              {meaning && meaningExtra.length > 0 ? (
+                <ul className="compact-scroll max-h-64 rounded-[8px] border border-[var(--estate-border)] bg-[var(--estate-surface)]">
+                  {meaningExtra.map((h) => {
+                    const already = h.tagIds.includes(tag.id);
+                    return (
+                      <li key={h.key} className="border-b border-[var(--estate-border)] last:border-b-0">
+                        <label className={cn('flex min-w-0 cursor-pointer items-center gap-2 px-3 py-1.5 text-caption', already && 'cursor-default opacity-60')}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${h.column} in ${h.tablePath}`}
+                            disabled={already}
+                            checked={already || picked.has(h.key)}
+                            onChange={(e) => toggle(h, e.target.checked)}
+                          />
+                          <ColumnInfoButton table={h.tablePath} column={h.column} />
+                          <span className="shrink-0 font-medium text-foreground">{h.column}</span>
+                          <span className="min-w-0 truncate text-muted-foreground" title={h.tablePath}>
+                            {shortTable(h.tablePath)}
                           </span>
-                          {h.description ? <span className="block text-muted-foreground">{h.description}</span> : null}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : meaning && !meaningBusy ? (
-              <p className="px-2 text-caption text-muted-foreground">Nothing else with a similar meaning (only tables made searchable by the harvest are covered).</p>
-            ) : null}
-          </div>
+                          <span className={cn(s.chip, 'ml-auto shrink-0')} title={`Similarity ${(h.score ?? 0).toFixed(2)}`}>
+                            {strength(h.score ?? 0, meaningTop)}
+                          </span>
+                          {already ? <span className={cn(s.chip, s.chipBrand, 'shrink-0')}>already in {tag.name}</span> : null}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : meaning && !meaningBusy ? (
+                <p className="px-2 text-caption text-muted-foreground">Nothing else with a similar meaning.</p>
+              ) : null}
+            </div>
+          ) : null}
 
           {chosen.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 px-1">

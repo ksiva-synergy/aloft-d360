@@ -102,7 +102,7 @@ describe('ColumnAccessView', () => {
     expect(within(list).getByText('Can see: Payroll team (1)')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Salary' })).toBeTruthy();
     expect(screen.queryByText('email')).toBeNull(); // belongs to Contact details
-    expect(screen.getByText(/Also protects as a whole: curated.finance/)).toBeTruthy();
+    expect(screen.getByText(/curated\.finance/)).toBeTruthy();
   });
 
   it('picking another protection shows its columns', async () => {
@@ -113,7 +113,8 @@ describe('ColumnAccessView', () => {
     expect(await screen.findByText('email')).toBeTruthy();
     expect(screen.queryByText('salary_amount')).toBeNull();
     expect(screen.getByRole('heading', { name: 'Contact details' })).toBeTruthy();
-    expect(screen.getByText(/1 column · Can see: nobody yet/)).toBeTruthy();
+    expect(screen.getByText(/1 column · Can see:/)).toBeTruthy();
+    expect(screen.getByText('nobody yet')).toBeTruthy();
   });
 
   it('add columns: search, tick, reason → tags each table once for the open protection', async () => {

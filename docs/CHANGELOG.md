@@ -2,6 +2,11 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Protections tab: ⓘ on every column, compact help, meaning opt-in
+
+- **What:** Tagged column list has ⓘ on each row; page help in collapsible details; embedding search opt-in (same as Data tab); inline descriptions removed from meaning hits (use ⓘ).
+- **Paths:** `ColumnAccessView.tsx`.
+
 ## 2026-11-08 — Data search: name vs meaning split (right panel fix)
 
 - **What:** Table search is **name-only** by default; “Also search similar meaning” is explicit. Name picks keep name metadata on the right; estate summary/description only for meaning picks. Meaning hits no longer overwrite name hits in the merged node map.
