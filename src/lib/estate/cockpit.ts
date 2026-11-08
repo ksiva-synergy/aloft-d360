@@ -1,7 +1,7 @@
 import 'server-only';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
-import { SQL_OBJECT_HAS_EMBEDDING } from '@/lib/context/embedding-presence';
+import { SQL_OBJECT_EMBEDDING_CURRENT, SQL_OBJECT_NEEDS_EMBED } from '@/lib/context/embedding-presence';
 
 export interface PipelineHealth {
   source_id: string | null;
@@ -64,10 +64,12 @@ export async function getPipelineHealth(orgId: string, sourceId?: string): Promi
       FROM platform_context_objects o
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcPco(sourceId)}
     `),
-    prisma.$queryRaw<Array<{ embedded: number }>>(Prisma.sql`
-      SELECT COUNT(*)::int AS embedded FROM platform_context_objects o
+    prisma.$queryRaw<Array<{ embedded: number; needs_embed: number }>>(Prisma.sql`
+      SELECT
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_EMBEDDING_CURRENT})::int AS embedded,
+        COUNT(*) FILTER (WHERE ${SQL_OBJECT_NEEDS_EMBED})::int AS needs_embed
+      FROM platform_context_objects o
       WHERE o.org_id = ${orgId} AND o.lifecycle = 'active' ${srcPco(sourceId)}
-        AND ${SQL_OBJECT_HAS_EMBEDDING}
     `),
     prisma.$queryRaw<Array<{ n: number }>>(Prisma.sql`
       SELECT COUNT(*)::int AS n
@@ -81,6 +83,7 @@ export async function getPipelineHealth(orgId: string, sourceId?: string): Promi
 
   const scanned = scannedRow[0]?.n ?? 0;
   const embedded = embedRow[0]?.embedded ?? 0;
+  const needsEmbed = embedRow[0]?.needs_embed ?? 0;
   const tier = tierRow[0];
 
   return {
@@ -93,7 +96,7 @@ export async function getPipelineHealth(orgId: string, sourceId?: string): Promi
     discovery_not_scanned: gapRow[0]?.n ?? 0,
     needs_profile: tier?.needs_profile ?? 0,
     needs_enrich: tier?.needs_enrich ?? 0,
-    needs_embed: Math.max(0, scanned - embedded),
+    needs_embed: needsEmbed,
   };
 }
 

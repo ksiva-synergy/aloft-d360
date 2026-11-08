@@ -81,7 +81,7 @@ T1/T2/embed read **Scanned** only. The launch modal can show **Discovery** count
 |--------|----------|
 | **Scope** | **Limit + exclude tree** from job scope (P1-2 fixed 2026-10-26) |
 | **Incremental** | Skips unchanged embed text when semantic card unchanged (P2-18); skipped vectors get `created_at` refreshed so they count as current |
-| **Stale = ** | No embedding, or embedding `created_at` older than the latest `platform_context_semantics` row (scoped intent `needs_embed`, 2026-11-01) |
+| **Stale = ** | No embedding, or embedding `created_at` older than the latest `platform_context_semantics` row. The Searchable color counts only current embeddings. **N need searchable** is the rest (missing or stale) and opens that list. Those two numbers add up to the scanned set (2026-11-05). |
 | **Empty scope** | No in-scope objects → no-op (previously fell back to every column in the source) |
 
 ### 3.6 `t3_usage`
@@ -190,6 +190,7 @@ See issues register §9. **Prefer** `POST …/jobs/launch` for operator flows un
 
 | Date | Item |
 |------|------|
+| 2026-11-05 | **Searchable count:** the Searchable color is current embeddings only. "N need searchable" is the missing or stale remainder, and it filters the Scanned list to those tables. |
 | 2026-11-03 | **Object page + T1 data:** sampled T1 no longer writes the sample window as `row_count_est`; `table_detail` kept on profile stats. Trusted score counts only profiles with a real change (was every re-profile). Object page Recent Jobs now finds jobs queued from the page (`scope.includePatterns`), and the page refreshes after an action and while a job runs. |
 | 2026-11-02 | **T3/T4 scope:** `t4_scan` keeps the job Limit; scoped T3 uses in-scope `last_t3_at`, table-level history SQL, and lineage limited to those tables. Scanned Continue copy names tables missing from the business model and still does not launch T3/T4. |
 | 2026-11-01 | **Jobs audit fixes:** embed id lookups chunked at 5,000 (fixes Postgres 32,767 bind-parameter failure on large embeds); web reaper uses worker heartbeat (`updated_at`) instead of creation time; `cancelled` status shown (was "queued"); `partial` amber in drawer and runs panel; kind filter lists every job kind; summary `queued`/`running` counts windowed; child counts include `cancelled`; T0 drop pass scoped by org. |

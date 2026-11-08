@@ -17,6 +17,7 @@ interface PipelineHealth {
   enriched_objects: number;
   embedded_objects: number;
   discovery_not_scanned: number;
+  needs_embed?: number;
 }
 
 interface Recommendation {
@@ -46,6 +47,7 @@ export default function JobsCockpitPanel({
   onLaunched,
   onOpenWizard,
   onStageClick,
+  onNeedsEmbedClick,
   defaultExpanded = false,
 }: {
   sourceId?: string | null;
@@ -54,6 +56,8 @@ export default function JobsCockpitPanel({
   onOpenWizard?: () => void;
   /** Open the scanned-objects list filtered to a pipeline stage. */
   onStageClick?: (tier: ScannedTier) => void;
+  /** Open the scanned-objects list limited to tables that still need an embedding. */
+  onNeedsEmbedClick?: () => void;
   /** Show coverage details open unless the user has collapsed them before. */
   defaultExpanded?: boolean;
 }) {
@@ -250,6 +254,18 @@ export default function JobsCockpitPanel({
                   );
                 })}
               </ol>
+              {(h.needs_embed ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={onNeedsEmbedClick}
+                  disabled={!onNeedsEmbedClick}
+                  title="The Searchable color counts embeddings that are still current. This is the rest: missing, or older than the latest description."
+                  className="inline-flex items-center gap-1.5 text-caption text-[var(--estate-text-secondary)] underline decoration-[color:color-mix(in_srgb,currentColor_40%,transparent)] underline-offset-2 hover:text-[var(--estate-ink)] disabled:no-underline disabled:hover:text-[var(--estate-text-secondary)]"
+                >
+                  <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: ESTATE_STAGE.searchable.color }} />
+                  {fmt(h.needs_embed ?? 0)} need{(h.needs_embed ?? 0) === 1 ? 's' : ''} searchable
+                </button>
+              )}
               {h.discovery_not_scanned > 0 && (
                 <p className="text-caption text-[var(--estate-text-secondary)]">
                   <span className="font-medium text-[var(--warning)]">{fmt(h.discovery_not_scanned)}</span>{' '}

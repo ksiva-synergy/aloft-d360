@@ -3,7 +3,7 @@ import 'server-only';
 import prisma from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import type { JobKind } from '@/lib/context/queue';
-import { SQL_OBJECT_EMBEDDING_CURRENT, SQL_OBJECT_HAS_EMBEDDING } from '@/lib/context/embedding-presence';
+import { SQL_OBJECT_EMBEDDING_CURRENT } from '@/lib/context/embedding-presence';
 import {
   buildContinueChain,
   buildContinueKindsFromTierSelection,
@@ -92,7 +92,6 @@ type ObjectRow = {
   last_t1_at: Date | null;
   last_t2_at: Date | null;
   last_t4_at: Date | null;
-  has_embedding: boolean;
   embedding_current: boolean;
 };
 
@@ -135,7 +134,7 @@ function aggregateHealthFromRows(rows: ObjectRow[]): Omit<
     scanned++;
     if (o.last_t1_at) profiled++;
     if (o.last_t2_at) enriched++;
-    if (o.has_embedding) embedded++;
+    if (o.embedding_current) embedded++;
     if (!o.last_t1_at || !o.last_t0_at || o.last_t1_at < o.last_t0_at) needsProfile++;
     if (!o.last_t2_at || !o.last_t1_at || o.last_t2_at < o.last_t1_at) needsEnrich++;
     // Missing, or older than the latest semantic card.
@@ -177,7 +176,6 @@ export async function getScopedPipelineHealth(
       o.last_t1_at,
       o.last_t2_at,
       o.last_t4_at,
-      ${SQL_OBJECT_HAS_EMBEDDING} AS has_embedding,
       ${SQL_OBJECT_EMBEDDING_CURRENT} AS embedding_current
     FROM platform_context_objects o
     WHERE o.org_id = ${orgId}

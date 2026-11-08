@@ -5,6 +5,12 @@
 
 ---
 
+### 2026-11-06: Merge `origin/dev` into local `main` (Composer)
+
+- **What:** Fetched `origin/dev`, merged into `main`, and resolved stash-pop conflicts in `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and `docs/jobs/session-log.md` so both the `dev` history and the local Searchable / jobs doc updates stay consistent.
+- **Verified:** Merge completed; conflict markers removed from the three files.
+- **Not done:** Full vitest/tsc not re-run for the merge-only step; `stash@{0}` from before the merge is still available until dropped.
+
 ### 2026-11-06: Push consolidated work to `dev` including docs and graphify (Composer)
 
 - **What:** All local changes were committed and merged into `dev`, then pushed to `synergy-marine` so the branch carries documentation updates (`docs/CHANGELOG.md`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`, and other `docs/**` additions), research notes, and `graphify-out/` (graph report and artifacts).
@@ -84,6 +90,13 @@
 - **Why:** Cost monitor harvest tab needs per-job USD and who launched on-demand jobs.
 - **Verified:** Unit tests in `src/lib/spend/__tests__/record-spend-event.test.ts`.
 - **Not done:** Backfill ledger from past jobs; scheduled jobs without a user id.
+
+### 2026-11-05: Searchable color and "need searchable" use the same count
+
+- **Issue:** The Searchable color counted any embedding. "N need searchable" also included embeddings older than the latest description, so the color and the 79 did not add up, and the 79 could not be opened as a list.
+- **Files:** `src/lib/context/embedding-presence.ts`, `src/lib/context/reads.ts`, `src/lib/estate/cockpit.ts`, `src/lib/estate/pipeline-intent.ts`, `src/app/api/agent-lab/context/objects/scanned/route.ts`, `src/components/estate/ScannedObjectsTab.tsx`, `src/components/estate/ScannedPipelineScopeBar.tsx`, `src/components/estate/ScannedFacetTree.tsx`, `src/components/estate/JobsCockpitPanel.tsx`, `src/views/agent-lab/estate/jobs.tsx`.
+- **Before → after:** Searchable color = current embeddings. "N need searchable" = missing or stale, and it filters Scanned to those tables. The two numbers add up to the scanned set.
+- **Not done:** Signed-in check of the live 79 against the database.
 
 ### 2026-11-02: DB verify pipeline 8942f51f… (Navitas 7 schemas)
 
