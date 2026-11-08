@@ -21,7 +21,7 @@ Uses `src/lib/access/semantic-search.ts` → `embedQuery` → `platform_context_
 
 | Where | Query | API |
 |-------|--------|-----|
-| Data → Find a table | Name, then **Similar meaning** | `GET data-tree?q=&by=meaning` |
+| Data → Find a table | **Name** first; optional **Also search similar meaning** | `GET data-tree?q=` then `&by=meaning` |
 | Protections → Add columns | Name, then **Similar meaning** | `GET column-search?q=&by=meaning` |
 | My data access → Find a table | Same | `GET my-access?q=&by=meaning` |
 

@@ -169,6 +169,9 @@ export function DataView({
   const [results, setResults] = useState<DataNode[] | null>(null);
   const [meaning, setMeaning] = useState<DataNode[] | null>(null);
   const [meaningBusy, setMeaningBusy] = useState(false);
+  const [meaningTried, setMeaningTried] = useState(false);
+  type SelectSource = 'tree' | 'search-name' | 'search-meaning';
+  const [selectSource, setSelectSource] = useState<SelectSource>('tree');
   const [groups, setGroups] = useState<AccessGroup[]>([]);
   const [tags, setTags] = useState<DataTag[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -198,8 +201,12 @@ export function DataView({
     if (results && q.trim().length >= 2) {
       const res = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(q.trim())}`);
       setResults(res.nodes);
+      if (meaningTried) {
+        const m = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(q.trim())}&by=meaning`);
+        setMeaning(m.nodes);
+      }
     }
-  }, [expanded, loadLevel, results, q]);
+  }, [expanded, loadLevel, results, q, meaningTried]);
 
   async function toggle(node: DataNode) {
     const next = new Set(expanded);
@@ -211,20 +218,32 @@ export function DataView({
     setExpanded(next);
   }
 
-  async function search() {
+  async function searchNames() {
     const term = q.trim();
     if (term.length < 2) return;
     try {
       const res = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(term)}`);
       setResults(res.nodes);
       setMeaning(null);
-      setMeaningBusy(true);
-      void accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(term)}&by=meaning`)
-        .then((m) => setMeaning(m.nodes))
-        .catch(() => setMeaning([]))
-        .finally(() => setMeaningBusy(false));
+      setMeaningTried(false);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Search failed');
+    }
+  }
+
+  async function searchMeaning() {
+    const term = q.trim();
+    if (term.length < 2) return;
+    setMeaningBusy(true);
+    setMeaningTried(true);
+    try {
+      const m = await accessFetch<{ nodes: DataNode[] }>(`/api/access/data-tree?q=${encodeURIComponent(term)}&by=meaning`);
+      setMeaning(m.nodes);
+    } catch {
+      setMeaning([]);
+    } finally {
+      setMeaningBusy(false);
     }
   }
 
@@ -232,7 +251,10 @@ export function DataView({
     const m = new Map<string, DataNode>();
     for (const list of Object.values(children)) for (const n of list) m.set(n.path, n);
     for (const n of results ?? []) m.set(n.path, n);
-    for (const n of meaning ?? []) m.set(n.path, n);
+    // Meaning hits must not replace name-search rows (same path keeps name match metadata on the right).
+    for (const n of meaning ?? []) {
+      if (!m.has(n.path)) m.set(n.path, n);
+    }
     return m;
   }, [children, results, meaning]);
   const current = selected ? (allNodes.get(selected) ?? null) : null;
@@ -245,7 +267,17 @@ export function DataView({
     if (!list) return null;
     return list.map((n) => (
       <Fragment key={n.path}>
-        <TreeRow node={n} level={level} open={expanded.has(n.path)} selected={selected === n.path} onToggle={() => void toggle(n)} onSelect={() => setSelected(n.path)} />
+        <TreeRow
+          node={n}
+          level={level}
+          open={expanded.has(n.path)}
+          selected={selected === n.path}
+          onToggle={() => void toggle(n)}
+          onSelect={() => {
+            setSelectSource('tree');
+            setSelected(n.path);
+          }}
+        />
         {expanded.has(n.path) ? renderRows(n.path, level + 1) : null}
       </Fragment>
     ));
@@ -259,12 +291,12 @@ export function DataView({
             className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              void search();
+              void searchNames();
             }}
           >
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-              <Input className={cn(userStyles.input, '!pl-9')} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a table" aria-label="Find a table" />
+              <Input className={cn(userStyles.input, '!pl-9')} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a table by name" aria-label="Find a table by name" />
             </div>
             {results ? (
               <button
@@ -273,12 +305,19 @@ export function DataView({
                 onClick={() => {
                   setResults(null);
                   setMeaning(null);
+                  setMeaningTried(false);
+                  setSelected(null);
                 }}
               >
                 Clear
               </button>
             ) : null}
           </form>
+          {results && q.trim().length >= 2 ? (
+            <button type="button" className={cn(s.linkBtn, 'self-start text-left')} disabled={meaningBusy} onClick={() => void searchMeaning()}>
+              {meaningBusy ? 'Searching similar meaning…' : meaningTried ? 'Search similar meaning again' : 'Also search similar meaning (embeddings)'}
+            </button>
+          ) : null}
         </div>
         <div className={cn(s.listBody, 'compact-scroll')}>
           {nobodyCanUse && !results ? (
@@ -293,18 +332,50 @@ export function DataView({
               {results.length === 0 ? (
                 <p className="p-3 text-caption text-muted-foreground">No table names match.</p>
               ) : (
-                results.map((n) => <TreeRow key={n.path} node={n} level={0} open={false} selected={selected === n.path} onSelect={() => setSelected(n.path)} showPath />)
+                <>
+                  <p className="border-b border-[var(--estate-border)] px-3 py-1.5 text-eyebrow uppercase text-muted-foreground">Table name matches</p>
+                  {results.map((n) => (
+                    <TreeRow
+                      key={n.path}
+                      node={n}
+                      level={0}
+                      open={false}
+                      selected={selected === n.path && selectSource === 'search-name'}
+                      onSelect={() => {
+                        setSelectSource('search-name');
+                        setSelected(n.path);
+                      }}
+                      showPath
+                    />
+                  ))}
+                </>
               )}
-              <p className="border-b border-[var(--estate-border)] px-3 py-2 text-eyebrow uppercase text-muted-foreground">
-                Similar meaning{meaningBusy ? ' · searching…' : ''}
-              </p>
-              {(meaning ?? [])
-                .filter((n) => !results.some((r) => r.path === n.path))
-                .map((n) => (
-                  <TreeRow key={`m:${n.path}`} node={n} level={0} open={false} selected={selected === n.path} onSelect={() => setSelected(n.path)} showPath hint={n.description ?? undefined} />
-                ))}
-              {meaning && !meaningBusy && meaning.filter((n) => !results.some((r) => r.path === n.path)).length === 0 ? (
-                <p className="p-3 text-caption text-muted-foreground">Nothing else with a similar meaning.</p>
+              {meaningTried ? (
+                <>
+                  <p className="border-b border-[var(--estate-border)] px-3 py-2 text-eyebrow uppercase text-muted-foreground">
+                    Similar meaning{meaningBusy ? ' · searching…' : ''}
+                  </p>
+                  {(meaning ?? [])
+                    .filter((n) => !results?.some((r) => r.path === n.path))
+                    .map((n) => (
+                      <TreeRow
+                        key={`m:${n.path}`}
+                        node={n}
+                        level={0}
+                        open={false}
+                        selected={selected === n.path && selectSource === 'search-meaning'}
+                        onSelect={() => {
+                          setSelectSource('search-meaning');
+                          setSelected(n.path);
+                        }}
+                        showPath
+                        hint={n.description ?? undefined}
+                      />
+                    ))}
+                  {meaning && !meaningBusy && meaning.filter((n) => !results?.some((r) => r.path === n.path)).length === 0 ? (
+                    <p className="p-3 text-caption text-muted-foreground">Nothing else with a similar meaning.</p>
+                  ) : null}
+                </>
               ) : null}
             </>
           ) : !roots ? (
@@ -334,6 +405,7 @@ export function DataView({
               await Promise.all([reloadAll(), loadSide()]);
             }}
             onOpenProtections={onOpenProtections}
+            selectSource={selectSource}
           />
         )}
       </section>
@@ -406,6 +478,7 @@ function NodeDetail({
   isPlatformAdmin,
   onChanged,
   onOpenProtections,
+  selectSource,
 }: {
   node: DataNode;
   groups: AccessGroup[];
@@ -416,6 +489,7 @@ function NodeDetail({
   isPlatformAdmin: boolean;
   onChanged: () => Promise<void>;
   onOpenProtections?: () => void;
+  selectSource: 'tree' | 'search-name' | 'search-meaning';
 }) {
   const a = node.access;
   const [giving, setGiving] = useState(false);
@@ -443,6 +517,16 @@ function NodeDetail({
             ))}
           </nav>
           {estateHint ? <p className={s.summaryLine}>In the estate: {estateHint}</p> : null}
+          {selectSource === 'search-name' ? (
+            <p className="mt-2 text-caption text-muted-foreground" role="status">
+              Opened from a <strong className="font-medium text-foreground">table name</strong> search — access and protections below are for this path (not the search summary).
+            </p>
+          ) : null}
+          {selectSource === 'search-meaning' && node.description ? (
+            <p className="mt-2 rounded-[8px] bg-[var(--surface-2)] px-3 py-2 text-caption text-muted-foreground" role="status">
+              <strong className="font-medium text-foreground">Similar meaning:</strong> {node.description}
+            </p>
+          ) : null}
           <div className={s.statRow} role="list" aria-label="Summary">
             <StatPill label="Step 1 · Use (open data)" {...accessStatParts(a, a.protectedColumns, kindWord)} />
             <StatPill label="Optional · Whole path" {...protectionStatParts(a, kindWord)} />

@@ -2,6 +2,11 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data search: name vs meaning split (right panel fix)
+
+- **What:** Table search is **name-only** by default; “Also search similar meaning” is explicit. Name picks keep name metadata on the right; estate summary/description only for meaning picks. Meaning hits no longer overwrite name hits in the merged node map.
+- **Why:** Normal search results showed meaning-style descriptions on the right for every selection.
+
 ## 2026-11-08 — Data access feature map (audit: search, protect, ⓘ all present)
 
 - **What:** `docs/access/feature-map.md` lists every access feature and tab/API; page header accordion “Where search, protect, and ⓘ live”; Data tab links to Protections; manual test guide covers meaning search + ⓘ.
