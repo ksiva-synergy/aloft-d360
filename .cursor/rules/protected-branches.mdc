@@ -1,0 +1,26 @@
+---
+description: Never push to main; use feature branches and PRs instead.
+alwaysApply: true
+---
+
+# Protected default branch (`main`)
+
+Treat **`main`** as **protected**. It is the integration target, not a branch to update by direct push from agents or daily work.
+
+## Agents must not
+
+- Run **`git push`** (or **`git push -u`**) when the current branch is **`main`**.
+- Run **`git push origin main`** or push **`HEAD`** to **`main`** on the remote.
+- Force-push or rewrite history on **`main`** (`git push --force`, `--force-with-lease` to `main`, etc.).
+- Suggest or complete “commit straight to main and push” as the default workflow.
+
+## Preferred workflow
+
+- Create a **feature branch** from **`main`** or **`dev`** (match team convention).
+- Open a **pull request** and merge after review (or merge locally into **`main`** only when the user explicitly asked for that merge step—still **no push to `main`** unless the user clearly orders it and understands the policy).
+
+## When the user insists
+
+If the user explicitly asks to push to **`main`**, confirm they intend to bypass the usual PR flow, then proceed only with their **explicit** instruction for that action.
+
+Related: `AGENTS.md` § Protected default branch.

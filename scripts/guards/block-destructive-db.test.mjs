@@ -35,6 +35,17 @@ check('read env path', inspect({
   tool_name: 'Read',
   tool_input: { path: 'c:/ALOFT/aloft-ui-redesign/.env' },
 }), ['reading or writing .env']);
+check('beforeReadFile env', inspect({
+  hook_event_name: 'beforeReadFile',
+  file_path: '/Users/me/projects/aloft-d360/.env',
+}), ['reading or writing .env']);
+check('beforeReadFile attachment env', inspect({
+  hook_event_name: 'beforeReadFile',
+  file_path: '/safe/readme.md',
+  attachments: [{ type: 'file', file_path: '/Users/me/projects/aloft-d360/.env.local' }],
+}), ['reading or writing .env']);
+check('prisma migrate reset', inspect({ command: 'npx prisma migrate reset' }), ['prisma migrate reset']);
+check('prisma db push force', inspect({ command: 'prisma db push --force-reset' }), ['prisma db push (destructive)']);
 check('edit source that mentions delete', inspect({
   tool_name: 'StrReplace',
   tool_input: {

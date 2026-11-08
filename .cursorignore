@@ -1,0 +1,6 @@
+# Keep secrets and local env out of Cursor index and agent context (defense in depth with hooks)
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
