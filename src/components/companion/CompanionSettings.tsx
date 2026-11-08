@@ -13,7 +13,7 @@ const CHARACTERS: { value: CompanionCharacter; label: string; detail: string }[]
   { value: 'orbit', label: 'Orbit', detail: 'The tilted wobble. Playful and attentive, with a lively personality.' },
   { value: 'lumi', label: 'Lumi', detail: 'The gentle wobble. Calm, warm and quietly reassuring.' },
   { value: 'captain', label: 'Captain', detail: 'A glossy sphere with a glowing visor. Simple, friendly, intelligent.' },
-  { value: 'mochi', label: 'Mochi', detail: 'A soft white friend with tiny arms. Pure, playful and welcoming.' },
+  { value: 'mochi', label: 'Mochi', detail: 'A soft furry friend with tiny arms. Gentle, curious and welcoming.' },
 ];
 
 const PERSONALITIES: { value: CompanionPersonality; label: string; detail: string }[] = [
@@ -59,7 +59,7 @@ export function CompanionSettings() {
       </div>
     </fieldset>
     <fieldset><legend className="text-size-ui font-semibold text-[var(--ink-2)]">Colour</legend>
-      <p className="mt-1 text-size-ui text-[var(--ink-3)]">Follows the accent you pick in the account menu, or choose its own.</p>
+      <p className="mt-1 text-size-ui text-[var(--ink-3)]">Choose a soft companion colour, match your app accent, or pick a custom shade.</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {COMPANION_COLORS.map(color => {
           const checked = preferences.color.toLowerCase() === color.value.toLowerCase();

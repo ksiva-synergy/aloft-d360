@@ -1750,13 +1750,13 @@ main { scroll-behavior: smooth; }
   --scrollbar-thumb-hover: color-mix(in srgb, var(--ink-3) 70%, transparent);
 }
 
-/* Chromium / Safari */
+/* Chromium / Safari. Compact everywhere (user request, 2026-11-08): a 6px bar with a 4px thumb. */
 ::-webkit-scrollbar,
 .agent-labs-scrollbar::-webkit-scrollbar,
-.teach-surface ::-webkit-scrollbar { width: 10px; height: 10px; }
+.teach-surface ::-webkit-scrollbar,
 .bandit-scrollbar::-webkit-scrollbar,
 .wb-scroll::-webkit-scrollbar,
-.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner,
@@ -1773,7 +1773,7 @@ main { scroll-behavior: smooth; }
 .teach-surface ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
   background-clip: content-box;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover,
@@ -1800,6 +1800,14 @@ main { scroll-behavior: smooth; }
 /* Firefox (no ::-webkit-scrollbar support) */
 @supports not selector(::-webkit-scrollbar) {
   * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
+}
+
+/* A scroll area that keeps a table inside the page: fixed height, its own compact bars. */
+.compact-scroll {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  overscroll-behavior: contain;
 }
 
 /* Label colour for text that sits on a solid accent fill (--brand-a). The accent is
