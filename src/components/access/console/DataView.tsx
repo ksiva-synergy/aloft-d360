@@ -338,6 +338,7 @@ function NodeDetail({
           {giving ? (
             <GiveRuleForm
               path={node.path}
+              kindWord={kindWord}
               groups={groups}
               people={people}
               meId={meId}
@@ -524,6 +525,7 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
 
 function GiveRuleForm({
   path,
+  kindWord,
   groups,
   people,
   meId,
@@ -532,6 +534,7 @@ function GiveRuleForm({
   onDone,
 }: {
   path: string;
+  kindWord: string;
   groups: AccessGroup[];
   people: Person[];
   meId: string;
@@ -584,6 +587,10 @@ function GiveRuleForm({
 
   return (
     <div className="flex flex-col gap-3 rounded-[10px] bg-[var(--surface-2)] p-3">
+      <p className="text-caption text-muted-foreground" role="status">
+        Applying to this <span className="font-medium text-foreground">{kindWord}</span>:{' '}
+        <span className="break-all font-medium text-foreground">{path}</span>
+      </p>
       <div className={s.seg} role="radiogroup" aria-label="Give access to">
         {(
           [

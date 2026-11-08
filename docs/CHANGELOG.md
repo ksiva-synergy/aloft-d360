@@ -2,6 +2,11 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-08 — Data access: “Applying to” line on Give access form
+
+- **What:** `GiveRuleForm` shows which catalog, schema, or table the rule will apply to (`Applying to this catalog: curated_db`).
+- **Why:** Admins asked for clear context while editing rules in the side panel.
+- **Paths:** `src/components/access/console/DataView.tsx`.
 ## 2026-11-08 — Fix Data tab `data-tree` 500 (path list vs legacy snapshot)
 
 - **What:** `listEstateChildren` now accepts either `string[]` (simplified model via `adminPolicyPaths`) or a legacy `PolicySnapshot`; `snapshotPolicyPaths` tolerates missing `grants`/`labels`.
