@@ -1384,29 +1384,22 @@ export function StreamingMessage({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         style={{
-          background: SURFACE,
+          background: !content.trim() && !error ? 'transparent' : SURFACE,
           borderRadius: 8,
-          border: `1px solid ${BORDER_SUBTLE}`,
+          border: !content.trim() && !error ? '1px solid transparent' : `1px solid ${BORDER_SUBTLE}`,
           overflow: 'hidden',
           position: 'relative',
           width: '100%',
           maxWidth: '100%',
         }}
       >
-        <CaptainStatus active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
+        <CaptainStatus variant={!content.trim() ? 'compact' : 'default'} active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
           toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
           showTechnicalToolNames={showTechnicalToolNames}
           needsClarification={readiness === 'interview'} />
         {content && (
           <div style={{ padding: '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>
             <AssistantContent content={content} />
-          </div>
-        )}
-        {isStreaming && !content && companionActive && (
-          <div aria-hidden style={{ padding: '2px clamp(12px, 2vw, 24px) 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[92, 80, 56].map((w, i) => (
-              <span key={w} className="ld-skel" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
-            ))}
           </div>
         )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}

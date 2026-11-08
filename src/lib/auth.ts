@@ -13,7 +13,16 @@ import {
 } from '@/lib/rbac';
 import { credentialsLoginEnabled, verifyCredentialsLogin } from '@/lib/auth-credentials';
 
-const SESSION_MAX_AGE_DEFAULT = 8 * 60 * 60; // 8 hours
+/** Production idle lifetime. A session read issues a new cookie, so this is time since the app was last opened. */
+const SESSION_MAX_AGE_PRODUCTION = 8 * 60 * 60;
+/**
+ * `next dev` / local Vite. Long enough that overnight and weekend work stays signed in.
+ * Each successful `/api/auth/session` read renews it, so it lasts until Sign out as long as
+ * the app is opened at least once in this window.
+ */
+const SESSION_MAX_AGE_LOCAL = 30 * 24 * 60 * 60;
+const SESSION_MAX_AGE =
+  process.env.NODE_ENV === 'production' ? SESSION_MAX_AGE_PRODUCTION : SESSION_MAX_AGE_LOCAL;
 const ROLE_RECHECK_MS = 5 * 60_000;
 
 async function recordLoginEvent(params: {
@@ -297,10 +306,10 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: SESSION_MAX_AGE_DEFAULT,
+    maxAge: SESSION_MAX_AGE,
   },
   jwt: {
-    maxAge: SESSION_MAX_AGE_DEFAULT,
+    maxAge: SESSION_MAX_AGE,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

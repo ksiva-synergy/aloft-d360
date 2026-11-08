@@ -794,13 +794,6 @@ function MessageRow({
         {status && status.toolCalls.length > 0 && (status.running || status.toolCalls.some(t => t.status === 'error')) && (
           <LiveSteps toolCalls={status.toolCalls} running={status.running} developerMode={developerMode} />
         )}
-        {status?.running && !message.content && (
-          <div className="flex flex-col gap-2.5 py-1.5" aria-hidden>
-            {[88, 74, 52].map((w, i) => (
-              <span key={w} className="ld-skel" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
-            ))}
-          </div>
-        )}
         {/* Live companion trails the reply so a pause for a tool call never looks frozen. */}
         {status && (
           <CaptainStatus
