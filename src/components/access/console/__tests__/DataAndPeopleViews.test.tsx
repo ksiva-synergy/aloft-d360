@@ -123,7 +123,7 @@ describe('DataView', () => {
     fireEvent.click(within(panel).getByRole('radio', { name: 'Specific people' }));
     fireEvent.change(within(panel).getByLabelText('People'), { target: { value: 'Ana' } });
     fireEvent.click(within(within(panel).getByRole('listbox', { name: 'People: matches' })).getByText('Ana Rao'));
-    fireEvent.click(await within(panel).findByLabelText(/Also give access to the 3 protected columns/));
+    fireEvent.click(await within(panel).findByLabelText(/Also give clearance for the protected data/));
     fireEvent.click(within(panel).getByRole('radio', { name: 'Totals only' }));
     fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Payroll analyst' } });
     fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);
@@ -137,7 +137,7 @@ describe('DataView', () => {
     fireEvent.click(await screen.findByText('curated_db'));
     let panel = screen.getByRole('region', { name: 'Selected data' });
     fireEvent.click(await within(panel).findByRole('button', { name: 'Give access' }));
-    expect((await within(panel).findByLabelText(/Also give access to the 3 protected columns/) as HTMLInputElement).disabled).toBe(true);
+    expect((await within(panel).findByLabelText(/Also give clearance for the protected data/) as HTMLInputElement).disabled).toBe(true);
     unmount();
     vi.restoreAllMocks();
     fakeApi();
@@ -146,7 +146,7 @@ describe('DataView', () => {
     panel = screen.getByRole('region', { name: 'Selected data' });
     fireEvent.click(await within(panel).findByRole('button', { name: 'Give access' }));
     fireEvent.click(within(panel).getByRole('radio', { name: 'Specific people' }));
-    const box = (await within(panel).findByLabelText(/Also give access to the 3 protected columns/)) as HTMLInputElement;
+    const box = (await within(panel).findByLabelText(/Also give clearance for the protected data/)) as HTMLInputElement;
     expect(box.disabled).toBe(true);
     expect(within(panel).getByText(/Only a platform admin can give access to protected data/)).toBeTruthy();
   });
@@ -157,7 +157,7 @@ describe('DataView', () => {
     expect(await screen.findByText(/Nobody can use any catalog yet/)).toBeTruthy();
   });
 
-  it('selecting a catalog shows its access; giving Members Use sends a rule with the reason', async () => {
+  it('selecting a catalog shows its access; giving Members Use sends a rule without asking for a reason', async () => {
     const calls = fakeApi();
     renderData();
     fireEvent.click(await screen.findByText('system'));
@@ -165,12 +165,12 @@ describe('DataView', () => {
     expect(within(panel).getByText('None on this path.')).toBeTruthy();
     expect(within(panel).getAllByText('Restricted').length).toBeGreaterThan(0);
     fireEvent.click(within(panel).getByRole('button', { name: 'Give access' }));
-    fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Everyone in ops needs it' } });
+    expect(within(panel).queryByLabelText('Reason')).toBeNull();
     fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'PUT')).toMatchObject({
         path: '/api/access/rules',
-        body: { holderType: 'builtin', holderId: 'readonly', path: 'system', access: 'use', reason: 'Everyone in ops needs it' },
+        body: { holderType: 'builtin', holderId: 'readonly', path: 'system', access: 'use', autoApprove: false },
       }),
     );
   });
@@ -187,13 +187,13 @@ describe('DataView', () => {
     expect(within(panel).getByText('Compensation')).toBeTruthy();
   });
 
-  it('changing a rule asks for a reason, then saves', async () => {
+  it('changing a rule saves without asking for a reason', async () => {
     const calls = fakeApi();
     renderData();
     fireEvent.click(await screen.findByText('curated_db'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
     await selectConsoleOption(panel, 'Access for Marine', 'Use + export');
-    fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Monthly crew report' } });
+    expect(within(panel).queryByLabelText('Reason')).toBeNull();
     fireEvent.click(within(panel).getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ body: { holderType: 'group', holderId: 'g1', path: 'curated_db', access: 'export' } }),
@@ -256,7 +256,6 @@ describe('PeopleGroupsView', () => {
     fireEvent.click(within(screen.getByRole('listbox', { name: 'Approver: matches' })).getByText('Olivia Owner'));
     fireEvent.change(screen.getByLabelText('People in the group'), { target: { value: 'Ana' } });
     fireEvent.click(within(screen.getByRole('listbox', { name: 'People in the group: matches' })).getByText('Ana Rao'));
-    fireEvent.change(screen.getAllByLabelText('Reason').at(-1)!, { target: { value: 'HR leadership' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create group' }));
     await waitFor(() => expect(calls.some((c) => c.path === '/api/access/groups/g-new/members')).toBe(true));
     expect(calls.find((c) => c.method === 'POST' && c.path === '/api/access/groups')!.body).toMatchObject({ name: 'HR leads', ownerIds: ['u-owner'] });

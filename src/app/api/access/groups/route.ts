@@ -5,7 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
-import { normalizeTagKey, peopleById, ReasonSchema, serializeTagGrant } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, normalizeTagKey, peopleById, serializeTagGrant } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +66,7 @@ const CreateGroup = z.object({
   description: z.string().trim().max(500).optional().nullable(),
   /** At least one owner. Owners approve who joins. */
   ownerIds: z.array(z.string().min(1)).min(1, 'A group needs at least one owner').max(20),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 /** A new group has owners but no members and no grants, so it opens nothing yet. */

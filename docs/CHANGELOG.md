@@ -2,6 +2,111 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-09 — "Sure?" step on Remove (no typing)
+
+- **What:** New `ConfirmButton` in `console/parts.tsx`: Remove becomes inline "Sure? Remove / Cancel". Used for removing a department's data (`DepartmentsView`), a group's department (`GroupDepartments`), group members and approvers (`PeopleGroupsView`), and protection people/groups (`ColumnAccessView` `RemoveButton`).
+- **Why:** One-click Remove (added when reasons were dropped) risked misclicks; a reason prompt was the thing being removed, so this is a plain confirm.
+- **Verified:** `tsc --noEmit`; `vitest src/components/access` 37 pass, 2 fail (pre-existing `RequestsViews` router context). New test in `GroupDepartments.test.tsx` for confirm and cancel. Not checked in the browser.
+- **Not done:** Remove rule in the Data tab dropdown ("Remove rule" then Save) is already two steps and unchanged. Archive actions keep their reason prompt.
+
+## 2026-11-09 — Reasons only where necessary
+
+- **What:** New `OptionalReasonSchema` in `lib/access/column-admin.ts`. Reason is now optional (still stored if given) on: rules PUT, groups create/patch/owners/members, tags create/patch, column-tags POST, tag-grants DELETE, path-protections POST, and all `data-departments`, `department-paths`, `department-groups` routes. Reason stays **required** on: tag-grants POST (opening protected data), path-protections DELETE and column-tags DELETE (removing a protection), tags/[id] DELETE and groups/[id] DELETE (archive). UI: removed reason fields from DepartmentsView, GroupDepartments, Data tab (change rule, protect path, protect columns; Give access asks only when "also give clearance" is ticked), People & groups (add members/owner, new group), Protections tab (add columns, add people to group). Removing a member, owner or tag grant is now a one-click Remove (`RemoveButton`). Kept: protect/unprotect dialogs, grant-to-protection, remove path protection, archive group. Route-test Prisma mocks gained the three department models (they were missing since the departments change).
+- **Why:** Reason prompts on every action were noise; the audit log still records who did what and when.
+- **Verified:** `tsc --noEmit`; `vitest src` = 1577 pass, 6 fail, none from this work: 2 `RequestsViews` (router context), `route-coverage` (`access/suggest-targets`), 3 typography-guard (`DashboardView`). API tests 173 pass incl. new checks that reasons stay required on tag-grants POST and path-protections DELETE. Not checked in the browser.
+- **Not done:** `LabelsView.tsx` (unused legacy) still has a reason field. Access requests keep their own reason (a requester explains why; not touched). One-click Remove has no confirm, so an accidental click removes a member until re-added.
+
+## 2026-11-09 — Departments: list first, tagging in an "Add data" dialog
+
+- **What:** `DepartmentsView.tsx`: a department opens on "Data that belongs to <name>" only; the tree is no longer on the page. A primary **Add data** button in the header opens a dialog with the reason field and the catalog → schema → table tree (stays open for several adds, **Done** closes). Page error is hidden while the dialog is open so it shows once. Test updated.
+- **Why:** The page showed the whole tree under the list, which buried what actually belongs to the department.
+- **Verified:** `tsc --noEmit`; `vitest src/components/access src/lib/access` pass except the 2 pre-existing `RequestsViews` failures. Not checked in the browser.
+- **Not done:** Dialog has no table search yet (tree only). Seeding script still not applied.
+
+## 2026-11-09 — Split: Departments tab = data only; groups pick their departments
+
+- **What:** `DepartmentsView.tsx` no longer links or creates groups (removed `people` / `meId` props, group linking, New-with-group form); it only creates departments and manages what belongs to them, and shows "used by <groups>" read-only. New `GroupDepartments.tsx`, rendered on each group in `PeopleGroupsView.tsx`: "Departments it can use" with Use / Use + export, Remove, Add department, and "+ Create a new department" inline. Help text updated. Tests: `DepartmentsView.test.tsx` trimmed, new `GroupDepartments.test.tsx` (5).
+- **Why:** Tagging data to a department and giving people access were mixed on one screen and confusing; they are a data job and a people job.
+- **Verified:** `tsc --noEmit`; `vitest src/components/access src/lib/access` 326 pass, 2 fail (pre-existing `RequestsViews` router-context). Not checked in the browser.
+- **Not done:** Creating a group while creating a department (earlier one-step flow) is gone on purpose; a new department is created from the group page or the Departments tab. `docs/access/feature-map.md` not updated. Seeding script still not applied.
+
+## 2026-11-09 — Create a department and its group in one step; seeding script (plan only)
+
+- **What:** `DepartmentsView.tsx` now takes `people` and `meId` (wired in `views/agent-staging/data-access.tsx`). "New" creates a department and, by default, its group of people in one go: department name, group name (follows the department name as "<Name> team" until edited), approver, people, reason, then links the group with Use. On a department, the group picker has "+ Create a new group" which creates and links a group inline. New `scripts/access/seed-data-departments.ts` plans turning each existing group with Use rules into a department (insert-only, `--apply` to write, skips existing keys, never touches old rules).
+- **Why:** Setting up a department meant three screens (department, group, link).
+- **Verified:** `tsc --noEmit`; `vitest src/components/access src/lib/access` all pass except the 2 pre-existing `RequestsViews` router-context failures; `DepartmentsView.test.tsx` has 6 tests including both create flows. Seeding script dry run on dev printed a plan and wrote nothing. Not checked in the browser.
+- **Not done:** Seeding script NOT applied. Dry run shows Marine (curated_db, curated_db_dev), QHSE (curated_db, Use + export), Technical (curated_db.crew_scorecard); Marine's rules mix export and non-export, so it would link as Use. Partial failure while creating (department made, group not) leaves the department and shows the error; no rollback.
+
+## 2026-11-09 — Departments tab, migration applied to dev
+
+- **What:** Applied `prisma/migrations/20261109_data_departments/migration.sql` to the **dev** database (`aloftdb` on `aloft-dev-writer`) with `prisma db execute --file` (additive `CREATE TABLE IF NOT EXISTS`, three tables). Deliberately not `migrate deploy`: dev's migration history has drifted and it would also have run five unrelated pending migrations. New `components/access/console/DepartmentsView.tsx` replaces `DepartmentMapView.tsx` (deleted, with its test) as the **Departments** tab in `views/agent-staging/data-access.tsx`: create departments, link groups with Use / Use + export, see and remove what belongs, add catalogs/schemas/tables from the tree. `lib/access/rules-admin.ts` now returns `departments` / `inheritedDepartments` per tree node; `DataView.tsx` "Belongs to" chip reads them. Help text rewritten.
+- **Why:** Departments own tables and groups are the people; tagging happens at schema/catalog level in one place, access follows from the group → department link.
+- **Verified:** Read-only query confirmed the three tables exist and are empty; groups Marine, Technical, QHSE and their 4 group rules untouched. `tsc --noEmit`; `vitest src/components/access src/lib/access` = 321 pass, 2 fail (pre-existing `RequestsViews` router-context failures). New `DepartmentsView.test.tsx` (4 tests). Not checked in the browser, and the API routes were not exercised against dev.
+- **Not done:** No INSERTs into dev: existing Marine / QHSE / Technical are not yet turned into departments, so nothing is tagged yet (their old group rules keep working). No "protected data in this department" warning. No archive/rename button in the UI (API exists). Not applied to any other environment; `docs/access/feature-map.md` still describes the Department map.
+
+## 2026-11-09 — Data departments backend (departments own tables; groups of people use them)
+
+- **What:** Reverted the Group → Department UI rename (they are different things: a department owns tables, a group is its people). New Prisma models `AccessDataDepartment`, `AccessDepartmentPath`, `AccessDepartmentGroup` and migration `prisma/migrations/20261109_data_departments/migration.sql` (additive, three tables). `src/lib/access/model-store.ts` derives one Use rule per (linked group, path in the department) when the policy loads; reads tolerate the tables being missing. New `src/lib/access/department-admin.ts` and APIs `/api/access/data-departments` (GET/POST), `/data-departments/[id]` (PATCH/DELETE = archive; the legacy `/api/access/departments` routes are untouched), `/department-paths` (POST/DELETE), `/department-groups` (PUT/DELETE). Same self-widening guard as rules; every write audits and bumps the policy version.
+- **Why:** Tables belong to departments (many-to-many); groups of people are linked to a department with Use or Use + export; one person in several groups gets the union; Block and protections still win.
+- **Verified:** `prisma validate`, `tsc --noEmit`, and `vitest src/lib/access` (289 pass, incl. new `department-model.test.ts`: derived access, schema coverage, export flag, union across groups, Block wins, archived department/group, protected path still needs clearance).
+- **Not done:** **Migration not applied to any database.** No UI yet (Departments tab, group → departments section, Data tab chips from department paths). No route tests. Existing Marine / QHSE / Technical groups are not yet copied into departments; the Data tab "Belongs to" chip still reads group Use rules until the UI switches to department paths.
+
+## 2026-11-09 — Department map: say "Add", not "Tag"; fix stale Query/Export help
+
+- **What:** `DepartmentMapView.tsx`: row button Tag → Add; help line now says departments' people can Use / Use + export (it still said Query/Export); popover says people in the picked departments can use the path; reason placeholder "Why this access".
+- **Why:** Tagging a table with a department actually grants access; the wording hid that and clashed with the Use / Use + export buttons.
+- **Verified:** `tsc --noEmit` clean; access tests pass except 2 pre-existing `RequestsViews` failures. Not checked in the browser.
+- **Not done:** Per-department None / Use / Use + export / Block picker unchanged.
+
+## 2026-11-09 — One name in the UI: "Department" (was Group / Department)
+
+- **What:** User-visible text now says Department instead of Group in `PeopleGroupsView.tsx` (tab, search, New/Create department, card titles, empty states, errors), `DataView.tsx` and `GiveAccess.tsx` (give-access picker: "A department", "Department name", "+ Create a new department"), `ColumnAccessView.tsx`, `AccessConsoleHelp.tsx`, `UserDataAccessSection.tsx`, `DepartmentMapView.tsx`, and the tab label "People & departments" in `views/agent-staging/data-access.tsx`. Tests updated to the new labels.
+- **Why:** Department and group are the same object (`AccessGroup`); two names confused people.
+- **Verified:** `tsc --noEmit` clean; access tests pass except 2 pre-existing `RequestsViews` router-context failures. Not checked in the browser.
+- **Not done:** Code identifiers, API routes (`/api/access/groups`), and DB names stay `group`. "Built-in groups" (Everyone / Members / Admins) and comments left as is. Other places outside `src/components/access` (e.g. Inspector or request emails) not searched for "group" wording.
+
+## 2026-11-09 — Department map: "belongs to" wording, Add people, one set of permission names
+
+- **What:** `DepartmentMapView.tsx`: Query/Export renamed Use / Use + export (matches Data tab); cards say "Belongs to <dept>" and "Add data to this department"; new "Add people" button on the department page (reuses `AddMembers`, now exported from `PeopleGroupsView.tsx`). `DataView.tsx`: header chip "Belongs to: <departments>" from group Use rules on the path or its parents.
+- **Why:** Mapping a table to a department already gives its members Use (one group object, many-to-many membership), but wording read like tagging and adding people meant leaving the page.
+- **Verified:** `tsc --noEmit` clean; access tests pass except 2 pre-existing `RequestsViews` router-context failures. Not checked in the browser.
+- **Not done:** No separate "owner vs user" mapping (decided: belonging always gives access). Still "Department" here vs "Group" elsewhere.
+
+## 2026-11-09 — "Give access" offers clearance for whole-path protections too
+
+- **What:** `GiveRuleForm` in `DataView.tsx` now takes `pathProtections` (protections on this path and its parents). The "Also give clearance for the protected data" checkbox lists them (e.g. "Restricted (whole table)") alongside column tags below, and grants all of them on save.
+- **Why:** The checkbox only appeared for column tags below the path, so giving Use on a Confidential or Restricted table never offered the matching clearance.
+- **Verified:** `tsc --noEmit` clean. Not checked in the browser.
+- **Decided:** Platform admin only, no expiry, no two-approver rule (owner's call). Request routing for protected data is not done.
+
+## 2026-11-09 — Separate path-level and column-level protections in the UI
+
+- **What:** `isPathLevelTag` (Confidential / Restricted by key) in `console/api.ts`. The Data tab "Protect catalog/schema/table" picker lists only those two; column tagging (Data tab `ColumnsCard`, Protections tab `ProtectDialog`) excludes them.
+- **Why:** Whole-path levels and column tags are different kinds; any tag could previously be applied at either level.
+- **Verified:** `tsc --noEmit` clean. Not checked in the browser.
+- **Not done:** UI-only. Engine/API unchanged, so existing mixed-use data keeps working and still shows. Protections tab still lists all tags.
+
+## 2026-11-09 — Compact department map page
+
+- **What:** `DepartmentMapView.tsx` detail pane wrapped in `.deptCompact`; "Reason for changes" label and input now share one row. `console.module.css` adds scoped overrides (smaller card padding, 22px segmented buttons, tighter tree and mapped rows).
+- **Why:** Page was too spacious; only this view is affected (shared Card/Segmented unchanged elsewhere).
+- **Verified:** `tsc --noEmit` clean. Not checked visually in the browser.
+- **Not done:** Data map view (`DataMapView.tsx`) not changed.
+
+## 2026-11-09 — Compact Use rules panel (Data tab)
+
+- **What:** In `src/components/access/console/DataView.tsx` (`RuleRow`) the "Auto-approve" checkbox now sits on the same row as the holder name and access select (was a separate line); select is 32px tall. In `console.module.css` reduced padding on `.detailSection`, `.detailRuleRow`, and `.detailSectionTitle`.
+- **Why:** Each rule took two tall lines; panel was too spacious.
+- **Verified:** `tsc --noEmit` clean. Not checked visually in the browser.
+- **Not done:** Checkbox label shortened to "Auto-approve" (full wording remains in the tooltip).
+
+## 2026-11-09 — Typecheck fixes for production build
+
+- **What:** `ToolCallEvent` in `src/lib/inspector/agent-loop.ts` now includes `access_denied` and optional `accessNote` on `query_result` (matches `tools.ts` / Inspector chat SSE). `NameTable` in `src/lib/access/table-search-hybrid.ts` drops the index signature so `EstateNode[]` merges cleanly. `DepartmentMapView` wraps `onSave` with `Promise.resolve` when the handler is async.
+- **Why:** `tsc` and `next build` failed on deploy until these types aligned.
+- **Verified:** `npm run typecheck`, `npm run web:typecheck`, and `npm run build` succeed.
+- **Not done:** Full `vitest` suite not re-run this pass.
+
 ## 2026-11-09 — Prompt caching now actually works for Claude through the LLM Lite gateway
 
 - **Finding:** All Inspector/workbench models go through the LLM Lite gateway (`foundry` code path), so the earlier `cacheConversation` change (direct-Bedrock `runAgentLoop` only) had no effect. A live run of Claude Sonnet 5 through the gateway showed 0 cache reads on loop 2 with an identical ~13.6k-token prefix. Direct Bedrock is not usable from this environment (AWS Marketplace IAM denial).

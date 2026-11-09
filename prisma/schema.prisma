@@ -3711,3 +3711,48 @@ model PlatformConnection {
   @@index([org_id, visibility], map: "idx_platform_connection_org_visibility")
   @@map("platform_connections")
 }
+
+/// A business department (Marine, QHSE) that owns data. Distinct from access_groups (the people).
+/// Migration 20261109_data_departments. Scalar-only, like the other access models.
+model AccessDataDepartment {
+  id          String    @id @default(cuid())
+  org_id      String
+  key         String
+  name        String
+  description String?
+  archived_at DateTime? @db.Timestamptz(6)
+  created_by  String?
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@unique([org_id, key], map: "uq_access_data_department_org_key")
+  @@map("access_data_departments")
+}
+
+/// Catalog, schema or table that belongs to a department. A path can belong to several departments.
+model AccessDepartmentPath {
+  id            String   @id @default(cuid())
+  org_id        String
+  department_id String
+  path          String
+  path_depth    Int
+  reason        String?
+  created_by    String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([department_id, path], map: "uq_access_department_path")
+  @@index([org_id, path], map: "idx_access_department_paths_org_path")
+  @@map("access_department_paths")
+}
+
+/// A group of people may use everything that belongs to a department (Use, or Use + export).
+model AccessDepartmentGroup {
+  department_id String
+  group_id      String
+  allow_export  Boolean  @default(false)
+  created_by    String?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([department_id, group_id])
+  @@index([group_id], map: "idx_access_department_groups_group")
+  @@map("access_department_groups")
+}

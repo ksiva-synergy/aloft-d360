@@ -9,7 +9,7 @@ import { accessFetch, runAsync, type AccessStatus, type Person } from '@/compone
 import { RequestsView } from '@/components/access/console/RequestsView';
 import { ColumnAccessView } from '@/components/access/console/ColumnAccessView';
 import { DataView } from '@/components/access/console/DataView';
-import { DepartmentMapView } from '@/components/access/console/DepartmentMapView';
+import { DepartmentsView } from '@/components/access/console/DepartmentsView';
 import { PeopleGroupsView } from '@/components/access/console/PeopleGroupsView';
 import { AccessConsoleHelpButton } from '@/components/access/console/AccessConsoleHelp';
 import s from '@/components/access/console/console.module.css';
@@ -21,7 +21,7 @@ type Tab = 'data' | 'departments' | 'protections' | 'people' | 'log';
 
 const TABS: { id: Tab; label: string; icon: ElementType }[] = [
   { id: 'data', label: 'Data', icon: Database },
-  { id: 'departments', label: 'Department map', icon: Network },
+  { id: 'departments', label: 'Departments', icon: Network },
   { id: 'protections', label: 'Protections', icon: Lock },
   { id: 'people', label: 'People & groups', icon: Users },
   { id: 'log', label: 'Requests & log', icon: ScrollText },
@@ -196,7 +196,7 @@ export default function DataAccessPage() {
           ) : tab === 'data' ? (
             <DataView people={people} meId={status.me.userId} isPlatformAdmin={status.me.platformAdmin} />
           ) : tab === 'departments' ? (
-            <DepartmentMapView people={people} meId={status.me.userId} onChanged={refresh} />
+            <DepartmentsView />
           ) : tab === 'people' ? (
             <PeopleGroupsView
               people={people}

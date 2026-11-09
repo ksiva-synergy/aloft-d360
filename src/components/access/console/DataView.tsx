@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronRight, Database, Lock, Search, Table2, UsersRound
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
-import { accessFetch, keyFromName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
+import { accessFetch, isPathLevelTag, keyFromName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
 import { ConsoleSelect, Empty, SplitPane } from './parts';
 import { PeoplePicker } from './GiveAccess';
 import { ColumnInfoDialog } from './ColumnInfo';
@@ -24,7 +24,8 @@ type Access = 'use' | 'export' | 'block';
 type HolderType = 'person' | 'group' | 'builtin';
 type NodeRule = { id: string; holderType: HolderType; holderId: string; holderName: string; access: Access; autoApprove: boolean; expiresAt: string | null; from: string };
 type NodeProtection = { id: string; tagId: string; name: string; from: string };
-type NodeAccess = { rules: NodeRule[]; inheritedRules: NodeRule[]; protections: NodeProtection[]; inheritedProtections: NodeProtection[]; protectedColumns: number };
+type NodeDepartment = { id: string; name: string; from: string };
+type NodeAccess = { departments?: NodeDepartment[]; inheritedDepartments?: NodeDepartment[]; rules: NodeRule[]; inheritedRules: NodeRule[]; protections: NodeProtection[]; inheritedProtections: NodeProtection[]; protectedColumns: number };
 type DataNode = {
   path: string;
   name: string;
@@ -123,6 +124,14 @@ function DetailHeaderChips({
 }) {
   const a = node.access;
   const chips: React.ReactNode[] = [];
+  const depts = [...new Map([...(a.departments ?? []), ...(a.inheritedDepartments ?? [])].map((d) => [d.id, d.name])).values()];
+  if (depts.length) {
+    chips.push(
+      <span key="belongs" className={cn(s.chip, s.chipBrand)} title="Departments this belongs to (Departments tab)">
+        Belongs to: {depts.join(', ')}
+      </span>,
+    );
+  }
   for (const r of a.rules) {
     chips.push(
       <span key={`r-${r.id}`} className={cn(s.chip, s.chipFaint)} title={`On this path · ${ACCESS_LABEL[r.access]}`}>
@@ -551,6 +560,7 @@ function NodeDetail({
             meId={meId}
             existing={a.rules}
             tags={tags}
+            pathProtections={[...a.protections, ...a.inheritedProtections]}
             isPlatformAdmin={isPlatformAdmin}
             onCancel={() => setGiving(false)}
             onDone={async () => {
@@ -566,7 +576,7 @@ function NodeDetail({
           <ProtectPathForm
             path={node.path}
             kindWord={kindWord}
-            tags={tags.filter((t) => !a.protections.some((p) => p.tagId === t.id))}
+            tags={tags.filter((t) => isPathLevelTag(t) && !a.protections.some((p) => p.tagId === t.id))}
             onCancel={() => setProtecting(false)}
             onDone={async () => {
               setProtecting(false);
@@ -648,7 +658,7 @@ function NodeDetail({
         </details>
       ) : null}
 
-      {node.depth === 3 ? <ColumnsCard table={node.path} tags={tags} readOnly={readOnly} isPlatformAdmin={isPlatformAdmin} onChanged={onChanged} /> : null}
+      {node.depth === 3 ? <ColumnsCard table={node.path} tags={tags.filter((t) => !isPathLevelTag(t))} readOnly={readOnly} isPlatformAdmin={isPlatformAdmin} onChanged={onChanged} /> : null}
     </div>
   );
 }
@@ -656,7 +666,6 @@ function NodeDetail({
 function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: string; readOnly: boolean; onChanged: () => Promise<void> }) {
   const [to, setTo] = useState<Access | 'none' | null>(null);
   const [autoTo, setAutoTo] = useState<boolean | null>(null);
-  const [reason, setReason] = useState('');
   const accessChanged = !!to && to !== rule.access;
   const autoChanged = autoTo !== null && autoTo !== rule.autoApprove;
   const [error, setError] = useState<string | null>(null);
@@ -664,10 +673,6 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
 
   async function save() {
     if (!accessChanged && !autoChanged) return;
-    if (reason.trim().length < 5) {
-      setError('Give a reason (at least 5 characters)');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -677,11 +682,9 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
         path,
         access: to ?? rule.access,
         autoApprove: autoTo ?? rule.autoApprove,
-        reason: reason.trim(),
       });
       setTo(null);
       setAutoTo(null);
-      setReason('');
       await onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save');
@@ -700,9 +703,21 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
           <span className={s.detailRuleName}>{rule.holderName}</span>
           <span className={cn(s.detailRuleKind, 'ml-1.5')}>{holderKind}</span>
         </div>
+        {!readOnly && rule.access !== 'block' && currentAccess !== 'block' && currentAccess !== 'none' ? (
+          <label className="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground" title="Auto-approve access requests for unprotected data covered by this rule">
+            <input
+              type="checkbox"
+              disabled={readOnly}
+              checked={autoTo ?? rule.autoApprove}
+              onChange={(e) => setAutoTo(e.target.checked)}
+              aria-label={`Auto-approve requests for ${rule.holderName}`}
+            />
+            Auto-approve
+          </label>
+        ) : null}
         {!readOnly ? (
           <ConsoleSelect
-            className="min-w-[8.5rem] shrink-0"
+            className="h-8 min-w-[7.5rem] shrink-0 !py-0 text-caption"
             value={to ?? rule.access}
             ariaLabel={`Access for ${rule.holderName}`}
             onChange={(v) => setTo(v as Access | 'none')}
@@ -722,28 +737,8 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
           </span>
         ) : null}
       </div>
-      {!readOnly && rule.access !== 'block' && currentAccess !== 'block' && currentAccess !== 'none' ? (
-        <label className="flex items-center gap-2 text-caption text-muted-foreground" title="Auto-approve access requests for unprotected data covered by this rule">
-          <input
-            type="checkbox"
-            disabled={readOnly}
-            checked={autoTo ?? rule.autoApprove}
-            onChange={(e) => setAutoTo(e.target.checked)}
-            aria-label={`Auto-approve requests for ${rule.holderName}`}
-          />
-          Auto-approve unprotected requests
-        </label>
-      ) : null}
       {accessChanged || autoChanged ? (
         <div className={s.detailRuleEdit}>
-          <Input
-            className={cn(userStyles.input, s.protectCompactInput, 'min-w-0 flex-1')}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Reason"
-            aria-label="Reason"
-            autoFocus
-          />
           <button type="button" className={cn(s.protectCompactBtn, userStyles.primary)} disabled={busy} onClick={() => void save()}>
             {busy ? '…' : to === 'none' ? 'Remove' : 'Save'}
           </button>
@@ -765,6 +760,7 @@ function GiveRuleForm({
   meId,
   existing,
   tags,
+  pathProtections,
   isPlatformAdmin,
   onCancel,
   onDone,
@@ -776,6 +772,7 @@ function GiveRuleForm({
   meId: string;
   existing: NodeRule[];
   tags: DataTag[];
+  pathProtections: NodeProtection[];
   isPlatformAdmin: boolean;
   onCancel: () => void;
   onDone: () => Promise<void>;
@@ -811,13 +808,19 @@ function GiveRuleForm({
     };
   }, [path]);
   const tagName = new Map(tags.map((tg) => [tg.id, tg.name]));
-  const belowTags = below.filter((b) => tagName.has(b.tagId));
-  const protectedCols = belowTags.reduce((n, b) => n + b.columns, 0);
+  const columnTags = below.filter((b) => tagName.has(b.tagId));
+  // Whole-path Confidential / Restricted on this path or a parent come first, then column tags below.
+  const pathTags = [...new Map(pathProtections.map((p) => [p.tagId, p])).values()]
+    .filter((p) => !columnTags.some((b) => b.tagId === p.tagId))
+    .map((p) => ({ tagId: p.tagId, columns: 0, name: p.name }));
+  const belowTags = [...pathTags, ...columnTags.map((b) => ({ ...b, name: tagName.get(b.tagId) ?? '' }))];
+  const protectedCols = belowTags.length;
   const canGrantProtected = isPlatformAdmin && kind !== 'builtin' && access !== 'block';
 
   async function save() {
     setError(null);
-    if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
+    // A reason is only needed when this also opens protected data.
+    if (withProtected && canGrantProtected && reason.trim().length < 5) return setError('Give a reason for opening protected data (at least 5 characters)');
     let holders: { holderType: HolderType; holderId: string }[] = [];
     if (kind === 'builtin') holders = [{ holderType: 'builtin', holderId: builtinId }];
     if (kind === 'person') {
@@ -831,12 +834,12 @@ function GiveRuleForm({
         if (gid === '__new__' || !gid) {
           if (newGroup.trim().length < 2) throw new Error('Name the new group');
           if (!approver[0]) throw new Error('Pick who approves requests to join');
-          const g = await send<{ group: { id: string } }>('/api/access/groups', 'POST', { key: keyFromName(newGroup), name: newGroup.trim(), ownerIds: [approver[0]], reason: reason.trim() });
+          const g = await send<{ group: { id: string } }>('/api/access/groups', 'POST', { key: keyFromName(newGroup), name: newGroup.trim(), ownerIds: [approver[0]] });
           gid = g.group.id;
         }
         holders = [{ holderType: 'group', holderId: gid }];
       }
-      for (const h of holders) await send('/api/access/rules', 'PUT', { ...h, path, access, autoApprove: access !== 'block' && auto, reason: reason.trim() });
+      for (const h of holders) await send('/api/access/rules', 'PUT', { ...h, path, access, autoApprove: access !== 'block' && auto });
       if (withProtected && canGrantProtected) {
         try {
           for (const h of holders) {
@@ -911,7 +914,7 @@ function GiveRuleForm({
           />
           {groupId === '__new__' || !groupId ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Input className={userStyles.input} value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Group name, e.g. Marine" aria-label="Group name" />
+              <Input className={userStyles.input} value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Group name, e.g. Marine team" aria-label="Group name" />
               <PeoplePicker label="Approver" single people={people} value={approver} onChange={setApprover} placeholder="Who approves joining" />
             </div>
           ) : null}
@@ -947,10 +950,10 @@ function GiveRuleForm({
             />
             <span>
               <span className="font-medium text-foreground">
-                Also give access to the {protectedCols} protected column{protectedCols === 1 ? '' : 's'} in this {kindWord}
+                Also give clearance for the protected data in this {kindWord}
               </span>
               <span className="mt-0.5 block text-muted-foreground">
-                {belowTags.map((b) => `${tagName.get(b.tagId)} (${b.columns})`).join(' · ')}. Without this they can use the {kindWord} but see ••• in those columns.
+                {belowTags.map((b) => (b.columns > 0 ? `${b.name} (${b.columns} column${b.columns === 1 ? '' : 's'})` : `${b.name} (whole ${kindWord})`)).join(' · ')}. Without this they can use the {kindWord} but see ••• in protected data.
               </span>
               {!isPlatformAdmin ? (
                 <span className="mt-0.5 block text-muted-foreground">Only a platform admin can give access to protected data.</span>
@@ -979,7 +982,9 @@ function GiveRuleForm({
           ) : null}
         </div>
       ) : null}
-      <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept in the audit log)" aria-label="Reason" />
+      {withProtected && canGrantProtected ? (
+        <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for opening protected data (kept in the audit log)" aria-label="Reason" />
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={userStyles.primary} disabled={busy} onClick={() => void save()}>
           {busy ? 'Saving…' : 'Give access'}
@@ -1007,11 +1012,10 @@ function ProtectPathForm({
   onDone: () => Promise<void>;
 }) {
   const [tagId, setTagId] = useState(tags[0]?.id ?? '');
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (tags.length === 0) {
-    return <p className="text-caption text-muted-foreground">No protections to add. Create one in the Protections tab first.</p>;
+    return <p className="text-caption text-muted-foreground">Only Confidential and Restricted apply to a whole catalog, schema or table. Column tags are set per column.</p>;
   }
   return (
     <div className="flex flex-col gap-2">
@@ -1025,18 +1029,16 @@ function ProtectPathForm({
       <p className="text-caption text-muted-foreground">
         This hides <span className="font-medium text-foreground">every column in this {kindWord}</span>, not just tagged ones. People who don&apos;t hold the protection see ••• for all of it. To hide only some columns, tag them on the Protections tab.
       </p>
-      <Input className={cn(userStyles.input, s.protectCompactInput)} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason" />
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           className={userStyles.primary}
           disabled={busy}
           onClick={async () => {
-            if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
             setBusy(true);
             setError(null);
             try {
-              await send('/api/access/path-protections', 'POST', { tagId, path, reason: reason.trim() });
+              await send('/api/access/path-protections', 'POST', { tagId, path });
               await onDone();
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Could not save');
@@ -1060,7 +1062,6 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
   const [cols, setCols] = useState<Column[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [tagId, setTagId] = useState(tags[0]?.id ?? '');
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [detail, setDetail] = useState<{ column: string } | null>(null);
@@ -1078,12 +1079,10 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
     cols?.filter((c) => !term || c.name.toLowerCase().includes(term) || (c.type?.toLowerCase().includes(term) ?? false)) ?? [];
 
   async function protect() {
-    if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
     setError(null);
     try {
-      await send('/api/access/column-tags', 'POST', { tablePath: table, columns: [...picked], tagId: tagId || tags[0]?.id, reason: reason.trim() });
+      await send('/api/access/column-tags', 'POST', { tablePath: table, columns: [...picked], tagId: tagId || tags[0]?.id });
       setPicked(new Set());
-      setReason('');
       await Promise.all([load(), onChanged()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save');
@@ -1131,13 +1130,6 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
                 placeholder="Protection"
                 onChange={setTagId}
                 options={tags.map((t) => ({ value: t.id, label: t.name }))}
-              />
-              <Input
-                className={cn(userStyles.input, s.protectCompactInput, s.bulkProtectReason)}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason"
-                aria-label="Reason"
               />
               <button type="button" className={cn(s.protectCompactBtn, userStyles.primary, 'justify-self-end')} onClick={() => void protect()}>
                 Apply

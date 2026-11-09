@@ -28,7 +28,17 @@ export interface NodeProtection {
   from: string;
 }
 
+export interface NodeDepartment {
+  id: string;
+  name: string;
+  /** Path the department is tagged on (this node, or a parent for inherited ones). */
+  from: string;
+}
+
 export interface NodeAccessInfo {
+  /** Departments this path belongs to, set on it or inherited from a parent. */
+  departments: NodeDepartment[];
+  inheritedDepartments: NodeDepartment[];
   rules: NodeRule[];
   inheritedRules: NodeRule[];
   protections: NodeProtection[];
@@ -39,6 +49,7 @@ export interface NodeAccessInfo {
 export interface AccessAdminData {
   rules: { id: string; holder_type: string; holder_id: string; path: string; effect: string; allow_export: boolean; auto_approve: boolean; expires_at: Date | null }[];
   pathProtections: { id: string; tag_id: string; path: string }[];
+  departmentPaths: { department_id: string; department_name: string; path: string }[];
   tagNames: Map<string, string>;
   columnCounts: Map<string, number>;
   holderName: (type: string, id: string) => string;
@@ -54,6 +65,12 @@ export async function loadAccessAdminData(orgId: string): Promise<AccessAdminDat
     prisma.accessGroup.findMany({ where: { org_id: orgId }, select: { id: true, name: true, archived_at: true } }),
     prisma.accessColumnTag.groupBy({ by: ['table_path'], where: { org_id: orgId, status: 'confirmed' }, _count: { _all: true } }),
   ]);
+  // Absent before migration 20261109: no departments yet.
+  const departments = await prisma.accessDataDepartment.findMany({ where: { org_id: orgId, archived_at: null }, select: { id: true, name: true } }).catch((): { id: string; name: string }[] => []);
+  const deptPaths = departments.length
+    ? await prisma.accessDepartmentPath.findMany({ where: { department_id: { in: departments.map((d) => d.id) } }, select: { department_id: true, path: true } }).catch((): { department_id: string; path: string }[] => [])
+    : [];
+  const deptName = new Map(departments.map((d) => [d.id, d.name]));
   const personIds = [...new Set(rules.filter((r) => r.holder_type === 'person').map((r) => r.holder_id))];
   const people = personIds.length
     ? await prisma.user.findMany({ where: { id: { in: personIds } }, select: { id: true, name: true, email: true } })
@@ -70,6 +87,7 @@ export async function loadAccessAdminData(orgId: string): Promise<AccessAdminDat
   return {
     rules: rules.filter((r) => r.holder_type !== 'group' || groups.some((g) => g.id === r.holder_id && !g.archived_at)),
     pathProtections: pathProtections.filter((p) => tagNames.has(p.tag_id)),
+    departmentPaths: deptPaths.map((d) => ({ department_id: d.department_id, department_name: deptName.get(d.department_id) ?? '…', path: d.path })),
     tagNames,
     columnCounts: new Map(columnTags.map((c) => [c.table_path, c._count._all])),
     holderName,
@@ -98,6 +116,13 @@ export function nodeAccessInfo(data: AccessAdminData, path: string): NodeAccessI
     if (r.path === p) rules.push(toNodeRule(data, r));
     else if (covers(r.path, p)) inheritedRules.push(toNodeRule(data, r));
   }
+  const departments: NodeDepartment[] = [];
+  const inheritedDepartments: NodeDepartment[] = [];
+  for (const d of data.departmentPaths) {
+    const row = { id: d.department_id, name: d.department_name, from: d.path };
+    if (d.path === p) departments.push(row);
+    else if (covers(d.path, p)) inheritedDepartments.push(row);
+  }
   const protections: NodeProtection[] = [];
   const inheritedProtections: NodeProtection[] = [];
   for (const pp of data.pathProtections) {
@@ -107,10 +132,10 @@ export function nodeAccessInfo(data: AccessAdminData, path: string): NodeAccessI
   }
   let protectedColumns = 0;
   for (const [table, n] of data.columnCounts) if (covers(p, table)) protectedColumns += n;
-  return { rules, inheritedRules, protections, inheritedProtections, protectedColumns };
+  return { departments, inheritedDepartments, rules, inheritedRules, protections, inheritedProtections, protectedColumns };
 }
 
 /** Paths that carry rules or protections, so the tree shows them even when not harvested. */
 export function adminPolicyPaths(data: AccessAdminData): string[] {
-  return [...data.rules.map((r) => r.path), ...data.pathProtections.map((p) => p.path)];
+  return [...data.rules.map((r) => r.path), ...data.pathProtections.map((p) => p.path), ...data.departmentPaths.map((d) => d.path)];
 }

@@ -5,7 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
-import { normalizeTagKey, ReasonSchema, serializeTag } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, normalizeTagKey, serializeTag } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +42,7 @@ const CreateTag = z.object({
   description: z.string().trim().max(500).optional().nullable(),
   requiresTwoApprovals: z.boolean().optional(),
   maxDurationDays: z.number().int().positive().max(3650).optional().nullable(),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 /** Creating a tag opens nothing: it only protects the columns that are later tagged with it. */

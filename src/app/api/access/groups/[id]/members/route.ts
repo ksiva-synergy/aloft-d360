@@ -4,12 +4,7 @@ import { handle, created, noContent, parse, clientMeta, ApiError } from '@/lib/h
 import { writeAudit } from '@/lib/audit';
 import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
-import {
-  assertActiveGroup,
-  parseExpiry,
-  ReasonSchema,
-  requireGroupMemberManager,
-} from '@/lib/access/column-admin';
+import { OptionalReasonSchema, assertActiveGroup, parseExpiry, requireGroupMemberManager } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +38,7 @@ const AddMember = z.object({
   userId: z.string().min(1),
   /** ISO date-time. Omit for no end date. */
   expiresAt: z.string().optional().nullable(),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 /**
@@ -128,7 +123,7 @@ export const POST = handle(async (req, ctx: Ctx) => {
   return created({ ok: true });
 });
 
-const RemoveMember = z.object({ userId: z.string().min(1), reason: ReasonSchema });
+const RemoveMember = z.object({ userId: z.string().min(1), reason: OptionalReasonSchema });
 
 /** Remove a member. Owner, platform admin, or Manage on Data access (removing only narrows access). */
 export const DELETE = handle(async (req, ctx: Ctx) => {

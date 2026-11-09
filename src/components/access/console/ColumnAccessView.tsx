@@ -14,11 +14,12 @@ import {
   send,
   type AccessGroup,
   type ColumnTagRow,
+  isPathLevelTag,
   type DataTag,
   type Person,
   type TagGrant,
 } from './api';
-import { Empty, Segmented, SplitPane } from './parts';
+import { ConfirmButton, Empty, Segmented, SplitPane } from './parts';
 import { ColumnInfoButton, ColumnInfoDialog } from './ColumnInfo';
 import {
   AccessFields,
@@ -410,7 +411,7 @@ export function ColumnAccessView({
         open={dialog === 'change'}
         mode="change"
         columns={chosen.map((r) => ({ ...r, tagIds: current ? [current.id] : r.tagIds }))}
-        tags={tags ?? []}
+        tags={(tags ?? []).filter((t) => !isPathLevelTag(t))}
         groups={groups}
         people={people}
         meId={meId}
@@ -473,7 +474,6 @@ function AddColumns({
   const [truncated, setTruncated] = useState(false);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<Map<string, Row>>(new Map());
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -484,7 +484,6 @@ function AddColumns({
     setHits(null);
     setPicked(new Map());
     setQ('');
-    setReason('');
   }
 
   async function search() {
@@ -521,10 +520,6 @@ function AddColumns({
   }
 
   async function add() {
-    if (reason.trim().length < 5) {
-      setError('Give a reason (at least 5 characters)');
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -533,14 +528,12 @@ function AddColumns({
           tablePath: table,
           columns: chosen.filter((h) => h.tablePath === table).map((h) => h.column),
           tagId: tag.id,
-          reason: reason.trim(),
         });
       }
       const n = chosen.length;
       setHits(null);
       setPicked(new Map());
       setQ('');
-      setReason('');
       await onAdded(n);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not add the columns');
@@ -647,13 +640,6 @@ function AddColumns({
 
           {chosen.length > 0 ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 px-1">
-              <Input
-                className={cn(userStyles.input, 'min-w-[220px] flex-1')}
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason (kept in the audit log), e.g. monthly pay per seafarer"
-                aria-label="Reason"
-              />
               <button type="button" className={userStyles.primary} disabled={busy} onClick={() => void add()}>
                 {busy ? 'Adding…' : `Add ${plural(chosen.length, 'column')} to ${tag.name}`}
               </button>
@@ -1132,7 +1118,7 @@ function ProtectionDialog({
                 <span>{personName(people.find((p) => p.id === g.principalId), 'Unknown person')}</span>
                 <span className={s.chip}>{levelText(g)}</span>
                 <span className="text-caption text-muted-foreground">{until(g.expiresAt)}</span>
-                {!readOnly ? <ConfirmRemove label="Remove" onConfirm={(reason) => send('/api/access/tag-grants', 'DELETE', { id: g.id, reason }).then(onChanged)} /> : null}
+                {!readOnly ? <RemoveButton label="Remove" onRemove={() => send('/api/access/tag-grants', 'DELETE', { id: g.id }).then(onChanged)} /> : null}
               </li>
             ))}
           </ul>
@@ -1155,7 +1141,7 @@ function ProtectionDialog({
                 Approver: {grp.owners.map((o) => personName({ name: o.name, email: o.email ?? o.userId })).join(', ')}
               </span>
               {!readOnly ? (
-                <ConfirmRemove label="Remove group" onConfirm={(reason) => send('/api/access/tag-grants', 'DELETE', { id: g.id, reason }).then(onChanged)} />
+                <RemoveButton label="Remove group" onRemove={() => send('/api/access/tag-grants', 'DELETE', { id: g.id }).then(onChanged)} />
               ) : null}
             </header>
             <ul className="divide-y divide-[var(--estate-border)]">
@@ -1167,10 +1153,7 @@ function ProtectionDialog({
                     <span>{personName({ name: m.name, email: m.email ?? m.userId })}</span>
                     <span className="text-caption text-muted-foreground">{until(m.expiresAt)}</span>
                     {canRemove ? (
-                      <ConfirmRemove
-                        label="Remove"
-                        onConfirm={(reason) => send(`/api/access/groups/${grp.id}/members`, 'DELETE', { userId: m.userId, reason }).then(onChanged)}
-                      />
+                      <RemoveButton label="Remove" onRemove={() => send(`/api/access/groups/${grp.id}/members`, 'DELETE', { userId: m.userId }).then(onChanged)} />
                     ) : null}
                   </li>
                 ))
@@ -1261,12 +1244,10 @@ function AddPeopleToGroup({
 }) {
   const [ids, setIds] = useState<string[]>([]);
   const [duration, setDuration] = useState<Duration>('30');
-  const [reason, setReason] = useState('');
   const { busy, error, run } = useSubmit(async () => {
     if (ids.length === 0) throw new Error('Pick at least one person');
-    needReason(reason);
     for (const userId of ids) {
-      await send(`/api/access/groups/${group.id}/members`, 'POST', { userId, expiresAt: expiryFor(duration), reason: reason.trim() });
+      await send(`/api/access/groups/${group.id}/members`, 'POST', { userId, expiresAt: expiryFor(duration) });
     }
     await onDone();
   });
@@ -1283,7 +1264,6 @@ function AddPeopleToGroup({
         <span className="text-caption text-muted-foreground">For</span>
         <Segmented<Duration> ariaLabel="How long" options={DURATIONS} value={duration} onChange={setDuration} />
       </div>
-      <ReasonField value={reason} onChange={setReason} placeholder="e.g. joined payroll" />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={userStyles.primary} disabled={busy} onClick={() => void run()}>
           {busy ? 'Adding…' : 'Add'}
@@ -1298,31 +1278,7 @@ function AddPeopleToGroup({
   );
 }
 
-/** "Remove" that asks why, inline. */
-function ConfirmRemove({ label, onConfirm }: { label: string; onConfirm: (reason: string) => Promise<unknown> }) {
-  const [asking, setAsking] = useState(false);
-  const [reason, setReason] = useState('');
-  const { busy, error, run } = useSubmit(async () => {
-    needReason(reason);
-    await onConfirm(reason.trim());
-  });
-  if (!asking) {
-    return (
-      <button type="button" className={cn(s.linkBtn, 'ml-auto')} onClick={() => setAsking(true)}>
-        {label}
-      </button>
-    );
-  }
-  return (
-    <span className="ml-auto flex w-full flex-wrap items-center gap-1.5 sm:w-auto">
-      <Input className={cn(userStyles.input, 'h-8 w-48')} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why?" aria-label="Reason" autoFocus />
-      <button type="button" className={s.linkBtn} disabled={busy} onClick={() => void run()}>
-        Confirm
-      </button>
-      <button type="button" className={s.linkBtn} onClick={() => setAsking(false)}>
-        Cancel
-      </button>
-      {error ? <span className={s.errorText}>{error}</span> : null}
-    </span>
-  );
+/** "Remove" with a quick "Sure?"; it only narrows access and can be undone by adding it again. */
+function RemoveButton({ label, onRemove }: { label: string; onRemove: () => Promise<unknown> }) {
+  return <ConfirmButton label={label} className="ml-auto" onConfirm={onRemove} />;
 }

@@ -6,13 +6,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
 import { requireAccessClassify } from '@/lib/access/admin-api';
 import { requirePlatformAdminFor } from '@/lib/access/sensitive';
-import {
-  assertActiveTag,
-  normalizeColumnName,
-  normalizeTablePath,
-  ReasonSchema,
-  serializeColumnTag,
-} from '@/lib/access/column-admin';
+import { OptionalReasonSchema, ReasonSchema, assertActiveTag, normalizeColumnName, normalizeTablePath, serializeColumnTag } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +76,7 @@ const TagColumns = z.object({
   tablePath: z.string().min(5),
   columns: z.array(z.string().min(1)).min(1).max(200),
   tagId: z.string().min(1),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 /** Tag one or more columns of a table. Tagging only narrows access, so Manage on Data access is enough. */

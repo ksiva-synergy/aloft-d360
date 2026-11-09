@@ -89,6 +89,9 @@ const { db, state, writeAudit } = vi.hoisted(() => {
     platformContextObject: model('platformContextObject'),
     accessRule: model('accessRule', () => ({ created_at: new Date(), expires_at: null, allow_export: false })),
     accessPathProtection: model('accessPathProtection', () => ({ created_at: new Date() })),
+    accessDataDepartment: model('accessDataDepartment'),
+    accessDepartmentPath: model('accessDepartmentPath'),
+    accessDepartmentGroup: model('accessDepartmentGroup'),
     role: model('role'),
     platformContextColumn: model('platformContextColumn'),
     user: model('user'),
@@ -184,9 +187,9 @@ describe('tags', () => {
     expect(res.status).toBe(403);
   });
 
-  it('a reason is required', async () => {
+  it('a reason is optional when creating a tag', async () => {
     const res = await tagsRoute.POST(req('POST', '/api/access/tags', { key: 'compensation', name: 'Compensation' }), {} as never);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(201);
   });
 
   it('Manage creates a tag and the audit log records the reason', async () => {
@@ -407,6 +410,14 @@ describe('tag grants', () => {
     expect((await json(res)).grant).toMatchObject({ tagId, principalType: 'group', principalId: groupId, level: 'full' });
   });
 
+  it('opening protected data still needs a reason', async () => {
+    const tagId = await makeTag();
+    const groupId = await makeGroup();
+    as(PLATFORM_ADMIN);
+    const noReason = { tagId, principalType: 'group', principalId: groupId, level: 'full' };
+    expect((await grantsRoute.POST(req('POST', '/api/access/tag-grants', noReason), {} as never)).status).toBe(400);
+  });
+
   it('nobody grants a tag to themselves', async () => {
     const tagId = await makeTag();
     const res = await grantsRoute.POST(
@@ -515,12 +526,12 @@ describe('access rules (simplified model)', () => {
     expect((await put({ holderType: 'builtin', holderId: 'admin', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(200);
   });
 
-  it('nobody sets their own access; View cannot set access; a reason is required', async () => {
+  it('nobody sets their own access; View cannot set access; a reason is optional', async () => {
     expect((await put({ holderType: 'person', holderId: 'u-pa', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(403);
     as(VIEWER);
     expect((await put({ holderType: 'person', holderId: 'u-ana', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(403);
     as(MANAGER);
-    expect((await put({ holderType: 'person', holderId: 'u-ana', path: 'curated_db', access: 'use' })).status).toBe(400);
+    expect((await put({ holderType: 'person', holderId: 'u-ana', path: 'curated_db', access: 'use' })).status).toBe(200);
   });
 
   it('catalog names with hyphens are accepted (real dev catalog synergymarine-export-prod)', async () => {
@@ -547,5 +558,14 @@ describe('whole-path protections', () => {
     as(PLATFORM_ADMIN);
     expect((await del()).status).toBe(204);
     expect(tables.accessPathProtection).toEqual([]);
+  });
+
+  it('protecting needs no reason, but removing a protection still does', async () => {
+    const tagId = await makeTag();
+    as(MANAGER);
+    expect((await pathProtectionsRoute.POST(req('POST', '/api/access/path-protections', { tagId, path: 'main.hr' }), {} as never)).status).toBe(201);
+    as(PLATFORM_ADMIN);
+    expect((await pathProtectionsRoute.DELETE(req('DELETE', '/api/access/path-protections', { tagId, path: 'main.hr' }), {} as never)).status).toBe(400);
+    expect(tables.accessPathProtection).toHaveLength(1);
   });
 });

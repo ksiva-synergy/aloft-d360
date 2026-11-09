@@ -5,13 +5,13 @@ import { writeAudit } from '@/lib/audit';
 import { getOrgId } from '@/lib/databricks/connections';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { requirePlatformAdminFor } from '@/lib/access/sensitive';
-import { assertActiveGroup, ReasonSchema } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, assertActiveGroup } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-const OwnerBody = z.object({ userId: z.string().min(1), reason: ReasonSchema });
+const OwnerBody = z.object({ userId: z.string().min(1), reason: OptionalReasonSchema });
 
 /** Owners approve who joins, so changing owners is platform admin only. One owner is enough. */
 export const POST = handle(async (req, ctx: Ctx) => {

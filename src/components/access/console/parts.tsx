@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import userStyles from '@/components/users/users.module.css';
@@ -235,5 +235,51 @@ export function SplitPane({ children }: { children: ReactNode }) {
     <div ref={ref} className={s.split}>
       {children}
     </div>
+  );
+}
+
+
+/**
+ * A remove action that asks "Sure?" first (no typing). It only narrows access, so no reason is needed.
+ * Cancel puts the plain link back.
+ */
+export function ConfirmButton({ label, ariaLabel, disabled, className, onConfirm }: { label: string; ariaLabel?: string; disabled?: boolean; className?: string; onConfirm: () => Promise<unknown> | void }) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!asking) {
+    return (
+      <button type="button" className={cn(s.linkBtn, className)} aria-label={ariaLabel} disabled={disabled} onClick={() => setAsking(true)}>
+        {label}
+      </button>
+    );
+  }
+  return (
+    <span className={cn('inline-flex items-center gap-1.5', className)}>
+      <span className="text-caption text-muted-foreground">Sure?</span>
+      <button
+        type="button"
+        className={s.linkBtn}
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          try {
+            await onConfirm();
+            setAsking(false);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? '…' : label}
+      </button>
+      <button type="button" className={s.linkBtn} disabled={busy} onClick={() => setAsking(false)}>
+        Cancel
+      </button>
+      {error ? <span className={s.errorText}>{error}</span> : null}
+    </span>
   );
 }

@@ -8,7 +8,7 @@ import { evictAccessModel } from '@/lib/access/model-store';
 import { requireAccessAdmin, requireAccessClassify } from '@/lib/access/admin-api';
 import { requirePlatformAdminFor } from '@/lib/access/sensitive';
 import { normalizeCatalogPath } from '@/lib/access/paths';
-import { assertActiveTag, ReasonSchema } from '@/lib/access/column-admin';
+import { assertActiveTag, OptionalReasonSchema, ReasonSchema } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +24,9 @@ export const GET = handle(async (req) => {
   return ok({ pathProtections: rows.map((r) => ({ id: r.id, tagId: r.tag_id, path: r.path, reason: r.reason, createdAt: r.created_at.toISOString() })) });
 });
 
-const Body = z.object({ tagId: z.string().min(1), path: z.string().min(1), reason: ReasonSchema });
+const Body = z.object({ tagId: z.string().min(1), path: z.string().min(1), reason: OptionalReasonSchema });
+/** Removing a protection opens the data up, so it keeps a required reason. */
+const RemoveBody = z.object({ tagId: z.string().min(1), path: z.string().min(1), reason: ReasonSchema });
 
 /** Protect a whole catalog, schema or table. Only narrows access, so Manage on Data access is enough. */
 export const POST = handle(async (req) => {
@@ -62,7 +64,7 @@ export const DELETE = handle(async (req) => {
   const auth = await requireAccessClassify(req);
   requirePlatformAdminFor(auth, 'remove a protection from a catalog, schema or table');
   const orgId = await getOrgId();
-  const body = parse(Body, await req.json());
+  const body = parse(RemoveBody, await req.json());
   const { path } = normalizeCatalogPath(body.path);
 
   await prisma.$transaction(async (tx) => {

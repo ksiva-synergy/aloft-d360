@@ -7,7 +7,7 @@ import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-
 import { evictAccessModel } from '@/lib/access/model-store';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { normalizeCatalogPath } from '@/lib/access/paths';
-import { assertActiveGroup, parseExpiry, ReasonSchema } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, assertActiveGroup, parseExpiry } from '@/lib/access/column-admin';
 import { BUILTIN_GROUPS } from '@/lib/access/engine';
 import { isPlatformAdminRole } from '@/lib/access/sensitive';
 import { loadAccessAdminData } from '@/lib/access/rules-admin';
@@ -49,7 +49,7 @@ const SetRule = z.object({
   /** Approve requests for data this rule covers automatically (unprotected data only). */
   autoApprove: z.boolean().optional(),
   expiresAt: z.string().optional().nullable(),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 /**

@@ -5,7 +5,7 @@ import { writeAudit } from '@/lib/audit';
 import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
-import { assertActiveGroup, ReasonSchema } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, ReasonSchema, assertActiveGroup } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const PatchGroup = z.object({
   name: z.string().trim().min(2).max(80).optional(),
   description: z.string().trim().max(500).optional().nullable(),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 export const PATCH = handle(async (req, ctx: Ctx) => {

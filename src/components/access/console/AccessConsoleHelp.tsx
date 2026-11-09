@@ -14,17 +14,16 @@ const HELP: Record<
   { title: string; body: ReactNode }
 > = {
   departments: {
-    title: 'Department map',
+    title: 'Departments',
     body: (
       <ol className="m-0 list-decimal space-y-2 pl-4 text-caption leading-relaxed text-muted-foreground">
         <li>
-          <strong className="text-foreground">Data → departments</strong>: estate tree with a chip per department; <strong className="text-foreground">Tag / Edit</strong> sets purpose (Query, Export, Block).
+          A <strong className="text-foreground">department</strong> (Marine, QHSE) owns catalogs, schemas, or tables. Add data from the tree; a schema covers every table inside it. A table can belong to several departments.
         </li>
         <li>
-          <strong className="text-foreground">Department → data</strong>: pick Marine (a group), see mapped paths, or walk the tree to add more.
+          This tab is only about <strong className="text-foreground">data</strong>. Who may use a department&apos;s data is set on <strong className="text-foreground">People &amp; groups</strong>: open a group and add the departments it can use, with <strong className="text-foreground">Use</strong> or <strong className="text-foreground">Use + export</strong>.
         </li>
-        <li>Purpose <strong className="text-foreground">Query</strong> = Use; <strong className="text-foreground">Export</strong> = Use + export. Table names stay visible without a rule.</li>
-        <li>Membership lives on <strong className="text-foreground">People &amp; groups</strong>; this tab only maps data to departments.</li>
+        <li>A person in several groups gets the data of all their groups&apos; departments. A Block, or a protection, still applies.</li>
       </ol>
     ),
   },

@@ -6,8 +6,9 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
 import { accessFetch, keyFromName, personName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
+import { GroupDepartments } from './GroupDepartments';
 import { DURATIONS, PeoplePicker, expiryFor, type Duration } from './GiveAccess';
-import { Empty, Segmented, SplitPane } from './parts';
+import { ConfirmButton, Empty, Segmented, SplitPane } from './parts';
 import s from './console.module.css';
 import { useConsoleReadOnly } from './readOnly';
 
@@ -355,7 +356,7 @@ function GroupDetail({
                     </div>
                     {expiryChip(m.expired, m.expiresAt)}
                     {canRemove ? (
-                      <WithReason label="Remove" onConfirm={(reason) => send(`/api/access/groups/${group.id}/members`, 'DELETE', { userId: m.userId, reason }).then(onChanged)} />
+                      <ConfirmButton label="Remove" onConfirm={() => send(`/api/access/groups/${group.id}/members`, 'DELETE', { userId: m.userId }).then(onChanged)} />
                     ) : null}
                   </li>
                 );
@@ -401,7 +402,7 @@ function GroupDetail({
                   </div>
                   {o.userId === meId ? <span className={s.chip}>You</span> : null}
                   {!readOnly && isPlatformAdmin && group.owners.length > 1 ? (
-                    <WithReason label="Remove" onConfirm={(reason) => send(`/api/access/groups/${group.id}/owners`, 'DELETE', { userId: o.userId, reason }).then(onChanged)} />
+                    <ConfirmButton label="Remove" onConfirm={() => send(`/api/access/groups/${group.id}/owners`, 'DELETE', { userId: o.userId }).then(onChanged)} />
                   ) : null}
                 </li>
               );
@@ -409,6 +410,8 @@ function GroupDetail({
           </ul>
         </div>
       </section>
+
+      <GroupDepartments group={group} readOnly={readOnly} onChanged={onChanged} />
 
       <section className={s.card} aria-label="What this group can use and see">
         <div className={s.cardHead}>
@@ -457,10 +460,9 @@ function GroupDetail({
   );
 }
 
-function AddMembers({ group, people, meId, onCancel, onDone }: { group: AccessGroup; people: Person[]; meId: string; onCancel: () => void; onDone: () => Promise<void> }) {
+export function AddMembers({ group, people, meId, onCancel, onDone }: { group: AccessGroup; people: Person[]; meId: string; onCancel: () => void; onDone: () => Promise<void> }) {
   const [ids, setIds] = useState<string[]>([]);
   const [duration, setDuration] = useState<Duration>('none');
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -470,7 +472,6 @@ function AddMembers({ group, people, meId, onCancel, onDone }: { group: AccessGr
         <span className="text-caption text-muted-foreground">For</span>
         <Segmented<Duration> ariaLabel="How long" options={DURATIONS} value={duration} onChange={setDuration} />
       </div>
-      <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept in the audit log)" aria-label="Reason" />
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -478,11 +479,10 @@ function AddMembers({ group, people, meId, onCancel, onDone }: { group: AccessGr
           disabled={busy}
           onClick={async () => {
             if (!ids.length) return setError('Pick at least one person');
-            if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
             setBusy(true);
             setError(null);
             try {
-              for (const userId of ids) await send(`/api/access/groups/${group.id}/members`, 'POST', { userId, expiresAt: expiryFor(duration), reason: reason.trim() });
+              for (const userId of ids) await send(`/api/access/groups/${group.id}/members`, 'POST', { userId, expiresAt: expiryFor(duration) });
               await onDone();
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Could not add');
@@ -504,21 +504,19 @@ function AddMembers({ group, people, meId, onCancel, onDone }: { group: AccessGr
 
 function AddOwner({ group, people, onCancel, onDone }: { group: AccessGroup; people: Person[]; onCancel: () => void; onDone: () => Promise<void> }) {
   const [id, setId] = useState<string[]>([]);
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-2 rounded-[10px] bg-[var(--surface-2)] p-3">
       <PeoplePicker label="Approver" single people={people} value={id} onChange={setId} exclude={group.owners.map((o) => o.userId)} />
-      <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason" />
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           className={userStyles.primary}
           onClick={async () => {
             if (!id[0]) return setError('Pick a person');
-            if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
             try {
-              await send(`/api/access/groups/${group.id}/owners`, 'POST', { userId: id[0], reason: reason.trim() });
+              await send(`/api/access/groups/${group.id}/owners`, 'POST', { userId: id[0] });
               await onDone();
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Could not add');
@@ -540,7 +538,6 @@ function NewGroup({ people, meId, onCancel, onDone }: { people: Person[]; meId: 
   const [name, setName] = useState('');
   const [approver, setApprover] = useState<string[]>([]);
   const [members, setMembers] = useState<string[]>([]);
-  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -555,7 +552,7 @@ function NewGroup({ people, meId, onCancel, onDone }: { people: Person[]; meId: 
       </label>
       <PeoplePicker label="Approver" single people={people} value={approver} onChange={setApprover} placeholder="Who approves requests to join" />
       <PeoplePicker label="People in the group" people={people} value={members} onChange={setMembers} exclude={[meId]} placeholder="Add people now (optional)" />
-      <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept in the audit log)" aria-label="Reason" />
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -564,12 +561,11 @@ function NewGroup({ people, meId, onCancel, onDone }: { people: Person[]; meId: 
           onClick={async () => {
             if (name.trim().length < 2) return setError('Name the group');
             if (!approver[0]) return setError('Pick an approver');
-            if (reason.trim().length < 5) return setError('Give a reason (at least 5 characters)');
             setBusy(true);
             setError(null);
             try {
-              const g = await send<{ group: { id: string } }>('/api/access/groups', 'POST', { key: keyFromName(name), name: name.trim(), ownerIds: [approver[0]], reason: reason.trim() });
-              for (const userId of members) await send(`/api/access/groups/${g.group.id}/members`, 'POST', { userId, reason: reason.trim() });
+              const g = await send<{ group: { id: string } }>('/api/access/groups', 'POST', { key: keyFromName(name), name: name.trim(), ownerIds: [approver[0]] });
+              for (const userId of members) await send(`/api/access/groups/${g.group.id}/members`, 'POST', { userId });
               await onDone(g.group.id);
             } catch (e) {
               setError(e instanceof Error ? e.message : 'Could not create');

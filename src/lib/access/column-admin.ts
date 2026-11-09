@@ -22,6 +22,19 @@ import { isPlatformAdminRole } from './sensitive';
 
 export const ReasonSchema = z.string().trim().min(5, 'Give a reason (at least 5 characters)').max(500);
 
+/**
+ * For changes that only organise or narrow access (tagging data, adding people, linking departments).
+ * A reason is still stored when given; the audit log always records who did what. Reasons stay required
+ * (ReasonSchema) where protected data is opened, a protection is removed, or a group or protection is archived.
+ */
+export const OptionalReasonSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .optional()
+  .nullable()
+  .transform((v) => (v ? v : null));
+
 const COLUMN_MAX = 255;
 const TABLE_SEGMENT = /^[a-z0-9_-]+$/;
 

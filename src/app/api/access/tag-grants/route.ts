@@ -7,13 +7,7 @@ import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-
 import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { requirePlatformAdminFor } from '@/lib/access/sensitive';
 import { assertNotSelfUserGrant } from '@/lib/access/guards';
-import {
-  assertActiveGroup,
-  assertActiveTag,
-  parseExpiry,
-  ReasonSchema,
-  serializeTagGrant,
-} from '@/lib/access/column-admin';
+import { OptionalReasonSchema, ReasonSchema, assertActiveGroup, assertActiveTag, parseExpiry, serializeTagGrant } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,7 +108,7 @@ export const POST = handle(async (req) => {
   return created({ grant: serializeTagGrant(grant) });
 });
 
-const RevokeBody = z.object({ id: z.string().min(1), reason: ReasonSchema });
+const RevokeBody = z.object({ id: z.string().min(1), reason: OptionalReasonSchema });
 
 /** Remove a tag grant. Only narrows access, so Manage on Data access is enough. */
 export const DELETE = handle(async (req) => {

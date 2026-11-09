@@ -6,6 +6,8 @@
  *   access_column_tags      → column targets (confirmed only)
  *   access_tag_grants       → protection grants
  *   access_group_members    → memberships (active groups only)
+ *   access_data_departments + access_department_paths + access_department_groups
+ *                           → one Use rule per (linked group, path that belongs to the department)
  *
  * `buildAccessModel` is pure so it can be tested; `loadAccessModel` reads the database.
  * `getAccessModel` caches per org and policy version (60 s), like the old policy snapshot.
@@ -25,6 +27,10 @@ export interface AccessModelRows {
   tagGrants: { tag_id: string; principal_type: string; principal_id: string; level: string; expires_at: Date | null }[];
   groups: { id: string; archived_at: Date | null }[];
   members: { group_id: string; user_id: string; expires_at: Date | null }[];
+  /** Departments own paths; linked groups may use them. Optional so older callers and tests keep working. */
+  departments?: { id: string; archived_at: Date | null }[];
+  departmentPaths?: { department_id: string; path: string }[];
+  departmentGroups?: { department_id: string; group_id: string; allow_export: boolean }[];
 }
 
 /**
@@ -47,6 +53,22 @@ export function buildAccessModel(rows: AccessModelRows, opts: { bootstrapOpen?: 
       allowExport: r.allow_export,
       expiresAt: r.expires_at,
     });
+  }
+
+  // A group linked to a department may use every path that belongs to it (a Block elsewhere still wins).
+  const activeDepartments = new Set((rows.departments ?? []).filter((d) => !d.archived_at).map((d) => d.id));
+  const pathsByDepartment = new Map<string, string[]>();
+  for (const dp of rows.departmentPaths ?? []) {
+    if (!activeDepartments.has(dp.department_id)) continue;
+    const list = pathsByDepartment.get(dp.department_id) ?? [];
+    list.push(dp.path.toLowerCase());
+    pathsByDepartment.set(dp.department_id, list);
+  }
+  for (const link of rows.departmentGroups ?? []) {
+    if (!activeGroups.has(link.group_id)) continue;
+    for (const path of pathsByDepartment.get(link.department_id) ?? []) {
+      rules.push({ holder: { kind: 'group', id: link.group_id }, path, effect: 'use', allowExport: link.allow_export, expiresAt: null });
+    }
   }
 
   const targets: ProtectedTarget[] = [];
@@ -85,12 +107,21 @@ export function buildAccessModel(rows: AccessModelRows, opts: { bootstrapOpen?: 
     targets,
     protectionGrants,
     membersByUser,
-    bootstrapOpen: Boolean(opts.bootstrapOpen) && rows.rules.length === 0,
+    bootstrapOpen: Boolean(opts.bootstrapOpen) && rows.rules.length === 0 && (rows.departmentPaths ?? []).length === 0,
   };
 }
 
+async function optionalRead<T>(read: () => Promise<T[]>): Promise<T[]> {
+  try {
+    return await read();
+  } catch (err) {
+    if (isMissingTable(err)) return [];
+    throw err;
+  }
+}
+
 export async function loadAccessModel(orgId: string): Promise<AccessModel> {
-  const [rules, tags, pathProtections, columnTags, tagGrants, groups] = await Promise.all([
+  const [rules, tags, pathProtections, columnTags, tagGrants, groups, departments, departmentPaths, departmentGroups] = await Promise.all([
     prisma.accessRule.findMany({ where: { org_id: orgId } }),
     prisma.accessTag.findMany({ where: { org_id: orgId }, select: { id: true, name: true, key: true, archived_at: true } }),
     prisma.accessPathProtection.findMany({ where: { org_id: orgId }, select: { tag_id: true, path: true } }),
@@ -100,6 +131,10 @@ export async function loadAccessModel(orgId: string): Promise<AccessModel> {
     }),
     prisma.accessTagGrant.findMany({ where: { org_id: orgId } }),
     prisma.accessGroup.findMany({ where: { org_id: orgId }, select: { id: true, archived_at: true } }),
+    // Missing before migration 20261109: behave as if there are no departments instead of failing.
+    optionalRead(() => prisma.accessDataDepartment.findMany({ where: { org_id: orgId }, select: { id: true, archived_at: true } })),
+    optionalRead(() => prisma.accessDepartmentPath.findMany({ where: { org_id: orgId }, select: { department_id: true, path: true } })),
+    optionalRead(() => prisma.accessDepartmentGroup.findMany({ select: { department_id: true, group_id: true, allow_export: true } })),
   ]);
   const members = groups.length
     ? await prisma.accessGroupMember.findMany({
@@ -107,7 +142,7 @@ export async function loadAccessModel(orgId: string): Promise<AccessModel> {
         select: { group_id: true, user_id: true, expires_at: true },
       })
     : [];
-  return buildAccessModel({ rules, tags, pathProtections, columnTags, tagGrants, groups, members }, { bootstrapOpen: bootstrapOpenSetting() });
+  return buildAccessModel({ rules, tags, pathProtections, columnTags, tagGrants, groups, members, departments, departmentPaths, departmentGroups }, { bootstrapOpen: bootstrapOpenSetting() });
 }
 
 type CacheEntry = { version: bigint; model: AccessModel; loadedAt: number };

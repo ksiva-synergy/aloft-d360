@@ -270,6 +270,9 @@ export type DataTag = {
   grantCount?: number;
 };
 
+/** Confidential / Restricted are the only whole-path protections; every other tag is column-level. */
+export const isPathLevelTag = (t: { key: string }) => t.key === 'confidential' || t.key === 'restricted';
+
 export type ColumnTagRow = {
   id: string;
   tablePath: string;

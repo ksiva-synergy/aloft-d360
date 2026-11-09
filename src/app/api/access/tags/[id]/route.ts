@@ -6,7 +6,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import { bumpPolicyVersionInTx, evictPolicySnapshot } from '@/lib/access/policy-store';
 import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { requirePlatformAdminFor } from '@/lib/access/sensitive';
-import { assertActiveTag, ReasonSchema, serializeTag } from '@/lib/access/column-admin';
+import { OptionalReasonSchema, ReasonSchema, assertActiveTag, serializeTag } from '@/lib/access/column-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ const PatchTag = z.object({
   description: z.string().trim().max(500).optional().nullable(),
   requiresTwoApprovals: z.boolean().optional(),
   maxDurationDays: z.number().int().positive().max(3650).optional().nullable(),
-  reason: ReasonSchema,
+  reason: OptionalReasonSchema,
 });
 
 export const PATCH = handle(async (req, ctx: Ctx) => {

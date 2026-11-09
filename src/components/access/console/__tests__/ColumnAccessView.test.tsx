@@ -130,7 +130,7 @@ describe('ColumnAccessView', () => {
     expect(screen.getAllByText(/Can see: nobody yet/).length).toBeGreaterThan(0);
   });
 
-  it('add columns: search, tick, reason → tags each table once for the open protection', async () => {
+  it('add columns: search, tick → tags each table once for the open protection, no reason asked', async () => {
     const calls = fakeApi();
     renderPage();
     await screen.findByText('salary_amount');
@@ -138,27 +138,16 @@ describe('ColumnAccessView', () => {
     expect(screen.getByText('already in Salary')).toBeTruthy();
     expect(screen.getByText('also Contact details')).toBeTruthy();
     fireEvent.click(screen.getByText('Select all 2'));
-    fireEvent.change(screen.getByLabelText('Reason'), { target: { value: 'Pay data is need-to-know' } });
+    expect(screen.queryByLabelText('Reason')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Add 2 columns to Salary' }));
     await waitFor(() => expect(calls.filter((c) => c.method === 'POST' && c.path === '/api/access/column-tags')).toHaveLength(2));
     expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual(
       expect.arrayContaining([
-        { tablePath: 'curated.hr.payroll', columns: ['base_salary'], tagId: 't1', reason: 'Pay data is need-to-know' },
-        { tablePath: 'scratch.hr.v_costs', columns: ['salary_total'], tagId: 't1', reason: 'Pay data is need-to-know' },
+        { tablePath: 'curated.hr.payroll', columns: ['base_salary'], tagId: 't1' },
+        { tablePath: 'scratch.hr.v_costs', columns: ['salary_total'], tagId: 't1' },
       ]),
     );
     expect(await screen.findByText('2 columns added to Salary.')).toBeTruthy();
-  });
-
-  it('adding needs a reason', async () => {
-    const calls = fakeApi();
-    renderPage();
-    await screen.findByText('salary_amount');
-    await searchFor('salary');
-    fireEvent.click(screen.getByLabelText('Select base_salary in curated.hr.payroll'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add 1 column to Salary' }));
-    expect(await screen.findByText('Give a reason (at least 5 characters)')).toBeTruthy();
-    expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });
 
   it('New protection with specific people creates it and opens it', async () => {
@@ -280,12 +269,12 @@ describe('ColumnAccessView', () => {
     expect(within(dialog).queryByRole('button', { name: 'Give access' })).toBeNull();
     fireEvent.click(within(dialog).getByText('Add people to Payroll team'));
     pickPerson(dialog, 'People to add', 'Ben Ko');
-    fireEvent.change(within(dialog).getByLabelText('Reason'), { target: { value: 'Joined payroll' } });
+    expect(within(dialog).queryByLabelText('Reason')).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add' }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'POST')).toMatchObject({
         path: '/api/access/groups/grp1/members',
-        body: { userId: 'u-ben', reason: 'Joined payroll' },
+        body: { userId: 'u-ben', expiresAt: expect.anything() },
       }),
     );
   });
