@@ -65,6 +65,8 @@ async function main() {
   const copyRefused = copyWouldOpenData(current, plan);
   const copied = buildAccessModel(
     rowsAfterCopy(plan, { rules: [], tags: eTags, pathProtections: [], columnTags: eCols, tagGrants: eTagGrants, groups: eGroups, members: eMembers }),
+    // Old model with no grants was open; the new one is open only with ACCESS_BOOTSTRAP_OPEN (review C3).
+    { bootstrapOpen: cGrants.length === 0 },
   );
   const archivedWithGrants = cDepts.filter((d) => d.archived_at && cGrants.some((g) => g.principal_type === 'department' && g.principal_id === d.id));
   let copiedChecks = 0;

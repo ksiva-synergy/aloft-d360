@@ -121,6 +121,34 @@ describe('canOpen', () => {
   });
 });
 
+describe('platform admins see all data', () => {
+  const admin: Person = { userId: 'u-pa', roles: ['platform_admin'] };
+  const comp = { id: 't-comp', name: 'Compensation' };
+  const m = model({
+    rules: [{ holder: { kind: 'person', id: 'u-pa' }, path: 'hr', effect: 'block', allowExport: false, expiresAt: null }],
+    protections: new Map([[comp.id, comp]]),
+    targets: [
+      { protectionId: comp.id, path: 'hr.pay', column: null },
+      { protectionId: comp.id, path: 'fin.x.salaries', column: 'amount' },
+    ],
+  });
+
+  it('opens any path for Use and export, past a Block and a whole-path protection, with no rules', () => {
+    expect(canOpen(m, admin, 'hr.pay.t', 'export', NOW)).toEqual({ ok: true, reason: 'platform_admin' });
+    expect(canOpen(m, admin, 'unknown.s.t', 'use', NOW).ok).toBe(true);
+  });
+
+  it('sees protected columns in full, including filters', () => {
+    expect(decideColumnUse(m, admin, 'fin.x.salaries', 'amount', 'output', NOW).outcome).toBe('full');
+    expect(decideColumnUse(m, admin, 'fin.x.salaries', 'amount', 'filter', NOW).outcome).toBe('full');
+  });
+
+  it('other roles are unchanged', () => {
+    expect(canOpen(m, { userId: 'u-x', roles: ['admin'] }, 'unknown.s.t', 'use', NOW)).toEqual({ ok: false, reason: 'no_access' });
+    expect(decideColumnUse(m, { userId: 'u-x', roles: ['admin'] }, 'fin.x.salaries', 'amount', 'output', NOW).outcome).toBe('masked');
+  });
+});
+
 describe('decideColumnUse', () => {
   const m = model({
     protections: new Map([

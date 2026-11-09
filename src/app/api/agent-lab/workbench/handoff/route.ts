@@ -61,11 +61,11 @@ export async function POST(request: NextRequest) {
   });
 
   const contextLines: string[] = [];
-  if (schemaPaths.length > 0) contextLines.push(`Tables I already confirmed in Inspector: ${schemaPaths.join(', ')}`);
+  if (schemaPaths.length > 0) contextLines.push(`Tables I already confirmed in Ask Data: ${schemaPaths.join(', ')}`);
   const summary = knowledge?.summaries?.narrative ?? knowledge?.summaries?.template;
   if (summary?.trim()) contextLines.push(`What I explored: ${summary.trim().slice(0, 600)}`);
   const seedMessage = contextLines.length > 0
-    ? `${mission}\n\nContext from my Inspector session:\n${contextLines.map((l) => `- ${l}`).join('\n')}`
+    ? `${mission}\n\nContext from my Ask Data session:\n${contextLines.map((l) => `- ${l}`).join('\n')}`
     : mission;
 
   return NextResponse.json({ sessionId: created.id, seedMessage, seededSources: schemaPaths.length }, { status: 201 });

@@ -247,7 +247,7 @@ export function UserDetailDrawer({
               <StatTile icon={Clock}          value={user.logins30d ?? 0}           label="Logins"    hint="Last 30 days" />
               <StatTile icon={Calendar}       value={user.sessions7d ?? 0}          label="Workbench" hint="Sessions · 7 days" />
               <StatTile icon={Calendar}       value={user.sessions30d ?? 0}         label="Workbench" hint="Sessions · 30 days" />
-              <StatTile icon={MessagesSquare} value={user.inspectorChats ?? 0}      label="Inspector" hint="Chat sessions" />
+              <StatTile icon={MessagesSquare} value={user.inspectorChats ?? 0}      label="Ask Data" hint="Chat sessions" />
               <StatTile icon={Brain}          value={user.memoriesContributed ?? 0} label="Memories"  hint="Contributed" />
             </div>
           </div>

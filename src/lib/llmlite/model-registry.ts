@@ -29,7 +29,7 @@ export interface ModelFeatureSpec {
 export const MODEL_FEATURES: readonly ModelFeatureSpec[] = [
   {
     id: 'inspector_chat',
-    label: 'Inspector (Explore Data)',
+    label: 'Ask Data (Explore Data)',
     category: 'Interactive Chat',
     description: 'Interactive SQL & warehouse analysis chat, chart generation, and governed semantic queries.',
     codeLocations: ['src/app/api/inspector/chat/route.ts', 'src/hooks/useInspectorChat.ts'],

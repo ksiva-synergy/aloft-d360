@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 import { effectiveDataRoles, loadUserRoleNames } from './roles';
-import { BUILTIN_GROUPS, protectionLevel } from './engine';
+import { BUILTIN_GROUPS, PLATFORM_ADMIN_ROLE, protectionLevel } from './engine';
 import { getAccessModel } from './model-store';
 import { loadAccessAdminData } from './rules-admin';
 
@@ -25,6 +25,9 @@ export async function personAccessSummary(orgId: string, userId: string) {
     return dataRoles.has(id) ? `built-in ${data.holderName('builtin', id)}` : null;
   };
 
+  const platformAdmin = roles.includes(PLATFORM_ADMIN_ROLE);
+  const adminRule = platformAdmin ? [{ path: 'All data', access: 'export', through: 'platform admin', expiresAt: null }] : [];
+
   const rules = data.rules
     .map((r) => ({ r, through: via(r.holder_type, r.holder_id) }))
     .filter((x) => x.through && (!x.r.expires_at || x.r.expires_at.getTime() > now))
@@ -42,14 +45,15 @@ export async function personAccessSummary(orgId: string, userId: string) {
       .filter((g) => g.protectionId === p.id && (!g.expiresAt || g.expiresAt.getTime() > now))
       .map((g) => via(g.holder.kind, g.holder.id))
       .filter((x): x is string => !!x);
-    return { id: p.id, name: p.name, level, through: [...new Set(throughs)] };
+    return { id: p.id, name: p.name, level, through: [...new Set(platformAdmin ? ['platform admin', ...throughs] : throughs)] };
   });
 
   return {
     roles,
     groups: memberships.map((m) => ({ id: m.groupId, name: groupName.get(m.groupId)!, expiresAt: m.expiresAt?.toISOString() ?? null })),
     builtins: builtins.map((b) => ({ id: b.id, name: b.name })),
-    rules,
+    platformAdmin,
+    rules: [...adminRule, ...rules],
     protections,
   };
 }

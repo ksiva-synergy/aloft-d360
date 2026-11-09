@@ -79,6 +79,8 @@ const { db, state, writeAudit } = vi.hoisted(() => {
     userRole: model('userRole'),
     user: model('user'),
     accessPathProtection: model('accessPathProtection'),
+    accessColumnTag: model('accessColumnTag'),
+    accessGroupMember: model('accessGroupMember'),
     accessNotification: model('accessNotification'),
   };
   db.accessNotification.createMany = vi.fn(async ({ data }: { data: Row[] }) => {
@@ -89,7 +91,12 @@ const { db, state, writeAudit } = vi.hoisted(() => {
   });
   db.accessPolicyVersion.findUnique = vi.fn(async () => ({ version: BigInt(1) }));
   db.accessPolicyVersion.upsert = vi.fn(async () => ({ version: BigInt(2) }));
-  db.userRole.findMany = vi.fn(async () => tables.userRole!.map((r) => ({ userId: r.userId })));
+  // platformAdminIds selects userId; loadUserRoleNames selects role.name for one user.
+  db.userRole.findMany = vi.fn(async (args?: { where?: { userId?: string } }) =>
+    tables
+      .userRole!.filter((r) => !args?.where?.userId || r.userId === args.where.userId)
+      .map((r) => ({ userId: r.userId, role: { name: (r.role as string | undefined) ?? 'platform_admin' } })),
+  );
   db.$transaction = vi.fn(async (fn: (tx: unknown) => unknown) => fn(db));
   return { db, state, writeAudit: vi.fn(async () => {}) };
 });
@@ -201,7 +208,50 @@ describe('deciding', () => {
     expect(events(id)).toContain('approved_with_changes');
   });
 
+  describe('an approval that would not give access is refused (review H6)', () => {
+    it('a Block on a parent path wins, so approving is refused and nothing is granted', async () => {
+      tables.accessRule!.push({ org_id: 'org', holder_type: 'person', holder_id: 'u-ana', path: 'curated_db', effect: 'block', allow_export: false, expires_at: null });
+      const id = await newRequest({ targetType: 'path', path: 'curated_db.hr', level: 'query', durationDays: 7, reason: WHY });
+      as(OWNER);
+      const res = await act(id, { action: 'approve' });
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toMatch(/curated_db is blocked/);
+      expect(tables.accessRule!.some((r) => r.holder_type === 'person' && r.effect === 'use')).toBe(false);
+      expect(tables.accessRequest!.find((r) => r.id === id)!.status).toBe('pending');
+    });
+
+    it('a whole-path protection the person lacks: refused until they also request it', async () => {
+      tables.accessPathProtection!.push({ org_id: 'org', tag_id: 'comp', path: 'curated_db.hr' });
+      const id = await newRequest({ targetType: 'path', path: 'curated_db.hr', level: 'query', durationDays: 7, reason: WHY });
+      as(OWNER);
+      const res = await act(id, { action: 'approve' });
+      expect(res.status).toBe(409);
+      expect((await res.json()).error).toMatch(/Compensation/);
+      await newRequest({ targetType: 'tag', tagId: 'comp', level: 'full', durationDays: 7, reason: WHY });
+      as(OWNER);
+      expect((await act(id, { action: 'approve' })).status).toBe(200);
+    });
+  });
+
+  it('an owner whose group cannot export cannot approve export, but can approve Use', async () => {
+    const id = await newRequest({ targetType: 'path', path: 'curated_db.hr', level: 'export', durationDays: 7, reason: WHY });
+    as(OWNER);
+    const res = await act(id, { action: 'approve' });
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/not export/);
+    expect((await act(id, { action: 'approve', level: 'query' })).status).toBe(200);
+  });
+
+  it('an owner whose group has Totals only cannot approve Exact values', async () => {
+    tables.accessTagGrant!.find((g) => g.tag_id === 'comp')!.level = 'aggregate';
+    const id = await newRequest();
+    as(OWNER);
+    expect((await act(id, { action: 'approve' })).status).toBe(403);
+    expect((await act(id, { action: 'approve', level: 'aggregate' })).status).toBe(200);
+  });
+
   it('a table approval creates a Use rule for the person', async () => {
+    tables.accessRule!.find((r) => r.holder_id === 'payroll')!.allow_export = true;
     const id = await newRequest({ targetType: 'path', path: 'curated_db.hr', level: 'export', durationDays: 7, reason: WHY });
     as(OWNER);
     await act(id, { action: 'approve' });
@@ -229,6 +279,22 @@ describe('deciding', () => {
     await act(id, { action: 'reject', comment: 'Use the totals report instead' });
     expect(tables.accessRequest![0]!.status).toBe('rejected');
     expect(events(id)).toEqual(['requested', 'routed', 'info_asked', 'info_given', 'rejected']);
+  });
+
+  it('requester can add follow-up notes while pending', async () => {
+    const id = await newRequest();
+    as(ANA);
+    await act(id, { action: 'follow_up', comment: 'Need this for Monday crew call' });
+    expect(tables.accessRequest![0]!.status).toBe('pending');
+    expect(events(id)).toContain('requester_note');
+  });
+
+  it('approver can message the requester without changing status', async () => {
+    const id = await newRequest();
+    as(OWNER);
+    await act(id, { action: 'approver_note', comment: 'Which cost center should we use?' });
+    expect(tables.accessRequest![0]!.status).toBe('pending');
+    expect(events(id)).toContain('approver_note');
   });
 
   it('two approvals: the owner alone records an approval; the platform admin completes it', async () => {

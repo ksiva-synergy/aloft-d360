@@ -72,7 +72,7 @@ const INSPECTOR_CSS = `
 `;
 
 // ── Inspector status bar ──────────────────────────────────────────────────────
-// The app header above already shows the "Inspector" breadcrumb, so this bar carries
+// The app header above already shows the "Ask Data" breadcrumb, so this bar carries
 // only what belongs to the session: its title, the warehouse status, the context
 // mode and the session actions.
 interface InspectorStatusBarProps {
@@ -178,7 +178,7 @@ function InspectorWelcome({ modelId, onPrompt }: { modelId: string | null; onPro
           )}
           <h1 className="wl-title" style={{ ...type['title-section'], margin: 0 }}>What do you want to know?</h1>
           <p style={{ ...type.body, color: 'var(--ink-2)', margin: '0 auto', maxWidth: 440 }}>
-            Ask in plain language. Inspector queries your warehouse, explains the numbers and builds charts.
+            Type a question in plain language. The chat queries your warehouse, explains the numbers and builds charts.
           </p>
         </div>
         {modelId ? (
@@ -213,7 +213,7 @@ interface InspectorShellProps {
   sessionId?: string;
 }
 
-const INSPECTOR_CHAT_STYLE = { assistantName: 'Inspector', assistantIcon: <Database size={14} /> };
+const INSPECTOR_CHAT_STYLE = { assistantName: 'Ask Data', assistantIcon: <Database size={14} /> };
 
 /** Admin-only: tables, joins, failed queries and the SQL behind each answer. */
 function renderInspection(msg: WorkbenchMessage) {

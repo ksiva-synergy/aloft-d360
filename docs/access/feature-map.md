@@ -3,11 +3,12 @@
 Quick audit: everything built for the 2026-11-08 access workstream and **where it lives in the UI**.  
 Branch: `feature/automate-runs` (includes `dff3f78` access + follow-ups).
 
-## Four tabs (`/agent-staging/data-access`)
+## Five tabs (`/agent-staging/data-access`)
 
 | Tab | Primary jobs | Key APIs |
 |-----|----------------|----------|
 | **Data** | Use rules on catalog → schema → table; optional whole-path protect; column list + ⓘ on tables | `data-tree`, `rules`, `path-protections`, `data-tree/columns`, `column-info` |
+| **Department map** | Tag catalog → schema → table with **groups** (departments) and purpose (Query / Export / Block); **Data → departments** and **Department → data** | `data-tree`, `rules`, `groups` |
 | **Protections** | Create protections (tags); tag columns; **Give access** on who sees values; search columns | `tags`, `column-tags`, `tag-grants`, `column-search`, `path-protections` |
 | **People & groups** | Groups, members, person summary | `groups`, `person` |
 | **Requests & log** | Approve/deny; history; column-check health | `requests`, `notifications`, `health` |
@@ -45,8 +46,10 @@ Whole-path protection (Data → Protect catalog/schema/table) is optional and se
 
 ## Runtime / enforcement (not in this UI)
 
-- `ACCESS_MODE` — table-level Use  
-- `COLUMN_ACCESS_MODE` — masking (`column-guard.ts`, `sql-columns.ts`)  
+- `ACCESS_MODE` — table-level Use (`off` | `observe` | `enforce`; any other value enforces and is reported on the badge)  
+- `COLUMN_ACCESS_MODE` — masking (`column-guard.ts`, `sql-columns.ts`; `off` | `shadow` | `enforce`; any other value enforces)  
+- `ACCESS_BOOTSTRAP_OPEN=true` — first setup only: unprotected data is open while no access rules exist. Unset, no rules means nothing is open, and missing access tables refuse everything.  
+- The Data access badge shows both modes, and goes amber when columns aren't masked, bootstrap is on, or a setting can't be read.  
 - Inspector describe stripping, AI access notes — see `docs/access/manual-test-guide.md`
 
 ## Automated checks
@@ -56,4 +59,4 @@ Whole-path protection (Data → Protect catalog/schema/table) is optional and se
 
 ## Retired from this page (code may remain)
 
-Old **Data map**, **Labels**, standalone **Setup guide** tabs — replaced by the four tabs above (`data-access.tsx`).
+Old **Labels**, standalone **Setup guide** tabs — folded into **Protections** / **Data**. Legacy **Data map** UX is back as **Department map** (new rules APIs). `?tab=map` opens Department map.

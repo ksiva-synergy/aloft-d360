@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
 import { accessFetch, keyFromName, runAsync, send, type AccessGroup, type DataTag, type Person } from './api';
-import { Empty } from './parts';
+import { ConsoleSelect, Empty, SplitPane } from './parts';
 import { PeoplePicker } from './GiveAccess';
 import { ColumnInfoDialog } from './ColumnInfo';
 import s from './console.module.css';
@@ -58,20 +58,54 @@ function holderChips(a: NodeAccess) {
   return [...names.values()];
 }
 
-function treeSubtitle(node: DataNode, hint?: string): string {
-  if (hint) return hint;
+function shortBrowseName(node: DataNode, showPath?: boolean): string {
+  if (!showPath) return node.name;
+  const parts = node.path.split('.');
+  if (parts.length >= 2) return parts.slice(-2).join('.');
+  return node.path;
+}
+
+/** Compact browse-row badges — full detail stays on the right panel when selected. */
+function treeBrowseMeta(node: DataNode, hint?: string) {
   const chips = holderChips(node.access);
-  const accessPart = chips.length
-    ? chips.map((c) => {
-        const who = `${c.block ? 'Blocked: ' : ''}${c.name}`;
-        const how = c.block ? '' : ` · ${ACCESS_LABEL[c.access]}`;
-        return `${c.inherited ? '↑ ' : ''}${who}${how}${c.inherited ? ' (from parent)' : ''}`;
-      }).join(' · ')
-    : 'Nobody can use';
-  const prot = node.access.protectedColumns
-    ? ` · ${node.access.protectedColumns} protected column${node.access.protectedColumns === 1 ? '' : 's'}`
-    : '';
-  return accessPart + prot;
+  const hasUse = hasUseAccess(node.access);
+  const wholeProt = node.access.protections.length > 0 || node.access.inheritedProtections.length > 0;
+
+  if (hint) {
+    return { accessLabel: null, accessTitle: hint, accessInherited: false, colCount: null as number | null, wholeProt, hint };
+  }
+
+  const localRules = node.access.rules.length > 0;
+  let accessLabel: string | null = null;
+  let accessTitle = '';
+  let accessInherited = false;
+
+  if (!hasUse && chips.length === 0) {
+    accessLabel = 'No access';
+    accessTitle = 'Nobody can use this path';
+  } else if (!hasUse) {
+    accessLabel = 'Blocked';
+    accessTitle = chips.map((c) => `${c.name}: ${ACCESS_LABEL[c.access]}`).join(' · ');
+  } else {
+    const primary = chips.find((c) => !c.block) ?? chips[0];
+    if (primary) {
+      const showWho =
+        node.depth === 1 || localRules || primary.access !== 'use' || primary.block || chips.length > 1;
+      if (showWho) {
+        accessLabel = primary.name.length > 14 ? `${primary.name.slice(0, 13)}…` : primary.name;
+        accessInherited = primary.inherited;
+        accessTitle = `${primary.name} · ${ACCESS_LABEL[primary.access]}${primary.inherited ? ' (from parent)' : ''}`;
+        if (chips.length > 1) {
+          accessTitle = chips.map((c) => `${c.name} · ${ACCESS_LABEL[c.access]}`).join('; ');
+        }
+      }
+    }
+  }
+
+  const colCount =
+    node.access.protectedColumns > 0 && (node.depth === 1 || node.depth === 3) ? node.access.protectedColumns : null;
+
+  return { accessLabel, accessTitle, accessInherited, colCount, wholeProt, hint: undefined as string | undefined };
 }
 
 function hasUseAccess(a: NodeAccess): boolean {
@@ -80,60 +114,71 @@ function hasUseAccess(a: NodeAccess): boolean {
   );
 }
 
-function accessStatParts(a: NodeAccess, protectedColumns: number, kindWord: string): { value: string; hint: string } {
+function DetailHeaderChips({
+  node,
+  estateHint,
+}: {
+  node: DataNode;
+  estateHint: string | null;
+}) {
+  const a = node.access;
+  const chips: React.ReactNode[] = [];
+  for (const r of a.rules) {
+    chips.push(
+      <span key={`r-${r.id}`} className={cn(s.chip, s.chipFaint)} title={`On this path · ${ACCESS_LABEL[r.access]}`}>
+        {r.holderName}
+        <span className="opacity-70"> · {ACCESS_LABEL[r.access]}</span>
+      </span>,
+    );
+  }
+  for (const r of a.inheritedRules.filter((x) => x.access !== 'block')) {
+    if (a.rules.some((loc) => loc.holderId === r.holderId && loc.holderType === r.holderType)) continue;
+    chips.push(
+      <span key={`i-${r.id}`} className={cn(s.chip, s.chipFaint)} title={`Inherited from ${r.from}`}>
+        ↑ {r.holderName}
+      </span>,
+    );
+  }
   if (a.rules.length === 0 && a.inheritedRules.length === 0) {
-    return {
-      value: 'Nobody yet',
-      hint: 'Step 1: Give Use to a group (e.g. Marine) or built-in role so they can open tables and read unprotected fields.',
-    };
+    chips.push(
+      <span key="no-use" className={cn(s.chip, s.chipBad)} title="Nobody can use this path">
+        No access
+      </span>,
+    );
   }
-  const bits: string[] = [];
-  for (const r of a.rules) bits.push(`${r.holderName}: ${ACCESS_LABEL[r.access]}${r.autoApprove ? ' · auto-approve' : ''}`);
-  if (a.inheritedRules.length) {
-    const inh = a.inheritedRules
-      .filter((r) => r.access !== 'block')
-      .map((r) => `${r.holderName} (from ${r.from.split('.').pop() ?? r.from})`)
-      .join(', ');
-    if (inh) bits.push(`Inherited: ${inh}`);
-  }
-  const value = bits.join(' · ') || 'Only blocks apply on this path';
-  let hint = `They can run queries on this ${kindWord} and see unprotected columns with real values.`;
-  if (protectedColumns > 0) {
-    hint =
-      `Use alone does not reveal protected values. ${protectedColumns} column(s) below stay ••• until you grant each protection on the Protections tab.`;
-  } else if (!hasUseAccess(a)) {
-    hint = 'Block rules apply; add Use if people should open data here.';
-  }
-  return { value, hint };
-}
-
-function protectionStatParts(a: NodeAccess, kindWord: string): { value: string; hint: string } {
   if (a.protections.length) {
-    return {
-      value: a.protections.map((p) => p.name).join(', '),
-      hint: `The whole ${kindWord} is sensitive: people need this protection even if they have Use.`,
-    };
+    for (const p of a.protections) {
+      chips.push(
+        <span key={`p-${p.id}`} className={cn(s.chip, s.chipBrand)} title="Whole-path protection">
+          <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+          {p.name}
+        </span>,
+      );
+    }
+  } else if (!a.inheritedProtections.length) {
+    chips.push(
+      <span key="path-open" className={cn(s.chip, s.chipFaint)} title="No tag on the whole catalog, schema, or table">
+        Path open
+      </span>,
+    );
   }
-  if (a.inheritedProtections.length) {
-    return {
-      value: a.inheritedProtections.map((p) => p.name).join(', '),
-      hint: `Inherited from parent — blocks or limits the whole ${kindWord} for people without the protection.`,
-    };
+  if (a.protectedColumns > 0 && node.depth < 3) {
+    chips.push(
+      <span key="cols" className={cn(s.chip, s.chipBrand)} title={`${a.protectedColumns} protected columns in subtree`}>
+        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+        {a.protectedColumns} cols
+      </span>,
+    );
   }
-  return {
-    value: 'Not protected as a whole',
-    hint: `Optional. Use this only if the entire ${kindWord} is confidential. Column protections (step 2) are separate.`,
-  };
-}
-
-function dataAccessSummary(a: NodeAccess, protectedColumns: number, kindWord: string): string {
-  const use = accessStatParts(a, protectedColumns, kindWord).value;
-  const prot = protectionStatParts(a, kindWord).value;
-  const bits = [`Use: ${use}`];
-  bits.push(prot === 'Not protected as a whole' ? 'Whole path: none' : `Whole path: ${prot}`);
-  if (protectedColumns > 0) bits.push(`${protectedColumns} protected column${protectedColumns === 1 ? '' : 's'}`);
-  else if (kindWord === 'table') bits.push('Columns: see list below');
-  return bits.join(' · ');
+  if (estateHint) {
+    chips.push(
+      <span key="estate" className={cn(s.chip, s.chipFaint)} title="Harvested estate">
+        {estateHint}
+      </span>,
+    );
+  }
+  if (chips.length === 0) return null;
+  return <div className={s.detailChips}>{chips}</div>;
 }
 
 export function DataView({
@@ -240,7 +285,7 @@ export function DataView({
   }
 
   return (
-    <div className={cn(s.split, 'min-h-[600px]')}>
+    <SplitPane>
       <aside className={cn(s.listPane, 'min-w-0')} aria-label="Data">
         <div className={cn(s.listHead, '!pb-2')}>
           <span className="text-eyebrow uppercase text-muted-foreground">Browse</span>
@@ -281,27 +326,29 @@ export function DataView({
               {results.length === 0 ? (
                 <p className="p-3 text-caption text-muted-foreground">No tables match name or meaning.</p>
               ) : (
-                results.map((n) => (
-                  <TreeRow
-                    key={n.path}
-                    node={n}
-                    level={0}
-                    open={false}
-                    selected={selected === n.path && (selectSource === 'search-name' || selectSource === 'search-meaning')}
-                    onSelect={() => {
-                      setSelectSource(n.match === 'meaning' ? 'search-meaning' : 'search-name');
-                      setSelected(n.path);
-                    }}
-                    showPath
-                    hint={n.match === 'meaning' ? (n.description ?? 'Similar meaning') : undefined}
-                  />
-                ))
+                <div className={s.treeBrowse}>
+                  {results.map((n) => (
+                    <TreeRow
+                      key={n.path}
+                      node={n}
+                      level={0}
+                      open={false}
+                      selected={selected === n.path && (selectSource === 'search-name' || selectSource === 'search-meaning')}
+                      onSelect={() => {
+                        setSelectSource(n.match === 'meaning' ? 'search-meaning' : 'search-name');
+                        setSelected(n.path);
+                      }}
+                      showPath
+                      hint={n.match === 'meaning' ? (n.description ?? 'Similar meaning') : undefined}
+                    />
+                  ))}
+                </div>
               )}
             </>
           ) : !roots ? (
             <p className="p-3 text-caption text-muted-foreground">Loading…</p>
           ) : (
-            renderRows(ROOT, 0)
+            <div className={s.treeBrowse}>{renderRows(ROOT, 0)}</div>
           )}
         </div>
       </aside>
@@ -328,7 +375,7 @@ export function DataView({
           />
         )}
       </section>
-    </div>
+    </SplitPane>
   );
 }
 
@@ -349,38 +396,59 @@ function TreeRow({
   onToggle?: () => void;
   onSelect: () => void;
   showPath?: boolean;
-  /** Replaces the who-can-use line (e.g. a table summary for meaning matches). */
+  /** Meaning match: short note in the meta column. */
   hint?: string;
 }) {
-  const prot = [...node.access.protections, ...node.access.inheritedProtections];
+  const meta = treeBrowseMeta(node, hint);
   const canOpen = node.depth < 3 && (node.childCount ?? 0) > 0;
+  const ariaSummary = [meta.accessTitle, meta.colCount ? `${meta.colCount} protected columns` : '', meta.wholeProt ? 'Whole path protected' : '']
+    .filter(Boolean)
+    .join(' · ');
+
   return (
-    <div
-      className={cn('flex items-start gap-1 border-b border-[var(--estate-border)] px-2 py-1.5', selected && 'bg-[var(--brand-a-soft)]')}
-      style={{ paddingLeft: 8 + level * 16 }}
-    >
-      <button
-        type="button"
-        className={cn(s.treeToggle, 'mt-0.5')}
-        aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
-        aria-expanded={canOpen ? open : undefined}
-        disabled={!canOpen || !onToggle}
-        onClick={onToggle}
-      >
-        <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-90')} aria-hidden="true" />
-      </button>
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onSelect} aria-current={selected ? 'true' : undefined}>
-        <span className="flex min-w-0 items-center gap-1.5">
-          {node.depth === 3 ? <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
-          <span className="truncate text-size-ui font-medium" title={node.path}>
-            {showPath ? node.path : node.name}
+    <div className={cn(s.treeRow, s.treeRowBrowse, selected && s.treeRowSelected)}>
+      <div className={s.treeName} style={{ paddingLeft: level * 14 }}>
+        <button
+          type="button"
+          className={s.treeToggle}
+          aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
+          aria-expanded={canOpen ? open : undefined}
+          disabled={!canOpen || !onToggle}
+          onClick={onToggle}
+        >
+          <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-90')} aria-hidden="true" />
+        </button>
+        {node.depth === 3 ? <Table2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : <Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+        <button
+          type="button"
+          className={s.treeLabel}
+          title={ariaSummary ? `${node.path} — ${ariaSummary}` : node.path}
+          onClick={onSelect}
+          aria-current={selected ? 'true' : undefined}
+        >
+          {shortBrowseName(node, showPath)}
+        </button>
+      </div>
+      <div className={s.treeRight}>
+        {meta.hint ? (
+          <span className={cn(s.chip, s.chipFaint, 'max-w-[7rem] truncate')} title={meta.hint}>
+            Similar
           </span>
-          {prot.length ? <Lock className="h-3 w-3 shrink-0 text-[var(--brand-a-ink)]" aria-label="Protected" /> : null}
-        </span>
-        <span className="block truncate text-caption text-muted-foreground" title={treeSubtitle(node, hint)}>
-          {treeSubtitle(node, hint)}
-        </span>
-      </button>
+        ) : null}
+        {meta.accessLabel ? (
+          <span className={cn(s.chip, s.chipFaint)} title={meta.accessTitle}>
+            {meta.accessInherited ? <span aria-hidden="true">↑ </span> : null}
+            {meta.accessLabel}
+          </span>
+        ) : null}
+        {meta.wholeProt ? <Lock className="h-3 w-3 shrink-0 text-[var(--brand-a-ink)]" aria-label="Whole path protected" /> : null}
+        {meta.colCount ? (
+          <span className={cn(s.chip, s.chipBrand)} title={`${meta.colCount} protected column${meta.colCount === 1 ? '' : 's'}`}>
+            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {meta.colCount}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -418,27 +486,23 @@ function NodeDetail({
       ? `${node.childCount ?? 0} schema${(node.childCount ?? 0) === 1 ? '' : 's'}, ${node.tableCount} table${node.tableCount === 1 ? '' : 's'}`
       : null;
 
-  const summary = dataAccessSummary(a, a.protectedColumns, kindWord);
   const needsUse = !hasUseAccess(a);
 
   return (
     <div className="flex flex-col gap-3">
-      <header className={cn(s.detailHead, s.detailHeadCompact)}>
+      <header className={cn(s.detailHead, s.detailHeadCompact, '!mb-2')}>
         <div className="min-w-0 flex-1">
-          <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-title-section">
+          <h2 className="text-title-section font-semibold">
             {titleName}
-            <span className="text-caption font-normal text-muted-foreground">· {kindWord}</span>
+            <span className="ml-2 text-caption font-normal text-muted-foreground">{kindWord}</span>
           </h2>
-          <p className="truncate text-caption text-muted-foreground" title={node.path}>
+          <p className={s.pathCrumb} title={node.path}>
             {node.path}
           </p>
-          <p className="text-caption text-muted-foreground" role="status" aria-label="Access summary">
-            {summary}
-          </p>
-          {estateHint ? <p className="text-caption text-muted-foreground">Estate: {estateHint}</p> : null}
+          <DetailHeaderChips node={node} estateHint={estateHint} />
           {selectSource === 'search-meaning' && node.description ? (
-            <p className="truncate text-caption text-[var(--brand-a-ink)]" title={node.description}>
-              Similar meaning: {node.description}
+            <p className="mt-2 truncate text-caption text-[var(--brand-a-ink)]" title={node.description}>
+              {node.description}
             </p>
           ) : null}
         </div>
@@ -472,72 +536,65 @@ function NodeDetail({
 
       {!readOnly && needsUse ? (
         <div className={cn(s.protectAccessBanner, s.protectAccessBannerWarn)} role="status">
-          <p className="text-caption">
-            <span className="font-medium text-foreground">Nobody can use this {kindWord} yet.</span> Use <strong>Give access</strong> above to add a Use rule.
-          </p>
+          <p className="text-caption font-medium text-foreground">Nobody can use this {kindWord} yet — add a Use rule.</p>
         </div>
       ) : null}
 
       {giving ? (
-        <section className={s.card} aria-label="Give access">
-          <div className={cn(s.cardHead, '!pb-0')}>
-            <h3 className={s.cardTitle}>Give Use on this {kindWord}</h3>
-          </div>
-          <div className={s.cardBody}>
-            <GiveRuleForm
-              path={node.path}
-              kindWord={kindWord}
-              groups={groups}
-              people={people}
-              meId={meId}
-              existing={a.rules}
-              onCancel={() => setGiving(false)}
-              onDone={async () => {
-                setGiving(false);
-                await onChanged();
-              }}
-            />
-          </div>
+        <section className={s.detailInlineForm} aria-label="Give access">
+          <h3 className="mb-2 text-caption font-semibold">Give Use</h3>
+          <GiveRuleForm
+            path={node.path}
+            kindWord={kindWord}
+            groups={groups}
+            people={people}
+            meId={meId}
+            existing={a.rules}
+            tags={tags}
+            isPlatformAdmin={isPlatformAdmin}
+            onCancel={() => setGiving(false)}
+            onDone={async () => {
+              setGiving(false);
+              await onChanged();
+            }}
+          />
         </section>
       ) : null}
       {protecting ? (
-        <section className={s.card} aria-label="Add protection">
-          <div className={cn(s.cardHead, '!pb-0')}>
-            <h3 className={s.cardTitle}>Protect whole {kindWord}</h3>
-            <p className={s.cardHint}>Everyone with Use still needs this protection to see values.</p>
-          </div>
-          <div className={s.cardBody}>
-            <ProtectPathForm
-              path={node.path}
-              kindWord={kindWord}
-              tags={tags.filter((t) => !a.protections.some((p) => p.tagId === t.id))}
-              onCancel={() => setProtecting(false)}
-              onDone={async () => {
-                setProtecting(false);
-                await onChanged();
-              }}
-            />
-          </div>
+        <section className={s.detailInlineForm} aria-label="Add protection">
+          <h3 className="mb-2 text-caption font-semibold">Protect whole {kindWord}</h3>
+          <ProtectPathForm
+            path={node.path}
+            kindWord={kindWord}
+            tags={tags.filter((t) => !a.protections.some((p) => p.tagId === t.id))}
+            onCancel={() => setProtecting(false)}
+            onDone={async () => {
+              setProtecting(false);
+              await onChanged();
+            }}
+          />
         </section>
       ) : null}
 
-      <section className={s.card} aria-label="Access on this path">
-        <div className={cn(s.cardHead, s.protectListHead)}>
-          <h3 className={s.cardTitle}>Set on this {kindWord}</h3>
-        </div>
-        <div className={cn(s.cardBody, '!pt-2')}>
-          <p className="mb-2 text-eyebrow uppercase text-muted-foreground">Who can use</p>
-          {a.rules.length === 0 ? <p className="mb-3 text-caption text-muted-foreground">No rules on this path yet.</p> : null}
-          <div className="flex flex-col gap-2">
-            {a.rules.map((r) => (
-              <RuleRow key={r.id} rule={r} path={node.path} readOnly={readOnly} onChanged={onChanged} />
-            ))}
-          </div>
-          <p className="mb-2 mt-4 text-eyebrow uppercase text-muted-foreground">Whole-path protection</p>
-          {a.protections.length === 0 ? (
-            <p className="text-caption text-muted-foreground">None on this path — tag columns on Protections or protect the whole {kindWord} above.</p>
+      <section className={s.detailPanel} aria-label="Access on this path">
+        <div className={s.detailSection}>
+          <h3 className={s.detailSectionTitle}>Use rules</h3>
+          {a.rules.length === 0 ? (
+            <p className={s.detailEmpty}>None on this path.</p>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div>
+              {a.rules.map((r) => (
+                <RuleRow key={r.id} rule={r} path={node.path} readOnly={readOnly} onChanged={onChanged} />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className={s.detailSection}>
+          <h3 className={s.detailSectionTitle}>Whole-path protection</h3>
+          {a.protections.length === 0 ? (
+            <p className={s.detailEmpty}>None — use Protect {kindWord} or tag columns on Protections.</p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
               {a.protections.map((p) => (
                 <span key={p.id} className="inline-flex items-center gap-1">
                   <span className={cn(s.chip, s.chipBrand)}>
@@ -558,25 +615,33 @@ function NodeDetail({
       </section>
 
       {a.inheritedRules.length || a.inheritedProtections.length ? (
-        <details className={cn(s.card, s.inheritPanel)} aria-label="Inherited from parent paths">
-          <summary className={cn(s.cardHead, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden')}>
-            <span className={s.cardTitle}>Inherited from above</span>
-            <span className="text-caption text-muted-foreground">Edit on parent catalog or schema</span>
+        <details className={cn(s.detailPanel, s.inheritPanel)} aria-label="Inherited from parent paths">
+          <summary className={cn(s.detailSection, 'cursor-pointer list-none [&::-webkit-details-marker]:hidden flex flex-wrap items-baseline justify-between gap-2 !py-2.5')}>
+            <span className={s.detailSectionTitle} style={{ margin: 0 }}>
+              Inherited
+            </span>
+            <span className="text-caption text-muted-foreground">Change on parent paths</span>
           </summary>
-          <div className={cn(s.cardBody, '!pt-0 flex flex-col gap-2')}>
+          <div className={cn(s.detailSection, '!pt-0 flex flex-col gap-1.5')}>
             {a.inheritedRules.map((r) => (
-              <p key={r.id} className="text-caption text-muted-foreground">
-                <span className={cn('font-medium', r.access === 'block' ? 'text-[var(--bad)]' : 'text-foreground')}>{r.holderName}</span>
-                {' · '}
-                {ACCESS_LABEL[r.access]}
-                {' · '}
-                <code className="text-foreground">{r.from}</code>
+              <p key={r.id} className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
+                <span className={cn(s.chip, s.chipFaint, r.access === 'block' && s.chipBad)}>
+                  {r.holderName} · {ACCESS_LABEL[r.access]}
+                </span>
+                <span className="truncate" title={r.from}>
+                  from {r.from.split('.').pop() ?? r.from}
+                </span>
               </p>
             ))}
             {a.inheritedProtections.map((p) => (
-              <p key={p.id} className="text-caption text-muted-foreground">
-                <Lock className="mr-1 inline h-3 w-3" aria-hidden="true" />
-                {p.name} · <code className="text-foreground">{p.from}</code>
+              <p key={p.id} className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
+                <span className={cn(s.chip, s.chipBrand)}>
+                  <Lock className="h-3 w-3" aria-hidden="true" />
+                  {p.name}
+                </span>
+                <span className="truncate" title={p.from}>
+                  from {p.from.split('.').pop() ?? p.from}
+                </span>
               </p>
             ))}
           </div>
@@ -629,63 +694,60 @@ function RuleRow({ rule, path, readOnly, onChanged }: { rule: NodeRule; path: st
   const currentAccess = to ?? rule.access;
 
   return (
-    <div className="rounded-[8px] border border-[var(--estate-border)] px-3 py-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={s.detailRuleRow}>
+      <div className={s.detailRuleHead}>
         <div className="min-w-0 flex-1">
-          <span className="font-medium">{rule.holderName}</span>
-          <span className="ml-2 text-caption text-muted-foreground">{holderKind}</span>
+          <span className={s.detailRuleName}>{rule.holderName}</span>
+          <span className={cn(s.detailRuleKind, 'ml-1.5')}>{holderKind}</span>
         </div>
-        <span className={cn(s.chip, rule.access === 'block' && s.chipBad, rule.access === 'export' && s.chipOk)}>{ACCESS_LABEL[rule.access]}</span>
-        {rule.autoApprove && currentAccess !== 'block' && currentAccess !== 'none' ? (
-          <span className={cn(s.chip, s.chipOk)} title="Auto-approve access requests for unprotected data">
-            Auto-approve
+        {!readOnly ? (
+          <ConsoleSelect
+            className="min-w-[8.5rem] shrink-0"
+            value={to ?? rule.access}
+            ariaLabel={`Access for ${rule.holderName}`}
+            onChange={(v) => setTo(v as Access | 'none')}
+            options={[
+              { value: 'use', label: 'Use' },
+              { value: 'export', label: 'Use + export' },
+              { value: 'block', label: 'Block' },
+              { value: 'none', label: 'Remove rule' },
+            ]}
+          />
+        ) : (
+          <span className={cn(s.chip, rule.access === 'block' && s.chipBad, rule.access === 'export' && s.chipOk)}>{ACCESS_LABEL[rule.access]}</span>
+        )}
+        {rule.expiresAt ? (
+          <span className="text-caption text-muted-foreground" title="Rule expiry">
+            {new Date(rule.expiresAt).toLocaleDateString()}
           </span>
         ) : null}
-        {rule.expiresAt ? <span className="text-caption text-muted-foreground">until {new Date(rule.expiresAt).toLocaleDateString()}</span> : null}
       </div>
-      {readOnly ? null : (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-caption text-muted-foreground">Change to</span>
-          <select
-            className={cn(userStyles.input, 'h-8 w-auto max-w-full py-0')}
-            value={to ?? rule.access}
-            aria-label={`Access for ${rule.holderName}`}
-            onChange={(e) => setTo(e.target.value as Access | 'none')}
-          >
-            <option value="use">Use</option>
-            <option value="export">Use + export</option>
-            <option value="block">Block</option>
-            <option value="none">Remove rule</option>
-          </select>
-        </div>
-      )}
-      {rule.access !== 'block' && currentAccess !== 'block' && currentAccess !== 'none' ? (
-        <label className="mt-2 flex items-start gap-2 text-caption text-muted-foreground">
+      {!readOnly && rule.access !== 'block' && currentAccess !== 'block' && currentAccess !== 'none' ? (
+        <label className="flex items-center gap-2 text-caption text-muted-foreground" title="Auto-approve access requests for unprotected data covered by this rule">
           <input
             type="checkbox"
-            className="mt-0.5"
             disabled={readOnly}
             checked={autoTo ?? rule.autoApprove}
             onChange={(e) => setAutoTo(e.target.checked)}
             aria-label={`Auto-approve requests for ${rule.holderName}`}
           />
-          <span>Auto-approve access requests for unprotected data covered by this rule</span>
+          Auto-approve unprotected requests
         </label>
       ) : null}
       {accessChanged || autoChanged ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Input className={cn(userStyles.input, 'h-8 min-w-[200px] flex-1')} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (audit log)" aria-label="Reason" autoFocus />
-          <button type="button" className={userStyles.primary} disabled={busy} onClick={() => void save()}>
-            {busy ? 'Saving…' : to === 'none' ? 'Remove' : 'Save'}
+        <div className={s.detailRuleEdit}>
+          <Input
+            className={cn(userStyles.input, s.protectCompactInput, 'min-w-0 flex-1')}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason"
+            aria-label="Reason"
+            autoFocus
+          />
+          <button type="button" className={cn(s.protectCompactBtn, userStyles.primary)} disabled={busy} onClick={() => void save()}>
+            {busy ? '…' : to === 'none' ? 'Remove' : 'Save'}
           </button>
-          <button
-            type="button"
-            className={s.linkBtn}
-            onClick={() => {
-              setTo(null);
-              setAutoTo(null);
-            }}
-          >
+          <button type="button" className={cn(s.linkBtn, 'text-caption')} onClick={() => { setTo(null); setAutoTo(null); }}>
             Cancel
           </button>
           {error ? <span className={s.errorText}>{error}</span> : null}
@@ -702,6 +764,8 @@ function GiveRuleForm({
   people,
   meId,
   existing,
+  tags,
+  isPlatformAdmin,
   onCancel,
   onDone,
 }: {
@@ -711,6 +775,8 @@ function GiveRuleForm({
   people: Person[];
   meId: string;
   existing: NodeRule[];
+  tags: DataTag[];
+  isPlatformAdmin: boolean;
   onCancel: () => void;
   onDone: () => Promise<void>;
 }) {
@@ -726,6 +792,28 @@ function GiveRuleForm({
   const [approver, setApprover] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Protections on columns below this path, so Use can optionally come with those too.
+  const [below, setBelow] = useState<{ tagId: string; columns: number }[]>([]);
+  const [withProtected, setWithProtected] = useState(false);
+  const [protLevel, setProtLevel] = useState<'full' | 'aggregate'>('full');
+  useEffect(() => {
+    let live = true;
+    runAsync(async () => {
+      try {
+        const r = await accessFetch<{ tagSummary?: { tagId: string; columns: number }[] }>(`/api/access/column-tags?underPath=${encodeURIComponent(path)}`);
+        if (live) setBelow(r.tagSummary ?? []);
+      } catch {
+        if (live) setBelow([]);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [path]);
+  const tagName = new Map(tags.map((tg) => [tg.id, tg.name]));
+  const belowTags = below.filter((b) => tagName.has(b.tagId));
+  const protectedCols = belowTags.reduce((n, b) => n + b.columns, 0);
+  const canGrantProtected = isPlatformAdmin && kind !== 'builtin' && access !== 'block';
 
   async function save() {
     setError(null);
@@ -749,6 +837,23 @@ function GiveRuleForm({
         holders = [{ holderType: 'group', holderId: gid }];
       }
       for (const h of holders) await send('/api/access/rules', 'PUT', { ...h, path, access, autoApprove: access !== 'block' && auto, reason: reason.trim() });
+      if (withProtected && canGrantProtected) {
+        try {
+          for (const h of holders) {
+            for (const b of belowTags) {
+              await send('/api/access/tag-grants', 'POST', {
+                tagId: b.tagId,
+                principalType: h.holderType === 'person' ? 'user' : 'group',
+                principalId: h.holderId,
+                level: protLevel,
+                reason: reason.trim(),
+              });
+            }
+          }
+        } catch (e) {
+          throw new Error(`Use was saved, but protected-column access failed: ${e instanceof Error ? e.message : 'unknown error'}`);
+        }
+      }
       await onDone();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save');
@@ -777,23 +882,33 @@ function GiveRuleForm({
         ))}
       </div>
       {kind === 'builtin' ? (
-        <select className={userStyles.input} value={builtinId} onChange={(e) => setBuiltinId(e.target.value)} aria-label="Built-in group">
-          {BUILTINS.map((b) => (
-            <option key={b.id} value={b.id} disabled={taken.has(`builtin:${b.id}`)}>
-              {b.name} ({b.hint})
-            </option>
-          ))}
-        </select>
+        <ConsoleSelect
+          className="w-full max-w-md"
+          value={builtinId}
+          ariaLabel="Built-in group"
+          onChange={setBuiltinId}
+          options={BUILTINS.map((b) => ({
+            value: b.id,
+            label: `${b.name} (${b.hint})`,
+            disabled: taken.has(`builtin:${b.id}`),
+          }))}
+        />
       ) : kind === 'group' ? (
         <>
-          <select className={userStyles.input} value={groupId || '__new__'} onChange={(e) => setGroupId(e.target.value)} aria-label="Group">
-            {groups.map((g) => (
-              <option key={g.id} value={g.id} disabled={taken.has(`group:${g.id}`)}>
-                {g.name} ({g.members.filter((m) => !m.expired).length} people)
-              </option>
-            ))}
-            <option value="__new__">+ Create a new group</option>
-          </select>
+          <ConsoleSelect
+            className="w-full max-w-md"
+            value={groupId || '__new__'}
+            ariaLabel="Group"
+            onChange={setGroupId}
+            options={[
+              ...groups.map((g) => ({
+                value: g.id,
+                label: `${g.name} (${g.members.filter((m) => !m.expired).length} people)`,
+                disabled: taken.has(`group:${g.id}`),
+              })),
+              { value: '__new__', label: '+ Create a new group' },
+            ]}
+          />
           {groupId === '__new__' || !groupId ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Input className={userStyles.input} value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Group name, e.g. Marine" aria-label="Group name" />
@@ -819,6 +934,50 @@ function GiveRuleForm({
           <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} />
           Also approve other people's requests for this data automatically (only if it is not protected)
         </label>
+      ) : null}
+      {protectedCols > 0 && access !== 'block' ? (
+        <div className="flex flex-col gap-2 rounded-[8px] border border-[var(--estate-border)] bg-[var(--estate-surface)] p-3">
+          <label className={cn('flex items-start gap-2 text-caption', !canGrantProtected && 'opacity-60')}>
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={withProtected && canGrantProtected}
+              disabled={!canGrantProtected}
+              onChange={(e) => setWithProtected(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium text-foreground">
+                Also give access to the {protectedCols} protected column{protectedCols === 1 ? '' : 's'} in this {kindWord}
+              </span>
+              <span className="mt-0.5 block text-muted-foreground">
+                {belowTags.map((b) => `${tagName.get(b.tagId)} (${b.columns})`).join(' · ')}. Without this they can use the {kindWord} but see ••• in those columns.
+              </span>
+              {!isPlatformAdmin ? (
+                <span className="mt-0.5 block text-muted-foreground">Only a platform admin can give access to protected data.</span>
+              ) : kind === 'builtin' ? (
+                <span className="mt-0.5 block text-muted-foreground">Built-in groups can&apos;t hold protected data. Choose a group or specific people.</span>
+              ) : null}
+            </span>
+          </label>
+          {withProtected && canGrantProtected ? (
+            <div className="flex flex-wrap items-center gap-2 pl-6">
+              <span className="text-caption text-muted-foreground">They see</span>
+              <div className={s.seg} role="radiogroup" aria-label="Protected column access">
+                {(
+                  [
+                    ['full', 'Exact values'],
+                    ['aggregate', 'Totals only'],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button key={v} type="button" role="radio" aria-checked={protLevel === v} className={cn(s.segBtn, protLevel === v && s.segBtnActive)} onClick={() => setProtLevel(v)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-caption text-muted-foreground">No end date</span>
+            </div>
+          ) : null}
+        </div>
       ) : null}
       <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept in the audit log)" aria-label="Reason" />
       <div className="flex flex-wrap items-center gap-2">
@@ -855,16 +1014,18 @@ function ProtectPathForm({
     return <p className="text-caption text-muted-foreground">No protections to add. Create one in the Protections tab first.</p>;
   }
   return (
-    <div className="flex flex-col gap-2 rounded-[10px] bg-[var(--surface-2)] p-3">
-      <select className={userStyles.input} value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Protection">
-        {tags.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name}
-          </option>
-        ))}
-      </select>
-      <p className="text-caption text-muted-foreground">Everyone without this protection is refused the whole {kindWord}, even if they can use it.</p>
-      <Input className={userStyles.input} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (kept in the audit log)" aria-label="Reason" />
+    <div className="flex flex-col gap-2">
+      <ConsoleSelect
+        className={s.consoleSelectFull}
+        value={tagId || tags[0]?.id || ''}
+        ariaLabel="Protection"
+        onChange={setTagId}
+        options={tags.map((t) => ({ value: t.id, label: t.columnCount ? `${t.name} · also on ${t.columnCount} column${t.columnCount === 1 ? '' : 's'}` : t.name }))}
+      />
+      <p className="text-caption text-muted-foreground">
+        This hides <span className="font-medium text-foreground">every column in this {kindWord}</span>, not just tagged ones. People who don&apos;t hold the protection see ••• for all of it. To hide only some columns, tag them on the Protections tab.
+      </p>
+      <Input className={cn(userStyles.input, s.protectCompactInput)} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason" />
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -930,11 +1091,11 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
   }
 
   return (
-    <section className={s.card} aria-label="Columns">
-      <div className={cn(s.cardHead, s.protectListHead)}>
-        <h3 className={s.cardTitle}>
-          Table columns
-          {cols ? <span className="ml-2 font-normal text-muted-foreground">({cols.length})</span> : null}
+    <section className={s.detailPanel} aria-label="Columns">
+      <div className={cn(s.detailSection, s.protectListHead, '!pb-2')}>
+        <h3 className={s.detailSectionTitle}>
+          Columns
+          {cols ? <span className="ml-1.5 font-normal text-muted-foreground">({cols.length})</span> : null}
         </h3>
         {cols && cols.length > 8 ? (
           <div className="relative w-full min-w-0 max-w-xs sm:w-40">
@@ -949,9 +1110,41 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
           </div>
         ) : null}
       </div>
-      <div className={cn(s.cardBody, '!pt-0')}>
-        <p className="mb-2 text-caption text-muted-foreground">Click a row for ⓘ detail · bulk-tag on Protections tab</p>
+      <div className={cn(s.detailSection, '!pt-0')}>
         {error ? <p className={cn(s.errorText, 'mb-2')}>{error}</p> : null}
+        {picked.size > 0 ? (
+          <div className={s.bulkProtectBar} role="region" aria-label="Apply protection to selected columns">
+            <div className={s.bulkProtectMeta}>
+              <span className={s.bulkProtectCount}>
+                <Lock className="h-3.5 w-3.5 text-[var(--brand-a-ink)]" aria-hidden="true" />
+                <span className={s.bulkProtectCountNum}>{picked.size}</span>
+              </span>
+              <button type="button" className={cn(s.linkBtn, 'ml-auto text-caption')} onClick={() => setPicked(new Set())}>
+                Clear
+              </button>
+            </div>
+            <div className={s.bulkProtectActions}>
+              <ConsoleSelect
+                className={s.consoleSelectFull}
+                value={tagId || tags[0]?.id || ''}
+                ariaLabel={`Protection for ${picked.size} selected column${picked.size === 1 ? '' : 's'}`}
+                placeholder="Protection"
+                onChange={setTagId}
+                options={tags.map((t) => ({ value: t.id, label: t.name }))}
+              />
+              <Input
+                className={cn(userStyles.input, s.protectCompactInput, s.bulkProtectReason)}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Reason"
+                aria-label="Reason"
+              />
+              <button type="button" className={cn(s.protectCompactBtn, userStyles.primary, 'justify-self-end')} onClick={() => void protect()}>
+                Apply
+              </button>
+            </div>
+          </div>
+        ) : null}
         {cols === null ? (
           <p className="text-caption text-muted-foreground">Loading…</p>
         ) : cols.length === 0 ? (
@@ -1021,22 +1214,6 @@ function ColumnsCard({ table, tags, readOnly, isPlatformAdmin, onChanged }: { ta
             ))}
           </ul>
         )}
-        {picked.size > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[10px] border border-[var(--estate-border)] bg-[var(--surface-2)] p-2">
-            <span className="text-caption font-medium">Protect {picked.size} as</span>
-            <select className={cn(userStyles.input, s.protectCompactInput, '!w-auto')} value={tagId} onChange={(e) => setTagId(e.target.value)} aria-label="Protection for columns">
-              {tags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-            <Input className={cn(userStyles.input, s.protectCompactInput, 'min-w-[140px] flex-1')} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" aria-label="Reason for columns" />
-            <button type="button" className={cn(s.protectCompactBtn, userStyles.primary)} onClick={() => void protect()}>
-              Protect
-            </button>
-          </div>
-        ) : null}
       </div>
       {detail ? <ColumnInfoDialog table={table} column={detail.column} onClose={() => setDetail(null)} /> : null}
     </section>

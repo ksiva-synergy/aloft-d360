@@ -1,9 +1,59 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import userStyles from '@/components/users/users.module.css';
 import { SENSITIVITY_LABEL, type LabelSource, type Sensitivity } from './api';
 import s from './console.module.css';
+
+export function ConsoleSelect({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  id,
+  disabled,
+  className,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; disabled?: boolean }[];
+  ariaLabel: string;
+  id?: string;
+  disabled?: boolean;
+  className?: string;
+  placeholder?: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger
+        id={id}
+        aria-label={ariaLabel}
+        className={cn(
+          userStyles.selectTrigger,
+          s.consoleSelect,
+          'border-[var(--estate-btn-border)] bg-[var(--estate-surface)] text-[var(--estate-ink)] shadow-sm',
+          'focus:shadow-none data-[state=open]:shadow-[none]',
+          'focus:border-[color-mix(in_srgb,var(--brand-a)_55%,var(--estate-btn-border))]',
+          'data-[state=open]:border-[var(--brand-a)]',
+          'focus-visible:ring-2 focus-visible:ring-[var(--brand-a)]/35 focus-visible:ring-offset-0',
+          className,
+        )}
+      >
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className={cn(userStyles.selectMenu, 'min-w-[var(--radix-select-trigger-width)]')}>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value} disabled={o.disabled} className="text-size-ui">
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export function LabelChip({
   label,
@@ -140,4 +190,50 @@ export function Empty({ icon, children }: { icon?: ReactNode; children: ReactNod
 
 export function Mono({ children }: { children: ReactNode }) {
   return <code className={s.mono}>{children}</code>;
+}
+
+/** Smallest height the two-pane layout shrinks to; below this the page scrolls instead. */
+const SPLIT_MIN_HEIGHT = 520;
+const SPLIT_BOTTOM_GAP = 16;
+
+/**
+ * Two-pane layout that fills the window from where it starts to the bottom edge.
+ * Re-measured on resize and when the content above it changes size. Stacked (natural height) on narrow screens.
+ */
+export function SplitPane({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const narrow = typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 900px)') : null;
+    const fit = () => {
+      if (narrow?.matches) {
+        el.style.height = '';
+        return;
+      }
+      // Undo any scrolling so the measurement is the same wherever the page is scrolled.
+      let scrolled = window.scrollY;
+      for (let p = el.parentElement; p; p = p.parentElement) scrolled += p.scrollTop;
+      const top = el.getBoundingClientRect().top + scrolled;
+      el.style.height = `${Math.max(SPLIT_MIN_HEIGHT, Math.floor(window.innerHeight - top - SPLIT_BOTTOM_GAP))}px`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    narrow?.addEventListener('change', fit);
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+    if (ro) {
+      ro.observe(document.body);
+      if (el.parentElement) ro.observe(el.parentElement);
+    }
+    return () => {
+      window.removeEventListener('resize', fit);
+      narrow?.removeEventListener('change', fit);
+      ro?.disconnect();
+    };
+  }, []);
+  return (
+    <div ref={ref} className={s.split}>
+      {children}
+    </div>
+  );
 }

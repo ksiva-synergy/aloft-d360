@@ -1,0 +1,20 @@
+[
+  {
+    "file": "PO_Spend_Analytics.pbix",
+    "status": "ok",
+    "counts": {
+      "schema": 116,
+      "relationships": 2,
+      "dax_measures": 119,
+      "dax_columns": 43,
+      "dax_tables": 9,
+      "power_query": 4,
+      "m_parameters": 0,
+      "rls": 1,
+      "ols": 0,
+      "aggregations": 0
+    },
+    "warnings": [],
+    "table_count": 13
+  }
+]

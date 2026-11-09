@@ -730,7 +730,7 @@ function ExploreRow({
         style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}
       >
         <IconBtn
-          title="Ask Inspector"
+          title="Chat about this"
           color={GOLD}
           onClick={() => onRowAction('ask', r)}
         >

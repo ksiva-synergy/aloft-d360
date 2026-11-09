@@ -1,3 +1,4 @@
+import { ACCESS_DENIED_MODEL_HINT, friendlyDataLabel, requestUrlForAccess } from '@/lib/access/denial-ui';
 import { prisma } from '@/lib/db';
 import { ReadOnlyViolationError, MultiStatementError, ExternalLinksError } from '@/lib/databricks/execute';
 import { profileResultSet } from '@/lib/studio/profiler';
@@ -5,6 +6,7 @@ import type { QueryResult } from '@/hooks/useInspectorChat';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { AccessPrincipal } from '@/lib/access/types';
 import { isAccessActive } from '@/lib/access/mode';
+import { viewerPrincipalRequired } from '@/lib/access/column-guard';
 import { runWarehouseQuery } from '@/lib/access/warehouse';
 import { AccessDeniedError } from '@/lib/access/errors';
 import { systemPrincipal } from '@/lib/access/principal';
@@ -29,7 +31,7 @@ export interface InspectorToolContext {
 
 function resolveWarehousePrincipal(context?: InspectorToolContext): AccessPrincipal | null {
   if (context?.dataPrincipal) return context.dataPrincipal;
-  if (!isAccessActive()) return systemPrincipal('health');
+  if (!viewerPrincipalRequired()) return systemPrincipal('health');
   return null;
 }
 
@@ -474,8 +476,27 @@ export async function executeInspectorTool(
     } catch (err: unknown) {
       if (err instanceof AccessDeniedError) {
         const msg = err.message;
+        const failedPath = err.detail.failedPath ?? err.detail.paths?.[0];
+        const label = friendlyDataLabel(failedPath);
+        const userNeed = context?.lastUserMessage?.trim().slice(0, 500);
+        const queryPaths = err.detail.paths?.filter((p) => p.split('.').length === 3) ?? [];
+        const request = requestUrlForAccess({
+          path: failedPath,
+          label,
+          context: userNeed || msg,
+          level: 'query',
+          queryPaths,
+        });
         emit({ type: 'tool_call_error', callId, error: msg, retryable: false });
-        return JSON.stringify({ error: 'ACCESS_DENIED', message: msg });
+        emit({ type: 'access_denied', message: msg, request, label, path: failedPath });
+        return JSON.stringify({
+          error: 'ACCESS_DENIED',
+          message: msg,
+          request,
+          /** Technical path for tool logs and developer mode — not for the stakeholder reply. */
+          path: err.detail.failedPath ?? err.detail.paths?.[0],
+          model_hint: ACCESS_DENIED_MODEL_HINT,
+        });
       }
       if (err instanceof ReadOnlyViolationError) {
         const msg = `Read-only violation: ${err.message}`;

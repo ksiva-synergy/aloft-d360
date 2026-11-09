@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import userStyles from '@/components/users/users.module.css';
 import { keyFromName, personName, send, type AccessGroup, type Person, type TagLevel } from './api';
-import { Segmented } from './parts';
+import { ConsoleSelect, Segmented } from './parts';
 import s from './console.module.css';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -264,14 +264,19 @@ export function AccessFields({
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-caption font-medium">Group</span>
-            <select className={userStyles.input} value={value.groupId} onChange={(e) => set({ groupId: e.target.value })} aria-label="Group">
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({members(g)} {members(g) === 1 ? 'person' : 'people'})
-                </option>
-              ))}
-              <option value={NEW_GROUP}>+ Create a new group</option>
-            </select>
+            <ConsoleSelect
+              className="w-full"
+              value={value.groupId}
+              ariaLabel="Group"
+              onChange={(groupId) => set({ groupId })}
+              options={[
+                ...groups.map((g) => ({
+                  value: g.id,
+                  label: `${g.name} (${members(g)} ${members(g) === 1 ? 'person' : 'people'})`,
+                })),
+                { value: NEW_GROUP, label: '+ Create a new group' },
+              ]}
+            />
           </label>
           {value.groupId === NEW_GROUP ? (
             <div className="flex flex-col gap-3 rounded-[10px] border border-dashed border-[var(--estate-border)] p-3">

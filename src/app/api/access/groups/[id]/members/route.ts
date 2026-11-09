@@ -15,6 +15,30 @@ export const dynamic = 'force-dynamic';
 
 type Ctx = { params: Promise<{ id: string }> };
 
+/** Longest membership allowed in a group that holds protected-column access (unless the protection sets a shorter limit). */
+const MAX_PROTECTED_MEMBERSHIP_DAYS = 365;
+
+/** Active protection grants held by the group, with the protection's name and duration limit. */
+async function heldProtections(orgId: string, groupId: string) {
+  const now = Date.now();
+  const grants = (
+    await prisma.accessTagGrant.findMany({
+      where: { org_id: orgId, principal_type: 'group', principal_id: groupId },
+      select: { tag_id: true, level: true, expires_at: true },
+    })
+  ).filter((g) => !g.expires_at || g.expires_at.getTime() > now);
+  if (grants.length === 0) return [];
+  const tags = await prisma.accessTag.findMany({
+    where: { id: { in: grants.map((g) => g.tag_id) }, archived_at: null },
+    select: { id: true, name: true, max_duration_days: true },
+  });
+  const byId = new Map(tags.map((t) => [t.id, t]));
+  return grants.flatMap((g) => {
+    const t = byId.get(g.tag_id);
+    return t ? [{ tagId: t.id, name: t.name, level: g.level, maxDays: t.max_duration_days }] : [];
+  });
+}
+
 const AddMember = z.object({
   userId: z.string().min(1),
   /** ISO date-time. Omit for no end date. */
@@ -40,6 +64,19 @@ export const POST = handle(async (req, ctx: Ctx) => {
   const user = await prisma.user.findUnique({ where: { id: body.userId }, select: { id: true, email: true } });
   if (!user) throw new ApiError(404, 'User not found');
   const expiresAt = parseExpiry(body.expiresAt);
+
+  // Review C4: joining a group that holds protected-column access is a protection grant.
+  // Group owners may add members (product decision 2026-11-09), but the membership needs an end date
+  // and is audited as a protection grant.
+  const held = await heldProtections(orgId, groupId);
+  if (held.length > 0) {
+    const names = held.map((h) => `${h.name} · ${h.level === 'aggregate' ? 'Totals only' : 'Exact values'}`).join(', ');
+    if (!expiresAt) throw new ApiError(400, `This group gives access to protected columns (${names}). Set an end date.`);
+    const maxDays = Math.min(MAX_PROTECTED_MEMBERSHIP_DAYS, ...held.map((h) => h.maxDays ?? MAX_PROTECTED_MEMBERSHIP_DAYS));
+    if (expiresAt.getTime() > Date.now() + maxDays * 86_400_000) {
+      throw new ApiError(400, `End date can be at most ${maxDays} days away for a group that gives access to ${names}.`);
+    }
+  }
 
   const before = await prisma.accessGroupMember.findUnique({
     where: { group_id_user_id: { group_id: groupId, user_id: body.userId } },
@@ -71,6 +108,22 @@ export const POST = handle(async (req, ctx: Ctx) => {
     metadata: { reason: body.reason },
     ...clientMeta(req),
   });
+  if (held.length > 0) {
+    await writeAudit({
+      actorId: auth.userId,
+      action: 'access.protection.granted_via_group',
+      entityType: 'access_group',
+      entityId: groupId,
+      after: {
+        userId: body.userId,
+        email: user.email,
+        protections: held.map((h) => ({ id: h.tagId, name: h.name, level: h.level })),
+        expiresAt: expiresAt?.toISOString() ?? null,
+      },
+      metadata: { reason: body.reason },
+      ...clientMeta(req),
+    });
+  }
 
   return created({ ok: true });
 });

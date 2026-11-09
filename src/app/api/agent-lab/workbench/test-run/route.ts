@@ -137,6 +137,8 @@ export async function POST(request: NextRequest) {
           maxLoops: TEST_RUN_MAX_LOOPS,
           supportsTools: option.supportsTools,
           supportsThinking: false,
+          // Bedrock Claude only: cache system+tools and the growing conversation across loops.
+          cacheConversation: true,
           abortSignal: closed,
           onTextChunk: (delta: string) => {
             answer += delta;

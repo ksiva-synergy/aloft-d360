@@ -13,6 +13,7 @@
 import { prisma } from '@/lib/db';
 import { withPrismaReadRetry } from '@/lib/db/with-prisma-read-retry';
 import { readPolicyVersion } from './policy-store';
+import { bootstrapOpenSetting, reportConfigError } from './config';
 import type { AccessModel, AccessRule, Holder, Membership, Protection, ProtectedTarget, ProtectionGrant } from './engine';
 import type { TagGrantLevel } from './types';
 
@@ -26,7 +27,11 @@ export interface AccessModelRows {
   members: { group_id: string; user_id: string; expires_at: Date | null }[];
 }
 
-export function buildAccessModel(rows: AccessModelRows): AccessModel {
+/**
+ * `bootstrapOpen` is only true when the org has opted in (ACCESS_BOOTSTRAP_OPEN) and has no rules yet.
+ * Never inferred from the rule count alone: archiving the last group must not open the estate.
+ */
+export function buildAccessModel(rows: AccessModelRows, opts: { bootstrapOpen?: boolean } = {}): AccessModel {
   const protections = new Map<string, Protection>();
   for (const t of rows.tags) if (!t.archived_at) protections.set(t.id, { id: t.id, name: t.name, key: t.key });
 
@@ -74,7 +79,14 @@ export function buildAccessModel(rows: AccessModelRows): AccessModel {
     membersByUser.set(m.user_id, list);
   }
 
-  return { rules, protections, targets, protectionGrants, membersByUser, bootstrapOpen: rules.length === 0 };
+  return {
+    rules,
+    protections,
+    targets,
+    protectionGrants,
+    membersByUser,
+    bootstrapOpen: Boolean(opts.bootstrapOpen) && rows.rules.length === 0,
+  };
 }
 
 export async function loadAccessModel(orgId: string): Promise<AccessModel> {
@@ -95,7 +107,7 @@ export async function loadAccessModel(orgId: string): Promise<AccessModel> {
         select: { group_id: true, user_id: true, expires_at: true },
       })
     : [];
-  return buildAccessModel({ rules, tags, pathProtections, columnTags, tagGrants, groups, members });
+  return buildAccessModel({ rules, tags, pathProtections, columnTags, tagGrants, groups, members }, { bootstrapOpen: bootstrapOpenSetting() });
 }
 
 type CacheEntry = { version: bigint; model: AccessModel; loadedAt: number };
@@ -108,13 +120,14 @@ function isMissingTable(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2021';
 }
 
+/** Used when the access tables are missing: nothing is open (fail closed). */
 const EMPTY: AccessModel = {
   rules: [],
   protections: new Map(),
   targets: [],
   protectionGrants: [],
   membersByUser: new Map(),
-  bootstrapOpen: true,
+  bootstrapOpen: false,
 };
 
 /** The model for request-time checks; reloads when the policy version changes or after 60 s. */
@@ -129,7 +142,9 @@ export async function getAccessModel(orgId: string): Promise<{ model: AccessMode
         model = await loadAccessModel(orgId);
       } catch (err) {
         if (!isMissingTable(err)) throw err;
-        model = EMPTY; // migration 20261108 not applied in this environment
+        // Migration 20261108 not applied in this environment: refuse everything rather than open it.
+        reportConfigError('ACCESS_TABLES', 'Access tables are missing (migration 20261108 not applied); all data access is refused.');
+        model = EMPTY;
       }
       cache.set(orgId, { version, model, loadedAt: Date.now() });
       return { model, version };

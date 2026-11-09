@@ -496,7 +496,7 @@ function BundleDialog({ bundle, kind, onClose, onSaved, notifyError }: {
           )}
           <div>
             <label htmlFor="bundle-description" className="mb-2 block text-size-ui font-medium">What it is for (optional)</label>
-            <input id="bundle-description" className={styles.input} value={description} maxLength={300} onChange={(e) => setDescription(e.target.value)} placeholder={kind === 'role' ? 'Analysts: Inspector and Agents, no dashboards' : 'Finance team: see spend, no changes'} />
+            <input id="bundle-description" className={styles.input} value={description} maxLength={300} onChange={(e) => setDescription(e.target.value)} placeholder={kind === 'role' ? 'Analysts: Ask Data and Agents, no dashboards' : 'Finance team: see spend, no changes'} />
           </div>
           {error && <div role="alert" className="text-size-ui text-red-600 dark:text-red-400">{error}</div>}
         </div>

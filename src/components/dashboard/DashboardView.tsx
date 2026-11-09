@@ -176,7 +176,7 @@ function DayBars({ data }: { data: number[] }) {
             title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${v}`}
             className="dash-grow-y flex-1 rounded-[2px]"
             style={{
-              height: `${Math.max(8, (v / max) * 100)}%`,
+              height: `${v > 0 ? Math.max(8, (v / max) * 100) : 0}%`,
               background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
               animationDelay: `${i * 30}ms`,
             }}
@@ -350,9 +350,27 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
     </div>
     <p className={styles.sectionDescription}>{e.sources} connected {plural(e.sources, 'source')} · Last scan {relativeTime(e.lastSweepAt)}</p>
     <div className={styles.coverage}>
-      <div><strong>{found ? `${pct(e.embedded, found)}%` : '—'}</strong><span>of discovered tables are searchable</span></div>
-      <p>{e.embedded.toLocaleString()} of {found.toLocaleString()} tables</p>
-      <div className={styles.coverageTrack} role="img" aria-label={`${e.embedded} of ${found} discovered tables are searchable`}><span style={{ width: `${pct(e.embedded, found)}%` }} /></div>
+      <div><strong>{found ? `${pct(e.embedded, found)}%` : '—'}</strong><span>ready for agent search</span></div>
+      <p>{e.embedded.toLocaleString()} searchable / {found.toLocaleString()} discovered tables</p>
+    </div>
+    <div className={styles.journey} role="img" aria-label={`${e.embedded} of ${found} discovered tables are searchable`}>
+      <svg viewBox="0 0 600 190" preserveAspectRatio="none" aria-hidden="true">
+        {[0, 1, 2, 3].map(i => {
+          const x = 30 + i * 135, nextX = x + 135;
+          const y = 170 - (found ? Math.min(stages[i].count / found, 1) * 150 : 0);
+          const nextY = 170 - (found ? Math.min(stages[i + 1].count / found, 1) * 150 : 0);
+          const color = ['#658b9a', '#2b9c90', '#8e7ec6', 'var(--brand-a)'][i];
+          return <g key={i}>
+            <path d={`M${x} ${y} C${x + 65} ${y} ${nextX - 65} ${nextY} ${nextX} ${nextY} L${nextX} 170 L${x} 170Z`} fill={color} opacity=".16" />
+            <path d={`M${x} ${y} C${x + 65} ${y} ${nextX - 65} ${nextY} ${nextX} ${nextY}`} fill="none" stroke={color} strokeWidth="2" />
+          </g>;
+        })}
+        {stages.map((stage, i) => {
+          const x = 30 + i * 135, y = 170 - (found ? Math.min(stage.count / found, 1) * 150 : 0);
+          return <g key={stage.stage.key}><line x1={x} y1="10" x2={x} y2="180" stroke="var(--line-1)" strokeDasharray="3 5" /><circle cx={x} cy={y} r="4" fill={i === 4 ? 'var(--brand-a)' : 'var(--ink-3)'} /></g>;
+        })}
+      </svg>
+      <span className={styles.journeyCaption}>Cumulative table coverage across the pipeline</span>
     </div>
     <ol className={styles.pipeline}>
       {stages.map((item, i) => {
@@ -364,13 +382,13 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
           <div className={styles.stageValue}><strong>{item.count.toLocaleString()}</strong>
             <div className={styles.stageTrack}><span style={{ width: `${pct(item.count, found)}%`, background: item.stage.color }} /></div>
           </div>
-          <Link href={jobHref(kind)} className={styles.stageStatus} style={{ color: status ? JOB_DOT[status.tone] : undefined }}>
+          <Link href={jobHref(kind)} className={styles.stageStatus} data-tone={status?.tone} style={{ color: status ? JOB_DOT[status.tone] : undefined }}>
             {status?.text ?? 'Job status unavailable'} <ChevronRight size={12} aria-hidden />
           </Link>
         </li>;
       })}
     </ol>
-    <p className={styles.stageNote}>Stages show cumulative coverage, not separate groups of tables.</p>
+    <details className={styles.stageGuide}><summary>How to read this journey</summary><p>Stages show cumulative coverage, not separate groups of tables.</p><ul>{stages.map(item => <li key={item.stage.key}><strong>{item.label}</strong><span>{item.detail}</span></li>)}</ul><p>The height of the line shows how many discovered tables have reached each stage. A steep drop indicates a coverage gap, not necessarily a failed job.</p></details>
     {biggest > 0 && <div className={styles.nextStep}>
       <ArrowRight size={18} aria-hidden /><div><strong>Largest coverage gap: {stages[gapIndex + 1].label.toLowerCase()}</strong>
       <p>{biggest.toLocaleString()} fewer tables than the preceding stage. Review scope and job results before continuing.</p></div>
@@ -386,70 +404,47 @@ function EstateFlow({ e, jobs }: { e: EstateSummary | null; jobs: JobsSummary | 
 // ── Memory ───────────────────────────────────────────────────────────────────
 
 function MemoryPanel({ m }: { m: MemorySummary | null }) {
-  return (
-    <Section title="What your agents are learning" meta={m ? (m.injectEnabled ? 'In use by agents' : 'Not in use') : undefined} href="/agent-lab/memory" className="lg:col-span-12">
-      <div className={cn(PANEL, 'flex flex-1 flex-col')}>
-        {!m ? <Unavailable what="Memory" /> : (() => {
-          const rated = m.helpfulTotal + m.harmfulTotal;
-          const helpfulPct = Math.round(m.helpfulRatio * 100);
-          const topMax = Math.max(...m.topTopics.map(t => t.count), 1);
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-              <div className="flex flex-col border-b border-[var(--line-1)] md:border-b-0 md:border-r">
-                <div className="flex items-end justify-between gap-4 px-5 pt-5">
-                  <div>
-                    <div className="text-caption text-[var(--ink-2)]">Memory helpfulness</div>
-                    <div className={cn(NUM, 'mt-1.5 text-kpi-lg leading-none')}>{rated ? `${helpfulPct}%` : '—'}</div>
-                  </div>
-                  <div className={cn('pb-0.5 text-right text-caption tabular-nums', MUTED)}>
-                    {rated ? <>{m.helpfulTotal} helpful<br />{m.harmfulTotal} not helpful</> : 'No ratings yet'}
-                  </div>
-                </div>
-                <div className="mx-5 mt-3 flex h-1.5 gap-[2px] overflow-hidden rounded-full bg-[var(--surface-3)]">
-                  {rated > 0 && <div className="dash-grow-x rounded-l-full" style={{ width: `${helpfulPct}%`, background: 'var(--ok)' }} />}
-                  {rated > 0 && helpfulPct < 100 && <div className="dash-grow-x rounded-r-full" style={{ width: `${100 - helpfulPct}%`, background: 'color-mix(in srgb, var(--bad) 55%, transparent)', animationDelay: '80ms' }} />}
-                </div>
-                <p className={cn('mx-5 mb-5 mt-2.5 text-caption tabular-nums', MUTED)}>
-                  {fmt(m.activeMemories)} active · {fmt(m.coreMemories)} core · learned from {fmt(m.tracedSessions)} {plural(m.tracedSessions, 'session')}
-                </p>
-                <dl className="mt-auto grid grid-cols-3 divide-x divide-[var(--line-1)] border-t border-[var(--line-1)]">
-                  {[
-                    { k: 'Used today', v: fmt(m.injectedLast24h) },
-                    { k: 'Blocked this week', v: fmt(m.phantomsBlocked7d), title: 'Low-quality memories kept away from agents' },
-                    { k: 'Last learned', v: relativeTime(m.lastSynthesisAt) },
-                  ].map(x => (
-                    <div key={x.k} className="px-4 py-3" title={x.title}>
-                      <dt className={cn('truncate text-caption', MUTED)}>{x.k}</dt>
-                      <dd className="mt-0.5 truncate text-size-ui font-medium tabular-nums text-[var(--ink-1)]">{x.v}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+  const rated = m ? m.helpfulTotal + m.harmfulTotal : 0;
+  const helpfulPct = m ? Math.max(0, Math.min(100, Math.round(m.helpfulRatio * 100))) : 0;
+  const topics = m ? [...m.topTopics].sort((a, b) => b.count - a.count).slice(0, 6) : [];
+  const topMax = Math.max(...topics.map(t => t.count), 1);
+  return <Section title="Agent memory" href="/agent-lab/memory" linkLabel="Explore memory" className="lg:col-span-12"
+    meta={m ? <span className={styles.memoryStatus} data-enabled={m.injectEnabled}>{m.injectEnabled ? 'In use by agents' : 'Not in use'}</span> : undefined}>
+    {!m ? <div className={PANEL}><Unavailable what="Memory" /></div> : <div className={styles.memoryPanel}>
+      <div className={styles.memoryHealth}>
 
-              <div className="px-5 py-5">
-                <h3 className={cn('mb-2 text-caption', MUTED)}>Most remembered topics</h3>
-                {m.topTopics.length === 0 ? (
-                  <p className={cn('text-size-ui', MUTED)}>No topics yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-2">
-                    {m.topTopics.slice(0, 6).map((t, i) => (
-                      <li key={t.name} className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_2rem] items-center gap-3 text-size-ui">
-                        <span className="truncate text-[var(--ink-1)]">{t.name}</span>
-                        <div className="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                          <div className="dash-grow-x h-full rounded-full" style={{ width: `${(t.count / topMax) * 100}%`, background: 'color-mix(in srgb, var(--brand-a) 60%, var(--surface-3))', animationDelay: `${i * 40}ms` }} />
-                        </div>
-                        <span className={cn('text-right text-caption tabular-nums', MUTED)}>{t.count}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        <div className={styles.memoryScore}>
+          <div className={styles.memoryRing} role="img" aria-label={rated ? `${helpfulPct}% helpful across ${rated} ratings` : 'No memory ratings yet'}>
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="var(--surface-3)" strokeWidth="8" />
+              {rated > 0 && <circle cx="60" cy="60" r="50" fill="none" stroke="var(--ok)" strokeWidth="8" strokeLinecap="round" pathLength="100" strokeDasharray={`${helpfulPct} 100`} transform="rotate(-90 60 60)" />}
+            </svg>
+            <div><strong>{rated ? `${helpfulPct}%` : '—'}</strong><span>{rated ? 'helpful' : 'not rated'}</span></div>
+          </div>
+          <div className={styles.memoryRatings}>
+            <h3>Memory helpfulness</h3><p>{rated ? `${rated.toLocaleString()} rated uses` : 'No ratings yet'}</p>
+            <dl><div><dt><span className={styles.helpfulDot} />Helpful</dt><dd>{m.helpfulTotal.toLocaleString()}</dd></div>
+              <div><dt><span className={styles.unhelpfulDot} />Not helpful</dt><dd>{m.harmfulTotal.toLocaleString()}</dd></div></dl>
+          </div>
+        </div>
+        <p className={styles.memoryContext}><strong>{m.activeMemories.toLocaleString()}</strong> active memories · <strong>{m.coreMemories.toLocaleString()}</strong> core · Learned from <strong>{m.tracedSessions.toLocaleString()}</strong> sessions</p>
+
       </div>
-    </Section>
-  );
+      <div className={styles.memoryTopics}>
+        <div className={styles.memoryHeading}><h3>Most remembered</h3><span title="Bars compare each topic with the largest shown, not with all memories.">Memories by topic</span></div>
+        {topics.length === 0 ? <p className={styles.sectionDescription}>No topics yet. They appear as memories are organized.</p> : <ol className={styles.topicList}>
+          {topics.map((topic, i) => <li key={topic.name}>
+            <div className={styles.topicName}><span>{topic.name}</span><div className={styles.topicTrack} aria-hidden="true"><span style={{ width: `${topic.count / topMax * 100}%`, opacity: 1 - i * .1 }} /></div></div>
+            <strong>{topic.count.toLocaleString()}</strong>
+          </li>)}
+        </ol>}
+      </div>
+        <dl className={styles.memoryActivity}>
+          <div><dt>Uses · last 24h</dt><dd>{fmt(m.injectedLast24h)}</dd></div>
+          <div title="Low-quality memories prevented from reaching agents"><dt>Blocked · last 7d</dt><dd>{fmt(m.phantomsBlocked7d)}</dd></div>
+          <div><dt>Last learned</dt><dd>{m.lastSynthesisAt ? relativeTime(m.lastSynthesisAt) : 'Not yet'}</dd></div>
+        </dl>
+    </div>}
+  </Section>;
 }
 
 // ── AI spend ─────────────────────────────────────────────────────────────────
@@ -490,7 +485,7 @@ function SpendPanel({ s }: { s: SpendSummary | null }) {
                       title={`${today ? 'Today' : d.toLocaleDateString(undefined, { weekday: 'long' })}: ${usd(v)}`}
                       className="dash-grow-y flex-1 rounded-[3px]"
                       style={{
-                        height: `${Math.max(4, (v / max) * 100)}%`,
+                        height: `${v > 0 ? Math.max(4, (v / max) * 100) : 0}%`,
                         background: today ? 'var(--brand-a)' : 'color-mix(in srgb, var(--brand-a) 28%, var(--surface-3))',
                         animationDelay: `${i * 30}ms`,
                       }}
@@ -585,7 +580,6 @@ const MOTION_CSS = `
 
 export function DashboardView({
   summary,
-  displayName,
   roleLabel,
   canReadUsers,
 }: {
@@ -599,19 +593,15 @@ export function DashboardView({
   const governance = summary.governance ?? null;
   const spend = summary.spend ?? null;
 
-  // Greeting and date are client-derived to avoid SSR/timezone drift.
+  // Date is client-derived to avoid SSR/timezone drift.
   const [mounted, setMounted] = useState(false);
-  const [greeting, setGreeting] = useState('Welcome back');
   const [dateStr, setDateStr] = useState('');
   useEffect(() => {
     setMounted(true);
-    const h = new Date().getHours();
-    setGreeting(h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening');
     setDateStr(new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }));
   }, []);
 
   const attention = buildAttention(estate, memory, logins, jobs, governance, canReadUsers);
-  const urgent = attention.filter(a => a.tone !== 'info').length;
   const noData = !estate && !memory && !logins && !inspector && !jobs && !governance;
   const memGrowth = memory && memory.storeSeries.length > 1 ? memory.storeSeries[memory.storeSeries.length - 1] - memory.storeSeries[0] : null;
   const found = estate ? Math.max(estate.estateTotal, estate.harvested) : 0;
@@ -624,23 +614,16 @@ export function DashboardView({
     <div className={cn(styles.page, 'h-full overflow-y-auto scrollbar-thin')}>
       <style>{MOTION_CSS}</style>
       <div className={styles.container}>
-        <header className={styles.hero}>
-          <div>
-            <div className={styles.heroMeta}><span className={styles.eyebrow}>WORKSPACE OVERVIEW</span><span>{roleLabel}</span></div>
-            <p className={styles.greeting}>{greeting}, {displayName}.</p>
-            <h1>Your platform, today.</h1>
-            <p className={styles.heroDescription}>Your data, agent activity, and operational priorities in one place.</p>
-            <div className={styles.heroLinks}><Link href="/inspector">Ask Inspector <ArrowUpRight size={16} /></Link><a href="#dashboard-attention">Review action list <ArrowRight size={15} /></a></div>
-          </div>
-          <div className={styles.heroBrief}>
-            <div className={styles.briefHeading}><Clock3 size={15} /><span>{mounted ? dateStr : 'Today’s briefing'}</span></div>
-            <strong>{noData ? 'Snapshot unavailable' : urgent > 0 ? `${urgent} items need attention` : 'No urgent issues reported'}</strong>
-            <p>{noData ? 'Some services could not be reached. Unavailable metrics are marked below.' : urgent > 0 ? 'Start with failed jobs, then review data quality and overdue work.' : 'Review follow-ups and data coverage to plan your next step.'}</p>
-            {runs && runs.running > 0 && <Link href="/agent-lab/estate/jobs?tab=active" className={styles.running}><span />{runs.running} {plural(runs.running, 'job')} running <ArrowUpRight size={13} /></Link>}
-            {mounted && <span className={styles.updated} title={new Date(summary.generatedAt).toLocaleString()}>Snapshot updated {relativeTime(summary.generatedAt)}</span>}
+        <header className={styles.header}>
+          <div className={styles.headerTitle}><h1>Overview</h1><span>{roleLabel}</span></div>
+          <div className={styles.headerActions}>
+            <div className={styles.snapshot}>
+              <span><Clock3 size={13} aria-hidden />{mounted ? dateStr : 'Workspace summary'}</span>
+              {mounted && <small title={new Date(summary.generatedAt).toLocaleString()}>Snapshot updated {relativeTime(summary.generatedAt)}</small>}
+            </div>
+            <Link href="/inspector">Ask Data <ArrowUpRight size={15} aria-hidden /></Link>
           </div>
         </header>
-
         <div className={styles.metrics} aria-label="Key metrics">
           <Metric
             label="Searchable tables"
@@ -666,7 +649,7 @@ export function DashboardView({
             chart={memory ? <Sparkline data={memory.storeSeries} /> : undefined}
           />
           <Metric
-            label={canReadUsers ? 'Inspector sessions' : 'My sessions'}
+            label={canReadUsers ? 'Ask Data sessions' : 'My sessions'}
             href="/inspector"
             value={inspector ? fmt(inspector.sessions7d) : '—'}
             of={inspector ? 'last 7 days' : undefined}
@@ -680,8 +663,8 @@ export function DashboardView({
         </div>
 
         <div className={styles.mainGrid}>
-          <Briefing items={attention} unavailable={noData} />
           <EstateFlow e={estate} jobs={jobs} />
+          <Briefing items={attention} unavailable={noData} />
         </div>
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-6">

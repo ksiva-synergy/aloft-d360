@@ -94,6 +94,10 @@ export function covers(parent: string, child: string): boolean {
 
 const active = (expiresAt: Date | null, now: number) => !expiresAt || expiresAt.getTime() > now;
 
+/** App role that sees all data: every path (Use + export), past any Block, every protection at Exact values. */
+export const PLATFORM_ADMIN_ROLE = 'platform_admin';
+export const isPlatformAdminPerson = (person: Person) => person.roles.includes(PLATFORM_ADMIN_ROLE);
+
 function holderMatches(h: Holder, person: Person, groups: Set<string>, roles: Set<string>): boolean {
   if (h.kind === 'person') return h.id === person.userId;
   if (h.kind === 'group') return groups.has(h.id);
@@ -117,6 +121,7 @@ export function protectionLevel(
   protectionId: string,
   now: number = Date.now(),
 ): TagGrantLevel | 'none' {
+  if (isPlatformAdminPerson(person)) return 'full';
   const { groups, roles } = context(model, person, now);
   let best: TagGrantLevel | 'none' = 'none';
   for (const g of model.protectionGrants) {
@@ -138,7 +143,7 @@ export function pathProtections(model: AccessModel, objectPath: string): Protect
 export type OpenNeed = 'use' | 'export';
 
 export type OpenDecision =
-  | { ok: true; reason?: 'bootstrap_open' }
+  | { ok: true; reason?: 'bootstrap_open' | 'platform_admin' }
   | { ok: false; reason: 'blocked' | 'no_access' }
   | { ok: false; reason: 'protected'; protections: Protection[] };
 
@@ -146,6 +151,7 @@ export type OpenDecision =
  * 1. A Block on the path (or a parent) for the person or any of their groups → blocked.
  * 2. Use on the path (or a parent) → yes; Export needs a rule with Allow export.
  *    While no rules exist at all (bootstrap), unprotected data is open.
+ * 0. Platform admins open everything (Use + export, past any Block and protection).
  * 3. Whole-path protections: the person needs every one (Totals only is enough to open; columns
  *    then behave as protected columns, see decideColumnUse).
  */
@@ -157,6 +163,7 @@ export function canOpen(
   now: number = Date.now(),
 ): OpenDecision {
   const path = norm(objectPath);
+  if (isPlatformAdminPerson(person)) return { ok: true, reason: 'platform_admin' };
   const { groups, roles } = context(model, person, now);
   const applies = (r: AccessRule) =>
     active(r.expiresAt, now) && covers(r.path, path) && holderMatches(r.holder, person, groups, roles);
@@ -176,6 +183,34 @@ export function canOpen(
   if (missing.length) return { ok: false, reason: 'protected', protections: missing };
 
   return model.bootstrapOpen ? { ok: true, reason: 'bootstrap_open' } : { ok: true };
+}
+
+export type GrantPreview =
+  | { ok: true }
+  | { ok: false; reason: 'blocked'; blockedBy: string[] }
+  | { ok: false; reason: 'protected'; protections: Protection[] };
+
+/**
+ * What would still stop the person opening `objectPath` if they were given Use on it (review H6).
+ * A Block always wins, and Use on a path does not give its whole-path protections.
+ */
+export function previewPathGrant(
+  model: AccessModel,
+  person: Person,
+  objectPath: string,
+  need: OpenNeed,
+  now: number = Date.now(),
+): GrantPreview {
+  const path = norm(objectPath);
+  const added: AccessRule = { holder: { kind: 'person', id: person.userId }, path, effect: 'use', allowExport: need === 'export', expiresAt: null };
+  const d = canOpen({ ...model, rules: [...model.rules, added] }, person, path, need, now);
+  if (d.ok) return { ok: true };
+  if (d.reason === 'protected') return { ok: false, reason: 'protected', protections: d.protections };
+  const { groups, roles } = context(model, person, now);
+  const blockedBy = model.rules
+    .filter((r) => r.effect === 'block' && active(r.expiresAt, now) && covers(r.path, path) && holderMatches(r.holder, person, groups, roles))
+    .map((r) => r.path);
+  return { ok: false, reason: 'blocked', blockedBy: [...new Set(blockedBy)].sort() };
 }
 
 /** Decide for a principal; system principals (harvest, sync, …) are not governed by this model. */

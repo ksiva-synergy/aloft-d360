@@ -906,7 +906,7 @@ export function DashboardBuilder({ dashboardId }: { dashboardId: string }) {
                   <EmptyStatePrompts
                     modelId={modelId}
                     title="This dashboard is empty. Get started:"
-                    footerHint={isReadOnly ? undefined : 'Switch to Guided above, add a blank widget, or build one in Inspector and pin it here.'}
+                    footerHint={isReadOnly ? undefined : 'Switch to Guided above, add a blank widget, or build one in Ask Data and pin it here.'}
                     onPromptClick={(p) => router.push(`/inspector?prompt=${encodeURIComponent(p)}`)}
                   />
                 </div>

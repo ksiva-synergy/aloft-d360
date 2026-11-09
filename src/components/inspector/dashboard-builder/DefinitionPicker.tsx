@@ -242,7 +242,7 @@ export function DefinitionPicker({
                 No saved charts yet.
               </span>
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', marginTop: 6, lineHeight: 1.5 }}>
-                Use the Inspector to run a semantic query, then click "SAVE TO CHARTS" on the result.
+                Use Ask Data to run a semantic query, then click "SAVE TO CHARTS" on the result.
               </p>
             </div>
           )}

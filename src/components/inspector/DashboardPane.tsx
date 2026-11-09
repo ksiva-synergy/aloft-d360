@@ -1,5 +1,6 @@
 'use client';
 
+import { AccessNoticeBanner } from '@/components/access/AccessNoticeBanner';
 import { Select } from '@/components/form/Select';
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Maximize2, BookmarkPlus, Pin, Sparkles, Check, X, Download } from 'lucide-react';
@@ -754,13 +755,8 @@ export function DashboardPane({
           <SqlBadge sql={active.sql} />
 
           {active.accessNote ? (
-            <div role="status" className="mx-3 mb-2 flex flex-wrap items-center gap-2 rounded-[8px] bg-[var(--warn-bg)] px-3 py-2 text-caption text-[var(--warn)]">
-              <span>{active.accessNote.message}</span>
-              {active.accessNote.request ? (
-                <a href={active.accessNote.request} className="font-semibold underline">
-                  Request access
-                </a>
-              ) : null}
+            <div className="mx-3 mb-2">
+              <AccessNoticeBanner message={active.accessNote.message} request={active.accessNote.request} />
             </div>
           ) : null}
 

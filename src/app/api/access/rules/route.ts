@@ -9,6 +9,7 @@ import { requireAccessAdmin } from '@/lib/access/admin-api';
 import { normalizeCatalogPath } from '@/lib/access/paths';
 import { assertActiveGroup, parseExpiry, ReasonSchema } from '@/lib/access/column-admin';
 import { BUILTIN_GROUPS } from '@/lib/access/engine';
+import { isPlatformAdminRole } from '@/lib/access/sensitive';
 import { loadAccessAdminData } from '@/lib/access/rules-admin';
 
 export const dynamic = 'force-dynamic';
@@ -61,6 +62,7 @@ export const PUT = handle(async (req) => {
   const body = parse(SetRule, await req.json());
   const { path, pathDepth } = normalizeCatalogPath(body.path);
   const expiresAt = parseExpiry(body.expiresAt);
+  const widens = body.access === 'use' || body.access === 'export';
 
   if (body.holderType === 'person') {
     if (body.holderId === auth.userId) throw new ApiError(403, 'You cannot set your own data access. Ask another admin.');
@@ -68,6 +70,20 @@ export const PUT = handle(async (req) => {
     if (!user) throw new ApiError(404, 'User not found');
   } else if (body.holderType === 'group') {
     await assertActiveGroup(orgId, body.holderId);
+    // Giving Use to a group you are in is giving it to yourself (review: self-access through groups).
+    if (widens && !isPlatformAdminRole(auth.role)) {
+      const now = new Date();
+      const mine = await prisma.accessGroupMember.findUnique({
+        where: { group_id_user_id: { group_id: body.holderId, user_id: auth.userId } },
+        select: { expires_at: true },
+      });
+      if (mine && (!mine.expires_at || mine.expires_at > now)) {
+        throw new ApiError(403, 'You are a member of this group, so this would give you access too. Ask another admin or a platform admin.');
+      }
+    }
+  } else if (widens && body.holderId === 'admin' && !isPlatformAdminRole(auth.role)) {
+    // The built-in Admins group includes the person setting it.
+    throw new ApiError(403, 'You are in the Admins group, so this would give you access too. Ask a platform admin.');
   } else if (!BUILTIN_GROUPS.some((b) => b.id === body.holderId)) {
     const role = await prisma.role.findUnique({ where: { name: body.holderId }, select: { name: true } });
     if (!role) throw new ApiError(404, 'Unknown built-in group');

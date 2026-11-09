@@ -16,15 +16,28 @@ import { prisma } from '@/lib/db';
 import type { DatabricksExecuteResult } from '@/lib/databricks/execute';
 import { decideColumnUse, pathProtections, type AccessModel, type Person, type Protection } from './engine';
 import { getAccessModel } from './model-store';
+import { isAccessActive, reportConfigError } from './config';
 import { resolveColumns, withMinGroupSize, type ColumnRef } from './sql-columns';
 import { friendlyColumnName, MASK, MIN_GROUP_SIZE } from './decide-column';
 import type { AccessPrincipal, AccessSurface } from './types';
 
 export type ColumnMode = 'off' | 'shadow' | 'enforce';
 
+/** Unset means off; an unrecognised value (a typo) means enforce, so a mistake never turns masking off. */
 export function columnAccessMode(): ColumnMode {
   const raw = (process.env.COLUMN_ACCESS_MODE ?? 'off').trim().toLowerCase();
-  return raw === 'shadow' || raw === 'enforce' ? raw : 'off';
+  if (raw === 'off' || raw === 'shadow' || raw === 'enforce') return raw;
+  reportConfigError('COLUMN_ACCESS_MODE', `COLUMN_ACCESS_MODE value "${raw}" is not recognised (use off, shadow or enforce); enforcing.`);
+  return 'enforce';
+}
+
+/**
+ * True when a query must run as a real person: table checks are on, or protected columns are masked.
+ * Callers must not fall back to a system principal then, because the column guard skips system
+ * principals and protected columns would come back unmasked (review H2).
+ */
+export function viewerPrincipalRequired(): boolean {
+  return isAccessActive() || columnAccessMode() !== 'off';
 }
 
 /** Shown to the AI and the person (never values). */

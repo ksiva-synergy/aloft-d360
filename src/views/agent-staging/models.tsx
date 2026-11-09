@@ -1285,7 +1285,7 @@ export default function ModelsConfigPage() {
                       </div>
                       <p className="text-caption text-[var(--ink-3)] mt-0.5">
                         Configure the default model and exact allowlist of LLM Lite models that{' '}
-                        <strong>{activeRole.label}</strong> users can select in Inspector, Workbench, and Agent Chat.
+                        <strong>{activeRole.label}</strong> users can select in Ask Data, Workbench, and Agent Chat.
                       </p>
                     </div>
 
@@ -1496,7 +1496,7 @@ export default function ModelsConfigPage() {
                     30-Day Model Turn Telemetry
                   </h2>
                   <p className="text-caption text-[var(--ink-3)] mt-0.5">
-                    Recorded executions from <code className="font-mono">agent_turn_log</code> across Inspector, Workbench, and Commissioned Agents.
+                    Recorded executions from <code className="font-mono">agent_turn_log</code> across Ask Data, Workbench, and Commissioned Agents.
                   </p>
                 </div>
               </div>
@@ -1509,7 +1509,7 @@ export default function ModelsConfigPage() {
                   No turn telemetry recorded in the last 30 days
                 </div>
                 <p className="text-caption text-[var(--ink-3)] mt-0.5">
-                  Turns will appear here automatically as users run Inspector, Workbench, or Agent chats.
+                  Turns will appear here automatically as users run Ask Data, Workbench, or Agent chats.
                 </p>
               </div>
             ) : (

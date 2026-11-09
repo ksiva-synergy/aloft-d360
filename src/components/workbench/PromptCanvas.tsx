@@ -1,4 +1,5 @@
 'use client';
+import { AccessNoticeBanner } from '@/components/access/AccessNoticeBanner';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -199,7 +200,7 @@ function SuggestionPills({ suggestions, onSelect }: { suggestions: string[]; onS
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 20px 4px' }}
+      style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 0 4px' }}
     >
       {suggestions.map(s => (
         <button
@@ -241,7 +242,7 @@ function UserMessage({ msg, onResend, onEdit, bubble = false }: UserMessageProps
         transition={{ duration: 0.22, ease: 'easeOut' }}
         className="group flex flex-col items-end gap-1"
       >
-        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--brand-a)] px-3.5 py-2.5 text-size-body leading-relaxed text-white">
+        <p className="ml-auto max-w-[min(720px,90%)] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[color-mix(in_srgb,var(--brand-a)_8%,var(--surface-1))] px-4 py-3 text-size-body leading-relaxed text-[var(--ink-1)]">
           {msg.content}
         </p>
         <div className="flex items-center gap-1 text-[length:var(--type-caption-size)] text-[var(--ink-3)]">
@@ -556,6 +557,7 @@ function ConversationThread({
                   </div>
                 )}
                 <StreamingMessage
+                  cleanPresentation={!!chatStyle}
                   activity={msg.activity}
                   companionActive={isLast}
                   error={isLast && !isStreaming ? chatError : undefined}
@@ -573,6 +575,9 @@ function ConversationThread({
                   tokenCount={completionMeta[msg.id]?.tokenCount}
                   modelName={completionMeta[msg.id]?.modelName}
                 />
+                {!isLiveStreaming && msg.accessDenial ? (
+                  <AccessNoticeBanner message={msg.accessDenial.message} request={msg.accessDenial.request} />
+                ) : null}
                 {!isLiveStreaming && renderAfterAssistant?.(msg)}
                 {/* Assumption chips — shown after streaming completes */}
                 {!isLiveStreaming && msgAssumptions.length > 0 && (
@@ -761,7 +766,7 @@ export function PromptCanvas({
 }: PromptCanvasProps) {
   const hasMessages = messages.length > 0 || !!chatError;
   const centeredComposer = !hasMessages && !emptyState;
-  const columnMaxWidth = surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
+  const columnMaxWidth = surface === 'inspector' ? 800 : surface === 'workbench' || chatStyle ? WORKBENCH_COMPOSER_MAX_PX : undefined;
 
   const { reflections, dismissed, dismiss, acknowledge, act, restoreReflection } = useReflections(sessionId);
 

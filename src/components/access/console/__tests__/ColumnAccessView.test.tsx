@@ -6,10 +6,17 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ColumnAccessView } from '../ColumnAccessView';
 import { ConsoleReadOnlyContext } from '../readOnly';
 import type { Person } from '../api';
+
+const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+beforeAll(() => Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() }));
+afterAll(() => {
+  if (scrollIntoViewDescriptor) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', scrollIntoViewDescriptor);
+  else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+});
 
 const json = (status: number, body: unknown) =>
   new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -75,6 +82,12 @@ function renderPage(opts: { platformAdmin?: boolean; readOnly?: boolean; meId?: 
       <ColumnAccessView people={people} meId={opts.meId ?? 'u-pa'} isPlatformAdmin={opts.platformAdmin ?? true} onChanged={() => {}} />
     </ConsoleReadOnlyContext.Provider>,
   );
+}
+
+async function selectConsoleOption(scope: HTMLElement, comboboxLabel: string, option: string) {
+  const combobox = within(scope).getByRole('combobox', { name: comboboxLabel });
+  fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+  fireEvent.click(await screen.findByRole('option', { name: option }));
 }
 
 /** Inline people picker: type, then click the match. */
@@ -178,7 +191,7 @@ describe('ColumnAccessView', () => {
     const dialog = await screen.findByRole('dialog', { name: 'New protection' });
     fireEvent.change(within(dialog).getByLabelText('Data name'), { target: { value: 'Bonus' } });
     fireEvent.click(within(dialog).getByRole('radio', { name: /A group/ }));
-    fireEvent.change(within(dialog).getByLabelText('Group'), { target: { value: '__new_group__' } });
+    await selectConsoleOption(dialog, 'Group', '+ Create a new group');
     fireEvent.change(within(dialog).getByLabelText('Group name'), { target: { value: 'HR leads' } });
     pickPerson(dialog, 'Approver', 'Olivia Owner');
     pickPerson(dialog, 'People in the group', 'Ben Ko');

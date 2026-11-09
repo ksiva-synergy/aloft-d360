@@ -123,7 +123,7 @@ export default function ProfileSettingsPage() {
       <section className="rounded-card border border-[var(--line-1)] bg-[var(--surface-1)] p-5 shadow-sm">
         <h2 className="text-size-body font-semibold text-[var(--ink-1)]">Developer mode</h2>
         <p className="mt-1 text-size-body text-[var(--ink-3)]">
-          Platform and org admins only. Shows tool steps, SQL inspect panels, and Developer tabs in Inspector, Agents, and the workbench.
+          Platform and org admins only. Shows tool steps, SQL inspect panels, and Developer tabs in Ask Data, Agents, and the workbench.
         </p>
         <div className="mt-4 border-t border-[var(--line-1)] pt-4">
           <DeveloperModeToggle />

@@ -150,6 +150,15 @@ const AGGREGATES = new Set([
   'covar_pop', 'covar_samp', 'kurtosis', 'skewness', 'bool_and', 'bool_or', 'every', 'some', 'bit_and', 'bit_or', 'bit_xor',
   'max_by', 'min_by', 'regr_slope', 'regr_intercept', 'regr_count', 'regr_r2', 'sum_distinct',
 ]);
+/**
+ * Aggregates whose result never reveals one row's value. Only these satisfy "Totals only".
+ * Everything else in AGGREGATES (min, max, collect_list, median, first, …) returns individual values,
+ * so a protected column inside one is treated as output.
+ */
+export const TOTALS_SAFE = new Set([
+  'sum', 'avg', 'mean', 'count', 'count_if', 'approx_count_distinct', 'sum_distinct',
+  'stddev', 'stddev_pop', 'stddev_samp', 'std', 'variance', 'var_pop', 'var_samp',
+]);
 const COMPARISON = new Set(['=', '==', '<', '>', '<=', '>=', '<>', '!=', 'like', 'ilike', 'rlike', 'regexp', 'in', 'between', 'is']);
 /** Words that are never column references. */
 const RESERVED = new Set([
@@ -317,14 +326,23 @@ function resolve(sql: string, columnsByTable: Map<string, string[]>): ResolveRes
 
   /** Collect references in toks[a, b) with a default use; aggregates and window specs adjust the use. */
   function collect(a: number, b: number, base: ColumnUse, out: ColumnRef[], aliases?: Map<string, OutputColumn>, outputs?: OutputColumn[]): void {
-    const stack: ('agg' | 'win' | 'plain')[] = [];
+    // 'agg' = a totals-safe aggregate; 'pick' = an aggregate that returns individual values.
+    const stack: ('agg' | 'pick' | 'win' | 'plain')[] = [];
     for (let i = a; i < b; i++) {
       const t = toks[i]!;
       if (t.t === '(') {
         const prev = toks[i - 1];
         const isFn = prev?.t === 'id' && !RESERVED.has(prev.v);
         // OVER (...) and FILTER (WHERE ...) can reveal values: treat their contents as filters.
-        stack.push(prev?.t === 'id' && (prev.v === 'over' || prev.v === 'filter') ? 'win' : isFn && AGGREGATES.has(prev.v) ? 'agg' : 'plain');
+        stack.push(
+          prev?.t === 'id' && (prev.v === 'over' || prev.v === 'filter')
+            ? 'win'
+            : isFn && TOTALS_SAFE.has(prev.v)
+              ? 'agg'
+              : isFn && AGGREGATES.has(prev.v)
+                ? 'pick'
+                : 'plain',
+        );
         continue;
       }
       if (t.t === ')') {
@@ -350,7 +368,7 @@ function resolve(sql: string, columnsByTable: Map<string, string[]>): ResolveRes
       }
       if (toks[j + 1]?.t === '.' && toks[j + 2]?.t === '*') continue; // t.* handled by the caller
       const inWin = stack.includes('win');
-      const inAgg = stack.includes('agg');
+      const inAgg = stack.includes('agg') && !stack.includes('pick');
       const use: ColumnUse = base === 'filter' || inWin ? 'filter' : inAgg ? 'aggregate' : base;
       const src = lookup(chain);
       if (src) out.push({ ...src, use });

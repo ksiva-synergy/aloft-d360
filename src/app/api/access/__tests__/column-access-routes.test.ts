@@ -337,6 +337,52 @@ describe('members', () => {
     ).toBe(403);
   });
 
+  describe('a group that holds a protection (review C4)', () => {
+    async function protectedGroup(): Promise<string> {
+      const tagId = await makeTag();
+      const groupId = await makeGroup();
+      as(PLATFORM_ADMIN);
+      await grantsRoute.POST(
+        req('POST', '/api/access/tag-grants', { tagId, principalType: 'group', principalId: groupId, level: 'full', reason: REASON }),
+        {} as never,
+      );
+      return groupId;
+    }
+    const in30 = () => new Date(Date.now() + 30 * 86_400_000).toISOString();
+
+    it('the owner adds a member with an end date, and it is audited as a protection grant', async () => {
+      const id = await protectedGroup();
+      as(OWNER);
+      const res = await membersRoute.POST(req('POST', `/api/access/groups/${id}/members`, { userId: 'u-ana', expiresAt: in30(), reason: REASON }), params(id));
+      expect(res.status).toBe(201);
+      expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'access.protection.granted_via_group', actorId: 'u-owner' }));
+    });
+
+    it('an end date is required, for owners and platform admins', async () => {
+      const id = await protectedGroup();
+      as(OWNER);
+      const res = await membersRoute.POST(req('POST', `/api/access/groups/${id}/members`, { userId: 'u-ana', reason: REASON }), params(id));
+      expect(res.status).toBe(400);
+      expect((await json(res)).error).toMatch(/Compensation · Exact values/);
+      as(PLATFORM_ADMIN);
+      expect((await membersRoute.POST(req('POST', `/api/access/groups/${id}/members`, { userId: 'u-ana', reason: REASON }), params(id))).status).toBe(400);
+    });
+
+    it('an end date more than a year away is refused', async () => {
+      const id = await protectedGroup();
+      const far = new Date(Date.now() + 400 * 86_400_000).toISOString();
+      const res = await membersRoute.POST(req('POST', `/api/access/groups/${id}/members`, { userId: 'u-ana', expiresAt: far, reason: REASON }), params(id));
+      expect(res.status).toBe(400);
+    });
+
+    it('a platform admin with an end date succeeds and the protection grant is audited', async () => {
+      const id = await protectedGroup();
+      const res = await membersRoute.POST(req('POST', `/api/access/groups/${id}/members`, { userId: 'u-ana', expiresAt: in30(), reason: REASON }), params(id));
+      expect(res.status).toBe(201);
+      expect(writeAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'access.protection.granted_via_group' }));
+    });
+  });
+
   it('an end date in the past is refused', async () => {
     const id = await makeGroup();
     as(OWNER);
@@ -455,6 +501,18 @@ describe('access rules (simplified model)', () => {
     as(MANAGER);
     expect((await put({ holderType: 'builtin', holderId: 'member', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(200);
     expect((await put({ holderType: 'builtin', holderId: 'nope', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(404);
+  });
+
+  it('nobody gives Use to a group they are in, or to Admins, unless a platform admin (review: self-access)', async () => {
+    const groupId = await makeGroup();
+    tables.accessGroupMember!.push({ group_id: groupId, user_id: 'u-mgr', expires_at: null });
+    as(MANAGER);
+    expect((await put({ holderType: 'group', holderId: groupId, path: 'curated_db', access: 'use', reason: REASON })).status).toBe(403);
+    expect((await put({ holderType: 'builtin', holderId: 'admin', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(403);
+    // Narrowing is still fine.
+    expect((await put({ holderType: 'group', holderId: groupId, path: 'curated_db', access: 'block', reason: REASON })).status).toBe(200);
+    as(PLATFORM_ADMIN);
+    expect((await put({ holderType: 'builtin', holderId: 'admin', path: 'curated_db', access: 'use', reason: REASON })).status).toBe(200);
   });
 
   it('nobody sets their own access; View cannot set access; a reason is required', async () => {

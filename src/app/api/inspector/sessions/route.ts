@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const dbUser = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude });
     const permissions = dbUser ? flattenPermissions(dbUser) : new Set<string>();
     if (!permissions.has(PERMISSIONS.INSPECTOR_USE) && !permissions.has(PERMISSIONS.SESSION_WRITE)) {
-      return NextResponse.json({ error: 'FORBIDDEN', message: 'Inspector access requires member role or above' }, { status: 403 });
+      return NextResponse.json({ error: 'FORBIDDEN', message: 'Ask Data access requires member role or above' }, { status: 403 });
     }
 
     const body = await request.json() as { title?: string; surface?: string; context_mode?: string };

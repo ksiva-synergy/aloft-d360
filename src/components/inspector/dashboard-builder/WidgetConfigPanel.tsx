@@ -87,7 +87,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
           <RawSqlBadge />
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 'var(--type-ui-regular-size)', color: 'var(--builder-text-muted)', lineHeight: 1.5, marginTop: 6, display: 'block' }}>
             This widget runs frozen raw SQL — it is not governed and not drift-checked.
-            Graduate it to a metric in the Inspector to bring it under governance.
+            Graduate it to a metric in Ask Data to bring it under governance.
           </span>
         </Section>
         <Section label="SQL">
@@ -456,7 +456,7 @@ export function WidgetConfigPanel({ widget, definitions, readOnly, recommendatio
             }}
           >
             <ExternalLink size={11} />
-            Open source chart in Inspector
+            Open source chart in Ask Data
           </a>
         </Section>
       )}

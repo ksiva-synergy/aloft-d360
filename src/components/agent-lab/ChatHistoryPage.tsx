@@ -45,7 +45,7 @@ const TYPE_LABEL: Record<string, string> = { agent: 'Agent', tool: 'Tool', schem
 
 const SURFACE_META: Record<SessionSurface, { name: string; Icon: typeof Layers; tile: string }> = {
   workbench: { name: 'Workbench',  Icon: Layers,        tile: 'bg-[color-mix(in_srgb,var(--brand-a)_12%,transparent)] text-[var(--brand-a-ink)]' },
-  inspector: { name: 'Inspector',  Icon: Database,      tile: 'bg-[var(--brand-b-soft)] text-[var(--brand-b-ink)]' },
+  inspector: { name: 'Ask Data',  Icon: Database,      tile: 'bg-[var(--brand-b-soft)] text-[var(--brand-b-ink)]' },
   teach:     { name: 'Teach',      Icon: GraduationCap, tile: 'bg-[var(--ok-bg)] text-[var(--ok)]' },
   agent_use: { name: 'Agent chat', Icon: Bot,           tile: 'bg-[var(--warn-bg)] text-[var(--warn)]' },
 };
@@ -441,7 +441,7 @@ export default function ChatHistoryPage() {
           <div className="min-w-0">
             <h1 className="m-0 text-title-page text-[var(--ink-1)]">Chat history</h1>
             <p className="mt-1 text-ui-regular text-[var(--ink-3)]">
-              Pick up any Workbench or Inspector conversation where you left off.
+              Pick up any Workbench or Ask Data conversation where you left off.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

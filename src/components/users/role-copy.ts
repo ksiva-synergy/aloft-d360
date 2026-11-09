@@ -27,9 +27,9 @@ export const ROLE_COPY: Record<PlatformRoleName, RoleCopy> = {
   },
   member: {
     label: 'Member',
-    summary: 'Inspector plus read-only elsewhere',
+    summary: 'Ask Data plus read-only elsewhere',
     detail:
-      'Full Inspector access. Other areas are read-only—enough to explore, not to change configuration or run admin actions.',
+      'Full Ask Data access. Other areas are read-only—enough to explore, not to change configuration or run admin actions.',
   },
   readonly: {
     label: 'Read only',

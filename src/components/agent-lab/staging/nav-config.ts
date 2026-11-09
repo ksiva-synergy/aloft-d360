@@ -1,6 +1,6 @@
 import {
   HouseIcon, HammerIcon, BrainIcon, StackIcon, ShieldCheckIcon, RobotIcon,
-  MagnifyingGlassIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
+  ChatCircleTextIcon, SquaresFourIcon, RulerIcon, MagicWandIcon, FlaskIcon,
   DiceFiveIcon, ClockCounterClockwiseIcon, LightbulbIcon, PulseIcon, UsersThreeIcon,
   UsersIcon,   ScrollIcon, BookOpenIcon, BooksIcon, CubeIcon, TreeStructureIcon,
   KeyIcon,
@@ -50,7 +50,7 @@ export const NAV_GROUPS: NavGroup[] = [
     id: 'build',
     icon: HammerIcon,
     items: [
-      { label: 'Inspector',       href: '/inspector',            icon: MagnifyingGlassIcon },
+      { label: 'Ask Data',       href: '/inspector',            icon: ChatCircleTextIcon },
       { label: 'Agents',          href: '/agent-lab/agents',       icon: RobotIcon },
       { label: 'Dashboards',      href: '/inspector/dashboards', icon: SquaresFourIcon },
       { label: 'Metrics',         href: '/agent-lab/metrics',    icon: RulerIcon },

@@ -28,6 +28,25 @@ export const GET = handle(async (req) => {
   const table = url.searchParams.get('table');
   const tagId = url.searchParams.get('tagId');
 
+  // ?underPath=catalog[.schema[.table]]: which protections sit on confirmed columns below this path.
+  const underPath = url.searchParams.get('underPath')?.trim().toLowerCase();
+  if (underPath) {
+    if (!/^[a-z0-9_-]+(\.[a-z0-9_-]+){0,2}$/.test(underPath)) throw new ApiError(400, 'Path must be catalog[.schema[.table]]');
+    const grouped = await prisma.accessColumnTag.groupBy({
+      by: ['tag_id'],
+      where: {
+        org_id: orgId,
+        status: 'confirmed',
+        OR: [{ table_path: underPath }, { table_path: { startsWith: `${underPath}.` } }],
+      },
+      _count: { _all: true },
+    });
+    return ok({
+      columnTags: [],
+      tagSummary: grouped.map((g) => ({ tagId: g.tag_id, columns: g._count._all })),
+    });
+  }
+
   const tablePath = table ? normalizeTablePath(table) : null;
   const rows = await prisma.accessColumnTag.findMany({
     where: {

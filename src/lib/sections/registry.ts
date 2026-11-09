@@ -65,7 +65,7 @@ export const SECTIONS: SectionDef[] = [
   { id: 'home', label: 'Home', group: 'home', paths: ['/dashboard'], view: 'Home page', manage: '', defaults: EVERYONE_VIEW, viewOnly: true },
 
   // ── Build ──
-  { id: 'build.inspector', label: 'Inspector', group: 'build', paths: ['/inspector'], view: 'Own sessions', manage: 'Ask questions, save sessions', defaults: MEMBER_TOOL },
+  { id: 'build.inspector', label: 'Ask Data', group: 'build', paths: ['/inspector'], view: 'Own sessions', manage: 'Ask questions, save sessions', defaults: MEMBER_TOOL },
   { id: 'build.agents', label: 'Agents', group: 'build', paths: ['/agent-lab/agents'], view: 'Use published agents', manage: 'Create, edit, test, and publish agents', defaults: MEMBER_TOOL },
   { id: 'build.dashboards', label: 'Dashboards', group: 'build', paths: ['/inspector/dashboards'], view: 'Shared dashboards', manage: 'Create, edit, and share dashboards', defaults: MEMBER_TOOL },
   { id: 'build.metrics', label: 'Metrics', group: 'build', paths: ['/agent-lab/metrics'], view: 'Metric definitions', manage: 'Define and change metrics', defaults: ADMIN_VIEW },

@@ -18,7 +18,7 @@ import {
   type Person,
   type TagGrant,
 } from './api';
-import { Empty, Segmented } from './parts';
+import { Empty, Segmented, SplitPane } from './parts';
 import { ColumnInfoButton, ColumnInfoDialog } from './ColumnInfo';
 import {
   AccessFields,
@@ -199,7 +199,7 @@ export function ColumnAccessView({
   }
 
   return (
-    <div className={cn(s.split, 'min-h-[560px]')}>
+    <SplitPane>
       {/* ── Protections ───────────────────────────────────────────────── */}
       <aside className={s.listPane} aria-label="Protections">
         <div className={s.listHead}>
@@ -453,7 +453,7 @@ export function ColumnAccessView({
           await Promise.all([load(), onChanged()]);
         }}
       />
-    </div>
+    </SplitPane>
   );
 }
 

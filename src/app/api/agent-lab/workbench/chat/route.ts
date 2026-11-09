@@ -212,6 +212,8 @@ export async function POST(request: NextRequest) {
           maxLoops,
           supportsTools: option.supportsTools,
           supportsThinking: option.supportsThinking,
+          // Bedrock Claude only: cache system+tools and the growing conversation across loops.
+          cacheConversation: true,
           abortSignal: closed,
           onLoopStart: (loop: number, max: number) => {
             currentAgentLoop = loop;

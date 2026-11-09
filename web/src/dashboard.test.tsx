@@ -41,7 +41,7 @@ describe('dashboard action and readiness presentation', () => {
 
   it('does not claim health when the snapshot is unavailable', () => {
     mount(empty);
-    expect(screen.getByText('Snapshot unavailable')).toBeInTheDocument();
+    expect(screen.getByText('The action list is not available right now.')).toBeInTheDocument();
     expect(screen.queryByText('No issues reported')).not.toBeInTheDocument();
     expect(screen.getByText('Estate coverage is not available right now.')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Team' })).not.toBeInTheDocument();

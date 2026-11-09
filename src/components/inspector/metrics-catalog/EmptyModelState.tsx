@@ -30,7 +30,7 @@ export function EmptyModelState({ reason }: { reason: 'no-model' | 'no-defs' }) 
         </div>
         <p style={{ ...SANS, fontSize: 'var(--type-ui-regular-size)', color: INK_DIM, lineHeight: 1.6, marginBottom: 20 }}>
           {reason === 'no-model'
-            ? 'Harvest a model in the Inspector, or scan a source schema to bootstrap one.'
+            ? 'Harvest a model in Ask Data, or scan a source schema to bootstrap one.'
             : 'This model has no definitions. Scan a source schema to propose themes and starter questions.'}
         </p>
 

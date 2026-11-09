@@ -23,7 +23,7 @@ type DecisionRow = {
 };
 
 const SURFACE_LABEL: Record<string, string> = {
-  sql: 'Inspector SQL',
+  sql: 'Ask Data SQL',
   semantic: 'Semantic query',
   dashboard: 'Dashboard',
   export: 'Export',

@@ -167,7 +167,7 @@ function mergeQueryFactsIntoKnowledge(
     heuristics: heuristics.slice(0, 20),
     updatedAt: new Date().toISOString(),
     task: knowledge.task ?? {
-      goal: 'Continue prior Inspector exploration',
+      goal: 'Continue prior exploration in Ask Data',
       status: 'in_progress',
       nextStep: 'Skip describe_schema rediscovery; use confirmed paths / last SQL above.',
     },

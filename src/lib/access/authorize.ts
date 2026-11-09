@@ -1,9 +1,13 @@
 import { prisma } from '@/lib/db';
 import { accessMode, isSurfaceEnforced, shouldEvaluateAccess } from './config';
 import { AccessDeniedError } from './errors';
-import { authorizeWithModel, missingPathProtections } from './engine';
+import { authorizeWithModel, missingPathProtections, PLATFORM_ADMIN_ROLE } from './engine';
+
+/** Extractor failures that are only about naming tables, not about what the statement does. */
+const UNRESOLVED_NAMES = /^(Use fully qualified|Table-valued functions|Dynamic IDENTIFIER)/;
 import { getAccessModel } from './model-store';
 import { extractTablesForAuthorization } from './sql-tables';
+import { requestUrlForAccess, tableDenialMessage } from './denial-ui';
 import type {
   AccessPrincipal,
   AuthorizeContext,
@@ -18,9 +22,13 @@ function userIdForLog(principal: AccessPrincipal): string | null {
   return principal.kind === 'user' ? principal.userId : null;
 }
 
-function shouldLogDecision(result: AuthorizePathsResult, tier: DataTier | undefined): boolean {
+/**
+ * Every decision for a person is logged, allowed reads included, so "who read table X?" can be answered
+ * for all data (review: partial logging). System principals (harvest, sync) are only logged when refused.
+ */
+function shouldLogDecision(principal: AccessPrincipal, result: AuthorizePathsResult): boolean {
   if (!result.ok) return true;
-  return tier === 'confidential' || tier === 'restricted';
+  return principal.kind === 'user';
 }
 
 async function writeDecisionLog(
@@ -30,9 +38,10 @@ async function writeDecisionLog(
   ctx: AuthorizeContext,
   result: AuthorizePathsResult,
   tier?: DataTier,
+  allowReason?: string,
 ): Promise<void> {
   const mode = accessMode() === 'enforce' ? 'enforce' : 'observe';
-  if (!shouldLogDecision(result, tier)) return;
+  if (!shouldLogDecision(principal, result)) return;
 
   try {
     await prisma.accessDecisionLog.create({
@@ -43,7 +52,7 @@ async function writeDecisionLog(
         level,
         paths,
         decision: result.ok ? 'allow' : 'deny',
-        reason: result.ok ? undefined : result.reason,
+        reason: result.ok ? allowReason : result.reason,
         mode,
         session_id: ctx.sessionId,
         tier: tier ?? null,
@@ -58,17 +67,7 @@ async function writeDecisionLog(
 }
 
 function denialMessage(result: Extract<AuthorizePathsResult, { ok: false }>, protections: string[]): string {
-  const table = result.failedPath ? ` ${result.failedPath}` : ' one or more tables';
-  // Prefilled request form (My data access); the person never picks the approver.
-  const link = result.failedPath ? ` Request it at /my-access?path=${encodeURIComponent(result.failedPath)}` : ' Request it at /my-access';
-  if (result.reason === 'needs_clearance') {
-    const what = protections.length ? `${protections.join(', ')} data` : 'protected data';
-    return `You don't have access to ${what} (in${table}). If you need it, request access.${link}`;
-  }
-  if (result.reason === 'explicit_deny') {
-    return `Access to${table} is blocked for you.`;
-  }
-  return `You don't have access to${table}. If you need it, request access.${link}`;
+  return tableDenialMessage(result.failedPath, result.reason, protections);
 }
 
 export async function authorizePaths(
@@ -94,12 +93,16 @@ export async function authorizePaths(
 
   const block = isSurfaceEnforced(ctx.surface);
   const protections = result.failedPath ? missingPathProtections(model, principal, result.failedPath) : [];
+  const failedPath = result.failedPath;
+  const requestUrl = requestUrlForAccess({ path: failedPath, queryPaths: result.visiblePaths });
   const error = new AccessDeniedError(denialMessage(result, protections), {
     reason: result.reason,
     surface: ctx.surface,
     level,
     paths: result.visiblePaths,
     label: result.label,
+    failedPath,
+    requestUrl,
   });
 
   if (block) return { ok: false, error };
@@ -116,17 +119,25 @@ export async function authorizeSql(
   const extracted = extractTablesForAuthorization(sql);
   if (!extracted.ok) {
     if (!shouldEvaluateAccess()) return { tier: 'internal' };
+    // Platform admins may read every table, so "couldn't tell which tables" doesn't matter for them.
+    // Writes, DDL and system / information_schema / samples are still refused.
+    if (principal.kind === 'user' && (principal.roles ?? []).includes(PLATFORM_ADMIN_ROLE) && UNRESOLVED_NAMES.test(extracted.reason)) {
+      // Logged, so admin reads that skipped name resolution still show in the audit trail.
+      await writeDecisionLog(principal, [], level, ctx, { ok: true, tier: 'internal', decisions: new Map() }, 'internal', 'platform_admin_unresolved');
+      return { tier: 'internal' };
+    }
     const fail: Extract<AuthorizePathsResult, { ok: false }> = {
       ok: false,
       reason: 'sql_unresolved',
       visiblePaths: [],
     };
     await writeDecisionLog(principal, [], level, ctx, fail);
-    const error = new AccessDeniedError(extracted.reason, {
+    const error = new AccessDeniedError(tableDenialMessage(undefined, 'sql_unresolved', []), {
       reason: 'sql_unresolved',
       surface: ctx.surface,
       level,
       paths: [],
+      requestUrl: requestUrlForAccess({}),
     });
     if (isSurfaceEnforced(ctx.surface)) throw error;
     return { tier: 'internal' };

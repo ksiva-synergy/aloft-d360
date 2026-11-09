@@ -32,7 +32,7 @@ function AgentStagingTryContent() {
   useEffect(() => {
     if (!agentSlug) {
       setLoading(false);
-      setError('No agent specified. Open an agent from the catalog and use “Try in Inspector”.');
+      setError('No agent specified. Open an agent from the catalog and use “Try in Ask Data”.');
       return;
     }
 
@@ -116,7 +116,7 @@ function AgentStagingTryContent() {
         <div>
           <h1 className="text-size-title-section font-semibold text-[var(--ink-1)]">{agent.name}</h1>
           <p className="mt-1 text-size-body text-[var(--ink-3)]">
-            Staging preview — run this agent&apos;s mission in Inspector (data &amp; Databricks chat).
+            Staging preview — run this agent&apos;s mission in Ask Data (data &amp; Databricks chat).
           </p>
         </div>
       </div>
@@ -143,7 +143,7 @@ function AgentStagingTryContent() {
           className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--brand-a)] px-4 py-2.5 text-size-body font-medium text-white hover:bg-[color:var(--brand-a-2)]"
         >
           <ExternalLink className="h-4 w-4" />
-          Open in Inspector
+          Open in Ask Data
         </button>
         <Link
           href={`/docs/agents/${agent.slug}`}
@@ -155,7 +155,7 @@ function AgentStagingTryContent() {
       </div>
 
       <p className="mt-8 text-size-ui text-[var(--ink-3)] leading-relaxed">
-        A dedicated runtime chat per catalog agent is not wired yet. Inspector is the supported way to
+        A dedicated runtime chat per catalog agent is not wired yet. Ask Data is the supported way to
         exercise domain behavior today; your mission text is saved locally so we can pre-fill prompts in a
         future release.
       </p>

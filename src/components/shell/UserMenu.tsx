@@ -4,7 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from '@/lib/navigation';
 import { useState, useRef, useEffect } from 'react';
-import { Settings, LogOut, Sun, Moon, Monitor, KeyRound } from 'lucide-react';
+import { Settings, LogOut, Sun, Moon, Monitor, KeyRound, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppearanceControls } from './AppearanceControls';
 import { DeveloperModeToggle } from './DeveloperModeToggle';
@@ -239,6 +239,17 @@ export function UserMenu({
             >
               <KeyRound className="h-4 w-4 text-[var(--ink-3)]" />
               My data access
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                router.push('/my-access/tickets');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-size-body font-semibold text-[var(--ink-1)] transition-colors hover:bg-[var(--surface-2)]"
+            >
+              <Inbox className="h-4 w-4 text-[var(--ink-3)]" />
+              My access tickets
               {accessUnread > 0 ? (
                 <span className="ml-auto rounded-full bg-[var(--brand-a)] px-1.5 text-size-ui font-semibold text-[var(--on-accent,#fff)]" aria-label={`${accessUnread} new`}>
                   {accessUnread}

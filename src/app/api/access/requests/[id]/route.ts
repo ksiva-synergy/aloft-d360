@@ -6,7 +6,7 @@ import { getOrgId } from '@/lib/databricks/connections';
 import { resolveAuth } from '@/middleware/auth';
 import { levelsForContext } from '@/lib/sections/server';
 import { isPlatformAdminRole } from '@/lib/access/sensitive';
-import { evictAfterGrant, grantApproved, OPEN_STATUSES, platformAdminIds, requestNumber, writeEvent, type RequestLevel } from '@/lib/access/requests';
+import { assertApprovalTakesEffect, assertApproverCanGrant, evictAfterGrant, grantApproved, OPEN_STATUSES, platformAdminIds, requestNumber, writeEvent, type RequestLevel } from '@/lib/access/requests';
 import { notify } from '@/lib/access/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -64,6 +64,8 @@ const Action = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reject'), comment: z.string().trim().min(5, 'Say why (at least 5 characters)').max(1000) }),
   z.object({ action: z.literal('ask_info'), comment: z.string().trim().min(5, 'Ask a question (at least 5 characters)').max(1000) }),
   z.object({ action: z.literal('info_given'), comment: z.string().trim().min(5).max(1000) }),
+  z.object({ action: z.literal('follow_up'), comment: z.string().trim().min(5).max(1000) }),
+  z.object({ action: z.literal('approver_note'), comment: z.string().trim().min(5).max(1000) }),
   z.object({ action: z.literal('cancel'), comment: z.string().trim().max(1000).optional().nullable() }),
 ]);
 
@@ -83,17 +85,52 @@ export const POST = handle(async (req, ctx: Ctx) => {
   const isRequester = r.requester_id === auth.userId;
   const isApprover = !isRequester && (isPa || r.routed_to.includes(auth.userId));
   const open = OPEN_STATUSES.includes(r.status as never);
+  const ticketLink = `/my-access/tickets?open=${r.id}`;
 
-  if (body.action === 'info_given' || body.action === 'cancel') {
+  if (body.action === 'info_given' || body.action === 'cancel' || body.action === 'follow_up') {
     if (!isRequester) throw new ApiError(403, 'Only the person who asked can do this.');
     if (!open) throw new ApiError(409, 'This request is already closed.');
     if (body.action === 'info_given' && r.status !== 'info_requested') throw new ApiError(409, 'Nobody asked for more information.');
-    const status = body.action === 'cancel' ? 'cancelled' : 'pending';
+    const status = body.action === 'cancel' ? 'cancelled' : body.action === 'info_given' ? 'pending' : r.status;
     await prisma.$transaction(async (tx) => {
-      await tx.accessRequest.update({ where: { id: r.id }, data: { status } });
-      await writeEvent(tx, { orgId, requestId: r.id, type: body.action === 'cancel' ? 'cancelled' : 'info_given', actorId: auth.userId, before: { status: r.status }, after: { status }, comment: body.comment ?? null, ...meta });
+      if (body.action !== 'follow_up') {
+        await tx.accessRequest.update({ where: { id: r.id }, data: { status } });
+      } else {
+        await tx.accessRequest.update({ where: { id: r.id }, data: { updated_at: new Date() } });
+      }
+      const eventType =
+        body.action === 'cancel' ? 'cancelled' : body.action === 'info_given' ? 'info_given' : 'requester_note';
+      await writeEvent(tx, {
+        orgId,
+        requestId: r.id,
+        type: eventType,
+        actorId: auth.userId,
+        before: body.action === 'follow_up' ? undefined : { status: r.status },
+        after: body.action === 'follow_up' ? undefined : { status },
+        comment: body.comment ?? null,
+        ...meta,
+      });
       if (body.action === 'info_given') {
-        await notify(tx, { orgId, userIds: r.routed_to, kind: `info_given:${Date.now()}`, requestId: r.id, title: `${requestNumber(r.seq)}: the requester answered`, body: body.comment, link: '/agent-staging/data-access?tab=log' });
+        await notify(tx, {
+          orgId,
+          userIds: r.routed_to,
+          kind: `info_given:${Date.now()}`,
+          requestId: r.id,
+          title: `${requestNumber(r.seq)}: the requester answered`,
+          body: body.comment,
+          link: '/agent-staging/data-access?tab=log',
+        });
+      }
+      if (body.action === 'follow_up') {
+        await notify(tx, {
+          orgId,
+          userIds: r.routed_to,
+          kind: `requester_note:${Date.now()}`,
+          requestId: r.id,
+          title: `${requestNumber(r.seq)}: more information from requester`,
+          body: body.comment,
+          link: '/agent-staging/data-access?tab=log',
+        });
       }
     });
     return ok({ status });
@@ -101,6 +138,30 @@ export const POST = handle(async (req, ctx: Ctx) => {
 
   if (!isApprover) throw new ApiError(403, isRequester ? 'You cannot decide your own request.' : 'This request is not routed to you.');
   if (!open) throw new ApiError(409, 'This request is already closed.');
+
+  if (body.action === 'approver_note') {
+    await prisma.$transaction(async (tx) => {
+      await tx.accessRequest.update({ where: { id: r.id }, data: { updated_at: new Date() } });
+      await writeEvent(tx, {
+        orgId,
+        requestId: r.id,
+        type: 'approver_note',
+        actorId: auth.userId,
+        comment: body.comment,
+        ...meta,
+      });
+      await notify(tx, {
+        orgId,
+        userIds: [r.requester_id],
+        kind: `approver_note:${Date.now()}`,
+        requestId: r.id,
+        title: `${requestNumber(r.seq)}: message from approver`,
+        body: body.comment,
+        link: ticketLink,
+      });
+    });
+    return ok({ status: r.status });
+  }
 
   if (body.action === 'reject' || body.action === 'ask_info') {
     const status = body.action === 'reject' ? 'rejected' : 'info_requested';
@@ -117,7 +178,7 @@ export const POST = handle(async (req, ctx: Ctx) => {
         requestId: r.id,
         title: body.action === 'reject' ? `${requestNumber(r.seq)} was turned down` : `${requestNumber(r.seq)}: the approver asked a question`,
         body: body.comment,
-        link: '/my-access',
+        link: ticketLink,
       });
     });
     await writeAudit({ actorId: auth.userId, action: `access.request.${status}`, entityType: 'access_request', entityId: r.id, after: { number: requestNumber(r.seq) }, metadata: { comment: body.comment }, ...meta });
@@ -132,6 +193,9 @@ export const POST = handle(async (req, ctx: Ctx) => {
   const durationDays = body.durationDays === undefined ? r.duration_days : body.durationDays;
   if (r.duration_days !== null && (durationDays === null || durationDays > r.duration_days)) throw new ApiError(400, 'You can only approve the same or a shorter time than asked.');
   const changed = level !== asked || durationDays !== r.duration_days;
+
+  // Approvers can't hand out more than their own groups hold; platform admins can.
+  if (!isPlatformAdminRole(auth.role)) await assertApproverCanGrant(orgId, auth.userId, r, level);
 
   // Two approvals: one approver who is not a platform admin, one platform admin, different people.
   const routed = await prisma.accessRequestEvent.findFirst({ where: { request_id: r.id, type: 'routed' }, select: { after: true } });
@@ -153,6 +217,9 @@ export const POST = handle(async (req, ctx: Ctx) => {
     });
     return ok({ status: r.status, waitingForSecondApproval: true });
   }
+
+  // Review H6: never record "approved" for access that still wouldn't work.
+  await assertApprovalTakesEffect(orgId, r, level);
 
   let until: Date | null = null;
   await prisma.$transaction(async (tx) => {
@@ -179,7 +246,7 @@ export const POST = handle(async (req, ctx: Ctx) => {
       requestId: r.id,
       title: `${requestNumber(r.seq)} was approved`,
       body: (until as Date | null) ? `Access until ${(until as unknown as Date).toLocaleDateString()}.` : 'No end date.',
-      link: '/my-access',
+      link: ticketLink,
     });
   });
   evictAfterGrant(orgId);

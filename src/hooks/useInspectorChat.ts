@@ -375,6 +375,24 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
               } : message));
               break;
 
+            case 'access_denied':
+              setLocalMessages((prev) => {
+                const idx = prev.findIndex((m) => m.id === assistantMsgId);
+                if (idx < 0) return prev;
+                const updated = [...prev];
+                updated[idx] = {
+                  ...updated[idx],
+                  accessDenial: {
+                    message: String(event.message ?? ''),
+                    request: event.request != null ? String(event.request) : null,
+                    label: event.label != null ? String(event.label) : undefined,
+                    path: event.path != null ? String(event.path) : undefined,
+                  },
+                };
+                return updated;
+              });
+              break;
+
             case 'tool_call_suggested':
             case 'tool_call_running':
             case 'tool_call_result':

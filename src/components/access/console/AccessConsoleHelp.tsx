@@ -7,12 +7,27 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import userStyles from '@/components/users/users.module.css';
 import s from './console.module.css';
 
-export type AccessHelpTab = 'data' | 'protections' | 'people' | 'log';
+export type AccessHelpTab = 'data' | 'departments' | 'protections' | 'people' | 'log';
 
 const HELP: Record<
   AccessHelpTab,
   { title: string; body: ReactNode }
 > = {
+  departments: {
+    title: 'Department map',
+    body: (
+      <ol className="m-0 list-decimal space-y-2 pl-4 text-caption leading-relaxed text-muted-foreground">
+        <li>
+          <strong className="text-foreground">Data → departments</strong>: estate tree with a chip per department; <strong className="text-foreground">Tag / Edit</strong> sets purpose (Query, Export, Block).
+        </li>
+        <li>
+          <strong className="text-foreground">Department → data</strong>: pick Marine (a group), see mapped paths, or walk the tree to add more.
+        </li>
+        <li>Purpose <strong className="text-foreground">Query</strong> = Use; <strong className="text-foreground">Export</strong> = Use + export. Table names stay visible without a rule.</li>
+        <li>Membership lives on <strong className="text-foreground">People &amp; groups</strong>; this tab only maps data to departments.</li>
+      </ol>
+    ),
+  },
   data: {
     title: 'Data tab',
     body: (

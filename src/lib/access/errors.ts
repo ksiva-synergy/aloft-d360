@@ -9,6 +9,8 @@ export class AccessDeniedError extends Error {
     level: Level;
     paths: string[];
     label?: string;
+    failedPath?: string;
+    requestUrl?: string;
   };
 
   constructor(
@@ -19,6 +21,8 @@ export class AccessDeniedError extends Error {
       level: Level;
       paths: string[];
       label?: string;
+      failedPath?: string;
+      requestUrl?: string;
     },
   ) {
     super(message);

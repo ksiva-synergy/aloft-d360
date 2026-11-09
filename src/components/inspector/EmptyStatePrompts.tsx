@@ -105,7 +105,7 @@ export function EmptyStatePrompts({
   if (!modelId) {
     return (
       <Frame>
-        <Heading title="Ask Inspector anything about your data" />
+        <Heading title="Ask anything about your data" />
         <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
           I can query your warehouse, build charts, and help you explore. Ask a question below to begin.
         </p>
@@ -140,7 +140,7 @@ export function EmptyStatePrompts({
         <span style={{ ...type['ui-regular'], color: MUTED }}>Reading the model…</span>
       ) : finalPrompts.length === 0 ? (
         <p style={{ ...type['ui-regular'], color: MUTED, lineHeight: 1.6, margin: 0, maxWidth: 420, textAlign: 'center' }}>
-          This model has no governed fields yet. Ask Inspector a question to explore the warehouse directly.
+          This model has no governed fields yet. Ask a question to explore the warehouse directly.
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 420 }}>

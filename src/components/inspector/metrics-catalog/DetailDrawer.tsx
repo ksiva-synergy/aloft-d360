@@ -234,7 +234,7 @@ export function DetailDrawer({ onRowAction }: Props) {
             </>
           ) : (
             <>
-              <FooterBtn primary icon={<ArrowUpRight size={14} />} label="Ask Inspector about this" onClick={() => onRowAction('ask', row)} />
+              <FooterBtn primary icon={<ArrowUpRight size={14} />} label="Chat about this" onClick={() => onRowAction('ask', row)} />
               <FooterBtn icon={<Sparkles size={14} />} label="Refine as a metric" onClick={() => onRowAction('refine', row)} />
             </>
           )}

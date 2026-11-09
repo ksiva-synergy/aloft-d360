@@ -142,7 +142,7 @@ export function ToolDocPage({ tool, relatedTools = [] }: ToolDocPageProps) {
           className="inline-flex items-center gap-2 text-size-body font-medium text-[color:var(--brand-a-ink)] dark:text-[color:var(--brand-a-ink)] hover:text-[color:var(--brand-a-ink)] dark:hover:text-[color:var(--brand-a-ink)] transition-colors"
         >
           <ExternalLink className="h-4 w-4" />
-          Try in Inspector
+          Try in Ask Data
         </Link>
       </section>
 

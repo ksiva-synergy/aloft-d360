@@ -1,0 +1,93 @@
+TableName,Expression
+CALENDAR,"
+ADDCOLUMNS (
+    CALENDAR ( DATE(""2026"",""01"",""01""), TODAY() ),
+
+    ""DATE_INTEGER"", FORMAT ( [Date], ""YYYYMMDD"" ),
+    ""DATE_NUMBER"", FORMAT ( [Date], ""DD"" ),
+    ""MONTH_YEAR"", FORMAT ( [Date], ""MMM YYYY"" ),
+    ""MON_YEAR"", FORMAT([Date], ""MMM"") & ""'"" & FORMAT([Date], ""yy""),
+    ""MON_YEAR_WEEK"",
+VAR FirstDayOfMonth =
+    DATE(YEAR([Date]), MONTH([Date]), 1)
+VAR Offset =
+    WEEKDAY(FirstDayOfMonth, 2) - 1
+VAR WeekNo =
+    INT((DAY([Date]) + Offset - 1) / 7) + 1
+RETURN
+    FORMAT([Date], ""MMM"") & ""'"" & FORMAT([Date], ""yy"") & "" - W"" & WeekNo
+    ,
+    ""MONTH_INTEGER"", FORMAT ( [Date], ""MM"" ),
+    ""MONTH"", FORMAT ( [Date], ""MMM"" ),
+    ""MONTH_YEAR_INTEGER"", FORMAT ( [Date], ""YYYYMM"" ),
+    ""QUARTER"", ""Q"" & FORMAT ( [Date], ""Q"" ),
+    ""QUARTER_YEAR"", ""Q"" & FORMAT ( [Date], ""Q YYYY"" ),
+    ""QUARTER_YEAR_INTEGER"", FORMAT ( [Date], ""YYYYQ"" ),
+    ""YEAR"", FORMAT ( [Date], ""YYYY"" ),
+
+    ""FINANCIAL_YEAR"",
+        ""FY ""
+            & IF ( MONTH ( [Date] ) >= 4, YEAR ( [Date] ), YEAR ( [Date] ) - 1 )
+            & ""-""
+            & RIGHT (
+                FORMAT (
+                    IF ( MONTH ( [Date] ) >= 4, YEAR ( [Date] ) + 1, YEAR ( [Date] ) ),
+                    ""0000""
+                ),
+                2
+            ),
+
+    ""FINANCIAL_YEAR_SORT"",
+        IF (
+            MONTH ( [Date] ) >= 4,
+            YEAR ( [Date] ),
+            YEAR ( [Date] ) - 1
+        ),
+
+    /* Week Number (Monday = first day) */
+    ""WEEK_NUMBER"", WEEKNUM ( [Date], 2 ),
+
+    /* Week 1, Week 2, ... */
+    ""WEEK_NAME"", ""Week "" & WEEKNUM ( [Date], 2 ),
+
+    /* Week of Month */
+    ""WEEK_OF_MONTH"",
+VAR FirstDayOfMonth =
+    DATE(YEAR([Date]), MONTH([Date]), 1)
+VAR Offset =
+    WEEKDAY(FirstDayOfMonth, 2) - 1     -- Monday = 1
+RETURN
+""Week ""
+    & INT((DAY([Date]) + Offset - 1) / 7) + 1,
+    ""WEEK_OF_MONTH_NO"",
+VAR FirstDayOfMonth =
+    DATE(YEAR([Date]), MONTH([Date]), 1)
+VAR Offset =
+    WEEKDAY(FirstDayOfMonth, 2) - 1
+RETURN
+    INT((DAY([Date]) + Offset - 1) / 7) + 1,
+    ""MON_WEEK_OF_MONTH"", FORMAT ( [Date], ""MMM"" ) & "" W"" & ROUNDUP ( DAY ( [Date] ) / 7, 0 ),
+    ""MON_WEEK_OF_MONTH_SORT"",
+MONTH([Date]) * 10 + ROUNDUP(DAY([Date]) / 7, 0),
+
+    /* Year-Week */
+    ""YEAR_WEEK"",
+        FORMAT ( [Date], ""YYYY"" ) & ""-W"" &
+        FORMAT ( WEEKNUM ( [Date], 2 ), ""00"" ),
+
+    /* Week Start (Monday) */
+    ""WEEK_START"",
+        [Date] - WEEKDAY ( [Date], 2 ) + 1,
+
+    /* Week End (Sunday) */
+    ""WEEK_END"",
+        [Date] - WEEKDAY ( [Date], 2 ) + 7
+)"
+DOC Slicer Table,DISTINCT(Purchase_History[DOC])
+DateTableTemplate_3cd70511-85a1-42d4-a095-5c25d29388af,"Calendar(Date(2015,1,1), Date(2015,1,1))"
+LocalDateTable_68f73cdb-11f8-4a0d-8376-4b9ab32b4caa,"Calendar(Date(Year(MIN('CALENDAR'[Date])), 1, 1), Date(Year(MAX('CALENDAR'[Date])), 12, 31))"
+LocalDateTable_966213da-3263-4639-af78-3a5b4349a20f,"Calendar(Date(Year(MIN('CALENDAR'[WEEK_START])), 1, 1), Date(Year(MAX('CALENDAR'[WEEK_START])), 12, 31))"
+LocalDateTable_1aea82a6-6b18-4006-917e-49f9b9b913a3,"Calendar(Date(Year(MIN('CALENDAR'[WEEK_END])), 1, 1), Date(Year(MAX('CALENDAR'[WEEK_END])), 12, 31))"
+LocalDateTable_3c26b78d-869e-4ac9-a0c7-52a8ead64692,"Calendar(Date(Year(MIN('Purchase_History'[needdate])), 1, 1), Date(Year(MAX('Purchase_History'[needdate])), 12, 31))"
+LocalDateTable_cc726845-d496-4bfe-9d88-25185ef9cef0,"Calendar(Date(Year(MIN('Purchase_History'[last_mod_date])), 1, 1), Date(Year(MAX('Purchase_History'[last_mod_date])), 12, 31))"
+LocalDateTable_7ad5d265-b392-4246-9405-af75106bd377,"Calendar(Date(Year(MIN('Purchase_History'[PODATE])), 1, 1), Date(Year(MAX('Purchase_History'[PODATE])), 12, 31))"

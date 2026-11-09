@@ -2,6 +2,327 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-09 — Prompt caching now actually works for Claude through the LLM Lite gateway
+
+- **Finding:** All Inspector/workbench models go through the LLM Lite gateway (`foundry` code path), so the earlier `cacheConversation` change (direct-Bedrock `runAgentLoop` only) had no effect. A live run of Claude Sonnet 5 through the gateway showed 0 cache reads on loop 2 with an identical ~13.6k-token prefix. Direct Bedrock is not usable from this environment (AWS Marketplace IAM denial).
+- **What:** `src/lib/inspector/providers/foundry-chat.ts` adds `gatewayCacheParams()`: for Claude gateway models it sends LiteLLM `cache_control_injection_points` (system message, plus a moving marker on the last message when `cacheConversation` is set). Grok/GPT/other models are unchanged (automatic caching). Cache **writes** are now recorded (`prompt_tokens_details.cache_write_tokens`) instead of hard-coded 0, so cost is priced correctly.
+- **Verified live (2026-11-09, `aws_bedrock/Claude-Sonnet-5`, 2-loop tool run):** off → loop 2 read 0; on → loop 1 wrote 13,650, loop 2 read 13,650 (+37 new written). Plus `gateway-cache-params.test.ts` (3) and `agent-loop-cache.test.ts` (3); `src/lib/inspector` 100 tests pass; no `tsc` errors in changed files.
+- **Not done:** Grok 4.7 live run timed out at the gateway (unrelated deployment issue), so non-Claude behaviour was not re-measured; Haiku untested live. Cross-turn hits still limited by per-turn content in the Inspector system prompt.
+
+## 2026-11-09 — Sidebar icon for Ask Data
+
+- **What:** The "Ask Data" nav item in `src/components/agent-lab/staging/nav-config.ts` now uses the Phosphor `ChatCircleTextIcon` instead of `MagnifyingGlassIcon`. The import list was updated to match.
+- **Why:** A chat bubble with text matches "ask a question in a conversation." The magnifying glass suggested search, and the feature is a conversation.
+- **Verified:** Checked that `ChatCircleTextIcon` is exported by the installed `@phosphor-icons/react` package. Not checked visually in the running app.
+- **Not done:** The assistant avatar and the chat history tile still use the `Database` icon; they were left unchanged.
+
+## 2026-11-09 — Rename the Inspector labels to "Ask Data"
+
+- **What:** Replaced the visible name "Data Chat" with "Ask Data" in every label, title, message and button that used it (nav item and breadcrumb, permission section label, assistant name, bandit and performance labels, dashboard and access text, and so on). Access-request purpose text now starts `Question in Ask Data:`. `RequestList.tsx` strips `Question in Ask Data:`, `Question in Data Chat:`, `Question in Chat:`, `Question in Ask:` and `Inspector question:`, so older requests still display correctly. Verb uses of "ask" were kept.
+- **Why:** The user asked for "Ask Data". It is more action-oriented than "Data Chat" and reads well next to "Ask for access" elsewhere. Tableau has an "Ask Data" feature, so this name may draw comparisons with it.
+- **Verified:** Re-ran the same test set as the entries below (see those for results).
+- **Not done:** Same as the entries below: no route, folder, or code identifier changes; LLM prompt text unchanged.
+
+## 2026-11-09 — Use "Data Chat" for the renamed Inspector labels
+
+- **What:** The visible name is now "Data Chat" (previously "Chat", before that "Ask"). Applied to the nav item and breadcrumb, permission section label, assistant name, bandit and performance labels, and feature-name menu and button labels (for example "Try in Data Chat", "Open in Data Chat", "Back to Data Chat", "Data Chat sessions", "From Data Chat", "Full Data Chat access"). Access-request purpose text now starts `Question in Data Chat:`. `RequestList.tsx` strips `Question in Data Chat:`, `Question in Chat:`, `Question in Ask:` and `Inspector question:`, so older requests still display correctly. The Data Studio aria-label is now plain "Data Studio". Verb uses of "ask" were kept.
+- **Why:** "Data Chat" says what the feature does and separates it from the workbench and agent chats already in the app.
+- **Verified:** Re-ran the same test set as the entry below; results are unchanged (674 passed, 3 pre-existing failures).
+- **Not done:** Same as the entry below: no route, folder, or code identifier changes; LLM prompt text unchanged.
+
+## 2026-11-09 — Use "Chat" instead of "Ask" for the renamed Inspector labels
+
+- **What:** The visible name from the entry below is now "Chat", not "Ask". Changed the nav item and breadcrumb, permission section label, assistant name, bandit and performance labels, and the menu and button labels that used the feature name (for example "Try in Chat", "Open in Chat", "Back to Chat", "Chat sessions", "From Chat", "Full Chat access"). Verb uses of "ask" (for example "Ask a question", "Ask for access") were kept. Access-request purpose text now starts `Question in Chat:`. `RequestList.tsx` strips `Question in Chat:`, `Question in Ask:` and `Inspector question:`, so older requests still display correctly.
+- **Why:** The user prefers the simpler name "Chat".
+- **Verified:** Searched `src` for remaining feature-name uses of "Ask"; none left. Test results are in the next entry.
+- **Not done:** Same as the entry below: no route, folder, or code identifier changes; LLM prompt text unchanged.
+
+## 2026-11-09 — Rename "Inspector" to "Ask" in visible text
+
+- **What:** Changed user-visible labels, titles, placeholders, aria-labels and messages from "Inspector" to "Ask". Covers the nav item and breadcrumb (`src/components/agent-lab/staging/nav-config.ts`), the permission section label (`src/lib/sections/registry.ts`), the chat assistant name (`src/components/inspector/InspectorShell.tsx`), and about 60 strings in dashboards, the metrics catalog, pin dialogs, access request pages, agent staging, bandits, docs pages, settings, cost ledger and the user admin screens. Access-request purpose text now starts `Question in Ask:`. `src/components/access/requests/RequestList.tsx` still strips the old `Inspector question:` prefix, so existing requests display correctly. `src/lib/access/__tests__/request-purpose.test.ts` updated to match.
+- **Why:** The feature's user-facing name is now "Ask".
+- **Not changed (deliberately):** route paths (`/inspector`, `/api/inspector/*`), file and folder names, code identifiers, database keys (`agent_name = 'InspectorChat'`, `build.inspector` section id, bandit `inspector` value), and LLM prompt text (`src/lib/marcus/prompts.ts`, `src/lib/construction/prompts.ts`, `src/lib/inspector/prompts.ts`, session-knowledge prompt). The `Inspector` domain key in `web/src/memory-cred.test.tsx` is a data value and was left alone.
+- **Verified:** `npx vitest run` over `src/lib/access`, `src/lib/sections`, `src/components/{inspector,users,access,agent-lab,cost,dashboard}`, `src/lib/dashboard(s)`, `src/views`: 674 passed, 3 failed. The failures appear unrelated: `src/lib/sections/__tests__/route-coverage.test.ts` flags the untracked `src/app/api/access/suggest-targets/route.ts`, and two cases in `src/components/access/console/__tests__/RequestsViews.test.tsx` fail with a react-router `basename` context error. Not checked against a clean baseline.
+- **Not done:** The LLM prompts still say "Inspector" and the model may occasionally use that word in replies. A route rename (`/inspector` to `/ask`) would need redirects and permission path updates, so it is not part of this change.
+
+## 2026-11-09 — Prompt caching for Inspector chat and workbench agent conversations (Claude on Bedrock)
+
+- **What:** New `cacheConversation` option on `runAgentLoop` (`src/lib/inspector/agent-loop.ts`). It caches tools + system prompt, and puts a moving `cachePoint` after the last message on every loop (added to a per-request copy; stored history is unchanged). Enabled in `src/app/api/inspector/chat/route.ts`, `src/app/api/agent-lab/workbench/chat/route.ts` and `src/app/api/agent-lab/workbench/test-run/route.ts`. Foundry (Grok/GPT) paths ignore it and keep their automatic caching.
+- **Why:** Agent turns re-send a growing context each loop; Claude on Bedrock only caches where a `cachePoint` exists, so Inspector/workbench runs paid full input price on every loop.
+- **Verified:** `tsc` shows no errors in the changed lines (existing errors remain in `inspector/chat/route.ts` around the access-notice code). Added `src/lib/inspector/__tests__/agent-loop-cache.test.ts` (mocked Bedrock; 3 tests pass: markers on system + last message each loop, none when off, caller array not mutated). No live Bedrock run; check the Prompt cache card / `agent_turn_log.cache_read_tokens` on a multi-loop Claude run.
+- **Not done:** Cross-turn hits are limited because the system prompt embeds per-turn insights/knowledge; reordering stable memory rules first (doc §6.1 item 3) is not done. Single-loop turns pay ~25% more on cache writes.
+
+## 2026-11-09 — Keep the chat presentation on both branches
+
+- Restored the compact response loader, friendly activity messages, lighter question/answer styling, collapsed Details metadata and compact composer to `feature/automate-runs`. These UI changes also remain on `feature/inspector-visual-analysis`.
+- Kept existing access notices and other local edits intact. Inline-chart delivery and domain-memory changes remain isolated on the visualization branch; this restoration adds no chart-runtime dependency.
+
+Validation: all 3 chat-presentation tests passed. Frontend typecheck still reports the existing `DepartmentMapView.tsx:490` `.then`-on-void error; no chat UI type errors were reported.
+
+## 2026-11-09 — Data access: group owners can add members to protected groups again
+
+- **What:** `src/app/api/access/groups/[id]/members/route.ts` no longer requires a platform admin to add members to a group that holds a protection; owners can add members again. The end-date requirement (≤365 days or the protection's limit) and the `access.protection.granted_via_group` audit event remain. Updated the tests in `column-access-routes.test.ts`, the review's fix-status table (C4 is now "narrowed") and `simplified-access-model.md` §3.3.
+- **Why:** The user decided group owners should be able to add members.
+- **Verified:** `npx vitest run src/app/api/access`: 58 passed.
+- **Not done:** Owners can still hand out a group's protection, time-limited. If the end date should be optional too, that is a one-line change.
+
+## 2026-11-09 — Data access: fix review findings C1–C4, H1–H7, C5 phase 1, logging and approver limits
+
+- **What:** Fixes from [access-review-2026-11-09.md](access/access-review-2026-11-09.md); its "Fix status" table has the per-item detail.
+  - **C1** `src/lib/access/sql-tables.ts`: every FROM source is checked, including comma joins, sources after join conditions and `TABLE x`; unreadable FROM clauses are refused.
+  - **C2** `sql-columns.ts`: "Totals only" accepts only `TOTALS_SAFE` aggregates.
+  - **C3** `model-store.ts`, `config.ts`: bootstrap needs `ACCESS_BOOTSTRAP_OPEN=true`; missing tables fail closed.
+  - **C4** `groups/[id]/members/route.ts`: groups that hold a protection need a platform admin and an end date to add members.
+  - **C5 phase 1** `src/lib/semantic/metric-views.ts`: generated views inherit source protections.
+  - **H1** the status route and `data-access.tsx` badge show the column mode and config errors.
+  - **H2** `viewerPrincipalRequired()`: no system-account fallback while masking is on (`execute-raw-sql.ts`, `semantic/execute.ts`, `inspector/tools.ts`).
+  - **H3** unknown mode values enforce.
+  - **H4** `visibility.ts` cache is keyed by the paths and the minute.
+  - **H5** approvals merge with existing access (`requests.ts`).
+  - **H6** `previewPathGrant` and `assertApprovalTakesEffect` refuse approvals that wouldn't work.
+  - **H7** `widget-preview.ts` runs as the viewer.
+  - Every decision for a person is now logged (`authorize.ts`), including admin reads that skip name resolution. Non-admins can't give Use to their own group or to Admins (`rules/route.ts`). Approvers are limited to what their groups hold (`assertApproverCanGrant`).
+  - Docs: the review's fix-status table, `feature-map.md` (env vars) and `simplified-access-model.md` §3.3.
+- **Why:** The user asked to fix all issues from the review.
+- **Verified:**
+  - Run: `npx vitest run src/lib/access src/app/api/access src/lib/dashboards src/lib/semantic src/lib/inspector src/app/api/inspector src/components/access src/components/inspector`. Result: **808 passed, 2 failed**. Both failures are in `RequestsViews.test.tsx` "My data access" and were failing before this work.
+  - New test files: `visibility.test.ts`, `grant-approved.test.ts`, `authorize-sql.test.ts`, `metric-views-access.test.ts`.
+  - `tsc --noEmit`: no new errors. Errors that existed before remain in `DepartmentMapView.tsx`, `suggest-request-targets.ts`, `table-search-rerank.ts`, `data-tree/route.ts` and `inspector/chat/route.ts`.
+  - Not run in a browser or against live data.
+- **Not done:** C5 phases 2–3 (views made outside the app), data owners per catalog or schema, rename detection, hiding names, subtraction-attack mitigation, Unity Catalog grants for the service principal, and the edge cases (deactivated users, archive impact preview, expiry reminders). No UI hint yet on "Add people" for protected groups (the API error explains it).
+- **Deploy note:**
+  - Environments that relied on "no rules = open" need `ACCESS_BOOTSTRAP_OPEN=true`.
+  - A mistyped `ACCESS_MODE` now enforces.
+  - The decision log grows faster, because allowed reads are now logged too.
+
+## 2026-11-09 — Docs: data access review findings
+
+- **What:** Added [docs/access/access-review-2026-11-09.md](access/access-review-2026-11-09.md). It covers 5 critical leaks (comma joins, "Totals only" aggregates, fail-open bootstrap, group owners handing out protections, unprotected views), 7 high-severity issues, the medium design gaps, edge cases and a fix order. Each finding has its location, impact, proposed fix and the tests needed. It also notes the same-day platform-admin changes and the risks they add (admin bypass reads aren't logged and have no unit test).
+- **Expanded the same day:** every critical and high finding now has the same sections: what it is, why it happens, an example, the impact, how we'll fix it (files and code sketches), tests and "done when". The medium gaps, edge cases and admin-change risks are now tables with a proposed fix for each.
+- **Why:** The user asked for detailed documentation of the review.
+- **Verified:** Every file:line reference was re-checked against the working tree after today's sql-tables and authorize changes.
+- **Not done:** None of the findings are fixed.
+
+## 2026-11-09 — Chat: SQL check no longer refuses ORDER BY … DESC, EXTRACT(… FROM …); admins skip name resolution
+
+- **What:** Read-only diagnosis on dev: a platform admin's latest chat refusals were `sql_unresolved` (the SQL table check), not permissions. The engine already allows them on every path. In `sql-tables.ts`, `DESCRIBE`/`DESC`, `SHOW` and `USE` are now refused only as the statement itself, so `ORDER BY x DESC` and an alias `show` pass. `FROM` inside `EXTRACT`, `TRIM`, `SUBSTRING`, `SUBSTR`, `OVERLAY` and `POSITION` is no longer read as a table (a sub-query inside them is still scanned). In `authorize.ts`, platform admins pass `authorizeSql` when the only failure is resolving table names (unqualified names, table-valued functions, `IDENTIFIER()`). Writes, DDL and `system` / `information_schema` / `samples` stay refused.
+- **Why:** Most "top N" questions use `ORDER BY … DESC` and were refused for everyone, including admins.
+- **Verified:** Access, access API and Inspector tests: 387 pass, including 5 new SQL-check cases. The admin bypass in `authorizeSql` has no unit test. Not checked in a running chat.
+- **Not done:** Comma joins are still under-checked (finding C1 in the review). Unqualified names are still refused for non-admins.
+
+## 2026-11-09 — Platform admins see all data (replaces D3)
+
+- **What:** In `engine.ts`, `canOpen` returns `{ ok: true, reason: 'platform_admin' }` for anyone holding the `platform_admin` role: Use and export on every path, past any Block and whole-path protection. `protectionLevel` returns `full`, so their protected columns are never masked or refused. Because query authorization, the column guard, visibility and the person summary all use these two functions, the change applies everywhere. `person-summary.ts` adds an "All data · platform admin" line and "platform admin" as the reason on each protection, plus a `platformAdmin` flag. Text updated in `PeopleView.tsx` and `docs/access/simplified-access-model.md`.
+- **Why:** User request: platform admins were refused data.
+- **Verified:** `tsc` clean for the changed files. Access tests pass (317, including 3 new engine tests); the 2 failures are the existing router `basename` errors in `RequestsViews.test.tsx`. Not checked in a running app. Takes effect within about 60 s (model cache), or immediately after the next policy change.
+- **Not done:** Allowed reads by platform admins are logged only for Confidential and Restricted tiers (the existing logging rule), so most of their reads leave no access log. The warehouse service principal still needs the matching Unity Catalog grants for tables it cannot read today.
+
+## 2026-11-09 — Power BI Semantic Intelligence Playbook
+
+- **What:** Added `reports/po_spend/Power_BI_Semantic_Intelligence_Playbook.md` — tiered catalog of PBI/Fabric metadata valuable for ALOFT (DAX, synonyms/LSDL, lineage, endorsement, calculation groups), Semantic Intelligence Pipeline product concept, PO Spend mapping, guardrails, 90-day roadmap; cites Microsoft TMDL, Fabric scanner/relations APIs, Copilot grounding patterns.
+- **Why:** User asked how PBI can enhance governed semantics (not PBIX migration mechanics) and how to turn that into application power.
+- **Verified:** Cross-checked against existing pbix extract artifacts and `platform_sem_*` fields (synonyms, nl_intent, joins).
+- **Not done:** No ingest code or SIPkg JSON schema file yet.
+
+## 2026-11-09 — PO Spend HTML guide (Databricks → ALOFT semantics)
+
+- **What:** Added `reports/po_spend/ALOFT_PO_Spend_Semantic_Connection_Guide.html` — standalone browser doc explaining three layers (Power BI, UC, ALOFT), what `full_path`/entities/dimensions/measures mean, one-view vs multi-table design, step checklist, mapping worksheet, and FAQ.
+- **Why:** Team confusion on how to connect existing Databricks tables to semantic definitions; markdown plan alone was hard to onboard.
+- **Verified:** Static HTML only; cross-references existing `reports/pbix_semantic_metadata/` and migration analysis paths.
+- **Not done:** UC paths in the worksheet still placeholders until data engineering confirms catalog names.
+
+## 2026-11-09 — PO Spend semantic migration analysis (PBIX → Databricks → ALOFT)
+
+- **What:** Added `reports/PO_Spend_Semantic_Migration_Analysis.md` — in-depth as-is/to-be plan: Fabric PBIX reverse-engineering, gap vs current Auto-Bootstrap semantic model (Aurora snapshot), target UC gold view + governed entities/measures, phased delivery, mapping worksheet, and appendix references to `reports/pbix_semantic_metadata/`.
+- **Why:** Team needs a single blueprint for building PO Spend ontology and business metrics in the application using existing harvest embeddings and semantic layer—not duplicating semantics in Fabric DAX.
+- **Verified:** Content aligned with PBIX extract (`power_query.csv`, `schema.csv`, `dax_measures.csv`) and read-only semantic model counts from Aurora (2026-11-09).
+- **Not done:** UC `full_path` values still TBD; gold view SQL not implemented; no code changes to semantic APIs.
+
+## 2026-11-09 — Data tab: give protected-column access together with Use
+
+- **What:** In **Give access** on a catalog, schema or table, if confirmed protected columns sit below that path, a checkbox "Also give access to the N protected columns in this …" appears. It lists the protections with their column counts. When ticked, a level choice (Exact values / Totals only) appears, and after the Use rule is saved the app creates one tag grant per protection for each person or group chosen (`POST /api/access/tag-grants`, no end date). It is unchecked by default. It is disabled for non-platform-admins (tag grants are platform-admin only) and for the built-in Everyone/Members/Admins groups (they cannot hold tag grants). `GET /api/access/column-tags?underPath=` returns `tagSummary` (protection id and column count under the path, confirmed columns only).
+- **Paths:** `DataView.tsx` (`GiveRuleForm`), `src/app/api/access/column-tags/route.ts`, `DataAndPeopleViews.test.tsx`.
+- **Verified:** `tsc` clean for these files. Console component tests pass, including two new ones (grant at the chosen level; disabled for built-ins and non-admins). The new `underPath` branch of the route has no test, and none of it was checked in a browser.
+- **Not done:** The grant has no end date or per-protection selection. If the Use rule saves but a tag grant fails, the form reports it and does not roll the rule back. The tag grant is not tied to the path, so removing the Use rule later leaves the protection grant in place.
+
+## 2026-11-08 — Data tab: explain what "Protect whole catalog/schema/table" does
+
+- **What:** `ProtectPathForm` in `DataView.tsx` now shows a note that the protection hides every column under the path (people without it see •••), and each option says how many columns it is already on.
+- **Why:** The dropdown lists the same protections used on columns (compensation, Restricted), which looked wrong for catalog/schema/table level.
+- **Verified:** See session notes; not checked in a browser.
+- **Not done:** Protections still have no path-vs-column scope, so the list is not filtered.
+
+## 2026-11-08 — Compact agent memory overview (Codex)
+
+- Replaced the tall memory layout with a smaller helpfulness ring, a two-column topic grid, and a shared activity footer. Retained rating counts, memory context, topic counts, and explicit usage time windows.
+- Verified: four dashboard regression tests passed; desktop and 390px mobile fixture previews rendered without browser errors or horizontal overflow.
+- Validation uses representative fixture data; live authenticated dashboard QA remains outstanding.
+
+## 2026-11-08 — Agent memory health panel (Codex)
+
+- **What:** Reworked `DashboardView.tsx` / `DashboardView.module.css` memory section with a helpfulness ring, explicit rating counts, usage time windows, an active-state badge, and ranked topic rows with labeled memory counts. Empty ratings remain unrated, not 0% helpful; zero-count topics keep zero-width bars.
+- **Why:** Make helpfulness, current usage and topic coverage easier to distinguish and understand.
+- **Verified:** Four dashboard regression tests pass; desktop and 390px fixture browser previews, no errors or overflow; diff check passes.
+- **Not done:** Authenticated live-data verification. Full-project typecheck remains affected by unrelated access/Inspector errors reported in previous entries.
+
+## 2026-11-08 — Access console: panes fill the window dynamically
+
+- **What:** New `SplitPane` in `parts.tsx` measures where the two-pane layout starts and sets its height to the bottom of the window (16px gap, 520px floor). It re-measures on window resize and when the content above changes size, and compensates for page scroll. Stacked at natural height below 900px. Data, Column access, People & groups, Department map and Data map now render `<SplitPane>` instead of a plain `.split` div. The CSS `clamp` in `.split` is now only a fallback before the first measurement.
+- **Why:** Any fixed formula was still too short or too tall on some screens (laptop complaint on the previous two attempts).
+- **Verified:** `tsc` clean for the touched files; console tests 28 pass (2 failures in `RequestsViews.test.tsx` are the router `basename` errors that were failing before this change). Not checked in a browser, and `matchMedia` is guarded because jsdom has none.
+- **Not done:** The existing `DepartmentMapView.tsx(490)` type error (`.then` on void) is not mine and was left alone.
+
+## 2026-11-08 — Access console: pane height follows the screen (superseded by the entry above)
+
+- **What:** `.split` in `console.module.css` now uses `height: clamp(680px, 100dvh - 220px, 1100px)` (first version was 460px / 340px and looked too short on laptop screens). The list pane and detail pane scroll inside it (removed the 640px list cap and the fixed `min-h-[560/600px]` on Data, Column access and People & groups). Below 900px the panes stack at natural height as before.
+- **Why:** Fixed heights left empty space on tall screens and cut the list short on small ones.
+- **Verified:** CSS and class changes only; not checked in a browser. The 340px offset is an estimate of the header and tabs above the panes.
+- **Not done:** Department map and Data map also use `.split`, so they pick up the new height too and were not checked.
+
+## 2026-11-08 — People & groups tab redesign
+
+- **What:** `PeopleGroupsView.tsx` is now a browsable master-detail view. The sidebar has a Groups | People switch with search, and fixed-height rows with avatars (the buried "Look up a person" picker is removed). The group page has a header with an Add people action, stat tiles, searchable member rows (avatar, name, email, expiry chip, Remove), an approver list, colour-coded access rules, and an archive row. The person page has a header, stat tiles, group chips that open the group, and compact rules and protections rows with the path ellipsised. New CSS (`pg*`) in `console.module.css`. API calls and labels are unchanged.
+- **Why:** People were reachable only by typing in a picker; group and person pages were long text stacks with uneven rows and no summary.
+- **Verified:** `tsc` clean for this file; `DataAndPeopleViews.test.tsx` passes (existing tests plus a new one for the People tab and chip navigation). Not checked in a browser.
+- **Not done:** `PeopleView.tsx` (the old table, unused) is untouched. Clearance and department editing are not part of this tab. Person pages are still read-only.
+
+## 2026-11-08 — Memory contributions card redesign (Codex)
+
+- **What:** `MemoryCredCard.tsx` and new CSS module: personal contribution summary, labeled rank/contributor/season-XP/trust table, provisional states, score explanation, and responsive layout. Small groups omit promotion/demotion decoration. Class requests now abort on selection changes and display loading instead of stale results. Added `web/src/memory-cred.test.tsx`.
+- **Why:** Distinguish seasonal rank from longer-term trust and reduce leaderboard clutter.
+- **Verified:** Three focused tests pass (labels/small-group zones, class-switch request cancellation, unranked zero-XP state). Desktop and 390px fixture browser screenshots: no errors or horizontal overflow. No live data mutated.
+- **Not done:** Authenticated live-data QA. Full typecheck remains blocked by unrelated access and Inspector errors.
+
+## 2026-11-08 — Remove duplicate dashboard attention strip (Codex)
+
+- **What/why:** Removed the top attention strip and unused styles from `DashboardView.tsx` / `DashboardView.module.css`; the right-side action list remains the single attention summary. Updated the unavailable-state test to assert that list’s message.
+- **Verified:** Four dashboard tests pass; diff whitespace check. No backend changes or live job operations.
+- **Not done:** No new browser capture for this small removal.
+
+## 2026-11-08 — Data tab: consistent browse row height
+
+- **What:** `console.module.css` — `.treeRowBrowse` rows now have a fixed 36px height, no wrap, and a fixed label line-height. The right-hand chips stay on one line and don't shrink. The 720px breakpoint no longer stacks browse rows into two lines, so narrow widths keep the same height.
+- **Why:** Rows with chips, rows without chips, and narrow-width rows had different heights.
+- **Verified:** CSS only, not checked in a browser.
+- **Not done:** The right-hand detail panels were not touched.
+
+## 2026-11-08 — Dashboard final layout cleanup (Codex)
+
+- **What:** `DashboardView.tsx` and `DashboardView.module.css`: compact Overview/date/Inspector header, consistent action-list heading, readable mobile pipeline rows, and zero-height bars for zero activity. Removed unused hero CSS.
+- **Why:** Remove decorative space and improve dashboard readability after user review.
+- **Verified:** Four dashboard tests pass; browser fixture checks in light/dark mode and 390px mobile, no errors/overflow; action filters work. No live database changes.
+- **Not done:** Authenticated live-data QA; full-project typecheck results are reported separately because concurrent access/Inspector work may affect it.
+
+## 2026-11-08 — Compact, lighter dashboard readiness panel (Codex)
+
+- **What:** Updated `DashboardView.tsx` and `DashboardView.module.css`: shortened the coverage chart, reduced panel spacing and KPI size, replaced the solid dark fill with a subtle theme-aware tint, and moved the cumulative-count explanation into the existing expandable guide.
+- **Why:** Preserve the requested journey visual while making the panel cleaner and more compact.
+- **Verified:** Four dashboard tests pass; fixture browser previews in light/dark mode and at 390px; no page errors or horizontal overflow. Existing job navigation and counts retained.
+- **Not done:** Authenticated live-data verification; unrelated full-project TypeScript failures remain outside this change.
+
+## 2026-11-08 — Requests & log: redesigned request cards
+
+- **What:** `RequestList.tsx` rows now show title, status chip (right), meta line and a one-line question summary instead of the raw composed purpose string. Expanded view is a two-column layout: a details card (data requested, level, duration, approver pills, ticket) plus structured Purpose (question quote, "why their role needs it"), beside a single Activity timeline. Added `parseRequestReason` (splits the composed purpose, drops duplicated question lines and the table line already shown in details). The conversation panel and history list were merged into the timeline, and the full-purpose comment on the `requested` event is hidden to avoid a third copy.
+- **Why:** The same long purpose text appeared in the header, the detail and the history, and details were unstructured plain lines.
+- **Verified:** `tsc` reports no errors in `RequestList.tsx`. Not checked in a browser, and `RequestsViews.test.tsx` was not run.
+- **Not done:** Approver and requester action forms (DecideForm, RequesterActions) are unchanged.
+
+## 2026-11-08 — Dashboard workspace pulse redesign (Codex)
+
+- **What:** Redesigned `src/components/dashboard/DashboardView.tsx` with `DashboardView.module.css`: editorial header, compact metric strip, proportional data-readiness journey, explained stages, largest coverage-gap link, and filterable prioritized action rail. Added `web/src/dashboard.test.tsx`.
+- **Why:** Make the home dashboard visually distinctive and help users understand pipeline coverage and the next action. Existing summary API, permissions and job-launch behavior are preserved.
+- **Verified:** Four dashboard tests pass (`NODE_OPTIONS=--no-experimental-webstorage npm run web:test -- web/src/dashboard.test.tsx`); desktop, dark-mode and 390px mobile browser previews with representative fixture data; action filter returns two failed jobs; no page errors or horizontal overflow. Diff whitespace checks pass.
+- **Not done:** No live database or job mutations. Not verified against authenticated live summary data. Full TypeScript check currently reports unrelated errors in access/data-tree, access request targeting/reranking, DepartmentMapView and Inspector chat files.
+
+## 2026-11-08 — Access tickets: approver ↔ requester conversation channel
+
+- **What:** Approvers **Send message** (`approver_note`) or **Ask question** (status `info_requested`) on the same ticket thread as requester **Send update**. Shared **Conversation** panel on ticket detail; notifications deep-link to `/my-access/tickets`.
+- **Paths:** `requests/[id]/route.ts`, `RequestList.tsx`.
+
+## 2026-11-08 — My access tickets: support list + continue conversation
+
+- **What:** `/my-access/tickets` lists raised access tickets with thread history. Requesters can **Send update** on waiting tickets (`follow_up` API) or answer approver questions. User menu **My access tickets**; notifications deep-link to `?open=`.
+- **Paths:** `my-access-tickets.tsx`, `router.tsx`, `requests/[id]/route.ts`, `RequestList.tsx`, `my-access.tsx`, `UserMenu.tsx`, `AccessRequestQuickDialog.tsx`.
+
+## 2026-11-08 — Access requests: tables from agent SQL only (requester never lists them)
+
+- **What:** Purpose on each request is built from **Inspector question + agent-identified tables** from blocked SQL. Popup/compact form only asks **why**; no table pickers or lists for the requester.
+- **Paths:** `request-purpose.ts`, `access-request-submit.ts`, `AccessRequestQuickDialog.tsx`, `my-access.tsx`, `RequestList.tsx`.
+
+## 2026-11-08 — Access requests: state tables needed to complete the work
+
+- **What:** Purpose text on each path request includes **Tables needed to complete this work** (friendly labels + bundle note). Quick dialog and approver bundle cards show the same list.
+- **Paths:** `request-purpose.ts`, `access-request-submit.ts`, `AccessRequestQuickDialog.tsx`, `my-access.tsx`, `RequestList.tsx`.
+
+## 2026-11-08 — Request access: minimal Inspector popup + compact My access
+
+- **What:** **Request access** in Inspector opens a small dialog (tables from SQL + one reason field + send). **More options** links to slim `/my-access?quick=1`. Full search UI hidden on quick prefill.
+- **Paths:** `AccessRequestQuickDialog.tsx`, `AccessNoticeBanner.tsx`, `access-request-submit.ts`, `my-access.tsx`, `denial-ui.ts`.
+
+## 2026-11-08 — Request access: use SQL tables from Inspector (not semantic flood)
+
+- **What:** Inspector denial links include `qp=` (tables parsed from the blocked SQL). My data access shows **Tables in the query Inspector ran** only; hybrid search runs only if the person clicks **Search for other tables**.
+- **Paths:** `denial-ui.ts`, `authorize.ts`, `tools.ts`, `suggest-request-targets.ts`, `suggest-targets/route.ts`, `my-access.tsx`, `denial-ui.test.ts`.
+
+## 2026-11-08 — My access compile fix + bundled requests in list
+
+- **What:** Fixed `??`/`||` mix on suggest `anchorPath` (Vite parse error when opening Request access). **My requests** / inbox groups rows with shared `bundle-*` `ticketRef` into one expandable card with per-table approve.
+- **Paths:** `my-access.tsx`, `RequestList.tsx`, `request-bundle.test.ts`.
+- **Verified:** `tsc` clean on `my-access.tsx`; `vitest` `request-bundle.test.ts`.
+
+## 2026-11-08 — Access requests: Inspector question drives multi-table suggest
+
+- **What:** Request access links from Inspector now pass the **user's last question** (not only the denial text) into My data access `context` / purpose prefill so hybrid suggest can find every table implied by a list-style need. `purposePhrases` moved to `purpose-phrases.ts` for unit tests.
+- **Paths:** `tools.ts`, `my-access.tsx`, `purpose-phrases.ts`, `suggest-request-targets.ts`.
+
+## 2026-11-08 — Access requests: multi-table suggest (hybrid + re-rank)
+
+- **What:** `POST /api/access/suggest-targets` infers tables from purpose text (phrase split, hybrid table search, Luna re-rank). My data access form shows checkboxes so one denial can become several linked requests (`ticketRef` bundle id). Schema hint when many tables share a schema.
+- **Paths:** `suggest-request-targets.ts`, `suggest-targets/route.ts`, `my-access.tsx`.
+
+## 2026-11-08 — Access requests: purpose, scope for approvers, denial prefill
+
+- **What:** Request form has **what you'll do** + **why your role needs it**; Inspector denial links prefill label/context. Approvers see data requested (friendly label), scope (catalog/schema/table), technical path, and combined purpose text. API adds `targetLabel` and `scopeSummary` on list.
+- **Paths:** `my-access.tsx`, `RequestList.tsx`, `requests/route.ts`, `denial-ui.ts`.
+
+## 2026-11-08 — Access denial: stakeholder copy without warehouse paths
+
+- **What:** User-facing denial text and model rules no longer include `catalog.schema.table` paths; labels like "employee records" instead. Technical `path` stays on the ACCESS_DENIED tool JSON for developers/logs only.
+- **Paths:** `src/lib/access/denial-ui.ts`, `answer-rules.ts`, `tools.ts`, `denial-ui.test.ts`.
+
+## 2026-11-08 — Inspector: access denial copy + Request access in chat
+
+- **What:** Table-level `ACCESS_DENIED` refusals use plain language ("you don't have access to …") instead of implying the record does not exist. Tools emit `access_denied` SSE with a **Request access** button under the assistant reply; masked query results forward `accessNote` to the results panel. Model answer rules forbid "couldn't access/find" workarounds.
+- **Paths:** `src/lib/access/{denial-ui,authorize,errors}.ts`, `src/lib/inspector/{tools,answer-rules}.ts`, `src/app/api/inspector/chat/route.ts`, `src/hooks/useInspectorChat.ts`, `src/components/access/AccessNoticeBanner.tsx`, `PromptCanvas.tsx`, `DashboardPane.tsx`.
+- **Verified:** `vitest run src/lib/access/__tests__/denial-ui.test.ts`.
+
+## 2026-11-08 — Data access: Department map tab (groups + purpose on rules API)
+
+- **What:** Restores the old **Data map** workflow on the simplified model: fifth tab **Department map** with **Data → departments** (tree, chips, Tag/Edit per path) and **Department → data** (pick a group, list rules, tree with Query/Export/Block). Writes `PUT /api/access/rules` for **groups**; purpose labels Query = Use, Export = Use + export. `?tab=map` opens this tab again.
+- **Paths:** `src/components/access/console/DepartmentMapView.tsx` (new), `src/views/agent-staging/data-access.tsx`, `AccessConsoleHelp.tsx`, `docs/access/feature-map.md`.
+- **Verified:** Not run (local).
+
+## 2026-11-08 — Data tab detail panel: compact chips + flat sections
+
+- **What:** Selected-node panel matches browse style: header chips instead of long summary line, single **detailPanel** with **Use rules** / **Whole-path protection**, flatter rule rows (access dropdown on the same line), shorter inherited block.
+- **Paths:** `DataView.tsx`, `console.module.css`, `DataAndPeopleViews.test.tsx`.
+
+## 2026-11-08 — Data tab browse tree: one line per row
+
+- **What:** Browse list uses estate tree styling: name left, small chips right (who can use only on catalogs / local rules; column counts as lock + number). Drops repeated “Marine · Use (from parent)” on every schema/table row.
+- **Paths:** `DataView.tsx`, `console.module.css`, `DataAndPeopleViews.test.tsx`.
+
+## 2026-11-08 — Data tab: less cluttered bulk column protect bar
+
+- **What:** Table-column bulk protect drops “Protect N as”; sticky bar above the list with lock + count, then a grid (protection · reason · Apply) so the dropdown isn’t squeezed beside a label.
+- **Paths:** `DataView.tsx`, `console.module.css`.
+
+## 2026-11-08 — Access console: Radix selects + column names with spaces
+
+- **What:** Replaced native `<select>` in Data access with shared **`ConsoleSelect`** (estate styling like Users role picker). **`normalizeColumnName`** no longer rejects spaced names (fixes ⓘ on `po number`). Unit test added.
+- **Paths:** `parts.tsx`, `DataView.tsx`, `GiveAccess.tsx`, `PeopleView.tsx`, `console.module.css`, `column-admin.ts`, `column-admin.test.ts`.
+- **Verified:** `column-admin.test.ts`, access console component tests (local).
+
 ## 2026-11-08 — Table + column search: Luna re-rank after hybrid merge
 
 - **What:** **Columns** (`column-search`) and **tables** (`data-tree?q=`) pin strong name/path hits, then **gpt-6-luna** re-ranks embedding tails. `ACCESS_TABLE_SEARCH_RERANK=false` or `ACCESS_COLUMN_SEARCH_RERANK=false`.

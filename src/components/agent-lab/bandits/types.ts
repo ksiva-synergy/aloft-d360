@@ -167,7 +167,7 @@ export const SOURCE_LABELS: Record<RunSource, string> = {
   lab_single: 'Lab (Single)',
   lab_graph: 'Lab (Graph)',
   compiled_pipeline: 'Compiled Pipeline',
-  inspector: 'Inspector',
+  inspector: 'Ask Data',
   workbench: 'Workbench',
   boost: 'Boost',
 };

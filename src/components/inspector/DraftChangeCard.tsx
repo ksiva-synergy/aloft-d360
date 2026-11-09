@@ -178,7 +178,7 @@ export function DraftChangeCard({
         body: JSON.stringify({
           widgets,
           layout: { columns: 12, rows: widgets.map((w) => ({ widgetId: w.widgetId, ...w.position })) },
-          changeSummary: `Applied Inspector refinement to "${afterWidget.title}"`,
+          changeSummary: `Applied Ask Data refinement to "${afterWidget.title}"`,
         }),
       });
     };

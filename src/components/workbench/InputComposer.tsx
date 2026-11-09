@@ -520,7 +520,7 @@ export function InputComposer({
         style={{ maxWidth: widthCap, marginLeft: widthCap ? 'auto' : undefined, marginRight: widthCap ? 'auto' : undefined, boxSizing: 'border-box' }}
       >
         <form
-          className="flex w-full items-end gap-2 rounded-2xl border bg-[var(--surface-1)] p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-[border-color] duration-200"
+          className="flex w-full items-end gap-2 rounded-2xl border bg-[var(--surface-1)] p-2 shadow-[0_3px_14px_rgba(0,0,0,0.04)] transition-[border-color] duration-200"
           style={{ borderColor: focused ? 'color-mix(in srgb, var(--brand-a) 45%, transparent)' : 'var(--line-1)' }}
           onSubmit={(e) => {
             e.preventDefault();
@@ -537,9 +537,9 @@ export function InputComposer({
             placeholder={busy ? 'Generating…' : placeholder}
             disabled={busy}
             rows={1}
-            className="max-h-40 min-h-[44px] flex-1 resize-none bg-transparent px-3 py-2.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
+            className="max-h-40 min-h-[36px] min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-size-body leading-relaxed text-[var(--ink-1)] outline-none placeholder:text-[var(--ink-3)]"
           />
-          <div className="shrink-0 self-end pb-0.5">
+          <div className="max-w-[42%] shrink-0 self-end pb-0.5 [&_button]:max-w-full [&_button]:border-transparent [&_button]:text-[var(--ink-3)] [&_button_span]:truncate">
             <ModelSelector
               selectedModel={selectedModel}
               onModelChange={onModelChange}

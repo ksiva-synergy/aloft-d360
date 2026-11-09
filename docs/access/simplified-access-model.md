@@ -67,6 +67,9 @@ One concept for "a set of people". It replaces departments and access groups.
   - a protected **column** comes back masked (`•••`); filtering or sorting by it is refused;
   - a protected **table** is refused, and its name stays visible with **Request access**.
 - A column or table can carry more than one protection; a person needs all of them.
+- **Totals only** means `sum`, `avg`, `count`, `stddev` and `variance` (and their variants). `min`, `max`, `median`, `percentile`, `first`/`last`, `any_value`, `max_by`/`min_by` and list functions (`collect_list`, `array_agg`, …) return individual values, so they need Exact values (review C2, 2026-11-09). Known limit: two totals over groups that differ by one person reveal that person's value.
+- Joining a group that holds a protection is a protection grant. The group's owners (or a platform admin) add members, but an end date (at most 365 days, or the protection's own limit) is required, and the addition is audited as `access.protection.granted_via_group` (review C4; owners keep this right by decision on 2026-11-09).
+- Views the app generates inherit every protection of their source table as a whole-path protection (review C5, phase 1). Other views are not yet covered.
 
 ### 3.4 One request flow
 
@@ -91,7 +94,7 @@ Requests default to **30 days**. **Auto-approve** can be switched on per access 
 4. Run; mask; log the decision.
 ```
 
-Platform admins get nothing automatically (D3). Nobody gives access to themselves.
+Platform admins see **all data** (Use + export on every path, past any Block, every protection at Exact values). This replaced D3 ("platform admins get nothing automatically") on 2026-11-09 at the user's request. Nobody gives access to themselves.
 
 ## 4. What the admin sees
 

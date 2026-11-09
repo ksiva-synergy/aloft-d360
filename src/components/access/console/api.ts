@@ -121,7 +121,12 @@ export type AccessStatus = {
   me: { userId: string; platformAdmin: boolean };
   roles: RoleInfo[];
   accessMode: 'off' | 'observe' | 'enforce';
+  /** COLUMN_ACCESS_MODE: whether protected columns are masked. */
+  columnAccessMode?: 'off' | 'shadow' | 'enforce';
+  /** Settings the server could not read (typo in a mode, missing tables). */
+  configErrors?: string[];
   enforcedSurfaces: string[];
+  /** True only while ACCESS_BOOTSTRAP_OPEN is set and no access rules exist. */
   legacyOpen: boolean;
   policyVersion: string;
   counts: {

@@ -461,6 +461,8 @@ export async function POST(request: NextRequest) {
           maxLoops: maxInspectorLoops,
           supportsTools: modelConfig.supportsTools,
           supportsThinking: modelConfig.supportsThinking,
+          // Bedrock Claude only: cache system+tools and the growing conversation across loops.
+          cacheConversation: true,
           abortSignal: closed,
           onLoopStart: (loop: number, maxLoops: number) => {
             currentAgentLoop = loop;
@@ -520,6 +522,14 @@ export async function POST(request: NextRequest) {
                   }
                 }
               }
+            } else if (event.type === 'access_denied') {
+              emit({
+                type: 'access_denied',
+                message: event.message,
+                request: event.request,
+                label: event.label,
+                path: event.path,
+              });
             } else if (event.type === 'tool_call_error') {
               emit({ type: 'tool_call_error', callId: event.callId, error: event.error, retryable: event.retryable });
               // AM0.3 — DEAD_END node (fire-and-forget)
@@ -544,7 +554,15 @@ export async function POST(request: NextRequest) {
                 }
               }
             } else if (event.type === 'query_result') {
-              emit({ type: 'query_result', columns: event.columns, rows: event.rows, sql: event.sql, rowCount: event.rowCount, truncated: event.truncated });
+              emit({
+                type: 'query_result',
+                columns: event.columns,
+                rows: event.rows,
+                sql: event.sql,
+                rowCount: event.rowCount,
+                truncated: event.truncated,
+                ...(event.accessNote ? { accessNote: event.accessNote } : {}),
+              });
             }
           },
           onLoopUsage: (loop: number, inputTokens: number, outputTokens: number, totalInputTokens: number, totalOutputTokens: number) => {

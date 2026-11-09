@@ -125,3 +125,25 @@ describe('helpers', () => {
     expect(extractTables('SELECT * FROM `synergymarine-export-prod`.sales.orders')).toEqual({ ok: true, paths: ['synergymarine-export-prod.sales.orders'] });
   });
 });
+
+describe('"Totals only" counts only real totals (review C2)', () => {
+  it.each(['collect_list', 'collect_set', 'array_agg', 'min', 'max', 'first', 'last', 'any_value', 'median', 'mode', 'percentile'])(
+    '%s returns individual values, so the column is output',
+    (fn) => {
+      const arg = fn === 'percentile' ? 'salary_amount, 0.5' : 'salary_amount';
+      const r = ok(`SELECT fleet, ${fn}(${arg}) AS v FROM ${C} GROUP BY fleet`);
+      expect(uses(r.refs, 'salary_amount')).toEqual(['output']);
+      expect(r.outputs[1]).toMatchObject({ aggregate: false });
+    },
+  );
+
+  it.each(['sum', 'avg', 'count', 'stddev', 'variance'])('%s is a total', (fn) => {
+    const r = ok(`SELECT fleet, ${fn}(salary_amount) AS v FROM ${C} GROUP BY fleet`);
+    expect(uses(r.refs, 'salary_amount')).toEqual(['aggregate']);
+  });
+
+  it('max_by reveals who has the highest value', () => {
+    const r = ok(`SELECT max_by(name, salary_amount) AS top FROM ${C}`);
+    expect(uses(r.refs, 'name')).toEqual(['output']);
+  });
+});

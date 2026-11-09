@@ -22,8 +22,6 @@ import { isPlatformAdminRole } from './sensitive';
 
 export const ReasonSchema = z.string().trim().min(5, 'Give a reason (at least 5 characters)').max(500);
 
-/** Harvested names include spaced and hyphenated Databricks columns (often quoted in SQL). */
-const COLUMN = /^[a-z0-9_\s-]+$/;
 const COLUMN_MAX = 255;
 const TABLE_SEGMENT = /^[a-z0-9_-]+$/;
 
@@ -45,17 +43,14 @@ export function normalizeTablePath(raw: string): string {
 }
 
 export function normalizeColumnName(raw: string): string {
-  const col = raw.trim().toLowerCase();
+  const col = raw.trim();
   if (!col || col.length > COLUMN_MAX) {
     throw new ApiError(400, `Column name must be between 1 and ${COLUMN_MAX} characters`);
   }
   if (/[.\0\r\n]/.test(col)) {
     throw new ApiError(400, `Column "${raw}" is not a valid column name`);
   }
-  if (!COLUMN.test(col)) {
-    throw new ApiError(400, `Column "${raw}" may only contain letters, digits, underscores, spaces, and hyphens`);
-  }
-  return col;
+  return col.toLowerCase();
 }
 
 export function hasDataAccessManage(auth: AuthContext): boolean {

@@ -138,8 +138,9 @@ describe('copy plan → new tables → loader → engine gives everyone today\'s
         skippedOpenData++; // the script refuses this case
         continue;
       }
-      const model = buildAccessModel(rowsAfterCopy(plan, existing));
       const snapshot = oldSnapshot(cur, existing);
+      // An org that was open under the old model keeps that only through the explicit bootstrap setting (review C3).
+      const model = buildAccessModel(rowsAfterCopy(plan, existing), { bootstrapOpen: snapshot.legacyOpen });
       for (const userId of USERS) {
         const roles = rolesByUser.get(userId)!;
         const principal: AccessPrincipal = {

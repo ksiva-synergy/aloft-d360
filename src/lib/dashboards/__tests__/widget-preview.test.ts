@@ -31,6 +31,10 @@ const {
 // executeSemanticQuery is fully mocked; the real error classes come from the
 // node-safe errors module so instanceof matches inside buildWidgetPreview.
 vi.mock('@/lib/semantic/execute', () => ({ executeSemanticQuery }));
+vi.mock('@/lib/access/principal', () => ({
+  principalForUser: vi.fn(async (userId: string) => ({ kind: 'user', orgId: 'org', userId, departmentIds: [], clearance: 'internal', roles: [] })),
+  systemPrincipal: vi.fn(),
+}));
 
 // Fully mocked (not importOriginal): the real connection.ts pulls in
 // `server-only` via platform/agents, which cannot load under vitest. No test
@@ -119,7 +123,8 @@ describe('owner boundary — the acceptance gate', () => {
     // The owner-scoped bypass was applied, with identity from the actor (SEC-2).
     expect(executeSemanticQuery).toHaveBeenCalledTimes(1);
     const [passedQuery, passedConn, passedOpts] = executeSemanticQuery.mock.calls[0];
-    expect(passedOpts).toEqual({ authoringMode: true, authoringUserId: OWNER.id });
+    // Runs as the viewer (review H7) and keeps the owner-scoped bypass.
+    expect(passedOpts).toEqual({ authoringMode: true, authoringUserId: OWNER.id, dataPrincipal: expect.objectContaining({ kind: 'user', userId: OWNER.id }) });
     expect(passedConn).toBe(CONNECTION_ID);
     // Defensive modelId pin: the stale stored value was overwritten.
     expect(passedQuery.modelId).toBe(MODEL_ID);
@@ -181,7 +186,10 @@ describe('bypass is owner-scoped — pure viewers get no authoring opts', () => 
 
     // executeSemanticQuery was called WITHOUT authoring opts.
     const [, , passedOpts] = executeSemanticQuery.mock.calls[0];
-    expect(passedOpts).toBeUndefined();
+    // No authoring bypass; the query still runs as the viewer (review H7).
+    expect(passedOpts).not.toHaveProperty('authoringMode');
+    expect(passedOpts).not.toHaveProperty('authoringUserId');
+    expect(passedOpts).toHaveProperty('dataPrincipal.kind', 'user');
 
     // Typed state, not a 500 — and no draft data.
     expect(out.status).toBe(200);

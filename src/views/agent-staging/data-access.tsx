@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ElementType } from 'react';
-import { Database, Lock, RefreshCw, ScrollText, Users } from 'lucide-react';
+import { Database, Lock, Network, RefreshCw, ScrollText, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSearchParams } from '@/lib/navigation';
 import userStyles from '@/components/users/users.module.css';
@@ -9,6 +9,7 @@ import { accessFetch, runAsync, type AccessStatus, type Person } from '@/compone
 import { RequestsView } from '@/components/access/console/RequestsView';
 import { ColumnAccessView } from '@/components/access/console/ColumnAccessView';
 import { DataView } from '@/components/access/console/DataView';
+import { DepartmentMapView } from '@/components/access/console/DepartmentMapView';
 import { PeopleGroupsView } from '@/components/access/console/PeopleGroupsView';
 import { AccessConsoleHelpButton } from '@/components/access/console/AccessConsoleHelp';
 import s from '@/components/access/console/console.module.css';
@@ -16,10 +17,11 @@ import { ConsoleReadOnlyContext } from '@/components/access/console/readOnly';
 import { useSectionLevel } from '@/lib/sections/useSectionLevels';
 
 /** Simplified model (docs/access/simplified-access-model.md §4): four tabs. */
-type Tab = 'data' | 'protections' | 'people' | 'log';
+type Tab = 'data' | 'departments' | 'protections' | 'people' | 'log';
 
 const TABS: { id: Tab; label: string; icon: ElementType }[] = [
   { id: 'data', label: 'Data', icon: Database },
+  { id: 'departments', label: 'Department map', icon: Network },
   { id: 'protections', label: 'Protections', icon: Lock },
   { id: 'people', label: 'People & groups', icon: Users },
   { id: 'log', label: 'Requests & log', icon: ScrollText },
@@ -28,7 +30,7 @@ const TABS: { id: Tab; label: string; icon: ElementType }[] = [
 /** Old links (?tab=map, labels, columns, setup) land on the tab that replaced them. */
 const TAB_ALIASES: Record<string, Tab> = {
   data: 'data',
-  map: 'data',
+  map: 'departments',
   setup: 'data',
   protections: 'protections',
   labels: 'protections',
@@ -38,15 +40,35 @@ const TAB_ALIASES: Record<string, Tab> = {
 };
 
 /** Small status badge next to the title. The full explanation is in the hover text and the Setup guide. */
+const COLUMN_MODE_LABEL = { off: 'columns not masked', shadow: 'columns: shadow', enforce: 'columns masked' } as const;
+
 function ModeBadge({ status }: { status: AccessStatus }) {
   const { accessMode, legacyOpen } = status;
-  const color = accessMode === 'enforce' ? 'var(--ok)' : accessMode === 'observe' ? 'var(--brand-b-ink)' : 'var(--warn)';
-  const label = accessMode === 'off' ? 'Not enforced' : accessMode === 'observe' ? 'Observe mode' : 'Enforced';
+  const columnMode = status.columnAccessMode ?? 'off';
+  const errors = status.configErrors ?? [];
+  // Full green only when both tables and protected columns are enforced (review H1).
+  const color =
+    errors.length > 0 || legacyOpen
+      ? 'var(--warn)'
+      : accessMode === 'enforce'
+        ? columnMode === 'enforce' ? 'var(--ok)' : 'var(--warn)'
+        : accessMode === 'observe'
+          ? 'var(--brand-b-ink)'
+          : 'var(--warn)';
+  const tables = accessMode === 'off' ? 'Not enforced' : accessMode === 'observe' ? 'Observe mode' : 'Enforced';
+  const label = `${tables} · ${COLUMN_MODE_LABEL[columnMode]}`;
   let detail: string;
-  if (accessMode === 'off') detail = 'Settings are saved but nothing is checked or logged yet.';
-  else if (accessMode === 'observe') detail = 'Decisions are logged; nothing is blocked.';
-  else detail = `Enforcing on ${status.enforcedSurfaces.join(', ') || 'no surfaces'}.`;
-  if (legacyOpen && accessMode !== 'off') detail += ' No access rules exist yet, so unprotected data is still open.';
+  if (accessMode === 'off') detail = 'Table access: settings are saved but nothing is checked or logged yet.';
+  else if (accessMode === 'observe') detail = 'Table access: decisions are logged; nothing is blocked.';
+  else detail = `Table access: enforcing on ${status.enforcedSurfaces.join(', ') || 'no surfaces'}.`;
+  detail +=
+    columnMode === 'enforce'
+      ? ' Protected columns are masked.'
+      : columnMode === 'shadow'
+        ? ' Protected columns are checked and logged, but NOT masked.'
+        : ' Protected columns are NOT masked (COLUMN_ACCESS_MODE is off).';
+  if (legacyOpen && accessMode !== 'off') detail += ' Bootstrap is on and no access rules exist, so unprotected data is open to everyone.';
+  for (const e of errors) detail += ` ${e}`;
   return (
     <span
       role="status"
@@ -173,6 +195,8 @@ export default function DataAccessPage() {
             <p className="p-6 text-size-ui text-muted-foreground">{loading ? 'Loading…' : 'Nothing to show.'}</p>
           ) : tab === 'data' ? (
             <DataView people={people} meId={status.me.userId} isPlatformAdmin={status.me.platformAdmin} />
+          ) : tab === 'departments' ? (
+            <DepartmentMapView people={people} meId={status.me.userId} onChanged={refresh} />
           ) : tab === 'people' ? (
             <PeopleGroupsView
               people={people}

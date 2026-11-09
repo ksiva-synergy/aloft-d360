@@ -34,7 +34,7 @@ const WINDOWS = [
 
 const SOURCES: { label: string; value: string | null }[] = [
   { label: 'All', value: null },
-  { label: 'Inspector', value: 'inspector' },
+  { label: 'Ask Data', value: 'inspector' },
   { label: 'Workbench', value: 'workbench' },
   { label: 'Boost', value: 'boost' },
   { label: 'Pipeline', value: 'pipeline' },

@@ -1,0 +1,3 @@
+FromTableName,FromColumnName,ToTableName,ToColumnName,IsActive,Cardinality,CrossFilteringBehavior,FromKeyCount,ToKeyCount,RelyOnReferentialIntegrity
+Purchase_History,DOC,RLS_Mapping,DOC,1,M:1,Single,32,,0
+Purchase_History,DOC,doc_target,DOC,1,M:1,Both,0,,0

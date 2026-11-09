@@ -5,6 +5,35 @@
 
 ---
 
+### 2026-11-08: Remove redundant dashboard attention strip (Codex)
+
+- **Files:** DashboardView TSX/CSS, dashboard test, changelog, this log, current-status.
+- **Before → after:** Top duplicate alert strip removed; right-hand action list and per-stage job links remain. User-requested presentation change only.
+- **Verified:** Four dashboard tests; no live jobs executed.
+
+### 2026-11-08: Dashboard header and mobile readability cleanup (Codex)
+
+- **Files:** `DashboardView.tsx`, `DashboardView.module.css`, changelog, current-status, this log.
+- **Before → after:** Large decorative title becomes a compact Overview header; narrow-screen pipeline becomes readable rows; zero activity is no longer drawn as a nonzero bar. Counts and job links retained.
+- **Verified:** Four focused tests and fixture browser checks on desktop/mobile/light/dark; no browser errors/overflow. No backend or job execution changes.
+- **Not done:** Live authenticated dashboard QA. No PR/commit created.
+
+### 2026-11-08: Compact dashboard readiness presentation (Codex)
+
+- **Files:** `src/components/dashboard/DashboardView.tsx`, `DashboardView.module.css`, changelog, current-status, this log.
+- **Before → after:** Oversized solid dark readiness panel becomes a shorter, lightly tinted panel with a compact proportional chart and collapsible explanation. Pipeline counts, links and execution unchanged.
+- **Verified:** Four dashboard tests; desktop, dark and 390px browser fixtures; no page errors/overflow.
+- **Not done:** Live authenticated QA; no jobs executed. No issue-register fix or PR claimed.
+
+### 2026-11-08: Dashboard data-readiness journey and action rail (Codex)
+
+- **Issues:** User-requested dashboard visual and comprehension redesign; no harvest execution issue claimed fixed.
+- **Files:** `src/components/dashboard/DashboardView.tsx`, `DashboardView.module.css`, `web/src/dashboard.test.tsx`, `docs/CHANGELOG.md`, this log and `current-status.md`.
+- **Before → after:** Dense T0/T1/T2 counters and a generic briefing become a proportional cumulative-coverage journey with plain-language stages, an expandable explanation, largest absolute coverage-gap navigation, and failure/review/follow-up filters. Jobs without completion evidence do not get a healthy label.
+- **Verified:** Four focused tests; browser review of representative fixtures at desktop/mobile and in light/dark themes, filter interaction, zero browser errors/overflow. Full typecheck blocked by unrelated access/Inspector errors.
+- **Not done:** Live authenticated data QA, deployment, or job execution. Existing permissions and backend behavior retained. No PR/commit created.
+- **Notes:** Read current-status; code and documentation complete; changelog, session log, and current-status updated.
+
 ### 2026-11-06: Merge `origin/dev` into local `main` (Composer)
 
 - **What:** Fetched `origin/dev`, merged into `main`, and resolved stash-pop conflicts in `docs/CHANGELOG.md`, `docs/jobs/current-status.md`, and `docs/jobs/session-log.md` so both the `dev` history and the local Searchable / jobs doc updates stay consistent.

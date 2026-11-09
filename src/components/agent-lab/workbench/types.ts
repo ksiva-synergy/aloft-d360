@@ -32,6 +32,8 @@ export interface WorkbenchMessage {
   followUpSuggestions?: string[];
   timestamp: number;
   turnNumber: number;
+  /** Set when a warehouse query was refused for data access (enforce mode). */
+  accessDenial?: { message: string; request: string | null; label?: string; path?: string };
 }
 
 export interface ToolCall {

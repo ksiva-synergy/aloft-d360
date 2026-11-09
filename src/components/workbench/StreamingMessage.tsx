@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import type { ToolCall } from '@/components/agent-lab/workbench/types';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
-import { friendlyActivityStatus } from '@/lib/client/tool-activity-labels';
+import { ResponseLoading } from './ResponseLoading';
+import chatStyles from './ChatPresentation.module.css';
 import type { TurnOpsSnapshot } from '@/components/agent-lab/workbench/types';
 
 import { type } from '@/lib/typography/tokens';
@@ -162,21 +163,6 @@ function ThinkingAccordion({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-function FriendlyToolActivity({ toolCalls, isStreaming }: { toolCalls: ToolCall[]; isStreaming: boolean }) {
-  const label = friendlyActivityStatus(toolCalls, isStreaming);
-  const working = isStreaming && (toolCalls.some((t) => t.status === 'running' || t.status === 'suggested') || !toolCalls.every((t) => t.status === 'success'));
-  if (!working && !isStreaming) return null;
-  return (
-    <div className="ld-card" style={{ marginBottom: 10 }}>
-      {working && <div className="ld-bar" />}
-      <div className="flex items-center gap-2.5 px-3.5 py-2.5 text-size-ui">
-        {working ? <span className="ld-dot" /> : <Check size={13} strokeWidth={2.5} style={{ color: GREEN, flexShrink: 0 }} />}
-        <span className={working ? 'ld-shimmer-text font-medium text-[var(--ink-2)]' : 'font-medium text-[var(--ink-2)]'}>{label}</span>
-      </div>
     </div>
   );
 }
@@ -1299,6 +1285,8 @@ export function AssistantContent({ content }: { content: string }) {
 
 // ── Main StreamingMessage component ───────────────────────────────────────────
 export interface StreamingMessageProps {
+  cleanPresentation?: boolean;
+  responseVisuals?: React.ReactNode;
   activity?: 'thinking' | 'writing';
   /** Only the most recent response animates or announces activity. */
   companionActive?: boolean;
@@ -1325,6 +1313,8 @@ export interface StreamingMessageProps {
 }
 
 export function StreamingMessage({
+  cleanPresentation = false,
+  responseVisuals,
   activity,
   companionActive = true,
   error,
@@ -1343,6 +1333,7 @@ export function StreamingMessage({
   showTechnicalToolNames = false,
 }: StreamingMessageProps) {
   const [copied, setCopied] = useState(false);
+
 
   const handleCopyAll = () => {
     navigator.clipboard.writeText(content).then(() => {
@@ -1373,45 +1364,49 @@ export function StreamingMessage({
       {showToolCalls && toolCalls && toolCalls.length > 0 && (
         <ToolCallsSection toolCalls={toolCalls} isStreaming={isStreaming} />
       )}
-      {!showToolCalls && toolCalls && toolCalls.length > 0 && isStreaming && (
-        <FriendlyToolActivity toolCalls={toolCalls} isStreaming={isStreaming} />
-      )}
+
 
 
       {/* Main content card */}
       <motion.div
+        className={cleanPresentation && responseVisuals ? chatStyles.report : undefined}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
         style={{
-          background: !content.trim() && !error ? 'transparent' : SURFACE,
+          background: cleanPresentation || (!content.trim() && !error) ? 'transparent' : SURFACE,
           borderRadius: 8,
-          border: !content.trim() && !error ? '1px solid transparent' : `1px solid ${BORDER_SUBTLE}`,
+          border: cleanPresentation || (!content.trim() && !error) ? '1px solid transparent' : `1px solid ${BORDER_SUBTLE}`,
           overflow: 'hidden',
           position: 'relative',
           width: '100%',
           maxWidth: '100%',
         }}
       >
-        <CaptainStatus variant={!content.trim() ? 'compact' : 'default'} active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
+        {isStreaming && !content.trim() ? (
+          <ResponseLoading active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking}
+            activity={activity} toolCalls={toolCalls} showTechnicalToolNames={showTechnicalToolNames} />
+        ) : (!cleanPresentation || isStreaming || interrupted || error || outcome === 'errored' || outcome === 'truncated' || readiness === 'interview' || toolCalls?.some(t => t.status === 'error')) && <CaptainStatus variant={!content.trim() ? 'compact' : 'default'} active={companionActive} isStreaming={isStreaming} content={content} thinking={thinking} activity={activity}
           toolCalls={toolCalls} interrupted={interrupted} error={error} outcome={outcome}
           showTechnicalToolNames={showTechnicalToolNames}
-          needsClarification={readiness === 'interview'} />
+          needsClarification={readiness === 'interview'} />}
         {content && (
-          <div style={{ padding: '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>
+          <div className={cleanPresentation ? chatStyles.answer : undefined} style={{ padding: cleanPresentation ? '8px 0 18px' : '0 clamp(12px, 2vw, 24px) 16px', maxWidth: '100%' }}>
             <AssistantContent content={content} />
           </div>
         )}
         {error && !isStreaming && <p role="alert" className="px-5 pb-3 text-size-body text-[var(--ink-2)]">{error}</p>}
 
+        {responseVisuals}
+
         {/* Footer: readiness badge + timestamp + tokens + duration + model + copy */}
-        {(!isStreaming || readiness || ts) && (content || interrupted) && (
+        {(!isStreaming || (!cleanPresentation && (readiness || ts))) && (content || interrupted) && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '6px 16px 10px',
-            borderTop: `1px solid ${BORDER_SUBTLE}`,
+            padding: cleanPresentation ? '4px 0 10px' : '6px 16px 10px',
+            borderTop: cleanPresentation ? 'none' : `1px solid ${BORDER_SUBTLE}`,
             flexWrap: 'wrap',
             gap: 6,
           }}>
@@ -1424,21 +1419,18 @@ export function StreamingMessage({
                   borderRadius: 6, padding: '2px 7px', letterSpacing: '0.04em',
                 }}>STOPPED</span>
               )}
-              {ts && <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>{ts}</span>}
-              {!isStreaming && durationMs != null && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
-                  {durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}
-                </span>
-              )}
-              {!isStreaming && tokenCount != null && tokenCount > 0 && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: MUTED }}>
-                  {tokenCount.toLocaleString()} tok
-                </span>
-              )}
-              {!isStreaming && shortModel && (
-                <span style={{ ...mono, fontSize: 'var(--type-ui-regular-size)', color: 'rgba(74,96,128,0.8)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {shortModel}
-                </span>
+              {(ts || durationMs != null || (tokenCount != null && tokenCount > 0) || shortModel) && (
+                <details className={chatStyles.details} open={cleanPresentation ? undefined : true}>
+                  <summary className={cleanPresentation ? chatStyles.summary : chatStyles.hiddenSummary}>Details</summary>
+                  <div className={chatStyles.metadata}>
+                    {ts && <span>Sent at {ts}</span>}
+                    {!isStreaming && durationMs != null && (
+                      <span>{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`} duration</span>
+                    )}
+                    {!isStreaming && tokenCount != null && tokenCount > 0 && <span>{tokenCount.toLocaleString()} tokens</span>}
+                    {!isStreaming && shortModel && <span>{shortModel}</span>}
+                  </div>
+                </details>
               )}
             </div>
             {!isStreaming && content && (

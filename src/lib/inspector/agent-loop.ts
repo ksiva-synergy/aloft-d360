@@ -69,7 +69,22 @@ export type ToolCallEvent =
   | { type: 'tool_call_running'; callId: string; toolName: string; input: Record<string, unknown> }
   | { type: 'tool_call_result'; callId: string; output: unknown; durationMs: number }
   | { type: 'tool_call_error'; callId: string; error: string; retryable: boolean }
-  | { type: 'query_result'; columns: unknown; rows: unknown; sql: string; rowCount: number; truncated: boolean };
+  | {
+      type: 'query_result';
+      columns: unknown;
+      rows: unknown;
+      sql: string;
+      rowCount: number;
+      truncated: boolean;
+      accessNote?: { message: string; request: string | null };
+    }
+  | {
+      type: 'access_denied';
+      message: string;
+      request: string | null;
+      label: string;
+      path: string | undefined;
+    };
 
 export type AgentLoopParams = {
   modelId: string;
@@ -89,6 +104,15 @@ export type AgentLoopParams = {
    * model's min cacheable size the cachePoint is silently ignored, never an error.
    */
   cacheSystemPrompt?: boolean;
+  /**
+   * Opt-in Bedrock conversation caching (implies `cacheSystemPrompt`): on every loop a
+   * cachePoint is placed after the LAST message, so loop N+1 reads everything loop N
+   * sent (tools, system, history, earlier tool results) and pays full price only for
+   * the new tail. The marker is added to a per-request copy and never stored in the
+   * conversation. Uses 2 of Bedrock's 4 cachePoints. Cache writes cost ~25% more, so a
+   * single-loop turn is slightly dearer; multi-loop agent turns are much cheaper.
+   */
+  cacheConversation?: boolean;
   onTextChunk?: (delta: string) => void;
   onThinkingChunk?: (delta: string) => void;
   onToolCallEvent?: (event: ToolCallEvent) => void;
@@ -117,6 +141,14 @@ function getBedrockClient(): BedrockRuntimeClient {
   });
 }
 
+/** Copy of `messages` with a cachePoint appended to the last message (original untouched). */
+function withTailCachePoint(messages: Message[]): Message[] {
+  if (messages.length === 0) return messages;
+  const last = messages[messages.length - 1];
+  const content = [...(last.content ?? []), { cachePoint: { type: 'default' } } as unknown as ContentBlock];
+  return [...messages.slice(0, -1), { ...last, content }];
+}
+
 export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopResult> {
   const {
     modelId,
@@ -127,7 +159,8 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
     maxLoops,
     supportsTools,
     supportsThinking,
-    cacheSystemPrompt,
+    cacheSystemPrompt: cacheSystemPromptOpt,
+    cacheConversation,
     onTextChunk,
     onThinkingChunk,
     onToolCallEvent,
@@ -139,6 +172,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
   } = params;
 
   const client = getBedrockClient();
+  const cacheSystemPrompt = cacheSystemPromptOpt || cacheConversation;
 
   // Stable system prefix + cachePoint when opted in; plain text otherwise.
   const system: SystemContentBlock[] = cacheSystemPrompt
@@ -167,7 +201,7 @@ export async function runAgentLoop(params: AgentLoopParams): Promise<AgentLoopRe
 
       const command = new ConverseStreamCommand({
         modelId,
-        messages,
+        messages: cacheConversation ? withTailCachePoint(messages) : messages,
         system,
         ...(mustIncludeToolConfig ? { toolConfig: tools } : {}),
         inferenceConfig: {

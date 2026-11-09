@@ -16,7 +16,7 @@
 | Server-side turn + loop metrics (`agent_turn_log`, `agent_loop_log`) | ✅ Built — migration applied 2026-10-17 (prod `aloftdb`) |
 | Cache-aware cost (`computeCostUsd`) | ✅ Built |
 | Run detail page: insights, turn story, waterfall, loop breakdown | ✅ Built |
-| Bedrock prompt caching for Inspector chat | 🟡 Proposed — not enabled (see [§6](#6-proposed-bedrock-prompt-caching-for-inspector-chat)) |
+| Bedrock prompt caching for Inspector chat + workbench | ✅ Enabled 2026-11-09 via `cacheConversation` (see [§6](#6-proposed-bedrock-prompt-caching-for-inspector-chat)); prefix reordering still proposed |
 
 ---
 
@@ -197,7 +197,7 @@ System prompt assembly: [`route.ts`](../../src/app/api/inspector/chat/route.ts) 
 | Model path | Caching | What is cached |
 |---|---|---|
 | **Grok / GPT** (Foundry, xAI) | ✅ Automatic, provider-side | The longest identical prefix — tools, system prompt, earlier loops. No code needed. We now **read** `cached_tokens` so the hit rate is visible. |
-| **Claude on Bedrock — Inspector chat** | ❌ Off | Nothing. Bedrock caches only where the request contains a `cachePoint`. |
+| **Claude on Bedrock — Inspector chat, workbench chat, test-run** | ✅ `cacheConversation: true` | Tools + system prompt, plus a moving cache point after the last message each loop. Applies to direct Bedrock (`runAgentLoop`) **and** Claude via the LLM Lite gateway (`gatewayCacheParams` in `foundry-chat.ts`, which is what production uses). Live-verified via gateway 2026-11-09. |
 | **Claude on Bedrock — semantic blueprint** | ✅ System prompt | [`blueprint/route.ts`](../../src/app/api/inspector/semantic/[modelId]/blueprint/route.ts) passes `cacheSystemPrompt: true`. |
 
 The opt-in switch is `AgentLoopParams.cacheSystemPrompt` in
@@ -231,7 +231,7 @@ pricing** and update in one place. Models missing from `MODEL_PRICING` fall back
 
 ## 6. Proposed: Bedrock prompt caching for Inspector chat
 
-**Not implemented.** It changes what Claude runs are billed, so it needs an explicit decision.
+**Items 1–2 implemented 2026-11-09 (`cacheConversation`); item 3 not.** It changes what Claude runs are billed, so it needs an explicit decision.
 
 ### 6.1 The change
 

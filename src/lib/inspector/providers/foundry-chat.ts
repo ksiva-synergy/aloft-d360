@@ -85,6 +85,32 @@ function buildTokenConfig(model: BoostModel, limit: number): Record<string, numb
   return { [model.tokenParam ?? 'max_tokens']: limit };
 }
 
+// ── Prompt caching via the LLM Lite gateway ─────────────────────────────────────
+
+/**
+ * Claude behind the gateway only caches when asked (OpenAI-style models cache automatically).
+ * LiteLLM's `cache_control_injection_points` places Anthropic cache markers for us: one on the
+ * system message (tools + system prefix) and, for `cacheConversation`, a moving one on the last
+ * message so each loop reads everything the previous loop sent. Verified live: write on call 1,
+ * read on call 2. Non-Claude models get nothing (and are never sent the field).
+ */
+export function gatewayCacheParams(
+  model: BoostModel,
+  opts: { cacheSystemPrompt?: boolean; cacheConversation?: boolean },
+): Record<string, unknown> {
+  if (model.resource !== 'llmlite' || !/claude/i.test(model.modelId)) return {};
+  const points: Array<Record<string, unknown>> = [];
+  if (opts.cacheSystemPrompt || opts.cacheConversation) points.push({ location: 'message', role: 'system' });
+  if (opts.cacheConversation) points.push({ location: 'message', index: -1 });
+  return points.length ? { cache_control_injection_points: points } : {};
+}
+
+/** Gateway reports Claude cache writes as `prompt_tokens_details.cache_write_tokens` (0/absent otherwise). */
+function gatewayCacheWriteTokens(usage: unknown): number {
+  const d = (usage as { prompt_tokens_details?: { cache_write_tokens?: number } } | null | undefined)?.prompt_tokens_details;
+  return d?.cache_write_tokens ?? 0;
+}
+
 // ── Bedrock → OpenAI Message Conversion ─────────────────────────────────────────
 
 function convertBedrockMessages(msgs: Message[]): ChatCompletionMessageParam[] {
@@ -417,6 +443,7 @@ export async function runFoundryAgentLoop(
 
   const client = getFoundryClient(model);
   const openAITools = translateTools(tools);
+  const cacheParams = gatewayCacheParams(model, params);
   const shouldStream = model.modelId !== 'o3-mini';
 
   let loopCount = 0;
@@ -442,6 +469,7 @@ export async function runFoundryAgentLoop(
       let inputTokens = 0;
       let outputTokens = 0;
       let cacheReadTokens = 0;
+      let cacheWriteTokens = 0;
       const loopStartedAt = Date.now();
       const ctx = measureContext('', messages);
       let firstTokenAt: number | null = null;
@@ -458,6 +486,7 @@ export async function runFoundryAgentLoop(
           messages,
           tools: openAITools,
           ...buildTokenConfig(model, 4096),
+          ...cacheParams,
           stream: true,
           stream_options: { include_usage: true },
         }, { signal: ac.signal });
@@ -502,6 +531,7 @@ export async function runFoundryAgentLoop(
               inputTokens = chunk.usage.prompt_tokens ?? 0;
               outputTokens = chunk.usage.completion_tokens ?? 0;
               cacheReadTokens = chunk.usage.prompt_tokens_details?.cached_tokens ?? 0;
+              cacheWriteTokens = gatewayCacheWriteTokens(chunk.usage);
             }
           }
         } finally {
@@ -522,6 +552,7 @@ export async function runFoundryAgentLoop(
           messages,
           tools: openAITools,
           ...buildTokenConfig(model, 4096),
+          ...cacheParams,
           stream: false,
         });
 
@@ -532,6 +563,7 @@ export async function runFoundryAgentLoop(
         inputTokens = response.usage?.prompt_tokens ?? 0;
         outputTokens = response.usage?.completion_tokens ?? 0;
         cacheReadTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+        cacheWriteTokens = gatewayCacheWriteTokens(response.usage);
         firstTokenAt = Date.now();
 
         // Emit text for non-streaming path
@@ -559,8 +591,8 @@ export async function runFoundryAgentLoop(
           inputTokens,
           outputTokens,
           cacheReadTokens,
-          // OpenAI-compatible APIs cache automatically and don't bill/report writes.
-          cacheWriteTokens: 0,
+          // OpenAI-style models cache automatically and report no writes; Claude via the gateway does.
+          cacheWriteTokens,
           ...ctx,
           toolCalls: toolCalls.length,
           stopReason,

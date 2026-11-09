@@ -7,7 +7,8 @@ import { resolveAuth } from '@/middleware/auth';
 import { levelsForContext } from '@/lib/sections/server';
 import { isPlatformAdminRole } from '@/lib/access/sensitive';
 import { normalizeCatalogPath } from '@/lib/access/paths';
-import { assertCanRequest, autoApprovable, evictAfterGrant, grantApproved, OPEN_STATUSES, requestNumber, routeRequest, writeEvent } from '@/lib/access/requests';
+import { friendlyDataLabel, scopeSummaryForPath } from '@/lib/access/denial-ui';
+import { assertApprovalTakesEffect, assertCanRequest, autoApprovable, evictAfterGrant, grantApproved, OPEN_STATUSES, requestNumber, routeRequest, writeEvent } from '@/lib/access/requests';
 import { notify } from '@/lib/access/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -63,6 +64,8 @@ export const GET = handle(async (req) => {
       targetType: r.target_type,
       tagId: r.tag_id,
       target: r.target_type === 'tag' ? (tagName.get(r.tag_id ?? '') ?? 'Removed protection') : r.path,
+      targetLabel: r.target_type === 'path' && r.path ? friendlyDataLabel(r.path) : r.target_type === 'tag' ? (tagName.get(r.tag_id ?? '') ?? null) : null,
+      scopeSummary: r.target_type === 'path' && r.path ? scopeSummaryForPath(r.path).summary : null,
       level: r.level,
       durationDays: r.duration_days,
       reason: r.reason,
@@ -87,6 +90,8 @@ const CreateRequest = z
     level: z.enum(['aggregate', 'full', 'query', 'export']),
     /** 7, 30 or 90 days; null = no end date (not allowed for two-approval protections). */
     durationDays: z.union([z.literal(7), z.literal(30), z.literal(90)]).nullable().optional(),
+    /** What they will do with the data (optional; combined into reason for approvers). */
+    purpose: z.string().trim().max(500).optional(),
     reason: z.string().trim().min(20, 'Explain why you need it (at least 20 characters)').max(1000),
     ticketRef: z.string().trim().max(100).optional().nullable(),
   })
@@ -111,9 +116,22 @@ export const POST = handle(async (req) => {
     target = { targetType: 'path', path: normalizeCatalogPath(body.path!).path };
   }
 
+  const reasonText = body.purpose?.trim()
+    ? `What I need to do: ${body.purpose.trim()}\n\nWhy my role needs it: ${body.reason}`
+    : body.reason;
+
   await assertCanRequest(orgId, auth.userId, target);
   const route = await routeRequest(orgId, auth.userId, target);
-  const auto = target.targetType === 'path' && (await autoApprovable(orgId, target.path!, body.level));
+  let auto = target.targetType === 'path' && (await autoApprovable(orgId, target.path!, body.level));
+  if (auto) {
+    // Don't auto-approve something that would still be refused (a Block, or a protection): route it to a person instead (review H6).
+    try {
+      await assertApprovalTakesEffect(orgId, { requester_id: auth.userId, target_type: 'path', path: target.path! }, body.level);
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      auto = false;
+    }
+  }
   if (route.approvers.length === 0 && !auto) throw new ApiError(409, 'Nobody can approve this yet. Ask a platform admin.');
   const meta = clientMeta(req);
 
@@ -127,12 +145,20 @@ export const POST = handle(async (req) => {
         path: target.path ?? null,
         level: body.level,
         duration_days: durationDays,
-        reason: body.reason,
+        reason: reasonText,
         ticket_ref: body.ticketRef ?? null,
         routed_to: route.approvers,
       },
     });
-    await writeEvent(tx, { orgId, requestId: r.id, type: 'requested', actorId: auth.userId, after: { ...target, level: body.level, durationDays }, comment: body.reason, ...meta });
+    await writeEvent(tx, {
+      orgId,
+      requestId: r.id,
+      type: 'requested',
+      actorId: auth.userId,
+      after: { ...target, level: body.level, durationDays, purpose: body.purpose ?? null },
+      comment: reasonText,
+      ...meta,
+    });
     await writeEvent(tx, { orgId, requestId: r.id, type: 'routed', actorId: null, after: { approvers: route.approvers, twoApprovals: route.twoApprovals, needsPlatformAdmin: route.needsPlatformAdmin } });
     if (auto) {
       // A rule covering this unprotected data approves requests automatically.
@@ -147,7 +173,7 @@ export const POST = handle(async (req) => {
         kind: 'routed',
         requestId: r.id,
         title: `${requestNumber(r.seq)}: access request to decide`,
-        body: body.reason,
+        body: reasonText,
         link: '/agent-staging/data-access?tab=log',
       });
     }

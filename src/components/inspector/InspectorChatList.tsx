@@ -241,7 +241,7 @@ export function InspectorChatList({ activeId, disabled = false, refreshKey, onNe
           </div>
         ) : chats.length === 0 ? (
           <p className="px-2 py-3 text-size-ui leading-relaxed text-[var(--ink-3)]">
-            No sessions yet. Your Inspector conversations are saved here and only you can see them.
+            No sessions yet. Your Ask Data conversations are saved here and only you can see them.
           </p>
         ) : groups.length === 0 ? (
           <p className="px-2 py-3 text-size-ui text-[var(--ink-3)]">No chats match “{query.trim()}”.</p>

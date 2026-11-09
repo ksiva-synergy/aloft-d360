@@ -1,6 +1,6 @@
 import type { MeaningTable } from '@/lib/access/semantic-search';
 
-type NameTable = { path: string; kind: string; [key: string]: unknown };
+type NameTable = { path: string; kind: string; name?: string };
 
 export type TableSearchHit = NameTable & {
   match: 'name' | 'meaning';

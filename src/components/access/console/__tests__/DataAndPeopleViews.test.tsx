@@ -4,14 +4,27 @@
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DataView } from '../DataView';
 import { PeopleGroupsView } from '../PeopleGroupsView';
 import { ConsoleReadOnlyContext } from '../readOnly';
 import type { Person } from '../api';
 
+const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
+beforeAll(() => Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() }));
+afterAll(() => {
+  if (scrollIntoViewDescriptor) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', scrollIntoViewDescriptor);
+  else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+});
+
 const json = (status: number, body: unknown) =>
   new Response(status === 204 ? null : JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+async function selectConsoleOption(scope: HTMLElement, comboboxLabel: string, option: string) {
+  const combobox = within(scope).getByRole('combobox', { name: comboboxLabel });
+  fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+  fireEvent.click(await screen.findByRole('option', { name: option }));
+}
 
 const people: Person[] = [
   { id: 'u-owner', email: 'owner@x.com', name: 'Olivia Owner', departmentIds: [], clearance: 'internal', directGrants: 0, role: 'member', platformAdmin: false },
@@ -64,6 +77,7 @@ function fakeApi(rootNodes = ROOT) {
     if (url.pathname === '/api/access/data-tree/columns') {
       return json(200, { columns: [{ name: 'salary', type: 'decimal', protections: [{ tagId: 't1', name: 'Compensation' }] }, { name: 'rank', type: 'string', protections: [] }] });
     }
+    if (url.pathname === '/api/access/column-tags') return json(200, { columnTags: [], tagSummary: [{ tagId: 't1', columns: 3 }] });
     if (url.pathname === '/api/access/groups') return json(200, { groups: [group] });
     if (url.pathname === '/api/access/tags') return json(200, { tags: [{ id: 't1', key: 'compensation', name: 'Compensation' }, { id: 't-r', key: 'restricted', name: 'Restricted' }] });
     if (url.pathname === '/api/access/rules') return json(200, { rules: [{ id: 'r1', holderName: 'Marine', path: 'curated_db', access: 'use', expiresAt: null }] });
@@ -95,9 +109,46 @@ describe('DataView', () => {
     fakeApi();
     renderData();
     expect(await screen.findByText('curated_db')).toBeTruthy();
-    expect(screen.getByText(/Marine · Use/)).toBeTruthy();
-    expect(screen.getByLabelText('Protected')).toBeTruthy();
-    expect(screen.getByText('Nobody can use')).toBeTruthy();
+    expect(screen.getByText('Marine')).toBeTruthy();
+    expect(screen.getByLabelText('Whole path protected')).toBeTruthy();
+    expect(screen.getByText('No access')).toBeTruthy();
+  });
+
+  it('giving people Use can also give them the protected columns below, at the chosen level', async () => {
+    const calls = fakeApi();
+    renderData();
+    fireEvent.click(await screen.findByText('curated_db'));
+    const panel = screen.getByRole('region', { name: 'Selected data' });
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Give access' }));
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Specific people' }));
+    fireEvent.change(within(panel).getByLabelText('People'), { target: { value: 'Ana' } });
+    fireEvent.click(within(within(panel).getByRole('listbox', { name: 'People: matches' })).getByText('Ana Rao'));
+    fireEvent.click(await within(panel).findByLabelText(/Also give access to the 3 protected columns/));
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Totals only' }));
+    fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Payroll analyst' } });
+    fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);
+    await waitFor(() => expect(calls.some((c) => c.path === '/api/access/tag-grants')).toBe(true));
+    expect(calls.find((c) => c.path === '/api/access/tag-grants')!.body).toMatchObject({ tagId: 't1', principalType: 'user', principalId: 'u-ana', level: 'aggregate' });
+  });
+
+  it('protected-column access is not offered to built-in groups or non-platform-admins', async () => {
+    fakeApi();
+    const { unmount } = renderData();
+    fireEvent.click(await screen.findByText('curated_db'));
+    let panel = screen.getByRole('region', { name: 'Selected data' });
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Give access' }));
+    expect((await within(panel).findByLabelText(/Also give access to the 3 protected columns/) as HTMLInputElement).disabled).toBe(true);
+    unmount();
+    vi.restoreAllMocks();
+    fakeApi();
+    renderData({ platformAdmin: false });
+    fireEvent.click(await screen.findByText('curated_db'));
+    panel = screen.getByRole('region', { name: 'Selected data' });
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Give access' }));
+    fireEvent.click(within(panel).getByRole('radio', { name: 'Specific people' }));
+    const box = (await within(panel).findByLabelText(/Also give access to the 3 protected columns/)) as HTMLInputElement;
+    expect(box.disabled).toBe(true);
+    expect(within(panel).getByText(/Only a platform admin can give access to protected data/)).toBeTruthy();
   });
 
   it('warns when nobody can use any catalog', async () => {
@@ -111,8 +162,8 @@ describe('DataView', () => {
     renderData();
     fireEvent.click(await screen.findByText('system'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
-    expect(within(panel).getByText('No rules on this path yet.')).toBeTruthy();
-    expect(within(panel).getByRole('status', { name: 'Access summary' }).textContent).toMatch(/Restricted|Whole path/);
+    expect(within(panel).getByText('None on this path.')).toBeTruthy();
+    expect(within(panel).getAllByText('Restricted').length).toBeGreaterThan(0);
     fireEvent.click(within(panel).getByRole('button', { name: 'Give access' }));
     fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Everyone in ops needs it' } });
     fireEvent.click(within(panel).getAllByRole('button', { name: 'Give access' }).at(-1)!);
@@ -131,7 +182,7 @@ describe('DataView', () => {
     fireEvent.click(await screen.findByLabelText('Expand hr'));
     fireEvent.click(await screen.findByText('payroll'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
-    expect(within(panel).getByText('Inherited from above')).toBeTruthy();
+    expect(within(panel).getByText('Inherited')).toBeTruthy();
     expect(await within(panel).findByText('salary')).toBeTruthy();
     expect(within(panel).getByText('Compensation')).toBeTruthy();
   });
@@ -141,7 +192,7 @@ describe('DataView', () => {
     renderData();
     fireEvent.click(await screen.findByText('curated_db'));
     const panel = screen.getByRole('region', { name: 'Selected data' });
-    fireEvent.change(within(panel).getByLabelText('Access for Marine'), { target: { value: 'export' } });
+    await selectConsoleOption(panel, 'Access for Marine', 'Use + export');
     fireEvent.change(within(panel).getByLabelText('Reason'), { target: { value: 'Monthly crew report' } });
     fireEvent.click(within(panel).getByRole('button', { name: 'Save' }));
     await waitFor(() =>
@@ -182,6 +233,18 @@ describe('PeopleGroupsView', () => {
     expect(screen.getByText('Members')).toBeTruthy();
     expect(screen.getByText(/· group Marine/)).toBeTruthy();
     expect(screen.getByText('Sees ••• for: Compensation')).toBeTruthy();
+  });
+
+  it('People tab lists everyone, filters by search, and opens a person; their group chip opens the group', async () => {
+    fakeApi();
+    renderPeople();
+    fireEvent.click(await screen.findByRole('radio', { name: /^People \d+/ }));
+    fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'ana' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Ana Rao/ }));
+    expect(await screen.findByRole('heading', { name: 'Ana Rao' })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: 'Marine' }));
+    expect(await screen.findByRole('heading', { name: 'Marine' })).toBeTruthy();
+    expect(screen.getByLabelText('Search groups')).toBeTruthy();
   });
 
   it('a new group is created with its approver and people in one step', async () => {

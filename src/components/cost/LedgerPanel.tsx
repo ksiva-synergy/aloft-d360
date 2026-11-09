@@ -115,7 +115,7 @@ export function EventsTable({
   if (events.length === 0) {
     return (
       <EmptyState icon={<Receipt className="h-5 w-5" />} title="No spend events match">
-        {emptyHint ?? 'Spend is recorded on Inspector turns, agent chat, the workbench, and completed harvest jobs.'}
+        {emptyHint ?? 'Spend is recorded on Ask Data turns, agent chat, the workbench, and completed harvest jobs.'}
       </EmptyState>
     );
   }
