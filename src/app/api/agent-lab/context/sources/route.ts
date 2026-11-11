@@ -42,20 +42,27 @@ export async function POST(request: NextRequest) {
     }
 
     const orgId = await getOrgId();
+    const connectionKind =
+      typeof body.connection_kind === 'string' && body.connection_kind === 'powerbi'
+        ? 'powerbi'
+        : 'databricks';
 
-    // Verify the Databricks connection exists and belongs to this org
-    const conn = await prisma.platformDatabricksConnection.findFirst({
-      where: { id: body.connection_ref, org_id: orgId },
-      select: { id: true },
-    });
-    if (!conn) {
-      return NextResponse.json({ error: 'NOT_FOUND', field: 'connection_ref' }, { status: 404 });
+    if (connectionKind === 'databricks') {
+      const conn = await prisma.platformDatabricksConnection.findFirst({
+        where: { id: body.connection_ref, org_id: orgId },
+        select: { id: true },
+      });
+      if (!conn) {
+        return NextResponse.json({ error: 'NOT_FOUND', field: 'connection_ref' }, { status: 404 });
+      }
+    } else if (!body.connection_ref.trim()) {
+      return NextResponse.json({ error: 'MISSING_FIELD', field: 'connection_ref' }, { status: 400 });
     }
 
     const source = await prisma.platformContextSource.create({
       data: {
         org_id: orgId,
-        connection_kind: 'databricks',
+        connection_kind: connectionKind,
         connection_ref: body.connection_ref,
         display_name: typeof body.display_name === 'string' ? body.display_name : null,
         ...(Array.isArray(body.scope_include) ? { scope_include: body.scope_include } : {}),

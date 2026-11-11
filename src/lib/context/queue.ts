@@ -32,7 +32,16 @@ export type JobKind =
   | 'knowledge_sync'
   | 't4_scan'
   | 't4_entity_propose'
-  | 't4_dim_propose';
+  | 't4_dim_propose'
+  | 'pbi_inventory'
+  | 'pbi_definitions'
+  | 'pbi_parse'
+  | 'pbi_catalog_link'
+  | 'pbi_domains'
+  | 'pbi_oracle'
+  | 'pbi_translate'
+  | 'pbi_parity'
+  | 'pbi_publish';
 
 export type TriggerKind = 'scheduled' | 'on_demand' | 'on_connect';
 

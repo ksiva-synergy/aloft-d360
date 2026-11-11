@@ -1,6 +1,7 @@
-/** Print raw sample rows from system.query.history (statement_text as stored). */
+/** Print raw sample rows from system_tables.query.query_history (statement_text as stored). */
 import prisma from '@/lib/db';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
+import { QUERY_HISTORY_TABLE } from '@/lib/context/databricks-system-tables';
 
 type Exec = { scopeExec: (s: string, o?: { rowLimit?: number }) => Promise<{ rows: Record<string, unknown>[] }> };
 
@@ -25,7 +26,7 @@ async function main() {
        length(statement_text) AS text_len,
        client_application,
        query_source
-     FROM system.query.history
+     FROM ${QUERY_HISTORY_TABLE}
      WHERE statement_type = 'SELECT'
        AND start_time >= current_timestamp() - INTERVAL 2 HOUR
      ORDER BY start_time DESC

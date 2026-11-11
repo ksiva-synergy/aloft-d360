@@ -17,18 +17,16 @@ import { scoreGroundedness } from '@/lib/boost/scorers/groundedness';
 import { scoreSemanticQuality } from '@/lib/boost/scorers/semantic';
 import { recomputeCtsgv } from '@/lib/lifecycle/score-ctsgv';
 import type { BoostCase } from '@/lib/boost/suite';
-import { BOOST_SUITE_V1, BOOST_SUITE_V2 } from '@/lib/boost/suite';
+import { allBoostCases } from '@/lib/boost/registry';
 
 const JUDGE_MODEL = 'us.anthropic.claude-sonnet-4-6';
-
-const ALL_BOOST_CASES: BoostCase[] = [...BOOST_SUITE_V1, ...BOOST_SUITE_V2];
 
 /** Resolve the BoostCase for a boost observation (needed for semantic scorer). */
 function resolveBoostCase(sheetType: string): BoostCase | null {
   // sheetType format: 'boost_<case_id>'
   if (!sheetType.startsWith('boost_')) return null;
   const caseId = sheetType.slice('boost_'.length);
-  return ALL_BOOST_CASES.find(c => c.id === caseId) ?? null;
+  return allBoostCases().find((c) => c.id === caseId) ?? null;
 }
 
 /**

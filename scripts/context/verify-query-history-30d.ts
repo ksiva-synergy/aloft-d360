@@ -2,7 +2,7 @@
 /**
  * Verify table usage in the last N days:
  * 1) Postgres: any T3 snapshots / last_t3_at on context objects
- * 2) Databricks: SELECT count in system.query.history (same filters T3 uses)
+ * 2) Databricks: SELECT count in system_tables.query.query_history (same filters T3 uses)
  *
  * Usage:
  *   npx tsx --require ./scripts/context/noserver.cjs scripts/context/verify-query-history-30d.ts --source-id ... --days 30 --sample 2000
@@ -15,6 +15,7 @@ import {
   buildQueryHistoryStatementSqlFilter,
   prefilterHistoryRowsForObjects,
 } from '@/lib/context/job-scope';
+import { QUERY_HISTORY_TABLE } from '@/lib/context/databricks-system-tables';
 
 const DEFAULT_PATTERNS = [
   'curated_db.db_smac_prod_navitasai_crewing_public.*',
@@ -107,7 +108,7 @@ async function main() {
   const since = new Date(until.getTime() - days * 24 * 60 * 60 * 1000);
   const statementTextSqlFilter = buildQueryHistoryStatementSqlFilter(objects);
 
-  console.log('\n=== Databricks system.query.history ===');
+  console.log(`\n=== Databricks ${QUERY_HISTORY_TABLE} ===`);
   console.log(`Window: last ${days} days (${since.toISOString()} → ${until.toISOString()})`);
   console.log(
     `SQL filter: ${statementTextSqlFilter ? 'scoped pushdown (contains on statement_text)' : 'none (too many / empty objects)'}`,

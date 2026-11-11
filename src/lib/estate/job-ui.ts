@@ -300,6 +300,15 @@ const JOB_KIND_LABELS: Record<string, string> = {
   t4_scan: 'T4 Entity Scan',
   t4_entity_propose: 'T4 Entity Propose',
   t4_dim_propose: 'T4 Dimension Propose',
+  pbi_inventory: 'PBI Inventory',
+  pbi_definitions: 'PBI Definitions',
+  pbi_parse: 'PBI Parse',
+  pbi_catalog_link: 'PBI Catalog Link',
+  pbi_domains: 'PBI Domains',
+  pbi_oracle: 'PBI Oracle',
+  pbi_translate: 'PBI Translate',
+  pbi_parity: 'PBI Parity',
+  pbi_publish: 'PBI Publish',
 };
 
 export function getJobKindLabel(kind: string): string {

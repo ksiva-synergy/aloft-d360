@@ -5,7 +5,7 @@ import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { executeInspectorTool } from '@/lib/inspector/tools';
 import { systemPrincipal } from '@/lib/access/principal';
 import { buildSystemPrompt, buildToolConfig } from '@/lib/inspector/prompts';
-import { BOOST_SUITE_V1, BOOST_SUITE_V2, BOOST_SUITE_VERSION } from '@/lib/boost/suite';
+import { findBoostCase, suiteVersionForCaseId } from '@/lib/boost/registry';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { deriveCounts, BOOST_SCORE_VERSION } from '@/lib/boost/rank';
 import { buildCtxInjectionBlock, resolveInjectionTableOrder } from '@/lib/boost/ctx-injection';
@@ -31,8 +31,9 @@ export type BenchmarkRunResult = {
 export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<BenchmarkRunResult> {
   const { caseId, modelKey, contextMode, memoryEnabled = false } = params;
 
-  const boostCase = [...BOOST_SUITE_V1, ...BOOST_SUITE_V2].find(c => c.id === caseId);
-  if (!boostCase) return { ok: false, error: `Case '${caseId}' not found in BOOST_SUITE_V1 or BOOST_SUITE_V2` };
+  const boostCase = findBoostCase(caseId);
+  if (!boostCase) return { ok: false, error: `Case '${caseId}' not found in boost suites` };
+  const caseSuiteVersion = suiteVersionForCaseId(caseId);
 
   const boostModel = BOOST_MODELS.find(m => m.key === modelKey);
   if (!boostModel) return { ok: false, error: `Model key '${modelKey}' not found in BOOST_MODELS` };
@@ -49,7 +50,7 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
       const row = await (prisma.platform_boost_runs.create as any)({
         data: {
           org_id: orgId,
-          suite_version: BOOST_SUITE_VERSION,
+          suite_version: caseSuiteVersion,
           case_id: boostCase.id,
           model_key: boostModel.key,
           model_provider: boostModel.provider,
@@ -181,7 +182,7 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
     const row = await (prisma.platform_boost_runs.create as any)({
       data: {
         org_id: orgId,
-        suite_version: BOOST_SUITE_VERSION,
+        suite_version: caseSuiteVersion,
         case_id: boostCase.id,
         model_key: boostModel.key,
         model_provider: boostModel.provider,
@@ -259,7 +260,7 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
       const row = await (prisma.platform_boost_runs.create as any)({
         data: {
           org_id: orgId,
-          suite_version: BOOST_SUITE_VERSION,
+          suite_version: caseSuiteVersion,
           case_id: boostCase.id,
           model_key: boostModel.key,
           model_provider: boostModel.provider,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runBenchmarkCase } from '@/lib/boost/runner';
-import { BOOST_SUITE_V1, BOOST_SUITE_V2 } from '@/lib/boost/suite';
+import { findBoostCase } from '@/lib/boost/registry';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { denyUnlessSessionRole } from '@/middleware/auth';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!caseId) return NextResponse.json({ error: 'caseId is required' }, { status: 400 });
   if (!modelKey) return NextResponse.json({ error: 'modelKey is required' }, { status: 400 });
 
-  if (![...BOOST_SUITE_V1, ...BOOST_SUITE_V2].find(c => c.id === caseId)) {
+  if (!findBoostCase(caseId)) {
     return NextResponse.json({ error: `Case '${caseId}' not found in suite` }, { status: 400 });
   }
   if (!BOOST_MODELS.find(m => m.key === modelKey)) {

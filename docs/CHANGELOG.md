@@ -2,6 +2,210 @@
 
 Single running log of changes made in this repo, **newest first**.
 
+## 2026-11-11 — Power BI Phase 1 migration applied (dev Aurora)
+
+- **What:** Ran `scripts/powerbi/apply-phase1-migration.mjs` — `pbi_workspaces`, `pbi_models`, `pbi_model_datasources`, `pbi_reports`, `pbi_usage`; migration `20261111_powerbi_bridge_phase1` marked applied; `prisma generate`.
+- **Paths:** `prisma/migrations/20261111_powerbi_bridge_phase1/`, `prisma/schema.prisma`.
+- **Why:** User requested apply migration.
+- **Verified:** Prisma `db execute` + `migrate resolve` succeeded after RDS retry; `verify.sql` execute OK.
+- **Not done:** DB backup from this machine; first `pbi_inventory` run.
+
+## 2026-11-11 — Power BI `pbi_definitions` + Fabric raw store (Phase 1 continue)
+
+- **What:** Fabric `getDefinition` client; `runPbiDefinitions` writes TMDL/PBIR to `powerbi-estate/` (or `PBI_RAW_STORE_ROOT`); orchestrator job; Jobs UI launch enabled; `GET /api/agent-lab/powerbi/summary`; `apply-phase1-migration.mjs`.
+- **Paths:** `src/lib/powerbi/fabric.ts`, `raw-store.ts`, `definitions.ts`, orchestrator, `launch-kinds.ts`, `jobs.tsx`, `api/agent-lab/powerbi/summary`, `scripts/powerbi/apply-phase1-migration.mjs`.
+- **Why:** User asked to start implementation; baseline validation can use prior tooling later.
+- **Verified:** Lint on new API route; migration not applied from agent (RDS/VPN).
+- **Not done:** `pbi_parse`; live inventory/definitions runs on dev; DB migration on Aurora.
+
+## 2026-11-11 — CII Inspector boost suite (`cii_pilot_v1`)
+
+- **What:** Six QHSE/CII benchmark cases in `src/lib/boost/suite-cii.ts`; `registry.ts` unifies suites; runner and boost APIs accept `suiteVersion: cii_pilot_v1`; export script maps `platform_boost_runs` to eval rubric JSON.
+- **Paths:** `src/lib/boost/suite-cii.ts`, `registry.ts`, `runner.ts`, `boost/run-suite`, `boost/dispatch`, `boost/score`, `judge-batch.ts`, `scripts/powerbi/export-cii-boost-baseline.mjs`, `eval/powerbi/*`, validation doc.
+- **Why:** User asked for automated baseline subset wired to before/after validation.
+- **Verified:** Typecheck via lints on touched TS files; export script requires DB.
+- **Not done:** Live boost run on dev; Boost UI tab does not list CII suite yet.
+
+## 2026-11-11 — Power BI integration validation (before / after)
+
+- **What:** Added `docs/powerbi-integration-validation.md` (phased KPIs, Phase 0 question bank, Inspector rubric, parity baseline), `eval/powerbi/` templates and SQL, `scripts/powerbi/record-baseline-snapshot.mjs`; tracker § Validation; gitignore for `eval/powerbi/runs/`.
+- **Paths:** `docs/powerbi-integration-validation.md`, `eval/powerbi/**`, `scripts/powerbi/record-baseline-snapshot.mjs`, `docs/jobs/powerbi-implementation-tracker.md`, `.gitignore`.
+- **Why:** User needs to prove how the bridge improves the application, with honest phase boundaries (Inspector uplift starts Phase 3).
+- **Verified:** `node scripts/powerbi/record-baseline-snapshot.mjs --label before-phase1` (offline estate counts).
+- **Not done:** Filled CII question bank; steward oracle labels; post–Phase 1 DB snapshot with VPN.
+
+## 2026-11-11 — Postgres backup: Docker pg_dump via volume mount
+
+- **What:** `scripts/backup-postgres.mjs` skips local `pg_dump` when major version &lt; 18; Docker path writes the dump file inside the container via `-v <outDir>:/out` instead of `-f -` (fixes “empty docker pg_dump” on Windows).
+- **Paths:** `scripts/backup-postgres.mjs`, `backups/README.md`.
+- **Why:** Aurora is PostgreSQL 18.3; local pg_dump 16.x fails; capturing pg_dump stdout from Docker often produced zero bytes.
+- **Verified:** Code review; user should re-run backup after stopping the in-flight old retry loop.
+- **Not done:** Successful dump from this machine (still needs VPN/RDS reachability).
+
+## 2026-11-11 — Power BI bridge complete HTML guide (regenerated from markdown)
+
+- **What:** Rebuilt `docs/powerbi-harvest-overview.html` to embed the **full** `powerbi-harvest-build-plan.md` (all sections, tables, metric card schema, jobs, phases, risks, appendix), plus implementation tracker and full `powerbi-semantic-schema.md`. Generator: `scripts/docs/build-pbi-overview-html.mjs`.
+- **Paths:** `docs/powerbi-harvest-overview.html`, `scripts/docs/build-pbi-overview-html.mjs`.
+- **Why:** User asked to include everything in detail in the HTML overview.
+- **Verified:** `node scripts/docs/build-pbi-overview-html.mjs` (~100k chars output).
+- **Not done:** Auto-sync on markdown edit (run generator manually).
+
+## 2026-11-11 — Power BI bridge visual overview (HTML)
+
+- **What:** Added `docs/powerbi-harvest-overview.html` — sidebar guide with end-to-end Mermaid flow, six-step narrative, job kinds, metric card summary, domain routing, current status vs build phases, and glossary. Styled like `docs/context-harvesting-guide.html`.
+- **Paths:** `docs/powerbi-harvest-overview.html`.
+- **Why:** User asked for an HTML doc to understand what the Power BI bridge will do and how.
+- **Verified:** Static HTML; open in browser locally.
+- **Not done:** Superseded by full regenerated guide same day (see entry above).
+
+## 2026-11-11 — Power BI bridge Phase 1 (branch `feature/powerbi-bridge`)
+
+- **What:** Started implementation per `docs/powerbi-harvest-build-plan.md`: Phase 1 DB tables (`pbi_workspaces`, `pbi_models`, `pbi_model_datasources`, `pbi_reports`, `pbi_usage`), Prisma models, Power BI REST client + `runPbiInventory`, orchestrator job `pbi_inventory`, Jobs UI **Power BI** group, `connection_kind: powerbi` on context sources POST, launch/trigger wiring, source filtering so Databricks launches skip Power BI sources (and vice versa). Tracker: `docs/jobs/powerbi-implementation-tracker.md`. Backup helper `scripts/backup-postgres.mjs` (not run successfully here — no local `pg_dump`, Docker daemon off).
+- **Paths:** `prisma/migrations/20261111_powerbi_bridge_phase1/`, `prisma/schema.prisma`, `src/lib/powerbi/*`, `scripts/context/orchestrator.ts`, `src/lib/context/queue.ts`, `resolve-launch-source.ts`, jobs launch/trigger/sources APIs, `jobs.tsx`, `job-ui.ts`, `launch-kinds.ts`, `.gitignore`, `backups/README.md`.
+- **Why:** User asked to start implementation on a new branch with DB backup first and to keep tracking.
+- **Verified:** `npx prisma generate` succeeded. Migration **not** applied to Aurora (backup prerequisite).
+- **Not done:** Apply migration, register Power BI source, run first inventory; `pbi_definitions`+; Estate Power BI tab; commit/push left to user.
+
+## 2026-11-11 — Power BI workspace role for definition download
+
+- **What:** Plan security section now states that the app needs the Contributor workspace role. Fabric `getDefinition` requires read and write permission on the item, and ALOFT uses only read endpoints.
+- **Paths:** `docs/powerbi-harvest-build-plan.md`.
+- **Why:** User asked what "membership on every workspace in scope" means for the access request.
+- **Verified:** Microsoft Learn "Items - Get Semantic Model Definition" (Permissions section), fetched 2026-11-11.
+- **Update (same day):** Downloaded one model definition from each of the other two workspaces: "Synergy Vessels Application Report" in Synergy App Central, and "Machinery Maintenance & Inventory Analysis - V3" in Fabric F64 - Testing. Both succeeded, so the app already has the needed role on all three workspaces (451 + 42 + 10 = 503 models). A new Contributor grant is only needed for workspaces we find later. Outputs went to the gitignored `powerbi-estate/definitions/`.
+
+## 2026-11-11 — Power BI admin access: corrected tenant checklist
+
+- **What:** Corrected the tenant-settings checklist. The app needs the "Service principals can access read-only admin APIs" setting through a security group, not the Fabric administrator role. It must also not hold admin-consent-required Power BI application permissions; we currently grant `Tenant.Read.All`, which is a likely cause of the Scanner 401. Also noted in the plan that `INFO.*` DAX functions are documented as unsupported on `executeQueries`, so they are only a cross-check.
+- **Paths:** `docs/powerbi-semantic-schema.md`, `docs/powerbi-harvest-build-plan.md`.
+- **Why:** User asked what access to request from the cloud team.
+- **Verified:** Against Microsoft Learn pages "Enable service principal authentication for admin APIs" and "Datasets - Execute Queries" (fetched 2026-11-11).
+- **Not done:** Request not sent; permissions on the app registration not inspected by us (needs Entra access).
+
+## 2026-11-11 — Power BI plan: usage without admin APIs, folders, time templates, RLS path
+
+- **What:** Read-only DAX queries against the workspace usage-metrics models showed that the service principal can read report usage without admin APIs. It can also run `INFO.VIEW.TABLES()` and `INFO.VIEW.COLUMNS()`. Added to the plan:
+  - usage (counts only, keyed by window) in `pbi_inventory`, with a staleness rule;
+  - display folders setting each metric card's `role` (headline, building block, scaffolding);
+  - format hints feeding how values are shown;
+  - parsing for dynamic format strings, KPI objects, detail rows and perspectives;
+  - hierarchies as drill levels on promoted dimensions;
+  - shared time-intelligence templates (`pbi_time_templates`);
+  - recognized annotation keys;
+  - a phase 7 path for publishing RLS/OLS models, with a two-user test.
+- **Paths:** `docs/powerbi-harvest-build-plan.md`. Local gitignored outputs: `powerbi-estate/dax/usage_tables.dax`, `usage_columns.dax`, `usage_by_report.dax`, `usage_page_views.dax`, `powerbi-estate/usage/*.json`.
+- **Why:** User asked whether a 12-item list of Power BI components was covered and approved adding the gaps and testing the usage model.
+- **Verified:**
+  - **Embedded PBI Portal usage model:** 246 reports viewed and 23,642 views in the window 5 May – 3 June 2026. Its last refresh was 4 June, so the data is stale. 229 of the 246 reports are in our inventory.
+  - **Synergy App Central:** 25 reports and 1,637 views, refreshed 10 November. All 25 are in our inventory.
+  - **Third workspace:** has no usage model.
+  - **Data handling:** queries returned counts only; no user ids were selected or printed.
+  - **CII model counts:** fetched TMDL has 110 display folders, 605 format hints and 28 hierarchies, all automatic date ones. There are no calculation groups, perspectives, KPI objects or dynamic format strings.
+- **Not done:** No scheduled usage pull; `INFO.CALCDEPENDENCY()` still untested; the Embedded PBI Portal usage model needs a refresh by someone opening its usage report.
+
+## 2026-11-11 — Power BI semantic bridge: complete design and implementation plan
+
+- **What:** Rewrote the Power BI plan as one complete design. It covers goals and non-goals and 12 decisions: a separate Power BI harvest track, Catalog staying Databricks-only, building in TypeScript inside the harvester, steward approval, report fidelity kept apart from agreed definitions, and domain scoping. It also covers the estate facts behind the design, including 348 legacy-format reports, and the full metadata inventory with legacy report fields. The data model now has `pbi_*` tables, column bindings, the metric card, and query context (grain, additivity, filters, date basis, blanks, currency, freshness). A new section handles multiple business domains: domain registry, multi-signal assignment, same-name conflicts, routing, cross-domain metrics, rollout waves, and a Finance checklist. The rest of the plan:
+  - pipeline with nine job kinds, light and deep passes, pacing, change detection, classifier and parsers;
+  - translation tiers, parity rules and verdicts;
+  - description and embedding policy, plus the v1 retrieval order;
+  - app surfaces, security, and per-file workstreams;
+  - phases 0–6 with exit gates, risks, and an appendix.
+- **Paths:** `docs/powerbi-harvest-build-plan.md`.
+- **Why:** User asked for one complete document covering what we build and how, including how to handle Finance and the other domains.
+- **Verified:** Estate numbers come from the harvested inventory (`powerbi-estate/20261110T122619Z/`). Name-only domain grouping was run on `semantic_models.csv` (178 of 503 unclassified, with false matches). Every code path the document cites was checked in the repo, including `harvest-llm.ts`, `embed.ts`, `domain_keywords` on `platform_context_objects`, `nav-items.ts`, `object.tsx` and `src/lib/sections`.
+- **Not done:** Design only; no schema, jobs or UI. Phase 0 items (admin Scanner, RLS oracle identity, baseline questions, named stewards) need owners.
+
+## 2026-11-10 — Power BI harvest metadata inventory and build plan
+
+- **What:** New plan doc listing every piece of Power BI metadata to harvest (catalog APIs, TMDL, PBIR, DAX query results, admin and usage data), where each one is stored (encrypted raw files plus Aurora `pbi_*` tables), how it flows into Catalog links, `kb_verified_queries`, `platform_sem_*` and the glossary, the proposed `pbi_*` Estate job kinds, build phases with exit gates, and a gap check against the research report and the knowledge base design.
+- **Paths:** `docs/powerbi-harvest-build-plan.md`.
+- **Why:** User asked for a complete metadata list and a build plan that does not miss anything from the earlier plans.
+- **Verified:** The metadata items were checked against the fetched CII and CII SDK-2026 TMDL and PBIR files. Those files also contain Q&A synonyms (`cultures/en-US.tmdl`), an embedded `Appendix` glossary, embedded `Documentations` links, and formula images; the earlier plans did not cover these. Code references (`sources/route.ts` hard-codes `connection_kind: 'databricks'`, `context-builder.ts`, `compiler.ts`) were checked in the repo.
+- **Not done:** Plan only; no tables, jobs or UI built. Storage in Aurora instead of the research report's Delta crosswalk is a proposal that needs sign-off.
+
+## 2026-11-10 — CII model AER 2026 parity (Power BI vs Databricks)
+
+- **What:** SQL translation of the no-RLS Power BI **CII** model’s `AER 2026` measure (`powerbi-estate/sql/cii_model_aer_2026_by_vessel.sql`) and `scripts/compare_cii_pbi_databricks.mjs`, which loads Databricks credentials from `.env` (service principal, no secrets logged), runs the statement API, and compares to `powerbi-estate/dax/cii_model_2026_by_vessel.json`.
+- **Paths:** `powerbi-estate/sql/cii_model_aer_2026_by_vessel.sql`, `scripts/compare_cii_pbi_databricks.mjs`, `powerbi-estate/dax/cii_model_2026_parity_summary.json` (gitignored output).
+- **Why:** User approved parity check using env Databricks creds instead of CLI OAuth.
+- **Verified:** 548 vessel rows from SQL; 502 Power BI rows with AER. Where both sides had a numeric AER (313 vessels), **288 matched within ~1% or 0.05 absolute (92%)**. Most gaps are SQL `NULL` while Power BI has a value — likely DWT from the embedded `Vessel_All_Dwts` table in the PBIX, which SQL does not reproduce (only `IMO_MASTER_LIST.deadweight`).
+- **Update (same day):** `scripts/extract_pbi_embedded_table.py` decodes the embedded `Vessel_All_Dwts` blob from TMDL → `powerbi-estate/lookups/cii_vessel_all_dwts.csv` (778 rows). Parity script injects it into SQL. **494 / 501 (98.6%)** AER matches vs **288 / 313 (92%)** with IMO `deadweight` only.
+- **Not done:** Remaining ~7 numeric mismatches and PBI-null / SQL-non-null edge cases; rating / REQ columns; CII SDK-2026 (RLS) model.
+
+## 2026-11-10 — Power BI DAX queries as the signed-in user (RLS models)
+
+- **What:** `run_powerbi_dax_query.py` gained `--auth device` (MSAL device code on `PBI_CLIENT_ID`, delegated `Dataset.Read.All`), plus `--query-file` and `--output`. New `run_powerbi_dax_query_user.ps1` runs the same read-only query through the `MicrosoftPowerBIMgmt.Profile` module with browser sign-in. Added a first real query, `powerbi-estate/dax/cii_2026_vessel_month.dax` (Attained CII, YTD, numerator and denominator by vessel and month for 2026).
+- **Paths:** `scripts/run_powerbi_dax_query.py`, `scripts/run_powerbi_dax_query_user.ps1` (new), `docs/powerbi-semantic-schema.md` (new subsection "User identity (RLS models)"). Query files live under gitignored `powerbi-estate/dax/`.
+- **Why:** The service principal cannot query the CII models because they have RLS. Workspace admins and members are not filtered by RLS, so Power BI's CII numbers have to come from a user identity.
+- **Verified:** An Azure CLI user token is rejected (HTTP 401, empty body) even on `GET datasets/{id}`, because its only scope is `user_impersonation`. That mode was removed. A device-code sign-in was issued but never completed. The PowerShell module fails in an agent shell ("A window handle must be configured"), so it has to run from the user's own terminal.
+- **Update (same day):** Listed models without RLS from the harvested `isEffectiveIdentityRolesRequired` flag: 447 of 503 have none, and 211 of those are Databricks-sourced (`powerbi-estate/no_rls_models.csv`). Fetched TMDL for model **CII** (`ee56d7f5-…`, no RLS). It is a different CII implementation, built on `REPORTING_LAYER.EMS.CONSUMPTION_LOG`. The service principal returned `AER 2026`, `Rating 2026` and `CII Rating 2026` for 784 vessels (502 with an AER; vessels without 2026 data show "E").
+- **Not done:** No CII SDK-2026 (RLS) number yet. Parity against Databricks SQL still pending.
+
+## 2026-11-10 — Power BI report visuals and DAX query probe
+
+- **What:** Two read-only scripts. `fetch_powerbi_report_definition.py` downloads a report's PBIR definition (pages, visuals, fields, filters) through Fabric `getDefinition`. `run_powerbi_dax_query.py` runs a DAX `EVALUATE` query through Power BI `executeQueries` to get Power BI's own numbers for parity checks. Both documented in `docs/powerbi-semantic-schema.md`.
+- **Paths:** `scripts/fetch_powerbi_report_definition.py`, `scripts/run_powerbi_dax_query.py` (new); `docs/powerbi-semantic-schema.md`
+- **Why:** These are the two prerequisites for turning Power BI measures and visuals into verified SQL queries: visuals give the query shapes, and DAX queries give the expected numbers.
+- **Verified:** `CII SDK-2026` report definition fetched (136 parts, 17 pages). The "Vessel - CII Overview" combo chart uses `Attained_CII YTD`, rating boundaries `D1_2026`–`D4_2026`, `E_2026` and `Req_CII_2026` by vessel and month, and its visual filter excludes 13 vessels beyond the model's own exclusion list. `executeQueries` works on a model without RLS (`Available Data Sources`) and returns HTTP 401 on both CII models, which have the `Owner & TSI RLS` role.
+- **Not done:** Parser from visuals to query shapes; transpiler; parity harness. Parity numbers for RLS models still need a user identity or exported values.
+
+## 2026-11-10 — Research report: LLM Power BI semantic bridge
+
+- **What:** Wrote a synthesized research report on using LLMs to connect ~500 Power BI semantic models and reports to the UC semantic layer and NL-to-SQL. It covers 19 ranked use cases, the target architecture, a phased plan, and a list of what not to do.
+- **Paths:** `reports/LLM Power BI semantic bridge.md` (new). Built from the notes in `research_notes/LLM Power BI semantic bridge/`, with counts from `powerbi-estate/20261110T122619Z/manifest.json`.
+- **Why:** User asked for a research report synthesizing those notes.
+- **Verified:** Every quantitative claim cross-checked against a source URL in the notes. Estate counts (503 models, 494 reports, 3 workspaces) read from the harvest manifest.
+- **Not done:** No code or live-system changes. The Phase 0 checks in the report (Scanner coverage, oracle identity, query-history attribution) are not yet run.
+
+## 2026-11-10 — Power BI model definitions (TMDL) via Fabric getDefinition
+
+- **What:** `scripts/fetch_powerbi_model_definition.py` downloads a semantic model's full TMDL (tables, columns, DAX measures, Power Query M, relationships, RLS roles) through the Fabric REST `getDefinition` long-running operation. Documented in `docs/powerbi-semantic-schema.md`.
+- **Paths:** `scripts/fetch_powerbi_model_definition.py`, `docs/powerbi-semantic-schema.md`
+- **Why:** Admin Scanner still returns 401; this read-only route works now with the existing service principal on reachable workspaces.
+- **Verified:** Fetched `CII SDK-2026` (25 parts) and `CII SDK-2025` (26 parts). M shows Databricks warehouse `90cbf494594852ee`, tables `reporting_layer.enerva_dbo.synergydkreporteddata` and `dt_cii_correction_factor`. Measure diff: 33 identical, 28 changed, 26 only in 2025, 10 only in 2026.
+- **Not done:** Bulk run over all 503 models; parser into the crosswalk; changes to the harvest job.
+
+## 2026-11-10 — Power BI schema harvest script (DAX / M via Scanner)
+
+- **What:** `scripts/harvest_powerbi_schema.py` and `docs/powerbi-semantic-schema.md` for Admin Scanner output (tables, measures, expressions). Blocked today with HTTP 401 until Fabric admin SP settings are applied.
+- **Paths:** `scripts/harvest_powerbi_schema.py`, `docs/powerbi-semantic-schema.md`
+- **Why:** User needs semantic definition (DAX, Power Query), not catalog-only JSON.
+- **Verified:** `getInfo` probe returns 401 with current tenant SP policy.
+- **Not done:** Successful schema run after IT enablement.
+
+## 2026-11-10 — Power BI estate harvest to folder
+
+- **What:** `scripts/harvest_powerbi_estate.py` downloads semantic model metadata (and per-model datasources when allowed), reports, and report↔model links into timestamped `powerbi-estate/` directory; `.gitignore` updated.
+- **Paths:** `scripts/harvest_powerbi_estate.py`, `docs/powerbi-semantic-models-inventory.md`, `.gitignore`
+- **Why:** User request to store all accessible semantic models in a folder structure.
+- **Verified:** Run locally against accessible workspaces (see session).
+- **Not done:** Admin tenant-wide harvest; model schema/DAX (scanner).
+
+## 2026-11-10 — Power BI semantic model inventory script and env names
+
+- **What:** Added `scripts/list_powerbi_semantic_models.py` and `docs/powerbi-semantic-models-inventory.md` documenting `PBI_TENANT_ID`, `PBI_CLIENT_ID`, and `PBI_CLIENT_SECRET` for local runs.
+- **Paths:** `scripts/list_powerbi_semantic_models.py`, `docs/powerbi-semantic-models-inventory.md`
+- **Why:** User needs a documented env block for the read-only Power BI metadata inventory script.
+- **Verified:** Doc and script present; `.env` not edited by agent (hooks block reads/writes).
+- **Not done:** User must paste empty `PBI_*` names into `.env` and fill values; script not executed against Power BI.
+
+## 2026-11-10 — T3 query history: `system_tables.query.query_history`
+
+- **What:** Replaced legacy `system.query.history` with Unity Catalog `system_tables.query.query_history` for T3 harvest (`pullQueryHistoryWindow`, `countQueryHistoryWindow`), context scripts, and `scripts/query-history-text.mjs`. Added `QUERY_HISTORY_TABLE` in `src/lib/context/databricks-system-tables.ts`.
+- **Paths:** `src/lib/context/databricks-adapter.ts`, `src/lib/context/databricks-system-tables.ts`, `src/lib/context/job-scope.ts`, `src/lib/databricks/execute.ts`, `scripts/context/*.ts`, `scripts/query-history-text.mjs`, `docs/databricks-auth-and-usage.md`, `docs/access/data-access-architecture.md`
+- **Why:** Workspace now exposes query history under the `system_tables` catalog; metadata SP grants must target the new table.
+- **Verified:** Repo grep shows no remaining `system.query.history` in app/scripts (historical changelog lines excepted). No live warehouse SELECT in this session.
+- **Not done:** UC admin must grant `USE CATALOG` / `USE SCHEMA` / `SELECT` on `system_tables.query.query_history` to the metadata service principal if not already applied.
+
+## 2026-11-10 — Script to print system.query.history SQL text
+
+- **What:** `scripts/query-history-text.mjs` signs in with the Databricks service principal and prints recent `statement_text` from `system.query.history`. It prefers `HARVEST_DATABRICKS_*` in `.env` and falls back to `DATABRICKS_*`. Secrets are not printed. Empty placeholders for those four names were appended to `.env`.
+- **Paths:** `scripts/query-history-text.mjs`, `.env` (names only; not committed)
+- **Why:** Check that the harvest principal can read the SQL-text column used by T3.
+- **Verified:** Not run. Credential values were not read.
+- **Not done:** No warehouse call from this session.
+
 ## 2026-11-06 — Publish consolidated work to `dev` (docs, graphify, access, estate)
 
 - **What:** Merged the current working tree into `synergy-marine/dev` and pushed so the remote has the full batch: data-access and section-access work, estate and staging UI updates, Prisma migrations, infra task-definition tweak, research docs and `graphify-out/` (dependency graph report, HTML, cache).

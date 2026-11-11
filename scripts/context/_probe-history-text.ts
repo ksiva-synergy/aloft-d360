@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
+import { QUERY_HISTORY_TABLE } from '@/lib/context/databricks-system-tables';
 
 type Exec = { scopeExec: (s: string, o?: { rowLimit?: number }) => Promise<{ rows: Record<string, unknown>[] }> };
 
@@ -13,7 +14,7 @@ async function main() {
   const si = new Date(Date.now() - 1 * 86400000).toISOString().replace('T', ' ').replace('Z', '');
   const ui = new Date().toISOString().replace('T', ' ').replace('Z', '');
   const base =
-    `FROM system.query.history WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' AND statement_type = 'SELECT'`;
+    `FROM ${QUERY_HISTORY_TABLE} WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' AND statement_type = 'SELECT'`;
 
   const norm = "replace(lower(coalesce(statement_text,'')), '`', '')";
 

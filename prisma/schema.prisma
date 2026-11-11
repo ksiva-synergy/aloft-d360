@@ -3497,3 +3497,124 @@ model PlatformConnection {
   @@index([org_id, visibility], map: "idx_platform_connection_org_visibility")
   @@map("platform_connections")
 }
+
+// ── Power BI semantic bridge (Phase 1: inventory) ─────────────────────────────
+
+model PbiWorkspace {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id           String
+  pbi_workspace_id String
+  name             String?
+  capacity_id      String?
+  domain_hint      String?
+  content_hash     String?
+  lifecycle        String      @default("active")
+  first_seen_run   String?
+  last_seen_run    String?
+  props            Json        @default("{}")
+  created_at       DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  models           PbiModel[]
+  reports          PbiReport[]
+
+  @@unique([org_id, pbi_workspace_id], map: "uq_pbi_ws_org")
+  @@index([org_id], map: "idx_pbi_ws_org")
+  @@map("pbi_workspaces")
+}
+
+model PbiModel {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id         String
+  workspace_id   String               @db.Uuid
+  pbi_model_id   String
+  name           String
+  description    String?
+  configured_by  String?
+  is_refreshable Boolean?
+  storage_mode   String?
+  rls_required   Boolean              @default(false)
+  ols_enabled    Boolean              @default(false)
+  endorsement    String?
+  last_refresh_at DateTime?           @db.Timestamptz(6)
+  domain_id      String?
+  content_hash   String?
+  lifecycle      String               @default("active")
+  first_seen_run String?
+  last_seen_run  String?
+  props          Json                 @default("{}")
+  created_at     DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  workspace      PbiWorkspace         @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  datasources    PbiModelDatasource[]
+  reports        PbiReport[]
+
+  @@unique([org_id, pbi_model_id], map: "uq_pbi_model_org")
+  @@index([org_id], map: "idx_pbi_models_org")
+  @@index([workspace_id], map: "idx_pbi_models_ws")
+  @@map("pbi_models")
+}
+
+model PbiModelDatasource {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id            String
+  model_id          String   @db.Uuid
+  datasource_id     String?
+  gateway_id        String?
+  datasource_type   String?
+  connection_server String?
+  connection_path   String?
+  is_personal_file  Boolean  @default(false)
+  raw               Json     @default("{}")
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  model             PbiModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+
+  @@index([model_id], map: "idx_pbi_ds_model")
+  @@map("pbi_model_datasources")
+}
+
+model PbiReport {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id          String
+  workspace_id    String       @db.Uuid
+  model_id        String?      @db.Uuid
+  pbi_report_id   String
+  pbi_model_id    String?
+  name            String
+  report_type     String?
+  report_format   String?
+  web_url         String?
+  summary_text    String?
+  content_hash    String?
+  lifecycle       String       @default("active")
+  first_seen_run  String?
+  last_seen_run   String?
+  props           Json         @default("{}")
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  workspace       PbiWorkspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  model           PbiModel?    @relation(fields: [model_id], references: [id], onDelete: SetNull)
+
+  @@unique([org_id, pbi_report_id], map: "uq_pbi_report_org")
+  @@index([org_id], map: "idx_pbi_reports_org")
+  @@index([model_id], map: "idx_pbi_reports_model")
+  @@map("pbi_reports")
+}
+
+model PbiUsage {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  org_id              String
+  pbi_report_id       String
+  report_name         String?
+  views               Int       @default(0)
+  distinct_users      Int       @default(0)
+  window_start        DateTime? @db.Date
+  window_end          DateTime? @db.Date
+  usage_model_id      String?
+  usage_model_refresh DateTime? @db.Timestamptz(6)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([org_id, pbi_report_id], map: "idx_pbi_usage_org_report")
+  @@map("pbi_usage")
+}

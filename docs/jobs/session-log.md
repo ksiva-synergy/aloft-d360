@@ -5,6 +5,73 @@
 
 ---
 
+### 2026-11-11: Phase 1 migration applied on dev Aurora (Cursor)
+
+- **What:** `apply-phase1-migration.mjs` — five `pbi_*` tables live; Prisma migration history updated.
+- **Verified:** Retry wrapper recovered from transient P1001 on first attempt.
+- **Not done:** Power BI source registration; inventory job.
+
+### 2026-11-11: `pbi_definitions` job + Fabric client (Cursor)
+
+- **What:** TMDL/report download to raw store; orchestrator case; Jobs launch for PBI Definitions; summary API; migration helper script.
+- **Files:** `src/lib/powerbi/{fabric,raw-store,definitions}.ts`, orchestrator, jobs UI, `powerbi/summary/route.ts`, `apply-phase1-migration.mjs`.
+- **Before → after:** `pbi_definitions` stub failed → runnable after inventory + migration; validation baseline deferred.
+- **Verified:** Code only; CII boost run today errored on RDS (recorded in `eval/powerbi/runs/`).
+- **Not done:** Operator migration; first definitions job on dev.
+
+### 2026-11-11: CII boost suite for validation baseline (Cursor)
+
+- **What:** `cii_pilot_v1` boost cases, registry, run-suite `suiteVersion`, export to `eval/powerbi/runs`.
+- **Files:** `src/lib/boost/suite-cii.ts`, `registry.ts`, boost API routes, `export-cii-boost-baseline.mjs`.
+- **Before → after:** Manual-only Inspector scoring → repeatable 6-case automated matrix + DB export for stewards.
+- **Verified:** Code only.
+- **Not done:** Admin run on dev; steward outcome overrides.
+
+### 2026-11-11: Power BI before/after validation guide (Cursor)
+
+- **What:** Validation doc, eval assets, baseline snapshot script; clarified Phase 1 = platform metrics only, Phase 3 = Inspector improvement.
+- **Files:** `docs/powerbi-integration-validation.md`, `eval/powerbi/`, `scripts/powerbi/record-baseline-snapshot.mjs`, tracker § Validation.
+- **Before → after:** No structured proof plan → phased checklist + JSON snapshots + CII question template.
+- **Verified:** `record-baseline-snapshot.mjs --label before-phase1`.
+- **Not done:** Steward question bank scoring in Inspector.
+
+### 2026-11-11: Power BI Phase 1 code on `feature/powerbi-bridge` (Claude)
+
+- **What:** Branch `feature/powerbi-bridge`; Phase 1 schema + `pbi_inventory` runner; Power BI client/inventory lib; Jobs group **Power BI**; sources API accepts `connection_kind: powerbi`.
+- **Files:** See `docs/jobs/powerbi-implementation-tracker.md` § Done on branch.
+- **Before → after:** No Power BI jobs → `pbi_inventory` runnable after migration + Power BI source; other `pbi_*` kinds enqueue but orchestrator returns not-implemented.
+- **Verified:** `npx prisma generate`. DB backup script failed locally (no pg_dump / Docker off); migration not executed.
+- **Not done:** Operator backup + `prisma db execute`; first live inventory run.
+
+### 2026-11-11: Power BI usage source proven; `pbi_inventory` scope extended in plan (Claude)
+
+- **What:** Service principal read report usage from the workspace usage-metrics models through DAX (counts only). In the plan, `pbi_inventory` now also pulls usage keyed by window.
+- **Files:** `docs/powerbi-harvest-build-plan.md`, `docs/CHANGELOG.md`; gitignored `powerbi-estate/dax/usage_*.dax`, `powerbi-estate/usage/`.
+- **Before → after:** Usage was listed as blocked on admin APIs → available for 2 of 3 workspaces. Embedded PBI Portal data is stale (last refresh 4 June 2026); Synergy App Central is current (10 November).
+- **Verified:** Four read-only `executeQueries` calls per workspace (tables, columns, views by report, page-view summary).
+- **Not done:** No job code. `current-status.md` unchanged.
+
+### 2026-11-11: Power BI bridge design finalized, separate job track (Claude)
+
+- **What:** Final design for the Power BI track in `docs/powerbi-harvest-build-plan.md`:
+  - Power BI is its own context source (`connection_kind = 'powerbi'`).
+  - Nine job kinds: `pbi_inventory`, `pbi_definitions`, `pbi_parse`, `pbi_catalog_link`, `pbi_domains`, `pbi_oracle`, `pbi_translate`, `pbi_parity`, `pbi_publish`.
+  - The jobs are built in TypeScript in `scripts/context/orchestrator.ts`.
+  - Catalog linking is an optional job that is re-run after T0 on bound schemas, not chained after T0.
+  - The jobs appear as a "Power BI" group on the Jobs screen.
+- **Files:** `docs/powerbi-harvest-build-plan.md`, `docs/CHANGELOG.md`.
+- **Before → after:** Earlier plan listed job kinds but not their run rules, incremental rules, or relationship to T0 → each job has a trigger and incremental rule; T0 independence is explicit.
+- **Verified:** Harvester image is Node-only (`Dockerfile.harvester`); job wiring points (`queue.ts` `JobKind`, `job-ui.ts`, `launch-kinds.ts`, `sources/route.ts`) checked.
+- **Not done:** No code. `current-status.md` unchanged (no runtime behavior change).
+
+### 2026-11-10: Power BI harvest plan with proposed `pbi_*` job kinds (Claude)
+
+- **What:** Plan for harvesting Power BI as an Estate source: a `platform_context_sources` row with `connection_kind = 'powerbi'` and job kinds `pbi_inventory`, `pbi_definitions`, `pbi_parse`, `pbi_crosswalk`, `pbi_families`, `pbi_oracle`, `pbi_translate`, `pbi_parity`, `pbi_publish`.
+- **Files:** `docs/powerbi-harvest-build-plan.md`.
+- **Before → after:** No change to job runtime or UI. The plan notes that `src/app/api/agent-lab/context/sources/route.ts` hard-codes `connection_kind: 'databricks'` and must change before a Power BI source can be registered.
+- **Verified:** Doc only.
+- **Not done:** `docs/jobs/current-status.md` is unchanged because no behavior changed.
+
 ### 2026-11-06: Push consolidated work to `dev` including docs and graphify (Composer)
 
 - **What:** All local changes were committed and merged into `dev`, then pushed to `synergy-marine` so the branch carries documentation updates (`docs/CHANGELOG.md`, `docs/jobs/session-log.md`, `docs/jobs/current-status.md`, and other `docs/**` additions), research notes, and `graphify-out/` (graph report and artifacts).

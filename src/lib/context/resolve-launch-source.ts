@@ -13,11 +13,11 @@ export class LaunchSourceNotFoundError extends Error {
 export async function resolveLaunchSources(
   orgId: string,
   sourceId?: string | null,
-): Promise<Array<{ id: string; display_name: string | null }>> {
+): Promise<Array<{ id: string; display_name: string | null; connection_kind: string }>> {
   if (sourceId) {
     const row = await prisma.platformContextSource.findFirst({
       where: { id: sourceId, org_id: orgId, status: 'active' },
-      select: { id: true, display_name: true },
+      select: { id: true, display_name: true, connection_kind: true },
     });
     if (!row) throw new LaunchSourceNotFoundError();
     return [row];
@@ -25,7 +25,17 @@ export async function resolveLaunchSources(
 
   return prisma.platformContextSource.findMany({
     where: { org_id: orgId, status: 'active' },
-    select: { id: true, display_name: true },
+    select: { id: true, display_name: true, connection_kind: true },
     orderBy: { created_at: 'asc' },
   });
+}
+
+export function filterSourcesForJobKind(
+  sources: Array<{ id: string; display_name: string | null; connection_kind: string }>,
+  kind: string,
+): Array<{ id: string; display_name: string | null; connection_kind: string }> {
+  if (kind.startsWith('pbi_')) {
+    return sources.filter((s) => s.connection_kind === 'powerbi');
+  }
+  return sources.filter((s) => s.connection_kind !== 'powerbi');
 }

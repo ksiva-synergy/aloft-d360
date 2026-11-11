@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "suite_id": "cii_pilot_v1",
+  "domain": "qhse",
+  "description": "Copy to cii-pilot-questions.json and expand to 50–100 items from top CII visuals. Use for before/after Inspector scoring.",
+  "default_tolerance_pct": 1,
+  "boost_suite_version": "cii_pilot_v1",
+  "boost_run_api": "POST /api/inspector/boost/run-suite with body { \"suiteVersion\": \"cii_pilot_v1\", \"modelKeys\": [\"…\"], \"contextModes\": [\"harvested\", \"warehouse_only\"] }",
+  "cases": [
+    {
+      "id": "cii_aer_fleet_ytd",
+      "boost_case_id": "cii_fleet_aer_ytd_2026",
+      "question": "What is the fleet attained CII AER year to date?",
+      "grain": "fleet",
+      "period": "ytd",
+      "pbi_report_hint": "CII SDK-2026",
+      "oracle_kind": "dax_export",
+      "oracle_ref": "TBD — steward: visual or executeQueries id",
+      "difficulty": "medium"
+    },
+    {
+      "id": "cii_aer_by_vessel_2026",
+      "boost_case_id": "cii_aer_by_vessel_2026",
+      "question": "Show attained CII AER by vessel for 2026.",
+      "grain": "vessel",
+      "period": "calendar_year",
+      "pbi_report_hint": "CII",
+      "oracle_kind": "sql_file",
+      "oracle_ref": "powerbi-estate/sql/cii_model_aer_2026_by_vessel.sql",
+      "difficulty": "easy"
+    },
+    {
+      "id": "cii_rating_distribution",
+      "question": "How many vessels are in each CII rating band this year?",
+      "grain": "vessel",
+      "period": "ytd",
+      "pbi_report_hint": "CII SDK-2026",
+      "oracle_kind": "manual",
+      "oracle_ref": "TBD",
+      "difficulty": "hard"
+    },
+    {
+      "id": "cii_required_vs_attained",
+      "question": "For each vessel, how does required CII compare to attained CII?",
+      "grain": "vessel",
+      "period": "ytd",
+      "pbi_report_hint": "CII - Vessel-2026",
+      "oracle_kind": "manual",
+      "oracle_ref": "TBD",
+      "difficulty": "hard"
+    }
+  ],
+  "scoring_rubric": {
+    "outcome_values": [
+      "correct",
+      "wrong_number",
+      "wrong_grain",
+      "refused",
+      "draft_sql",
+      "hallucinated_object"
+    ],
+    "path_values": [
+      "verified_query",
+      "semantic_intent",
+      "catalog_llm",
+      "other"
+    ]
+  },
+  "run_record_example": {
+    "captured_at": "2026-11-11T00:00:00Z",
+    "environment": "dev",
+    "inspector_session_id": "optional",
+    "case_id": "cii_aer_by_vessel_2026",
+    "outcome": "draft_sql",
+    "path": "catalog_llm",
+    "notes": "Picked wrong date column"
+  }
+}

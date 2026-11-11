@@ -246,7 +246,7 @@ Every warehouse call names a role (`src/lib/databricks/sp-roles.ts`). A role wit
 |---|---|
 | `query_internal` | `USE CATALOG` / `USE SCHEMA` / `SELECT` on the data users query. Until ALOFT has labels, the same data the default SP reads |
 | `query_confidential`, `query_restricted` | Not used by code yet; create when Phase 1 labels ship |
-| `metadata` | `USE CATALOG`, `USE SCHEMA`, `BROWSE` on harvested catalogs; `SELECT` on `system.query.history`, `system.access.table_lineage`, `system.access.column_lineage`. No `SELECT` on business tables |
+| `metadata` | `USE CATALOG`, `USE SCHEMA`, `BROWSE` on harvested catalogs; `SELECT` on `system_tables.query.query_history`, `system.access.table_lineage`, `system.access.column_lineage`. No `SELECT` on business tables |
 | `profile` | `USE CATALOG`, `USE SCHEMA`, `SELECT` on schemas approved for profiling, excluding Restricted |
 | `publish` | `USE CATALOG`, `USE SCHEMA`, `CREATE TABLE` on the metric-view schema only; `SELECT` on the source tables |
 
@@ -256,8 +256,9 @@ Example for the UC admin (ALOFT never runs `GRANT`):
 
 ```sql
 GRANT USE CATALOG, BROWSE ON CATALOG <catalog> TO `<metadata-sp-application-id>`;
-GRANT USE SCHEMA ON SCHEMA system.query TO `<metadata-sp-application-id>`;
-GRANT SELECT ON TABLE system.query.history TO `<metadata-sp-application-id>`;
+GRANT USE CATALOG ON CATALOG system_tables TO `<metadata-sp-application-id>`;
+GRANT USE SCHEMA ON SCHEMA system_tables.query TO `<metadata-sp-application-id>`;
+GRANT SELECT ON TABLE system_tables.query.query_history TO `<metadata-sp-application-id>`;
 ```
 
 Steps, one role at a time:

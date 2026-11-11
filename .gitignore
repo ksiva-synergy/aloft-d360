@@ -53,3 +53,14 @@ migration_review.sql
 
 # local diagnostics (next-auth error mirror)
 /.logs
+
+# Local DB dumps (secrets + PII; never commit)
+/backups/*.dump
+/backups/*.sql
+/eval/powerbi/runs/
+/eval/powerbi/suites/*-questions.json
+
+# Power BI local harvest (metadata; may include internal URLs and owner emails)
+/powerbi-estate/
+powerbi_semantic_models.csv
+powerbi_semantic_models.json

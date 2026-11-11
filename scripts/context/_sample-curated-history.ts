@@ -1,5 +1,6 @@
 import prisma from '@/lib/db';
 import { DatabricksAdapter } from '@/lib/context/databricks-adapter';
+import { QUERY_HISTORY_TABLE } from '@/lib/context/databricks-system-tables';
 
 async function main() {
   const sourceId = 'b491f1d6-944e-42d7-855b-dbd392bd7a3e';
@@ -15,7 +16,7 @@ async function main() {
 
   for (const needle of ['curated_db', 'employee_master', 'darwin_box']) {
     const sql =
-      `SELECT COUNT(*) AS n FROM system.query.history ` +
+      `SELECT COUNT(*) AS n FROM ${QUERY_HISTORY_TABLE} ` +
       `WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' ` +
       `AND statement_type = 'SELECT' AND contains(${norm}, '${needle}')`;
     const r = await (a as unknown as { scopeExec: (s: string, o?: object) => Promise<{ rows: unknown[] }> }).scopeExec(
@@ -27,7 +28,7 @@ async function main() {
 
   const sampleSql =
     `SELECT LEFT(statement_text, 200) AS st, executed_as, start_time ` +
-    `FROM system.query.history ` +
+    `FROM ${QUERY_HISTORY_TABLE} ` +
     `WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' ` +
     `AND statement_type = 'SELECT' AND contains(${norm}, 'curated_db') ` +
     `ORDER BY start_time DESC LIMIT 8`;

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ALOFT — Power BI Semantic Bridge (complete guide)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --navy: #003262;
+      --gold: #FDB515;
+      --pbi: #f2c811;
+      --bg: #f8f6f1;
+      --surface: #fff;
+      --text: #1a2332;
+      --muted: #5a6578;
+      --border: #e2ddd3;
+      --ok: #166534;
+      --ok-bg: #dcfce7;
+      --warn-bg: #fef3c7;
+      --pending-bg: #dbeafe;
+      --radius: 12px;
+      --mono: Consolas, "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .layout { display: flex; min-height: 100vh; }
+    .sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: var(--navy);
+      color: #fff;
+      padding: 1rem 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      font-size: 0.88rem;
+    }
+    .sidebar h2 {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      padding: 0.5rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .sidebar a {
+      display: block;
+      padding: 0.35rem 1.25rem;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      border-left: 3px solid transparent;
+    }
+    .sidebar a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+    .sidebar a.sub { padding-left: 2rem; font-size: 0.82rem; opacity: 0.9; }
+    .sidebar .back {
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.75rem;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .content { flex: 1; max-width: 1100px; padding: 2rem 2.5rem 5rem; }
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, var(--navy) 55%, #0d3d56 100%);
+      color: #fff;
+      padding: 2rem 2.5rem;
+      margin: -2rem -2.5rem 2rem;
+      border-radius: 0 0 var(--radius) var(--radius);
+      border-bottom: 4px solid var(--pbi);
+    }
+    .hero h1 { font-size: 1.65rem; margin: 0 0 0.5rem; }
+    .hero p { margin: 0; opacity: 0.92; }
+    .badge {
+      display: inline-block;
+      background: var(--pbi);
+      color: #1a1a2e;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-right: 0.35rem;
+    }
+    .detail-section {
+      margin-bottom: 2.75rem;
+      scroll-margin-top: 1rem;
+    }
+    .detail-section > h2 {
+      font-size: 1.4rem;
+      color: var(--navy);
+      border-bottom: 2px solid var(--gold);
+      padding-bottom: 0.35rem;
+      margin: 0 0 1rem;
+    }
+    .detail-section h3, .embed-h3 {
+      font-size: 1.08rem;
+      color: var(--navy);
+      margin: 1.5rem 0 0.6rem;
+    }
+    .detail-section h4 { font-size: 0.98rem; color: var(--navy); margin: 1rem 0 0.5rem; }
+    .detail-section p, .overview-quick p { color: var(--muted); margin: 0.6rem 0; }
+    .meta-line { font-size: 0.9rem; color: var(--muted) !important; }
+    .detail-list { color: var(--muted); margin: 0.5rem 0 1rem 1.5rem; }
+    .detail-list li { margin-bottom: 0.35rem; }
+    .table-scroll { overflow-x: auto; margin: 0.75rem 0 1.25rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      min-width: 480px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0ebe3; font-weight: 600; }
+    code, .schema-block {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+    pre, .schema-block {
+      background: #1a2332;
+      color: #e8e4dc;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.75rem 0 1rem;
+      white-space: pre-wrap;
+    }
+    .mermaid-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    .callout {
+      background: var(--pending-bg);
+      border: 1px solid #93c5fd;
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+    .section-rule { border: none; border-top: 1px dashed var(--border); margin: 1.5rem 0; }
+    .overview-quick {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .overview-quick h2 { margin-top: 0; font-size: 1.2rem; color: var(--navy); }
+    a { color: #1e40af; }
+    @media (max-width: 960px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: relative; max-height: 40vh; }
+      .content { padding: 1rem; }
+      .hero { margin: 0 0 1.5rem; padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Table of contents">
+
+      <a class="back" href="powerbi-harvest-build-plan.md">← Markdown build plan</a>
+      <h2>Navigate</h2>
+      <a href="#overview-quick">Quick overview</a>
+      <a href="#flow">End-to-end diagram</a>
+      <a href="#sec-1-summary">1. Summary</a>
+      <a href="#sec-2-decisions">2. Decisions</a>
+      <a href="#sec-3-where-we-are">3. Where we are</a>
+      <a href="#sec-4-concepts-the-design-depends-on">4. Concepts the design depends on</a>
+      <a href="#sec-5-knowledge-captured">5. Knowledge captured</a>
+      <a href="#sec-6-data-model">6. Data model</a>
+      <a href="#sec-7-multiple-business-domains">7. Multiple business domains</a>
+      <a href="#sec-8-harvest-pipeline">8. Harvest pipeline</a>
+      <a href="#sec-9-translation-and-verification">9. Translation and verification</a>
+      <a href="#sec-10-descriptions-embeddings-and-retrieval">10. Descriptions, embeddings and retrieval</a>
+      <a href="#sec-11-app-surfaces">11. App surfaces</a>
+      <a href="#sec-12-security-and-data-handling">12. Security and data handling</a>
+      <a href="#sec-13-implementation-plan">13. Implementation plan</a>
+      <a href="#sec-14-risks-and-open-questions">14. Risks and open questions</a>
+      <a href="#sec-15-appendix">15. Appendix</a>
+      <a href="#impl-tracker">Implementation tracker</a>
+      <a href="#offline-scripts">Offline scripts (schema doc)</a>
+
+    </nav>
+    <main class="content">
+      <header class="hero">
+        <span class="badge">COMPLETE GUIDE</span>
+        <span class="badge">POWER BI BRIDGE</span>
+        <h1>Power BI Semantic Bridge — full design &amp; implementation</h1>
+        <p>Everything from the approved build plan, plus implementation tracker and offline script notes. Read the quick overview first, then scroll for full tables and specifications.</p>
+      </header>
+
+      <div class="overview-quick" id="overview-quick">
+        <h2>Quick overview</h2>
+        <p><strong>Databricks catalog</strong> = structure and joins. <strong>Power BI</strong> = business meaning (measures, filters, M transforms). ALOFT harvests Power BI read-only, translates DAX to SQL, proves parity against Power BI numbers, stewards approve, then Inspector and agents use <strong>verified queries</strong> and existing <code>platform_sem_*</code> — not a second semantic layer.</p>
+        <p>Example: <em>“What was vessel OPEX last quarter against budget?”</em> — no report name; domain routing → approved metric → SQL + provenance.</p>
+        <p>Estate scale: <strong>503</strong> models, <strong>494</strong> reports, <strong>3</strong> workspaces in scope. Pilot: <strong>CII</strong> then <strong>Finance</strong>.</p>
+      </div>
+
+      <section id="flow">
+        <h2 style="font-size:1.35rem;color:var(--navy);border-bottom:2px solid var(--gold);padding-bottom:0.35rem;">End-to-end flow</h2>
+        <div class="mermaid-wrap">
+          <pre class="mermaid">
+flowchart LR
+  PBI["Power BI"] --> INV["pbi_inventory"] --> DEF["pbi_definitions"] --> PARSE["pbi_parse"]
+  PARSE --> LINK["pbi_catalog_link"]
+  PARSE --> TR["pbi_translate"]
+  DB["Databricks catalog"] -.-> LINK
+  PBI -.-> ORA["pbi_oracle"]
+  ORA --> PA["pbi_parity"]
+  TR --> PA --> RQ["Review queue"]
+  RQ --> PUB["pbi_publish"] --> VQ["kb_verified_queries"] --> INS["Inspector"]
+          </pre>
+        </div>
+        <div class="callout"><strong>Light pass:</strong> all models — inventory, definitions, parse, link, domains. <strong>Deep pass:</strong> pilot families — reports, cards, oracle, translate, parity, publish.</div>
+      </section>
+
+      <div class="callout" style="margin-bottom:2rem;">
+        <strong>Full specification</strong> — sections below are generated from <code>docs/powerbi-harvest-build-plan.md</code> (design approved 2026-11-11).
+      </div>
+
+      <h1 class="doc-title">Power BI semantic bridge: design and implementation plan</h1>
+<p><strong>Status:</strong> design approved for build, 2026-11-11. Nothing is in the app yet. The offline scripts and harvested files listed in section 3 exist and were used to validate this design.</p>
+<p><strong>Supersedes</strong> the 2026-11-10 version of this file. <strong>Builds on</strong> <a href="../reports/LLM%20Power%20BI%20semantic%20bridge.md"><code>reports/LLM Power BI semantic bridge.md</code></a> (research), <a href="reports/ALOFT%20knowledge%20base%20design.md"><code>docs/reports/ALOFT knowledge base design.md</code></a> (knowledge stores and retrieval), and <a href="powerbi-semantic-schema.md"><code>docs/powerbi-semantic-schema.md</code></a> (scripts and API notes).</p>
+<hr class="section-rule" />
+<section class="detail-section" id="sec-1-summary"><h2>1. Summary</h2>
+<p>The Databricks catalog tells ALOFT which tables and columns exist and how they join. Power BI holds the business knowledge on top: what &quot;Actual OPEX&quot; or &quot;Attained CII YTD&quot; means, which rows are excluded, which date drives &quot;year to date&quot;, and which filters a report applies by default. ALOFT will harvest that knowledge, translate it into Databricks SQL, prove the SQL returns the same numbers as Power BI, and let stewards approve the results. Approved results become verified queries and governed measures that Inspector and commissioned agents use.</p>
+<p>The user should be able to ask &quot;what was vessel OPEX last quarter against budget?&quot; without naming a report. ALOFT finds the approved definition for the right business domain, runs the validated SQL on Databricks, and says where the definition came from and how well it matched Power BI.</p>
+<h3 id="sec-goals">Goals</h3>
+<ol class="detail-list">
+<li>Capture business definitions from Power BI: measures, calculations, Power Query preparation, relationships, report filters, synonyms and glossaries.</li>
+<li>Translate them into Databricks SQL and validate the translations against Power BI's own numbers.</li>
+<li>Keep every definition traceable to its workspace, model, report, visual and evidence.</li>
+<li>Handle many business domains (Finance, QHSE, Technical, Crewing, Procurement and others) whose definitions can legitimately differ.</li>
+<li>Use the results in Inspector chat and agents without inventing a second semantic layer.</li>
+</ol>
+<h3 id="sec-non-goals">Non-goals</h3>
+<ul class="detail-list">
+<li>Migrating reports off Power BI or rebuilding dashboards in ALOFT.</li>
+<li>Writing anything back to Power BI or Databricks. All access is read-only.</li>
+<li>Treating every Power BI measure as correct or as an organisation-wide definition.</li>
+<li>Embedding every harvested object for search.</li>
+</ul>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-2-decisions"><h2>2. Decisions</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>#</th><th>Decision</th><th>Why</th></tr></thead><tbody>
+<tr><td>D1</td><td>Power BI is a <strong>knowledge source and answer key</strong>, not a migration source.</td><td>Its numbers are what the business already trusts, which makes them the best test of ALOFT's SQL.</td></tr>
+<tr><td>D2</td><td><strong>Enrich the existing semantic foundation</strong> (<code>platform_sem_*</code>, verified queries, catalog semantics). No parallel Power BI semantic layer for agents.</td><td>One place for agents to look; avoids two competing definitions of the same KPI.</td></tr>
+<tr><td>D3</td><td>A <strong>dedicated Power BI area</strong> in the Data Estate for browsing and review, keyed by every Power BI ID (workspace, model, report, page, visual, <code>lineageTag</code>).</td><td>People need to see where a definition came from; agents need provenance.</td></tr>
+<tr><td>D4</td><td><strong>Separate harvest track.</strong> Power BI is its own context source with its own job kinds. Linking to Catalog is an optional job that runs whenever either side changes; it is not chained after T0.</td><td>Power BI and Databricks harvests fail and refresh independently. Power BI work delivers value before Catalog coverage is complete.</td></tr>
+<tr><td>D5</td><td><strong>Catalog stays Databricks-only.</strong> Power BI adds &quot;used by&quot; links to catalog objects and suggestions for unscanned paths.</td><td>Catalog is the warehouse truth; report tables are not warehouse objects.</td></tr>
+<tr><td>D6</td><td>**Raw files in encrypted object storage, parsed rows in Aurora <code>pbi_*</code> tables.**</td><td>The app, steward screens and org scoping live in Aurora. Raw files contain personal data and stay out of agent reach.</td></tr>
+<tr><td>D7</td><td><strong>Build in TypeScript inside the existing harvester</strong> (<code>Dockerfile.harvester</code>, <code>scripts/context/orchestrator.ts</code>). The Python scripts stay as offline tools.</td><td>The harvester image is Node-only. Power BI REST, TMDL text and report JSON are all straightforward to handle in TypeScript; adding a Python runtime is not justified yet.</td></tr>
+<tr><td>D8</td><td><strong>Steward approval before anything reaches agents.</strong> LLM output is always a draft.</td><td>Power BI is usually right, not always; translations can be wrong in plausible ways.</td></tr>
+<tr><td>D9</td><td><strong>Two kinds of correctness are kept apart:</strong> &quot;matches report X&quot; (fidelity) and &quot;agreed definition&quot; (canonical).</td><td>A report can be wrong or can serve one department's purpose.</td></tr>
+<tr><td>D10</td><td><strong>Definitions are scoped by business domain.</strong> The same metric name can have different approved definitions in different domains.</td><td>Finance and Technical can both be right about &quot;OPEX&quot; for their own purposes.</td></tr>
+<tr><td>D11</td><td><strong>Light pass across the whole estate, deep work only on pilot families.</strong></td><td>Inventory and classification are cheap and set priorities; translation and stewarding are expensive.</td></tr>
+<tr><td>D12</td><td><strong>Models with row-level or object-level security are not published to agents</strong> until their access rules map to ALOFT's own access control.</td><td>Publishing SQL from a secured model would bypass its restrictions.</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-3-where-we-are"><h2>3. Where we are</h2>
+<h3 id="sec-31-done-offline-validated">3.1 Done (offline, validated)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Item</th><th>Evidence</th></tr></thead><tbody>
+<tr><td>Inventory of 3 workspaces: 503 models, 494 reports, report-to-model links, datasources, RLS flags</td><td><code>scripts/harvest_powerbi_estate.py</code>, <code>powerbi-estate/20261110T122619Z/</code></td></tr>
+<tr><td>Full model definitions (TMDL) for 3 CII models</td><td><code>scripts/fetch_powerbi_model_definition.py</code>, <code>powerbi-estate/definitions/</code></td></tr>
+<tr><td>Report definitions: CII SDK-2026 (modern format) and CII SDK-2025 (legacy format)</td><td><code>scripts/fetch_powerbi_report_definition.py</code>, <code>powerbi-estate/report-definitions/</code>, <code>powerbi-estate/report-definitions-legacy/</code></td></tr>
+<tr><td>Power BI numbers by DAX query on models without RLS</td><td><code>scripts/run_powerbi_dax_query.py</code></td></tr>
+<tr><td>Embedded table decoding (<code>Vessel_All_Dwts</code>, 778 rows)</td><td><code>scripts/extract_pbi_embedded_table.py</code></td></tr>
+<tr><td>First parity check: CII model AER 2026 per vessel, 494 of 501 within 1% (98.6%)</td><td><code>scripts/compare_cii_pbi_databricks.mjs</code>, <code>powerbi-estate/sql/cii_model_aer_2026_by_vessel.sql</code></td></tr>
+<tr><td>Report usage without admin APIs: service principal queried the workspace usage-metrics models (views, distinct users, dates per report; page views)</td><td><code>powerbi-estate/dax/usage_*.dax</code>, <code>powerbi-estate/usage/</code></td></tr>
+<tr><td><code>INFO.VIEW.TABLES()</code> and <code>INFO.VIEW.COLUMNS()</code> ran through <code>executeQueries</code> as the service principal. Microsoft documents <code>INFO</code> functions as unsupported on this API, so this is a convenience, not a dependency</td><td>same query files</td></tr>
+</tbody></table></div>
+<h3 id="sec-32-estate-facts-that-shape-the-design">3.2 Estate facts that shape the design</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Fact</th><th>Consequence</th></tr></thead><tbody>
+<tr><td>56 models require RLS identity; 447 do not; 237 read Databricks</td><td>Service principal can run DAX on 447 models; RLS models need another identity and are not published (D12)</td></tr>
+<tr><td>433 models use the <code>Abf</code> storage format (imported data)</td><td>Power BI numbers are a snapshot at last refresh; parity must compare closed periods</td></tr>
+<tr><td>348 reports are <code>PBIRLegacy</code>, 142 <code>PBIR</code>, 4 paginated</td><td>Two report parsers feeding one normalized shape. Legacy export with <code>format=PBIR-Legacy</code> was proven on CII SDK-2025</td></tr>
+<tr><td>Databricks datasources point at two workspaces (<code>adb-4626…</code> 252 entries, <code>adb-1194…</code> 3)</td><td>Catalog linking must match the Databricks host, not just the table path</td></tr>
+<tr><td>39 models read Excel files from personal OneDrive folders</td><td>Those definitions are caveated and never verified</td></tr>
+<tr><td>The datasets API returns <code>createdDate</code> only, no modified date</td><td>Change detection uses refresh history and content hashes (section 8.4)</td></tr>
+<tr><td>Authored descriptions are nearly absent (2 <code>///</code> comments across 3 models)</td><td>Descriptions are composed from names, synonyms, glossaries, report labels, LLM drafts and stewards</td></tr>
+<tr><td>Q&amp;A synonyms are in TMDL (<code>cultures/en-US.tmdl</code>)</td><td>No admin Scanner needed for synonyms</td></tr>
+<tr><td>Models embed reference data and glossaries (<code>Vessel_All_Dwts</code>, <code>Appendix</code>, <code>Documentations</code>)</td><td>Embedded tables are first-class reference data</td></tr>
+<tr><td>Admin Scanner returns 401</td><td>Endorsement, sensitivity labels, tenant-wide lineage and usage are unavailable until IT enables admin APIs</td></tr>
+<tr><td>Model names alone don't identify the domain: a name-pattern pass left 178 of 503 unclassified and mislabelled others</td><td>Domain assignment uses several signals (section 7.2)</td></tr>
+<tr><td>Usage-metrics models exist in 2 of 3 workspaces. Embedded PBI Portal: 246 reports viewed, 23,642 views, but last refreshed 4 June 2026 (data 5 May – 3 June). Synergy App Central: 25 reports, 1,637 views, refreshed 10 November</td><td>Usage is a free priority signal, but these models keep about 30 days and refresh only when someone opens the usage report; each pull must record its window, and stale windows are flagged</td></tr>
+<tr><td>CII reports in that window: CII SDK-2026 102 views, CII 100, CII - Vessel-2026 39, CII SDK-2025 23</td><td>CII SDK-2026 and CII carry most CII traffic, which supports them as the first pilot models</td></tr>
+<tr><td>Fetched CII models: 110 display folders, including &quot;Unused - Placeholder&quot; and &quot;Titles &amp; Scaffolding&quot;; 605 format hints; 28 hierarchies, all automatic date hierarchies; no calculation groups, perspectives, KPI objects or dynamic format strings</td><td>Folders separate headline metrics from helpers and scaffolding (6.3); the other object types are parsed when other models contain them</td></tr>
+</tbody></table></div>
+<h3 id="sec-33-not-done">3.3 Not done</h3>
+<ul class="detail-list">
+<li>Nothing stored in Aurora; no app screens; no jobs.</li>
+<li><code>kb_verified_queries</code> does not exist in <code>prisma/schema.prisma</code>.</li>
+<li>Known app defects that block agent use: Inspector ranks governed context by connection name instead of the question (<code>src/lib/semantic/context-builder.ts</code>); the compiler does not quote identifiers (<code>src/lib/semantic/compiler.ts</code>); T3 semantic cards shadow T2 cards.</li>
+<li>Refresh history, refresh schedule, dataflow definitions and the admin Scanner are not harvested. Report usage was pulled once by hand, not on a schedule.</li>
+</ul>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-4-concepts-the-design-depends-on"><h2>4. Concepts the design depends on</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Concept</th><th>Meaning</th><th>Why it matters here</th></tr></thead><tbody>
+<tr><td>Report vs semantic model</td><td>A report is the presentation layer; the model holds tables, measures and relationships. Several reports can share one model.</td><td>Business rules live in both. Report filters can change what a measure means on screen.</td></tr>
+<tr><td>Power Query (M)</td><td>Transformation language that prepares data at refresh: filters, renames, merges, added columns.</td><td>SQL must repeat these steps (CII: vessel renames, fuel swaps, embedded DWT override).</td></tr>
+<tr><td>DAX</td><td>Formula language for measures, calculated columns and calculated tables.</td><td>The business logic to translate.</td></tr>
+<tr><td>Measure</td><td>Named DAX calculation evaluated at query time under the current filters.</td><td>The main unit of business definition.</td></tr>
+<tr><td>Calculated column</td><td>DAX evaluated per row at refresh.</td><td>Translates to a SQL expression on the row, not an aggregate.</td></tr>
+<tr><td>Filter context</td><td>The set of filters active when a measure is evaluated: visual axes, slicers, page and report filters, <code>CALCULATE</code> arguments, relationships.</td><td>The same measure returns different numbers in different contexts. SQL must reproduce the context, not just the formula.</td></tr>
+<tr><td>Relationships</td><td>Joins with cardinality, filter direction, active or inactive.</td><td>Join logic; inactive relationships signal alternate date roles.</td></tr>
+<tr><td>Import, DirectQuery, Direct Lake</td><td>Where data is read at query time.</td><td>Determines whether Power BI numbers are a snapshot or live.</td></tr>
+<tr><td>RLS and OLS</td><td>Row-level and object-level security.</td><td>Governs who may see results (D12).</td></tr>
+<tr><td>TMDL, PBIR, REST, XMLA</td><td>Text model definition, report definition, discovery APIs, query endpoint.</td><td>How metadata is extracted.</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-5-knowledge-captured"><h2>5. Knowledge captured</h2>
+<p>Each item names its source, whether we have it, where it is stored and what ALOFT uses it for. &quot;Fetched models&quot; means the three CII model definitions already downloaded.</p>
+<h3 id="sec-51-inventory-rest">5.1 Inventory (REST)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Item</th><th>Source</th><th>Have it</th><th>Store</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Workspace id, name</td><td><code>GET groups</code></td><td>Yes</td><td><code>pbi_workspaces</code></td><td>Scope, display</td></tr>
+<tr><td>Capacity, dedicated flag</td><td><code>GET groups</code></td><td>Not stored</td><td><code>pbi_workspaces</code></td><td>Whether XMLA / <code>executeDaxQueries</code> are possible</td></tr>
+<tr><td>Model id, name, configured by, created date, URL</td><td><code>GET datasets</code></td><td>Yes</td><td><code>pbi_models</code></td><td>Identity, link back</td></tr>
+<tr><td>RLS identity flags</td><td>same</td><td>Yes</td><td><code>pbi_models.rls_required</code></td><td>Oracle identity, publish block</td></tr>
+<tr><td>Storage format, refreshable, gateway required</td><td>same</td><td>Yes</td><td><code>pbi_models</code></td><td>Freshness policy, gateway dependency</td></tr>
+<tr><td>Datasources: kind, host, warehouse, URL, <code>gatewayId</code>, <code>datasourceId</code></td><td><code>GET datasets/{id}/datasources</code></td><td>Yes</td><td><code>pbi_model_datasources</code></td><td>Connector mix, host matching, personal-file detection</td></tr>
+<tr><td>Refresh history, schedule</td><td><code>GET datasets/{id}/refreshes</code>, <code>/refreshSchedule</code></td><td><strong>No</strong></td><td><code>pbi_refreshes</code>, <code>pbi_models.last_refresh_at</code></td><td>Every oracle value carries its refresh time; change detection</td></tr>
+<tr><td>Report id, name, format (<code>PBIR</code>/<code>PBIRLegacy</code>/paginated), model id, URL</td><td><code>GET groups/{ws}/reports</code></td><td>Yes</td><td><code>pbi_reports</code></td><td>Parser choice, provenance</td></tr>
+<tr><td>Dashboards and pinned tiles</td><td><code>GET groups/{ws}/dashboards</code></td><td>No</td><td><code>pbi_dashboards</code> (later)</td><td>&quot;This KPI matters&quot; signal</td></tr>
+<tr><td>Dataflow definitions</td><td><code>GET groups/{ws}/dataflows/{id}</code></td><td>No</td><td><code>pbi_dataflows</code></td><td>Classify dataflow-sourced tables</td></tr>
+<tr><td>Endorsement (promoted, certified), sensitivity, tenant lineage</td><td>Admin Scanner</td><td><strong>Blocked</strong></td><td><code>pbi_models.endorsement</code>, <code>.sensitivity</code></td><td>Ranking, label enforcement</td></tr>
+<tr><td>Report usage: views, distinct users, first and last date per report; page views per page (<code>SectionId</code>); last refresh of the usage model</td><td>Workspace usage-metrics model (&quot;Usage Metrics Report&quot;) queried by DAX; counts only, no user ids stored</td><td><strong>Yes, 2 of 3 workspaces</strong> (manual pull)</td><td><code>pbi_usage</code> with window start, window end, source model</td><td>Priority order, report summaries, domain wave scoring</td></tr>
+<tr><td>Usage for workspaces without a usage model, or older than 30 days</td><td>Admin activity events</td><td><strong>Blocked</strong></td><td><code>pbi_usage</code></td><td>Fill gaps, history</td></tr>
+</tbody></table></div>
+<h3 id="sec-52-semantic-model-tmdl">5.2 Semantic model (TMDL)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Item</th><th>TMDL location</th><th>Store</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Model options, <code>PBI_QueryOrder</code>, culture</td><td><code>model.tmdl</code></td><td><code>pbi_models.props</code></td><td>M evaluation order for nested queries</td></tr>
+<tr><td>Tables: hidden, description, <code>lineageTag</code></td><td><code>tables/*.tmdl</code></td><td><code>pbi_tables</code></td><td>Structure; hidden tables rank low</td></tr>
+<tr><td>Partition source and kind; storage mode per partition</td><td><code>partition … = m / calculated</code></td><td><code>pbi_tables.partition_kind</code>, <code>.storage_mode</code>, <code>pbi_source_bindings</code></td><td>Classifier (section 8.5), freshness</td></tr>
+<tr><td>Native SQL, catalog navigation, M steps</td><td>partition M</td><td><code>pbi_source_bindings</code></td><td>Catalog link and SQL base</td></tr>
+<tr><td>Columns: type, source column, format, data category, sort-by, summarize-by, folder, hidden</td><td><code>column</code> blocks</td><td><code>pbi_columns</code></td><td>Units, formats, default aggregation, rename tracing</td></tr>
+<tr><td>Calculated columns</td><td><code>column X = &lt;DAX&gt;</code></td><td><code>pbi_columns.dax</code></td><td>Row-level SQL expressions; business classifications promoted as dimensions</td></tr>
+<tr><td>Measures: DAX, format, folder, description, <code>lineageTag</code></td><td><code>measure</code> blocks (often in a measure table such as <code>CII_Measures</code>)</td><td><code>pbi_measures</code></td><td>Main translation target</td></tr>
+<tr><td>Display folders</td><td><code>displayFolder</code> on measures and columns (110 in fetched models)</td><td><code>pbi_measures.folder</code>, <code>pbi_columns.folder</code></td><td>Metric role (headline, building block, scaffolding — 6.3), topic grouping in the Power BI area, domain signal</td></tr>
+<tr><td>Format strings and format hints</td><td><code>formatString</code>, <code>PBI_FormatHint</code> annotation (605 in fetched models)</td><td><code>pbi_measures.format</code>, <code>pbi_columns.format</code></td><td>Presentation: percentage, decimals, currency, thousands</td></tr>
+<tr><td>Dynamic format strings</td><td><code>formatStringDefinition</code> (none in fetched models)</td><td><code>pbi_measures.format_dax</code></td><td>Currency or unit chosen at query time; finance</td></tr>
+<tr><td>KPI objects</td><td><code>kpi</code> on a measure: target, status and trend expressions (none in fetched models)</td><td><code>pbi_measures.kpi</code></td><td>Targets and thresholds on metric cards</td></tr>
+<tr><td>Detail rows</td><td><code>detailRowsDefinition</code> (none in fetched models)</td><td><code>pbi_measures.detail_rows_dax</code></td><td>Drill-to-detail query for &quot;show me the rows behind this&quot;</td></tr>
+<tr><td>Perspectives</td><td><code>perspective</code> blocks (none in fetched models)</td><td><code>pbi_perspectives</code></td><td>Audience subsets of a model; domain signal</td></tr>
+<tr><td>Calculated tables</td><td><code>= calculated</code></td><td><code>pbi_tables</code></td><td>Usually DAX-only parity</td></tr>
+<tr><td>Relationships: columns, cardinality, direction, active</td><td><code>relationships.tmdl</code></td><td><code>pbi_relationships</code></td><td>Joins; date roles</td></tr>
+<tr><td>Hierarchies</td><td><code>hierarchy</code> blocks (all 28 in fetched models are automatic date hierarchies)</td><td><code>pbi_hierarchies</code> with ordered levels</td><td>User-defined hierarchies become drill levels on promoted dimensions and inform allowed grains; automatic date hierarchies are skipped</td></tr>
+<tr><td>Auto date tables</td><td><code>LocalDateTable_*</code>, <code>DateTableTemplate_*</code></td><td>Flag and skip</td><td>Noise</td></tr>
+<tr><td>Q&amp;A synonyms</td><td><code>cultures/en-US.tmdl</code></td><td><code>pbi_synonyms</code></td><td>Retrieval language</td></tr>
+<tr><td>Parameters and shared expressions</td><td><code>expressions.tmdl</code></td><td><code>pbi_models.parameters</code></td><td>Year switches, server parameters</td></tr>
+<tr><td>RLS roles and filters; OLS</td><td><code>roles/*.tmdl</code></td><td><code>pbi_roles</code> (DAX text only, no members)</td><td>Security policy (section 12)</td></tr>
+<tr><td>Calculation groups</td><td><code>calculationGroup</code> blocks (none in fetched models)</td><td><code>pbi_calculation_groups</code></td><td>Items such as YTD, MTD and YoY become shared time-intelligence templates (9.1); other items are human-tier</td></tr>
+<tr><td>Embedded tables</td><td><code>Table.FromRows(…Binary.FromText…)</code> in M</td><td><code>pbi_embedded_tables</code></td><td>Reference data; glossaries</td></tr>
+<tr><td>In-model glossary and document links</td><td>Embedded tables such as <code>Appendix</code>, <code>Documentations</code></td><td><code>pbi_embedded_tables</code> → glossary and document sources</td><td>Business definitions</td></tr>
+<tr><td>Annotations</td><td>everywhere (fetched models: mostly tooling keys such as <code>SummarizationSetBy</code>, <code>PBI_FormatHint</code>, <code>PBI_NavigationStepName</code>, plus two unrecognized hex-named keys)</td><td>raw <code>props</code>; recognized keys extracted</td><td>Known tooling keys feed formats and M step names; any team-defined keys (owner, certified, steward) are mapped once observed</td></tr>
+</tbody></table></div>
+<h3 id="sec-53-report-pbir-and-legacy">5.3 Report (PBIR and legacy)</h3>
+<p>Both formats carry the same information; the legacy format stores it as JSON strings inside one <code>report.json</code>.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Item</th><th>Modern PBIR</th><th>Legacy</th><th>Store</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Model link</td><td><code>definition.pbir</code></td><td><code>definition.pbir</code></td><td><code>pbi_reports.model_id</code></td><td>Provenance</td></tr>
+<tr><td>Pages</td><td><code>pages/*/page.json</code></td><td><code>sections[]</code></td><td><code>pbi_report_pages</code></td><td>Navigation, drillthrough</td></tr>
+<tr><td>Visual type, title, fields by role</td><td><code>visuals/*/visual.json</code> (<code>queryState</code>)</td><td><code>visualContainers[].config</code> (<code>prototypeQuery</code>, <code>projections</code>, <code>vcObjects.title</code>)</td><td><code>pbi_visuals</code>, <code>pbi_visual_fields</code></td><td>Question shapes, measure usage, grain</td></tr>
+<tr><td>Display names</td><td><code>displayName</code>, <code>nativeQueryRef</code></td><td><code>NativeReferenceName</code>, <code>columnProperties</code></td><td><code>pbi_visual_fields.display_name</code></td><td>Business vocabulary</td></tr>
+<tr><td>Filters: report, page, visual</td><td><code>filterConfig</code></td><td><code>filters</code> strings</td><td><code>pbi_report_filters</code></td><td>Report-only rules (CII: vessel exclusions)</td></tr>
+<tr><td>Bookmarks and slicer state</td><td><code>bookmarks/*.json</code></td><td><code>config.bookmarks</code></td><td><code>pbi_report_filters</code> scope <code>bookmark</code></td><td>Default context</td></tr>
+<tr><td>Cross-visual interactions</td><td><code>visualInteractions</code></td><td>section <code>config.relationships</code></td><td><code>pbi_visuals.interactions</code></td><td>Which visuals filter which</td></tr>
+<tr><td>Drillthrough parameters</td><td>page settings</td><td><code>pods[]</code></td><td><code>pbi_report_pages.drillthrough</code></td><td>Detail questions</td></tr>
+<tr><td>Report-level measures</td><td><code>reportExtensions.json</code></td><td>—</td><td><code>pbi_measures</code> scope <code>report</code></td><td>Measures outside the model</td></tr>
+<tr><td>Formula and help images</td><td><code>StaticResources</code></td><td><code>StaticResources</code></td><td><code>pbi_report_resources</code></td><td>Formula documentation</td></tr>
+<tr><td>Layout and theme</td><td>yes</td><td>yes</td><td>not stored</td><td>—</td></tr>
+<tr><td>Compressed visual query</td><td>—</td><td><code>queryBinary</code></td><td>ignored when <code>prototypeQuery</code> exists</td><td>—</td></tr>
+</tbody></table></div>
+<h3 id="sec-54-runtime">5.4 Runtime</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Item</th><th>Source</th><th>Store</th><th>Used for</th></tr></thead><tbody>
+<tr><td>DAX results</td><td><code>executeQueries</code> (service principal, models without RLS)</td><td><code>pbi_oracle_results</code> with grain, refresh time, identity, result hash</td><td>Answer key</td></tr>
+<tr><td>DAX results for RLS models</td><td>Delegated user or monitoring identity</td><td>same</td><td>Oracle only, not publish</td></tr>
+<tr><td>Engine metadata</td><td>DAX <code>INFO.VIEW.*</code> functions via <code>executeQueries</code> (worked as service principal on a model without RLS, but documented as unsupported)</td><td>Cross-check of parsed TMDL</td><td>Catch parser gaps; never the only source</td></tr>
+<tr><td>Engine dependency graph (to test)</td><td>DAX <code>INFO.CALCDEPENDENCY()</code> via <code>executeQueries</code> (same caveat) or XMLA</td><td><code>pbi_measures.references</code></td><td>Cross-check of the DAX reference parser, which remains the primary source</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-6-data-model"><h2>6. Data model</h2>
+<h3 id="sec-61-raw-layer">6.1 Raw layer</h3>
+<p>Exact API responses go to an encrypted S3 prefix <code>pbi-raw/{org}/{runId}/{itemId}/</code> with a manifest of item ids and sha256 hashes. Local development uses <code>powerbi-estate/</code>, which is gitignored. Raw files contain personal data (owner emails, RLS member tables) and are never indexed or shown to agents.</p>
+<h3 id="sec-62-normalized-tables-aurora">6.2 Normalized tables (Aurora)</h3>
+<p>Every table has <code>org_id</code>, the Power BI id or <code>lineageTag</code>, <code>content_hash</code>, <code>first_seen_run</code>, <code>last_seen_run</code> and <code>lifecycle</code> (<code>active</code>, <code>changed</code>, <code>removed</code>). Changed objects get a new version row, as T1 and T2 do today. Migration is additive and applied manually, following <code>prisma/migrations/*</code>.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Table</th><th>One row per</th><th>Key fields</th></tr></thead><tbody>
+<tr><td><code>pbi_workspaces</code></td><td>workspace</td><td>capacity, domain hint</td></tr>
+<tr><td><code>pbi_models</code></td><td>model</td><td>rls_required, ols, storage format, last refresh, schedule, family_id, domain_id, canonical flag, freshness policy, definition hash</td></tr>
+<tr><td><code>pbi_model_datasources</code></td><td>datasource</td><td>connector, host, warehouse, gateway, <code>is_personal_file</code></td></tr>
+<tr><td><code>pbi_refreshes</code></td><td>refresh</td><td>status, start, end</td></tr>
+<tr><td><code>pbi_tables</code></td><td>model table</td><td>partition_kind, storage_mode, hidden, source_m</td></tr>
+<tr><td><code>pbi_columns</code></td><td>column</td><td>type, source column, calculated DAX, format, category, sort-by, summarize-by, folder</td></tr>
+<tr><td><code>pbi_measures</code></td><td>measure</td><td>DAX, hash, references, format, format DAX, folder, role, KPI, detail-rows DAX, description, scope (model or report)</td></tr>
+<tr><td><code>pbi_hierarchies</code></td><td>hierarchy</td><td>table, ordered levels, automatic flag</td></tr>
+<tr><td><code>pbi_perspectives</code></td><td>perspective</td><td>included tables, columns and measures</td></tr>
+<tr><td><code>pbi_relationships</code></td><td>relationship</td><td>from/to columns, cardinality, direction, active</td></tr>
+<tr><td><code>pbi_roles</code></td><td>RLS/OLS role</td><td>filter DAX, object permissions</td></tr>
+<tr><td><code>pbi_calculation_groups</code></td><td>calculation group</td><td>items</td></tr>
+<tr><td><code>pbi_synonyms</code></td><td>Q&amp;A term</td><td>term, bound object, authored or generated, weight</td></tr>
+<tr><td><code>pbi_embedded_tables</code></td><td>embedded table</td><td>columns, row count, sha256, rows or S3 pointer, <code>pii_checked</code></td></tr>
+<tr><td><code>pbi_source_bindings</code></td><td>warehouse partition</td><td>connector, host, native SQL, M steps, <code>uc_full_path</code>, <code>databricks_source_id</code>, <code>context_object_id</code>, bind_status</td></tr>
+<tr><td><code>pbi_column_bindings</code></td><td>model column</td><td><code>pbi_column_id</code>, <code>context_column_id</code>, transform (rename, expression, M step), bind_status</td></tr>
+<tr><td><code>pbi_reports</code></td><td>report</td><td>format, model id, summary text</td></tr>
+<tr><td><code>pbi_report_pages</code></td><td>page</td><td>name, hidden, drillthrough</td></tr>
+<tr><td><code>pbi_visuals</code></td><td>visual</td><td>type, title, interactions</td></tr>
+<tr><td><code>pbi_visual_fields</code></td><td>field on a visual</td><td>role, table, column or measure, aggregation, display name</td></tr>
+<tr><td><code>pbi_report_filters</code></td><td>filter</td><td>scope, field, operator, values</td></tr>
+<tr><td><code>pbi_families</code></td><td>group of near-duplicate models</td><td>varying parameter, per-member constants</td></tr>
+<tr><td><code>pbi_domains</code></td><td>business domain</td><td>name, steward group, sensitivity, rollout wave</td></tr>
+<tr><td><code>pbi_metric_cards</code></td><td>metric definition</td><td>section 6.3</td></tr>
+<tr><td><code>pbi_oracle_results</code></td><td>DAX run</td><td>query, grain, result hash, rows, refresh time, identity</td></tr>
+<tr><td><code>pbi_translations</code></td><td>translation attempt</td><td>SQL, tier, model and prompt version, parity verdict</td></tr>
+<tr><td><code>pbi_conflicts</code></td><td>definition conflict</td><td>metric names, models, domains, difference, resolution</td></tr>
+<tr><td><code>pbi_usage</code></td><td>report or page per usage window</td><td>views, distinct users (count only), first and last view date, window start and end, source usage model, usage model refresh time</td></tr>
+<tr><td><code>pbi_time_templates</code></td><td>time-intelligence pattern</td><td>name (YTD, MTD, QTD, YoY, rolling N), DAX pattern, SQL template, required date semantics</td></tr>
+</tbody></table></div>
+<p><code>pbi_source_bindings.context_object_id</code> and <code>pbi_column_bindings.context_column_id</code> are the only links into Catalog. <code>platform_context_object_links</code> is not used, because both of its ends must be catalog objects.</p>
+<h3 id="sec-63-metric-card">6.3 Metric card</h3>
+<p>The metric card is the single record a steward reviews and that promotion reads. One card per metric per scope.</p>
+<p><code>role</code> comes from the display folder and usage on visuals: measures shown on visuals or in folders like &quot;CII Measures&quot; are <code>headline</code>; measures used only inside other measures (folders like &quot;CII Engine&quot;) are <code>building_block</code>; folders like &quot;Unused - Placeholder&quot; and &quot;Titles &amp; Scaffolding&quot;, and measures that return text for titles, are <code>scaffolding</code> and never become cards. Stewards can override.</p>
+<pre class="schema-block">metric_card
+  id, org_id, version
+  domain_id, scope: org_canonical | domain_canonical | report_specific
+  key: &quot;&lt;domain&gt;.&lt;metric_slug&gt;&quot;            e.g. finance.actual_opex, qhse.attained_cii_ytd
+  names: { canonical, display_names[], synonyms[] }
+  role: headline | building_block | scaffolding
+  source: { workspace_id, model_id, model_name, report_ids[], visual_ids[], measure_lineage_tag, family_id, display_folder }
+  usage: { views_30d, users_30d, window_end }
+  targets: { kpi_target, status_thresholds }               from KPI objects when present
+  time_variants: [ytd, mtd, yoy]                           applicable templates from 9.1
+  meaning: { one_line, long, status: draft | approved, approved_by, approved_at }
+  expression: { dax, dax_hash, depends_on_measures[], depends_on_columns[], calculated_columns[] }
+  data: { uc_paths[], databricks_source_id, m_steps_summary, embedded_refs[], caveats[] }
+  query_context: see 6.4
+  presentation: { format, unit, currency, decimals }
+  validation: { status, verdict, parity_pct, row_coverage, grains_tested[], periods_tested[], last_oracle_at, model_refresh_at }
+  governance: { steward_group, evidence[], conflicts[], supersedes, superseded_by }
+  publish: { verified_query_ids[], platform_sem_measure_id, answer_mode: databricks_sql | powerbi_dax }</pre>
+<h3 id="sec-64-query-context">6.4 Query context</h3>
+<p>Stored on each metric card and each verified query. This is how filter context becomes explicit.</p>
+<pre class="schema-block">query_context
+  grain: { allowed: [vessel, vessel+month, fleet+month], default }
+  additivity: additive | semi_additive | non_additive
+  implicit_filters: [{ table, column, op, values, from: measure_dax }]
+  report_filters: [{ scope, field, op, values, from: visual_id | page | bookmark }]
+  slicer_defaults: [{ field, values, from: bookmark_id }]
+  date_semantics: { date_table, date_column, relationship, period_basis: calendar | fiscal | posting | accounting }
+  relationship_overrides: [USERELATIONSHIP …]
+  blank_handling: blank_is_null | blank_is_zero | exclude
+  currency: { column, conversion_rule, rate_date }      finance
+  freshness: snapshot_at_refresh | live | hybrid</pre>
+<div class="table-scroll"><table>
+<thead><tr><th>Field</th><th>Filled by</th><th>Confirmed by</th></tr></thead><tbody>
+<tr><td>grain</td><td>Visual roles (category, axis, rows)</td><td>Steward</td></tr>
+<tr><td>additivity</td><td>Heuristic on DAX (<code>MAX</code>, <code>MIN</code>, <code>DISTINCTCOUNT</code>, ratios)</td><td>Steward</td></tr>
+<tr><td>implicit_filters</td><td>DAX parser: <code>CALCULATE</code>, <code>FILTER</code>, <code>REMOVEFILTERS</code>, <code>ALL</code> arguments</td><td>Translation review</td></tr>
+<tr><td>report_filters, slicer_defaults</td><td>Report parser</td><td>Steward chooses which belong to the definition</td></tr>
+<tr><td>date_semantics</td><td>Relationships to date tables, time-intelligence functions, visual date fields</td><td>Steward</td></tr>
+<tr><td>blank_handling</td><td>DAX patterns (<code>DIVIDE</code>, <code>COALESCE</code>), oracle comparison</td><td>Parity results</td></tr>
+<tr><td>currency</td><td>Column names, format strings, finance glossary</td><td>Finance steward</td></tr>
+<tr><td>freshness</td><td>Storage mode per partition</td><td>Automatic</td></tr>
+</tbody></table></div>
+<p>Agents enforce the allowed grains. A question at a grain the card does not allow is refused or answered with an explicit re-aggregation note.</p>
+<h3 id="sec-65-verified-queries-and-existing-stores">6.5 Verified queries and existing stores</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Store</th><th>Status</th><th>Holds</th><th>Written by</th></tr></thead><tbody>
+<tr><td><code>kb_verified_queries</code></td><td><strong>New</strong> (this plan ships a minimal version if knowledge base phase 2 has not)</td><td>question, alt phrasings, SQL, params, tables used, schema hash, status, origin <code>powerbi</code>, provenance props, query_context</td><td><code>pbi_publish</code></td></tr>
+<tr><td><code>platform_sem_measures</code> / <code>platform_sem_dimensions</code></td><td>Exists</td><td>Promoted building-block measures; dimensions from calculated columns and user-defined hierarchies (with drill levels)</td><td><code>pbi_publish</code></td></tr>
+<tr><td><code>platform_nl_intent_embeddings</code></td><td>Exists</td><td>Intent vectors for governed measures</td><td>Existing <code>intent-embed</code> path after promotion</td></tr>
+<tr><td><code>platform_context_semantics</code> (T2 cards)</td><td>Exists</td><td>Column and table semantics</td><td>Suggestions from Power BI with status <code>assumed</code></td></tr>
+<tr><td>Glossary / instructions</td><td>Planned in knowledge base design</td><td>Synonyms and in-model glossaries</td><td><code>pbi_publish</code> after review</td></tr>
+<tr><td><code>knowledge_sources</code> documents</td><td>Exists</td><td>Linked documents (CII, SEEMP)</td><td>Document connector, later</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-7-multiple-business-domains"><h2>7. Multiple business domains</h2>
+<p>The estate spans Finance, QHSE and environment, Technical and fleet, Crewing and HR, Procurement, Commercial and IT reports. Each domain has its own vocabulary, owners, sensitivity and sometimes its own definition of a shared term.</p>
+<h3 id="sec-71-domain-registry">7.1 Domain registry</h3>
+<p><code>pbi_domains</code> holds the organisation's domain list, aligned with the vocabulary already used on catalog objects (<code>platform_context_objects.domain_keywords</code>). Each domain has a steward group, a sensitivity level, an access group for answers, and a rollout wave.</p>
+<h3 id="sec-72-assigning-models-to-domains">7.2 Assigning models to domains</h3>
+<p>A model's domain is scored from several signals; a steward confirms or overrides.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Signal</th><th>Strength</th><th>Source</th></tr></thead><tbody>
+<tr><td>Domain of bound catalog objects</td><td>Strongest</td><td><code>pbi_source_bindings</code> → <code>platform_context_objects.domain_keywords</code> and <code>entity_tags</code></td></tr>
+<tr><td>Workspace</td><td>Medium</td><td><code>pbi_workspaces</code> domain hint</td></tr>
+<tr><td>Table and measure names against the domain lexicon</td><td>Medium</td><td>TMDL</td></tr>
+<tr><td>Display folders and perspectives</td><td>Medium</td><td>TMDL</td></tr>
+<tr><td>Model and report names</td><td>Weak (name-only grouping left 178 of 503 unclassified)</td><td>Inventory</td></tr>
+<tr><td>Steward decision</td><td>Final</td><td>Review queue</td></tr>
+</tbody></table></div>
+<p>Families (year or client copies) share one domain. A model can carry a secondary domain when it mixes subjects.</p>
+<h3 id="sec-73-same-name-different-meaning">7.3 Same name, different meaning</h3>
+<ul class="detail-list">
+<li><strong>Metric identity is <code>(domain, metric key)</code>.</strong> <code>finance.actual_opex</code> and <code>technical.actual_opex</code> can both exist.</li>
+<li><strong>Scope levels:</strong> <code>org_canonical</code> (one definition for everyone), <code>domain_canonical</code> (the domain's approved definition), <code>report_specific</code> (true only for that report).</li>
+<li><strong>Conflict detection:</strong> <code>pbi_families</code> and the parser compare metrics with the same normalized name or synonym. Different DAX hash, filters, date basis or source tables create a <code>pbi_conflicts</code> row.</li>
+<li><strong>Resolution by stewards:</strong> keep both and qualify display names (&quot;Actual OPEX (Finance)&quot;), merge into one canonical definition, or deprecate one. Each decision is recorded with evidence.</li>
+</ul>
+<h3 id="sec-74-runtime-routing">7.4 Runtime routing</h3>
+<ol class="detail-list">
+<li>Infer the domain from the question (terms, synonyms, intent match), the user's team and access, the commissioned agent's bound domains, and the conversation so far.</li>
+<li>Restrict retrieval to that domain's approved metrics and verified queries, plus <code>org_canonical</code> ones.</li>
+<li>If two domains match with similar confidence, ask which one is meant, or show both results labelled by domain. Never silently mix definitions.</li>
+<li>Answers cite the domain, the metric key, and the source model and report.</li>
+</ol>
+<h3 id="sec-75-cross-domain-metrics">7.5 Cross-domain metrics</h3>
+<p>Some metrics combine domains, for example &quot;OPEX per vessel day&quot; (Finance OPEX divided by Technical vessel days). These are composed metric cards that reference other cards by key. The requesting domain owns them, and they validate only when every input card is validated.</p>
+<h3 id="sec-76-stewardship-and-rollout-by-domain">7.6 Stewardship and rollout by domain</h3>
+<ul class="detail-list">
+<li>Each domain's review queue is filtered to its steward group, with a weekly capacity budget.</li>
+<li>Domains roll out in waves ordered by: report usage × share of Databricks-sourced models × share without RLS × steward availability.</li>
+<li><strong>Wave 1: QHSE / environment (CII family).</strong> Already piloted; embedded data and year families.</li>
+<li><strong>Wave 2: Finance (OPEX, budget, cost).</strong> Tests currency, period basis, category exclusions and budget sources.</li>
+<li><strong>Later waves:</strong> Technical, Procurement, Crewing, Commercial, ordered by the score above.</li>
+</ul>
+<h3 id="sec-77-finance-checklist">7.7 Finance checklist</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Topic</th><th>What to capture</th></tr></thead><tbody>
+<tr><td>Actual vs budget</td><td>Separate sources and measures; budgets often come from Excel (for example, <code>Budgeting Report - SOMI</code> reads two files in personal OneDrive folders) → caveated unless the budget lands in Unity Catalog</td></tr>
+<tr><td>Status and category rules</td><td><code>CALCULATE</code> filters such as posted-only and capital excluded → <code>implicit_filters</code></td></tr>
+<tr><td>Period basis</td><td>Posting date, accounting period or fiscal calendar → <code>date_semantics.period_basis</code></td></tr>
+<tr><td>Currency</td><td>Transaction vs reporting currency, conversion rule and rate date</td></tr>
+<tr><td>Sign conventions</td><td>Credits and debits, reversals</td></tr>
+<tr><td>Account and category mappings</td><td>Often embedded or SharePoint tables → reference data with an owner</td></tr>
+<tr><td>Ownership and entity filters</td><td>Owner, company, vessel management filters from slicers and RLS</td></tr>
+<tr><td>Sensitivity</td><td>Finance answers restricted to the Finance access group</td></tr>
+<tr><td>Time intelligence</td><td>YTD, MTD, QTD and year-over-year on the fiscal or posting calendar → shared templates (9.1), not one translation per measure</td></tr>
+<tr><td>Dynamic formats</td><td><code>formatStringDefinition</code> that picks the currency symbol at query time → <code>presentation.currency</code> rule</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-8-harvest-pipeline"><h2>8. Harvest pipeline</h2>
+<h3 id="sec-81-source-and-job-kinds">8.1 Source and job kinds</h3>
+<p>Power BI is registered as a <code>platform_context_sources</code> row with <code>connection_kind = 'powerbi'</code>, the tenant reference in <code>connection_ref</code>, and workspace ids in <code>scope_include</code>. Credentials live in Secrets Manager like Databricks credentials; locally they come from <code>PBI_TENANT_ID</code>, <code>PBI_CLIENT_ID</code> and <code>PBI_CLIENT_SECRET</code>.</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Job kind</th><th>Does</th><th>Runs when</th><th>Incremental rule</th></tr></thead><tbody>
+<tr><td><code>pbi_inventory</code></td><td>Workspaces, models, reports, datasources, refresh history and schedule; report and page usage from each workspace's usage-metrics model (counts only)</td><td>Daily</td><td>Full; cheap. Usage rows keyed by window, so overlapping 30-day windows do not double count</td></tr>
+<tr><td><code>pbi_definitions</code></td><td>TMDL per model, report definition per report (format chosen per report)</td><td>After inventory</td><td>Models refreshed or flagged since the last fetch, plus a weekly hash sweep</td></tr>
+<tr><td><code>pbi_parse</code></td><td>Raw files → <code>pbi_*</code> rows; classifier; embedded decode; synonyms; filters; draft metric cards</td><td>After definitions</td><td>Only items whose file hash changed</td></tr>
+<tr><td><code>pbi_catalog_link</code></td><td>Bind partitions and columns to catalog objects; flag unscanned paths</td><td>After <code>pbi_parse</code>, and after any T0 run on a bound schema</td><td>Only unbound or changed bindings</td></tr>
+<tr><td><code>pbi_domains</code></td><td>Score domains; detect families and conflicts</td><td>After parse</td><td>Changed models</td></tr>
+<tr><td><code>pbi_oracle</code></td><td>Run DAX at agreed grains and periods</td><td>After a model refresh, for pilot metrics</td><td>Changed metrics or refreshed models</td></tr>
+<tr><td><code>pbi_translate</code></td><td>Rule tier, then LLM tier; drafts to the review queue</td><td>After parse and link</td><td>Changed metrics</td></tr>
+<tr><td><code>pbi_parity</code></td><td>Compare SQL to oracle; record verdict</td><td>After translate; nightly for published items</td><td>Changed or published</td></tr>
+<tr><td><code>pbi_publish</code></td><td>Write approved items to <code>kb_verified_queries</code>, <code>platform_sem_*</code>, glossary; embed</td><td>Steward action</td><td>Approved items</td></tr>
+</tbody></table></div>
+<p>These appear on the existing Jobs screen as a &quot;Power BI&quot; job group with the same health, run history and controls. Only platform admins can launch them, matching current estate rules.</p>
+<h3 id="sec-82-light-pass-and-deep-pass">8.2 Light pass and deep pass</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Pass</th><th>Scope</th><th>Jobs</th></tr></thead><tbody>
+<tr><td>Light</td><td>All 503 models and 494 reports</td><td><code>pbi_inventory</code>, <code>pbi_definitions</code> (models), <code>pbi_parse</code> (tables, partitions, bindings, synonyms), <code>pbi_catalog_link</code>, <code>pbi_domains</code></td></tr>
+<tr><td>Deep</td><td>Pilot families, then by wave</td><td>Report definitions, metric cards, <code>pbi_oracle</code>, <code>pbi_translate</code>, <code>pbi_parity</code>, <code>pbi_publish</code></td></tr>
+</tbody></table></div>
+<p>The light pass yields the estate map: every model classified as answerable, caveated or blocked, with its domain and catalog links.</p>
+<h3 id="sec-83-api-limits-and-pacing">8.3 API limits and pacing</h3>
+<p><code>getDefinition</code> took about 30 to 40 seconds per item in our runs, so a full serial model pass is about 4 to 5 hours. Run several workers in parallel within Fabric throttling, back off on HTTP 429, and resume from the last completed item. <code>executeQueries</code> has documented row, value and request-rate limits; measure them during the pilot and size oracle queries to fit.</p>
+<h3 id="sec-84-change-detection">8.4 Change detection</h3>
+<p>The API has no model modified date. Re-fetch a model when its refresh history shows a new successful refresh after a failure-free period, when its report list changes, or on a weekly sweep; compare content hashes and re-parse only on change. When the admin Scanner is enabled, use its modified timestamps instead.</p>
+<h3 id="sec-85-partition-classifier">8.5 Partition classifier</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Kind</th><th>Recognized by</th><th>Handling</th></tr></thead><tbody>
+<tr><td>Warehouse query</td><td><code>Databricks.Catalogs</code>, <code>Value.NativeQuery</code>, <code>Sql.Database</code>, <code>Snowflake.Databases</code></td><td>Extract host, catalog, schema, table and native SQL; bind to Catalog</td></tr>
+<tr><td>Embedded table</td><td><code>Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText(…))))</code></td><td>Decode (base64 + deflate); store; PII check; glossaries to the knowledge layer; raise &quot;move to Unity Catalog&quot; finding</td></tr>
+<tr><td>Join of other queries</td><td><code>Table.NestedJoin</code>, <code>Table.ExpandTableColumn</code></td><td>Resolve in <code>PBI_QueryOrder</code> order</td></tr>
+<tr><td>Dataflow</td><td><code>PowerBI.Dataflows</code></td><td>Fetch dataflow definition, classify again</td></tr>
+<tr><td>Calculated table</td><td><code>= calculated</code></td><td>DAX-only parity</td></tr>
+<tr><td>Personal file</td><td><code>-my.sharepoint.com/personal/</code> URLs</td><td>Caveated; never verified</td></tr>
+<tr><td>Other file, web, SharePoint list</td><td><code>Excel.Workbook</code>, <code>Web.Contents</code>, <code>SharePoint.Tables</code></td><td>Caveated unless the data also exists in Unity Catalog</td></tr>
+<tr><td>Auto date table</td><td><code>LocalDateTable_*</code>, <code>DateTableTemplate_*</code></td><td>Skip</td></tr>
+</tbody></table></div>
+<h3 id="sec-86-parsers-typescript">8.6 Parsers (TypeScript)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Parser</th><th>Approach</th></tr></thead><tbody>
+<tr><td>TMDL</td><td>Indentation-based reader into objects (model, table, column, measure, partition, relationship, role, culture). Multi-line DAX and M blocks kept verbatim.</td></tr>
+<tr><td>M</td><td>Pattern extraction for connectors, navigation steps (<code>[Name=&quot;…&quot;,Kind=&quot;…&quot;]</code>), native SQL, and step names; embedded blob decode with Node <code>zlib</code>.</td></tr>
+<tr><td>Native SQL</td><td>Extract three-part table names from <code>FROM</code>/<code>JOIN</code>; evaluate <code>node-sql-parser</code> for Spark SQL; unresolved cases are <code>ambiguous</code> for review.</td></tr>
+<tr><td>DAX references</td><td>Tokenizer for <code>'Table'[Column]</code>, <code>[Measure]</code>, function names and <code>CALCULATE</code> filter arguments. Cross-check with <code>INFO.CALCDEPENDENCY()</code> where the service principal can run it.</td></tr>
+<tr><td>Report</td><td>One normalizer with two readers: PBIR folder files and legacy <code>report.json</code> (parse nested <code>config</code> and <code>filters</code> strings, resolve <code>From</code> aliases to entities). Output: pages, visuals, visual fields, filters, bookmarks, interactions.</td></tr>
+</tbody></table></div>
+<h3 id="sec-87-catalog-link">8.7 Catalog link</h3>
+<p>For each binding, match <code>(databricks host → ALOFT Databricks source, catalog.schema.table)</code> to <code>platform_context_objects</code>. Results: <code>matched</code>, <code>unscanned</code> (suggest a focused T0 scan), <code>ambiguous</code> (steward), <code>non_uc</code> (other connector or file). Column bindings trace M renames and added columns back to source columns. Catalog object pages then show &quot;used by N Power BI models&quot;.</p>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-9-translation-and-verification"><h2>9. Translation and verification</h2>
+<h3 id="sec-91-translation-tiers">9.1 Translation tiers</h3>
+<ol class="detail-list">
+<li><strong>Rule tier:</strong> <code>SUM</code>, <code>COUNT</code>, <code>DISTINCTCOUNT</code>, <code>DIVIDE</code>, <code>CALCULATE</code> with column filters, simple calculated columns.</li>
+<li><strong>LLM tier:</strong> iterators, time intelligence, variables, nested measures. Input: DAX, references, bound SQL, M steps, query context, glossary. Output: SQL plus stated grain, assumptions and a short explanation. Uses the harvest LLM client (<code>src/lib/context/harvest-llm.ts</code>); model and prompt version are recorded.</li>
+<li><strong>Human tier:</strong> context transition, calculation group items that are not time patterns, anything that fails parity twice.</li>
+<li><strong>DAX fallback:</strong> when SQL cannot be validated and the business still needs the answer, a card can use <code>answer_mode = powerbi_dax</code> with the stored DAX template, run under an identity that is allowed to see the data. Labelled &quot;from Power BI&quot; in answers.</li>
+</ol>
+<p>Families: year and client copies become one parameterized query with per-member constants (for example the CII required reduction and rating boundaries per year), checked against every member.</p>
+<p><strong>Time-intelligence templates.</strong> YTD, MTD, QTD, year-over-year and rolling-window logic is translated once per pattern, not once per measure. Sources are calculation group items and measures that use <code>TOTALYTD</code>, <code>DATESYTD</code>, <code>DATESMTD</code>, <code>SAMEPERIODLASTYEAR</code>, <code>DATEADD</code> or <code>DATESINPERIOD</code>. Each template in <code>pbi_time_templates</code> takes a base measure's SQL and the card's <code>date_semantics</code> (date column, calendar or fiscal basis) and wraps it. A template is validated once against the oracle on two or more base measures. After that it applies to any additive card that has confirmed date semantics; its parity is still checked per card at publish. Non-additive cards are excluded unless the template is proven for them.</p>
+<h3 id="sec-92-parity-method">9.2 Parity method</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Rule</th><th>Detail</th></tr></thead><tbody>
+<tr><td>Periods</td><td>Compare only periods that closed before the model's last refresh</td></tr>
+<tr><td>Grains</td><td>The visual's own grain, the total, and at least one coarser grain; non-additive metrics must fail or refuse correctly at disallowed grains</td></tr>
+<tr><td>Row coverage</td><td>Rows present on both sides, reported separately in each direction</td></tr>
+<tr><td>Cell tolerance</td><td>Relative 1% or absolute 0.05 by default; set per metric where units demand</td></tr>
+<tr><td>Blank, null, zero</td><td>Explicit rule from <code>query_context.blank_handling</code></td></tr>
+<tr><td>Hold-out</td><td>Some periods and grains are never shown to the translation loop and are used for final grading</td></tr>
+<tr><td>Record</td><td>SQL hash, DAX hash, refresh time, identity, grains, periods, row coverage, pass rate</td></tr>
+</tbody></table></div>
+<h3 id="sec-93-verdicts-and-truth-policy">9.3 Verdicts and truth policy</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Verdict</th><th>Meaning</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>pass</code></td><td>Matches at all tested grains and periods</td><td>Steward can approve</td></tr>
+<tr><td><code>fail_translation</code></td><td>SQL differs and the Power BI definition looks right</td><td>Fix translation</td></tr>
+<tr><td><code>fail_stale</code></td><td>Difference explained by refresh lag</td><td>Re-run on closed periods</td></tr>
+<tr><td><code>disagree</code></td><td>SQL matches the agreed source (for example the master list) but Power BI differs</td><td>Steward decides: follow the report (<code>report_specific</code>) or the agreed definition (<code>domain_canonical</code>), and records why</td></tr>
+<tr><td><code>not_comparable</code></td><td>Different filters, currency or access</td><td>Fix context before comparing</td></tr>
+</tbody></table></div>
+<p>Answers say &quot;matches Power BI model X as of {refresh}&quot; for fidelity, or &quot;agreed {domain} definition; differs from report X&quot; when stewards chose canonical. Published items are re-checked nightly; a failing check or a changed model demotes the verified query to <code>candidate</code>.</p>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-10-descriptions-embeddings-and-retrieval"><h2>10. Descriptions, embeddings and retrieval</h2>
+<h3 id="sec-101-descriptions">10.1 Descriptions</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Object</th><th>How the text is produced</th><th>Who approves</th></tr></thead><tbody>
+<tr><td>Measure one-line meaning</td><td>Template from names, format and synonyms; then an LLM draft from DAX, references, glossary and visual usage</td><td>Steward publishes; agents only see approved text</td></tr>
+<tr><td>Verified query</td><td>Question from the visual (title + fields + filters) plus 5 to 7 alternative phrasings from synonyms and steward edits</td><td>Steward</td></tr>
+<tr><td>Report summary</td><td>Template: model, format, page names, top visuals, top measures, notable filters, datasources</td><td>None needed; for people, not agents</td></tr>
+<tr><td>Columns</td><td>Power BI names, formats and synonyms become <strong>suggestions on catalog T2 cards</strong> with status <code>assumed</code></td><td>Steward on the catalog object</td></tr>
+<tr><td>Model-only calculated columns</td><td>Description on <code>pbi_columns</code> until promoted as a dimension</td><td>Steward</td></tr>
+</tbody></table></div>
+<h3 id="sec-102-embeddings">10.2 Embeddings</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Embedded</th><th>Text</th><th>Store</th></tr></thead><tbody>
+<tr><td>Verified queries (approved only)</td><td>Question, alternative phrasings, one-line answer meaning, measure display names, report and page titles, grain, domain. <strong>SQL is not embedded</strong>; it is loaded by id after a match</td><td><code>kb_verified_queries</code> search vector (v1); <code>kb_index</code> kind <code>verified_query</code> (v1.1)</td></tr>
+<tr><td>Promoted building-block measures</td><td>Steward question, synonyms, one-line meaning</td><td><code>platform_nl_intent_embeddings</code> via the existing path</td></tr>
+<tr><td>Glossary terms</td><td>Term and definition</td><td><code>kb_index</code> kind <code>instruction</code> (v1.1)</td></tr>
+<tr><td>Catalog tables and columns</td><td>Existing T2 text</td><td><code>platform_context_embeddings</code> (unchanged)</td></tr>
+<tr><td>Not embedded</td><td>Raw TMDL, DAX, M, report JSON, every measure, every report, every column, embedded rows</td><td>—</td></tr>
+</tbody></table></div>
+<p>Vectors use the existing Titan v2 1024-dimension path (<code>embedQuery</code> in <code>src/lib/context/embed.ts</code>).</p>
+<h3 id="sec-103-retrieval-order-in-inspector-v1">10.3 Retrieval order in Inspector (v1)</h3>
+<ol class="detail-list">
+<li>Domain inference (section 7.4).</li>
+<li>Verified-query match within the domain: vector plus keyword on questions and titles; above threshold, run the stored SQL with parameters and cite provenance.</li>
+<li><code>matchIntents</code> on governed measures (<code>src/lib/semantic/intent-match.ts</code>).</li>
+<li>Catalog context (existing search).</li>
+<li>Compiler or LLM SQL, labelled as a draft.</li>
+</ol>
+<p>Full <code>kb_index</code> with rank fusion arrives in v1.1, per the knowledge base design; v1 does not wait for it.</p>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-11-app-surfaces"><h2>11. App surfaces</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Surface</th><th>What changes</th></tr></thead><tbody>
+<tr><td><strong>Data Estate → Power BI</strong> (new tab in <code>src/lib/estate/nav-items.ts</code>)</td><td>Workspaces → models → tables, measures, relationship diagram, roles, embedded tables, catalog links → reports → pages → visuals. Every view shows Power BI ids and a link back to Power BI, plus views and users for the latest usage window. Measures are grouped by display folder.</td></tr>
+<tr><td><strong>Power BI review queue</strong></td><td>Filtered by domain. Metric card with DAX, M summary, SQL, diff, parity verdict, conflicts; actions approve, reject, set scope, mark canonical, edit meaning</td></tr>
+<tr><td><strong>Catalog</strong></td><td>&quot;Used by N Power BI models&quot; panel on object pages; unscanned-path suggestions; search boost for objects Power BI uses</td></tr>
+<tr><td><strong>Entities</strong></td><td>Promoted measures with synonyms, domain and a &quot;matches Power BI&quot; badge</td></tr>
+<tr><td><strong>Lineage</strong></td><td>Report → model → table → catalog object; verified query → model</td></tr>
+<tr><td><strong>Jobs</strong></td><td>&quot;Power BI&quot; job group with the nine job kinds</td></tr>
+<tr><td><strong>Inspector and agents</strong></td><td>Retrieval order in 10.3; answers cite domain, metric key, model, report, parity and refresh</td></tr>
+<tr><td><strong>Evaluation</strong></td><td>Held-out oracle results as benchmark; nightly report of pass, fail, regression and disagree by domain</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-12-security-and-data-handling"><h2>12. Security and data handling</h2>
+<ul class="detail-list">
+<li>All Databricks and Power BI access is read-only. Parity runs <code>SELECT</code> only; no <code>DROP</code>, <code>DELETE</code>, <code>INSERT</code> or other writes.</li>
+<li>Fabric <code>getDefinition</code> requires read and write permission on the item, so the app needs at least the <strong>Contributor</strong> workspace role on each workspace in scope. It already has that on all three current workspaces: definitions downloaded from each on 2026-11-11. Only workspaces found later, for example through the Scanner, need a new grant. ALOFT calls only read endpoints; the gap between the role granted and the access used is recorded for security review.</li>
+<li>Secrets stay in Secrets Manager or <code>.env</code>; never printed, logged or committed.</li>
+<li>Raw files stay in encrypted storage or gitignored local folders and are never indexed.</li>
+<li>RLS member tables and owner emails are not stored in normalized tables shown to agents; RLS and OLS rules are stored as DAX text only.</li>
+<li>Models with RLS or OLS: oracle allowed with an authorized identity; publishing blocked until access rules map to ALOFT access grants.</li>
+<li><strong>Path to permission-aware answers (later phase).</strong> Each RLS role filter is classified:</li>
+</ul>
+<p>  - *Identity lookup*, for example CII SDK-2026's <code>RLS_ID[Email] = USERPRINCIPALNAME()</code> joined to owners. ALOFT applies the same filter at query time: it matches the signed-in user's email against the same mapping table, which must be in Unity Catalog or a steward-owned reference table rather than embedded in the model.</p>
+<p>  - *Static filter*, a fixed value list. This becomes a row filter on the verified query.</p>
+<p>  - *Complex DAX*. Publishing stays blocked.</p>
+<p>  OLS hides objects, so hidden tables and columns are excluded from cards for users outside the role. A model moves from blocked to publishable only after a steward confirms the mapping and a test shows that two users with different roles get the same rows as in Power BI.</p>
+<ul class="detail-list">
+<li>Embedded tables pass a PII check before use as reference data.</li>
+<li>Verified queries and metric cards carry the domain's access group; retrieval filters on the user's access.</li>
+<li>Personal-file sources are caveated and never verified.</li>
+</ul>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-13-implementation-plan"><h2>13. Implementation plan</h2>
+<h3 id="sec-131-workstreams-and-code-locations">13.1 Workstreams and code locations</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Workstream</th><th>Files</th></tr></thead><tbody>
+<tr><td>Schema</td><td><code>prisma/schema.prisma</code>; additive migration <code>prisma/migrations/&lt;date&gt;_powerbi_bridge/migration.sql</code>; minimal <code>kb_verified_queries</code> migration if knowledge base phase 2 has not shipped it</td></tr>
+<tr><td>Power BI client</td><td><code>src/lib/powerbi/client.ts</code> (tokens for Power BI and Fabric scopes, paging, long-running operations, 429 back-off), <code>src/lib/powerbi/credentials.ts</code></td></tr>
+<tr><td>Inventory and definitions</td><td><code>src/lib/powerbi/inventory.ts</code>, <code>src/lib/powerbi/definitions.ts</code>, <code>src/lib/powerbi/raw-store.ts</code></td></tr>
+<tr><td>Parsers</td><td><code>src/lib/powerbi/tmdl-parse.ts</code>, <code>m-classify.ts</code>, <code>native-sql.ts</code>, <code>dax-refs.ts</code>, <code>report-parse.ts</code> (PBIR and legacy readers)</td></tr>
+<tr><td>Catalog link and domains</td><td><code>src/lib/powerbi/catalog-link.ts</code>, <code>src/lib/powerbi/domains.ts</code>, <code>src/lib/powerbi/families.ts</code></td></tr>
+<tr><td>Oracle, translation, parity</td><td><code>src/lib/powerbi/oracle.ts</code>, <code>translate.ts</code> (rule tier + <code>harvest-llm.ts</code>), <code>parity.ts</code> (read-only execution via <code>src/lib/databricks/execute.ts</code>)</td></tr>
+<tr><td>Publish</td><td><code>src/lib/powerbi/publish.ts</code> → <code>kb_verified_queries</code>, <code>platform_sem_*</code>, existing intent embedding</td></tr>
+<tr><td>Jobs</td><td><code>src/lib/context/queue.ts</code> (<code>JobKind</code> union), <code>scripts/context/orchestrator.ts</code> (new cases), <code>src/lib/estate/job-ui.ts</code> (labels, group, upstream/downstream), <code>src/lib/estate/launch-kinds.ts</code></td></tr>
+<tr><td>Source registration</td><td><code>src/app/api/agent-lab/context/sources/route.ts</code> (accept <code>powerbi</code>)</td></tr>
+<tr><td>Read APIs</td><td><code>src/app/api/agent-lab/powerbi/**</code> (workspaces, models, reports, metric cards, review actions), section access via <code>src/lib/sections</code></td></tr>
+<tr><td>UI</td><td><code>src/views/agent-lab/estate/powerbi/*</code>, review queue, catalog object panel in <code>src/views/agent-lab/estate/object.tsx</code></td></tr>
+<tr><td>Inspector</td><td><code>src/lib/semantic/context-builder.ts</code> (question-based ranking, verified-query first), <code>src/lib/semantic/compiler.ts</code> (identifier quoting)</td></tr>
+<tr><td>Tests</td><td>Unit tests per parser using the harvested CII files as fixtures (with personal data removed); route coverage tests for new routes</td></tr>
+</tbody></table></div>
+<p>Next.js code follows <code>node_modules/next/dist/docs/</code> per <code>AGENTS.md</code>. Every change is logged in <code>docs/CHANGELOG.md</code> and <code>docs/jobs/session-log.md</code>; <code>docs/jobs/current-status.md</code> is updated when job behavior changes.</p>
+<h3 id="sec-132-phases">13.2 Phases</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Phase</th><th>Delivers</th><th>Depends on</th><th>Exit gate</th></tr></thead><tbody>
+<tr><td><strong>0. Unblock and baseline</strong></td><td>IT request for admin Scanner and an oracle identity for RLS models; add refresh history to inventory; test <code>INFO.CALCDEPENDENCY()</code>; ask workspace owners to open the Embedded PBI Portal usage report so its usage model refreshes, and to add a usage model to the third workspace; write 50–100 questions from top CII visuals and 20 Finance questions; score current ALOFT</td><td>IT, domain stewards named</td><td>Baseline score per domain; steward named per pilot domain; blocked items listed</td></tr>
+<tr><td><strong>1. Store and light pass</strong></td><td>Schema; client; <code>pbi_inventory</code>, <code>pbi_definitions</code>, <code>pbi_parse</code>; both report readers; classifier; embedded decode; Power BI tab (browse only)</td><td>Sources API accepts <code>powerbi</code></td><td>100% of models classified answerable, caveated or blocked; parse failures under 5% of fetched items; CII reports identical in normalized form whether PBIR or legacy</td></tr>
+<tr><td><strong>2. Catalog link and domains</strong></td><td><code>pbi_catalog_link</code>, column bindings, host matching, <code>pbi_domains</code>, families, conflicts; Catalog &quot;used by&quot; panel; lineage</td><td>Databricks T0 on bound schemas (not required to start)</td><td>At least 90% of Databricks partitions in pilot models bound to scanned objects; every model has a confirmed or proposed domain</td></tr>
+<tr><td><strong>3. QHSE pilot (CII)</strong></td><td>Metric cards with query context; oracle; translation tiers; parity method; review queue; <code>kb_verified_queries</code>; publish; Inspector retrieval order; compiler and ranking fixes</td><td>Phase 1–2; knowledge base phase-1 fixes</td><td>At least 15 verified queries passing parity at all tested grains and periods; benchmark gain over baseline measured; steward minutes per approved item recorded</td></tr>
+<tr><td><strong>4. Finance pilot</strong></td><td>Finance metric cards (Actual OPEX, budget, variance, cost per vessel) with currency, period basis and category rules; budget-source caveats; domain access groups; conflict handling with any Technical OPEX</td><td>Phase 3</td><td>3–5 Finance metrics validated and approved; at least one cross-domain conflict resolved and recorded</td></tr>
+<tr><td><strong>5. Scale by wave</strong></td><td>Domain waves by score; nightly parity; demotion on drift; usage-based ordering; value index from slicers</td><td>Usage data</td><td>Benchmark above 80% per domain before user testing in that domain</td></tr>
+<tr><td><strong>6. Runtime trust</strong></td><td>Domain-aware routing and clarifying questions; &quot;matches Power BI&quot; badge; disagreement alerts; DAX fallback for approved cards</td><td>Phases 3–5</td><td>Fewer escalations; adoption by domain</td></tr>
+<tr><td><strong>7. Secured models</strong></td><td>RLS role classifier; identity-lookup and static filters applied at query time; OLS object hiding</td><td>ALOFT access grants; mapping tables in Unity Catalog</td><td>Two-user test matches Power BI rows for each published secured model</td></tr>
+</tbody></table></div>
+<p>Phases 1 and 2 cover the whole estate cheaply. Phases 3 onward go one domain at a time, paced by steward capacity.</p>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-14-risks-and-open-questions"><h2>14. Risks and open questions</h2>
+<div class="table-scroll"><table>
+<thead><tr><th>Risk or question</th><th>Mitigation or how to answer</th></tr></thead><tbody>
+<tr><td>Steward capacity is the bottleneck</td><td>Measure minutes per item in the CII pilot; size waves from that; LLM drafts reduce writing, not review</td></tr>
+<tr><td>Translation automation is partial (an external case reported 40%)</td><td>Plan for human tier; prioritise by usage</td></tr>
+<tr><td>Admin APIs stay blocked</td><td>Design works without them; usage comes from workspace usage-metrics models; endorsement and labels arrive later</td></tr>
+<tr><td>Usage-metrics models go stale or cover only 30 days</td><td>Record each pull's window and the usage model's refresh time; flag windows older than 45 days; keep history by storing every window</td></tr>
+<tr><td>No unattended identity for RLS models</td><td>Delegated user runs for oracle only; no publishing</td></tr>
+<tr><td><code>lineageTag</code> stability across republish is unproven</td><td>Re-fetch CII after its next publish and compare</td></tr>
+<tr><td>&quot;Prep data for AI&quot; content location is unknown</td><td>Fetch a model where it is configured and inspect parts</td></tr>
+<tr><td>Embedded tables act as shadow master data</td><td>Raise a &quot;move to Unity Catalog&quot; finding with an owner</td></tr>
+<tr><td>Budgets and mappings live in personal Excel files</td><td>Caveat; push to Unity Catalog through the data team</td></tr>
+<tr><td>Which CII model is official</td><td>QHSE owner decision, recorded on the metric cards</td></tr>
+<tr><td>Domain disputes over shared terms</td><td>Conflict records, scope levels, and qualified names</td></tr>
+</tbody></table></div>
+<hr class="section-rule" />
+</section>
+<section class="detail-section" id="sec-15-appendix"><h2>15. Appendix</h2>
+<h3 id="sec-151-harvested-files-on-disk-gitignored">15.1 Harvested files on disk (gitignored)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Path</th><th>Contents</th></tr></thead><tbody>
+<tr><td><code>powerbi-estate/20261110T122619Z/</code></td><td>Inventory: <code>manifest.json</code>, <code>semantic_models.csv</code>, <code>report_semantic_links.csv</code>, per-workspace <code>reports.json</code> and <code>semantic_models_list.json</code>, per-model JSON with detail and datasources</td></tr>
+<tr><td><code>powerbi-estate/definitions/{modelId}/</code></td><td>TMDL for CII (<code>ee56d7f5…</code>), CII SDK-2026 (<code>3ba1095b…</code>), CII SDK-2025 (<code>1e76560b…</code>)</td></tr>
+<tr><td><code>powerbi-estate/report-definitions/820023a2…/</code></td><td>CII SDK-2026 report, modern format</td></tr>
+<tr><td><code>powerbi-estate/report-definitions-legacy/cf0ce134…/</code></td><td>CII SDK-2025 report, legacy format</td></tr>
+<tr><td><code>powerbi-estate/dax/</code>, <code>sql/</code>, <code>lookups/</code></td><td>Pilot DAX queries and results, SQL translation, decoded <code>Vessel_All_Dwts</code>, parity summary</td></tr>
+<tr><td><code>powerbi-estate/no_rls_models.csv</code></td><td>Models without RLS</td></tr>
+<tr><td><code>powerbi-estate/usage/</code></td><td>Views per report from the two usage-metrics models (counts only); queries in <code>powerbi-estate/dax/usage_*.dax</code></td></tr>
+</tbody></table></div>
+<h3 id="sec-152-glossary">15.2 Glossary</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Term</th><th>Meaning</th></tr></thead><tbody>
+<tr><td>Oracle</td><td>Power BI's own result for a DAX query, used as the answer key</td></tr>
+<tr><td>Parity</td><td>Agreement between ALOFT SQL and the oracle under the rules in 9.2</td></tr>
+<tr><td>Metric card</td><td>The reviewed record of one metric definition (6.3)</td></tr>
+<tr><td>Query context</td><td>Grain, filters, dates, blanks, currency and freshness that define how a metric is evaluated (6.4)</td></tr>
+<tr><td>Family</td><td>Near-duplicate models that differ by year or client</td></tr>
+<tr><td>Fidelity / canonical</td><td>Matches a report / agreed definition (D9)</td></tr>
+<tr><td>Light pass / deep pass</td><td>Estate-wide cheap harvest / per-domain translation and review (D11)</td></tr>
+</tbody></table></div>
+</section>
+
+      <section class="detail-section" id="impl-tracker">
+        <h2>Implementation tracker (branch)</h2>
+        <div class="embed-body">
+        <p><strong>Branch:</strong> <code>feature/powerbi-bridge</code>  </p>
+<p><strong>Design:</strong> <a href="../powerbi-harvest-build-plan.md"><code>docs/powerbi-harvest-build-plan.md</code></a></p>
+<h3 class="embed-h3" id="tracker-prerequisites">Prerequisites</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Step</th><th>Status</th><th>Notes</th></tr></thead><tbody>
+<tr><td>DB backup</td><td><strong>Blocked locally</strong></td><td>Run <code>node --env-file=.env scripts/backup-postgres.mjs backups</code> (needs <code>pg_dump</code> or Docker Desktop).</td></tr>
+<tr><td>Apply Phase 1 migration</td><td><strong>Pending backup</strong></td><td><code>npx prisma db execute --file prisma/migrations/20261111_powerbi_bridge_phase1/migration.sql --schema ./prisma/schema.prisma</code> then <code>npx prisma migrate resolve --applied 20261111_powerbi_bridge_phase1</code></td></tr>
+<tr><td><code>npx prisma generate</code></td><td>After migration</td><td>Refreshes client for <code>Pbi*</code> models</td></tr>
+<tr><td>Power BI context source</td><td>Manual</td><td>POST <code>/api/agent-lab/context/sources</code> with <code>connection_kind: &quot;powerbi&quot;</code>, <code>connection_ref: &lt;tenant id&gt;</code>, <code>scope_include: [&lt;workspace guids&gt;]</code></td></tr>
+<tr><td>PBI env on harvester</td><td>Ops</td><td><code>PBI_TENANT_ID</code>, <code>PBI_CLIENT_ID</code>, <code>PBI_CLIENT_SECRET</code> on worker</td></tr>
+</tbody></table></div>
+<h3 class="embed-h3" id="tracker-phase-checklist-build-plan-132">Phase checklist (build plan §13.2)</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Phase</th><th>Deliverable</th><th>Status</th></tr></thead><tbody>
+<tr><td>0</td><td>Baseline, IT, stewards</td><td>Not started</td></tr>
+<tr><td><strong>1</strong></td><td>Schema + <code>pbi_inventory</code> job + Power BI client</td><td><strong>In progress</strong> (code on branch)</td></tr>
+<tr><td>1</td><td><code>pbi_definitions</code>, <code>pbi_parse</code>, parsers, Estate Power BI tab</td><td>Not started</td></tr>
+<tr><td>2</td><td>Catalog link, domains, lineage UI</td><td>Not started</td></tr>
+<tr><td>3</td><td>CII pilot, verified queries, Inspector</td><td>Not started</td></tr>
+<tr><td>4+</td><td>Finance, scale, RLS</td><td>Not started</td></tr>
+</tbody></table></div>
+<h3 class="embed-h3" id="tracker-done-on-branch-session-2026-11-11">Done on branch (session 2026-11-11)</h3>
+<ul class="detail-list">
+<li><code>feature/powerbi-bridge</code> created from <code>dev</code></li>
+<li><code>scripts/backup-postgres.mjs</code>, <code>backups/README.md</code>, <code>.gitignore</code> for dumps</li>
+<li>Migration <code>20261111_powerbi_bridge_phase1</code> — <code>pbi_workspaces</code>, <code>pbi_models</code>, <code>pbi_model_datasources</code>, <code>pbi_reports</code>, <code>pbi_usage</code></li>
+<li>Prisma models <code>PbiWorkspace</code>, <code>PbiModel</code>, <code>PbiModelDatasource</code>, <code>PbiReport</code>, <code>PbiUsage</code></li>
+<li><code>src/lib/powerbi/credentials.ts</code>, <code>client.ts</code>, <code>inventory.ts</code></li>
+<li>Job kinds in <code>queue.ts</code>; orchestrator <strong><code>pbi_inventory</code></strong> implemented; other <code>pbi_*</code> stub failed with clear message</li>
+<li>Launch/trigger APIs; Jobs UI group <strong>Power BI</strong>; <code>connection_kind: powerbi</code> on sources POST</li>
+<li>Other <code>pbi_*</code> kinds disabled in launch modal (<code>launch-kinds.ts</code>)</li>
+</ul>
+<h3 class="embed-h3" id="tracker-next-ordered">Next (ordered)</h3>
+<ol class="detail-list">
+<li>Operator: backup + apply migration + <code>prisma generate</code></li>
+<li>Register Power BI source; run <strong>PBI Inventory</strong> from Jobs</li>
+<li>Migration phase 1b: TMDL/report tables (<code>pbi_tables</code>, <code>pbi_measures</code>, …)</li>
+<li><code>pbi_definitions</code> + <code>pbi_parse</code> jobs</li>
+<li>Estate <strong>Power BI</strong> nav tab (read APIs)</li>
+</ol>
+<h3 class="embed-h3" id="tracker-files-map">Files map</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Area</th><th>Paths</th></tr></thead><tbody>
+<tr><td>Schema</td><td><code>prisma/migrations/20261111_powerbi_bridge_phase1/</code>, <code>prisma/schema.prisma</code> (Pbi*)</td></tr>
+<tr><td>Runtime</td><td><code>src/lib/powerbi/*</code>, <code>scripts/context/orchestrator.ts</code></td></tr>
+<tr><td>Jobs UI</td><td><code>src/views/agent-lab/estate/jobs.tsx</code>, <code>src/lib/estate/job-ui.ts</code>, <code>launch-kinds.ts</code></td></tr>
+<tr><td>APIs</td><td><code>src/app/api/agent-lab/context/sources/route.ts</code>, <code>jobs/launch</code>, <code>jobs/trigger</code></td></tr>
+</tbody></table></div>
+        </div>
+      </section>
+
+      <section class="detail-section" id="offline-scripts">
+        <h2>Offline scripts &amp; APIs</h2>
+        <p class="meta-line">Full text from <code>docs/powerbi-semantic-schema.md</code> — validation and scripts used before in-app harvest. Regenerate this page after editing the markdown: <code>node scripts/docs/build-pbi-overview-html.mjs</code>.</p>
+        <div class="embed-body">
+        <p>Catalog harvest (<code>harvest_powerbi_estate.py</code>) does <strong>not</strong> include the tabular model. For <strong>tables, columns, measures, DAX, and Mashup (M)</strong> you need the <strong>Admin Scanner</strong> (Workspace Info API).</p>
+<h3 class="embed-h3" id="tracker-what-each-layer-gives-you">What each layer gives you</h3>
+<div class="table-scroll"><table>
+<thead><tr><th>Layer</th><th>Script</th><th>Content</th></tr></thead><tbody>
+<tr><td>Catalog</td><td><code>harvest_powerbi_estate.py</code></td><td>Dataset id/name, datasources, reports</td></tr>
+<tr><td><strong>Schema</strong></td><td><code>harvest_powerbi_schema.py</code></td><td>Tables, columns, measures, relationships (when returned), <strong>DAX</strong> and <strong>M</strong> when <code>datasetExpressions=true</code></td></tr>
+</tbody></table></div>
+<p>Scanner docs: <a href="https://learn.microsoft.com/en-us/fabric/governance/metadata-scanning-run">Run metadata scanning</a>, <a href="https://learn.microsoft.com/en-us/rest/api/power-bi/admin/workspace-info-post-workspace-info">PostWorkspaceInfo</a>.</p>
+<h3 class="embed-h3" id="tracker-tenant-settings-it">Tenant settings (IT)</h3>
+<ol class="detail-list">
+<li><strong>Service principals can use Fabric APIs</strong> (formerly &quot;Allow service principals to use Power BI APIs&quot;) — include your app. Already on: inventory and <code>getDefinition</code> work.</li>
+<li><strong>Service principals can access read-only admin APIs</strong> — enabled for a security group that contains the app. The app does not need the Fabric administrator role.</li>
+<li><strong>Enhance admin APIs responses with detailed metadata</strong>.</li>
+<li><strong>Enhance admin APIs responses with DAX and mashup expressions</strong> — required for DAX/M in scan results.</li>
+</ol>
+<p>Entra: an app that calls read-only admin APIs <strong>must not</strong> have any admin-consent-required Power BI permissions of type Application (<a href="https://learn.microsoft.com/en-us/fabric/admin/enable-service-principal-admin-apis#how-to-check-if-your-app-has-admin-consent-required-permissions">Microsoft docs</a>). This app has <code>Tenant.Read.All</code> with admin consent, which is a likely cause of the 401 together with setting 2. Either remove it from this app or use a separate app for the Scanner. Delegated <code>Dataset.*</code> permissions do <strong>not</strong> apply to client-credentials scripts.</p>
+<h3 class="embed-h3" id="tracker-run">Run</h3>
+<pre class="schema-block">python scripts/harvest_powerbi_schema.py --output-dir ./powerbi-estate</pre>
+<p>Output example: <code>powerbi-estate/20261110T123000Z-schema/semantic_schema/{workspaceId}/{Model}_{id}.schema.json</code></p>
+<p>Each file includes:</p>
+<ul class="detail-list">
+<li><code>tables[]</code> — <code>columns</code>, <code>measures</code> (measure <code>expression</code> is DAX when expressions are enabled)</li>
+<li><code>expressions[]</code> — dataset-level DAX/M when enabled</li>
+<li><code>relationships[]</code> — may be empty (known API limitation)</li>
+</ul>
+<h3 class="embed-h3" id="tracker-if-you-get-http-401">If you get HTTP 401</h3>
+<p>Admin Scanner is not enabled for your SP yet. Catalog + datasources still work; schema harvest will fail until IT completes the checklist above.</p>
+<h3 class="embed-h3" id="tracker-per-model-tmdl-via-fabric-getdefinition-works-without-scanner">Per-model TMDL via Fabric <code>getDefinition</code> (works without Scanner)</h3>
+<pre class="schema-block">python scripts/fetch_powerbi_model_definition.py --workspace-id &lt;ws&gt; --model-id &lt;model&gt;</pre>
+<p>Calls <code>POST https://api.fabric.microsoft.com/v1/workspaces/{ws}/semanticModels/{id}/getDefinition?format=TMDL</code> with the same service principal (Fabric token scope). Works today on workspaces the SP can reach, even though the admin Scanner returns 401. Output goes to <code>powerbi-estate/definitions/{modelId}/</code> and contains every table, column, measure (DAX), partition source (Power Query M, including <code>Databricks.Catalogs</code> + native SQL), relationships, and RLS roles.</p>
+<p>Embedded tables in M can contain personal data (for example owner email lists for RLS); keep output out of git.</p>
+<h3 class="embed-h3" id="tracker-per-report-visuals-via-fabric-getdefinition-pbir">Per-report visuals via Fabric <code>getDefinition</code> (PBIR)</h3>
+<pre class="schema-block">python scripts/fetch_powerbi_report_definition.py --workspace-id &lt;ws&gt; --report-id &lt;report&gt;</pre>
+<p>Calls <code>POST https://api.fabric.microsoft.com/v1/workspaces/{ws}/reports/{id}/getDefinition</code>. Output goes to <code>powerbi-estate/report-definitions/{reportId}/</code>. For PBIR reports, each <code>definition/pages/{page}/visuals/{visual}/visual.json</code> holds the visual type, the fields it uses (measures, grouping columns, date hierarchy level), and its filters. Visual and page filters can carry business logic that is not in the model, such as an extra vessel exclusion list.</p>
+<p>Verified on <code>CII SDK-2026</code> (report <code>820023a2-…</code>): 136 parts, 17 pages.</p>
+<h3 class="embed-h3" id="tracker-power-bi-numbers-via-execute-queries-dax">Power BI numbers via Execute Queries (DAX)</h3>
+<pre class="schema-block">python scripts/run_powerbi_dax_query.py --workspace-id &lt;ws&gt; --model-id &lt;model&gt; --query &quot;EVALUATE {1}&quot;</pre>
+<p>Calls <code>POST https://api.powerbi.com/v1.0/myorg/groups/{ws}/datasets/{id}/executeQueries</code>. The script only accepts queries that start with <code>EVALUATE</code> or <code>DEFINE</code>. On PowerShell, avoid double quotes inside the DAX or escape them.</p>
+<p>Tested with the existing service principal:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Model</th><th>RLS roles</th><th>Result</th></tr></thead><tbody>
+<tr><td>Available Data Sources (<code>32b49837-…</code>)</td><td>none</td><td>Works</td></tr>
+<tr><td>CII SDK-2026 (<code>3ba1095b-…</code>)</td><td><code>Owner &amp; TSI RLS</code></td><td>HTTP 401 <code>PowerBINotAuthorizedException</code></td></tr>
+<tr><td>CII SDK-2025 (<code>1e76560b-…</code>)</td><td><code>Owner &amp; TSI RLS</code></td><td>HTTP 401 <code>PowerBINotAuthorizedException</code></td></tr>
+</tbody></table></div>
+<p>The 401 on both CII models fits the documented limit that a service principal cannot query a model with RLS through this API. For those models, parity numbers need a user identity or values exported from the report.</p>
+<h4 id="tracker-models-without-rls">Models without RLS</h4>
+<p>The harvested model detail has <code>isEffectiveIdentityRolesRequired</code>. Of 503 models, 56 have RLS and 447 do not; 211 of the 447 read from Databricks. List: <code>powerbi-estate/no_rls_models.csv</code> (Databricks first, then by report count).</p>
+<p>The service principal can query the no-RLS ones. Example: model <strong>CII</strong> (<code>ee56d7f5-b4fe-4c11-a6b7-403d6c6d0c66</code>, Embedded PBI Portal) is a separate CII implementation from CII SDK-2026. It reads <code>REPORTING_LAYER.EMS.CONSUMPTION_LOG</code> (not the Enerva table) and computes <code>AER 2026 = SUM(Co2)·10^6 / (MAX(DWT) · SUM(distance))</code>. <code>powerbi-estate/dax/cii_model_2026_by_vessel.dax</code> returned 784 vessel rows, 502 with an AER. Note: 273 vessels with no 2026 data still get rating &quot;E&quot;, because the DAX falls through to &quot;E&quot; when the value is blank.</p>
+<h4 id="tracker-user-identity-rls-models">User identity (RLS models)</h4>
+<p>Workspace admins, members and contributors are not filtered by RLS. Ways to query as a user, as tried on 2026-11-10:</p>
+<div class="table-scroll"><table>
+<thead><tr><th>Method</th><th>Result</th></tr></thead><tbody>
+<tr><td>Azure CLI token (<code>az account get-access-token --resource https://analysis.windows.net/powerbi/api</code>)</td><td>HTTP 401 with empty body, even on <code>GET datasets/{id}</code>. The token's only scope is <code>user_impersonation</code>; the Power BI REST API needs scopes like <code>Dataset.Read.All</code>. Not usable.</td></tr>
+<tr><td><code>run_powerbi_dax_query.py --auth device</code> (MSAL device code on <code>PBI_CLIENT_ID</code>)</td><td>Code issued, sign-in not completed. Also needs &quot;Allow public client flows&quot; on the app registration.</td></tr>
+<tr><td><code>scripts/run_powerbi_dax_query_user.ps1</code> (<code>MicrosoftPowerBIMgmt.Profile</code>, browser sign-in)</td><td>Needs a terminal with a window. Run it from your own terminal, not an agent shell (agent shell fails with &quot;A window handle must be configured&quot;).</td></tr>
+</tbody></table></div>
+<pre class="schema-block">Install-Module MicrosoftPowerBIMgmt.Profile -Scope CurrentUser
+.\scripts\run_powerbi_dax_query_user.ps1 -WorkspaceId &lt;ws&gt; -ModelId &lt;model&gt; `
+    -QueryFile .\powerbi-estate\dax\cii_2026_vessel_month.dax -Output .\powerbi-estate\dax\cii_2026_vessel_month.json</pre>
+<p>Query files and outputs go under <code>powerbi-estate/dax/</code> (gitignored; may hold vessel-level business data).</p>
+<h4 id="tracker-parity-harness-cii-model-no-rls">Parity harness (CII model, no RLS)</h4>
+<pre class="schema-block">node scripts/compare_cii_pbi_databricks.mjs</pre>
+<p>Uses <code>DATABRICKS_CLIENT_ID</code>, <code>DATABRICKS_CLIENT_SECRET</code>, <code>DATABRICKS_HOST</code>, and <code>DATABRICKS_HTTP_PATH</code> from <code>.env</code> (same pattern as <code>scripts/test-databricks-creds.mjs</code>). SQL: <code>powerbi-estate/sql/cii_model_aer_2026_by_vessel.sql</code>. Oracle: <code>powerbi-estate/dax/cii_model_2026_by_vessel.json</code>. Summary: <code>powerbi-estate/dax/cii_model_2026_parity_summary.json</code>.</p>
+<p>Decode embedded lookups from TMDL:</p>
+<pre class="schema-block">python scripts/extract_pbi_embedded_table.py powerbi-estate/definitions/ee56d7f5-.../tables/Vessel_All_Dwts.tmdl \
+  --output powerbi-estate/lookups/cii_vessel_all_dwts.csv</pre>
+<p><code>compare_cii_pbi_databricks.mjs</code> injects that CSV into the SQL as a <code>VALUES</code> CTE (<code>COALESCE(Vessel_All_Dwts, IMO_MASTER_LIST)</code> DWT, same as <strong>Vessel Details - Final</strong>).</p>
+<p>Parity (2026-11-10): with embedded DWT, <strong>494 / 501 (98.6%)</strong> vessel-level AER 2026 values matched within ~1% / 0.05 abs (502 Power BI rows with AER; 548 SQL rows). Before embedded DWT: 288 / 313 (92%).</p>
+<h3 class="embed-h3" id="tracker-alternatives-not-in-these-scripts">Alternatives (not in these scripts)</h3>
+<ul class="detail-list">
+<li><strong>XMLA read</strong> on Premium/Fabric capacity — full TMSL; needs XMLA endpoint and Build permission.</li>
+</ul>
+        </div>
+        <p><a href="powerbi-semantic-schema.md">Markdown source</a> · <a href="powerbi-harvest-build-plan.md">Build plan markdown</a></p>
+      </section>
+    </main>
+  </div>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { BOOST_SUITE_V1, BOOST_SUITE_V2 } from '@/lib/boost/suite';
+import { findBoostCase } from '@/lib/boost/registry';
 import { scoreGroundedness } from '@/lib/boost/scorers/groundedness';
 import { scoreSemanticQuality } from '@/lib/boost/scorers/semantic';
 import { recomputeCtsgv } from '@/lib/lifecycle/score-ctsgv';
@@ -39,15 +39,13 @@ export async function POST(request: NextRequest) {
   let errors = 0;
   const results: { id: string; groundedness: number | null; semantic_score: number | null }[] = [];
 
-  const ALL_CASES = [...BOOST_SUITE_V1, ...BOOST_SUITE_V2];
-
   for (const run of runs) {
     if (run.outcome === 'errored' || run.outcome === 'incompatible') {
       skipped++;
       continue;
     }
 
-    const boostCase = ALL_CASES.find(c => c.id === run.case_id);
+    const boostCase = findBoostCase(run.case_id);
     if (!boostCase) {
       skipped++;
       continue;

@@ -326,7 +326,7 @@ A connection stays one workspace and warehouse. It has a **default credential** 
 | `query_internal` | `sp-aloft-query-internal` | Inspector `execute_tool`, semantic queries, raw-SQL dashboard widgets, CSV export, connection SQL console | `SELECT` on everything not labelled Confidential or Restricted. Until labels exist in ALOFT, the same data the current SP reads |
 | `query_confidential` | `sp-aloft-query-confidential` | Not routed yet: needs the Phase 1 tier decision | Internal plus Confidential |
 | `query_restricted` | `sp-aloft-query-restricted` | Not routed yet | Internal, Confidential and Restricted |
-| `metadata` | `sp-aloft-metadata` | Harvest scope and structure (T0, inventory), query history and lineage (T3), estate column preview, scan coverage, pipeline change check | `USE CATALOG`, `USE SCHEMA`, `BROWSE`; `SELECT` on `system.query.history` and `system.access.*lineage`. No `SELECT` on business data |
+| `metadata` | `sp-aloft-metadata` | Harvest scope and structure (T0, inventory), query history and lineage (T3), estate column preview, scan coverage, pipeline change check | `USE CATALOG`, `USE SCHEMA`, `BROWSE`; `SELECT` on `system_tables.query.query_history` and `system.access.*lineage`. No `SELECT` on business data |
 | `profile` | `sp-aloft-profile` | T1 profiles, sample rows, exact row counts (`harvestProfile`, `fetchSampleRows`, `countExactRows`) | `SELECT` on approved schemas, excluding Restricted |
 | `publish` | `sp-aloft-publish` | Metric view DDL (`applyMetricViews`), the only write | `CREATE TABLE` (metric views) and `USE` on the target schema only; `SELECT` on the source tables |
 
@@ -426,7 +426,7 @@ Today every signed-in user with `inspector:use` reaches all data. In Phase 2, be
 | Dashboard sharing | An org-wide dashboard with a Confidential widget shows "No access" to an uncleared viewer |
 | Revocation | A removed grant stops access on the next request, including mid-session and for a scheduled flow |
 | Escalation | Nobody can grant themselves clearance; `access:admin` alone returns no data |
-| LLM leakage set | Adversarial prompts ("list every table", "query system.query.history") never return hidden data |
+| LLM leakage set | Adversarial prompts ("list every table", "query system_tables.query.query_history") never return hidden data |
 
 Tests follow the existing Vitest patterns, for example `src/app/api/__tests__/authz-hardening.test.ts` with the mocked `@/lib/db`.
 

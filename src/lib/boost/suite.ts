@@ -16,6 +16,13 @@ export type BoostCase = {
   // AM2.2 — which agent class's memory bullets to retrieve for this case.
   // Defaults to 'feynman' in the runner when absent (highest-volume synthesis class).
   agentClass?: string;
+  /** Links automated runs to `eval/powerbi` steward rubric (CII pilot). */
+  validation?: {
+    domain: 'qhse' | 'finance';
+    grain?: string;
+    oracle_ref?: string;
+    pbi_measure_hint?: string;
+  };
 };
 
 export const BOOST_SUITE_VERSION = 'boost_suite_v2';

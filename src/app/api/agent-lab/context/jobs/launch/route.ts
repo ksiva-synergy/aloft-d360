@@ -26,7 +26,11 @@ import {
 } from '@/lib/estate/job-ui';
 import { filterLaunchableKinds, isLaunchDisabledKind } from '@/lib/estate/launch-kinds';
 import { denyUnlessEstatePipelineOperator } from '@/lib/estate/require-estate-pipeline-operator';
-import { LaunchSourceNotFoundError, resolveLaunchSources } from '@/lib/context/resolve-launch-source';
+import {
+  filterSourcesForJobKind,
+  LaunchSourceNotFoundError,
+  resolveLaunchSources,
+} from '@/lib/context/resolve-launch-source';
 import { findScopedLaunchConflict } from '@/lib/context/enqueue-and-launch';
 import { failJobsAfterLaunchError } from '@/lib/context/orphan-jobs';
 import { estimateLaunchHarvestUsd } from '@/lib/context/launch-cost-estimate';
@@ -119,6 +123,15 @@ const VALID_KINDS: JobKind[] = [
   'knowledge_sync',
   't3_usage',
   't4_scan',
+  'pbi_inventory',
+  'pbi_definitions',
+  'pbi_parse',
+  'pbi_catalog_link',
+  'pbi_domains',
+  'pbi_oracle',
+  'pbi_translate',
+  'pbi_parity',
+  'pbi_publish',
 ];
 
 // Kinds that support auto-splitting (have objects-per-minute rates and benefit from partitioning)
@@ -387,7 +400,12 @@ export async function POST(req: NextRequest) {
       const strippedExcludes = stripExcludeSchemasForKind(kind, excludeSchemas);
       const scope = resolveLaunchScopeFilters(strippedExcludes, includePatterns);
 
-      for (const src of sources) {
+      const kindSources = filterSourcesForJobKind(sources, kind);
+      if (kindSources.length === 0) {
+        continue;
+      }
+
+      for (const src of kindSources) {
         await assertTierLaunchNotTooWide(
           orgId,
           kind,

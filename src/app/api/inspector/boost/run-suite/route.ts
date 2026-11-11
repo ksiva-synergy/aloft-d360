@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runBenchmarkCase } from '@/lib/boost/runner';
-import { BOOST_SUITE_V1 } from '@/lib/boost/suite';
+import { BOOST_SUITE_CII_VERSION } from '@/lib/boost/suite-cii';
+import { casesForSuite } from '@/lib/boost/registry';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { denyUnlessSessionRole } from '@/middleware/auth';
 
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
     modelKeys?: string[];
     contextModes?: string[];
     caseIds?: string[];
+    suiteVersion?: string;
   };
 
   const modelKeys = (body.modelKeys?.length ? body.modelKeys : BOOST_MODELS.map(m => m.key))
@@ -24,8 +26,11 @@ export async function POST(request: NextRequest) {
   const contextModes = (body.contextModes?.length ? body.contextModes : ALL_CONTEXT_MODES)
     .filter((m): m is 'harvested' | 'warehouse_only' => m === 'harvested' || m === 'warehouse_only');
 
-  const caseIds = (body.caseIds?.length ? body.caseIds : BOOST_SUITE_V1.map(c => c.id))
-    .filter(id => BOOST_SUITE_V1.find(c => c.id === id));
+  const suiteVersion = body.suiteVersion?.trim() || undefined;
+  const suiteCases = casesForSuite(suiteVersion);
+  const caseIds = (body.caseIds?.length ? body.caseIds : suiteCases.map((c) => c.id)).filter((id) =>
+    suiteCases.find((c) => c.id === id),
+  );
 
   if (!modelKeys.length) return NextResponse.json({ error: 'No valid modelKeys' }, { status: 400 });
   if (!contextModes.length) return NextResponse.json({ error: 'No valid contextModes' }, { status: 400 });
@@ -46,5 +51,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ dispatched, results });
+  return NextResponse.json({
+    dispatched,
+    suiteVersion: suiteVersion ?? (caseIds.some((id) => id.startsWith('cii_')) ? BOOST_SUITE_CII_VERSION : undefined),
+    results,
+  });
 }

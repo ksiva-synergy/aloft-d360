@@ -325,6 +325,20 @@ const KIND_META: Record<string, KindMeta> = {
     bg: 'rgba(251,146,60,0.08)',
     border: 'rgba(251,146,60,0.25)',
   },
+  pbi_inventory: {
+    label: 'PBI Inventory',
+    description: 'Workspaces, semantic models, reports and datasources from Power BI',
+    color: '#FBBF24',
+    bg: 'rgba(251,191,36,0.08)',
+    border: 'rgba(251,191,36,0.25)',
+  },
+  pbi_definitions: {
+    label: 'PBI Definitions',
+    description: 'Fetch TMDL model and PBIR report definitions into raw store (incremental)',
+    color: '#FBBF24',
+    bg: 'rgba(251,191,36,0.08)',
+    border: 'rgba(251,191,36,0.25)',
+  },
 };
 
 interface JobKindGroup {
@@ -364,6 +378,13 @@ const JOB_KIND_GROUPS: JobKindGroup[] = [
     label: 'Usage & lineage',
     subtitle: 'Learn from query history which tables are used together',
     kinds: ['t3_usage'],
+  },
+  {
+    id: 'powerbi',
+    step: 'PBI',
+    label: 'Power BI',
+    subtitle: 'Harvest semantic models and reports (separate from Databricks)',
+    kinds: ['pbi_inventory', 'pbi_definitions'],
   },
   {
     id: 'entity_model',

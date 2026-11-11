@@ -20,6 +20,7 @@ const VALID_KINDS: JobKind[] = [
   'estate_inventory',
   't3_usage',
   'knowledge_sync',
+  'pbi_inventory',
 ];
 
 const STUB_KINDS = new Set<JobKind>(['mapping', 't3_connected']);
