@@ -98,6 +98,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Models',      href: '/agent-staging/models',      icon: CpuIcon },
       { label: 'Users',       href: '/agent-staging/users',       icon: UsersIcon },
+      { label: 'Access requests', href: '/agent-staging/access-requests', icon: ShieldCheckIcon },
       { label: 'Data access', href: '/agent-staging/data-access', icon: KeyIcon },
       { label: 'Cost monitor', href: '/agent-staging/cost',       icon: CurrencyCircleDollarIcon },
       { label: 'Policies',    href: '/agent-staging/policies',    icon: ShieldCheckIcon },
@@ -124,4 +125,19 @@ export function filterNavGroups(groups: NavGroup[], levels: SectionLevels | null
   return groups
     .map((g) => ({ ...g, items: g.items.filter((i) => !hiddenInNav(levels, i.href)) }))
     .filter((g) => g.items.length > 0);
+}
+
+export function showHomeInNav(levels: SectionLevels | null): boolean {
+  return !hiddenInNav(levels, HOME_ITEM.href);
+}
+
+/** First page this person can open — used for logo / post-login landing. */
+export function primaryNavHref(levels: SectionLevels | null): string {
+  if (showHomeInNav(levels)) return HOME_ITEM.href;
+  for (const g of NAV_GROUPS) {
+    for (const i of g.items) {
+      if (!hiddenInNav(levels, i.href)) return i.href;
+    }
+  }
+  return '/inspector';
 }

@@ -69,12 +69,12 @@ describe('paths', () => {
     expect(sectionForPath('/inspector')?.id).toBe('build.inspector');
   });
 
-  it('hides only enforced sections at none', () => {
+  it('hides every section at none', () => {
     const member = resolveSectionLevels(['member'], []);
     expect(hiddenInNav(member, '/agent-lab/estate/catalog')).toBe(true);
     expect(hiddenInNav(member, '/agent-staging/users')).toBe(true);
-    // Not enforced yet: stays visible whatever the default says.
-    expect(hiddenInNav(member, '/agent-lab/automate')).toBe(false);
+    expect(hiddenInNav(member, '/agent-lab/automate')).toBe(true);
+    expect(hiddenInNav(member, '/inspector/dashboards')).toBe(true);
     expect(hiddenInNav(null, '/agent-lab/estate/catalog')).toBe(false);
     expect(filterOutHidden(member, ['/agent-lab/estate', '/inspector'])).toEqual(['/inspector']);
   });
@@ -102,13 +102,24 @@ describe('govern defaults', () => {
     expect(levels['govern.users']).toBe('view');
   });
 
-  it('members keep their own connections and nothing else in Govern', () => {
+  it('members see only Ask Data, Agents, and History in Build by default', () => {
     const levels = resolveSectionLevels(['member'], []);
-    expect(levels['govern.connections']).toBe('manage');
+    expect(levels['build.inspector']).toBe('manage');
+    expect(levels['build.agents']).toBe('manage');
+    expect(levels['build.history']).toBe('view');
+    for (const id of ['build.dashboards', 'build.metrics', 'build.teach', 'build.automate', 'build.performance', 'build.bandits']) {
+      expect(levels[id]).toBe('none');
+    }
+    expect(levels['home']).toBe('none');
+  });
+
+  it('members have no Govern sections unless a bundle adds them', () => {
+    const levels = resolveSectionLevels(['member'], []);
+    expect(levels['govern.connections']).toBe('none');
     for (const id of ['govern.models', 'govern.users', 'govern.data-access', 'govern.cost', 'govern.policies', 'govern.audit']) {
       expect(levels[id]).toBe('none');
     }
-    expect(levels['govern.docs']).toBe('view');
+    expect(levels['govern.docs']).toBe('none');
   });
 
   it('read-only users see docs only', () => {
@@ -149,7 +160,7 @@ describe('custom roles', () => {
 
   it('set every section exactly, including taking access away from the base role', () => {
     const levels = resolveSectionLevels(['member'], analyst);
-    expect(levels['build.dashboards']).toBe('none'); // Member default is manage
+    expect(levels['build.dashboards']).toBe('none');
     expect(levels['build.agents']).toBe('manage');
     expect(levels['govern.cost']).toBe('view'); // Member default is none
   });

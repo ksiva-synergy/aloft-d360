@@ -15,7 +15,7 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const caller = await requireMemoryCaller();
+  const caller = await requireMemoryCaller(req);
   if (caller instanceof NextResponse) return caller;
 
   const rawParams = Object.fromEntries(req.nextUrl.searchParams.entries());

@@ -45,8 +45,13 @@ const ESTATE_DEFAULTS: Record<DefaultRole, SectionLevel> = { readonly: 'none', m
 const ADMIN_VIEW: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'none', admin: 'view' };
 const MEMBER_TOOL: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'manage', admin: 'manage' };
 const EVERYONE_VIEW: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'view', admin: 'view' };
-/** Connections are people's own; members and admins manage theirs. */
-const MEMBER_OWN: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'manage', admin: 'manage' };
+/** Home overview: members land on Ask Data instead. */
+const HOME_DEFAULTS: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'none', admin: 'view' };
+const DOCS_DEFAULTS: Record<DefaultRole, SectionLevel> = { readonly: 'view', member: 'none', admin: 'view' };
+/** Members see their own runs; admins see org-wide history. */
+const MEMBER_HISTORY: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'view', admin: 'manage' };
+/** Connections are people's own; admins (and bundles) can reopen them for members. */
+const CONNECTIONS_DEFAULTS: Record<DefaultRole, SectionLevel> = { readonly: 'none', member: 'none', admin: 'manage' };
 
 const estate = (id: string, label: string, paths: string[], view: string, manage: string): SectionDef => ({
   id: `estate.${id}`,
@@ -62,18 +67,18 @@ const estate = (id: string, label: string, paths: string[], view: string, manage
 
 export const SECTIONS: SectionDef[] = [
   // ── Home ──
-  { id: 'home', label: 'Home', group: 'home', paths: ['/dashboard'], view: 'Home page', manage: '', defaults: EVERYONE_VIEW, viewOnly: true },
+  { id: 'home', label: 'Home', group: 'home', paths: ['/dashboard'], view: 'Home page', manage: '', defaults: HOME_DEFAULTS, viewOnly: true, enforced: true },
 
   // ── Build ──
   { id: 'build.inspector', label: 'Ask Data', group: 'build', paths: ['/inspector'], view: 'Own sessions', manage: 'Ask questions, save sessions', defaults: MEMBER_TOOL },
   { id: 'build.agents', label: 'Agents', group: 'build', paths: ['/agent-lab/agents'], view: 'Use published agents', manage: 'Create, edit, test, and publish agents', defaults: MEMBER_TOOL },
-  { id: 'build.dashboards', label: 'Dashboards', group: 'build', paths: ['/inspector/dashboards'], view: 'Shared dashboards', manage: 'Create, edit, and share dashboards', defaults: MEMBER_TOOL },
+  { id: 'build.dashboards', label: 'Dashboards', group: 'build', paths: ['/inspector/dashboards'], view: 'Shared dashboards', manage: 'Create, edit, and share dashboards', defaults: ADMIN_VIEW },
   { id: 'build.metrics', label: 'Metrics', group: 'build', paths: ['/agent-lab/metrics'], view: 'Metric definitions', manage: 'Define and change metrics', defaults: ADMIN_VIEW },
   { id: 'build.teach', label: 'Teach', group: 'build', paths: ['/agent-lab/teach'], view: 'Teach sessions', manage: 'Run teach sessions, hand off candidates', defaults: ADMIN_VIEW },
-  { id: 'build.automate', label: 'Automate', group: 'build', paths: ['/agent-lab/automate'], view: 'Flows and runs', manage: 'Create, run, and schedule flows', defaults: ADMIN_VIEW },
-  { id: 'build.performance', label: 'Performance Lab', group: 'build', paths: ['/performance-lab'], view: 'Eval results', manage: 'Run evals', defaults: ADMIN_VIEW },
+  { id: 'build.automate', label: 'Automate', group: 'build', paths: ['/agent-lab/automate', '/agent-lab/flows'], view: 'Flows and runs', manage: 'Create, run, and schedule flows', defaults: ADMIN_VIEW },
+  { id: 'build.performance', label: 'Performance Lab', group: 'build', paths: ['/performance-lab', '/agent-lab/ops'], view: 'Eval results', manage: 'Run evals', defaults: ADMIN_VIEW },
   { id: 'build.bandits', label: 'Bandits', group: 'build', paths: ['/agent-lab/bandits'], view: 'Experiments', manage: 'Change experiments', defaults: ADMIN_VIEW },
-  { id: 'build.history', label: 'History', group: 'build', paths: ['/agent-lab/history'], view: 'Own runs', manage: "Everyone's runs", defaults: ADMIN_VIEW },
+  { id: 'build.history', label: 'History', group: 'build', paths: ['/agent-lab/history', '/agent-lab/runs'], view: 'Own runs', manage: "Everyone's runs", defaults: MEMBER_HISTORY },
 
   // ── Memory ──
   { id: 'memory.knowledge', label: 'Knowledge', group: 'memory', paths: ['/agent-lab/knowledge'], view: 'Knowledge bases', manage: 'Edit knowledge bases', defaults: ADMIN_VIEW },
@@ -93,12 +98,22 @@ export const SECTIONS: SectionDef[] = [
   // ── Govern (enforced; admins view only, platform admins act — user decision 2026-11-06) ──
   { id: 'govern.models', label: 'Models', group: 'govern', paths: ['/agent-staging/models'], view: 'Models and gateway settings', manage: 'Change models and gateway settings', defaults: ADMIN_VIEW, enforced: true },
   { id: 'govern.users', label: 'Users', group: 'govern', paths: ['/agent-staging/users'], view: 'People, roles, and bundles', manage: 'Invite people, change roles, block or remove people', defaults: ADMIN_VIEW, enforced: true },
+  {
+    id: 'govern.access-requests',
+    label: 'Access requests',
+    group: 'govern',
+    paths: ['/agent-staging/access-requests'],
+    view: 'SSO sign-ins waiting for admission',
+    manage: 'Approve role and admit, or reject',
+    defaults: { readonly: 'none', member: 'none', admin: 'none' },
+    enforced: true,
+  },
   { id: 'govern.data-access', label: 'Data access', group: 'govern', paths: ['/agent-staging/data-access'], view: 'Data map, people, labels, log', manage: 'Map data, manage departments, grants, and labels', defaults: ADMIN_VIEW, enforced: true },
   { id: 'govern.cost', label: 'Cost monitor', group: 'govern', paths: ['/agent-staging/cost'], view: 'Spend', manage: 'Set budgets', defaults: ADMIN_VIEW, enforced: true },
   { id: 'govern.policies', label: 'Policies', group: 'govern', paths: ['/agent-staging/policies'], view: 'Policies', manage: 'Add, edit, and remove policies', defaults: ADMIN_VIEW, enforced: true },
-  { id: 'govern.connections', label: 'Connections', group: 'govern', paths: ['/agent-staging/connections'], view: 'Connections shared with you', manage: 'Add and edit your own connections', defaults: MEMBER_OWN, enforced: true },
+  { id: 'govern.connections', label: 'Connections', group: 'govern', paths: ['/agent-staging/connections'], view: 'Connections shared with you', manage: 'Add and edit your own connections', defaults: CONNECTIONS_DEFAULTS, enforced: true },
   { id: 'govern.audit', label: 'Audit log', group: 'govern', paths: ['/agent-staging/audit'], view: 'Audit log', manage: '', defaults: ADMIN_VIEW, viewOnly: true, enforced: true },
-  { id: 'govern.docs', label: 'Docs', group: 'govern', paths: ['/docs'], view: 'Docs', manage: '', defaults: EVERYONE_VIEW, viewOnly: true },
+  { id: 'govern.docs', label: 'Docs', group: 'govern', paths: ['/docs'], view: 'Docs', manage: '', defaults: DOCS_DEFAULTS, viewOnly: true },
 ];
 
 export const SECTION_BY_ID: ReadonlyMap<string, SectionDef> = new Map(SECTIONS.map((s) => [s.id, s]));
@@ -272,10 +287,10 @@ export function sectionForPath(pathname: string): SectionDef | null {
   return best;
 }
 
-/** Sidebar rule: hide only enforced sections the person cannot open. */
+/** Sidebar rule: hide any section the person cannot open (level `none`). */
 export function hiddenInNav(levels: SectionLevels | null, href: string): boolean {
   if (!levels) return false;
   const s = sectionForPath(href);
-  if (!s || !s.enforced) return false;
+  if (!s) return false;
   return levels[s.id] === 'none';
 }

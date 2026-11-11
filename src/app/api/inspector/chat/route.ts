@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { clientStreamError } from '@/lib/inspector/client-stream-error';
+import { clearTurnStop, isTurnStopped, turnStopKey } from '@/lib/chat/turn-control';
+import { createDraftWriter } from '@/lib/chat/turn-draft';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { logAgentCost } from '@/lib/lifecycle/log-agent-cost';
 import { assertInteractiveBudget, BudgetExceededError } from '@/lib/spend/budgets';
@@ -19,7 +21,6 @@ import {
   buildSessionKnowledgeContext,
   persistSessionKnowledgeAfterTurn,
 } from '@/lib/inspector/session-knowledge';
-import { runAgentLoop } from '@/lib/inspector/agent-loop';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { BOOST_MODELS } from '@/lib/boost/models';
 import { openSession } from '@/lib/memory/trace';
@@ -329,12 +330,17 @@ export async function POST(request: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // `closed` means the browser went away (other tab, navigation, sleep). Keep generating.
+      // `userStop` is only the Stop button (POST /api/inspector/chat/cancel).
       const closed = { value: false };
+      const stopKey = body.sessionId ? turnStopKey('inspector', body.sessionId) : '';
+      if (stopKey) clearTurnStop(stopKey);
+      const userStop = { get value() { return isTurnStopped(stopKey); } };
+      const draft = createDraftWriter(body.sessionId, 'inspectorDraft');
       const encoder = new TextEncoder();
 
       request.signal.addEventListener('abort', () => {
         closed.value = true;
-        try { controller.close(); } catch {}
       });
 
       const emit = (event: Record<string, unknown>) => {
@@ -463,13 +469,14 @@ export async function POST(request: NextRequest) {
           supportsThinking: modelConfig.supportsThinking,
           // Bedrock Claude only: cache system+tools and the growing conversation across loops.
           cacheConversation: true,
-          abortSignal: closed,
+          abortSignal: userStop,
           onLoopStart: (loop: number, maxLoops: number) => {
             currentAgentLoop = loop;
             emit({ type: 'loop_start', loop, maxLoops });
           },
           onTextChunk: (delta: string) => {
             turnMetrics.markFirstToken();
+            draft.append(delta);
             emit({ type: 'text', delta });
           },
           onThinkingChunk: (delta: string) => {
@@ -569,14 +576,15 @@ export async function POST(request: NextRequest) {
             emit({ type: 'loop_usage', loop, inputTokens, outputTokens, totalInputTokens, totalOutputTokens });
           },
           onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
+          onModelSwitch: (modelId: string) => { effectiveModelId = modelId; },
           onTextReplace: (text: string) => {
+            draft.replace(text);
             emit({ type: 'text_replace', text });
           },
         };
 
-        let result = isFoundryModel && boostModel
-          ? await dispatchAgentLoop(boostModel, loopParams)
-          : await runAgentLoop(loopParams);
+        let result = await dispatchAgentLoop(isFoundryModel ? (boostModel ?? null) : null, loopParams);
+        if (result.servedModelId) effectiveModelId = result.servedModelId;
 
         // Cost-log tokens: prefer recorder totals (include prompt-cache split), else provider usage.
         const costTokens = () =>
@@ -692,7 +700,7 @@ export async function POST(request: NextRequest) {
             attributeRunOutcome(body.sessionId, { success }).catch(() => {});
           }
         } else if (result.outcome === 'truncated') {
-          if (!closed.value) {
+          if (!closed.value && !userStop.value) {
             emit({
               type: 'text',
               delta: `\n\n---\n**Tool-call limit reached.** I used all ${maxInspectorLoops} available query slots for this turn. You can continue the conversation to explore further — previous results remain visible in the dashboard and I can reference them in follow-up turns.`,
@@ -757,9 +765,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const draftStatus = userStop.value ? 'stopped' : result.outcome === 'errored' ? 'error' : 'done';
+        await draft.finish(draftStatus);
+
         void turnMetrics.flush({
           model: effectiveModelId,
-          outcome: closed.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
+          outcome: userStop.value && result.outcome !== 'completed' ? 'aborted' : result.outcome,
           toolCalls: result.toolCalls.length,
           toolErrors: toolCallErrorCount,
           error: result.errorDetail ?? null,
@@ -806,6 +817,7 @@ export async function POST(request: NextRequest) {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Chat stream failed';
         void turnMetrics.flush({ model: effectiveModelId, outcome: 'errored', toolCalls: 0, toolErrors: 0, error: msg });
+        await draft.finish(userStop.value ? 'stopped' : 'error');
         emit({ type: 'error', message: clientStreamError(err, 'inspector/chat'), recoverable: true });
         emit({ type: 'done', usage: { inputTokens: 0, outputTokens: 0 }, model: effectiveModelId, loops: 0, qualityScore: 0, contextMode, outcome: 'errored' as const, toolTrajectory: [] });
         if (!closed.value) { closed.value = true; try { controller.close(); } catch {} }

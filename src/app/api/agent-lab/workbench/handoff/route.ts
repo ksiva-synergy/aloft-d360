@@ -7,6 +7,7 @@ import { guardSessionRead } from '@/lib/inspector/session-auth';
 import { loadSessionKnowledge } from '@/lib/inspector/session-knowledge-store';
 import { constructionStateSchema } from '@/lib/construction/constructionState';
 import { getDefaultOrg } from '@/lib/platform/agents';
+import { workbenchAuth } from '../_auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,9 @@ const MAX_SEEDED_SOURCES = 8;
  * parent_session_id. Returns the first message the workbench should send.
  */
 export async function POST(request: NextRequest) {
+  const auth = await workbenchAuth(request);
+  if (auth instanceof NextResponse) return auth;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

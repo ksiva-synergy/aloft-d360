@@ -11,7 +11,7 @@ export async function DELETE(
   { params: paramsPromise }: { params: Promise<{ id: string }> },
 ) {
   const params = await paramsPromise;
-  const caller = await requireMemoryCaller();
+  const caller = await requireMemoryCaller(req);
   if (caller instanceof NextResponse) return caller;
 
   const { id } = params;

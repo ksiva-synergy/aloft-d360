@@ -9,6 +9,9 @@ import { RequestsView } from '../RequestsView';
 
 vi.mock('../AccessLogView', () => ({ AccessLogView: () => <div>decision log</div> }));
 vi.mock('@/lib/navigation', () => ({ useSearchParams: () => new URLSearchParams('tag=comp') }));
+vi.mock('@/lib/navigation/link', () => ({
+  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
+}));
 vi.mock('next-auth/react', () => ({ useSession: () => ({ data: { user: { id: 'u-ana' } } }) }));
 
 import MyAccessPage from '@/views/my-access';
@@ -108,12 +111,20 @@ describe('My data access', () => {
     expect(screen.getByText('No access (sees •••)', { exact: false })).toBeTruthy();
     expect(screen.getByText('ACC-0005 was approved')).toBeTruthy();
     const form = screen.getByRole('region', { name: 'Ask for access' });
-    fireEvent.change(within(form).getByLabelText('Why do you need it'), { target: { value: 'Q4 crew cost review for Fleet B' } });
+    fireEvent.change(within(form).getByLabelText('What you need to do'), { target: { value: 'Review Q4 crew cost' } });
+    fireEvent.change(within(form).getByLabelText('Why your role needs it'), { target: { value: 'Q4 crew cost review for Fleet B' } });
     fireEvent.click(within(form).getByRole('button', { name: /Send request/ }));
     await waitFor(() =>
       expect(calls.find((c) => c.method === 'POST')).toMatchObject({
         path: '/api/access/requests',
-        body: { targetType: 'tag', tagId: 'comp', level: 'full', durationDays: 30, reason: 'Q4 crew cost review for Fleet B' },
+        body: {
+          targetType: 'tag',
+          tagId: 'comp',
+          level: 'full',
+          durationDays: 30,
+          purpose: 'Review Q4 crew cost',
+          reason: 'Q4 crew cost review for Fleet B',
+        },
       }),
     );
     expect(await screen.findByText(/Sent as ACC-0008/)).toBeTruthy();
@@ -123,7 +134,8 @@ describe('My data access', () => {
     const calls = fakeApi();
     render(<MyAccessPage />);
     const form = await screen.findByRole('region', { name: 'Ask for access' });
-    fireEvent.change(within(form).getByLabelText('Why do you need it'), { target: { value: 'need it' } });
+    fireEvent.change(within(form).getByLabelText('What you need to do'), { target: { value: 'Review Q4 crew cost' } });
+    fireEvent.change(within(form).getByLabelText('Why your role needs it'), { target: { value: 'need it' } });
     fireEvent.click(within(form).getByRole('button', { name: /Send request/ }));
     expect(await screen.findByText(/at least 20 characters/)).toBeTruthy();
     expect(calls.some((c) => c.method === 'POST')).toBe(false);

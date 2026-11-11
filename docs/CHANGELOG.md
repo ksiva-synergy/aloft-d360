@@ -1,6 +1,74 @@
-# Changelog — aloft-d360
+## 2026-11-11 — Compact delete confirmation for saved agents
 
-Single running log of changes made in this repo, **newest first**.
+- **What:** Deleting a saved agent from the Agents list or agent chat header opens a small modal (title, agent summary, Cancel / Delete) instead of crowding the card or header with inline Confirm and Cancel buttons.
+- **Paths:** `src/components/agent-lab/DeleteAgentDialog.tsx`, `src/views/agent-lab/agents/index.tsx`, `src/views/agent-lab/agents/use.tsx`.
+- **Why:** User request — cleaner, compact delete confirmation UX.
+- **Verified:** Manual UI check on Agents grid and agent use header (platform admin).
+- **Not done:** Workbench or catalog views that use a different delete pattern.
+
+## 2026-11-11 — Section gates on direct URLs and APIs
+
+- **What:** Every registered UI route under `AgentLayout` runs through `SectionGate` (members get “No access” if they type a blocked URL). API paths map to sections in `src/lib/sections/api-guard.ts`; `handle()` wrappers, inspector/session guards, workbench auth, memory callers, flows context, dashboard summary, and runs routes enforce the same levels.
+- **Paths:** `src/lib/sections/api-guard.ts`, `src/lib/sections/__tests__/api-guard.test.ts`, `src/lib/http.ts`, `src/components/sections/SectionGate.tsx`, `web/src/AgentLayout.tsx`, `src/lib/inspector/session-auth.ts`, `src/lib/memory/curation-access.ts`, `src/app/api/agent-lab/workbench/_auth.ts`, plus related API routes; `src/lib/sections/__tests__/route-coverage.test.ts`.
+- **Why:** Follow-up to member-only nav — hiding links is not enough.
+- **Verified:** `vitest run src/lib/sections/__tests__/api-guard.test.ts src/lib/sections/__tests__/route-coverage.test.ts src/lib/sections/__tests__/registry.test.ts`.
+- **Not done:** Some legacy API routes that neither use `handle()` nor a shared guard may still lack a section check until they are folded into the coverage list.
+
+## 2026-11-11 — Members see only Ask Data, Agents, and History
+
+- **What:** Built-in **Member** role defaults now expose only Ask Data, Agents, and History in the sidebar (plus Profile in the account menu). Home, Docs, Dashboards, Connections, Memory, Estate, and Govern stay hidden until a bundle or custom role adds them. The sidebar hides any section at level `none`, not only enforced routes. Members land on Ask Data after sign-in; Home is gated.
+- **Paths:** `src/lib/sections/registry.ts`, `src/lib/sections/__tests__/registry.test.ts`, `src/components/agent-lab/staging/nav-config.ts`, `src/components/agent-lab/staging/CommandSidebar.tsx`, `src/components/agent-lab/staging/StagingSidebar.tsx`, `src/components/users/role-copy.ts`, `web/src/routes/LandingRedirect.tsx`, `web/src/routes/adapters.tsx`, `web/src/router.tsx`, `docs/access/section-access.md`.
+- **Why:** User request — members should not see the rest of the product in navigation.
+- **Verified:** `vitest run src/lib/sections/__tests__/registry.test.ts`.
+- **Not done:** Build/Memory routes without API section gates can still be opened by direct URL; bundles unchanged.
+
+## 2026-11-11 — SSO access requests (platform-admin approval)
+
+- **What:** First-time Microsoft sign-in no longer auto-admits everyone as `member`. New Entra users are created as `PENDING_APPROVAL` (no role) until a platform admin approves them on **Govern → Access requests** with a chosen role, or rejects the request. Login shows a clear “waiting for approval” message. Members of `AZURE_AD_ADMIN_GROUP_IDS` still auto-admit (bootstrap). Set `SSO_REQUIRE_ADMIN_APPROVAL=false` or `SSO_JIT_AUTO_ACTIVATE=true` to restore immediate JIT provisioning (e.g. local dev).
+- **Paths:** `src/lib/sso-access.ts`, `src/lib/rbac.ts`, `src/lib/auth.ts`, `src/views/login.tsx`, `src/views/agent-staging/access-requests.tsx`, `src/app/api/users/access-requests/{route.ts,[id]/route.ts}`, `prisma/schema.prisma`, `prisma/migrations/add_user_pending_approval.sql`, `src/lib/sections/registry.ts`, `web/src/router.tsx`, user status UI types.
+- **Why:** Product request: SSO should raise an access request for platform admins instead of silent auto-provision.
+- **Verified:** `vitest run src/lib/__tests__/sso-access.test.ts`. Apply `prisma/migrations/add_user_pending_approval.sql` on the database before using in shared environments.
+- **Not done:** Email/Teams notification to platform admins on new requests; pending-count badge in nav.
+
+## 2026-11-11 — Tests and typecheck match the automate-runs tree
+
+- **What:** Catalog-agent tests call the same model dispatcher the app uses. The “suggest tables” route is listed as open to any signed-in person (it does not grant access). Dashboard headings use the app font and type size. Access request labels use the caption type size. “My data access” tests fill both request fields and do not need a router for links.
+- **Paths:** `src/lib/agents/__tests__/run-catalog-agent.test.ts`, `src/lib/sections/__tests__/route-coverage.test.ts`, `src/components/dashboard/DashboardView.tsx`, `src/components/dashboard/DashboardView.module.css`, `src/components/access/requests/RequestList.tsx`, `src/components/access/console/AccessConsoleHelp.tsx`, `src/components/access/console/__tests__/RequestsViews.test.tsx`.
+- **Why:** After moving onto `feature/automate-runs`, the unit suite had 13 failures and the Prisma client was behind the schema.
+- **Verified:** The four previously failing files, then the files that only timed out when the machine was busy. `tsc --noEmit` is clean after the inspector chat call passes `null` when no Foundry model object was resolved. Prisma client regenerated from `prisma/schema.prisma` (the query-engine file was left in place because the running app had it open).
+- **Not done:** The data-access end-to-end file writes and then deletes `E2E-TEST` rows in the dev database, so it was not run from this session.
+
+## 2026-11-11 — Chat falls back to another model when one fails
+
+- **What:** If the chosen model is missing, refused, or errors before it writes anything, the turn tries the other chat models on the LLM Lite gateway (the configured default first, then up to five others). The reply is returned from the first model that answers. A model that already produced text or tool calls is not replaced. Two slow timeouts stop the chain. Boost scoring stays on the model it was given.
+- **Paths:** `src/lib/llmlite/model-fallback.ts`, `src/lib/llmlite/chat.ts`, `src/lib/inspector/providers/factory.ts`, `src/lib/inspector/agent-loop.ts`, `src/lib/agents/run-catalog-agent.ts`, `src/app/api/inspector/chat/route.ts`, `src/app/api/agent-lab/workbench/chat/route.ts`, `src/app/api/agent-lab/workbench/test-run/route.ts`, `src/lib/flows-copilot/propose.ts`, `src/lib/boost/runner.ts`.
+- **Why:** A single unavailable model was failing the whole answer.
+- **Verified:** Unit tests for the fallback order and the “do not switch after text or tools” rule.
+- **Not done:** If every gateway model fails, the turn still errors. The first model name can already have been sent on `stream_start` before the switch.
+
+## 2026-11-11 — Inspector and Agents chat keep answering after you leave
+
+- **What:** Switching tabs, leaving the page, or the browser dropping the stream no longer cancels the reply. Stop still stops it.
+  - Inspector chat state lives outside the page (`src/lib/inspector/inspector-chat-live.ts`), so coming back shows the same in-flight answer. Autosave keeps running while you are away.
+  - The server treats a closed connection as "the browser left" and keeps the model running. The Stop button calls `POST /api/inspector/chat/cancel` or `POST /api/agent-lab/agents/chat/cancel`.
+  - Partial text is saved on the session (`progress.inspectorDraft` / `progress.agentDraft`) so a discarded tab can pick the reply up.
+  - Grok on the LLM Lite path uses the 180s stall cap instead of 45s, which was cutting off turns that were still reasoning.
+- **Paths:** `src/hooks/useInspectorChat.ts`, `src/lib/inspector/inspector-chat-live.ts`, `src/lib/agents/agent-use-chat-stream.ts`, `src/app/api/inspector/chat/route.ts`, `src/app/api/inspector/chat/cancel/route.ts`, `src/app/api/agent-lab/agents/chat/route.ts`, `src/app/api/agent-lab/agents/chat/cancel/route.ts`, `src/lib/chat/turn-control.ts`, `src/lib/chat/turn-draft.ts`, `src/lib/inspector/providers/foundry-chat.ts`, `src/lib/agents/agent-chats.ts`, `src/components/inspector/dashboard-builder/ScopedInspectorPanel.tsx`.
+- **Why:** Leaving Inspector or an agent chat was ending the answer immediately.
+- **Verified:** Vitest — `inspector-chat-live.test.ts`, `agent-use-chat-stream.test.ts` (including a dropped connection that still receives the saved reply), `chat.route.test.ts`, `agent-chats.test.ts` (23 passed). Not re-checked against a live model in the browser.
+- **Not done:** Workbench chat still stops if you leave that page. A Stop on one server instance does not reach a turn running on another instance.
+
+
+## 2026-11-11 — Platform admins can edit and delete every agent
+
+- **What:** A platform admin can change and delete any saved agent, including one owned by another platform admin. Agent chats stay private: a platform admin still cannot open or change another platform admin’s chat.
+  - Workbench writes (chat, construction, commission, test run, session patch and delete) allow a platform admin through on agent drafts (`surface` `workbench` or null). Inspector, Teach, and `agent_use` chats stay owner-only.
+  - Bulk session delete does the same, and returns the ids it actually removed.
+  - The Agents list and the agent chat header show Delete for platform admins. Delete retires the catalog entry (`status: deprecated`), which is how catalog delete already works.
+- **Paths:** `src/lib/inspector/session-auth.ts`, `src/app/api/agent-lab/workbench/sessions/route.ts`, `src/app/api/agent-lab/workbench/sessions/[id]/route.ts`, `src/views/agent-lab/agents/index.tsx`, `src/views/agent-lab/agents/use.tsx`, `src/components/agent-lab/ChatHistoryPage.tsx`, `src/app/api/__tests__/authz-hardening.test.ts`.
+- **Why:** User request. Platform admins could read another person’s agent draft but could not save or delete it, and that block included other platform admins.
+- **Verified:** `vitest run src/app/api/__tests__/authz-hardening.test.ts`.
+- **Not done:** Browser check of the Delete button (sign-in required). Deleting an agent does not erase its workbench draft from history.
 
 ## 2026-11-09 — "Sure?" step on Remove (no typing)
 

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from '@/lib/navigation/link';
 import { AGENTS_WORKBENCH_HREF } from '@/lib/navigation/agents-routes';
-import { Bot, MessageCircle, Pencil, Plus, Search } from 'lucide-react';
+import { Bot, MessageCircle, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { AgentAvatar } from '@/components/agent-lab/AgentAvatar';
+import { DeleteAgentDialog } from '@/components/agent-lab/DeleteAgentDialog';
 
 type SavedAgent = {
   id: string;
@@ -27,10 +29,14 @@ function when(iso: string | null): string {
 }
 
 export default function SavedAgentsPage() {
+  const { data: session } = useSession();
+  const isPlatformAdmin = (session?.user as { role?: string } | undefined)?.role === 'platform_admin';
   const [agents, setAgents] = useState<SavedAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [agentToDelete, setAgentToDelete] = useState<SavedAgent | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +54,22 @@ export default function SavedAgentsPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const remove = async (agent: SavedAgent) => {
+    setDeleting(agent.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/catalog/agents/${agent.id}`, { method: 'DELETE' });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? 'Could not delete this agent');
+      setAgents((prev) => prev.filter((row) => row.id !== agent.id));
+      setAgentToDelete(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Could not delete this agent');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -151,12 +173,36 @@ export default function SavedAgentsPage() {
                       <Pencil className="h-3.5 w-3.5" /> Edit
                     </Link>
                   )}
+                  {isPlatformAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setAgentToDelete(agent)}
+                      aria-label={`Delete ${agent.name}`}
+                      className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[length:var(--type-ui-regular-size)] font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                    </button>
+                  )}
                 </div>
               </article>
             </li>
           ))}
         </ul>
       )}
+
+      <DeleteAgentDialog
+        open={agentToDelete !== null}
+        name={agentToDelete?.name ?? ''}
+        description={agentToDelete?.description}
+        busy={agentToDelete !== null && deleting === agentToDelete.id}
+        onClose={() => {
+          if (deleting) return;
+          setAgentToDelete(null);
+        }}
+        onConfirm={() => {
+          if (agentToDelete) void remove(agentToDelete);
+        }}
+      />
     </div>
   );
 }

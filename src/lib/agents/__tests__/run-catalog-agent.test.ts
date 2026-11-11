@@ -37,7 +37,9 @@ KNOWLEDGE: ${kbs.map((k) => k.name).join(', ')}` : ''),
   runSearchKnowledgeTool: h.runSearch,
 }));
 vi.mock('@/lib/inspector/agent-loop', () => ({ runAgentLoop: h.runAgentLoop }));
-vi.mock('@/lib/inspector/providers/factory', () => ({ dispatchAgentLoop: vi.fn() }));
+vi.mock('@/lib/inspector/providers/factory', () => ({
+  dispatchAgentLoop: (_model: unknown, params: unknown) => h.runAgentLoop(params),
+}));
 vi.mock('@/lib/inspector/prompts', () => ({
   INSPECTOR_TOOLS: [{ toolSpec: { name: 'describe_schema' } }, { toolSpec: { name: 'execute_tool' } }, { toolSpec: { name: 'save_memory' } }],
 }));

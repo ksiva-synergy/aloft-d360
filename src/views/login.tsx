@@ -101,6 +101,10 @@ export default function LoginPage() {
     const err = new URLSearchParams(window.location.search).get('error');
     if (err === 'account_link_required') {
       setError('An account with this email already exists and must be linked by an administrator.');
+    } else if (err === 'ACCESS_PENDING') {
+      setError(
+        'Your sign-in was recorded. A platform administrator must approve your access and assign a role before you can use the app.',
+      );
     } else if (err === 'ACCOUNT_SUSPENDED') {
       setError('Your account has been suspended. Please contact your administrator.');
     } else if (err === 'session_expired') {

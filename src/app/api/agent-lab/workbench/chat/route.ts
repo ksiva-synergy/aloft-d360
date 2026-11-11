@@ -3,7 +3,7 @@ import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import { type Message, type ContentBlock } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
-import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
+import { type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { getInspectorMaxLoops } from '@/lib/inspector/max-loops';
 import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
   if (!resolved) {
     return new Response('Model not available for workbench', { status: 400 });
   }
-  const { modelKey, option, boostModel, effectiveModelId } = resolved;
+  const { modelKey, option, boostModel } = resolved;
+  let effectiveModelId = resolved.effectiveModelId;
 
   const row = await prisma.workbench_sessions.findUnique({ where: { id: body.sessionId } });
   if (!row) return new Response('Session not found', { status: 404 });
@@ -225,6 +226,7 @@ export async function POST(request: NextRequest) {
             emit({ type: 'text', delta });
           },
           onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
+          onModelSwitch: (modelId: string) => { effectiveModelId = modelId; },
           onThinkingChunk: (delta: string) => emit({ type: 'thinking', delta }),
           onToolCallEvent: (event: import('@/lib/inspector/agent-loop').ToolCallEvent) => {
             if (event.type === 'tool_call_suggested') {
@@ -251,9 +253,7 @@ export async function POST(request: NextRequest) {
           },
         };
 
-        let result: AgentLoopResult = boostModel
-          ? await dispatchAgentLoop(boostModel, loopParams)
-          : await runAgentLoop(loopParams);
+        let result: AgentLoopResult = await dispatchAgentLoop(boostModel, loopParams);
 
         if (result.outcome === 'errored' && result.errorDetail) {
           emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/chat'), recoverable: true });

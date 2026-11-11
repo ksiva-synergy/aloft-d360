@@ -4,11 +4,15 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { flattenPermissions, userAuthInclude, PERMISSIONS } from '@/lib/rbac';
 import type { Prisma } from '@prisma/client';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const denied = await denyUnlessSectionForApi(request);
+    if (denied) return denied;
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

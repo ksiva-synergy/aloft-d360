@@ -10,6 +10,9 @@ const API = join(__dirname, '..', '..', '..', 'app', 'api');
 
 const GUARDED_FOLDERS = [
   'agent-lab/context', // Data Estate
+  'agent-lab/memory',
+  'agent-lab/workbench',
+  'agent-lab/runs',
   'model-config', // Govern → Models
   'users', // Govern → Users
   'sections', // Govern → Users → Section access
@@ -23,6 +26,7 @@ const GUARDED_FOLDERS = [
 /** Calls that check section access (directly, or through a helper that does). */
 const GUARDS = [
   'denyUnlessSection(',
+  'denyUnlessSectionForApi(',
   'requireSection(',
   'requireAccessAdmin(',
   'requireAccessClassify(',
@@ -31,6 +35,13 @@ const GUARDS = [
   'requirePlatformAdminForBundles(',
   'denyUnlessEstatePipelineOperator(',
   'requireGroupMemberManager(',
+  'guardInspectorChat(',
+  'guardSessionRead(',
+  'flowsRequestContext(',
+  'workbenchAuth(',
+  'requireMemoryCaller(',
+  'guardMemoryApi(',
+  'denyUnlessSessionRole(',
 ];
 
 /** Routes that are allowed to skip the section check, and why. */
@@ -39,6 +50,7 @@ const EXEMPT: Record<string, string> = {
   'access/my-access/route.ts': 'a person\'s own access and the names of what they can request (names visible to everyone, A1); never values',
   'access/notifications/route.ts': 'a person\'s own access notices; every signed-in person may read and mark their own',
   'access/requests/route.ts': 'access requests: every signed-in person may ask and see their own; the inbox and history check approver / Data access rights inside',
+  'access/suggest-targets/route.ts': 'suggests tables for the signed-in person\'s own access request; it does not grant access',
   'access/requests/[id]/route.ts': 'one access request: the route checks requester, routed approver, platform admin or Data access View itself',
 };
 

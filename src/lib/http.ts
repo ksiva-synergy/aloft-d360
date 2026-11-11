@@ -10,6 +10,7 @@
  *   });
  */
 import { NextResponse } from 'next/server';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 import { ZodError, type ZodType, type ZodTypeDef } from 'zod';
 
 /** Throwable error that `handle()` turns into a JSON response with a status. */
@@ -58,6 +59,8 @@ type Handler<C> = (req: Request, ctx: C) => Promise<NextResponse> | NextResponse
 export function handle<C = unknown>(fn: Handler<C>): Handler<C> {
   return async (req, ctx) => {
     try {
+      const denied = await denyUnlessSectionForApi(req);
+      if (denied) return denied;
       return await fn(req, ctx);
     } catch (e) {
       if (e instanceof ApiError) return error(e.status, e.message, e.details);

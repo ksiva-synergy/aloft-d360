@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { WorkbenchMessage } from '@/components/agent-lab/workbench/types';
 import { AVAILABLE_MODELS } from '@/components/agent-lab/workbench/types';
 import { DEFAULT_INSPECTOR_MODEL_KEY } from '@/lib/inspector/default-model';
@@ -9,6 +9,16 @@ import { classifyToolCall, type ToolKind } from '@/lib/boost/classify';
 import type { ChartDSLSpec } from '@/lib/studio/chart-dsl';
 import type { SemanticQuery } from '@/lib/semantic/types';
 import type { ChartRecommendation } from '@/lib/dashboards/chart-defaults';
+import {
+  applyInspectorDraft,
+  getInspectorSnapshot,
+  inspectorBucket,
+  inspectorSetters,
+  recoverInspectorTurn,
+  resetInspectorLive,
+  setInspectorModel,
+  subscribeInspectorLive,
+} from '@/lib/inspector/inspector-chat-live';
 
 export interface QueryResult {
   columns: { name: string; type_name: string }[];
@@ -119,6 +129,11 @@ export interface RunMetric {
 interface UseInspectorChatOptions {
   sessionId: string | null;
   contextMode?: 'harvested' | 'warehouse_only';
+  /**
+   * In-flight replies live outside React under this key, so leaving the page does not stop them.
+   * The dashboard's scoped panel must not share the main Inspector key.
+   */
+  liveKey?: string;
 }
 
 interface UseInspectorChatReturn {
@@ -148,19 +163,49 @@ interface UseInspectorChatReturn {
   availableModels: typeof AVAILABLE_MODELS;
 }
 
-export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseInspectorChatOptions): UseInspectorChatReturn {
+export function useInspectorChat({ sessionId, contextMode = 'harvested', liveKey = 'inspector' }: UseInspectorChatOptions): UseInspectorChatReturn {
   const { models: availableModels } = useInspectorChatModels();
-  const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
-  const [semanticChartMessages, setSemanticChartMessages] = useState<SemanticChartMessage[]>([]);
-  const [disambiguations, setDisambiguations] = useState<DisambiguationMessage[]>([]);
-  const [exportOffers, setExportOffers] = useState<ExportReadyMessage[]>([]);
-  const [queryProgress, setQueryProgress] = useState<QueryProgress | null>(null);
+  const snap = useSyncExternalStore(
+    (listener) => subscribeInspectorLive(liveKey, listener),
+    () => getInspectorSnapshot(liveKey),
+    () => getInspectorSnapshot(liveKey),
+  );
+  const {
+    setLocalMessages,
+    setIsStreaming,
+    setInterrupted,
+    setSuggestions,
+    setError,
+    setSessionLoadError,
+    setCompletionMeta,
+    setRunMetrics,
+    setCurrentSessionId,
+    setQueryResults,
+    setSemanticChartMessages,
+    setDisambiguations,
+    setExportOffers,
+    setQueryProgress,
+    setPreviewModel,
+  } = inspectorSetters(liveKey);
+  const localMessages = snap.messages;
+  const isStreaming = snap.isStreaming;
+  const interrupted = snap.interrupted;
+  const suggestions = snap.suggestions;
+  const error = snap.error;
+  const sessionLoadError = snap.sessionLoadError;
+  const completionMeta = snap.completionMeta;
+  const runMetrics = snap.runMetrics;
+  const currentSessionId = snap.sessionId;
+  const queryResults = snap.queryResults;
+  const semanticChartMessages = snap.semanticChartMessages;
+  const disambiguations = snap.disambiguations;
+  const exportOffers = snap.exportOffers;
+  const queryProgress = snap.queryProgress;
+  const previewModel = snap.selectedModel;
   const resolveDefaultModelKey = (list: typeof AVAILABLE_MODELS) =>
     list.some(m => m.key === DEFAULT_INSPECTOR_MODEL_KEY)
       ? DEFAULT_INSPECTOR_MODEL_KEY
       : (list[0]?.key ?? DEFAULT_INSPECTOR_MODEL_KEY);
-
-  const [previewModel, setPreviewModel] = useState(() => resolveDefaultModelKey(AVAILABLE_MODELS));
 
   useEffect(() => {
     if (availableModels.length === 0) return;
@@ -172,10 +217,11 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   // Inspector owns its session id locally (see currentSessionId below). This ref
   // mirrors it for use inside async stream callbacks. Init matches the prop, which
   // is exactly the initial value the removed workbench hook exposed on mount.
-  const sessionIdRef = useRef<string | null>(sessionId);
+  const sessionIdRef = useRef<string | null>(currentSessionId ?? sessionId);
 
   const modelRef = useRef<string>(previewModel);
   useEffect(() => { modelRef.current = previewModel; }, [previewModel]);
+  useEffect(() => { setInspectorModel(liveKey, previewModel); }, [liveKey, previewModel]);
 
   const modelsRef = useRef(availableModels);
   useEffect(() => { modelsRef.current = availableModels; }, [availableModels]);
@@ -183,17 +229,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   const contextModeRef = useRef<'harvested' | 'warehouse_only'>(contextMode);
   useEffect(() => { contextModeRef.current = contextMode; }, [contextMode]);
 
-  const [localMessages, setLocalMessages] = useState<WorkbenchMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [interrupted, setInterrupted] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [completionMeta, setCompletionMeta] = useState<Record<string, { durationMs: number; tokenCount: number; modelName: string }>>({});
-  const [runMetrics, setRunMetrics] = useState<Record<string, RunMetric>>({});
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId);
   useEffect(() => { sessionIdRef.current = currentSessionId; }, [currentSessionId]);
-  const [sessionLoadError, setSessionLoadError] = useState<string | null>(null);
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamStartRef = useRef<number | null>(null);
   const firstTokenRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -207,16 +243,20 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     return `insp_${Date.now()}_${++msgIdCounter}`;
   }
 
-  // Load session on mount if sessionId provided
+  // Load session on mount if sessionId provided. A reply that is still streaming
+  // (including one started before this page unmounted) owns the transcript.
   useEffect(() => {
     if (!sessionId) return;
+    const live = getInspectorSnapshot(liveKey);
+    if (live.isStreaming && live.sessionId) return;
     fetch(`/api/agent-lab/workbench/sessions/${sessionId}`)
       .then(r => {
         if (!r.ok) throw new Error(`Session load failed: ${r.status}`);
         return r.json();
       })
-      .then((data: { session?: { id: string; title?: string; messages?: WorkbenchMessage[]; progress?: { last_model?: string } } } | null) => {
+      .then((data: { session?: { id: string; title?: string; messages?: WorkbenchMessage[]; progress?: { last_model?: string; inspectorDraft?: { status?: string; text?: string } } } } | null) => {
         if (!data?.session) { setSessionLoadError(`Session not found (id: ${sessionId})`); return; }
+        if (getInspectorSnapshot(liveKey).isStreaming) return;
         const s = data.session;
         setLocalMessages(s.messages || []);
         if (s.progress?.last_model && availableModels.some(m => m.key === s.progress!.last_model)) {
@@ -224,6 +264,11 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
         }
         setCurrentSessionId(s.id);
         setSessionLoadError(null);
+        const draft = s.progress?.inspectorDraft;
+        if (draft && typeof draft.text === 'string' && draft.text) {
+          applyInspectorDraft(liveKey, draft.text, draft.status !== 'running');
+          if (draft.status === 'running') recoverInspectorTurn(liveKey);
+        }
 
         fetch(`/api/studio/results?sessionId=${s.id}`)
           .then(r => r.ok ? r.json() : null)
@@ -253,21 +298,7 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
       .catch((err: unknown) => {
         setSessionLoadError(err instanceof Error ? err.message : 'Failed to load session');
       });
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Autosave
-  useEffect(() => {
-    if (!currentSessionId) return;
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
-      fetch(`/api/agent-lab/workbench/sessions/${currentSessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: localMessages, last_model: modelRef.current }),
-      }).catch(() => {});
-    }, 2000);
-    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current); };
-  }, [currentSessionId, localMessages]);
+  }, [sessionId, liveKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doSend = useCallback(async (content: string) => {
     const sid = sessionIdRef.current;
@@ -291,7 +322,10 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
     streamStartRef.current = Date.now();
     firstTokenRef.current = null;
 
+    const bucket = inspectorBucket(liveKey);
+    bucket.userStop = false;
     const ctrl = new AbortController();
+    bucket.ctrl = ctrl;
     abortControllerRef.current = ctrl;
     let streamFailed = false;
 
@@ -702,13 +736,21 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      const dropped = !inspectorBucket(liveKey).userStop && (
+        (err instanceof Error && err.name === 'AbortError') || err instanceof TypeError
+      );
+      if (dropped) {
+        // Tab discard or a dead socket. The server keeps generating; poll the draft.
+        recoverInspectorTurn(liveKey);
+      } else if (err instanceof Error && err.name === 'AbortError') {
         setInterrupted(true);
       } else {
         streamFailed = true;
         setError(err instanceof Error ? err.message : 'Stream failed');
       }
     } finally {
+      const bucket = inspectorBucket(liveKey);
+      const keepStreaming = bucket.snap.recovering && !bucket.userStop;
       if (!ctrl.signal.aborted && !streamFailed) {
         setLocalMessages(prev => prev.map(m => {
           if (m.id !== assistantMsgId || !m.toolCalls?.some(tc => tc.status === 'running')) return m;
@@ -720,9 +762,12 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
           };
         }));
       }
-      setIsStreaming(false);
-      setQueryProgress(null);
-      abortControllerRef.current = null;
+      if (!keepStreaming) {
+        setIsStreaming(false);
+        setQueryProgress(null);
+        if (bucket.ctrl === ctrl) bucket.ctrl = null;
+        abortControllerRef.current = null;
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -758,29 +803,36 @@ export function useInspectorChat({ sessionId, contextMode = 'harvested' }: UseIn
   }, [currentSessionId, doSend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const abort = useCallback(() => {
+    const bucket = inspectorBucket(liveKey);
+    bucket.userStop = true;
+    bucket.recoverGen += 1;
+    const sid = bucket.snap.sessionId;
+    if (sid) {
+      void fetch('/api/inspector/chat/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(() => {});
+    }
+    bucket.ctrl?.abort();
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setInterrupted(true);
-  }, []);
+  }, [liveKey]);
 
   const reset = useCallback(() => {
-    abortControllerRef.current?.abort();
-    setLocalMessages([]);
-    setQueryResults([]);
-    setSemanticChartMessages([]);
-    setDisambiguations([]);
-    setExportOffers([]);
-    setQueryProgress(null);
-    setSuggestions([]);
-    setInterrupted(false);
-    setIsStreaming(false);
-    setCurrentSessionId(null);
+    const sid = inspectorBucket(liveKey).snap.sessionId;
+    if (sid) {
+      void fetch('/api/inspector/chat/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      }).catch(() => {});
+    }
+    resetInspectorLive(liveKey);
     sessionIdRef.current = null;
-    setError(null);
-    setCompletionMeta({});
-    setRunMetrics({});
     turnCountRef.current = 0;
-  }, []);
+  }, [liveKey]);
 
   const editMessage = useCallback((messageId: string): { content: string } | null => {
     const idx = localMessages.findIndex(m => m.id === messageId);

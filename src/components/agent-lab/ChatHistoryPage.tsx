@@ -391,7 +391,12 @@ export default function ChatHistoryPage() {
     try {
       const ids = Array.from(selected);
       const res = await fetch('/api/agent-lab/workbench/sessions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
-      if (res.ok) { setSessions(prev => prev.filter(s => !ids.includes(s.id))); setSelected(new Set()); }
+      const data = (await res.json().catch(() => ({}))) as { ids?: string[] };
+      const removed = Array.isArray(data.ids) ? data.ids : [];
+      if (res.ok) {
+        setSessions(prev => prev.filter(s => !removed.includes(s.id)));
+        setSelected(prev => { const n = new Set(prev); removed.forEach(id => n.delete(id)); return n; });
+      }
     } finally { setBulkDeleting(false); }
   };
 

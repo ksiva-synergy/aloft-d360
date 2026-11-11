@@ -9,7 +9,7 @@
  * Role hierarchy (highest to lowest):
  *   platform_admin — full access + cross-user data visibility (sees ALL users' sessions/history)
  *   admin          — all app actions scoped to own data only
- *   member         — can use inspector + read-only access to all other sections
+ *   member         — Ask Data, Agents, and History (other sections via bundles)
  *   readonly       — login and view only, no write interactions
  *
  * Bootstrap admin is created only if SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD (or

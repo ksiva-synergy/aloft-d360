@@ -190,14 +190,15 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!isUsable(dbUser)) {
+            const pending = dbUser.status === 'PENDING_APPROVAL';
             await recordLoginEvent({
               email,
               userId: dbUser.id,
               provider: 'azure_ad',
               success: false,
-              failureReason: 'ACCOUNT_INACTIVE',
+              failureReason: pending ? 'ACCESS_PENDING' : 'ACCOUNT_INACTIVE',
             });
-            return '/login?error=ACCOUNT_SUSPENDED';
+            return pending ? '/login?error=ACCESS_PENDING' : '/login?error=ACCOUNT_SUSPENDED';
           }
 
           await recordLoginEvent({ email, userId: dbUser.id, provider: 'azure_ad', success: true });

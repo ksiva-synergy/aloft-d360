@@ -27,9 +27,9 @@ export const ROLE_COPY: Record<PlatformRoleName, RoleCopy> = {
   },
   member: {
     label: 'Member',
-    summary: 'Ask Data plus read-only elsewhere',
+    summary: 'Ask Data, Agents, and History',
     detail:
-      'Full Ask Data access. Other areas are read-only—enough to explore, not to change configuration or run admin actions.',
+      'Can use Ask Data, run published agents, and see their own run history. Other product areas stay hidden unless a platform admin adds a bundle.',
   },
   readonly: {
     label: 'Read only',

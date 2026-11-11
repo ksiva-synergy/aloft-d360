@@ -37,6 +37,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         agentId: chat.agentId,
         slug: chat.slug,
         messages: messagesForViewer(chat.messages, auth.role),
+        draft: chat.draft,
         readOnly: !isOwner,
         updatedAt: chat.updated_at?.toISOString() ?? null,
       },

@@ -1,4 +1,5 @@
 import { ApiError } from '@/lib/http';
+import { minForMethod, requireSection } from '@/lib/sections/server';
 import { resolveAuth, requirePermission } from '@/middleware/auth';
 import { PERMISSIONS } from '@/lib/rbac';
 import { getDefaultOrg } from '@/lib/org';
@@ -25,6 +26,7 @@ const PLATFORM_ADMIN_GRANTS = [...Object.values(CAPABILITY_PERMISSIONS), RAW_SQL
  */
 export async function flowsRequestContext(req: Request): Promise<{ policy: PolicyContext; actor: Actor; knowledge?: KnowledgeBaseSummary[] }> {
   const auth = await resolveAuth(req);
+  requireSection(auth, ['build.automate', minForMethod(req.method)]);
   requirePermission(auth, PERMISSIONS.INSPECTOR_USE);
   const orgId = getDefaultOrg().id;
   const permissions = new Set(auth.permissions);

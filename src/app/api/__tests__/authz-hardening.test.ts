@@ -1,7 +1,8 @@
 /**
  * Authorization hardening for findings S1–S4 (docs/audits/business-ai-studio-current-state.md):
  *   S1 new users default to member; role grants cannot exceed the caller's own role
- *   S2 workbench sessions are owner-only (reads also allow session:read:all)
+ *   S2 workbench sessions are owner-only (reads also allow session:read:all; a platform admin may
+ *      also change or delete an agent-construction session, including one owned by another platform admin)
  *   S3 policy and catalog writes are admin-only, field-whitelisted, and never trust owner_id from the body
  *   S4 Databricks connection management is admin-only; SQL execute needs inspector:use
  *
@@ -24,6 +25,7 @@ const { db, state, getServerSession, writeAudit } = vi.hoisted(() => {
     caller: 'u-admin' as string | null,
     users: {} as Record<string, string>, // userId → role
     sessionOwners: {} as Record<string, string | null>,
+    sessionSurfaces: {} as Record<string, string | null | undefined>,
   };
   const userRow = (id: string) => {
     const role = state.users[id];
@@ -67,7 +69,7 @@ const { db, state, getServerSession, writeAudit } = vi.hoisted(() => {
     platform_interaction_events: { deleteMany: vi.fn(async () => ({})) },
     $transaction: vi.fn(async (ops: unknown[]) => ops),
     // session-auth resolves the owner with a tagged-template raw query: values[0] is the session id.
-    $queryRaw: vi.fn(async (_strings: TemplateStringsArray, id: string) => [{ user_id: state.sessionOwners[id] ?? null }]),
+    $queryRaw: vi.fn(async (_strings: TemplateStringsArray, id: string) => [{ user_id: state.sessionOwners[id] ?? null, surface: state.sessionSurfaces[id] }]),
   };
   return {
     db,
@@ -147,6 +149,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.users = { 'u-padmin': 'platform_admin', 'u-admin': 'admin', 'u-member': 'member', 'u-readonly': 'readonly', 'u-custom': 'custom_ops', 'u-other': 'member' };
   state.sessionOwners = { [SESSION_ID]: 'u-member' };
+  state.sessionSurfaces = {};
   as('u-admin');
 });
 
@@ -215,10 +218,39 @@ describe('S2 — workbench sessions are owner-only', () => {
     expect((await patchSession(req('PATCH', { title: 'mine' }) as never, params(SESSION_ID))).status).toBe(200);
   });
 
-  it('lets session:read:all read another user’s session but not change it', async () => {
+  it('lets session:read:all read another user’s session but not change a non-agent session', async () => {
     as('u-padmin');
+    state.sessionSurfaces[SESSION_ID] = 'inspector';
     expect((await getSession(req('GET') as never, params(SESSION_ID))).status).toBe(200);
     expect((await patchSession(req('PATCH', { title: 'x' }) as never, params(SESSION_ID))).status).toBe(403);
+    expect((await deleteSession(req('DELETE') as never, params(SESSION_ID))).status).toBe(403);
+  });
+
+  it('lets a platform admin edit and delete an agent draft owned by anyone, including another platform admin', async () => {
+    state.users['u-other-admin'] = 'platform_admin';
+    state.sessionOwners[SESSION_ID] = 'u-other-admin';
+    state.sessionSurfaces[SESSION_ID] = 'workbench';
+    as('u-padmin');
+    expect((await patchSession(req('PATCH', { title: 'theirs' }) as never, params(SESSION_ID))).status).toBe(200);
+    expect((await deleteSession(req('DELETE') as never, params(SESSION_ID))).status).toBe(200);
+    expect(db.workbench_sessions.update).toHaveBeenCalled();
+    expect(db.workbench_sessions.delete).toHaveBeenCalled();
+  });
+
+  it('still refuses an admin who is not a platform admin from changing someone else’s agent draft', async () => {
+    state.sessionSurfaces[SESSION_ID] = 'workbench';
+    as('u-admin');
+    expect((await patchSession(req('PATCH', { title: 'x' }) as never, params(SESSION_ID))).status).toBe(403);
+    expect(db.workbench_sessions.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a platform admin from changing another platform admin’s agent chat', async () => {
+    state.users['u-other-admin'] = 'platform_admin';
+    state.sessionOwners[SESSION_ID] = 'u-other-admin';
+    state.sessionSurfaces[SESSION_ID] = 'agent_use';
+    as('u-padmin');
+    expect((await patchSession(req('PATCH', { title: 'x' }) as never, params(SESSION_ID))).status).toBe(403);
+    expect(db.workbench_sessions.update).not.toHaveBeenCalled();
   });
 });
 

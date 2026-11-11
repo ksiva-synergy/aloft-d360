@@ -17,6 +17,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { prisma } from '@/lib/prisma';
 import { getLeaderboard, type LeaderboardEntry } from '@/lib/memory/reputation/leaderboard';
+import { guardMemoryApi } from '../_auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,9 @@ const enrich = (e: LeaderboardEntry, names: Map<string, string>): EnrichedEntry 
 };
 
 export async function GET(req: Request) {
+  const denied = await guardMemoryApi(req);
+  if (denied) return denied;
+
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   if (!userId) {

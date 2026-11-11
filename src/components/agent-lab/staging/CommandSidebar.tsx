@@ -9,7 +9,9 @@ import type { Session } from 'next-auth';
 import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
-import { HOME_ITEM, groupForPath, isActive, type NavGroup, type NavItem } from './nav-config';
+import type { SectionLevels } from '@/lib/sections/registry';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import { HOME_ITEM, groupForPath, isActive, primaryNavHref, showHomeInNav, type NavGroup, type NavItem } from './nav-config';
 import { useNavGroups } from './useNavGroups';
 import { useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle } from './nav-shared';
@@ -18,9 +20,10 @@ const COLLAPSED_W = 64;
 const EXPANDED_W = 264;
 
 /** Every page this person can open, flattened for the jump-to search. */
-function allItems(groups: NavGroup[]): (NavItem & { group: string })[] {
+function allItems(groups: NavGroup[], levels: SectionLevels | null): (NavItem & { group: string })[] {
+  const home = showHomeInNav(levels) ? [{ ...HOME_ITEM, group: 'Home' }] : [];
   return [
-    { ...HOME_ITEM, group: 'Home' },
+    ...home,
     { label: 'Profile & settings', href: '/settings/profile', icon: GearSixIcon, group: 'Home' },
     ...groups.flatMap((g) => g.items.map((i) => ({ ...i, group: g.label }))),
   ];
@@ -38,6 +41,10 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   const shell = useNavShell();
   const { expanded, pinned, mobileOpen } = shell;
   const groups = useNavGroups();
+  const me = useSectionLevels();
+  const levels = me?.levels ?? null;
+  const logoHref = primaryNavHref(levels);
+  const showHome = showHomeInNav(levels);
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [query, setQuery] = useState('');
@@ -70,9 +77,9 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
   const results = useMemo(
     () =>
       q
-        ? allItems(groups).filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
+        ? allItems(groups, levels).filter((i) => i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q)).slice(0, 8)
         : [],
-    [q, groups],
+    [q, groups, levels],
   );
 
   const user = (session ?? initialSession)?.user as { name?: string | null; email?: string | null; roleLabel?: string; role?: string } | undefined;
@@ -118,7 +125,7 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
           {/* ── Workspace header (height matches StagingHeader in light and dark) ─ */}
           <div className="-mx-3 flex h-[var(--shell-header-h)] shrink-0 items-center gap-3 border-b border-[var(--header-border)] px-3">
             <Link
-              href="/dashboard"
+              href={logoHref}
               aria-label="Synergy Group — ALOFT home"
               className="shrink-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)]"
             >
@@ -244,9 +251,11 @@ export function CommandSidebar({ initialSession }: { initialSession?: Session | 
               </>
             ) : (
               <>
-                <ul>
-                  <li><Row item={HOME_ITEM} active={isActive(HOME_ITEM, pathname)} expanded={expanded} /></li>
-                </ul>
+                {showHome ? (
+                  <ul>
+                    <li><Row item={HOME_ITEM} active={isActive(HOME_ITEM, pathname)} expanded={expanded} /></li>
+                  </ul>
+                ) : null}
                 <SectionLabel expanded={expanded}>{area.label}</SectionLabel>
                 <ul className="space-y-0.5">
                   {area.items.map((item) => (

@@ -102,7 +102,7 @@ const DOT: Record<string, string> = {
 function Timeline({ events }: { events: Event[] | null }) {
   return (
     <div className="flex flex-col gap-2" aria-label="Activity">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Activity</p>
+      <p className="text-size-caption font-semibold uppercase tracking-wide text-muted-foreground">Activity</p>
       {events === null ? (
         <p className="text-caption text-muted-foreground">Loading…</p>
       ) : (
@@ -116,7 +116,7 @@ function Timeline({ events }: { events: Event[] | null }) {
                   <span className="font-medium text-foreground">{e.actor}</span>{' '}
                   <span className="text-muted-foreground">{EVENT_TEXT[e.type] ?? e.type}</span>
                 </p>
-                <p className="text-[11px] text-muted-foreground">{when(e.ts)}</p>
+                <p className="text-size-caption text-muted-foreground">{when(e.ts)}</p>
                 {showComment ? (
                   <p className="mt-1 whitespace-pre-wrap rounded-[8px] bg-[var(--surface-2)] px-2.5 py-1.5 text-foreground">{e.comment}</p>
                 ) : null}
@@ -132,7 +132,7 @@ function Timeline({ events }: { events: Event[] | null }) {
 function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={cn('min-w-0', wide && 'sm:col-span-2')}>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-size-caption font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-caption text-foreground">{children}</dd>
     </div>
   );
@@ -226,7 +226,7 @@ function RowHead({
         <span className="flex items-center gap-2">
           {icon}
           <span className={cn(ONE_LINE, 'font-medium')}>{title}</span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">{numbers}</span>
+          <span className="shrink-0 text-size-caption text-muted-foreground">{numbers}</span>
           <span className={cn(s.chip, STATUS[status].cls, 'ml-auto shrink-0')}>{STATUS[status].text}</span>
         </span>
         <span className="mt-0.5 block text-caption text-muted-foreground">
@@ -340,7 +340,7 @@ function BundleDetail({
         </ul>
       </div>
       <div>
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Purpose</p>
+        <p className="mb-1 text-size-caption font-semibold uppercase tracking-wide text-muted-foreground">Purpose</p>
         <PurposeBlock reason={head.reason} />
       </div>
       <ul className="flex flex-col gap-3" aria-label="Tables in this bundle">
@@ -352,7 +352,7 @@ function BundleDetail({
               <span className={cn(s.chip, STATUS[r.status].cls)}>{STATUS[r.status].text}</span>
             </p>
             {r.target ? (
-              <p className="mb-2 font-mono text-[11px] text-muted-foreground" title="Technical path">
+              <p className="mb-2 font-mono text-size-caption text-muted-foreground" title="Technical path">
                 {r.target}
               </p>
             ) : null}
@@ -396,7 +396,7 @@ function RequestDetail({
               <Field label="Data requested" wide>
                 <span className="font-medium">{r.targetLabel ?? r.target}</span>
                 {r.scopeSummary ? <span className="mt-0.5 block text-muted-foreground">{r.scopeSummary}</span> : null}
-                <code className="mt-1 block break-all font-mono text-[11px] text-muted-foreground" title="Technical path for admins">{r.target}</code>
+                <code className="mt-1 block break-all font-mono text-size-caption text-muted-foreground" title="Technical path for admins">{r.target}</code>
               </Field>
             ) : r.targetType === 'path' && nested && r.scopeSummary ? (
               <Field label="Scope" wide>
@@ -423,7 +423,7 @@ function RequestDetail({
           </dl>
           {!nested ? (
             <div>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Purpose</p>
+              <p className="mb-1 text-size-caption font-semibold uppercase tracking-wide text-muted-foreground">Purpose</p>
               <PurposeBlock reason={r.reason} />
             </div>
           ) : null}

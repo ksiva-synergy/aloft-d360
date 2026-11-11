@@ -115,7 +115,7 @@ function Section({
     <section className={cn('flex min-w-0 flex-col gap-2.5', className)} aria-label={title}>
       <div className="flex items-baseline justify-between gap-3 px-1">
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-          <h2 className="shrink-0 text-base font-semibold text-[var(--ink-1)]">{title}</h2>
+          <h2 className="shrink-0 text-size-body font-semibold text-[var(--ink-1)]">{title}</h2>
           {meta && <span className={cn('min-w-0 truncate text-caption', MUTED)}>{meta}</span>}
         </div>
         {href && (

@@ -6,17 +6,18 @@ import type { Prisma } from '@prisma/client';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { constructionStateSchema } from '@/lib/construction/constructionState';
 import { PERMISSIONS } from '@/lib/rbac';
-import { authenticateSession } from '@/middleware/auth';
+import { workbenchAuth } from '../_auth';
 import { parseSurfaceList, surfacesWhere } from '@/lib/sessions/surfaces';
 import { hideOtherAdminsAgentChatsWhere } from '@/lib/agents/agent-chats';
+import { isAgentConstructionSurface } from '@/lib/inspector/session-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
     // Identity comes only from the server session. Never fall back to a client header.
-    const auth = await authenticateSession();
-    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    const auth = await workbenchAuth(request);
+    if (auth instanceof NextResponse) return auth;
     const userId = auth.userId;
     const artifactType = request.nextUrl.searchParams.get('type');
     const surface = request.nextUrl.searchParams.get('surface');
@@ -88,28 +89,31 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await authenticateSession();
-    if (!auth) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+    const auth = await workbenchAuth(request);
+    if (auth instanceof NextResponse) return auth;
     const userId = auth.userId;
     const body = await request.json();
     const ids: string[] = Array.isArray(body?.ids) ? body.ids : [];
     if (ids.length === 0) return NextResponse.json({ error: 'No ids provided' }, { status: 400 });
 
-    // Only allow deleting sessions owned by the current user
-    const owned = await prisma.workbench_sessions.findMany({
-      where: { id: { in: ids }, user_id: userId },
-      select: { id: true },
+    // The caller may delete their own sessions. A platform admin may also delete agent drafts
+    // owned by anyone, including another platform admin. Inspector sessions and agent chats stay owner-only.
+    const rows = await prisma.workbench_sessions.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, user_id: true, surface: true },
     });
-    const ownedIds = owned.map(s => s.id);
-    if (ownedIds.length === 0) return NextResponse.json({ deleted: 0 });
+    const deletableIds = rows
+      .filter((row) => row.user_id === userId || (auth.role === 'platform_admin' && isAgentConstructionSurface(row.surface)))
+      .map((row) => row.id);
+    if (deletableIds.length === 0) return NextResponse.json({ deleted: 0, ids: [] });
 
     await prisma.$transaction([
-      prisma.platform_interaction_search.deleteMany({ where: { session_id: { in: ownedIds } } }),
-      prisma.platform_interaction_events.deleteMany({ where: { session_id: { in: ownedIds } } }),
-      prisma.workbench_sessions.deleteMany({ where: { id: { in: ownedIds } } }),
+      prisma.platform_interaction_search.deleteMany({ where: { session_id: { in: deletableIds } } }),
+      prisma.platform_interaction_events.deleteMany({ where: { session_id: { in: deletableIds } } }),
+      prisma.workbench_sessions.deleteMany({ where: { id: { in: deletableIds } } }),
     ]);
 
-    return NextResponse.json({ deleted: ownedIds.length });
+    return NextResponse.json({ deleted: deletableIds.length, ids: deletableIds });
   } catch (err) {
     console.error('[workbench/sessions DELETE] error', err);
     return NextResponse.json({ error: 'Internal error' }, { status: 500 });

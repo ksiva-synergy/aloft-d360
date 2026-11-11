@@ -22,6 +22,7 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 import { flattenPermissions, isUsable, PERMISSIONS, userAuthInclude } from '@/lib/rbac';
 
 async function hasReadAll(userId: string): Promise<boolean> {
@@ -67,17 +68,35 @@ export async function resolveInspectorPrincipal(req: Request): Promise<Inspector
   return userId ? { kind: 'user', userId } : null;
 }
 
-/** Look up the owner (`user_id`) of a workbench session, or null if unknown. */
-async function resolveSessionOwner(sessionId: string): Promise<string | null> {
+/**
+ * Workbench drafts that build an agent. A null surface is a pre-Inspector workbench row.
+ * Inspector, Teach, and agent chats (`agent_use`) are not included. A missing surface
+ * (`undefined`, from a lookup that did not select it) is not an agent draft.
+ */
+export function isAgentConstructionSurface(surface: string | null | undefined): boolean {
+  return surface === null || surface === 'workbench';
+}
+
+type SessionOwner = { userId: string | null; surface: string | null | undefined };
+
+/** Owner and surface of a workbench session. A missing row has no owner. */
+async function resolveSession(sessionId: string): Promise<SessionOwner> {
   try {
-    const rows = await prisma.$queryRaw<Array<{ user_id: string | null }>>`
-      SELECT user_id FROM workbench_sessions WHERE id = ${sessionId}::uuid LIMIT 1
+    const rows = await prisma.$queryRaw<Array<{ user_id: string | null; surface?: string | null }>>`
+      SELECT user_id, surface FROM workbench_sessions WHERE id = ${sessionId}::uuid LIMIT 1
     `;
-    const uid = rows[0]?.user_id ?? null;
-    return uid && uid !== 'anonymous' ? uid : null;
+    const row = rows[0];
+    if (!row) return { userId: null, surface: undefined };
+    const uid = row.user_id && row.user_id !== 'anonymous' ? row.user_id : null;
+    return { userId: uid, surface: row.surface };
   } catch {
-    return null;
+    return { userId: null, surface: undefined };
   }
+}
+
+async function holdsPlatformAdmin(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: userAuthInclude }).catch(() => null);
+  return !!user && isUsable(user) && user.roles.some((r) => r.role.name === 'platform_admin');
 }
 
 type Verdict =
@@ -107,12 +126,18 @@ async function evaluate(principal: InspectorPrincipal, sessionId: string | undef
     return { verdict: { ok: true }, callerId, sessionOwner: null };
   }
 
-  const owner = await resolveSessionOwner(sessionId);
+  const session = await resolveSession(sessionId);
+  const owner = session.userId;
   // Unowned / not-yet-persisted session → no victim to protect; allow.
   if (owner === null) {
     return { verdict: { ok: true }, callerId, sessionOwner: null };
   }
   if (owner === principal.userId) {
+    return { verdict: { ok: true }, callerId, sessionOwner: owner };
+  }
+  // Platform admins may edit and delete every agent draft, including one owned by another
+  // platform admin. Other people's Inspector sessions, Teach sessions, and agent chats stay closed.
+  if (isAgentConstructionSurface(session.surface) && (await holdsPlatformAdmin(principal.userId))) {
     return { verdict: { ok: true }, callerId, sessionOwner: owner };
   }
   return { verdict: { ok: false, status: 403, reason: 'ownership_mismatch' }, callerId, sessionOwner: owner };
@@ -129,6 +154,9 @@ export async function guardInspectorChat(
   req: Request,
   sessionId: string | undefined,
 ): Promise<Response | null> {
+  const sectionDenied = await denyUnlessSectionForApi(req);
+  if (sectionDenied) return sectionDenied;
+
   const enforce = process.env.INSPECTOR_AUTH_ENFORCE !== 'false';
   const principal = await resolveInspectorPrincipal(req);
   const { verdict, callerId, sessionOwner } = await evaluate(principal, sessionId);
@@ -168,6 +196,9 @@ export async function guardSessionRead(
   sessionId: string | undefined,
   opts: { route?: string; allowReadAll?: boolean } = {},
 ): Promise<Response | null> {
+  const sectionDenied = await denyUnlessSectionForApi(req);
+  if (sectionDenied) return sectionDenied;
+
   const principal = await resolveInspectorPrincipal(req);
   const { verdict, callerId, sessionOwner } = await evaluate(principal, sessionId);
 

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { getDefaultOrg } from '@/lib/platform/agents';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { guardMemoryApi } from '../_auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ const querySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
+  const denied = await guardMemoryApi(req);
+  if (denied) return denied;
+
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });

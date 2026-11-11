@@ -28,6 +28,8 @@ export type AgentLoopResult = {
   usage: { inputTokens: number; outputTokens: number };
   loops: number;
   errorDetail?: string;
+  /** Gateway model that actually answered, when a later model stood in for the one that failed. */
+  servedModelId?: string;
 };
 
 /** Per-LLM-call measurements, persisted to agent_loop_log by the caller. */
@@ -121,6 +123,8 @@ export type AgentLoopParams = {
   /** Fired once per loop after its tools (if any) finish. */
   onLoopMetrics?: (metrics: LoopMetrics) => void;
   onTextReplace?: (text: string) => void;
+  /** Fired when the requested model failed before answering and another model is taking the turn. */
+  onModelSwitch?: (modelId: string) => void;
   abortSignal?: { value: boolean };
 };
 

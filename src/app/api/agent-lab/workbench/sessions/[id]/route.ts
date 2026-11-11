@@ -6,6 +6,7 @@ import { getDefaultOrg } from '@/lib/platform/agents';
 import { getPendingReflections } from '@/lib/marcus/dal';
 import { guardSessionRead } from '@/lib/inspector/session-auth';
 import { authenticateSession } from '@/middleware/auth';
+import { workbenchAuth } from '../../_auth';
 import { PERMISSIONS } from '@/lib/rbac';
 import { AGENT_CHAT_SURFACE, canViewAgentChatOwnedBy } from '@/lib/agents/agent-chats';
 
@@ -16,7 +17,9 @@ const ROUTE = '/api/agent-lab/workbench/sessions/:id';
 /**
  * Ownership is always enforced here (not tied to INSPECTOR_AUTH_ENFORCE): only the owner may read,
  * change or delete a session. Reads also allow `session:read:all` (platform admins), matching the
- * sessions list. Returns a Response only when the request must be blocked.
+ * sessions list. A platform admin may also change or delete an agent-construction session owned by
+ * anyone, including another platform admin. Agent chats stay owner-only.
+ * Returns a Response only when the request must be blocked.
  */
 async function guardOwner(request: NextRequest, id: string, mode: 'read' | 'write'): Promise<Response | null> {
   const blocked = await guardSessionRead(request, id, { route: ROUTE });

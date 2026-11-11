@@ -166,7 +166,7 @@ export async function runBenchmarkCase(params: BenchmarkRunParams): Promise<Benc
       maxLoops: getInspectorMaxLoops(),
       supportsTools: true,
       supportsThinking: boostModel.modelId.includes('anthropic'),
-    });
+    }, { fallback: false });
 
     inputTokens = result.usage.inputTokens;
     outputTokens = result.usage.outputTokens;

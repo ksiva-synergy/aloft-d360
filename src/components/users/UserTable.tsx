@@ -14,7 +14,7 @@ export interface UserRow {
   id: string;
   email: string;
   name: string | null;
-  status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' | 'DEACTIVATED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'INVITED' | 'PENDING_APPROVAL' | 'DEACTIVATED';
   authProvider: string;
   aadObjectId?: string | null;
   lastLoginAt: string | null;
@@ -54,6 +54,7 @@ const STATUS_CONFIG: Record<string, { dot: string; text: string; label: string }
   ACTIVE:      { dot: 'bg-emerald-500',  text: 'text-emerald-600 dark:text-emerald-400', label: 'Active' },
   SUSPENDED:   { dot: 'bg-red-500',      text: 'text-red-600 dark:text-red-400',         label: 'Blocked' },
   INVITED:     { dot: 'bg-blue-400',     text: 'text-blue-600 dark:text-blue-400',        label: 'Invited' },
+  PENDING_APPROVAL: { dot: 'bg-amber-400', text: 'text-amber-700 dark:text-amber-400', label: 'Pending approval' },
   DEACTIVATED: { dot: 'bg-[color:var(--line-2)]',    text: 'text-[var(--ink-3)] dark:text-[color:var(--ink-3)]',      label: 'Deactivated' },
 };
 

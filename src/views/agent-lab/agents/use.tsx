@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from '@/lib/navigation/link';
 import { useParams, useRouter, useSearchParams } from '@/lib/navigation';
 import { AGENTS_LIST_HREF, agentsWorkbenchSessionHref } from '@/lib/navigation/agents-routes';
 import { agentChatHref } from '@/lib/sessions/surfaces';
-import { ArrowLeft, ArrowUp, ArrowUpRight, Check, ChevronsLeft, ChevronsRight, Compass, Database, Eye, Lightbulb, MessageSquare, Pencil, Plus, Sparkles, Square, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowUpRight, Check, ChevronsLeft, ChevronsRight, Compass, Database, Eye, Lightbulb, MessageSquare, Pencil, Plus, Sparkles, Square, Trash2, X } from 'lucide-react';
 import { AgentAvatar } from '@/components/agent-lab/AgentAvatar';
+import { DeleteAgentDialog } from '@/components/agent-lab/DeleteAgentDialog';
 import { AssistantContent } from '@/components/chat/AssistantContent';
 import { AnswerInspection } from '@/components/agent-lab/AnswerInspection';
 import { CaptainStatus } from '@/components/companion/CaptainStatus';
@@ -70,14 +72,19 @@ function starters(name: string): { prompt: string; chip: string; icon: ReactNode
 
 export default function UseAgentPage() {
   const params = useParams();
+  const { data: session } = useSession();
+  const isPlatformAdmin = (session?.user as { role?: string } | undefined)?.role === 'platform_admin';
   const { developerMode } = useDeveloperMode();
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const router = useRouter();
   const searchParams = useSearchParams();
   const chatParam = searchParams.get('chat');
   const [name, setName] = useState('');
+  const [catalogId, setCatalogId] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [editUrl, setEditUrl] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -255,10 +262,11 @@ export default function UseAgentPage() {
         const data = await res.json().catch(() => ({}));
         if (res.status === 404) throw new Error(`Agent "${slug}" was not found.`);
         if (!res.ok) throw new Error(data.error ?? 'Could not load this agent');
-        const item = data.item as { name?: string; description?: string | null; config?: Record<string, unknown> } | undefined;
+        const item = data.item as { id?: string; name?: string; description?: string | null; config?: Record<string, unknown> } | undefined;
         if (!item?.name) throw new Error(`Agent "${slug}" was not found.`);
         if (cancelled) return;
         setName(item.name);
+        setCatalogId(typeof item.id === 'string' ? item.id : null);
         setDescription(item.description ?? null);
         const source = item.config?.source;
         const sessionId = source && typeof source === 'object' && typeof (source as { workbenchSessionId?: unknown }).workbenchSessionId === 'string'
@@ -407,6 +415,23 @@ export default function UseAgentPage() {
     </>
   );
 
+  const removeAgent = async () => {
+    if (!catalogId || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/catalog/agents/${catalogId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? 'Could not delete this agent');
+      }
+      router.push(AGENTS_LIST_HREF);
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Could not delete this agent');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
+
   const emptyChat = messages.length === 0;
   const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
 
@@ -440,6 +465,16 @@ export default function UseAgentPage() {
           <Link href={editUrl} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]">
             <Pencil className="h-3.5 w-3.5" /> Edit
           </Link>
+        )}
+        {isPlatformAdmin && catalogId && (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            aria-label={`Delete ${name}`}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-size-ui font-medium text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete
+          </button>
         )}
       </header>
 
@@ -539,6 +574,17 @@ export default function UseAgentPage() {
       )}
         </div>
       </div>
+
+      <DeleteAgentDialog
+        open={confirmDelete}
+        name={name}
+        description={description}
+        busy={deleting}
+        onClose={() => {
+          if (!deleting) setConfirmDelete(false);
+        }}
+        onConfirm={() => void removeAgent()}
+      />
     </div>
   );
 }

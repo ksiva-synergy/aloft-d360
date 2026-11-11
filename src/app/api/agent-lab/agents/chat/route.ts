@@ -17,6 +17,8 @@ import {
   type AgentTurn,
 } from '@/lib/agents/agent-chats';
 import { messagesForViewer, type AgentInspection } from '@/lib/agents/inspection';
+import { clearTurnStop, isTurnStopped, turnStopKey } from '@/lib/chat/turn-control';
+import { createDraftWriter } from '@/lib/chat/turn-draft';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -130,11 +132,15 @@ export async function POST(request: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // `closed` means the browser went away. The model keeps running; only Stop sets `userStop`.
       const closed = { value: false };
+      const stopKey = savedChat ? turnStopKey('agent', savedChat.id) : '';
+      if (stopKey) clearTurnStop(stopKey);
+      const userStop = { get value() { return isTurnStopped(stopKey); } };
+      const draft = createDraftWriter(savedChat?.id, 'agentDraft');
       const encoder = new TextEncoder();
       request.signal.addEventListener('abort', () => {
         closed.value = true;
-        try { controller.close(); } catch { /* already closed */ }
       });
       const emit = (event: Record<string, unknown>) => {
         if (closed.value) return;
@@ -162,9 +168,10 @@ export async function POST(request: NextRequest) {
           sessionId: savedChat?.id,
           person,
           captureInspection: true,
-          abort: closed,
+          abort: userStop,
           onTextChunk: (delta) => {
             reply += delta;
+            draft.append(delta);
             emit({ type: 'text', delta });
           },
           onToolEvent: emit,
@@ -206,7 +213,10 @@ export async function POST(request: NextRequest) {
             emit({ type: 'error', message: 'This reply could not be saved to your chat history.' });
           }
         }
+        const replyText = reply.trim() ? reply : finalText;
+        if (replyText.trim()) draft.replace(replyText);
         emit(doneEvent);
+        await draft.finish(userStop.value ? 'stopped' : doneEvent.outcome === 'errored' ? 'error' : 'done');
         if (!closed.value) {
           try { controller.close(); } catch { /* already closed */ }
         }

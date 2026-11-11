@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { denyUnlessSectionForApi } from '@/lib/sections/api-guard';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
+  const denied = await denyUnlessSectionForApi(req);
+  if (denied) return denied;
   try {
     const rows = await prisma.tool_catalog.findMany({
       where: { status: 'active' },

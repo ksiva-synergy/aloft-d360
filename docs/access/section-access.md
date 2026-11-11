@@ -28,11 +28,13 @@ Code: `src/lib/sections/registry.ts` (sections, defaults, rules), `src/lib/secti
 
 | Sections | Read only | Member | Admin | Platform admin |
 |---|---|---|---|---|
-| Home, Docs | View | View | View | View |
-| Inspector, Agents, Dashboards | View | Manage | Manage | Manage |
+| Home, Docs | View | None | View | View |
+| Inspector, Agents | View | Manage | Manage | Manage |
+| History | None | View (own runs) | Manage | Manage |
+| Dashboards | View | None | Manage | Manage |
 | Data Estate (all 7) | None | None | View | Manage |
 | Govern: Models, Users, Data access, Cost monitor, Policies | None | None | View | Manage |
-| Govern: Connections | None | Manage (own) | Manage | Manage |
+| Govern: Connections | None | None | Manage | Manage |
 | Govern: Audit log | None | None | View | View |
 | Other Build and Memory sections | None | None | View | Manage |
 
@@ -51,8 +53,8 @@ default is a code change in `registry.ts`.
 - `src/lib/sections/__tests__/route-coverage.test.ts` fails when a route under those folders has no
   access check, unless it is listed as exempt with a reason.
 
-Build and Memory sections are in the registry with their defaults but behave as before; the matrix
-marks them "not switched on yet".
+Build and Memory sections are gated in the UI (`SectionGate` on `AgentLayout`) and on most APIs via
+`src/lib/sections/api-guard.ts` (plus route-specific checks where paths overlap, e.g. Estate APIs).
 
 ## Custom roles (Users → Section access → New role)
 

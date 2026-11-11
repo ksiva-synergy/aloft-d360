@@ -126,4 +126,31 @@ describe('agent-use-chat-stream', () => {
       inspection: { sources: 'a.b.c', joins: 'assumed', caveats: 'one gap' },
     });
   });
+
+  it('keeps the turn running when the connection drops, then shows the saved reply', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (String(url).includes('/chats/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            chat: {
+              messages: [
+                { id: 'u', role: 'user', content: 'hello' },
+                { id: 'a', role: 'assistant', content: 'finished away' },
+              ],
+              draft: { status: 'done', text: 'finished away' },
+            },
+          }),
+        };
+      }
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      throw err;
+    }));
+
+    startAgentUseChat({ slug, chatId: CHAT_ID, message: 'hello', priorMessages: [] });
+    expect(getAgentUseChatSnapshot(slug).running).toBe(true);
+    await vi.waitFor(() => expect(getAgentUseChatSnapshot(slug).running).toBe(false), { timeout: 4000 });
+    expect(getAgentUseChatSnapshot(slug).messages.at(-1)?.content).toBe('finished away');
+  });
 });

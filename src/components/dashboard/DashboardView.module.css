@@ -104,7 +104,7 @@
 .otherJobs summary span { color: var(--ink-3); }
 .otherJobs li a { color: var(--ink-1); }
 .attention { border: 0; padding: 4px 0 0; background: none; border-radius: 0; }
-.attention .sectionHeading h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 25px; font-weight: 400; }
+.attention .sectionHeading h2 { font-family: inherit; font-size: 25px; font-weight: 400; }
 .attention .sectionDescription { margin-bottom: 16px; }
 .action { padding: 18px 0; }
 .filters { gap: 2px; }

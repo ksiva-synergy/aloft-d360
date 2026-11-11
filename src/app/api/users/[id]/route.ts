@@ -59,7 +59,7 @@ export const GET = handle<Ctx>(async (req, ctx) => {
 
 const UpdateUser = z.object({
   name: z.string().nullable().optional(),
-  status: z.enum(['ACTIVE', 'SUSPENDED', 'INVITED', 'DEACTIVATED']).optional(),
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'INVITED', 'PENDING_APPROVAL', 'DEACTIVATED']).optional(),
   role: z.string().optional(),
 });
 

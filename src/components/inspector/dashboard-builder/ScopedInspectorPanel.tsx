@@ -52,7 +52,7 @@ export function ScopedInspectorPanel({ modelId, dashboardName, onPinChart, onClo
   // queries through the right semantic layer automatically.
   const scopePrefix = `[model:${modelId}] `;
 
-  const insp = useInspectorChat({ sessionId: null, contextMode: 'harvested' });
+  const insp = useInspectorChat({ sessionId: null, contextMode: 'harvested', liveKey: 'inspector-scoped' });
 
   const [composer, setComposer] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);

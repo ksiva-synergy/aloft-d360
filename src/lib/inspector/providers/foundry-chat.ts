@@ -139,8 +139,21 @@ function extractSql(toolName: string, input: Record<string, unknown>): string | 
 // deployment is degraded. Cap each model call at FOUNDRY_TOOL_TIMEOUT_MS.
 const FOUNDRY_TOOL_TIMEOUT_MS = parseInt(process.env.FOUNDRY_TOOL_TIMEOUT_MS ?? '45000', 10);
 // grok-4.7 reasons before the first token. 45s is the Azure hang cap and will
-// abort a healthy Grok turn. Refresh this on every stream event.
+// abort a healthy Grok turn. Grok on the LLM Lite gateway uses the same longer cap.
 const XAI_REQUEST_TIMEOUT_MS = parseInt(process.env.XAI_REQUEST_TIMEOUT_MS ?? '180000', 10);
+
+function stallTimeoutMs(modelId: string): number {
+  return modelId.toLowerCase().includes('grok') ? XAI_REQUEST_TIMEOUT_MS : FOUNDRY_TOOL_TIMEOUT_MS;
+}
+
+/** Stop is a separate flag from the stall timer. Check it while the model is silent. */
+function watchUserStop(abortSignal: { value: boolean } | undefined, ac: AbortController): () => void {
+  if (!abortSignal) return () => {};
+  const timer = setInterval(() => {
+    if (abortSignal.value) ac.abort();
+  }, 1000);
+  return () => clearInterval(timer);
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -250,6 +263,7 @@ async function runXaiResponsesLoop(
 
       const ac = new AbortController();
       const stallTimer = setTimeout(() => ac.abort(), XAI_REQUEST_TIMEOUT_MS);
+      const stopWatching = watchUserStop(abortSignal, ac);
 
       const stream = await client.responses.create({
         model: model.modelId,
@@ -296,6 +310,7 @@ async function runXaiResponsesLoop(
         }
       } finally {
         clearTimeout(stallTimer);
+        stopWatching();
       }
 
       if (!completed) {
@@ -411,6 +426,15 @@ async function runXaiResponsesLoop(
       loops: loopCount,
     };
   } catch (err: unknown) {
+    if (abortSignal?.value) {
+      return {
+        finalText,
+        toolCalls: trajectory,
+        outcome: 'truncated',
+        usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        loops: loopCount,
+      };
+    }
     const rawMsg = err instanceof Error ? err.message : 'xAI agent loop failed';
     const isTimeout = rawMsg.includes('timed out') || rawMsg.includes('aborted') || rawMsg.includes('ended before completion');
     const errorDetail = isTimeout
@@ -479,7 +503,9 @@ export async function runFoundryAgentLoop(
         // Use AbortController to enforce a hard timeout on the full stream lifecycle
         // (Azure GPT-5.4 can hang indefinitely on tool-call requests when degraded)
         const ac = new AbortController();
-        const stallTimer = setTimeout(() => ac.abort(), FOUNDRY_TOOL_TIMEOUT_MS);
+        const stallMs = stallTimeoutMs(model.modelId);
+        const stallTimer = setTimeout(() => ac.abort(), stallMs);
+        const stopWatching = watchUserStop(abortSignal, ac);
 
         const stream = await client.chat.completions.create({
           model: model.modelId,
@@ -536,6 +562,7 @@ export async function runFoundryAgentLoop(
           }
         } finally {
           clearTimeout(stallTimer);
+          stopWatching();
         }
 
         // Convert accumulated partials into complete tool_call objects
@@ -699,10 +726,20 @@ export async function runFoundryAgentLoop(
       loops: loopCount,
     };
   } catch (err: unknown) {
+    if (abortSignal?.value) {
+      return {
+        finalText,
+        toolCalls: trajectory,
+        outcome: 'truncated',
+        usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
+        loops: loopCount,
+      };
+    }
     const rawMsg = err instanceof Error ? err.message : 'Foundry agent loop failed';
     const isTimeout = rawMsg.includes('timed out') || rawMsg.includes('aborted');
+    const capSec = Math.round(stallTimeoutMs(model.modelId) / 1000);
     const errorDetail = isTimeout
-      ? `${model.label} tool-calling is currently unavailable (request timed out after ${FOUNDRY_TOOL_TIMEOUT_MS / 1000}s). This is an Azure deployment issue. Please switch to a different model (e.g. Claude Sonnet, Grok 4.3) and retry.`
+      ? `${model.label} tool-calling is currently unavailable (request timed out after ${capSec}s). This is an Azure deployment issue. Please switch to a different model (e.g. Claude Sonnet, Grok 4.3) and retry.`
       : rawMsg;
     return {
       finalText,

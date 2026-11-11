@@ -3,7 +3,7 @@ import { clientStreamError } from '@/lib/inspector/client-stream-error';
 import type { ContentBlock, Message } from '@aws-sdk/client-bedrock-runtime';
 import { prisma } from '@/lib/db';
 import { guardInspectorChat } from '@/lib/inspector/session-auth';
-import { runAgentLoop, type AgentLoopResult } from '@/lib/inspector/agent-loop';
+import { type AgentLoopResult } from '@/lib/inspector/agent-loop';
 import { hasLlmLiteCredentials, inspectorLlmConfigured } from '@/lib/inspector/llm-configured';
 import { dispatchAgentLoop } from '@/lib/inspector/providers/factory';
 import { INSPECTOR_TOOLS } from '@/lib/inspector/prompts';
@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
   const role = await getSessionUserRole();
   const resolved = resolveWorkbenchModel(body.model, role);
   if (!resolved) return new Response('Model not available for workbench', { status: 400 });
-  const { option, boostModel, effectiveModelId } = resolved;
+  const { option, boostModel } = resolved;
+  let effectiveModelId = resolved.effectiveModelId;
 
   const row = await prisma.workbench_sessions.findUnique({
     where: { id: body.sessionId },
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
             emit({ type: 'text', delta });
           },
           onLoopMetrics: (m: import('@/lib/inspector/agent-loop').LoopMetrics) => turnMetrics.addLoop(m),
+          onModelSwitch: (modelId: string) => { effectiveModelId = modelId; },
           onToolCallEvent: (event: import('@/lib/inspector/agent-loop').ToolCallEvent) => {
             if (event.type === 'tool_call_running') {
               emit({ type: 'tool_call_running', callId: event.callId, toolName: event.toolName, input: event.input });
@@ -156,9 +158,7 @@ export async function POST(request: NextRequest) {
           },
         };
 
-        const result: AgentLoopResult = boostModel
-          ? await dispatchAgentLoop(boostModel, loopParams)
-          : await runAgentLoop(loopParams);
+        const result: AgentLoopResult = await dispatchAgentLoop(boostModel, loopParams);
 
         if (result.outcome === 'errored' && result.errorDetail) {
           emit({ type: 'error', message: clientStreamError(result.errorDetail, 'workbench/test-run') });

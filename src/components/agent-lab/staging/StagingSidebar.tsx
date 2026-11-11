@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils';
 import { UserMenu } from '@/components/shell/UserMenu';
 import { BrandMark } from '@/components/shell/BrandMark';
 import type { Session } from 'next-auth';
-import { groupForPath, isActive, type NavItem } from './nav-config';
+import { useSectionLevels } from '@/lib/sections/useSectionLevels';
+import { groupForPath, isActive, primaryNavHref, showHomeInNav, type NavItem } from './nav-config';
 import { useNavGroups } from './useNavGroups';
 import { TOGGLE_EVENT, useNavShell } from './useNavShell';
 import { AuroraGlow, NavStyleToggle, useNavStyle } from './nav-shared';
@@ -43,6 +44,10 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
   const isHome = pathname === '/dashboard';
   const shell = useNavShell();
   const { expanded, pinned, mobileOpen } = shell;
+  const me = useSectionLevels();
+  const levels = me?.levels ?? null;
+  const logoHref = primaryNavHref(levels);
+  const showHome = showHomeInNav(levels);
 
   const [areaId, setAreaId] = useState(() => groupForPath(pathname));
   const [filter, setFilter] = useState('');
@@ -95,7 +100,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <AuroraGlow />
           <div className="flex h-[var(--shell-header-h)] w-full shrink-0 items-center justify-center border-b border-[var(--header-border)]">
             <Link
-              href="/dashboard"
+              href={logoHref}
               aria-label="Synergy Group — ALOFT home"
               className="relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--rail-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--rail-bg)]"
             >
@@ -105,7 +110,7 @@ function RailSidebar({ initialSession }: { initialSession?: Session | null }) {
           <span aria-hidden className="relative my-2 h-px w-6 rounded-full bg-[var(--rail-line)]" />
 
           <div className="relative flex flex-col items-center gap-1">
-            <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} />
+            {showHome ? <RailLink href="/dashboard" label="Home" icon={HouseIcon} active={isHome} /> : null}
             {groups.map((g) => (
               <RailButton
                 key={g.id}

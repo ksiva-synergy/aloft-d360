@@ -10,7 +10,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const caller = await requireMemoryCaller();
+  const caller = await requireMemoryCaller(req);
   if (caller instanceof NextResponse) return caller;
 
   const { id } = await params;

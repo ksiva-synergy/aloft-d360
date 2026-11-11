@@ -116,7 +116,7 @@ export function AccessConsoleHelpButton({
             ) : null}
             {tab === 'protections' ? (
               <p className="mt-3 text-caption text-muted-foreground">
-                Reference: <code className="text-[11px]">docs/access/feature-map.md</code>
+                Reference: <code className="text-size-caption">docs/access/feature-map.md</code>
               </p>
             ) : null}
           </div>

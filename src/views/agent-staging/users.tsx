@@ -43,6 +43,7 @@ const STATUS_OPTIONS = [
   { value: 'ACTIVE',      label: 'Active' },
   { value: 'SUSPENDED',   label: 'Suspended' },
   { value: 'INVITED',     label: 'Invited' },
+  { value: 'PENDING_APPROVAL', label: 'Pending approval' },
   { value: 'DEACTIVATED', label: 'Deactivated' },
 ];
 
