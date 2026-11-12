@@ -159,7 +159,7 @@ export interface DatabricksExecuteInput {
    * When true, the initial request uses on_wait_timeout=CONTINUE and we poll
    * via GET /api/2.0/sql/statements/:id until the query completes (up to
    * pollTimeoutMs, default ASYNC_POLL_TIMEOUT_MS). Use for long-running
-   * background queries (e.g. system.query.history pagination) that regularly
+   * background queries (e.g. system_tables.query.query_history pagination) that regularly
    * exceed the 50s API cap.
    */
   asyncPolling?: boolean;
@@ -430,7 +430,7 @@ async function parseStatementResponse(rawText: string, ctx: ChunkFetchContext): 
 }
 
 // ── Async polling execution ───────────────────────────────────────────────────
-// Used by long-running background queries (e.g. system.query.history pagination)
+// Used by long-running background queries (e.g. system_tables.query.query_history pagination)
 // that regularly exceed the 50s on_wait_timeout=CANCEL limit. Instead of letting
 // the query get canceled, we submit with on_wait_timeout=CONTINUE and poll
 // GET /api/2.0/sql/statements/:id with exponential backoff until completion.

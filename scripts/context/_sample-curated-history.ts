@@ -15,7 +15,7 @@ async function main() {
 
   for (const needle of ['curated_db', 'employee_master', 'darwin_box']) {
     const sql =
-      `SELECT COUNT(*) AS n FROM system.query.history ` +
+      `SELECT COUNT(*) AS n FROM system_tables.query.query_history ` +
       `WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' ` +
       `AND statement_type = 'SELECT' AND contains(${norm}, '${needle}')`;
     const r = await (a as unknown as { scopeExec: (s: string, o?: object) => Promise<{ rows: unknown[] }> }).scopeExec(
@@ -27,7 +27,7 @@ async function main() {
 
   const sampleSql =
     `SELECT LEFT(statement_text, 200) AS st, executed_as, start_time ` +
-    `FROM system.query.history ` +
+    `FROM system_tables.query.query_history ` +
     `WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' ` +
     `AND statement_type = 'SELECT' AND contains(${norm}, 'curated_db') ` +
     `ORDER BY start_time DESC LIMIT 8`;

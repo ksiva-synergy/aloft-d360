@@ -145,7 +145,7 @@ function queryHistoryContainsFragment(pathLower: string): string {
 }
 
 /**
- * Optional SQL fragment for `system.query.history` when T3 scope is narrow.
+ * Optional SQL fragment for `system_tables.query.query_history` when T3 scope is narrow.
  * Up to `maxGroups` tables: match `catalog.schema.table` (backticks stripped).
  * Larger scopes: match `catalog.schema.` so the warehouse filter stays small.
  */

@@ -15,7 +15,7 @@ async function main() {
     `SELECT COUNT(*) AS n, ` +
       `COUNT(*) FILTER (WHERE statement_text = '<REDACTED>') AS redacted, ` +
       `COUNT(*) FILTER (WHERE statement_text IS NOT NULL AND statement_text <> '<REDACTED>' AND length(statement_text) > 20) AS readable ` +
-      `FROM system.query.history ` +
+      `FROM system_tables.query.query_history ` +
       `WHERE start_time >= current_timestamp() - INTERVAL 7 DAYS AND statement_type = 'SELECT'`,
     { rowLimit: 1 },
   );
@@ -23,7 +23,7 @@ async function main() {
 
   const sample = await a.scopeExec(
     `SELECT LEFT(statement_text, 80) AS st, length(statement_text) AS len, start_time ` +
-      `FROM system.query.history ` +
+      `FROM system_tables.query.query_history ` +
       `WHERE start_time >= current_timestamp() - INTERVAL 7 DAYS AND statement_type = 'SELECT' ` +
       `AND statement_text IS NOT NULL AND statement_text <> '<REDACTED>' AND length(statement_text) > 20 ` +
       `ORDER BY start_time DESC LIMIT 5`,
@@ -33,7 +33,7 @@ async function main() {
   for (const row of sample.rows) console.log(row);
 
   // Check if table references exist in other columns
-  const cols = await a.scopeExec('DESCRIBE system.query.history', { rowLimit: 200 });
+  const cols = await a.scopeExec('DESCRIBE system_tables.query.query_history', { rowLimit: 200 });
   const names = cols.rows.map(r => r.col_name).filter(Boolean);
   console.log('\nquery.history columns (subset):', names.slice(0, 40).join(', '));
   const interesting = names.filter(

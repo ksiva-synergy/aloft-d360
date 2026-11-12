@@ -32,7 +32,7 @@ Genie layers an agent-scoped, curated "knowledge store" (descriptions, synonyms,
 ### Inferences
 - Genie's design implies a **typed knowledge model** rather than one blob of "docs": (a) UC-native metadata (comments, PK/FK, tags), (b) agent-scoped overrides, (c) structured semantics (SQL expressions / metric views), (d) value indexes, (e) example SQL (retrieved), (f) small global instruction set (always in context). An ALOFT catalog layer over UC should mirror this typing so each artifact can have its own retrieval policy and quota.
 - The 0→54→77→100% sequence (single vendor example, small n) suggests a sensible build order: metadata + joins + value matching first, then metric definitions/example SQL, then instructions.
-- Query-history mining with human Accept/Reject is the native Databricks bootstrap for example SQL; ALOFT can reproduce it from `system.query.history` plus UC lineage, filtered to SELECTs on in-scope tables.
+- Query-history mining with human Accept/Reject is the native Databricks bootstrap for example SQL; ALOFT can reproduce it from `system_tables.query.query_history` plus UC lineage, filtered to SELECTs on in-scope tables.
 
 ### Gaps
 - No public independent benchmark of Genie accuracy; the 13-question progression is a single vendor demo.
@@ -171,7 +171,7 @@ Production systems at scale don't rely on flat embedding search over table descr
 - [INDEP] CHESS schema selector on 4,337 columns: +2% accuracy, ~5× fewer tokens. — [CHESS](https://arxiv.org/html/2405.16755v3)
 
 ### Inferences
-- A UC-native design maps naturally to hierarchical narrowing: domain/workspace (or UC catalog/schema + tags) → table retrieval (hybrid: embedding over table summaries + historical-query intents, filtered by tags/tier) → re-rank with popularity from `system.query.history`, lineage co-occurrence, freshness, certification tags → column pruning → value lookup.
+- A UC-native design maps naturally to hierarchical narrowing: domain/workspace (or UC catalog/schema + tags) → table retrieval (hybrid: embedding over table summaries + historical-query intents, filtered by tags/tier) → re-rank with popularity from `system_tables.query.query_history`, lineage co-occurrence, freshness, certification tags → column pruning → value lookup.
 - Query history is the single richest signal at scale (joins, filters, popularity, gold SQL), but needs staleness handling (deprecated tables).
 
 ### Gaps

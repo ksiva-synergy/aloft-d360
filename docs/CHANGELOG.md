@@ -1,3 +1,11 @@
+## 2026-11-12 — T3 usage: query history source switched to `system_tables.query.query_history`
+
+- **What:** Every reference to the T3 query-history source now reads `system_tables.query.query_history` instead of `system.query.history`. This covers the `pullQueryHistoryWindow` and `countQueryHistoryWindow` SQL, the SQL filter comment, the harvest execute comments, the diagnostic and probe scripts, and the grant docs (`GRANT USE SCHEMA ON SCHEMA system_tables.query`, `GRANT SELECT ON TABLE system_tables.query.query_history`).
+- **Paths:** `src/lib/context/databricks-adapter.ts`, `src/lib/context/job-scope.ts`, `src/lib/databricks/execute.ts`, `scripts/context/` (diagnose-query-history, _probe-redaction, show-query-history-sample, verify-query-history-30d, _probe-history-text, _sample-curated-history, confirm-query-history-redaction), `docs/databricks-auth-and-usage.md`, `docs/access/data-access-architecture.md`, `docs/research_notes/ALOFT knowledge base design/text_to_sql_grounding.md`.
+- **Why:** User asked to use `system_tables.query.query_history` for T3 instead of `system.query.history`.
+- **Verified:** Grep shows no remaining `system.query.history` or `system.query` references outside the historical entry below. Not run against a live warehouse.
+- **Not done:** The table is not confirmed to exist in the target workspace. The `DEFAULT` Databricks CLI profile reports `Valid: NO`, so no live `DESCRIBE` was possible. Column parity with `system.query.history` (`statement_text`, `executed_as`, `start_time`, `update_time`, `query_source`, `produced_rows`, `statement_type`) is assumed, not checked. The metadata service principal needs `SELECT` on the new table. The historical CHANGELOG line about `system.query.history` was left as written.
+
 ## 2026-11-12 — Models page: sticky + bottom Save bar
 
 - **What:** **Save changes** sits in a **sticky** bar next to the tabs (Role Access, etc.) and a **fixed bottom** banner when there are unsaved edits, with an “Unsaved — save to apply” hint and ring on the primary button.

@@ -1,5 +1,5 @@
 /**
- * Prove whether system.query.history.statement_text is literal "<REDACTED>".
+ * Prove whether system_tables.query.query_history.statement_text is literal "<REDACTED>".
  * Prints only aggregates + hex of first bytes (no full SQL).
  */
 import prisma from '@/lib/db';
@@ -26,7 +26,7 @@ async function main() {
        MAX(length(statement_text)) AS max_len,
        SUM(CASE WHEN statement_text = '<REDACTED>' THEN 1 ELSE 0 END) AS exact_redacted_literal,
        SUM(CASE WHEN statement_text IS NULL THEN 1 ELSE 0 END) AS null_text
-     FROM system.query.history
+     FROM system_tables.query.query_history
      WHERE statement_type = 'SELECT'
        AND start_time >= current_timestamp() - INTERVAL 1 DAY`,
     { rowLimit: 1 },
@@ -36,7 +36,7 @@ async function main() {
 
   const topValues = await a.scopeExec(
     `SELECT statement_text, COUNT(*) AS n
-     FROM system.query.history
+     FROM system_tables.query.query_history
      WHERE statement_type = 'SELECT'
        AND start_time >= current_timestamp() - INTERVAL 1 DAY
      GROUP BY statement_text
@@ -63,7 +63,7 @@ async function main() {
        hex(substring(statement_text, 1, 20)) AS first_chars_hex,
        start_time,
        executed_as
-     FROM system.query.history
+     FROM system_tables.query.query_history
      WHERE statement_type = 'SELECT'
        AND start_time >= current_timestamp() - INTERVAL 2 HOUR
      ORDER BY start_time DESC
