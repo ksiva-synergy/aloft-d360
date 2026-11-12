@@ -42,7 +42,7 @@ async function main() {
   const token = await getAccessToken(conn.id, conn.workspace_host, 'metadata');
 
   async function count(extra: string): Promise<number> {
-    const sql = `SELECT COUNT(*) AS n FROM system.query.history ${base}${extra}`;
+    const sql = `SELECT COUNT(*) AS n FROM system_tables.query.query_history ${base}${extra}`;
     const r = await executeDatabricksSQL(
       conn.id,
       conn.workspace_host,
@@ -61,7 +61,7 @@ async function main() {
   async function sample(extra: string, lim = 8) {
     const sql =
       `SELECT LEFT(statement_text, 300) AS st, executed_as, start_time, query_source ` +
-      `FROM system.query.history ${base}${extra} ORDER BY start_time DESC LIMIT ${lim}`;
+      `FROM system_tables.query.query_history ${base}${extra} ORDER BY start_time DESC LIMIT ${lim}`;
     const r = await executeDatabricksSQL(
       conn.id,
       conn.workspace_host,
@@ -111,7 +111,7 @@ async function main() {
   const allSelect = await count('');
   const needleCount = await count(` AND contains(${norm}, '${needle.replace(/'/g, "''")}')`);
 
-  console.log('\n=== system.query.history (this workspace + warehouse) ===');
+  console.log('\n=== system_tables.query.query_history (this workspace + warehouse) ===');
   console.log('All SELECT rows in window:', allSelect.toLocaleString());
   console.log(`SELECT rows whose SQL text contains "${needle}":`, needleCount.toLocaleString());
 

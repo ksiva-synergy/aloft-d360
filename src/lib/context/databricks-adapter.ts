@@ -891,8 +891,8 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
   }
 
   // ── pullQueryHistoryWindow ───────────────────────────────────────────────────
-  // Windowed scan of system.query.history using cursor-based pagination on
-  // start_time. Databricks partitions system.query.history by start_time, so
+  // Windowed scan of system_tables.query.query_history using cursor-based pagination on
+  // start_time. Databricks partitions system_tables.query.query_history by start_time, so
   // filtering and ordering by start_time allows partition pruning and avoids the
   // full-scan query cancellations that update_time-based queries hit on older data.
   // Returns all SELECT statements between `since` and `until`, stopping at
@@ -934,7 +934,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
       const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
       const sql =
         `SELECT LEFT(statement_text, 8000) AS statement_text, executed_as, start_time, update_time, query_source, produced_rows ` +
-        `FROM system.query.history ` +
+        `FROM system_tables.query.query_history ` +
         `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
         `  AND start_time < TIMESTAMP '${untilIso}' ` +
         `  AND statement_type = 'SELECT' ` +
@@ -1022,7 +1022,7 @@ export class DatabricksAdapter implements ContextHarvestAdapter {
     const untilIso = until.toISOString().replace('T', ' ').replace('Z', '');
     const scopeFilter = opts?.statementTextSqlFilter?.trim() ? ` ${opts.statementTextSqlFilter.trim()} ` : '';
     const sql =
-      `SELECT COUNT(*) AS n FROM system.query.history ` +
+      `SELECT COUNT(*) AS n FROM system_tables.query.query_history ` +
       `WHERE start_time >= TIMESTAMP '${sinceIso}' ` +
       `  AND start_time < TIMESTAMP '${untilIso}' ` +
       `  AND statement_type = 'SELECT' ` +

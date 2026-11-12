@@ -13,7 +13,7 @@ async function main() {
   const si = new Date(Date.now() - 1 * 86400000).toISOString().replace('T', ' ').replace('Z', '');
   const ui = new Date().toISOString().replace('T', ' ').replace('Z', '');
   const base =
-    `FROM system.query.history WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' AND statement_type = 'SELECT'`;
+    `FROM system_tables.query.query_history WHERE start_time >= TIMESTAMP '${si}' AND start_time < TIMESTAMP '${ui}' AND statement_type = 'SELECT'`;
 
   const norm = "replace(lower(coalesce(statement_text,'')), '`', '')";
 

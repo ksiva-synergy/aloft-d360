@@ -5,6 +5,13 @@
 
 ---
 
+### 2026-11-12: T3 query history source → `system_tables.query.query_history` (Claude)
+
+- **Files:** `src/lib/context/databricks-adapter.ts`, `src/lib/context/job-scope.ts`, `src/lib/databricks/execute.ts`, `scripts/context/*` query-history scripts, `docs/databricks-auth-and-usage.md`, `docs/access/data-access-architecture.md`, `docs/research_notes/ALOFT knowledge base design/text_to_sql_grounding.md`, changelog, this log.
+- **Before → after:** `pullQueryHistoryWindow` and `countQueryHistoryWindow` read `system.query.history`. They now read `system_tables.query.query_history`. The filters (`statement_type = 'SELECT'`, `start_time` window and cursor, scope filter) are unchanged.
+- **Verified:** Grep shows no remaining `system.query.history` references in code or docs, apart from the historical changelog line. No tests or live jobs run.
+- **Not done:** Live check that `system_tables.query.query_history` exists and has the same columns. The `DEFAULT` CLI profile is invalid (`Valid: NO`). Metadata SP grant on the new table not confirmed. T3 runs against this source are not yet verified.
+
 ### 2026-11-08: Remove redundant dashboard attention strip (Codex)
 
 - **Files:** DashboardView TSX/CSS, dashboard test, changelog, this log, current-status.
