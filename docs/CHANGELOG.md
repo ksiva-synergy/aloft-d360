@@ -1,3 +1,11 @@
+## 2026-11-12 — PR #47: merge `main` (ui-redesign #46) into `feature/automate-runs`
+
+- **What:** Merged `synergy-marine/main` into `feature/automate-runs` so [PR #47](https://github.com/Synergy-Marine-Group/aloft-d360/pull/47) is mergeable. Overlapping edits were mostly `docs/CHANGELOG.md` and estate Jobs/object UI (`main`’s executor/usage/expanded-row work from PR #46) alongside this branch’s Inspector, section access, and Automate work — Git `ort` merged cleanly; no conflict markers left.
+- **Paths:** Merge commit `efa0ffd` on `feature/automate-runs`; this changelog entry.
+- **Why:** User hit merge conflicts merging into `main`.
+- **Verified:** `npm run typecheck` and `npm run web:typecheck` exit 0 after merge.
+- **Not done:** Full `vitest` + SPA build not re-run for the merge commit alone.
+
 ## 2026-11-12 — Recovered Ask Data work lost when Cursor saved stale files at 09:03
 
 - **What happened:** At 09:03 IST Cursor saved its open copies of 16 files (Cursor local history: "save" at 03:33 UTC). They were from about 00:30–01:15 IST, so they replaced newer work from overnight Claude Code sessions and the Cursor agent: follow-ups as pills only (`splitFollowUps`), members always on Catalog + SQL (`effectiveContextMode`), no false "request access", hidden table paths, the faster welcome catalog, chat-bubble suggested questions, "Data connected" header, Open full table wiring, and every 2026-11-12 changelog entry. No git command was involved (reflog unchanged since 2026-11-11 20:13).
